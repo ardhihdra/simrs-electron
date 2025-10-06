@@ -2,6 +2,7 @@ import { User } from '../models/user'
 import { IpcContext } from '../ipc/router'
 import { withError } from '../ipc/middleware'
 import { Session as SessionStore } from '../ipc/protected/session-store'
+import z from 'zod'
 
 export type Session = {
   session: SessionStore
@@ -10,6 +11,22 @@ export type Session = {
     username: string
   }
 }
+
+export const schemas = {
+  getSession: {
+    args: z.object({}),
+    result: z.object({
+      success: z.boolean(),
+      session: z.string().optional(),
+      user: z
+        .object({
+          id: z.number(),
+          username: z.string()
+        })
+        .optional()
+    })
+  }
+} as const
 
 export const middlewares = [withError]
 

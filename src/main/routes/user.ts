@@ -12,6 +12,7 @@ const userPublicSchema = z.object({ id: z.string(), username: z.string() })
 // Per-handler schemas for args/result validation
 export const schemas = {
   list: {
+    args: z.object({}),
     result: z.array(userPublicSchema)
   },
   get: {
