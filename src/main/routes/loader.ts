@@ -2,6 +2,36 @@ import { IpcRouter } from '../ipc/router'
 import { withSession, IpcMiddleware } from '../ipc/middleware'
 import { SessionStore } from '../ipc/protected/session-store'
 
+// Minimal Zod-like schema interfaces to avoid hard dependency
+type ZodSchema<T = any> = { parse: (data: any) => T }
+type HandlerSchemas = { args?: ZodSchema; result?: ZodSchema }
+
+function wrapWithSchemas<Args = any, Result = any>(
+  handler: (ctx: any, args: Args) => Promise<Result> | Result,
+  schemas?: HandlerSchemas
+) {
+  if (!schemas?.args && !schemas?.result) return handler as any
+  return async (ctx: any, args: Args) => {
+    let validatedArgs = args
+    if (schemas?.args) {
+      try {
+        validatedArgs = (schemas.args as ZodSchema<Args>).parse(args)
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'invalid arguments' }
+      }
+    }
+    const res = await handler(ctx, validatedArgs)
+    if (schemas?.result) {
+      try {
+        return (schemas.result as ZodSchema<Result>).parse(res)
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'invalid result' }
+      }
+    }
+    return res
+  }
+}
+
 // Auto-register routes based on files in this directory.
 // Convention: named exports that are functions become channels derived from the file path.
 // Example: routes/user.ts with `export function list()` => channel `user:list`
@@ -35,7 +65,21 @@ export function autoRegisterRoutes(router: IpcRouter, opts?: { sessionStore?: Se
         if (opts?.sessionStore && mod.requireSession) {
           mws.push(withSession(opts.sessionStore))
         }
-        router.register(channel, mws, handler as any)
+        // Apply optional Zod schemas: module-level or per-export
+        const moduleSchemas = mod.schemas as Record<string, HandlerSchemas> | undefined
+        const perExportSchemas = moduleSchemas?.[exportName] as HandlerSchemas | undefined
+        const defaultArgsSchema = mod.argsSchema as ZodSchema | undefined
+        const defaultResultSchema = mod.resultSchema as ZodSchema | undefined
+        const schemas: HandlerSchemas | undefined =
+          perExportSchemas || defaultArgsSchema || defaultResultSchema
+            ? {
+                args: perExportSchemas?.args ?? defaultArgsSchema,
+                result: perExportSchemas?.result ?? defaultResultSchema
+              }
+            : undefined
+
+        const finalHandler = wrapWithSchemas(handler as any, schemas)
+        router.register(channel, mws, finalHandler as any)
         console.log(`[ipc] Registered auto route: ${channel}`)
       } catch (err) {
         console.warn(`[ipc] Failed to register route ${channel}:`, (err as Error).message)
