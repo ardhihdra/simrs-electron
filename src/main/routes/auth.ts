@@ -14,13 +14,12 @@ export type Session = {
 
 export const schemas = {
   getSession: {
-    args: z.object({}),
     result: z.object({
       success: z.boolean(),
-      session: z.string().optional(),
+      session: z.object(),
       user: z
         .object({
-          id: z.number(),
+          id: z.string(),
           username: z.string()
         })
         .optional()

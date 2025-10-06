@@ -15,7 +15,7 @@ const LoginForm: React.FC = () => {
 
   const navigate = useNavigate()
   const onFinish: FormProps<FieldType>['onFinish'] = async (values) => {
-    const res = await window.api.auth.login(values)
+    const res: any = await window.api.auth.login(values)
     console.log('res', res)
     if (res.success) {
       navigate('/dashboard')

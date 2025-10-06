@@ -14,15 +14,14 @@ function ExpenseForm() {
   const mutation = useMutation({
     mutationFn: async (payload: any) => {
       try {
-        // Prisma butuh { data: payload }
-        const result = await window.api.expense.create(payload)
-        console.log('Prisma create result:', result)
+        const result = await window.api.query.expense.create(payload)
+        console.log('create result:', result)
         if (result?.error) {
           throw result.error
         }
         return result
       } catch (error) {
-        console.error('Prisma create error:', error)
+        console.error('create error:', error)
         throw error
       }
     },
@@ -39,10 +38,10 @@ function ExpenseForm() {
 
   const expenseHeads = useQuery({
     queryKey: ['expenseHeads'],
-    queryFn: async () => await window.api.expenseHead.list()
+    queryFn: async () => await window.api.query.expenseHead.list()
   })
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: any): Promise<any> => {
     try {
       const payload = {
         expenseHead: {
@@ -91,11 +90,12 @@ function ExpenseForm() {
             rules={[{ required: true, message: 'Please select expense head' }]}
           >
             <Select placeholder="Select Expense Head">
-              {expenseHeads.data?.map((head: any) => (
-                <Select.Option key={head.id} value={head.id}>
-                  {head.name}
-                </Select.Option>
-              ))}
+              {expenseHeads.data?.success &&
+                expenseHeads.data?.data?.map((head: any) => (
+                  <Select.Option key={head.id} value={head.id}>
+                    {head.name}
+                  </Select.Option>
+                ))}
             </Select>
           </Form.Item>
 

@@ -52,7 +52,7 @@ export function ExpenseTable() {
   const navigate = useNavigate()
   const { data, refetch } = useQuery({
     queryKey: ['expense', 'list'],
-    queryFn: () => window.api.expense.list()
+    queryFn: () => window.api.query.expense.list()
   })
 
   return (
@@ -60,13 +60,29 @@ export function ExpenseTable() {
       <div className="flex justify-between items-center">
         <Input type="text" placeholder="Search" className="max-w-sm" />
         <div className="flex gap-4">
+          <Button onClick={() => window.api.query.expense.seed().then(() => refetch())}>
+            Seed
+          </Button>
+          <Button
+            onClick={async () => {
+              const data = await window.api.query.expenseHead.seed()
+              console.log(data)
+            }}
+          >
+            Seed Expense Heads
+          </Button>
           <Button onClick={() => refetch()}>Refresh</Button>
           <Button type="primary" onClick={() => navigate('/dashboard/expense/create')}>
             Create New
           </Button>
         </div>
       </div>
-      <Table dataSource={data || []} columns={expenseColumns} size="small" className="mt-4" />
+      <Table
+        dataSource={data?.success ? data?.data || [] : []}
+        columns={expenseColumns}
+        size="small"
+        className="mt-4"
+      />
     </div>
   )
 }
