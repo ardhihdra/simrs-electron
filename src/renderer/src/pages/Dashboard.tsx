@@ -6,12 +6,25 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 import ProfileMenu from '@renderer/components/ProfileMenu'
 import logoUrl from '@renderer/assets/logo.png'
 import {
-  CalendarOutlined,
   DashboardOutlined,
   LeftCircleFilled,
   RightCircleFilled,
   UserOutlined,
-  WalletOutlined
+  IdcardOutlined,
+  AuditOutlined,
+  SafetyCertificateOutlined,
+  ScheduleOutlined,
+  TeamOutlined,
+  FileTextOutlined,
+  MedicineBoxOutlined,
+  ExperimentOutlined,
+  FileDoneOutlined,
+  BarChartOutlined,
+  OrderedListOutlined,
+  UsergroupAddOutlined,
+  DesktopOutlined,
+  FormOutlined,
+  FileSearchOutlined
 } from '@ant-design/icons'
 
 const items = [
@@ -23,7 +36,7 @@ const items = [
   {
     label: 'Pendaftaran Rumah Sakit',
     key: '/dashboard/registration',
-    icon: <CalendarOutlined />,
+    icon: <IdcardOutlined />,
     children: [
       {
         label: 'Pasien',
@@ -33,103 +46,103 @@ const items = [
       {
         label: 'Kunjungan Pasien',
         key: '/dashboard/encounter',
-        icon: <CalendarOutlined />
+        icon: <AuditOutlined />
       },
       {
         label: 'Data Jaminan',
         key: '/dashboard/registration/insurance',
-        icon: <CalendarOutlined />
+        icon: <SafetyCertificateOutlined />
       },
       {
         label: 'Jadwal Praktek Dokter',
         key: '/dashboard/registration/doctor-schedule',
-        icon: <CalendarOutlined />
+        icon: <ScheduleOutlined />
       },
       {
         label: 'Jadwal Praktek Petugas Medis',
         key: '/dashboard/registration/medical-staff-schedule',
-        icon: <CalendarOutlined />
+        icon: <TeamOutlined />
       },
       {
         label: 'Lap Data Jaminan',
         key: '/dashboard/registration/report-insurance',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Lap Data Registrasi Pasien',
         key: '/dashboard/registration/report-patient',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Lap Data Jadwal Praktek',
         key: '/dashboard/registration/report-schedule',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Lap Data Kunjungan Pasien',
         key: '/dashboard/registration/report-visit',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       }
     ]
   },
   {
     label: 'Pelayanan Rumah Sakit',
     key: '/dashboard/services',
-    icon: <WalletOutlined />,
+    icon: <MedicineBoxOutlined />,
     children: [
       {
         label: 'Pemeriksaan Umum',
         key: '/dashboard/services/general-checkup',
-        icon: <WalletOutlined />
+        icon: <FileSearchOutlined />
       },
       {
         label: 'Pemeriksaan Khusus',
         key: '/dashboard/services/special-checkup',
-        icon: <WalletOutlined />
+        icon: <FileSearchOutlined />
       },
       {
         label: 'Tindakan Medis',
         key: '/dashboard/services/medical-action',
-        icon: <WalletOutlined />
+        icon: <MedicineBoxOutlined />
       },
       {
         label: 'Resep Obat',
         key: '/dashboard/services/prescription',
-        icon: <WalletOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Pemeriksaan Awal',
         key: '/dashboard/pemeriksaan-awal',
-        icon: <WalletOutlined />
+        icon: <FormOutlined />
       }
     ]
   },
   {
     label: 'Laboratorium',
     key: '/dashboard/laboratory',
-    icon: <DashboardOutlined />,
+    icon: <ExperimentOutlined />,
     children: [
       {
         label: 'Pemeriksaan Lab',
         key: '/dashboard/laboratory/exam',
-        icon: <DashboardOutlined />
+        icon: <ExperimentOutlined />
       },
       {
         label: 'Hasil Lab',
         key: '/dashboard/laboratory/result',
-        icon: <DashboardOutlined />
+        icon: <FileDoneOutlined />
       },
       {
         label: 'Laporan Lab',
         key: '/dashboard/laboratory/report',
-        icon: <DashboardOutlined />
+        icon: <BarChartOutlined />
       }
     ]
   },
   {
     label: 'Sistem Antrian',
     key: '/dashboard/queue',
-    icon: <UserOutlined />,
+    icon: <OrderedListOutlined />,
     children: [
       {
         label: 'Antrian Pendaftaran',
@@ -139,17 +152,17 @@ const items = [
       {
         label: 'Antrian Poli',
         key: '/dashboard/queue/poli',
-        icon: <UserOutlined />
+        icon: <UsergroupAddOutlined />
       },
       {
         label: 'Antrian Laboratorium',
         key: '/dashboard/queue/laboratory',
-        icon: <UserOutlined />
+        icon: <ExperimentOutlined />
       },
       {
         label: 'Monitor Antrian',
         key: '/dashboard/queue/monitor',
-        icon: <UserOutlined />
+        icon: <DesktopOutlined />
       }
     ]
   }
