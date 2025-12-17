@@ -3,6 +3,7 @@
 import type { z } from 'zod'
 import type * as Mod_auth from '../main/routes/auth'
 import type * as Mod_macaddress from '../main/routes/macaddress'
+import type * as Mod_query_doctorSchedule from '../main/routes/query/doctorSchedule'
 import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
@@ -50,6 +51,16 @@ type Args_Mod_auth_status = InferArgs<typeof Mod_auth, 'status'>
 type Result_Mod_auth_status = InferResult<typeof Mod_auth, 'status'>
 type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
+type Args_Mod_query_doctorSchedule_create = InferArgs<typeof Mod_query_doctorSchedule, 'create'>
+type Result_Mod_query_doctorSchedule_create = InferResult<typeof Mod_query_doctorSchedule, 'create'>
+type Args_Mod_query_doctorSchedule_deleteById = InferArgs<typeof Mod_query_doctorSchedule, 'deleteById'>
+type Result_Mod_query_doctorSchedule_deleteById = InferResult<typeof Mod_query_doctorSchedule, 'deleteById'>
+type Args_Mod_query_doctorSchedule_getById = InferArgs<typeof Mod_query_doctorSchedule, 'getById'>
+type Result_Mod_query_doctorSchedule_getById = InferResult<typeof Mod_query_doctorSchedule, 'getById'>
+type Args_Mod_query_doctorSchedule_list = InferArgs<typeof Mod_query_doctorSchedule, 'list'>
+type Result_Mod_query_doctorSchedule_list = InferResult<typeof Mod_query_doctorSchedule, 'list'>
+type Args_Mod_query_doctorSchedule_update = InferArgs<typeof Mod_query_doctorSchedule, 'update'>
+type Result_Mod_query_doctorSchedule_update = InferResult<typeof Mod_query_doctorSchedule, 'update'>
 type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'create'>
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
@@ -113,6 +124,13 @@ declare global {
         getPrimaryMacAddress: Invoke<Args_Mod_macaddress_getPrimaryMacAddress, Result_Mod_macaddress_getPrimaryMacAddress>
       }
       query: {
+        doctorSchedule: {
+          create: Invoke<Args_Mod_query_doctorSchedule_create, Result_Mod_query_doctorSchedule_create>
+          deleteById: Invoke<Args_Mod_query_doctorSchedule_deleteById, Result_Mod_query_doctorSchedule_deleteById>
+          getById: Invoke<Args_Mod_query_doctorSchedule_getById, Result_Mod_query_doctorSchedule_getById>
+          list: Invoke<Args_Mod_query_doctorSchedule_list, Result_Mod_query_doctorSchedule_list>
+          update: Invoke<Args_Mod_query_doctorSchedule_update, Result_Mod_query_doctorSchedule_update>
+        }
         encounter: {
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
           deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>

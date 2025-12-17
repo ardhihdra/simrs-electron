@@ -162,7 +162,7 @@ const items = [
 
 function Dashboard() {
   const location = useLocation()
-  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income', '/dashboard/pegawai']
+  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income', '/dashboard/pegawai', '/dashboard/registration']
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))
