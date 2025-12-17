@@ -1,5 +1,5 @@
 import z from 'zod'
-import { PatientSchema, PatientSchemaWithId } from '../../models/patient'
+import { Patient, PatientSchema, PatientSchemaWithId } from '../../models/patient'
 import { IpcContext } from '../../ipc/router'
 
 export const requireSession = true
@@ -43,6 +43,8 @@ export const schemas = {
 } as const
 
 export const list = async (ctx: IpcContext) => {
+  // const patient = await Patient.findAll()
+  // return { success: true, data: patient }
   const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
   const token = ctx?.sessionStore?.getBackendTokenForWindow?.(ctx.senderId)
   console.log('[ipc:patient.list] senderId=', ctx.senderId, 'apiBase=', base)
@@ -50,6 +52,7 @@ export const list = async (ctx: IpcContext) => {
     console.warn('[ipc:patient.list] missing token for senderId=', ctx.senderId)
     return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
   }
+ 
   try {
     const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
     const url = `${root}/api/patient?items=100`
@@ -63,20 +66,13 @@ export const list = async (ctx: IpcContext) => {
       }
     })
     console.log('[ipc:patient.list] status=', res.status, 'ok=', res.ok)
-    const BackendListSchema = z.object({
-      success: z.boolean(),
-      result: PatientSchemaWithId.array().optional(),
-      pagination: z
-        .object({ page: z.number(), pages: z.number(), count: z.number() })
-        .optional(),
-      message: z.string().optional(),
-      error: z.string().optional()
-    })
+    const BackendListSchema = z.any()
     const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
     console.log('[ipc:patient.list] keys=', Object.keys(raw || {}))
     const parsed = BackendListSchema.safeParse(raw)
     if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal mengambil data pasien (HTTP ${res.status})`
+      const rawError = parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message
+      const errMsg = typeof rawError === 'object' ? JSON.stringify(rawError) : String(rawError || `Gagal mengambil data pasien (HTTP ${res.status})`)
       console.warn('[ipc:patient.list] error=', errMsg)
       return { success: false, error: errMsg }
     }
@@ -97,6 +93,7 @@ export const getById = async (_ctx, args: z.infer<typeof schemas.getById.args>) 
     if (!token) {
       return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
     }
+    
     const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
     const url = `${root}/api/patient/read/${args.id}`
     const res = await fetch(url, {
@@ -111,12 +108,13 @@ export const getById = async (_ctx, args: z.infer<typeof schemas.getById.args>) 
       success: z.boolean(),
       result: PatientSchemaWithId.optional(),
       message: z.string().optional(),
-      error: z.string().optional()
+      error: z.any().optional()
     })
     const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
     const parsed = BackendReadSchema.safeParse(raw)
     if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal mengambil detail pasien (HTTP ${res.status})`
+      const rawError = parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message
+      const errMsg = typeof rawError === 'object' ? JSON.stringify(rawError) : String(rawError || `Gagal mengambil detail pasien (HTTP ${res.status})`)
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
@@ -133,6 +131,7 @@ export const create = async (_ctx, args: z.infer<typeof schemas.create.args>) =>
     if (!token) {
       return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
     }
+    console.log("args :",args)
     const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
     const url = `${root}/api/patient`
     const payload = {
@@ -166,18 +165,20 @@ export const create = async (_ctx, args: z.infer<typeof schemas.create.args>) =>
     })
     const BackendCreateSchema = z.object({
       success: z.boolean(),
-      result: PatientSchemaWithId.optional(),
+      result: PatientSchemaWithId.optional().nullable(),
       message: z.string().optional(),
-      error: z.string().optional()
+      error: z.any().optional()
     })
     const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
     const parsed = BackendCreateSchema.safeParse(raw)
     if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal membuat pasien (HTTP ${res.status})`
+      const rawError = parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message
+      const errMsg = typeof rawError === 'object' ? JSON.stringify(rawError) : String(rawError || `Gagal membuat pasien (HTTP ${res.status})`)
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
   } catch (err) {
+    console.log(err)
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
@@ -193,6 +194,7 @@ export const update = async (_ctx, args: z.infer<typeof schemas.update.args>) =>
     const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
     const url = `${root}/api/patient/${args.id}`
     const payload = {
+      id: crypto.randomUUID(),
       active: args.active,
       identifier: args.identifier,
       kode: args.kode,
@@ -225,12 +227,13 @@ export const update = async (_ctx, args: z.infer<typeof schemas.update.args>) =>
       success: z.boolean(),
       result: PatientSchemaWithId.optional(),
       message: z.string().optional(),
-      error: z.string().optional()
+      error: z.any().optional()
     })
     const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
     const parsed = BackendUpdateSchema.safeParse(raw)
     if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal memperbarui pasien (HTTP ${res.status})`
+      const rawError = parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message
+      const errMsg = typeof rawError === 'object' ? JSON.stringify(rawError) : String(rawError || `Gagal memperbarui pasien (HTTP ${res.status})`)
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
@@ -260,12 +263,13 @@ export const deleteById = async (_ctx, args: z.infer<typeof schemas.deleteById.a
     const BackendDeleteSchema = z.object({
       success: z.boolean(),
       message: z.string().optional(),
-      error: z.string().optional()
+      error: z.any().optional()
     })
     const raw = await res.json().catch(() => ({ success: res.ok }))
     const parsed = BackendDeleteSchema.safeParse(raw)
     if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal menghapus pasien (HTTP ${res.status})`
+      const rawError = parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message
+      const errMsg = typeof rawError === 'object' ? JSON.stringify(rawError) : String(rawError || `Gagal menghapus pasien (HTTP ${res.status})`)
       return { success: false, error: errMsg }
     }
     return { success: true }

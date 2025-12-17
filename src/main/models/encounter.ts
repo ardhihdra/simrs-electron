@@ -54,7 +54,7 @@ Patient.hasMany(Encounter, { foreignKey: 'patientId', onDelete: 'CASCADE', as: '
 Encounter.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' })
 
 export const EncounterSchema = z.object({
-  patientId: z.number(),
+  patientId: z.string(),
   visitDate: z.union([z.date(), z.string()]),
   serviceType: z.string().min(1),
   reason: z.string().nullable().optional(),
@@ -246,7 +246,7 @@ export const EncounterSchema = z.object({
 })
 
 export const EncounterSchemaWithId = EncounterSchema.extend({
-  id: z.number(),
+  id: z.string(),
   createdAt: z.date().optional().nullable(),
   updatedAt: z.date().optional().nullable(),
   deletedAt: z.date().optional().nullable()
