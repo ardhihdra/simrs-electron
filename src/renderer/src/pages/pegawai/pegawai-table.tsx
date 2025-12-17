@@ -18,12 +18,6 @@ type Row = KepegawaianAttributes & {
 
 const columns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 100,
-    render: (_: Row, record: Row) => <RowActions record={record} />
-  },
   { title: 'Kategori', dataIndex: 'kategori', key: 'kategori' },
   { title: 'Nama', dataIndex: 'namaLengkap', key: 'namaLengkap' },
   { title: 'NIK', dataIndex: 'nik', key: 'nik' },
@@ -35,7 +29,13 @@ const columns: ColumnsType<Row> = [
     dataIndex: 'tanggalMulaiTugas',
     key: 'tanggalMulaiTugas',
     render: (v?: string | null) => (v ? dayjs(v).format('DD MMMM YYYY') : '-')
-  }
+  },
+  {
+    title: 'Action',
+    key: 'action',
+    width: 100,
+    render: (_: Row, record: Row) => <RowActions record={record} />
+  },
 ]
 
 function RowActions({ record }: { record: Row }) {
