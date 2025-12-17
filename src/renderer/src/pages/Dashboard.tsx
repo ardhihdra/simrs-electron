@@ -45,14 +45,14 @@ const items = [
         key: '/dashboard/encounter',
         icon: <CalendarOutlined />
       },
-      {
-        label: 'Data Jaminan',
-        key: '/dashboard/registration/insurance',
+     {
+        label: 'Jadwal Praktek Dokter',
+        key: '/dashboard/registration/doctor-schedule',
         icon: <CalendarOutlined />
       },
       {
-        label: 'Jadwal Praktek Dokter',
-        key: '/dashboard/registration/doctor-schedule',
+        label: 'Data Jaminan',
+        key: '/dashboard/registration/insurance',
         icon: <CalendarOutlined />
       },
       {

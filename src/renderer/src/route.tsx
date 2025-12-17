@@ -21,7 +21,7 @@ import PegawaiTable from './pages/pegawai/pegawai-table'
 import PegawaiForm from './pages/pegawai/pegawai-form'
 import PegawaiReport from './pages/pegawai/pegawai-report'
 import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
-import DoctorScheduleForm from './pages/registration/doctor-schedule-form'
+import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
 
 function MainRoute() {
   const location = useLocation()
