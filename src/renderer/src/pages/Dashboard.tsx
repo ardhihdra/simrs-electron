@@ -14,6 +14,23 @@ const items = [
     icon: <DashboardOutlined />
   },
   {
+    label: 'Master Rumah Sakit',
+    key: '/dashboard/pegawai',
+    icon: <DashboardOutlined />,
+    children: [
+      {
+        label: 'Data Petugas Medis',
+        key: '/dashboard/pegawai',
+        icon: <UserOutlined />
+      },
+      {
+        label: 'Lap Data Petugas Medis',
+        key: '/dashboard/pegawai-report',
+        icon: <DashboardOutlined />
+      }
+    ]
+  },
+  {
     label: 'Pendaftaran Rumah Sakit',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
@@ -145,7 +162,7 @@ const items = [
 
 function Dashboard() {
   const location = useLocation()
-  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income']
+  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income', '/dashboard/pegawai']
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))

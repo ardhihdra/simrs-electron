@@ -7,6 +7,7 @@ import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
 import type * as Mod_query_patient from '../main/routes/query/patient'
+import type * as Mod_query_pegawai from '../main/routes/query/pegawai'
 import type * as Mod_user from '../main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
@@ -83,6 +84,16 @@ type Args_Mod_query_patient_list = InferArgs<typeof Mod_query_patient, 'list'>
 type Result_Mod_query_patient_list = InferResult<typeof Mod_query_patient, 'list'>
 type Args_Mod_query_patient_update = InferArgs<typeof Mod_query_patient, 'update'>
 type Result_Mod_query_patient_update = InferResult<typeof Mod_query_patient, 'update'>
+type Args_Mod_query_pegawai_create = InferArgs<typeof Mod_query_pegawai, 'create'>
+type Result_Mod_query_pegawai_create = InferResult<typeof Mod_query_pegawai, 'create'>
+type Args_Mod_query_pegawai_deleteById = InferArgs<typeof Mod_query_pegawai, 'deleteById'>
+type Result_Mod_query_pegawai_deleteById = InferResult<typeof Mod_query_pegawai, 'deleteById'>
+type Args_Mod_query_pegawai_getById = InferArgs<typeof Mod_query_pegawai, 'getById'>
+type Result_Mod_query_pegawai_getById = InferResult<typeof Mod_query_pegawai, 'getById'>
+type Args_Mod_query_pegawai_list = InferArgs<typeof Mod_query_pegawai, 'list'>
+type Result_Mod_query_pegawai_list = InferResult<typeof Mod_query_pegawai, 'list'>
+type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update'>
+type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
 type Args_Mod_user_create = InferArgs<typeof Mod_user, 'create'>
 type Result_Mod_user_create = InferResult<typeof Mod_user, 'create'>
 type Args_Mod_user_get = InferArgs<typeof Mod_user, 'get'>
@@ -126,6 +137,13 @@ declare global {
           getById: Invoke<Args_Mod_query_patient_getById, Result_Mod_query_patient_getById>
           list: Invoke<Args_Mod_query_patient_list, Result_Mod_query_patient_list>
           update: Invoke<Args_Mod_query_patient_update, Result_Mod_query_patient_update>
+        }
+        pegawai: {
+          create: Invoke<Args_Mod_query_pegawai_create, Result_Mod_query_pegawai_create>
+          deleteById: Invoke<Args_Mod_query_pegawai_deleteById, Result_Mod_query_pegawai_deleteById>
+          getById: Invoke<Args_Mod_query_pegawai_getById, Result_Mod_query_pegawai_getById>
+          list: Invoke<Args_Mod_query_pegawai_list, Result_Mod_query_pegawai_list>
+          update: Invoke<Args_Mod_query_pegawai_update, Result_Mod_query_pegawai_update>
         }
       }
       user: {
