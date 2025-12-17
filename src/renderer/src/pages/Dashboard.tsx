@@ -5,7 +5,14 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import ProfileMenu from '@renderer/components/ProfileMenu'
 import logoUrl from '@renderer/assets/logo.png'
-import { CalendarOutlined, DashboardOutlined, LeftCircleFilled, RightCircleFilled, UserOutlined, WalletOutlined } from '@ant-design/icons'
+import {
+  CalendarOutlined,
+  DashboardOutlined,
+  LeftCircleFilled,
+  RightCircleFilled,
+  UserOutlined,
+  WalletOutlined
+} from '@ant-design/icons'
 
 const items = [
   {
@@ -89,6 +96,11 @@ const items = [
         label: 'Resep Obat',
         key: '/dashboard/services/prescription',
         icon: <WalletOutlined />
+      },
+      {
+        label: 'Pemeriksaan Awal',
+        key: '/dashboard/pemeriksaan-awal',
+        icon: <WalletOutlined />
       }
     ]
   },
@@ -145,7 +157,13 @@ const items = [
 
 function Dashboard() {
   const location = useLocation()
-  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income']
+  const registeredPrefixes = [
+    '/dashboard/expense',
+    '/dashboard/patient',
+    '/dashboard/encounter',
+    '/dashboard/income',
+    '/dashboard/pemeriksaan-awal'
+  ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))
@@ -179,12 +197,7 @@ function Dashboard() {
     }
     return [{ label: top.label, key: top.key, icon: top.icon } as ItemType]
   }
-  const childKeysOfTop = (key: string): string[] => {
-    const top = items.find((i) => i.key === key)
-    if (!top) return []
-    if (Array.isArray(top.children) && top.children.length > 0) return top.children.map((c) => c.key)
-    return [top.key]
-  }
+
   const [sideItems, setSideItems] = useState<ItemType[]>(childrenOfTop(initialTop))
   const initialSide = location.pathname.startsWith(initialTop)
     ? location.pathname
@@ -214,27 +227,33 @@ function Dashboard() {
     setActiveTop(newTop)
     const children = childrenOfTop(newTop)
     setSideItems(children)
-    const childKeys = childKeysOfTop(newTop)
-    setActiveSide(childKeys.includes(location.pathname) ? location.pathname : (children[0]?.key as string))
+    const matchChild = children.find(
+      (c) => c && c.key && location.pathname.startsWith(c.key as string)
+    )
+    setActiveSide(matchChild ? (matchChild.key as string) : (children[0]?.key as string))
   }, [location.pathname])
   return (
-    <div className="min-h-screen flex">
-      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white shadow-sm flex flex-col`}>
-        <div className="h-14 px-4 flex items-center shadow-sm justify-center">
+    <div className="h-screen flex overflow-hidden bg-gray-50">
+      <aside
+        className={`${collapsed ? 'w-20' : 'w-64'} bg-white shadow-sm flex flex-col  transition-all duration-300 z-20`}
+      >
+        <div className="h-14 px-4 flex items-center shadow-sm justify-center shrink-0">
           <div className="flex items-center justify-center gap-2">
             <img src={logoUrl} alt="Logo" className="w-8 h-8" />
             <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}>SIMRS</span>
           </div>
         </div>
-        <Menu
-          onClick={onSideClick}
-          selectedKeys={[activeSide]}
-          mode="inline"
-          inlineCollapsed={collapsed}
-          items={sideItems}
-          className=""
-        />
-        <div className="mt-auto px-4 py-3 flex justify-center">
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
+          <Menu
+            onClick={onSideClick}
+            selectedKeys={[activeSide]}
+            mode="inline"
+            inlineCollapsed={collapsed}
+            items={sideItems}
+            className="border-none"
+          />
+        </div>
+        <div className="mt-auto px-4 py-3 flex justify-center shrink-0 ">
           <button
             aria-label="Toggle sidebar"
             className="p-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 shadow"
@@ -244,23 +263,25 @@ function Dashboard() {
           </button>
         </div>
       </aside>
-      <div className="flex-1">
-        <header className="sticky top-0 z-50 bg-white shadow-sm h-14 px-4 flex items-center justify-between gap-4">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        <header className="bg-white shadow-sm h-14 px-4 flex items-center justify-between gap-4 shrink-0 z-10">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            className="flex-1"
+            className="flex-1 border-none"
           />
           <ProfileMenu />
         </header>
-        <div className="p-4 h-full">
+        <div className="flex-1 overflow-y-auto p-4">
           {isRegisteredPath(location.pathname) ? (
             <Outlet />
           ) : (
-            <div className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-              <div className="text-base md:text-lg font-medium">{findLabelByPath(location.pathname)}</div>
+            <div className="h-full flex items-center justify-center">
+              <div className="text-base md:text-lg font-medium text-gray-400">
+                {findLabelByPath(location.pathname)}
+              </div>
             </div>
           )}
         </div>
