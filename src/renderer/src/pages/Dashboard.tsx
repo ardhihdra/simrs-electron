@@ -78,6 +78,11 @@ const items = [
     icon: <WalletOutlined />,
     children: [
       {
+        label: 'Diagnosa',
+        key: '/dashboard/diagnostic',
+        icon: <DashboardOutlined />
+      },
+      {
         label: 'Pemeriksaan Umum',
         key: '/dashboard/services/general-checkup',
         icon: <WalletOutlined />
@@ -122,18 +127,6 @@ const items = [
     ]
   },
   {
-    label: 'Pemeriksaan',
-    key: '/dashboard/diagnostic',
-    icon: <DashboardOutlined />,
-    children: [
-      {
-        label: 'Diagnosa',
-        key: '/dashboard/diagnostic',
-        icon: <DashboardOutlined />
-      }
-    ]
-  },
-  {
     label: 'Sistem Antrian',
     key: '/dashboard/queue',
     icon: <UserOutlined />,
@@ -170,7 +163,8 @@ function Dashboard() {
     '/dashboard/encounter',
     '/dashboard/income',
     '/dashboard/queue',
-    '/dashboard/diagnostic'
+    '/dashboard/diagnostic',
+    '/dashboard/services'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
