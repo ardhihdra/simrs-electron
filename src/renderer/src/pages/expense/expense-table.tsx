@@ -44,7 +44,7 @@ const expenseColumns = [
   {
     title: 'Action',
     key: 'action',
-    render: (_: any, record: any) => <Action data={_} record={record} model="expense" />
+    render: (_: any, record: any) => <Action record={record} />
   }
 ]
 
@@ -57,9 +57,9 @@ export function ExpenseTable() {
 
   return (
     <div>
-      <div className="flex justify-between items-center">
-        <Input type="text" placeholder="Search" className="max-w-sm" />
-        <div className="flex gap-2">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <Input type="text" placeholder="Search" className="w-full md:max-w-sm" />
+        <div className="flex gap-2 flex-wrap md:justify-end">
           <Button onClick={() => window.api.query.expense.seed().then(() => refetch())}>
             Seed
           </Button>
@@ -78,7 +78,13 @@ export function ExpenseTable() {
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table dataSource={data?.data || []} columns={expenseColumns} size="small" className="mt-4" />
+      <Table
+        dataSource={data?.data || []}
+        columns={expenseColumns}
+        size="small"
+        className="mt-4 rounded-xl shadow-sm"
+        scroll={{ x: 'max-content' }}
+      />
     </div>
   )
 }

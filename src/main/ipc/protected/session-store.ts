@@ -18,6 +18,8 @@ export class SessionStore {
   private sessions = new Map<string, Session>()
   // Map each window (webContents id) to its current session token
   private windowTokens = new Map<number, string>()
+
+  private backendTokens = new Map<number, string>()
   private defaultTtlMs: number
 
   constructor(opts?: { defaultTtlMs?: number }) {
@@ -97,6 +99,14 @@ export class SessionStore {
     this.windowTokens.set(windowId, token)
   }
 
+  setBackendTokenForWindow(windowId: number, token: string): void {
+    this.backendTokens.set(windowId, token)
+  }
+
+  getBackendTokenForWindow(windowId: number): string | undefined {
+    return this.backendTokens.get(windowId)
+  }
+
   /**
    * Get the current session for a window (if any), validating TTL.
    */
@@ -111,5 +121,6 @@ export class SessionStore {
    */
   clearWindow(windowId: number): void {
     this.windowTokens.delete(windowId)
+    this.backendTokens.delete(windowId)
   }
 }

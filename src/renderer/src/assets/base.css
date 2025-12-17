@@ -65,3 +65,13 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.ant-menu-inline-collapsed .ant-menu-item {
+  display: flex;
+  justify-content: center;
+  padding-inline: 0 !important;
+}
+
+.ant-menu-inline-collapsed .ant-menu-item .ant-menu-title-content {
+  display: none;
+}

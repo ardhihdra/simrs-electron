@@ -3,8 +3,10 @@
 import type { z } from 'zod'
 import type * as Mod_auth from '../main/routes/auth'
 import type * as Mod_macaddress from '../main/routes/macaddress'
+import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
+import type * as Mod_query_patient from '../main/routes/query/patient'
 import type * as Mod_user from '../main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
@@ -47,6 +49,16 @@ type Args_Mod_auth_status = InferArgs<typeof Mod_auth, 'status'>
 type Result_Mod_auth_status = InferResult<typeof Mod_auth, 'status'>
 type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
+type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'create'>
+type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
+type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
+type Result_Mod_query_encounter_deleteById = InferResult<typeof Mod_query_encounter, 'deleteById'>
+type Args_Mod_query_encounter_getById = InferArgs<typeof Mod_query_encounter, 'getById'>
+type Result_Mod_query_encounter_getById = InferResult<typeof Mod_query_encounter, 'getById'>
+type Args_Mod_query_encounter_list = InferArgs<typeof Mod_query_encounter, 'list'>
+type Result_Mod_query_encounter_list = InferResult<typeof Mod_query_encounter, 'list'>
+type Args_Mod_query_encounter_update = InferArgs<typeof Mod_query_encounter, 'update'>
+type Result_Mod_query_encounter_update = InferResult<typeof Mod_query_encounter, 'update'>
 type Args_Mod_query_expense_create = InferArgs<typeof Mod_query_expense, 'create'>
 type Result_Mod_query_expense_create = InferResult<typeof Mod_query_expense, 'create'>
 type Args_Mod_query_expense_deleteById = InferArgs<typeof Mod_query_expense, 'deleteById'>
@@ -61,6 +73,16 @@ type Args_Mod_query_expenseHead_list = InferArgs<typeof Mod_query_expenseHead, '
 type Result_Mod_query_expenseHead_list = InferResult<typeof Mod_query_expenseHead, 'list'>
 type Args_Mod_query_expenseHead_seed = InferArgs<typeof Mod_query_expenseHead, 'seed'>
 type Result_Mod_query_expenseHead_seed = InferResult<typeof Mod_query_expenseHead, 'seed'>
+type Args_Mod_query_patient_create = InferArgs<typeof Mod_query_patient, 'create'>
+type Result_Mod_query_patient_create = InferResult<typeof Mod_query_patient, 'create'>
+type Args_Mod_query_patient_deleteById = InferArgs<typeof Mod_query_patient, 'deleteById'>
+type Result_Mod_query_patient_deleteById = InferResult<typeof Mod_query_patient, 'deleteById'>
+type Args_Mod_query_patient_getById = InferArgs<typeof Mod_query_patient, 'getById'>
+type Result_Mod_query_patient_getById = InferResult<typeof Mod_query_patient, 'getById'>
+type Args_Mod_query_patient_list = InferArgs<typeof Mod_query_patient, 'list'>
+type Result_Mod_query_patient_list = InferResult<typeof Mod_query_patient, 'list'>
+type Args_Mod_query_patient_update = InferArgs<typeof Mod_query_patient, 'update'>
+type Result_Mod_query_patient_update = InferResult<typeof Mod_query_patient, 'update'>
 type Args_Mod_user_create = InferArgs<typeof Mod_user, 'create'>
 type Result_Mod_user_create = InferResult<typeof Mod_user, 'create'>
 type Args_Mod_user_get = InferArgs<typeof Mod_user, 'get'>
@@ -80,6 +102,13 @@ declare global {
         getPrimaryMacAddress: Invoke<Args_Mod_macaddress_getPrimaryMacAddress, Result_Mod_macaddress_getPrimaryMacAddress>
       }
       query: {
+        encounter: {
+          create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
+          deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>
+          getById: Invoke<Args_Mod_query_encounter_getById, Result_Mod_query_encounter_getById>
+          list: Invoke<Args_Mod_query_encounter_list, Result_Mod_query_encounter_list>
+          update: Invoke<Args_Mod_query_encounter_update, Result_Mod_query_encounter_update>
+        }
         expense: {
           create: Invoke<Args_Mod_query_expense_create, Result_Mod_query_expense_create>
           deleteById: Invoke<Args_Mod_query_expense_deleteById, Result_Mod_query_expense_deleteById>
@@ -90,6 +119,13 @@ declare global {
         expenseHead: {
           list: Invoke<Args_Mod_query_expenseHead_list, Result_Mod_query_expenseHead_list>
           seed: Invoke<Args_Mod_query_expenseHead_seed, Result_Mod_query_expenseHead_seed>
+        }
+        patient: {
+          create: Invoke<Args_Mod_query_patient_create, Result_Mod_query_patient_create>
+          deleteById: Invoke<Args_Mod_query_patient_deleteById, Result_Mod_query_patient_deleteById>
+          getById: Invoke<Args_Mod_query_patient_getById, Result_Mod_query_patient_getById>
+          list: Invoke<Args_Mod_query_patient_list, Result_Mod_query_patient_list>
+          update: Invoke<Args_Mod_query_patient_update, Result_Mod_query_patient_update>
         }
       }
       user: {
