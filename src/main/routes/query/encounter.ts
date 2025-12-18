@@ -1,6 +1,7 @@
 import z from 'zod'
 import { EncounterSchema, EncounterSchemaWithId } from '../../models/encounter'
-import { IpcContext } from '../../ipc/router'
+import type { IpcContext } from '@main/ipc/router'
+import { createBackendClient, parseBackendResponse, BackendListSchema } from '@main/utils/backend'
 
 export const requireSession = true
 
@@ -66,39 +67,20 @@ export const schemas = {
 } as const
 
 export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.args>) => {
-  const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
-  const token = ctx?.sessionStore?.getBackendTokenForWindow?.(ctx.senderId)
-  if (!token) {
-    return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  const init = createBackendClient(ctx)
+  if (!init.ok || !init.client) {
+    return { success: false, error: init.error || 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
   }
   try {
-    const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
-    const url = `${root}/api/encounter?items=100&depth=1`
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-access-token': token
-      }
+    const res = await init.client.get('/api/encounter?items=100&depth=1')
+    const ItemSchema = EncounterSchemaWithId.extend({
+      patient: z.object({ id: z.number(), kode: z.string().optional(), name: z.string() }).optional()
     })
-    const BackendListSchema = z.object({
-      success: z.boolean(),
-      result: EncounterSchemaWithId.extend({
-        patient: z
-          .object({ id: z.number(), kode: z.string().optional(), name: z.string() })
-          .optional()
-      })
-        .array()
-        .optional(),
-      pagination: z.object({ page: z.number(), pages: z.number(), count: z.number() }).optional(),
-      message: z.string().optional(),
-      error: z.string().optional()
-    })
-    const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
-    const parsed = BackendListSchema.safeParse(raw)
-    if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal mengambil data encounter (HTTP ${res.status})`
+    const ListSchema = BackendListSchema(ItemSchema)
+    type BackendListResult = z.infer<typeof ListSchema>
+    const parsed = await parseBackendResponse<BackendListResult>(res, ListSchema)
+    if (!parsed.ok || !parsed.data?.success) {
+      const errMsg = parsed.error || parsed.data?.error || parsed.data?.message || 'Gagal mengambil data encounter'
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result || [] }
@@ -108,37 +90,25 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
   }
 }
 
-export const getById = async (_ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
+export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
+  const init = createBackendClient(ctx)
+  if (!init.ok || !init.client) {
+    return { success: false, error: init.error || 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  }
   try {
-    const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
-    const token = _ctx?.sessionStore?.getBackendTokenForWindow?.(_ctx.senderId)
-    if (!token) {
-      return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
-    }
-    const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
-    const url = `${root}/api/encounter/read/${args.id}?depth=1`
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-access-token': token
-      }
-    })
-    const BackendReadSchema = z.object({
+    const res = await init.client.get(`/api/encounter/read/${args.id}?depth=1`)
+    const ReadSchema = z.object({
       success: z.boolean(),
       result: EncounterSchemaWithId.extend({
-        patient: z
-          .object({ id: z.number(), kode: z.string().optional(), name: z.string() })
-          .optional()
+        patient: z.object({ id: z.number(), kode: z.string().optional(), name: z.string() }).optional()
       }).optional(),
       message: z.string().optional(),
       error: z.string().optional()
     })
-    const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
-    const parsed = BackendReadSchema.safeParse(raw)
-    if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal mengambil detail encounter (HTTP ${res.status})`
+    type BackendReadResult = z.infer<typeof ReadSchema>
+    const parsed = await parseBackendResponse<BackendReadResult>(res, ReadSchema)
+    if (!parsed.ok || !parsed.data?.success) {
+      const errMsg = parsed.error || parsed.data?.error || parsed.data?.message || 'Gagal mengambil detail encounter'
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
@@ -148,15 +118,12 @@ export const getById = async (_ctx: IpcContext, args: z.infer<typeof schemas.get
   }
 }
 
-export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
+export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
+  const init = createBackendClient(ctx)
+  if (!init.ok || !init.client) {
+    return { success: false, error: init.error || 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  }
   try {
-    const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
-    const token = _ctx?.sessionStore?.getBackendTokenForWindow?.(_ctx.senderId)
-    if (!token) {
-      return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
-    }
-    const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
-    const url = `${root}/api/encounter`
     const payload = {
       patientId: Number(args.patientId),
       visitDate: args.visitDate instanceof Date ? args.visitDate : new Date(String(args.visitDate)),
@@ -172,25 +139,17 @@ export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.crea
       subject: { reference: `Patient/${Number(args.patientId)}` },
       createdBy: args.createdBy ?? null
     }
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-access-token': token
-      },
-      body: JSON.stringify(payload)
-    })
+    const res = await init.client.post('/api/encounter', payload)
     const BackendCreateSchema = z.object({
       success: z.boolean(),
       result: EncounterSchemaWithId.optional(),
       message: z.string().optional(),
       error: z.string().optional()
     })
-    const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
-    const parsed = BackendCreateSchema.safeParse(raw)
-    if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal membuat encounter (HTTP ${res.status})`
+    type BackendCreateResult = z.infer<typeof BackendCreateSchema>
+    const parsed = await parseBackendResponse<BackendCreateResult>(res, BackendCreateSchema)
+    if (!parsed.ok || !parsed.data?.success) {
+      const errMsg = parsed.error || parsed.data?.error || parsed.data?.message || 'Gagal membuat encounter'
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
@@ -200,15 +159,12 @@ export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.crea
   }
 }
 
-export const update = async (_ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
+export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
+  const init = createBackendClient(ctx)
+  if (!init.ok || !init.client) {
+    return { success: false, error: init.error || 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  }
   try {
-    const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
-    const token = _ctx?.sessionStore?.getBackendTokenForWindow?.(_ctx.senderId)
-    if (!token) {
-      return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
-    }
-    const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
-    const url = `${root}/api/encounter/${args.id}`
     const payload = {
       patientId: Number(args.patientId),
       visitDate: args.visitDate instanceof Date ? args.visitDate : new Date(String(args.visitDate)),
@@ -223,25 +179,17 @@ export const update = async (_ctx: IpcContext, args: z.infer<typeof schemas.upda
       subject: { reference: `Patient/${Number(args.patientId)}` },
       updatedBy: args.updatedBy ?? null
     }
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-access-token': token
-      },
-      body: JSON.stringify(payload)
-    })
+    const res = await init.client.put(`/api/encounter/${args.id}`, payload)
     const BackendUpdateSchema = z.object({
       success: z.boolean(),
       result: EncounterSchemaWithId.optional(),
       message: z.string().optional(),
       error: z.string().optional()
     })
-    const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
-    const parsed = BackendUpdateSchema.safeParse(raw)
-    if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal memperbarui encounter (HTTP ${res.status})`
+    type BackendUpdateResult = z.infer<typeof BackendUpdateSchema>
+    const parsed = await parseBackendResponse<BackendUpdateResult>(res, BackendUpdateSchema)
+    if (!parsed.ok || !parsed.data?.success) {
+      const errMsg = parsed.error || parsed.data?.error || parsed.data?.message || 'Gagal memperbarui encounter'
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
@@ -251,33 +199,23 @@ export const update = async (_ctx: IpcContext, args: z.infer<typeof schemas.upda
   }
 }
 
-export const deleteById = async (_ctx: IpcContext, args: z.infer<typeof schemas.deleteById.args>) => {
+export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.deleteById.args>) => {
+  const init = createBackendClient(ctx)
+  if (!init.ok || !init.client) {
+    return { success: false, error: init.error || 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  }
   try {
-    const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
-    const token = _ctx?.sessionStore?.getBackendTokenForWindow?.(_ctx.senderId)
-    if (!token) {
-      return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
-    }
-    const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
-    const url = `${root}/api/encounter/${args.id}`
-    const res = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-access-token': token
-      }
-    })
+    const res = await init.client.del(`/api/encounter/${args.id}`)
     const BackendDeleteSchema = z.object({
       success: z.boolean(),
       result: z.object({}).optional(),
       message: z.string().optional(),
       error: z.string().optional()
     })
-    const raw = await res.json().catch(() => ({ success: res.ok }))
-    const parsed = BackendDeleteSchema.safeParse(raw)
-    if (!res.ok || !parsed.success || !parsed.data.success) {
-      const errMsg = (parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message) || `Gagal menghapus encounter (HTTP ${res.status})`
+    type BackendDeleteResult = z.infer<typeof BackendDeleteSchema>
+    const parsed = await parseBackendResponse<BackendDeleteResult>(res, BackendDeleteSchema)
+    if (!parsed.ok || !parsed.data?.success) {
+      const errMsg = parsed.error || parsed.data?.error || parsed.data?.message || 'Gagal menghapus encounter'
       return { success: false, error: errMsg }
     }
     return { success: true }

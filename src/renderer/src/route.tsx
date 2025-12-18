@@ -16,6 +16,12 @@ import PatientForm from './pages/patient/patient-form'
 import Encounter from './pages/encounter/Encounter'
 import EncounterTable from './pages/encounter/encounter-table'
 import EncounterForm from './pages/encounter/encounter-form'
+import Pegawai from './pages/pegawai/Pegawai'
+import PegawaiTable from './pages/pegawai/pegawai-table'
+import PegawaiForm from './pages/pegawai/pegawai-form'
+import PegawaiReport from './pages/pegawai/pegawai-report'
+import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
+import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
 
 function MainRoute() {
   const location = useLocation()
@@ -43,6 +49,15 @@ function MainRoute() {
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
           </Route>
+          <Route path="pegawai" element={<Pegawai />}>
+            <Route index element={<PegawaiTable />} />
+            <Route path="create" element={<PegawaiForm />} />
+            <Route path="edit/:id" element={<PegawaiForm />} />
+          </Route>
+          <Route path="pegawai-report" element={<PegawaiReport />} />
+          <Route path="registration/doctor-schedule" element={<DoctorScheduleTable />} />
+          <Route path="registration/doctor-schedule/create" element={<DoctorScheduleForm />} />
+          <Route path="registration/doctor-schedule/edit/:id" element={<DoctorScheduleForm />} />
         </Route>
         <Route
           path="*"
