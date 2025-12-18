@@ -84,8 +84,8 @@ type Args_Mod_query_medicalStaffSchedule_create = InferArgs<typeof Mod_query_med
 type Result_Mod_query_medicalStaffSchedule_create = InferResult<typeof Mod_query_medicalStaffSchedule, 'create'>
 type Args_Mod_query_medicalStaffSchedule_deleteById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'deleteById'>
 type Result_Mod_query_medicalStaffSchedule_deleteById = InferResult<typeof Mod_query_medicalStaffSchedule, 'deleteById'>
-type Args_Mod_query_medicalStaffSchedule_findById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'findById'>
-type Result_Mod_query_medicalStaffSchedule_findById = InferResult<typeof Mod_query_medicalStaffSchedule, 'findById'>
+type Args_Mod_query_medicalStaffSchedule_getById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'getById'>
+type Result_Mod_query_medicalStaffSchedule_getById = InferResult<typeof Mod_query_medicalStaffSchedule, 'getById'>
 type Args_Mod_query_medicalStaffSchedule_list = InferArgs<typeof Mod_query_medicalStaffSchedule, 'list'>
 type Result_Mod_query_medicalStaffSchedule_list = InferResult<typeof Mod_query_medicalStaffSchedule, 'list'>
 type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_medicalStaffSchedule, 'update'>
@@ -146,7 +146,7 @@ declare global {
         medicalStaffSchedule: {
           create: Invoke<Args_Mod_query_medicalStaffSchedule_create, Result_Mod_query_medicalStaffSchedule_create>
           deleteById: Invoke<Args_Mod_query_medicalStaffSchedule_deleteById, Result_Mod_query_medicalStaffSchedule_deleteById>
-          findById: Invoke<Args_Mod_query_medicalStaffSchedule_findById, Result_Mod_query_medicalStaffSchedule_findById>
+          getById: Invoke<Args_Mod_query_medicalStaffSchedule_getById, Result_Mod_query_medicalStaffSchedule_getById>
           list: Invoke<Args_Mod_query_medicalStaffSchedule_list, Result_Mod_query_medicalStaffSchedule_list>
           update: Invoke<Args_Mod_query_medicalStaffSchedule_update, Result_Mod_query_medicalStaffSchedule_update>
         }

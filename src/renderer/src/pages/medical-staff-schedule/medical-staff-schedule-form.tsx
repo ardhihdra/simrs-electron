@@ -40,7 +40,7 @@ export function MedicalStaffScheduleForm() {
   const { data: detailData } = useQuery({
     queryKey: ['medicalStaffSchedule', 'detail', id],
     queryFn: () => {
-      const fn = window.api?.query?.medicalStaffSchedule?.findById
+      const fn = window.api?.query?.medicalStaffSchedule?.getById
       if (!fn)
         throw new Error(
           'API medical staff schedule tidak tersedia. Silakan restart aplikasi/dev server.'

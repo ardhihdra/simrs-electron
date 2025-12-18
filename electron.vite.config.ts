@@ -6,6 +6,11 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   main: {
     plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        '@main': resolve('src/main')
+      }
+    },
     build: {
       // Enable dev-time hot reloading (Electron auto-restart when main changes)
       watch: {}
