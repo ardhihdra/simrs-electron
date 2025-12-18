@@ -6,6 +6,7 @@ import type * as Mod_macaddress from '../main/routes/macaddress'
 import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
+import type * as Mod_query_jaminan from '../main/routes/query/jaminan'
 import type * as Mod_query_patient from '../main/routes/query/patient'
 import type * as Mod_user from '../main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
@@ -73,6 +74,16 @@ type Args_Mod_query_expenseHead_list = InferArgs<typeof Mod_query_expenseHead, '
 type Result_Mod_query_expenseHead_list = InferResult<typeof Mod_query_expenseHead, 'list'>
 type Args_Mod_query_expenseHead_seed = InferArgs<typeof Mod_query_expenseHead, 'seed'>
 type Result_Mod_query_expenseHead_seed = InferResult<typeof Mod_query_expenseHead, 'seed'>
+type Args_Mod_query_jaminan_create = InferArgs<typeof Mod_query_jaminan, 'create'>
+type Result_Mod_query_jaminan_create = InferResult<typeof Mod_query_jaminan, 'create'>
+type Args_Mod_query_jaminan_deleteById = InferArgs<typeof Mod_query_jaminan, 'deleteById'>
+type Result_Mod_query_jaminan_deleteById = InferResult<typeof Mod_query_jaminan, 'deleteById'>
+type Args_Mod_query_jaminan_getById = InferArgs<typeof Mod_query_jaminan, 'getById'>
+type Result_Mod_query_jaminan_getById = InferResult<typeof Mod_query_jaminan, 'getById'>
+type Args_Mod_query_jaminan_list = InferArgs<typeof Mod_query_jaminan, 'list'>
+type Result_Mod_query_jaminan_list = InferResult<typeof Mod_query_jaminan, 'list'>
+type Args_Mod_query_jaminan_update = InferArgs<typeof Mod_query_jaminan, 'update'>
+type Result_Mod_query_jaminan_update = InferResult<typeof Mod_query_jaminan, 'update'>
 type Args_Mod_query_patient_create = InferArgs<typeof Mod_query_patient, 'create'>
 type Result_Mod_query_patient_create = InferResult<typeof Mod_query_patient, 'create'>
 type Args_Mod_query_patient_deleteById = InferArgs<typeof Mod_query_patient, 'deleteById'>
@@ -119,6 +130,13 @@ declare global {
         expenseHead: {
           list: Invoke<Args_Mod_query_expenseHead_list, Result_Mod_query_expenseHead_list>
           seed: Invoke<Args_Mod_query_expenseHead_seed, Result_Mod_query_expenseHead_seed>
+        }
+        jaminan: {
+          create: Invoke<Args_Mod_query_jaminan_create, Result_Mod_query_jaminan_create>
+          deleteById: Invoke<Args_Mod_query_jaminan_deleteById, Result_Mod_query_jaminan_deleteById>
+          getById: Invoke<Args_Mod_query_jaminan_getById, Result_Mod_query_jaminan_getById>
+          list: Invoke<Args_Mod_query_jaminan_list, Result_Mod_query_jaminan_list>
+          update: Invoke<Args_Mod_query_jaminan_update, Result_Mod_query_jaminan_update>
         }
         patient: {
           create: Invoke<Args_Mod_query_patient_create, Result_Mod_query_patient_create>

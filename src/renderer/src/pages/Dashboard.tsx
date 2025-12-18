@@ -5,7 +5,14 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import ProfileMenu from '@renderer/components/ProfileMenu'
 import logoUrl from '@renderer/assets/logo.png'
-import { CalendarOutlined, DashboardOutlined, LeftCircleFilled, RightCircleFilled, UserOutlined, WalletOutlined } from '@ant-design/icons'
+import {
+  CalendarOutlined,
+  DashboardOutlined,
+  LeftCircleFilled,
+  RightCircleFilled,
+  UserOutlined,
+  WalletOutlined
+} from '@ant-design/icons'
 
 const items = [
   {
@@ -30,7 +37,7 @@ const items = [
       },
       {
         label: 'Data Jaminan',
-        key: '/dashboard/registration/insurance',
+        key: '/dashboard/registration/jaminan',
         icon: <CalendarOutlined />
       },
       {
@@ -145,7 +152,14 @@ const items = [
 
 function Dashboard() {
   const location = useLocation()
-  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income']
+  const registeredPrefixes = [
+    '/dashboard/expense',
+    '/dashboard/patient',
+    '/dashboard/encounter',
+    '/dashboard/income',
+    '/dashboard/registration/jaminan',
+    '/dashboard/registration/medical-staff-schedule'
+  ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))
@@ -182,7 +196,8 @@ function Dashboard() {
   const childKeysOfTop = (key: string): string[] => {
     const top = items.find((i) => i.key === key)
     if (!top) return []
-    if (Array.isArray(top.children) && top.children.length > 0) return top.children.map((c) => c.key)
+    if (Array.isArray(top.children) && top.children.length > 0)
+      return top.children.map((c) => c.key)
     return [top.key]
   }
   const [sideItems, setSideItems] = useState<ItemType[]>(childrenOfTop(initialTop))
@@ -215,7 +230,9 @@ function Dashboard() {
     const children = childrenOfTop(newTop)
     setSideItems(children)
     const childKeys = childKeysOfTop(newTop)
-    setActiveSide(childKeys.includes(location.pathname) ? location.pathname : (children[0]?.key as string))
+    setActiveSide(
+      childKeys.includes(location.pathname) ? location.pathname : (children[0]?.key as string)
+    )
   }, [location.pathname])
   return (
     <div className="min-h-screen flex">
@@ -260,7 +277,9 @@ function Dashboard() {
             <Outlet />
           ) : (
             <div className="min-h-[calc(100vh-56px)] flex items-center justify-center">
-              <div className="text-base md:text-lg font-medium">{findLabelByPath(location.pathname)}</div>
+              <div className="text-base md:text-lg font-medium">
+                {findLabelByPath(location.pathname)}
+              </div>
             </div>
           )}
         </div>
