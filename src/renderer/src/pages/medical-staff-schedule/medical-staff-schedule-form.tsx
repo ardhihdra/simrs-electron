@@ -58,6 +58,7 @@ export function MedicalStaffScheduleForm() {
       return fn()
     }
   })
+  console.log(pegawaiData)
 
   const { data: departemenData } = useQuery({
     queryKey: ['departemen', 'list'],

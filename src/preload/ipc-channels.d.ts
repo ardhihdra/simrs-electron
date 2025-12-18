@@ -78,8 +78,16 @@ type Args_Mod_query_expenseHead_list = InferArgs<typeof Mod_query_expenseHead, '
 type Result_Mod_query_expenseHead_list = InferResult<typeof Mod_query_expenseHead, 'list'>
 type Args_Mod_query_expenseHead_seed = InferArgs<typeof Mod_query_expenseHead, 'seed'>
 type Result_Mod_query_expenseHead_seed = InferResult<typeof Mod_query_expenseHead, 'seed'>
+type Args_Mod_query_kepegawaian_create = InferArgs<typeof Mod_query_kepegawaian, 'create'>
+type Result_Mod_query_kepegawaian_create = InferResult<typeof Mod_query_kepegawaian, 'create'>
+type Args_Mod_query_kepegawaian_deleteById = InferArgs<typeof Mod_query_kepegawaian, 'deleteById'>
+type Result_Mod_query_kepegawaian_deleteById = InferResult<typeof Mod_query_kepegawaian, 'deleteById'>
+type Args_Mod_query_kepegawaian_getById = InferArgs<typeof Mod_query_kepegawaian, 'getById'>
+type Result_Mod_query_kepegawaian_getById = InferResult<typeof Mod_query_kepegawaian, 'getById'>
 type Args_Mod_query_kepegawaian_list = InferArgs<typeof Mod_query_kepegawaian, 'list'>
 type Result_Mod_query_kepegawaian_list = InferResult<typeof Mod_query_kepegawaian, 'list'>
+type Args_Mod_query_kepegawaian_update = InferArgs<typeof Mod_query_kepegawaian, 'update'>
+type Result_Mod_query_kepegawaian_update = InferResult<typeof Mod_query_kepegawaian, 'update'>
 type Args_Mod_query_medicalStaffSchedule_create = InferArgs<typeof Mod_query_medicalStaffSchedule, 'create'>
 type Result_Mod_query_medicalStaffSchedule_create = InferResult<typeof Mod_query_medicalStaffSchedule, 'create'>
 type Args_Mod_query_medicalStaffSchedule_deleteById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'deleteById'>
@@ -141,7 +149,11 @@ declare global {
           seed: Invoke<Args_Mod_query_expenseHead_seed, Result_Mod_query_expenseHead_seed>
         }
         kepegawaian: {
+          create: Invoke<Args_Mod_query_kepegawaian_create, Result_Mod_query_kepegawaian_create>
+          deleteById: Invoke<Args_Mod_query_kepegawaian_deleteById, Result_Mod_query_kepegawaian_deleteById>
+          getById: Invoke<Args_Mod_query_kepegawaian_getById, Result_Mod_query_kepegawaian_getById>
           list: Invoke<Args_Mod_query_kepegawaian_list, Result_Mod_query_kepegawaian_list>
+          update: Invoke<Args_Mod_query_kepegawaian_update, Result_Mod_query_kepegawaian_update>
         }
         medicalStaffSchedule: {
           create: Invoke<Args_Mod_query_medicalStaffSchedule_create, Result_Mod_query_medicalStaffSchedule_create>
