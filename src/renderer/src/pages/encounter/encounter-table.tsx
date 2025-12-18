@@ -5,12 +5,11 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import type { EncounterAttributes } from '@shared/encounter'
-import { EncounterStatus } from '@shared/encounter'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
 
 type EncounterRow = Omit<EncounterAttributes, 'visitDate' | 'status'> & {
   visitDate: string | Date
-  status: EncounterStatus | 'scheduled' | 'in_progress' | 'completed'
+  status: string
   patient?: { name?: string }
 }
 
@@ -106,7 +105,7 @@ export function EncounterTable() {
         .toLowerCase()
       return hay.includes(q)
     })
-  }, [data?.data, search])
+  }, [data, search])
 
   return (
     <div>

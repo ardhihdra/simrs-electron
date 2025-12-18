@@ -98,6 +98,11 @@ const items = [
     icon: <DashboardOutlined />,
     children: [
       {
+        label: 'Permintaan Lab',
+        key: '/dashboard/service-request',
+        icon: <DashboardOutlined />
+      },
+      {
         label: 'Pemeriksaan Lab',
         key: '/dashboard/laboratory/exam',
         icon: <DashboardOutlined />
@@ -145,7 +150,7 @@ const items = [
 
 function Dashboard() {
   const location = useLocation()
-  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income']
+  const registeredPrefixes = ['/dashboard/expense', '/dashboard/patient', '/dashboard/encounter', '/dashboard/income', '/dashboard/service-request']
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))

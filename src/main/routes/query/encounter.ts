@@ -66,6 +66,7 @@ export const schemas = {
 } as const
 
 export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.args>) => {
+  void _args;
   const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
   const token = ctx?.sessionStore?.getBackendTokenForWindow?.(ctx.senderId)
   if (!token) {
@@ -102,7 +103,7 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result || [] }
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
@@ -142,7 +143,7 @@ export const getById = async (_ctx: IpcContext, args: z.infer<typeof schemas.get
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
@@ -194,7 +195,7 @@ export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.crea
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
@@ -245,7 +246,7 @@ export const update = async (_ctx: IpcContext, args: z.infer<typeof schemas.upda
       return { success: false, error: errMsg }
     }
     return { success: true, data: parsed.data.result }
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
@@ -281,7 +282,7 @@ export const deleteById = async (_ctx: IpcContext, args: z.infer<typeof schemas.
       return { success: false, error: errMsg }
     }
     return { success: true }
-  } catch (err) {
+  } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
