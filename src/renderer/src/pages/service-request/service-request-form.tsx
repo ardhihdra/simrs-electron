@@ -6,7 +6,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { ServiceRequestAttributes, ServiceRequestStatus, ServiceRequestIntent, ServiceRequestPriority } from '@shared/service-request'
 import type { PatientAttributes } from '@shared/patient'
-import { SaveOutlined, ReloadOutlined, ArrowLeftOutlined } from '@ant-design/icons'
+import { SaveOutlined, ReloadOutlined, ArrowLeftOutlined, PlusOutlined, DeleteOutlined } from '@ant-design/icons'
 
 // Form values might differ slightly from attributes (e.g. Dayjs instead of Date)
 type ServiceRequestFormValues = {
@@ -20,6 +20,17 @@ type ServiceRequestFormValues = {
   performer?: string
   requester?: string
   referral?: string
+  labResults?: Array<{
+    key: number
+    bidang: string
+    nama: string
+    detail: string
+    hasil: string
+    rujukan: string
+    satuan: string
+    status: string
+    keterangan: string
+  }>
 }
 
 function ServiceRequestForm() {
@@ -67,6 +78,20 @@ function ServiceRequestForm() {
         }
       }
 
+      // Parse lab results and user note from notes
+      const notes = item.note || []
+      const resultNote = notes.find(n => n.text?.startsWith('LAB_RESULTS:'))
+      const userNote = notes.find(n => !n.text?.startsWith('LAB_RESULTS:'))
+      
+      let parsedResults = undefined
+      if (resultNote && resultNote.text) {
+          try {
+              parsedResults = JSON.parse(resultNote.text.substring(12))
+          } catch (e) {
+              console.error('Failed to parse lab results', e)
+          }
+      }
+
       form.setFieldsValue({
         patientId: pId,
         authoredOn: item.authoredOn ? dayjs(item.authoredOn) : dayjs(),
@@ -74,10 +99,11 @@ function ServiceRequestForm() {
         status: item.status,
         intent: item.intent,
         priority: item.priority || undefined,
-        note: Array.isArray(item.note) ? item.note[0]?.text : undefined,
+        note: userNote?.text,
         performer: item.performer?.[0]?.display,
         requester: item.requester?.display,
-        referral: item.reason?.[0]?.text
+        referral: item.reason?.[0]?.text,
+        labResults: parsedResults
       })
     } else if (!isEdit) {
         // Defaults
@@ -86,10 +112,38 @@ function ServiceRequestForm() {
             status: 'active' as ServiceRequestStatus,
             intent: 'order' as ServiceRequestIntent,
             priority: 'routine' as ServiceRequestPriority,
-            requester: 'dr. Syahrial'
+            requester: '',
+            labResults: [{
+                key: 1,
+                bidang: '',
+                nama: '',
+                detail: '',
+                hasil: '',
+                rujukan: '',
+                satuan: '',
+                status: 'draft',
+                keterangan: ''
+            }]
         })
     }
   }, [detail.data, form, isEdit])
+
+  // Watch serviceText to update default lab result name if not edited yet
+  const serviceText = Form.useWatch('serviceText', form)
+  useEffect(() => {
+      if (!isEdit && serviceText) {
+          const currentResults = form.getFieldValue('labResults')
+          if (currentResults && currentResults.length === 1 && currentResults[0].nama !== serviceText) {
+              form.setFieldsValue({
+                  labResults: [{
+                      ...currentResults[0],
+                      nama: serviceText,
+                      detail: serviceText
+                  }]
+              })
+          }
+      }
+  }, [serviceText, form, isEdit])
 
   const createMutation = useMutation({
     mutationKey: ['serviceRequest', 'create'],
@@ -142,7 +196,11 @@ function ServiceRequestForm() {
             display: patient?.name
         },
         authoredOn: values.authoredOn.toDate(),
-        note: values.note ? [{ text: values.note, time: new Date() }] : undefined,
+        // Combine note and labResults into notes array
+        note: [
+            ...(values.note ? [{ text: values.note, time: new Date() }] : []),
+            ...(values.labResults ? [{ text: 'LAB_RESULTS:' + JSON.stringify(values.labResults), time: new Date() }] : [])
+        ],
         performer: values.performer ? [{ display: values.performer }] : undefined,
         requester: values.requester ? { display: values.requester } : undefined,
         reason: values.referral ? [{ text: values.referral }] : undefined
@@ -161,37 +219,68 @@ function ServiceRequestForm() {
     }
   }
 
-  // Mock items table data based on requested service
-  const items = [
-      {
-          key: 1,
-          bidang: 'HEMATOLOGI',
-          nama: form.getFieldValue('serviceText') || 'Hemoglobin',
-          detail: form.getFieldValue('serviceText') || 'Hemoglobin',
-          hasil: '',
-          rujukan: 'P: 12-16 / L: 13-17',
-          satuan: 'g/dl',
-          status: 'draft',
-          keterangan: ''
-      }
-  ]
-
   const columns = [
       { title: 'No.', render: (_: unknown, __: unknown, index: number) => index + 1, width: 50 },
-      { title: 'Bidang', dataIndex: 'bidang' },
-      { title: 'Nama Pemeriksaan', dataIndex: 'nama' },
-      { title: 'Detail Pemeriksaan', dataIndex: 'detail' },
-      { title: 'Hasil', dataIndex: 'hasil', render: () => <Input /> },
-      { title: 'Nilai Rujukan', dataIndex: 'rujukan' },
-      { title: 'Satuan', dataIndex: 'satuan' },
-      { title: 'Status', dataIndex: 'status', render: () => (
-        <Select defaultValue="Pilih Kriteria" style={{ width: 120 }}>
-            <Select.Option value="normal">Normal</Select.Option>
-            <Select.Option value="high">High</Select.Option>
-            <Select.Option value="low">Low</Select.Option>
-        </Select>
+      { title: 'Bidang', dataIndex: 'bidang', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'bidang']} noStyle>
+              <Input />
+          </Form.Item>
       ) },
-      { title: 'Keterangan', dataIndex: 'keterangan' }
+      { title: 'Nama Pemeriksaan', dataIndex: 'nama', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'nama']} noStyle>
+              <Input />
+          </Form.Item>
+      ) },
+      { title: 'Detail Pemeriksaan', dataIndex: 'detail', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'detail']} noStyle>
+              <Input />
+          </Form.Item>
+      ) },
+      { title: 'Hasil', dataIndex: 'hasil', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'hasil']} noStyle>
+              <Input />
+          </Form.Item>
+      ) },
+      { title: 'Nilai Rujukan', dataIndex: 'rujukan', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'rujukan']} noStyle>
+              <Input />
+          </Form.Item>
+      ) },
+      { title: 'Satuan', dataIndex: 'satuan', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'satuan']} noStyle>
+              <Input />
+          </Form.Item>
+      ) },
+      { title: 'Status', dataIndex: 'status', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'status']} noStyle>
+            <Select style={{ width: 120 }}>
+                <Select.Option value="draft">Draft</Select.Option>
+                <Select.Option value="normal">Normal</Select.Option>
+                <Select.Option value="high">High</Select.Option>
+                <Select.Option value="low">Low</Select.Option>
+            </Select>
+          </Form.Item>
+      ) },
+      { title: 'Keterangan', dataIndex: 'keterangan', render: (_: unknown, field: { name: number }) => (
+          <Form.Item name={[field.name, 'keterangan']} noStyle>
+              <Input />
+          </Form.Item>
+      ) },
+      {
+        title: '',
+        key: 'action',
+        width: 50,
+        render: (_: unknown, field: { name: number }) => (
+             <DeleteOutlined 
+                className="text-red-500 cursor-pointer hover:text-red-700"
+                onClick={() => {
+                    const current = form.getFieldValue('labResults') || []
+                    const newResults = current.filter((_: unknown, idx: number) => idx !== field.name)
+                    form.setFieldsValue({ labResults: newResults })
+                }}
+             />
+        )
+      }
   ]
 
   return (
@@ -273,15 +362,37 @@ function ServiceRequestForm() {
                     Kembali
                 </Button>
             </div>
-        </Form>
 
-        <Table 
-            dataSource={items} 
-            columns={columns} 
-            pagination={false} 
-            bordered
-            size="small"
-        />
+            <Form.List name="labResults">
+                {(fields, { add }) => (
+                    <>
+                        <Table 
+                            dataSource={fields} 
+                            columns={columns} 
+                            pagination={false} 
+                            bordered
+                            size="small"
+                            rowKey="key"
+                        />
+                        <div className="mt-2">
+                             <Button type="dashed" onClick={() => add({
+                                 key: Date.now(),
+                                 bidang: '',
+                                 nama: '',
+                                 detail: '',
+                                 hasil: '',
+                                 rujukan: '',
+                                 satuan: '',
+                                 status: 'draft',
+                                 keterangan: ''
+                             })} block icon={<PlusOutlined />}>
+                                 Tambah Pemeriksaan
+                             </Button>
+                        </div>
+                    </>
+                )}
+            </Form.List>
+        </Form>
       </Card>
     </div>
   )

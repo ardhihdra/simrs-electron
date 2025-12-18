@@ -66,7 +66,9 @@ const columns = [
   {
     title: 'Rujukan',
     key: 'rujukan',
-    render: () => '-' // Placeholder
+    render: (_: unknown, record: ServiceRequestRow) => {
+        return record.reason?.[0]?.text || '-'
+    }
   },
   {
     title: 'Catatan',
