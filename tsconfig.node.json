@@ -5,10 +5,6 @@
     "composite": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "types": ["electron-vite/node"],
-    "baseUrl": ".",
-    "paths": {
-      "@main/*": ["src/main/*"]
-    }
+    "types": ["electron-vite/node"]
   }
 }
