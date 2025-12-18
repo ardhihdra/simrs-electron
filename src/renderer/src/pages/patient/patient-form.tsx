@@ -1,9 +1,10 @@
-import { Form, Input, Button, DatePicker, Select, message } from 'antd'
+import { Form, Input, Button, DatePicker, Select, message, Steps } from 'antd'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { PatientAttributes } from '@shared/patient'
 import dayjs, { type Dayjs } from 'dayjs'
+import { GeneralConsentForm } from '../../components/GeneralConsentForm'
 
 type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & { birthDate: Dayjs }
 
@@ -11,6 +12,7 @@ function PatientForm() {
   const [form] = Form.useForm<PatientFormValues>()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
+  const [currentStep, setCurrentStep] = useState(0)
   const params = useParams<{ id: string }>()
   const isEdit = !!params.id
 
@@ -113,77 +115,161 @@ function PatientForm() {
     }
   }
 
-  return (
-    <div className="my-4">
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={onFinish}
-        className="w-full"
-      >
-        <div className="grid grid-cols-2 gap-4">
-          <Form.Item label="Kode" name="kode" rules={[{ required: true, message: 'Kode wajib' }]}>
-            <Input placeholder="Kode pasien" />
-          </Form.Item>
-          <Form.Item label="NIK" name="identifier" rules={[{ required: true, message: 'NIK wajib' }]}>
-            <Input placeholder="Nomor Induk Kependudukan" />
-          </Form.Item>
-          <Form.Item label="Nama" name="name" rules={[{ required: true, message: 'Nama wajib' }]}>
-            <Input placeholder="Nama pasien" />
-          </Form.Item>
-          <Form.Item label="Gender" name="gender" rules={[{ required: true, message: 'Pilih gender' }]}>
-            <Select placeholder="Pilih gender">
-              <Select.Option value="male">Laki-laki</Select.Option>
-              <Select.Option value="female">Perempuan</Select.Option>
-            </Select>
-          </Form.Item>
-          <Form.Item label="Tanggal Lahir" name="birthDate" rules={[{ required: true, message: 'Tanggal lahir wajib' }]}>
-            <DatePicker className="w-full" />
-          </Form.Item>
+  const next = async () => {
+    try {
+      // Validate explicit fields for the first step
+      await form.validateFields([
+        'kode',
+        'identifier',
+        'name',
+        'gender',
+        'birthDate',
+        'placeOfBirth',
+        'phone',
+        'email',
+        'addressLine',
+        'village',
+        'district',
+        'city',
+        'province',
+        'postalCode',
+        'country',
+        'maritalStatus'
+      ])
+      setCurrentStep(currentStep + 1)
+    } catch (error) {
+      console.error('Validation failed:', error)
+    }
+  }
 
-          <Form.Item label="Tempat Lahir" name="placeOfBirth">
-            <Input placeholder="Tempat lahir" />
-          </Form.Item>
-          <Form.Item label="Nomor Telepon" name="phone">
-            <Input placeholder="Nomor telepon" />
-          </Form.Item>
-          <Form.Item label="Email" name="email">
-            <Input placeholder="Email" />
-          </Form.Item>
-          <Form.Item label="Alamat" name="addressLine">
-            <Input placeholder="Alamat" />
-          </Form.Item>
-          <Form.Item label="Desa" name="village">
-            <Input placeholder="Desa" />
-          </Form.Item>
-          <Form.Item label="Kecamatan" name="district">
-            <Input placeholder="Kecamatan" />
-          </Form.Item>
-          <Form.Item label="Kota" name="city">
-            <Input placeholder="Kota" />
-          </Form.Item>
-          <Form.Item label="Provinsi" name="province">
-            <Input placeholder="Provinsi" />
-          </Form.Item>
-          <Form.Item label="Kode Pos" name="postalCode">
-            <Input placeholder="Kode pos" />
-          </Form.Item>
-          <Form.Item label="Negara" name="country">
-            <Input placeholder="Negara" />
-          </Form.Item>
-          <Form.Item label="Status Pernikahan" name="maritalStatus" rules={[{ required: true, message: 'Pilih status pernikahan' }]}>
-            <Select placeholder="Pilih status pernikahan">
-              <Select.Option value="single">Belum menikah</Select.Option>
-              <Select.Option value="married">Menikah</Select.Option>
-              <Select.Option value="divorced">Cerai</Select.Option>
-            </Select>
-          </Form.Item>
+  const prev = () => {
+    setCurrentStep(currentStep - 1)
+  }
+
+  const patientName = Form.useWatch('name', form)
+  const patientBirthDate = Form.useWatch('birthDate', form)
+  const patientAddress = Form.useWatch('addressLine', form)
+  const patientPhone = Form.useWatch('phone', form)
+
+  return (
+    <div className="my-4 space-y-6">
+      <div className="w-full max-w-xl mx-auto">
+        <Steps
+          current={currentStep}
+          items={[
+            {
+              title: 'Biodata Pasien'
+            },
+            {
+              title: 'General Consent'
+            }
+          ]}
+        />
+      </div>
+
+      <Form form={form} layout="vertical" onFinish={onFinish} className="w-full mt-6">
+        <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item label="Kode" name="kode" rules={[{ required: true, message: 'Kode wajib' }]}>
+              <Input placeholder="Kode pasien" />
+            </Form.Item>
+            <Form.Item
+              label="NIK"
+              name="identifier"
+              rules={[{ required: true, message: 'NIK wajib' }]}
+            >
+              <Input placeholder="Nomor Induk Kependudukan" />
+            </Form.Item>
+            <Form.Item label="Nama" name="name" rules={[{ required: true, message: 'Nama wajib' }]}>
+              <Input placeholder="Nama pasien" />
+            </Form.Item>
+            <Form.Item
+              label="Gender"
+              name="gender"
+              rules={[{ required: true, message: 'Pilih gender' }]}
+            >
+              <Select placeholder="Pilih gender">
+                <Select.Option value="male">Laki-laki</Select.Option>
+                <Select.Option value="female">Perempuan</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item
+              label="Tanggal Lahir"
+              name="birthDate"
+              rules={[{ required: true, message: 'Tanggal lahir wajib' }]}
+            >
+              <DatePicker className="w-full" />
+            </Form.Item>
+
+            <Form.Item label="Tempat Lahir" name="placeOfBirth">
+              <Input placeholder="Tempat lahir" />
+            </Form.Item>
+            <Form.Item label="Nomor Telepon" name="phone">
+              <Input placeholder="Nomor telepon" />
+            </Form.Item>
+            <Form.Item label="Email" name="email">
+              <Input placeholder="Email" />
+            </Form.Item>
+            <Form.Item label="Alamat" name="addressLine">
+              <Input placeholder="Alamat" />
+            </Form.Item>
+            <Form.Item label="Desa" name="village">
+              <Input placeholder="Desa" />
+            </Form.Item>
+            <Form.Item label="Kecamatan" name="district">
+              <Input placeholder="Kecamatan" />
+            </Form.Item>
+            <Form.Item label="Kota" name="city">
+              <Input placeholder="Kota" />
+            </Form.Item>
+            <Form.Item label="Provinsi" name="province">
+              <Input placeholder="Provinsi" />
+            </Form.Item>
+            <Form.Item label="Kode Pos" name="postalCode">
+              <Input placeholder="Kode pos" />
+            </Form.Item>
+            <Form.Item label="Negara" name="country">
+              <Input placeholder="Negara" />
+            </Form.Item>
+            <Form.Item
+              label="Status Pernikahan"
+              name="maritalStatus"
+              rules={[{ required: true, message: 'Pilih status pernikahan' }]}
+            >
+              <Select placeholder="Pilih status pernikahan">
+                <Select.Option value="single">Belum menikah</Select.Option>
+                <Select.Option value="married">Menikah</Select.Option>
+                <Select.Option value="divorced">Cerai</Select.Option>
+              </Select>
+            </Form.Item>
+          </div>
         </div>
 
-        <Form.Item className="text-right">
-          <Button type="primary" htmlType="submit" className="mr-2" loading={submitting}>
-            {isEdit ? 'Update' : 'Simpan'}
-          </Button>
+        <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
+          <GeneralConsentForm
+            form={form}
+            patientData={{
+              name: patientName,
+              birthDate: patientBirthDate,
+              addressLine: patientAddress,
+              phone: patientPhone
+            }}
+          />
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
+          {currentStep > 0 && <Button onClick={prev}>Kembali</Button>}
+          {currentStep < 1 && (
+            <Button type="primary" onClick={next}>
+              Selanjutnya
+            </Button>
+          )}
+          {currentStep === 1 && (
+            <Button type="primary" htmlType="submit" loading={submitting}>
+              {isEdit ? 'Update' : 'Simpan'}
+            </Button>
+          )}
+
           <Button
             htmlType="button"
             onClick={() => {
@@ -193,7 +279,7 @@ function PatientForm() {
           >
             Batal
           </Button>
-        </Form.Item>
+        </div>
       </Form>
     </div>
   )

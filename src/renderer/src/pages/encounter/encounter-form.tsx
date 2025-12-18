@@ -54,6 +54,7 @@ function EncounterForm() {
       const fn = window.api?.query?.encounter?.create
       if (!fn) throw new Error('API encounter tidak tersedia')
       const result = await fn(payload)
+    console.log(result)
       if (!result.success) throw new Error(result.error || 'Failed to create encounter')
       return result
     },
@@ -66,8 +67,8 @@ function EncounterForm() {
 
   const updateMutation = useMutation({
     mutationKey: ['encounter', 'update'],
-    mutationFn: async (payload: EncounterAttributes & { id: number }) => {
-      const fn = window.api?.query?.encounter?.update
+    mutationFn: async (payload: EncounterAttributes & { id: string }) => {
+      const fn =  window.api?.query?.encounter?.update
       if (!fn) throw new Error('API encounter tidak tersedia')
       const result = await fn({ ...payload, id: payload.id })
       if (!result.success) throw new Error(result.error || 'Failed to update encounter')
@@ -80,10 +81,11 @@ function EncounterForm() {
   })
 
   const onFinish = async (values: EncounterFormValues) => {
+    console.log(values)
     try {
       setSubmitting(true)
       const payload: EncounterAttributes = {
-        patientId: Number(values.patientId),
+        patientId:  values.patientId,
         visitDate: values.visitDate.toDate(),
         serviceType: values.serviceType,
         reason: values.reason ?? null,
@@ -91,7 +93,7 @@ function EncounterForm() {
         status: values.status
       }
       if (isEdit && params.id) {
-        await updateMutation.mutateAsync({ ...payload, id: Number(params.id) })
+        await updateMutation.mutateAsync({ ...payload, id: params.id })
       } else {
         await createMutation.mutateAsync(payload)
       }

@@ -35,8 +35,8 @@ export interface Reference {
 }
 
 export interface EncounterAttributes {
-  id?: number
-  patientId: number
+  id?: string
+  patientId: string
   visitDate: Date
   serviceType: string
   reason?: string | null
