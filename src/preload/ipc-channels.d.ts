@@ -3,6 +3,7 @@
 import type { z } from 'zod'
 import type * as Mod_auth from '../main/routes/auth'
 import type * as Mod_macaddress from '../main/routes/macaddress'
+import type * as Mod_notification from '../main/routes/notification'
 import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
@@ -49,6 +50,8 @@ type Args_Mod_auth_status = InferArgs<typeof Mod_auth, 'status'>
 type Result_Mod_auth_status = InferResult<typeof Mod_auth, 'status'>
 type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
+type Args_Mod_notification_send = InferArgs<typeof Mod_notification, 'send'>
+type Result_Mod_notification_send = InferResult<typeof Mod_notification, 'send'>
 type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'create'>
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
@@ -100,6 +103,9 @@ declare global {
       }
       macaddress: {
         getPrimaryMacAddress: Invoke<Args_Mod_macaddress_getPrimaryMacAddress, Result_Mod_macaddress_getPrimaryMacAddress>
+      }
+      notification: {
+        send: Invoke<Args_Mod_notification_send, Result_Mod_notification_send>
       }
       query: {
         encounter: {
