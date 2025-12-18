@@ -3,6 +3,7 @@
 import type { z } from 'zod'
 import type * as Mod_auth from '../main/routes/auth'
 import type * as Mod_macaddress from '../main/routes/macaddress'
+import type * as Mod_query_diagnostic from '../main/routes/query/diagnostic'
 import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
@@ -49,6 +50,16 @@ type Args_Mod_auth_status = InferArgs<typeof Mod_auth, 'status'>
 type Result_Mod_auth_status = InferResult<typeof Mod_auth, 'status'>
 type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
+type Args_Mod_query_diagnostic_create = InferArgs<typeof Mod_query_diagnostic, 'create'>
+type Result_Mod_query_diagnostic_create = InferResult<typeof Mod_query_diagnostic, 'create'>
+type Args_Mod_query_diagnostic_deleteById = InferArgs<typeof Mod_query_diagnostic, 'deleteById'>
+type Result_Mod_query_diagnostic_deleteById = InferResult<typeof Mod_query_diagnostic, 'deleteById'>
+type Args_Mod_query_diagnostic_getById = InferArgs<typeof Mod_query_diagnostic, 'getById'>
+type Result_Mod_query_diagnostic_getById = InferResult<typeof Mod_query_diagnostic, 'getById'>
+type Args_Mod_query_diagnostic_list = InferArgs<typeof Mod_query_diagnostic, 'list'>
+type Result_Mod_query_diagnostic_list = InferResult<typeof Mod_query_diagnostic, 'list'>
+type Args_Mod_query_diagnostic_update = InferArgs<typeof Mod_query_diagnostic, 'update'>
+type Result_Mod_query_diagnostic_update = InferResult<typeof Mod_query_diagnostic, 'update'>
 type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'create'>
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
@@ -102,6 +113,13 @@ declare global {
         getPrimaryMacAddress: Invoke<Args_Mod_macaddress_getPrimaryMacAddress, Result_Mod_macaddress_getPrimaryMacAddress>
       }
       query: {
+        diagnostic: {
+          create: Invoke<Args_Mod_query_diagnostic_create, Result_Mod_query_diagnostic_create>
+          deleteById: Invoke<Args_Mod_query_diagnostic_deleteById, Result_Mod_query_diagnostic_deleteById>
+          getById: Invoke<Args_Mod_query_diagnostic_getById, Result_Mod_query_diagnostic_getById>
+          list: Invoke<Args_Mod_query_diagnostic_list, Result_Mod_query_diagnostic_list>
+          update: Invoke<Args_Mod_query_diagnostic_update, Result_Mod_query_diagnostic_update>
+        }
         encounter: {
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
           deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>

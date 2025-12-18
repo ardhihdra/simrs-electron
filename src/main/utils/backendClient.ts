@@ -13,10 +13,7 @@ import z from 'zod'
  * @throws {Error} Throws 'NO_BACKEND_TOKEN' if no authentication token is found
  */
 export function createBackendClient(ctx: IpcContext) {
-  const base =
-    process.env.API_URL ||
-    process.env.BACKEND_SERVER ||
-    'http://localhost:8810'
+  const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
 
   const token = ctx.sessionStore?.getBackendTokenForWindow?.(ctx.senderId)
   if (!token) throw new Error('NO_BACKEND_TOKEN')
@@ -30,8 +27,7 @@ export function createBackendClient(ctx: IpcContext) {
   }
 
   return {
-    get: (path: string) =>
-      fetch(`${root}${path}`, { headers }),
+    get: (path: string) => fetch(`${root}${path}`, { headers }),
 
     post: (path: string, body: unknown) =>
       fetch(`${root}${path}`, {
@@ -55,7 +51,6 @@ export function createBackendClient(ctx: IpcContext) {
   }
 }
 
-
 export type BackendResponse<T> = {
   success: boolean
   result?: T
@@ -65,7 +60,7 @@ export type BackendResponse<T> = {
 
 /**
  * Parses a backend response and returns the result if successful.
- * 
+ *
  * example usage:
  * const data = await parseBackendResponse(res, BackendCreateSchema)
  * return { success: true, data: data.result }
@@ -78,32 +73,26 @@ export type BackendResponse<T> = {
  * @returns The parsed result if successful
  * @throws {Error} Throws an error if the response is not successful
  */
-export function parseBackendResponse<T>(
-  res: Response,
-  schema: z.ZodSchema<BackendResponse<T>>
-) {
-  return res.json()
+export function parseBackendResponse<T>(res: Response, schema: z.ZodSchema<BackendResponse<T>>) {
+  return res
+    .json()
     .catch(() => ({ success: false }))
-    .then(raw => {
+    .then((raw) => {
       const parsed = schema.safeParse(raw)
       if (!res.ok || !parsed.success || !parsed.data.success) {
         throw new Error(
-          parsed.success
-            ? parsed.data.error || parsed.data.message
-            : parsed.error.message
+          parsed.success ? parsed.data.error || parsed.data.message : parsed.error.message
         )
       }
       return parsed.data.result
     })
 }
 
-
 export const PaginationSchema = z.object({
   page: z.number(),
   pages: z.number(),
   count: z.number()
 })
-
 
 /**
  * Creates a schema for a backend list response.
@@ -137,3 +126,14 @@ export const BackendListSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
       message: z.string().optional()
     })
   ])
+
+export const getClient = (ctx: IpcContext) => {
+  try {
+    return createBackendClient(ctx)
+  } catch (err) {
+    if (err instanceof Error && err.message === 'NO_BACKEND_TOKEN') {
+      throw new Error('Token backend tidak ditemukan. Silakan login terlebih dahulu.')
+    }
+    throw err
+  }
+}
