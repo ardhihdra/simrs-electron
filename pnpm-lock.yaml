@@ -23,6 +23,9 @@ importers:
       antd:
         specifier: ^5.27.4
         version: 5.27.4(moment@2.30.1)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      dayjs:
+        specifier: ^1.11.11
+        version: 1.11.18
       electron-log:
         specifier: ^5.4.3
         version: 5.4.3
