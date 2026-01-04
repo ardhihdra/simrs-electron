@@ -2,7 +2,6 @@ import z from 'zod'
 import { PatientSchema, PatientSchemaWithId } from '@main/models/patient'
 import { IpcContext } from '@main/ipc/router'
 import {
-  createBackendClient,
   parseBackendResponse,
   BackendListSchema,
   getClient

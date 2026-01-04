@@ -68,9 +68,9 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
   }
 }
 
-export const getById = async (_ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
+export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
   try {
-    const client = getClient(_ctx)
+    const client = getClient(ctx)
     const res = await client.get(`/api/encounter/read/${args.id}?depth=1`)
 
     const BackendReadSchema = z.object({
@@ -94,9 +94,9 @@ export const getById = async (_ctx: IpcContext, args: z.infer<typeof schemas.get
   }
 }
 
-export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
+export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
   try {
-    const client = getClient(_ctx)
+    const client = getClient(ctx)
     const payload = {
       patientId: args.patientId,
       visitDate: args.visitDate instanceof Date ? args.visitDate : new Date(String(args.visitDate)),
@@ -132,7 +132,11 @@ export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.crea
   }
 }
 
-export const update = async (_ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
+export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
+  const init = createBackendClient(ctx)
+  if (!init.ok || !init.client) {
+    return { success: false, error: init.error || 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  }
   try {
     const client = getClient(_ctx)
     const payload = {
