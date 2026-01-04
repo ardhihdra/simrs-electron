@@ -54,7 +54,7 @@ Patient.hasMany(Encounter, { foreignKey: 'patientId', onDelete: 'CASCADE', as: '
 Encounter.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' })
 
 export const EncounterSchema = z.object({
-  patientId: z.number(),
+  patientId: z.string(),
   visitDate: z.union([z.date(), z.string()]),
   serviceType: z.string().min(1),
   reason: z.string().nullable().optional(),
@@ -75,26 +75,11 @@ export const EncounterSchema = z.object({
     'completed'
   ]),
   resourceType: z.literal('Encounter').optional(),
-  class: z
-    .object({
-      system: z.string().optional(),
-      version: z.string().optional(),
-      code: z.string().optional(),
-      display: z.string().optional(),
-      userSelected: z.boolean().optional()
-    })
-    .optional()
-    .nullable(),
+  class: z.any().optional().nullable(),
   classHistory: z
     .array(
       z.object({
-        class: z.object({
-          system: z.string().optional(),
-          version: z.string().optional(),
-          code: z.string().optional(),
-          display: z.string().optional(),
-          userSelected: z.boolean().optional()
-        }),
+        class: z.any(),
         period: z
           .object({
             start: z.string().optional(),
@@ -240,14 +225,14 @@ export const EncounterSchema = z.object({
     )
     .optional()
     .nullable(),
-  createdBy: z.number().nullable().optional(),
-  updatedBy: z.number().nullable().optional(),
-  deletedBy: z.number().nullable().optional()
+  createdBy: z.union([z.number(), z.string()]).nullable().optional(),
+  updatedBy: z.union([z.number(), z.string()]).nullable().optional(),
+  deletedBy: z.union([z.number(), z.string()]).nullable().optional()
 })
 
 export const EncounterSchemaWithId = EncounterSchema.extend({
-  id: z.number(),
-  createdAt: z.date().optional().nullable(),
-  updatedAt: z.date().optional().nullable(),
-  deletedAt: z.date().optional().nullable()
+  id: z.string(),
+  createdAt: z.union([z.date(), z.string()]).optional().nullable(),
+  updatedAt: z.union([z.date(), z.string()]).optional().nullable(),
+  deletedAt: z.union([z.date(), z.string()]).optional().nullable()
 })

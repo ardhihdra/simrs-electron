@@ -16,6 +16,23 @@ import PatientForm from './pages/patient/patient-form'
 import Encounter from './pages/encounter/Encounter'
 import EncounterTable from './pages/encounter/encounter-table'
 import EncounterForm from './pages/encounter/encounter-form'
+import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
+import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
+import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
+import Pegawai from './pages/pegawai/Pegawai'
+import PegawaiTable from './pages/pegawai/pegawai-table'
+import PegawaiForm from './pages/pegawai/pegawai-form'
+import PegawaiReport from './pages/pegawai/pegawai-report'
+import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
+import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
+import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
+import DiagnosticTable from './pages/diagnostic/diagnostic-table'
+import Diagnostic from './pages/diagnostic/diagnostic'
+import DiagnosticForm from './pages/diagnostic/diagnostic-form'
+import Services from './pages/services/services'
+import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
+import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
+import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 
 function MainRoute() {
   const location = useLocation()
@@ -39,9 +56,37 @@ function MainRoute() {
             <Route path="create" element={<EncounterForm />} />
             <Route path="edit/:id" element={<EncounterForm />} />
           </Route>
+          <Route path="queue" element={<Encounter />}>
+            <Route index element={<EncounterMonitor />} />
+            <Route path="monitor" element={<EncounterMonitor />} />
+          </Route>
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
+          </Route>
+          <Route path="registration/medical-staff-schedule" element={<MedicalStaffSchedule />}>
+            <Route index element={<MedicalStaffScheduleTable />} />
+            <Route path="create" element={<MedicalStaffScheduleForm />} />
+            <Route path="edit/:id" element={<MedicalStaffScheduleForm />} />
+          </Route>
+          <Route path="pegawai" element={<Pegawai />}>
+            <Route index element={<PegawaiTable />} />
+            <Route path="create" element={<PegawaiForm />} />
+            <Route path="edit/:id" element={<PegawaiForm />} />
+          </Route>
+          <Route path="pegawai-report" element={<PegawaiReport />} />
+          <Route path="registration/doctor-schedule" element={<DoctorScheduleTable />} />
+          <Route path="registration/doctor-schedule/create" element={<DoctorScheduleForm />} />
+          <Route path="registration/doctor-schedule/edit/:id" element={<DoctorScheduleForm />} />
+          <Route path="diagnostic" element={<Diagnostic />}>
+            <Route index element={<DiagnosticTable />} />
+            <Route path="create" element={<DiagnosticForm />} />
+            <Route path="edit/:id" element={<DiagnosticForm />} />
+          </Route>
+          <Route path="services" element={<Services />}>
+            <Route index element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
           </Route>
         </Route>
         <Route
