@@ -16,7 +16,7 @@ export type EncounterListResult = {
 }
 type EncounterRow = Omit<EncounterAttributes, 'visitDate' | 'status'> & {
   visitDate: string | Date
-  status: EncounterStatus | 'scheduled' | 'in_progress' | 'completed'
+  status: string
   patient?: { name?: string }
 }
 

@@ -161,6 +161,11 @@ const items = [
     icon: <DashboardOutlined />,
     children: [
       {
+        label: 'Permintaan Lab',
+        key: '/dashboard/service-request',
+        icon: <DashboardOutlined />
+      },
+      {
         label: 'Pemeriksaan Lab',
         key: '/dashboard/laboratory/exam',
         icon: <DashboardOutlined />
@@ -220,7 +225,8 @@ function Dashboard() {
     '/dashboard/registration/medical-staff-schedule',
     '/dashboard/queue',
     '/dashboard/diagnostic',
-    '/dashboard/services'
+    '/dashboard/services',
+    '/dashboard/service-request'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
