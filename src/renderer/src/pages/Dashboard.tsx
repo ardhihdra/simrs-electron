@@ -21,6 +21,23 @@ const items = [
     icon: <DashboardOutlined />
   },
   {
+    label: 'Master Rumah Sakit',
+    key: '/dashboard/pegawai',
+    icon: <DashboardOutlined />,
+    children: [
+      {
+        label: 'Data Petugas Medis',
+        key: '/dashboard/pegawai',
+        icon: <UserOutlined />
+      },
+      {
+        label: 'Lap Data Petugas Medis',
+        key: '/dashboard/pegawai-report',
+        icon: <DashboardOutlined />
+      }
+    ]
+  },
+  {
     label: 'Pendaftaran Rumah Sakit',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
@@ -247,8 +264,8 @@ function Dashboard() {
   }, [location.pathname])
   return (
     <div className="min-h-screen flex">
-      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white shadow-sm flex flex-col`}>
-        <div className="h-14 px-4 flex items-center shadow-sm justify-center">
+      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white flex flex-col`}>
+        <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200">
           <div className="flex items-center justify-center gap-2">
             <img src={logoUrl} alt="Logo" className="w-8 h-8" />
             <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}>SIMRS</span>
@@ -261,6 +278,7 @@ function Dashboard() {
           inlineCollapsed={collapsed}
           items={sideItems}
           className=""
+          style={{ borderInlineEnd: 0 }}
         />
         <div className="mt-auto px-4 py-3 flex justify-center">
           <button
@@ -273,7 +291,7 @@ function Dashboard() {
         </div>
       </aside>
       <div className="flex-1">
-        <header className="sticky top-0 z-50 bg-white shadow-sm h-14 px-4 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-50 bg-white border-b border-gray-200 h-14 px-4 flex items-center justify-between gap-4">
           <Menu
             mode="horizontal"
             onClick={onTopClick}

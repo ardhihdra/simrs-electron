@@ -16,6 +16,10 @@ import PatientForm from './pages/patient/patient-form'
 import Encounter from './pages/encounter/Encounter'
 import EncounterTable from './pages/encounter/encounter-table'
 import EncounterForm from './pages/encounter/encounter-form'
+import Pegawai from './pages/pegawai/Pegawai'
+import PegawaiTable from './pages/pegawai/pegawai-table'
+import PegawaiForm from './pages/pegawai/pegawai-form'
+import PegawaiReport from './pages/pegawai/pegawai-report'
 import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
 import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import Diagnostic from './pages/diagnostic/diagnostic'
@@ -55,6 +59,12 @@ function MainRoute() {
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
           </Route>
+          <Route path="pegawai" element={<Pegawai />}>
+            <Route index element={<PegawaiTable />} />
+            <Route path="create" element={<PegawaiForm />} />
+            <Route path="edit/:id" element={<PegawaiForm />} />
+          </Route>
+          <Route path="pegawai-report" element={<PegawaiReport />} />
           <Route path="diagnostic" element={<Diagnostic />}>
             <Route index element={<DiagnosticTable />} />
             <Route path="create" element={<DiagnosticForm />} />
