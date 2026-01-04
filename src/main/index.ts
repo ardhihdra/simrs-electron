@@ -6,6 +6,7 @@ import { initDatabase } from './database'
 import { IpcRouter } from './ipc/router'
 import { SessionStore } from './ipc/protected/session-store'
 import { autoRegisterRoutes } from './routes/loader'
+import { notificationService } from './services/notification-service'
 import * as fs from 'fs'
 
 // Simple file logger
@@ -65,6 +66,8 @@ function createWindow(): void {
         nodeIntegration: false
       }
     })
+
+    notificationService.setMainWindow(mainWindow)
 
     mainWindow.on('ready-to-show', () => {
       console.log('Window ready to show')

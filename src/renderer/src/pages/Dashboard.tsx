@@ -1,9 +1,10 @@
-import { Menu } from 'antd'
+import { Menu, Button, App as AntdApp } from 'antd'
 import type { MenuProps } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import ProfileMenu from '@renderer/components/ProfileMenu'
+import NotificationBell from '@renderer/components/NotificationBell'
 import logoUrl from '@renderer/assets/logo.png'
 import {
   CalendarOutlined,
@@ -14,11 +15,51 @@ import {
   WalletOutlined
 } from '@ant-design/icons'
 
+const SendNotificationButton = () => {
+  const { message } = AntdApp.useApp()
+  return (
+    <Button
+      size="small"
+      onClick={async () => {
+        try {
+          await window.api.notification.send({
+            title: 'Test Notification',
+            content: 'This is a test notification sent from the renderer.'
+          })
+          message.success('Notification sent!')
+        } catch (error) {
+          console.error(error)
+          message.error('Failed to send notification')
+        }
+      }}
+    >
+      Send Notification
+    </Button>
+  )
+}
+
 const items = [
   {
     label: 'Dashboard',
     key: '/dashboard',
     icon: <DashboardOutlined />
+  },
+  {
+    label: 'Master Rumah Sakit',
+    key: '/dashboard/pegawai',
+    icon: <DashboardOutlined />,
+    children: [
+      {
+        label: 'Data Petugas Medis',
+        key: '/dashboard/pegawai',
+        icon: <UserOutlined />
+      },
+      {
+        label: 'Lap Data Petugas Medis',
+        key: '/dashboard/pegawai-report',
+        icon: <DashboardOutlined />
+      }
+    ]
   },
   {
     label: 'Pendaftaran Rumah Sakit',
@@ -38,11 +79,16 @@ const items = [
       {
         label: 'Data Jaminan',
         key: '/dashboard/registration/jaminan',
+        icon: <DashboardOutlined />
+      },
+     {
+        label: 'Jadwal Praktek Dokter',
+        key: '/dashboard/registration/doctor-schedule',
         icon: <CalendarOutlined />
       },
       {
-        label: 'Jadwal Praktek Dokter',
-        key: '/dashboard/registration/doctor-schedule',
+        label: 'Data Jaminan',
+        key: '/dashboard/registration/insurance',
         icon: <CalendarOutlined />
       },
       {
@@ -77,6 +123,16 @@ const items = [
     key: '/dashboard/services',
     icon: <WalletOutlined />,
     children: [
+      {
+        label: 'Diagnosa',
+        key: '/dashboard/diagnostic',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Pemeriksaan Utama',
+        key: '/dashboard/services/pemeriksaan-utama',
+        icon: <WalletOutlined />
+      },
       {
         label: 'Pemeriksaan Umum',
         key: '/dashboard/services/general-checkup',
@@ -158,7 +214,13 @@ function Dashboard() {
     '/dashboard/encounter',
     '/dashboard/income',
     '/dashboard/registration/jaminan',
-    '/dashboard/registration/medical-staff-schedule'
+    '/dashboard/registration/medical-staff-schedule',
+    '/dashboard/pegawai',
+    '/dashboard/registration',
+    '/dashboard/registration/medical-staff-schedule',
+    '/dashboard/queue',
+    '/dashboard/diagnostic',
+    '/dashboard/services'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -236,8 +298,8 @@ function Dashboard() {
   }, [location.pathname])
   return (
     <div className="min-h-screen flex">
-      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white shadow-sm flex flex-col`}>
-        <div className="h-14 px-4 flex items-center shadow-sm justify-center">
+      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white flex flex-col`}>
+        <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200">
           <div className="flex items-center justify-center gap-2">
             <img src={logoUrl} alt="Logo" className="w-8 h-8" />
             <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}>SIMRS</span>
@@ -250,6 +312,7 @@ function Dashboard() {
           inlineCollapsed={collapsed}
           items={sideItems}
           className=""
+          style={{ borderInlineEnd: 0 }}
         />
         <div className="mt-auto px-4 py-3 flex justify-center">
           <button
@@ -262,7 +325,7 @@ function Dashboard() {
         </div>
       </aside>
       <div className="flex-1">
-        <header className="sticky top-0 z-50 bg-white shadow-sm h-14 px-4 flex items-center justify-between gap-4">
+        <header className="sticky top-0 z-50 bg-white border-b border-gray-200 h-14 px-4 flex items-center justify-between gap-4">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
@@ -270,13 +333,15 @@ function Dashboard() {
             items={topItems}
             className="flex-1"
           />
+          <SendNotificationButton />
+          <NotificationBell />
           <ProfileMenu />
         </header>
-        <div className="p-4 h-full">
+        <div className="p-4">
           {isRegisteredPath(location.pathname) ? (
             <Outlet />
           ) : (
-            <div className="min-h-[calc(100vh-56px)] flex items-center justify-center">
+            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
               <div className="text-base md:text-lg font-medium">
                 {findLabelByPath(location.pathname)}
               </div>
