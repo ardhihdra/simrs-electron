@@ -9,6 +9,11 @@ import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 
+export type EncounterListResult = {
+    success: boolean
+    data?: EncounterRow[]
+    error?: string
+}
 type EncounterRow = Omit<EncounterAttributes, 'visitDate' | 'status'> & {
   visitDate: string | Date
   status: EncounterStatus | 'scheduled' | 'in_progress' | 'completed'
@@ -69,6 +74,8 @@ export function EncounterTable() {
     data?: EncounterRow[]
     error?: string
   }
+  const [search, setSearch] = useState('')
+
   const { data, refetch, isError } = useQuery<EncounterListResult>({
     queryKey: ['encounter', 'list'],
     queryFn: () => {

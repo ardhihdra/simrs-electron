@@ -1,6 +1,7 @@
 import z from 'zod'
-import { EncounterSchema, EncounterSchemaWithId } from '@main/models/encounter'
+
 import { IpcContext } from '@main/ipc/router'
+import { DiagnosticReportSchema, DiagnosticReportSchemaWithId } from '@main/models/DiagnosticReport'
 import {
   createBackendClient,
   parseBackendResponse,
@@ -13,37 +14,33 @@ export const requireSession = true
 export const schemas = {
   list: {
     args: z.any(),
-    result: z.any()
+    result: z.object({
+      success: z.boolean(),
+      data: DiagnosticReportSchemaWithId.array().optional(),
+      error: z.string().optional()
+    })
   },
   getById: {
     args: z.object({ id: z.number() }),
     result: z.object({
       success: z.boolean(),
-      data: EncounterSchemaWithId.extend({
-        patient: z
-          .object({
-            id: z.string(),
-            kode: z.string().optional(),
-            name: z.string()
-          })
-          .optional()
-      }).optional(),
+      data: DiagnosticReportSchemaWithId.optional(),
       error: z.string().optional()
     })
   },
   create: {
-    args: EncounterSchema,
+    args: DiagnosticReportSchema,
     result: z.object({
       success: z.boolean(),
-      data: EncounterSchemaWithId.optional(),
+      data: DiagnosticReportSchemaWithId.optional(),
       error: z.string().optional()
     })
   },
   update: {
-    args: EncounterSchemaWithId,
+    args: DiagnosticReportSchemaWithId,
     result: z.object({
       success: z.boolean(),
-      data: EncounterSchemaWithId.optional(),
+      data: DiagnosticReportSchemaWithId.optional(),
       error: z.string().optional()
     })
   },
@@ -56,9 +53,10 @@ export const schemas = {
 export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get('/api/encounter?items=100&depth=1')
+    const res = await client.get('/api/diagnosticreport?items=100&depth=1')
 
-    const ListSchema = BackendListSchema(EncounterSchemaWithId)
+    // Using DiagnosticReportSchemaWithId as requested, though backend alignment is to be debugged later
+    const ListSchema = BackendListSchema(DiagnosticReportSchemaWithId)
 
     const result = await parseBackendResponse(res, ListSchema)
     return { success: true, data: result }
@@ -71,17 +69,12 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get(`/api/encounter/read/${args.id}?depth=1`)
+    console.log('FETCHING TO:', `/api/diagnosticreport/${args.id}/read`)
+    const res = await client.get(`/api/diagnosticreport/${args.id}/read`)
 
     const BackendReadSchema = z.object({
       success: z.boolean(),
-      result: EncounterSchemaWithId.extend({
-        patient: z
-          .object({ id: z.number(), kode: z.string().optional(), name: z.string() })
-          .optional()
-      })
-        .optional()
-        .nullable(),
+      result: DiagnosticReportSchemaWithId.optional().nullable(),
       message: z.string().optional(),
       error: z.any().optional()
     })
@@ -98,28 +91,29 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
   try {
     const client = getClient(ctx)
     const payload = {
-      patientId: args.patientId,
-      visitDate: args.visitDate instanceof Date ? args.visitDate : new Date(String(args.visitDate)),
-      serviceType: String(args.serviceType),
-      reason: args.reason ?? null,
-      note: args.note ?? null,
-      status: String(args.status),
-      resourceType: 'Encounter',
-      period: args.period ?? {
-        start:
-          args.visitDate instanceof Date
-            ? args.visitDate.toISOString()
-            : String(args.visitDate) || undefined
-      },
-      subject: { reference: `Patient/${args.patientId}` },
-      createdBy: args.createdBy ?? null
+      ...args,
+      subjectId: String(args.subjectId),
+      // Ensure dates are stringified
+      effectiveDateTime:
+        args.effectiveDateTime instanceof Date
+          ? args.effectiveDateTime.toISOString()
+          : args.effectiveDateTime,
+      effectivePeriodStart:
+        args.effectivePeriodStart instanceof Date
+          ? args.effectivePeriodStart.toISOString()
+          : args.effectivePeriodStart,
+      effectivePeriodEnd:
+        args.effectivePeriodEnd instanceof Date
+          ? args.effectivePeriodEnd.toISOString()
+          : args.effectivePeriodEnd,
+      issued: args.issued instanceof Date ? args.issued.toISOString() : args.issued
     }
 
-    const res = await client.post('/api/encounter', payload)
+    const res = await client.post('/api/diagnosticreport', payload)
 
     const BackendCreateSchema = z.object({
       success: z.boolean(),
-      result: EncounterSchemaWithId.optional().nullable(),
+      result: DiagnosticReportSchemaWithId.optional().nullable(),
       message: z.string().optional(),
       error: z.any().optional()
     })
@@ -133,55 +127,52 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 }
 
 export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
-  const init = createBackendClient(ctx)
-  if (!init.ok || !init.client) {
-    return { success: false, error: init.error || 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
-  }
   try {
-    const client = getClient(_ctx)
+    const client = getClient(ctx)
+
     const payload = {
-      patientId: args.patientId,
-      visitDate: args.visitDate instanceof Date ? args.visitDate : new Date(String(args.visitDate)),
-      serviceType: String(args.serviceType),
-      reason: args.reason ?? null,
-      note: args.note ?? null,
-      status: String(args.status),
-      period: args.period ?? {
-        start:
-          args.visitDate instanceof Date
-            ? args.visitDate.toISOString()
-            : String(args.visitDate) || undefined
-      },
-      subject: { reference: `Patient/${args.patientId}` },
-      updatedBy: args.updatedBy ?? null
+      ...args,
+      subjectId: String(args.subjectId),
+      // Ensure dates are stringified
+      effectiveDateTime:
+        args.effectiveDateTime instanceof Date
+          ? args.effectiveDateTime.toISOString()
+          : args.effectiveDateTime,
+      effectivePeriodStart:
+        args.effectivePeriodStart instanceof Date
+          ? args.effectivePeriodStart.toISOString()
+          : args.effectivePeriodStart,
+      effectivePeriodEnd:
+        args.effectivePeriodEnd instanceof Date
+          ? args.effectivePeriodEnd.toISOString()
+          : args.effectivePeriodEnd,
+      issued: args.issued instanceof Date ? args.issued.toISOString() : args.issued
     }
 
-    const res = await client.put(`/api/encounter/${args.id}`, payload)
+    const res = await client.put(`/api/diagnosticreport/${args.id}`, payload)
 
     const BackendUpdateSchema = z.object({
       success: z.boolean(),
-      result: EncounterSchemaWithId.optional().nullable(),
+      result: DiagnosticReportSchemaWithId.optional().nullable(),
       message: z.string().optional(),
       error: z.any().optional()
     })
 
     const result = await parseBackendResponse(res, BackendUpdateSchema)
-    console.log(result)
     return { success: true, data: result }
   } catch (err) {
-    console.log(err)
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
 }
 
 export const deleteById = async (
-  _ctx: IpcContext,
+  ctx: IpcContext,
   args: z.infer<typeof schemas.deleteById.args>
 ) => {
   try {
-    const client = getClient(_ctx)
-    const res = await client.delete(`/api/encounter/${args.id}`)
+    const client = getClient(ctx)
+    const res = await client.delete(`/api/diagnosticreport/${args.id}`)
 
     const BackendDeleteSchema = z.object({
       success: z.boolean(),
@@ -189,6 +180,11 @@ export const deleteById = async (
       message: z.string().optional(),
       error: z.any().optional()
     })
+
+    // Note: BackendDeleteSchema is used here.
+    // parseBackendResponse might throw if success is false, which is what we want.
+    // However, if delete returns empty body or just success, we should handle it.
+    // The original code handled catch block for json parsing separately but here parseBackendResponse does it.
 
     await parseBackendResponse(res, BackendDeleteSchema)
     return { success: true }
