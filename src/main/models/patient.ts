@@ -39,7 +39,7 @@ export const Patient = sequelize.define(
 export const PatientSchema = z.object({
   active: z.boolean().optional(),
   identifier: z.string().nullable().optional(),
-  kode: z.string().min(1),
+  kode: z.string().min(1).optional(),
   name: z.string().min(1),
   gender: z.enum(['male', 'female']),
   birthDate: z.union([z.date(), z.string()]),
@@ -60,11 +60,11 @@ export const PatientSchema = z.object({
 })
 
 export const PatientSchemaWithId = PatientSchema.extend({
-  id: z.number(),
-  createdBy: z.number().nullable().optional(),
-  updatedBy: z.number().nullable().optional(),
-  deletedBy: z.number().nullable().optional(),
-  createdAt: z.date().optional().nullable(),
-  updatedAt: z.date().optional().nullable(),
-  deletedAt: z.date().optional().nullable()
+  id: z.string().optional(),
+  // createdBy: z.number().nullable().optional(),
+  // updatedBy: z.number().nullable().optional(),
+  // deletedBy: z.number().nullable().optional(),
+  // createdAt: z.date().optional().nullable(),
+  // updatedAt: z.date().optional().nullable(),
+  // deletedAt: z.date().optional().nullable()
 })
