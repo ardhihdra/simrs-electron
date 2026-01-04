@@ -16,6 +16,14 @@ import PatientForm from './pages/patient/patient-form'
 import Encounter from './pages/encounter/Encounter'
 import EncounterTable from './pages/encounter/encounter-table'
 import EncounterForm from './pages/encounter/encounter-form'
+import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
+import DiagnosticTable from './pages/diagnostic/diagnostic-table'
+import Diagnostic from './pages/diagnostic/diagnostic'
+import DiagnosticForm from './pages/diagnostic/diagnostic-form'
+import Services from './pages/services/services'
+import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
+import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
+import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 
 function MainRoute() {
   const location = useLocation()
@@ -39,9 +47,23 @@ function MainRoute() {
             <Route path="create" element={<EncounterForm />} />
             <Route path="edit/:id" element={<EncounterForm />} />
           </Route>
+          <Route path="queue" element={<Encounter />}>
+            <Route index element={<EncounterMonitor />} />
+            <Route path="monitor" element={<EncounterMonitor />} />
+          </Route>
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
+          </Route>
+          <Route path="diagnostic" element={<Diagnostic />}>
+            <Route index element={<DiagnosticTable />} />
+            <Route path="create" element={<DiagnosticForm />} />
+            <Route path="edit/:id" element={<DiagnosticForm />} />
+          </Route>
+          <Route path="services" element={<Services />}>
+            <Route index element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
           </Route>
         </Route>
         <Route
