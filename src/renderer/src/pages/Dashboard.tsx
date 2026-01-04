@@ -1,9 +1,10 @@
-import { Menu } from 'antd'
+import { Menu, Button, App as AntdApp } from 'antd'
 import type { MenuProps } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import ProfileMenu from '@renderer/components/ProfileMenu'
+import NotificationBell from '@renderer/components/NotificationBell'
 import logoUrl from '@renderer/assets/logo.png'
 import {
   CalendarOutlined,
@@ -13,6 +14,29 @@ import {
   UserOutlined,
   WalletOutlined
 } from '@ant-design/icons'
+
+const SendNotificationButton = () => {
+  const { message } = AntdApp.useApp()
+  return (
+    <Button
+      size="small"
+      onClick={async () => {
+        try {
+          await window.api.notification.send({
+            title: 'Test Notification',
+            content: 'This is a test notification sent from the renderer.'
+          })
+          message.success('Notification sent!')
+        } catch (error) {
+          console.error(error)
+          message.error('Failed to send notification')
+        }
+      }}
+    >
+      Send Notification
+    </Button>
+  )
+}
 
 const items = [
   {
@@ -302,6 +326,8 @@ function Dashboard() {
             items={topItems}
             className="flex-1"
           />
+          <SendNotificationButton />
+          <NotificationBell />
           <ProfileMenu />
         </header>
         <div className="p-4">
