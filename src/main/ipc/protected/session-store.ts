@@ -14,7 +14,14 @@ export type Session = {
   expiresAt?: number
 }
 
+export type SessionUser = {
+  id: number
+  nik: string
+  hakAksesId?: string
+}
+
 export class SessionStore {
+  private user: SessionUser | undefined
   private sessions = new Map<string, Session>()
   // Map each window (webContents id) to its current session token
   private windowTokens = new Map<number, string>()
@@ -122,5 +129,13 @@ export class SessionStore {
   clearWindow(windowId: number): void {
     this.windowTokens.delete(windowId)
     this.backendTokens.delete(windowId)
+  }
+
+  setUser(user: SessionUser): void {
+    this.user = user;
+  }
+
+  getUser(): SessionUser | undefined {
+    return this.user;
   }
 }
