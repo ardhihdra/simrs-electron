@@ -58,11 +58,6 @@ const items = [
         icon: <CalendarOutlined />
       },
       {
-        label: 'Jadwal Praktek Dokter',
-        key: '/dashboard/registration/doctor-schedule',
-        icon: <CalendarOutlined />
-      },
-      {
         label: 'Jadwal Praktek Petugas Medis',
         key: '/dashboard/registration/medical-staff-schedule',
         icon: <CalendarOutlined />
@@ -184,6 +179,7 @@ function Dashboard() {
     '/dashboard/patient',
     '/dashboard/encounter',
     '/dashboard/income',
+    '/dashboard/registration/medical-staff-schedule',
     '/dashboard/queue',
     '/dashboard/diagnostic',
     '/dashboard/services'

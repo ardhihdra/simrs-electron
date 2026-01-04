@@ -16,6 +16,9 @@ import PatientForm from './pages/patient/patient-form'
 import Encounter from './pages/encounter/Encounter'
 import EncounterTable from './pages/encounter/encounter-table'
 import EncounterForm from './pages/encounter/encounter-form'
+import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
+import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
+import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
 import Pegawai from './pages/pegawai/Pegawai'
 import PegawaiTable from './pages/pegawai/pegawai-table'
 import PegawaiForm from './pages/pegawai/pegawai-form'
@@ -58,6 +61,11 @@ function MainRoute() {
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
+          </Route>
+          <Route path="registration/medical-staff-schedule" element={<MedicalStaffSchedule />}>
+            <Route index element={<MedicalStaffScheduleTable />} />
+            <Route path="create" element={<MedicalStaffScheduleForm />} />
+            <Route path="edit/:id" element={<MedicalStaffScheduleForm />} />
           </Route>
           <Route path="pegawai" element={<Pegawai />}>
             <Route index element={<PegawaiTable />} />

@@ -3,10 +3,16 @@
 import type { z } from 'zod'
 import type * as Mod_auth from '../main/routes/auth'
 import type * as Mod_macaddress from '../main/routes/macaddress'
+<<<<<<< HEAD
+import type * as Mod_query_departemen from '../main/routes/query/departemen'
+=======
 import type * as Mod_query_diagnostic from '../main/routes/query/diagnostic'
+>>>>>>> 7933124d3b6bd1362884ad0d4fd77253b4932c19
 import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
+import type * as Mod_query_kepegawaian from '../main/routes/query/kepegawaian'
+import type * as Mod_query_medicalStaffSchedule from '../main/routes/query/medicalStaffSchedule'
 import type * as Mod_query_patient from '../main/routes/query/patient'
 import type * as Mod_query_pegawai from '../main/routes/query/pegawai'
 import type * as Mod_user from '../main/routes/user'
@@ -51,6 +57,10 @@ type Args_Mod_auth_status = InferArgs<typeof Mod_auth, 'status'>
 type Result_Mod_auth_status = InferResult<typeof Mod_auth, 'status'>
 type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
+<<<<<<< HEAD
+type Args_Mod_query_departemen_list = InferArgs<typeof Mod_query_departemen, 'list'>
+type Result_Mod_query_departemen_list = InferResult<typeof Mod_query_departemen, 'list'>
+=======
 type Args_Mod_query_diagnostic_create = InferArgs<typeof Mod_query_diagnostic, 'create'>
 type Result_Mod_query_diagnostic_create = InferResult<typeof Mod_query_diagnostic, 'create'>
 type Args_Mod_query_diagnostic_deleteById = InferArgs<typeof Mod_query_diagnostic, 'deleteById'>
@@ -61,6 +71,7 @@ type Args_Mod_query_diagnostic_list = InferArgs<typeof Mod_query_diagnostic, 'li
 type Result_Mod_query_diagnostic_list = InferResult<typeof Mod_query_diagnostic, 'list'>
 type Args_Mod_query_diagnostic_update = InferArgs<typeof Mod_query_diagnostic, 'update'>
 type Result_Mod_query_diagnostic_update = InferResult<typeof Mod_query_diagnostic, 'update'>
+>>>>>>> 7933124d3b6bd1362884ad0d4fd77253b4932c19
 type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'create'>
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
@@ -85,6 +96,26 @@ type Args_Mod_query_expenseHead_list = InferArgs<typeof Mod_query_expenseHead, '
 type Result_Mod_query_expenseHead_list = InferResult<typeof Mod_query_expenseHead, 'list'>
 type Args_Mod_query_expenseHead_seed = InferArgs<typeof Mod_query_expenseHead, 'seed'>
 type Result_Mod_query_expenseHead_seed = InferResult<typeof Mod_query_expenseHead, 'seed'>
+type Args_Mod_query_kepegawaian_create = InferArgs<typeof Mod_query_kepegawaian, 'create'>
+type Result_Mod_query_kepegawaian_create = InferResult<typeof Mod_query_kepegawaian, 'create'>
+type Args_Mod_query_kepegawaian_deleteById = InferArgs<typeof Mod_query_kepegawaian, 'deleteById'>
+type Result_Mod_query_kepegawaian_deleteById = InferResult<typeof Mod_query_kepegawaian, 'deleteById'>
+type Args_Mod_query_kepegawaian_getById = InferArgs<typeof Mod_query_kepegawaian, 'getById'>
+type Result_Mod_query_kepegawaian_getById = InferResult<typeof Mod_query_kepegawaian, 'getById'>
+type Args_Mod_query_kepegawaian_list = InferArgs<typeof Mod_query_kepegawaian, 'list'>
+type Result_Mod_query_kepegawaian_list = InferResult<typeof Mod_query_kepegawaian, 'list'>
+type Args_Mod_query_kepegawaian_update = InferArgs<typeof Mod_query_kepegawaian, 'update'>
+type Result_Mod_query_kepegawaian_update = InferResult<typeof Mod_query_kepegawaian, 'update'>
+type Args_Mod_query_medicalStaffSchedule_create = InferArgs<typeof Mod_query_medicalStaffSchedule, 'create'>
+type Result_Mod_query_medicalStaffSchedule_create = InferResult<typeof Mod_query_medicalStaffSchedule, 'create'>
+type Args_Mod_query_medicalStaffSchedule_deleteById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'deleteById'>
+type Result_Mod_query_medicalStaffSchedule_deleteById = InferResult<typeof Mod_query_medicalStaffSchedule, 'deleteById'>
+type Args_Mod_query_medicalStaffSchedule_getById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'getById'>
+type Result_Mod_query_medicalStaffSchedule_getById = InferResult<typeof Mod_query_medicalStaffSchedule, 'getById'>
+type Args_Mod_query_medicalStaffSchedule_list = InferArgs<typeof Mod_query_medicalStaffSchedule, 'list'>
+type Result_Mod_query_medicalStaffSchedule_list = InferResult<typeof Mod_query_medicalStaffSchedule, 'list'>
+type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_medicalStaffSchedule, 'update'>
+type Result_Mod_query_medicalStaffSchedule_update = InferResult<typeof Mod_query_medicalStaffSchedule, 'update'>
 type Args_Mod_query_patient_create = InferArgs<typeof Mod_query_patient, 'create'>
 type Result_Mod_query_patient_create = InferResult<typeof Mod_query_patient, 'create'>
 type Args_Mod_query_patient_deleteById = InferArgs<typeof Mod_query_patient, 'deleteById'>
@@ -124,12 +155,17 @@ declare global {
         getPrimaryMacAddress: Invoke<Args_Mod_macaddress_getPrimaryMacAddress, Result_Mod_macaddress_getPrimaryMacAddress>
       }
       query: {
+<<<<<<< HEAD
+        departemen: {
+          list: Invoke<Args_Mod_query_departemen_list, Result_Mod_query_departemen_list>
+=======
         diagnostic: {
           create: Invoke<Args_Mod_query_diagnostic_create, Result_Mod_query_diagnostic_create>
           deleteById: Invoke<Args_Mod_query_diagnostic_deleteById, Result_Mod_query_diagnostic_deleteById>
           getById: Invoke<Args_Mod_query_diagnostic_getById, Result_Mod_query_diagnostic_getById>
           list: Invoke<Args_Mod_query_diagnostic_list, Result_Mod_query_diagnostic_list>
           update: Invoke<Args_Mod_query_diagnostic_update, Result_Mod_query_diagnostic_update>
+>>>>>>> 7933124d3b6bd1362884ad0d4fd77253b4932c19
         }
         encounter: {
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
@@ -148,6 +184,20 @@ declare global {
         expenseHead: {
           list: Invoke<Args_Mod_query_expenseHead_list, Result_Mod_query_expenseHead_list>
           seed: Invoke<Args_Mod_query_expenseHead_seed, Result_Mod_query_expenseHead_seed>
+        }
+        kepegawaian: {
+          create: Invoke<Args_Mod_query_kepegawaian_create, Result_Mod_query_kepegawaian_create>
+          deleteById: Invoke<Args_Mod_query_kepegawaian_deleteById, Result_Mod_query_kepegawaian_deleteById>
+          getById: Invoke<Args_Mod_query_kepegawaian_getById, Result_Mod_query_kepegawaian_getById>
+          list: Invoke<Args_Mod_query_kepegawaian_list, Result_Mod_query_kepegawaian_list>
+          update: Invoke<Args_Mod_query_kepegawaian_update, Result_Mod_query_kepegawaian_update>
+        }
+        medicalStaffSchedule: {
+          create: Invoke<Args_Mod_query_medicalStaffSchedule_create, Result_Mod_query_medicalStaffSchedule_create>
+          deleteById: Invoke<Args_Mod_query_medicalStaffSchedule_deleteById, Result_Mod_query_medicalStaffSchedule_deleteById>
+          getById: Invoke<Args_Mod_query_medicalStaffSchedule_getById, Result_Mod_query_medicalStaffSchedule_getById>
+          list: Invoke<Args_Mod_query_medicalStaffSchedule_list, Result_Mod_query_medicalStaffSchedule_list>
+          update: Invoke<Args_Mod_query_medicalStaffSchedule_update, Result_Mod_query_medicalStaffSchedule_update>
         }
         patient: {
           create: Invoke<Args_Mod_query_patient_create, Result_Mod_query_patient_create>
