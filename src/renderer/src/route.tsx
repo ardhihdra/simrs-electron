@@ -16,6 +16,9 @@ import PatientForm from './pages/patient/patient-form'
 import Encounter from './pages/encounter/Encounter'
 import EncounterTable from './pages/encounter/encounter-table'
 import EncounterForm from './pages/encounter/encounter-form'
+import Jaminan from './pages/jaminan/Jaminan'
+import JaminanTable from './pages/jaminan/jaminan-table'
+import JaminanForm from './pages/jaminan/jaminan-form'
 import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
 import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
 import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
@@ -63,6 +66,11 @@ function MainRoute() {
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
+          </Route>
+          <Route path="registration/jaminan" element={<Jaminan />}>
+            <Route index element={<JaminanTable />} />
+            <Route path="create" element={<JaminanForm />} />
+            <Route path="edit/:id" element={<JaminanForm />} />
           </Route>
           <Route path="registration/medical-staff-schedule" element={<MedicalStaffSchedule />}>
             <Route index element={<MedicalStaffScheduleTable />} />

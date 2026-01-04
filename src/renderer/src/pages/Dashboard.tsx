@@ -76,6 +76,11 @@ const items = [
         key: '/dashboard/encounter',
         icon: <CalendarOutlined />
       },
+      {
+        label: 'Data Jaminan',
+        key: '/dashboard/registration/jaminan',
+        icon: <DashboardOutlined />
+      },
      {
         label: 'Jadwal Praktek Dokter',
         key: '/dashboard/registration/doctor-schedule',
@@ -208,6 +213,8 @@ function Dashboard() {
     '/dashboard/patient',
     '/dashboard/encounter',
     '/dashboard/income',
+    '/dashboard/registration/jaminan',
+    '/dashboard/registration/medical-staff-schedule',
     '/dashboard/pegawai',
     '/dashboard/registration',
     '/dashboard/registration/medical-staff-schedule',
