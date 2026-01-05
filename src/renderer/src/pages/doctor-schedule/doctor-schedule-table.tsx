@@ -1,104 +1,233 @@
-import { Button, Input, Table } from 'antd'
-import { EyeOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, Dropdown, Input, Table, Tag } from 'antd'
+import type { MenuProps } from 'antd'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
+import { queryClient } from '@renderer/query-client'
+import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
 
-interface DoctorScheduleItem {
-  id?: number
-  doctorName: string
-  poli: string
-  monday?: string | null
-  tuesday?: string | null
-  wednesday?: string | null
-  thursday?: string | null
-  friday?: string | null
-  saturday?: string | null
-  sunday?: string | null
+interface DaySchedule {
+  enabled: boolean
+  startTime: string
+  endTime: string
 }
 
-type Row = DoctorScheduleItem & { no: number }
+interface DoctorScheduleAttributes {
+  id?: number
+  idPegawai: number
+  pegawai: {
+    id: number
+    namaLengkap: string
+    nik: string
+    email: string
+  }
+  idPoli: number
+  poli: {
+    id: number
+    name: string
+    description?: string
+    location?: string
+  }
+  kategori: string
+  senin: DaySchedule
+  selasa: DaySchedule
+  rabu: DaySchedule
+  kamis: DaySchedule
+  jumat: DaySchedule
+  sabtu: DaySchedule
+  minggu: DaySchedule
+  status: 'active' | 'inactive'
+}
 
-const columns: ColumnsType<Row> = [
-  { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
-  { title: 'Dokter', dataIndex: 'doctorName', key: 'doctorName' },
-  { title: 'Poli', dataIndex: 'poli', key: 'poli' },
-  { title: 'Senin', dataIndex: 'monday', key: 'monday', render: (v?: string | null) => v || '-' },
-  { title: 'Selasa', dataIndex: 'tuesday', key: 'tuesday', render: (v?: string | null) => v || '-' },
-  { title: 'Rabu', dataIndex: 'wednesday', key: 'wednesday', render: (v?: string | null) => v || '-' },
-  { title: 'Kamis', dataIndex: 'thursday', key: 'thursday', render: (v?: string | null) => v || '-' },
-  { title: 'Jumat', dataIndex: 'friday', key: 'friday', render: (v?: string | null) => v || '-' },
-  { title: 'Sabtu', dataIndex: 'saturday', key: 'saturday', render: (v?: string | null) => v || '-' },
-  { title: 'Minggu', dataIndex: 'sunday', key: 'sunday', render: (v?: string | null) => v || '-' },
+const columns = [
+  {
+    title: 'Nama Dokter',
+    dataIndex: ['pegawai', 'namaLengkap'],
+    key: 'pegawai',
+    render: (value: string) => value || '-'
+  },
+  { title: 'Kategori', dataIndex: 'kategori', key: 'kategori' },
+  {
+    title: 'Poli',
+    dataIndex: ['poli', 'name'],
+    key: 'poli',
+    render: (value: string) => value || '-'
+  },
+  {
+    title: 'Senin',
+    dataIndex: 'senin',
+    key: 'senin',
+    align: 'center' as const,
+    render: (value: DaySchedule) => (value?.enabled ? `${value.startTime}-${value.endTime}` : '-')
+  },
+  {
+    title: 'Selasa',
+    dataIndex: 'selasa',
+    key: 'selasa',
+    align: 'center' as const,
+    render: (value: DaySchedule) => (value?.enabled ? `${value.startTime}-${value.endTime}` : '-')
+  },
+  {
+    title: 'Rabu',
+    dataIndex: 'rabu',
+    key: 'rabu',
+    align: 'center' as const,
+    render: (value: DaySchedule) => (value?.enabled ? `${value.startTime}-${value.endTime}` : '-')
+  },
+  {
+    title: 'Kamis',
+    dataIndex: 'kamis',
+    key: 'kamis',
+    align: 'center' as const,
+    render: (value: DaySchedule) => (value?.enabled ? `${value.startTime}-${value.endTime}` : '-')
+  },
+  {
+    title: 'Jumat',
+    dataIndex: 'jumat',
+    key: 'jumat',
+    align: 'center' as const,
+    render: (value: DaySchedule) => (value?.enabled ? `${value.startTime}-${value.endTime}` : '-')
+  },
+  {
+    title: 'Sabtu',
+    dataIndex: 'sabtu',
+    key: 'sabtu',
+    align: 'center' as const,
+    render: (value: DaySchedule) => (value?.enabled ? `${value.startTime}-${value.endTime}` : '-')
+  },
+  {
+    title: 'Minggu',
+    dataIndex: 'minggu',
+    key: 'minggu',
+    align: 'center' as const,
+    render: (value: DaySchedule) => (value?.enabled ? `${value.startTime}-${value.endTime}` : '-')
+  },
+  {
+    title: 'Status',
+    dataIndex: 'status',
+    key: 'status',
+    render: (value: string) => (
+      <Tag color={value === 'active' ? 'green' : 'red'}>
+        {value === 'active' ? 'Aktif' : 'Tidak Aktif'}
+      </Tag>
+    )
+  },
   {
     title: 'Action',
     key: 'action',
-    width: 100,
-    render: (_: Row, record: Row) => <RowActions record={record} />
+    width: 60,
+    align: 'center' as const,
+    render: (_: DoctorScheduleAttributes, record: DoctorScheduleAttributes) => (
+      <RowActions record={record} />
+    )
   }
 ]
 
-function RowActions({ record }: { record: Row }) {
+function RowActions({ record }: { record: DoctorScheduleAttributes }) {
   const navigate = useNavigate()
+  const deleteMutation = useMutation({
+    mutationKey: ['doctorSchedule', 'delete'],
+    mutationFn: (id: number) => {
+      const fn = window.api?.query?.doctorSchedule?.deleteById
+      if (!fn)
+        throw new Error('API jadwal dokter tidak tersedia. Silakan restart aplikasi/dev server.')
+      return fn({ id })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['doctorSchedule', 'list'] })
+    }
+  })
+  const items: MenuProps['items'] = [
+    {
+      key: 'edit',
+      label: 'Edit',
+      icon: <EditOutlined />,
+      onClick: () => {
+        if (typeof record.id === 'number') {
+          navigate(`/dashboard/registration/doctor-schedule/edit/${record.id}`)
+        }
+      }
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'delete',
+      danger: true,
+      label: 'Delete',
+      icon: <DeleteOutlined />,
+      onClick: () => {
+        if (typeof record.id === 'number') deleteMutation.mutate(record.id)
+      }
+    }
+  ]
   return (
-    <div className="flex gap-2">
-      <EyeOutlined onClick={() => { if (typeof record.id === 'number') navigate(`/dashboard/registration/doctor-schedule/edit/${record.id}`) }} />
-      <EditOutlined onClick={() => { if (typeof record.id === 'number') navigate(`/dashboard/registration/doctor-schedule/edit/${record.id}`) }} />
-    </div>
+    <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+      <button aria-label="Actions" className="p-1 rounded hover:bg-gray-100">
+        <MoreOutlined />
+      </button>
+    </Dropdown>
   )
 }
 
-type DoctorScheduleListResult = {
-  success: boolean
-  data?: DoctorScheduleItem[]
-  error?: string
-}
-
-export default function DoctorScheduleTable() {
+export function DoctorScheduleTable() {
   const navigate = useNavigate()
-  const [searchDokter, setSearchDokter] = useState('')
-  const [searchPoli, setSearchPoli] = useState('')
-
-  const { data, refetch, isError } = useQuery<DoctorScheduleListResult>({
+  const [search, setSearch] = useState('')
+  const { data, refetch, isError } = useQuery({
     queryKey: ['doctorSchedule', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.doctorSchedule?.list
-      if (!fn) throw new Error('API jadwal dokter tidak tersedia. Silakan restart aplikasi/dev server.')
+      if (!fn)
+        throw new Error('API jadwal dokter tidak tersedia. Silakan restart aplikasi/dev server.')
       return fn()
     }
   })
 
   const filtered = useMemo(() => {
-    const source: DoctorScheduleItem[] = Array.isArray(data?.data) ? (data!.data as DoctorScheduleItem[]) : []
-    const rows: Row[] = source.map((e, idx) => ({ ...e, no: idx + 1 }))
-    return rows.filter((r) => {
-      const matchDokter = searchDokter ? String(r.doctorName || '').toLowerCase().includes(searchDokter.toLowerCase()) : true
-      const matchPoli = searchPoli ? String(r.poli || '').toLowerCase().includes(searchPoli.toLowerCase()) : true
-      return matchDokter && matchPoli
+    const source: DoctorScheduleAttributes[] = (data?.result as DoctorScheduleAttributes[]) || []
+    const q = search.trim().toLowerCase()
+    if (!q) return source
+    return source.filter((p) => {
+      const hay = [p.pegawai?.namaLengkap, p.kategori, p.poli?.name]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return hay.includes(q)
     })
-  }, [data?.data, searchDokter, searchPoli])
+  }, [data?.result, search])
 
   return (
     <div>
-      <h2 className="text-4xl font-bold mb-4 justify-center flex">Jadwal Praktek Dokter</h2>
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/registration/doctor-schedule/create')}>Tambah</Button>
-        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
+      <h2 className="text-2xl font-bold mb-4">Jadwal Praktek Dokter</h2>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <Input
+          type="text"
+          placeholder="Search"
+          className="w-full md:max-w-sm"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="flex gap-2 flex-wrap md:justify-end">
+          <Button onClick={() => refetch()}>Refresh</Button>
+          <Button
+            type="primary"
+            onClick={() => navigate('/dashboard/registration/doctor-schedule/create')}
+          >
+            Tambah Jadwal
+          </Button>
+        </div>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 md:gap-3 mb-3">
-        <Input placeholder="Nama Dokter" value={searchDokter} onChange={(e) => setSearchDokter(e.target.value)} />
-        <Input placeholder="Poli" value={searchPoli} onChange={(e) => setSearchPoli(e.target.value)} />
-        <div />
-        <div />
-        <div />
-      </div>
-      {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table<Row>
+      {isError || (!data?.success && <div className="text-red-500">{data?.message}</div>)}
+      <Table
         dataSource={filtered}
         columns={columns}
-        rowKey={(r) => String(r.id ?? `${r.doctorName}-${r.poli}`)}
+        size="small"
+        className="mt-4 rounded-xl shadow-sm"
+        rowKey="id"
+        scroll={{ x: 'max-content' }}
       />
     </div>
   )
 }
+
+export default DoctorScheduleTable

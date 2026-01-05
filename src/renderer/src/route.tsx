@@ -39,6 +39,9 @@ import Services from './pages/services/services'
 import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
+import DoctorLeave from './pages/doctor-leave/DoctorLeave'
+import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
+import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 
 function MainRoute() {
   const location = useLocation()
@@ -94,6 +97,11 @@ function MainRoute() {
           <Route path="registration/doctor-schedule" element={<DoctorScheduleTable />} />
           <Route path="registration/doctor-schedule/create" element={<DoctorScheduleForm />} />
           <Route path="registration/doctor-schedule/edit/:id" element={<DoctorScheduleForm />} />
+          <Route path="registration/doctor-leave" element={<DoctorLeave />}>
+            <Route index element={<DoctorLeaveTable />} />
+            <Route path="create" element={<DoctorLeaveForm />} />
+            <Route path="edit/:id" element={<DoctorLeaveForm />} />
+          </Route>
           <Route path="diagnostic" element={<Diagnostic />}>
             <Route index element={<DiagnosticTable />} />
             <Route path="create" element={<DiagnosticForm />} />

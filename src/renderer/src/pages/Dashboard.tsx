@@ -81,9 +81,14 @@ const items = [
         key: '/dashboard/registration/jaminan',
         icon: <DashboardOutlined />
       },
-     {
+      {
         label: 'Jadwal Praktek Dokter',
         key: '/dashboard/registration/doctor-schedule',
+        icon: <CalendarOutlined />
+      },
+      {
+        label: 'Jadwal Libur Dokter',
+        key: '/dashboard/registration/doctor-leave',
         icon: <CalendarOutlined />
       },
       {
@@ -226,7 +231,8 @@ function Dashboard() {
     '/dashboard/queue',
     '/dashboard/diagnostic',
     '/dashboard/services',
-    '/dashboard/service-request'
+    '/dashboard/service-request',
+    '/dashboard/registration/doctor-leave'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
