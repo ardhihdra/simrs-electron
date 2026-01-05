@@ -1,7 +1,7 @@
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../database';
+import { sequelize } from '@main/database';
 import z from 'zod';
-import { ObservationStatus } from './enums/ResourceEnums';
+import { ObservationStatus } from '@main/models/enums/ResourceEnums';
 
 export const Observation = sequelize.define(
   'Observation',
