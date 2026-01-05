@@ -81,7 +81,7 @@ const items = [
         key: '/dashboard/registration/jaminan',
         icon: <DashboardOutlined />
       },
-     {
+      {
         label: 'Jadwal Praktek Dokter',
         key: '/dashboard/registration/doctor-schedule',
         icon: <CalendarOutlined />
@@ -298,9 +298,11 @@ function Dashboard() {
     const children = childrenOfTop(newTop)
     setSideItems(children)
     const childKeys = childKeysOfTop(newTop)
-    setActiveSide(
-      childKeys.includes(location.pathname) ? location.pathname : (children[0]?.key as string)
-    )
+    const match = childKeys
+      .filter((key) => location.pathname.startsWith(key))
+      .sort((a, b) => b.length - a.length)[0]
+
+    setActiveSide(match || (children[0]?.key as string))
   }, [location.pathname])
   return (
     <div className="min-h-screen flex">
