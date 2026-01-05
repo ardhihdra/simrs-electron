@@ -1,7 +1,8 @@
-import { Table, Input, Select, Button } from 'antd'
+import { Button } from 'antd'
 import { EditOutlined, LockOutlined, HistoryOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
+import GenericTable from '@renderer/components/GenericTable'
 
 interface DataType {
   key: string
@@ -48,34 +49,13 @@ const data: DataType[] = [
 
 export default function PemeriksaanUtamaTable() {
   const navigate = useNavigate()
-  const columns: ColumnsType<DataType> = [
+  const baseColumns: ColumnsType<DataType> = [
     {
       title: 'No.',
       dataIndex: 'no',
       key: 'no',
       width: 50,
       align: 'center'
-    },
-    {
-      title: 'Action',
-      key: 'action',
-      width: 80,
-      align: 'center',
-      render: () => (
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex gap-2">
-            <Button
-              type="text"
-              size="small"
-              icon={<EditOutlined />}
-              className="p-0 h-auto"
-              onClick={() => navigate('/dashboard/services/pemeriksaan-utama/edit')}
-            />
-            <Button type="text" size="small" icon={<LockOutlined />} className="p-0 h-auto" />
-            <Button type="text" size="small" icon={<HistoryOutlined />} className="p-0 h-auto" />
-          </div>
-        </div>
-      )
     },
     {
       title: 'Tanggal',
@@ -170,13 +150,31 @@ export default function PemeriksaanUtamaTable() {
   return (
     <div>
       <div className="mb-2 text-gray-500 text-sm">Menampilkan 1 - 10 data dari total 12 data.</div>
-      <Table
-        columns={columns}
+      <GenericTable<DataType>
+        columns={baseColumns}
         dataSource={data}
-        pagination={false}
-        size="small"
-        bordered
-        scroll={{ x: 'max-content' }}
+        rowKey={(record) => record.key}
+        action={{
+          title: 'Action',
+          width: 90,
+          align: 'center',
+          fixedRight: true,
+          render: () => (
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex gap-2">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<EditOutlined />}
+                  className="p-0 h-auto"
+                  onClick={() => navigate('/dashboard/services/pemeriksaan-utama/edit')}
+                />
+                <Button type="text" size="small" icon={<LockOutlined />} className="p-0 h-auto" />
+                <Button type="text" size="small" icon={<HistoryOutlined />} className="p-0 h-auto" />
+              </div>
+            </div>
+          )
+        }}
       />
     </div>
   )
