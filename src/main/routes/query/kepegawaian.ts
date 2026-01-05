@@ -7,6 +7,11 @@ export const requireSession = true
 
 export const schemas = {
     list: {
+        args: z.object({
+            query: z.object({
+                hakAksesCode: z.string().optional()
+            }).optional()
+        }).optional(),
         result: z.object({
             success: z.boolean(),
             result: KepegawaianSchemaWithId.array().optional(),
@@ -50,10 +55,18 @@ const BackendResponseSchema = z.object({
     error: z.string().optional()
 })
 
-export const list = async (ctx: IpcContext) => {
+export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.args>) => {
     try {
         const client = createBackendClient(ctx)
-        const res = await client.get('/api/kepegawaian?items=100')
+
+        const params = new URLSearchParams()
+        params.append('items', '100')
+
+        if (args?.query?.hakAksesCode) {
+            params.append('hakAksesCode', args.query.hakAksesCode)
+        }
+
+        const res = await client.get(`/api/kepegawaian?${params.toString()}`)
         const result = await parseBackendResponse(
             res,
             BackendListSchema(KepegawaianSchemaWithId)

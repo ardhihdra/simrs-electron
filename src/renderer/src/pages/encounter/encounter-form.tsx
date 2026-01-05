@@ -5,6 +5,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { EncounterAttributes } from '@shared/encounter'
 import type { PatientAttributes } from '@shared/patient'
+import { SelectPoli } from '../../components/dynamic/SelectPoli'
+import { SelectKepegawaian } from '@renderer/components/dynamic/SelectKepegawaian'
 
 type EncounterFormValues = Omit<EncounterAttributes, 'visitDate'> & { visitDate: Dayjs }
 
@@ -54,7 +56,7 @@ function EncounterForm() {
       const fn = window.api?.query?.encounter?.create
       if (!fn) throw new Error('API encounter tidak tersedia')
       const result = await fn(payload)
-    console.log(result)
+      console.log(result)
       if (!result.success) throw new Error(result.error || 'Failed to create encounter')
       return result
     },
@@ -68,7 +70,7 @@ function EncounterForm() {
   const updateMutation = useMutation({
     mutationKey: ['encounter', 'update'],
     mutationFn: async (payload: EncounterAttributes & { id: string }) => {
-      const fn =  window.api?.query?.encounter?.update
+      const fn = window.api?.query?.encounter?.update
       if (!fn) throw new Error('API encounter tidak tersedia')
       const result = await fn({ ...payload, id: payload.id })
       if (!result.success) throw new Error(result.error || 'Failed to update encounter')
@@ -85,7 +87,7 @@ function EncounterForm() {
     try {
       setSubmitting(true)
       const payload: EncounterAttributes = {
-        patientId:  values.patientId,
+        patientId: values.patientId,
         visitDate: values.visitDate.toDate(),
         serviceType: values.serviceType,
         reason: values.reason ?? null,
@@ -110,7 +112,7 @@ function EncounterForm() {
             <Select placeholder="Pilih pasien" loading={patients.isLoading}>
               {(patients.data?.data as PatientAttributes[] | undefined)?.map((p) => (
                 <Select.Option key={String(p.id)} value={p.id!}>
-                  {p.name} ({p.kode})
+                  <span className='capitalize'>{p.name}</span>
                 </Select.Option>
               ))}
             </Select>
@@ -118,9 +120,15 @@ function EncounterForm() {
           <Form.Item label="Tanggal Kunjungan" name="visitDate" rules={[{ required: true, message: 'Tanggal kunjungan wajib' }]}>
             <DatePicker showTime className="w-full" />
           </Form.Item>
+
           <Form.Item label="Jenis Layanan" name="serviceType" rules={[{ required: true, message: 'Jenis layanan wajib' }]}>
-            <Input placeholder="Jenis layanan" />
+            <SelectPoli valueType="name" />
           </Form.Item>
+
+          <Form.Item label="Dokter" name="doctorId" rules={[{ required: true, message: 'Dokter wajib' }]}>
+            <SelectKepegawaian hakAksesCode="doctor" />
+          </Form.Item>
+
           <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Status wajib' }]}>
             <Select placeholder="Pilih status">
               <Select.Option value="planned">Planned</Select.Option>

@@ -56,7 +56,7 @@ Encounter.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' })
 export const EncounterSchema = z.object({
   patientId: z.string(),
   visitDate: z.union([z.date(), z.string()]),
-  serviceType: z.string().min(1),
+  serviceType: z.union([z.string(), z.number()]),
   reason: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   status: z.enum([
