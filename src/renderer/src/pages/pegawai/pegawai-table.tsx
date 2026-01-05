@@ -31,6 +31,16 @@ const columns: ColumnsType<Row> = [
     render: (v?: string | null) => (v ? dayjs(v).format('DD MMMM YYYY') : '-')
   },
   {
+    title: 'Nomor Telepon',
+    dataIndex: 'nomorTelepon',
+    key: 'nomorTelepon'
+  },
+  {
+    title: 'Hak Akses',
+    dataIndex: 'hakAksesId',
+    key: 'hakAksesId',
+  },
+  {
     title: 'Action',
     key: 'action',
     width: 100,
@@ -79,7 +89,7 @@ function PegawaiTable() {
   })
 
   const filtered = useMemo(() => {
-    const source: KepegawaianAttributes[] = (data?.data as KepegawaianAttributes[]) || []
+    const source: KepegawaianAttributes[] = (data?.data as unknown as KepegawaianAttributes[]) || []
     const rows: Row[] = source.map((p, idx) => {
       const kontrak = Array.isArray(p.kontrakPegawai) ? p.kontrakPegawai[0] : undefined
       return {

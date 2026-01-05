@@ -55,17 +55,34 @@ export const Kepegawaian = sequelize.define(
 
 // Zod schemas used by IPC routes and backend client parsing
 const KontrakPegawaiSchema = z.object({
-  id: z.number(),
-  idPegawai: z.number(),
-  kodeJabatan: z.string(),
-  kodeDepartemen: z.string(),
-  kodeLokasiKerja: z.string(),
-  tanggalMulai: z.string(),
-  tanggalSelesai: z.string().nullable().optional(),
-  status: z.string(),
+  idKontrakPegawai: z.number().optional(),
+  idPegawai: z.number().optional(),
+  nomorKontrak: z.string().optional().nullable(),
+  nip: z.string().optional().nullable(),
+  kodeDivisi: z.string().optional().nullable(),
+  kodeDepartemen: z.string().optional().nullable(),
+  kodeJabatan: z.string().optional().nullable(),
+  tanggalMulaiKontrak: z.string().optional().nullable(),
+  tanggalBerakhirKontrak: z.string().optional().nullable(),
+  durasiKontrak: z.number().optional().nullable(),
+  gajiPokok: z.string().optional().nullable(),
+  tunjangan: z.string().optional().nullable(),
+  kodeLokasiKerja: z.string().optional().nullable(),
+  statusKontrak: z.string().optional().nullable(),
+  penanggungJawab: z.string().optional().nullable(),
+  tanggalPenandatanganan: z.string().optional().nullable(),
+  pendidikanTerakhir: z.string().optional().nullable(),
+  tahunIjazah: z.string().optional().nullable(),
+  npwp: z.string().optional().nullable(),
+  rekeningBank: z.string().optional().nullable(),
+  fotoPegawai: z.string().optional().nullable(),
+  dokumenKontrak: z.string().optional().nullable(),
+  createdBy: z.number().optional().nullable(),
+  updatedBy: z.number().optional().nullable(),
   createdAt: z.string().optional().nullable(),
   updatedAt: z.string().optional().nullable(),
-  deletedAt: z.string().optional().nullable()
+  deletedAt: z.string().optional().nullable(),
+  deletedBy: z.number().optional().nullable()
 })
 
 export const KepegawaianSchema = z.object({
@@ -77,6 +94,7 @@ export const KepegawaianSchema = z.object({
   alamat: z.string().nullable().optional(),
   nomorTelepon: z.string().nullable().optional(),
   hakAksesId: z.string().nullable().optional(),
+  hakAkses: z.string().nullable().optional(),
   emailVerified: z.boolean().optional(),
   createdBy: z.number().nullable().optional(),
   updatedBy: z.number().nullable().optional(),
