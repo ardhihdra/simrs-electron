@@ -1,6 +1,7 @@
-import { Table, Button } from 'antd'
+import { Button } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlayCircleOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
 interface DataType {
   key: string
@@ -55,7 +56,7 @@ const data: DataType[] = [
 ]
 
 export const PerawatanTab = () => {
-  const columns: ColumnsType<DataType> = [
+  const baseColumns: ColumnsType<DataType> = [
     {
       title: 'No',
       dataIndex: 'no',
@@ -116,13 +117,11 @@ export const PerawatanTab = () => {
 
   return (
     <div className="p-4">
-      <Table
-        columns={columns}
+      <GenericTable<DataType>
+        columns={baseColumns}
         dataSource={data}
-        pagination={false}
-        size="small"
-        bordered
-        scroll={{ x: 'max-content' }}
+        rowKey={(r) => r.key}
+        tableProps={{ pagination: false, size: 'small', bordered: true, scroll: { x: 'max-content' } }}
       />
     </div>
   )

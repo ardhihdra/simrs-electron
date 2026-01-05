@@ -5,7 +5,7 @@ import type { MenuProps } from 'antd'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
 
-type ExpenseRecord = { id: number }
+type ExpenseRecord = { id: number | string }
 type ActionProps = { record: ExpenseRecord }
 
 function Action({ record }: ActionProps) {
@@ -39,7 +39,12 @@ function Action({ record }: ActionProps) {
       danger: true,
       label: 'Delete',
       icon: <DeleteOutlined />,
-      onClick: () => deleteMutation.mutate(record.id)
+      onClick: () => {
+        const idNum = typeof record.id === 'string' ? Number(record.id) : record.id
+        if (!Number.isNaN(idNum)) {
+          deleteMutation.mutate(idNum)
+        }
+      }
     }
   ]
 

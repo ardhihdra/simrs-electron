@@ -1,4 +1,4 @@
-import { Button, DatePicker, Input, Select, Table } from 'antd'
+import { Button, DatePicker, Input, Select } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -8,6 +8,7 @@ import { EncounterStatus } from '@shared/encounter'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
+import GenericTable from '@renderer/components/GenericTable'
 
 export type EncounterListResult = {
     success: boolean
@@ -22,7 +23,7 @@ type EncounterRow = Omit<EncounterAttributes, 'visitDate' | 'status'> & {
 
 type Row = EncounterRow & { no: number }
 
-const columns: ColumnsType<Row> = [
+const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Tanggal Kunjungan', dataIndex: 'visitDate', key: 'visitDate', render: (v: string | Date) => (v ? dayjs(v).format('DD MMMM YYYY HH:mm') : '-') },
   { title: 'Pasien', dataIndex: ['patient', 'name'], key: 'patient' },
@@ -30,14 +31,6 @@ const columns: ColumnsType<Row> = [
   { title: 'Alasan', dataIndex: 'reason', key: 'reason' },
   { title: 'Status', dataIndex: 'status', key: 'status' },
   { title: 'Catatan', dataIndex: 'note', key: 'note' },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 100,
-    render: (_: Row, record: Row) => (
-      <RowActions record={record} />
-    )
-  }
 ]
 
 function RowActions({ record }: { record: Row }) {
@@ -136,14 +129,20 @@ export function EncounterTable() {
         <div />
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table<Row>
+      <GenericTable<Row>
+        columns={baseColumns}
         dataSource={filtered}
-        columns={columns}
         rowKey={(r) => String(r.id ?? `${r.serviceType}-${r.patient?.name || ''}`)}
+        action={{
+          title: 'Action',
+          width: 100,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
       />
     </div>
   )
 }
 
 export default EncounterTable
-

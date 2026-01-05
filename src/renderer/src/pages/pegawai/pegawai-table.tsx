@@ -1,10 +1,11 @@
-import { Button, DatePicker, Input, Select, Table } from 'antd'
+import { Button, DatePicker, Input, Select } from 'antd'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import type { KepegawaianAttributes } from '@shared/kepegawaian'
 import type { ColumnsType } from 'antd/es/table'
+import GenericTable from '@renderer/components/GenericTable'
 import { EditOutlined, EyeOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -16,7 +17,7 @@ type Row = KepegawaianAttributes & {
   tanggalMulaiTugas?: string | null
 }
 
-const columns: ColumnsType<Row> = [
+const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Kategori', dataIndex: 'kategori', key: 'kategori' },
   { title: 'Nama', dataIndex: 'namaLengkap', key: 'namaLengkap' },
@@ -29,12 +30,6 @@ const columns: ColumnsType<Row> = [
     dataIndex: 'tanggalMulaiTugas',
     key: 'tanggalMulaiTugas',
     render: (v?: string | null) => (v ? dayjs(v).format('DD MMMM YYYY') : '-')
-  },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 100,
-    render: (_: Row, record: Row) => <RowActions record={record} />
   },
 ]
 
@@ -137,10 +132,17 @@ function PegawaiTable() {
         />
       </div>
       <div className="">
-        <Table<Row>
+        <GenericTable<Row>
           rowKey={(r) => String(r.id ?? `${r.nik}-${r.email}`)}
           dataSource={filtered}
-          columns={columns}
+          columns={baseColumns}
+          action={{
+            title: 'Action',
+            width: 100,
+            align: 'center',
+            fixedRight: true,
+            render: (record) => <RowActions record={record} />
+          }}
         />
       </div>
     </div>
