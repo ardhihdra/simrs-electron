@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { EncounterListResult } from '../encounter-table'
+import { EncounterListResult } from '@renderer/pages/encounter/encounter-table'
 import { Card } from 'antd'
 
 export default function EncounterMonitor() {

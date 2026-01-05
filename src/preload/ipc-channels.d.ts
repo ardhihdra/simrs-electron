@@ -19,6 +19,7 @@ import type * as Mod_query_pegawai from '../main/routes/query/pegawai'
 import type * as Mod_query_poli from '../main/routes/query/poli'
 import type * as Mod_query_serviceRequest from '../main/routes/query/serviceRequest'
 import type * as Mod_user from '../main/routes/user'
+
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']

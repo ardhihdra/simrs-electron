@@ -1,5 +1,5 @@
-import { IpcContext } from '../ipc/router'
-import { createBackendClient } from '../utils/backendClient'
+import { IpcContext } from '@main/ipc/router'
+import { createBackendClient } from '@main/utils/backendClient'
 import z from 'zod'
 
 const SendNotificationSchema = z.object({
