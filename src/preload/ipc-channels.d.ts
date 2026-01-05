@@ -4,6 +4,12 @@ import type { z } from 'zod'
 import type * as Mod_auth from '../main/routes/auth'
 import type * as Mod_macaddress from '../main/routes/macaddress'
 import type * as Mod_notification from '../main/routes/notification'
+import type * as Mod_query_asset from '../main/routes/query/asset'
+import type * as Mod_query_assetCategory from '../main/routes/query/assetCategory'
+import type * as Mod_query_assetDepreciation from '../main/routes/query/assetDepreciation'
+import type * as Mod_query_assetMaintenance from '../main/routes/query/assetMaintenance'
+import type * as Mod_query_assetMaster from '../main/routes/query/assetMaster'
+import type * as Mod_query_assetMovement from '../main/routes/query/assetMovement'
 import type * as Mod_query_departemen from '../main/routes/query/departemen'
 import type * as Mod_query_diagnostic from '../main/routes/query/diagnostic'
 import type * as Mod_query_doctorSchedule from '../main/routes/query/doctorSchedule'
@@ -60,6 +66,66 @@ type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress,
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Args_Mod_notification_send = InferArgs<typeof Mod_notification, 'send'>
 type Result_Mod_notification_send = InferResult<typeof Mod_notification, 'send'>
+type Args_Mod_query_asset_create = InferArgs<typeof Mod_query_asset, 'create'>
+type Result_Mod_query_asset_create = InferResult<typeof Mod_query_asset, 'create'>
+type Args_Mod_query_asset_deleteById = InferArgs<typeof Mod_query_asset, 'deleteById'>
+type Result_Mod_query_asset_deleteById = InferResult<typeof Mod_query_asset, 'deleteById'>
+type Args_Mod_query_asset_getById = InferArgs<typeof Mod_query_asset, 'getById'>
+type Result_Mod_query_asset_getById = InferResult<typeof Mod_query_asset, 'getById'>
+type Args_Mod_query_asset_list = InferArgs<typeof Mod_query_asset, 'list'>
+type Result_Mod_query_asset_list = InferResult<typeof Mod_query_asset, 'list'>
+type Args_Mod_query_asset_update = InferArgs<typeof Mod_query_asset, 'update'>
+type Result_Mod_query_asset_update = InferResult<typeof Mod_query_asset, 'update'>
+type Args_Mod_query_assetCategory_create = InferArgs<typeof Mod_query_assetCategory, 'create'>
+type Result_Mod_query_assetCategory_create = InferResult<typeof Mod_query_assetCategory, 'create'>
+type Args_Mod_query_assetCategory_deleteById = InferArgs<typeof Mod_query_assetCategory, 'deleteById'>
+type Result_Mod_query_assetCategory_deleteById = InferResult<typeof Mod_query_assetCategory, 'deleteById'>
+type Args_Mod_query_assetCategory_getById = InferArgs<typeof Mod_query_assetCategory, 'getById'>
+type Result_Mod_query_assetCategory_getById = InferResult<typeof Mod_query_assetCategory, 'getById'>
+type Args_Mod_query_assetCategory_list = InferArgs<typeof Mod_query_assetCategory, 'list'>
+type Result_Mod_query_assetCategory_list = InferResult<typeof Mod_query_assetCategory, 'list'>
+type Args_Mod_query_assetCategory_update = InferArgs<typeof Mod_query_assetCategory, 'update'>
+type Result_Mod_query_assetCategory_update = InferResult<typeof Mod_query_assetCategory, 'update'>
+type Args_Mod_query_assetDepreciation_create = InferArgs<typeof Mod_query_assetDepreciation, 'create'>
+type Result_Mod_query_assetDepreciation_create = InferResult<typeof Mod_query_assetDepreciation, 'create'>
+type Args_Mod_query_assetDepreciation_deleteById = InferArgs<typeof Mod_query_assetDepreciation, 'deleteById'>
+type Result_Mod_query_assetDepreciation_deleteById = InferResult<typeof Mod_query_assetDepreciation, 'deleteById'>
+type Args_Mod_query_assetDepreciation_getById = InferArgs<typeof Mod_query_assetDepreciation, 'getById'>
+type Result_Mod_query_assetDepreciation_getById = InferResult<typeof Mod_query_assetDepreciation, 'getById'>
+type Args_Mod_query_assetDepreciation_list = InferArgs<typeof Mod_query_assetDepreciation, 'list'>
+type Result_Mod_query_assetDepreciation_list = InferResult<typeof Mod_query_assetDepreciation, 'list'>
+type Args_Mod_query_assetDepreciation_update = InferArgs<typeof Mod_query_assetDepreciation, 'update'>
+type Result_Mod_query_assetDepreciation_update = InferResult<typeof Mod_query_assetDepreciation, 'update'>
+type Args_Mod_query_assetMaintenance_create = InferArgs<typeof Mod_query_assetMaintenance, 'create'>
+type Result_Mod_query_assetMaintenance_create = InferResult<typeof Mod_query_assetMaintenance, 'create'>
+type Args_Mod_query_assetMaintenance_deleteById = InferArgs<typeof Mod_query_assetMaintenance, 'deleteById'>
+type Result_Mod_query_assetMaintenance_deleteById = InferResult<typeof Mod_query_assetMaintenance, 'deleteById'>
+type Args_Mod_query_assetMaintenance_getById = InferArgs<typeof Mod_query_assetMaintenance, 'getById'>
+type Result_Mod_query_assetMaintenance_getById = InferResult<typeof Mod_query_assetMaintenance, 'getById'>
+type Args_Mod_query_assetMaintenance_list = InferArgs<typeof Mod_query_assetMaintenance, 'list'>
+type Result_Mod_query_assetMaintenance_list = InferResult<typeof Mod_query_assetMaintenance, 'list'>
+type Args_Mod_query_assetMaintenance_update = InferArgs<typeof Mod_query_assetMaintenance, 'update'>
+type Result_Mod_query_assetMaintenance_update = InferResult<typeof Mod_query_assetMaintenance, 'update'>
+type Args_Mod_query_assetMaster_create = InferArgs<typeof Mod_query_assetMaster, 'create'>
+type Result_Mod_query_assetMaster_create = InferResult<typeof Mod_query_assetMaster, 'create'>
+type Args_Mod_query_assetMaster_deleteById = InferArgs<typeof Mod_query_assetMaster, 'deleteById'>
+type Result_Mod_query_assetMaster_deleteById = InferResult<typeof Mod_query_assetMaster, 'deleteById'>
+type Args_Mod_query_assetMaster_getById = InferArgs<typeof Mod_query_assetMaster, 'getById'>
+type Result_Mod_query_assetMaster_getById = InferResult<typeof Mod_query_assetMaster, 'getById'>
+type Args_Mod_query_assetMaster_list = InferArgs<typeof Mod_query_assetMaster, 'list'>
+type Result_Mod_query_assetMaster_list = InferResult<typeof Mod_query_assetMaster, 'list'>
+type Args_Mod_query_assetMaster_update = InferArgs<typeof Mod_query_assetMaster, 'update'>
+type Result_Mod_query_assetMaster_update = InferResult<typeof Mod_query_assetMaster, 'update'>
+type Args_Mod_query_assetMovement_create = InferArgs<typeof Mod_query_assetMovement, 'create'>
+type Result_Mod_query_assetMovement_create = InferResult<typeof Mod_query_assetMovement, 'create'>
+type Args_Mod_query_assetMovement_deleteById = InferArgs<typeof Mod_query_assetMovement, 'deleteById'>
+type Result_Mod_query_assetMovement_deleteById = InferResult<typeof Mod_query_assetMovement, 'deleteById'>
+type Args_Mod_query_assetMovement_getById = InferArgs<typeof Mod_query_assetMovement, 'getById'>
+type Result_Mod_query_assetMovement_getById = InferResult<typeof Mod_query_assetMovement, 'getById'>
+type Args_Mod_query_assetMovement_list = InferArgs<typeof Mod_query_assetMovement, 'list'>
+type Result_Mod_query_assetMovement_list = InferResult<typeof Mod_query_assetMovement, 'list'>
+type Args_Mod_query_assetMovement_update = InferArgs<typeof Mod_query_assetMovement, 'update'>
+type Result_Mod_query_assetMovement_update = InferResult<typeof Mod_query_assetMovement, 'update'>
 type Args_Mod_query_departemen_list = InferArgs<typeof Mod_query_departemen, 'list'>
 type Result_Mod_query_departemen_list = InferResult<typeof Mod_query_departemen, 'list'>
 type Args_Mod_query_diagnostic_create = InferArgs<typeof Mod_query_diagnostic, 'create'>
@@ -188,6 +254,48 @@ declare global {
         send: Invoke<Args_Mod_notification_send, Result_Mod_notification_send>
       }
       query: {
+        asset: {
+          create: Invoke<Args_Mod_query_asset_create, Result_Mod_query_asset_create>
+          deleteById: Invoke<Args_Mod_query_asset_deleteById, Result_Mod_query_asset_deleteById>
+          getById: Invoke<Args_Mod_query_asset_getById, Result_Mod_query_asset_getById>
+          list: Invoke<Args_Mod_query_asset_list, Result_Mod_query_asset_list>
+          update: Invoke<Args_Mod_query_asset_update, Result_Mod_query_asset_update>
+        }
+        assetCategory: {
+          create: Invoke<Args_Mod_query_assetCategory_create, Result_Mod_query_assetCategory_create>
+          deleteById: Invoke<Args_Mod_query_assetCategory_deleteById, Result_Mod_query_assetCategory_deleteById>
+          getById: Invoke<Args_Mod_query_assetCategory_getById, Result_Mod_query_assetCategory_getById>
+          list: Invoke<Args_Mod_query_assetCategory_list, Result_Mod_query_assetCategory_list>
+          update: Invoke<Args_Mod_query_assetCategory_update, Result_Mod_query_assetCategory_update>
+        }
+        assetDepreciation: {
+          create: Invoke<Args_Mod_query_assetDepreciation_create, Result_Mod_query_assetDepreciation_create>
+          deleteById: Invoke<Args_Mod_query_assetDepreciation_deleteById, Result_Mod_query_assetDepreciation_deleteById>
+          getById: Invoke<Args_Mod_query_assetDepreciation_getById, Result_Mod_query_assetDepreciation_getById>
+          list: Invoke<Args_Mod_query_assetDepreciation_list, Result_Mod_query_assetDepreciation_list>
+          update: Invoke<Args_Mod_query_assetDepreciation_update, Result_Mod_query_assetDepreciation_update>
+        }
+        assetMaintenance: {
+          create: Invoke<Args_Mod_query_assetMaintenance_create, Result_Mod_query_assetMaintenance_create>
+          deleteById: Invoke<Args_Mod_query_assetMaintenance_deleteById, Result_Mod_query_assetMaintenance_deleteById>
+          getById: Invoke<Args_Mod_query_assetMaintenance_getById, Result_Mod_query_assetMaintenance_getById>
+          list: Invoke<Args_Mod_query_assetMaintenance_list, Result_Mod_query_assetMaintenance_list>
+          update: Invoke<Args_Mod_query_assetMaintenance_update, Result_Mod_query_assetMaintenance_update>
+        }
+        assetMaster: {
+          create: Invoke<Args_Mod_query_assetMaster_create, Result_Mod_query_assetMaster_create>
+          deleteById: Invoke<Args_Mod_query_assetMaster_deleteById, Result_Mod_query_assetMaster_deleteById>
+          getById: Invoke<Args_Mod_query_assetMaster_getById, Result_Mod_query_assetMaster_getById>
+          list: Invoke<Args_Mod_query_assetMaster_list, Result_Mod_query_assetMaster_list>
+          update: Invoke<Args_Mod_query_assetMaster_update, Result_Mod_query_assetMaster_update>
+        }
+        assetMovement: {
+          create: Invoke<Args_Mod_query_assetMovement_create, Result_Mod_query_assetMovement_create>
+          deleteById: Invoke<Args_Mod_query_assetMovement_deleteById, Result_Mod_query_assetMovement_deleteById>
+          getById: Invoke<Args_Mod_query_assetMovement_getById, Result_Mod_query_assetMovement_getById>
+          list: Invoke<Args_Mod_query_assetMovement_list, Result_Mod_query_assetMovement_list>
+          update: Invoke<Args_Mod_query_assetMovement_update, Result_Mod_query_assetMovement_update>
+        }
         departemen: {
           list: Invoke<Args_Mod_query_departemen_list, Result_Mod_query_departemen_list>
         }

@@ -81,7 +81,7 @@ const items = [
         key: '/dashboard/registration/jaminan',
         icon: <DashboardOutlined />
       },
-     {
+      {
         label: 'Jadwal Praktek Dokter',
         key: '/dashboard/registration/doctor-schedule',
         icon: <CalendarOutlined />
@@ -209,6 +209,19 @@ const items = [
       }
     ]
   }
+  ,{
+    label: 'Asset Management',
+    key: '/dashboard/asset',
+    icon: <DashboardOutlined />,
+    children: [
+      { label: 'Kategori Aset', key: '/dashboard/asset/category', icon: <DashboardOutlined /> },
+      { label: 'Master Aset', key: '/dashboard/asset/master', icon: <DashboardOutlined /> },
+      { label: 'Registrasi Aset', key: '/dashboard/asset/register', icon: <DashboardOutlined /> },
+      { label: 'Perpindahan Aset', key: '/dashboard/asset/movement', icon: <DashboardOutlined /> },
+      { label: 'Pemeliharaan/Kalibrasi', key: '/dashboard/asset/maintenance', icon: <DashboardOutlined /> },
+      { label: 'Depresiasi', key: '/dashboard/asset/depreciation', icon: <DashboardOutlined /> }
+    ]
+  }
 ]
 
 function Dashboard() {
@@ -226,7 +239,14 @@ function Dashboard() {
     '/dashboard/queue',
     '/dashboard/diagnostic',
     '/dashboard/services',
-    '/dashboard/service-request'
+    '/dashboard/service-request',
+    '/dashboard/asset',
+    '/dashboard/asset/category',
+    '/dashboard/asset/master',
+    '/dashboard/asset/register',
+    '/dashboard/asset/movement',
+    '/dashboard/asset/maintenance',
+    '/dashboard/asset/depreciation'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true

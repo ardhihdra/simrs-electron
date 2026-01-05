@@ -39,6 +39,19 @@ import Services from './pages/services/services'
 import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
+import Asset from './pages/asset/Asset'
+import AssetCategoryTable from './pages/asset/category-table'
+import AssetCategoryForm from './pages/asset/category-form'
+import AssetMasterTable from './pages/asset/master-table'
+import AssetMasterForm from './pages/asset/master-form'
+import AssetTable from './pages/asset/asset-table'
+import AssetForm from './pages/asset/asset-form'
+import AssetMovementTable from './pages/asset/movement-table'
+import AssetMovementForm from './pages/asset/movement-form'
+import AssetMaintenanceTable from './pages/asset/maintenance-table'
+import AssetMaintenanceForm from './pages/asset/maintenance-form'
+import AssetDepreciationTable from './pages/asset/depreciation-table'
+import AssetDepreciationForm from './pages/asset/depreciation-form'
 
 function MainRoute() {
   const location = useLocation()
@@ -103,6 +116,20 @@ function MainRoute() {
             <Route index element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          </Route>
+          <Route path="asset" element={<Asset />}>
+            <Route path="category" element={<AssetCategoryTable />} />
+            <Route path="category/create" element={<AssetCategoryForm />} />
+            <Route path="master" element={<AssetMasterTable />} />
+            <Route path="master/create" element={<AssetMasterForm />} />
+            <Route path="register" element={<AssetTable />} />
+            <Route path="register/create" element={<AssetForm />} />
+            <Route path="movement" element={<AssetMovementTable />} />
+            <Route path="movement/create" element={<AssetMovementForm />} />
+            <Route path="maintenance" element={<AssetMaintenanceTable />} />
+            <Route path="maintenance/create" element={<AssetMaintenanceForm />} />
+            <Route path="depreciation" element={<AssetDepreciationTable />} />
+            <Route path="depreciation/create" element={<AssetDepreciationForm />} />
           </Route>
         </Route>
         <Route
