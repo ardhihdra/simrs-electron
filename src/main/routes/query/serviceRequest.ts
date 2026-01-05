@@ -1,6 +1,6 @@
 import z from 'zod'
-import { ServiceRequestSchema, ServiceRequestSchemaWithId } from '../../models/service-request'
-import { IpcContext } from '../../ipc/router'
+import { ServiceRequestSchema, ServiceRequestSchemaWithId } from '@main/models/service-request'
+import { IpcContext } from '@main/ipc/router'
 
 export const requireSession = true
 
@@ -59,7 +59,7 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
     const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
     // Use 'servicerequest' as the entity name (lowercase, matching file name in simrs appModels)
     const url = `${root}/api/servicerequest?items=100`
-    
+
     const res = await fetch(url, {
       method: 'GET',
       headers: {
@@ -68,9 +68,9 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
         'x-access-token': token
       }
     })
-    
+
     const raw = await res.json().catch(() => ({ success: false, error: `HTTP ${res.status}` }))
-    
+
     const BackendListSchema = z.object({
       success: z.boolean(),
       result: ServiceRequestSchemaWithId.array().optional(),
@@ -79,7 +79,7 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
       message: z.string().optional(),
       error: z.string().optional()
     })
-    
+
     const parsed = BackendListSchema.safeParse(raw)
     if (!res.ok || !parsed.success || !parsed.data.success) {
       console.error('ServiceRequest list error:', parsed.success ? parsed.data.message : parsed.error)

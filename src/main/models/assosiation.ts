@@ -1,15 +1,15 @@
-import { Attachment } from './attachment'
-import { Expense } from './expense'
-import { ExpenseAttachment } from './expenseAttachment'
-import { ExpenseHead } from './expenseHead'
-import { Income } from './income'
-import { IncomeHead } from './incomeHead'
+import { Attachment } from '@main/models/attachment'
+import { Expense } from '@main/models/expense'
+import { ExpenseAttachment } from '@main/models/expenseAttachment'
+import { ExpenseHead } from '@main/models/expenseHead'
+import { Income } from '@main/models/income'
+import { IncomeHead } from '@main/models/incomeHead'
 
-import { Patient } from './patient'
-import { Encounter } from './encounter'
-import { Condition } from './Condition'
-import { DiagnosticReport } from './DiagnosticReport'
-import { Observation } from './Observation'
+import { Patient } from '@main/models/patient'
+import { Encounter } from '@main/models/encounter'
+import { Condition } from '@main/models/condition'
+import { DiagnosticReport } from '@main/models/diagnosticReport'
+import { Observation } from '@main/models/observation'
 
 // IncomeHead 1 - N Income
 IncomeHead.hasMany(Income, { foreignKey: 'incomeHeadId' })

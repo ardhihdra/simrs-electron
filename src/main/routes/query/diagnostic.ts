@@ -1,7 +1,7 @@
 import z from 'zod'
 
 import { IpcContext } from '@main/ipc/router'
-import { DiagnosticReportSchema, DiagnosticReportSchemaWithId } from '@main/models/DiagnosticReport'
+import { DiagnosticReportSchema, DiagnosticReportSchemaWithId } from '@main/models/diagnosticReport'
 import {
   createBackendClient,
   parseBackendResponse,

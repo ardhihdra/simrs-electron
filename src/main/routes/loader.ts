@@ -1,6 +1,6 @@
-import { IpcRouter } from '../ipc/router'
-import { withSession, IpcMiddleware } from '../ipc/middleware'
-import { SessionStore } from '../ipc/protected/session-store'
+import { IpcRouter } from '@main/ipc/router'
+import { withSession, IpcMiddleware } from '@main/ipc/middleware'
+import { SessionStore } from '@main/ipc/protected/session-store'
 
 // Minimal Zod-like schema interfaces to avoid hard dependency
 type ZodSchema<T = any> = { parse: (data: any) => T }
@@ -73,9 +73,9 @@ export function autoRegisterRoutes(router: IpcRouter, opts?: { sessionStore?: Se
         const schemas: HandlerSchemas | undefined =
           perExportSchemas || defaultArgsSchema || defaultResultSchema
             ? {
-                args: perExportSchemas?.args ?? defaultArgsSchema,
-                result: perExportSchemas?.result ?? defaultResultSchema
-              }
+              args: perExportSchemas?.args ?? defaultArgsSchema,
+              result: perExportSchemas?.result ?? defaultResultSchema
+            }
             : undefined
 
         const finalHandler = wrapWithSchemas(handler as any, schemas)

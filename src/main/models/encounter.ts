@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize'
-import { sequelize } from '../database'
+import { sequelize } from '@main/database'
 import z from 'zod'
 import { Patient } from './patient'
 
