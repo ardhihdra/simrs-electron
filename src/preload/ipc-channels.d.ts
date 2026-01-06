@@ -13,6 +13,9 @@ import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
+import type * as Mod_query_medicine from '@main/routes/query/medicine'
+import type * as Mod_query_medicineBrand from '@main/routes/query/medicineBrand'
+import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCategory'
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
@@ -136,6 +139,36 @@ type Args_Mod_query_medicalStaffSchedule_list = InferArgs<typeof Mod_query_medic
 type Result_Mod_query_medicalStaffSchedule_list = InferResult<typeof Mod_query_medicalStaffSchedule, 'list'>
 type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_medicalStaffSchedule, 'update'>
 type Result_Mod_query_medicalStaffSchedule_update = InferResult<typeof Mod_query_medicalStaffSchedule, 'update'>
+type Args_Mod_query_medicine_create = InferArgs<typeof Mod_query_medicine, 'create'>
+type Result_Mod_query_medicine_create = InferResult<typeof Mod_query_medicine, 'create'>
+type Args_Mod_query_medicine_deleteById = InferArgs<typeof Mod_query_medicine, 'deleteById'>
+type Result_Mod_query_medicine_deleteById = InferResult<typeof Mod_query_medicine, 'deleteById'>
+type Args_Mod_query_medicine_getById = InferArgs<typeof Mod_query_medicine, 'getById'>
+type Result_Mod_query_medicine_getById = InferResult<typeof Mod_query_medicine, 'getById'>
+type Args_Mod_query_medicine_list = InferArgs<typeof Mod_query_medicine, 'list'>
+type Result_Mod_query_medicine_list = InferResult<typeof Mod_query_medicine, 'list'>
+type Args_Mod_query_medicine_update = InferArgs<typeof Mod_query_medicine, 'update'>
+type Result_Mod_query_medicine_update = InferResult<typeof Mod_query_medicine, 'update'>
+type Args_Mod_query_medicineBrand_create = InferArgs<typeof Mod_query_medicineBrand, 'create'>
+type Result_Mod_query_medicineBrand_create = InferResult<typeof Mod_query_medicineBrand, 'create'>
+type Args_Mod_query_medicineBrand_deleteById = InferArgs<typeof Mod_query_medicineBrand, 'deleteById'>
+type Result_Mod_query_medicineBrand_deleteById = InferResult<typeof Mod_query_medicineBrand, 'deleteById'>
+type Args_Mod_query_medicineBrand_getById = InferArgs<typeof Mod_query_medicineBrand, 'getById'>
+type Result_Mod_query_medicineBrand_getById = InferResult<typeof Mod_query_medicineBrand, 'getById'>
+type Args_Mod_query_medicineBrand_list = InferArgs<typeof Mod_query_medicineBrand, 'list'>
+type Result_Mod_query_medicineBrand_list = InferResult<typeof Mod_query_medicineBrand, 'list'>
+type Args_Mod_query_medicineBrand_update = InferArgs<typeof Mod_query_medicineBrand, 'update'>
+type Result_Mod_query_medicineBrand_update = InferResult<typeof Mod_query_medicineBrand, 'update'>
+type Args_Mod_query_medicineCategory_create = InferArgs<typeof Mod_query_medicineCategory, 'create'>
+type Result_Mod_query_medicineCategory_create = InferResult<typeof Mod_query_medicineCategory, 'create'>
+type Args_Mod_query_medicineCategory_deleteById = InferArgs<typeof Mod_query_medicineCategory, 'deleteById'>
+type Result_Mod_query_medicineCategory_deleteById = InferResult<typeof Mod_query_medicineCategory, 'deleteById'>
+type Args_Mod_query_medicineCategory_getById = InferArgs<typeof Mod_query_medicineCategory, 'getById'>
+type Result_Mod_query_medicineCategory_getById = InferResult<typeof Mod_query_medicineCategory, 'getById'>
+type Args_Mod_query_medicineCategory_list = InferArgs<typeof Mod_query_medicineCategory, 'list'>
+type Result_Mod_query_medicineCategory_list = InferResult<typeof Mod_query_medicineCategory, 'list'>
+type Args_Mod_query_medicineCategory_update = InferArgs<typeof Mod_query_medicineCategory, 'update'>
+type Result_Mod_query_medicineCategory_update = InferResult<typeof Mod_query_medicineCategory, 'update'>
 type Args_Mod_query_patient_create = InferArgs<typeof Mod_query_patient, 'create'>
 type Result_Mod_query_patient_create = InferResult<typeof Mod_query_patient, 'create'>
 type Args_Mod_query_patient_deleteById = InferArgs<typeof Mod_query_patient, 'deleteById'>
@@ -243,6 +276,27 @@ declare global {
           getById: Invoke<Args_Mod_query_medicalStaffSchedule_getById, Result_Mod_query_medicalStaffSchedule_getById>
           list: Invoke<Args_Mod_query_medicalStaffSchedule_list, Result_Mod_query_medicalStaffSchedule_list>
           update: Invoke<Args_Mod_query_medicalStaffSchedule_update, Result_Mod_query_medicalStaffSchedule_update>
+        }
+        medicine: {
+          create: Invoke<Args_Mod_query_medicine_create, Result_Mod_query_medicine_create>
+          deleteById: Invoke<Args_Mod_query_medicine_deleteById, Result_Mod_query_medicine_deleteById>
+          getById: Invoke<Args_Mod_query_medicine_getById, Result_Mod_query_medicine_getById>
+          list: Invoke<Args_Mod_query_medicine_list, Result_Mod_query_medicine_list>
+          update: Invoke<Args_Mod_query_medicine_update, Result_Mod_query_medicine_update>
+        }
+        medicineBrand: {
+          create: Invoke<Args_Mod_query_medicineBrand_create, Result_Mod_query_medicineBrand_create>
+          deleteById: Invoke<Args_Mod_query_medicineBrand_deleteById, Result_Mod_query_medicineBrand_deleteById>
+          getById: Invoke<Args_Mod_query_medicineBrand_getById, Result_Mod_query_medicineBrand_getById>
+          list: Invoke<Args_Mod_query_medicineBrand_list, Result_Mod_query_medicineBrand_list>
+          update: Invoke<Args_Mod_query_medicineBrand_update, Result_Mod_query_medicineBrand_update>
+        }
+        medicineCategory: {
+          create: Invoke<Args_Mod_query_medicineCategory_create, Result_Mod_query_medicineCategory_create>
+          deleteById: Invoke<Args_Mod_query_medicineCategory_deleteById, Result_Mod_query_medicineCategory_deleteById>
+          getById: Invoke<Args_Mod_query_medicineCategory_getById, Result_Mod_query_medicineCategory_getById>
+          list: Invoke<Args_Mod_query_medicineCategory_list, Result_Mod_query_medicineCategory_list>
+          update: Invoke<Args_Mod_query_medicineCategory_update, Result_Mod_query_medicineCategory_update>
         }
         patient: {
           create: Invoke<Args_Mod_query_patient_create, Result_Mod_query_patient_create>

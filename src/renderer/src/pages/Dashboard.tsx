@@ -156,6 +156,16 @@ const items = [
     ]
   },
   {
+    label: 'Farmasi',
+    key: '/dashboard/pharmacy',
+    icon: <WalletOutlined />,
+    children: [
+      { label: 'Medicine Categories', key: '/dashboard/pharmacy/medicine-categories', icon: <DashboardOutlined /> },
+      { label: 'Medicine Brands', key: '/dashboard/pharmacy/medicine-brands', icon: <DashboardOutlined /> },
+      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+    ]
+  },
+  {
     label: 'Laboratorium',
     key: '/dashboard/laboratory',
     icon: <DashboardOutlined />,
@@ -226,7 +236,8 @@ function Dashboard() {
     '/dashboard/queue',
     '/dashboard/diagnostic',
     '/dashboard/services',
-    '/dashboard/service-request'
+    '/dashboard/service-request',
+    '/dashboard/pharmacy'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
