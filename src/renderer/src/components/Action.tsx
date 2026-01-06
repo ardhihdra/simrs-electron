@@ -12,7 +12,7 @@ function Action({ record }: ActionProps) {
   const navigate = useNavigate()
   const deleteMutation = useMutation({
     mutationKey: ['expense', 'delete'],
-    mutationFn: (id: number) => window.api.query.expense.deleteById({ id }),
+    mutationFn: (id: string) => window.api.query.expense.deleteById({ id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expense', 'list'] })
       message.success('Expense deleted successfully')
@@ -40,9 +40,9 @@ function Action({ record }: ActionProps) {
       label: 'Delete',
       icon: <DeleteOutlined />,
       onClick: () => {
-        const idNum = typeof record.id === 'string' ? Number(record.id) : record.id
-        if (!Number.isNaN(idNum)) {
-          deleteMutation.mutate(idNum)
+        const idStr = String(record.id)
+        if (idStr) {
+          deleteMutation.mutate(idStr)
         }
       }
     }
