@@ -111,7 +111,7 @@ export function DiagnosticTable() {
       return hay.includes(q)
     })
   }, [data?.data, search])
-  console.log(filtered)
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Diagnostic Reports</h2>

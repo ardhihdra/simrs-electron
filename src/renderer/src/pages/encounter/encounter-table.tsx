@@ -11,6 +11,7 @@ import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
 
 const columns: ColumnsType<EncounterTableRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
+  { title: 'Kode Antrian', dataIndex: 'encounterCode', key: 'encounterCode', render: (v: string | null) => (v ? v : '-') },
   { title: 'Tanggal Kunjungan', dataIndex: 'visitDate', key: 'visitDate', render: (v: string | Date) => (v ? dayjs(v).format('DD MMMM YYYY HH:mm') : '-') },
   { title: 'Pasien', dataIndex: ['patient', 'name'], key: 'patient' },
   { title: 'Layanan', dataIndex: 'serviceType', key: 'serviceType' },
@@ -36,20 +37,20 @@ function RowActions({ record }: { record: EncounterTableRow }) {
         <Button
           icon={<EyeOutlined />}
           size="small"
-          onClick={() => { if (typeof record.id === 'number') navigate(`/dashboard/encounter/edit/${record.id}`) }}
+          onClick={() => { if (record.id) navigate(`/dashboard/encounter/edit/${record.id}?mode=view`) }}
         />
       </Tooltip>
       <Tooltip title="Edit">
         <Button
           icon={<EditOutlined />}
           size="small"
-          onClick={() => { if (typeof record.id === 'number') navigate(`/dashboard/encounter/edit/${record.id}`) }}
+          onClick={() => { if (record.id) navigate(`/dashboard/encounter/edit/${record.id}`) }}
         />
       </Tooltip>
       <Popconfirm
         title="Hapus Kunjungan"
         description="Apakah anda yakin ingin menghapus data ini?"
-        onConfirm={() => { if (typeof record.id === 'number') deleteMutation.mutate(record.id) }}
+        onConfirm={() => { if (record.id) deleteMutation.mutate(record.id) }}
         okText="Ya"
         cancelText="Batal"
         disabled={deleteMutation.isPending}

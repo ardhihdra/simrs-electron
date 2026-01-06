@@ -1,18 +1,12 @@
-import { useQuery } from '@tanstack/react-query'
-import { EncounterListResult } from '@renderer/pages/encounter/encounter-table'
 import { Card } from 'antd'
 import { useState } from 'react'
 import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
+import { EncounterListResult } from '@shared/encounter'
+
+import { useEncounterMonitor } from '@renderer/hooks/query/use-encounter'
 
 export default function EncounterMonitor() {
-  const { data } = useQuery<EncounterListResult>({
-    queryKey: ['encounter', 'list'],
-    queryFn: () => {
-      const fn = window.api?.query?.encounter?.list
-      if (!fn) throw new Error('API encounter tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn()
-    }
-  })
+  const { data } = useEncounterMonitor()
 
   const [filterService, setFilterService] = useState<string | undefined>(undefined)
 
@@ -49,6 +43,7 @@ export default function EncounterMonitor() {
                 key={item.id}
                 className="p-4 aspect-square flex flex-col items-center justify-center text-center hover:shadow-lg transition-shadow"
               >
+                <div className="text-sm text-gray-500">{(item as any)?.encounterCode || 'N/A'}</div>
                 <div className="text-xl font-semibold capitalize mb-2">{item.patient?.name}</div>
                 <div className="text-sm text-gray-500">
                   {new Date(item.visitDate).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })}

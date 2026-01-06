@@ -29,7 +29,7 @@ export const getByCode = async (ctx: IpcContext, args: z.infer<typeof schemas.ge
         })
 
         const result = await parseBackendResponse(res, BackendResponseSchema)
-
+        console.log('getbycode', result)
         // The result from backend list might be an array of HakAkses.
         // We want the one matching the code (should be unique).
         // If result is an array, we take the first one.

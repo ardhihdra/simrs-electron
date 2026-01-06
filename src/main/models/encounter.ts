@@ -225,6 +225,7 @@ export const EncounterSchema = z.object({
     )
     .optional()
     .nullable(),
+  encounterCode: z.string().nullable().optional(),
   createdBy: z.union([z.number(), z.string()]).nullable().optional(),
   updatedBy: z.union([z.number(), z.string()]).nullable().optional(),
   deletedBy: z.union([z.number(), z.string()]).nullable().optional()
