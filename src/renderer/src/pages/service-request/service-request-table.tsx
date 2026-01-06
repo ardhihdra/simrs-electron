@@ -5,6 +5,8 @@ import { ServiceRequestAttributes } from '@shared/service-request'
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/GenericTable'
 import dayjs from 'dayjs'
+import { useState } from 'react'
+
 
 const { Option } = Select
 
@@ -128,6 +130,10 @@ function RowActions({ record }: { record: ServiceRequestRow }) {
 
 export default function ServiceRequestTable() {
   const navigate = useNavigate()
+  const [startDate, setStartDate] = useState<string | null>(dayjs().startOf('day').toISOString())
+  const [endDate, setEndDate] = useState<string | null>(dayjs().endOf('day').toISOString())
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const [pageSize, setPageSize] = useState<number>(10)
   const { data: serviceRequests, isLoading, error } = useQuery({
     queryKey: ['serviceRequest', 'list'],
     queryFn: async () => {
@@ -156,16 +162,39 @@ export default function ServiceRequestTable() {
             
             <div>
                 <div className="mb-1 text-sm opacity-0">Start Date</div>
-                <DatePicker defaultValue={dayjs()} format="DD MMM YYYY" />
+                <DatePicker value={startDate ? dayjs(startDate) : null} onChange={(d) => setStartDate(d ? d.startOf('day').toISOString() : null)} format="DD MMM YYYY" />
             </div>
 
             <div>
                  <div className="mb-1 text-sm opacity-0">End Date</div>
-                 <DatePicker defaultValue={dayjs()} format="DD MMM YYYY" />
+                 <DatePicker value={endDate ? dayjs(endDate) : null} onChange={(d) => setEndDate(d ? d.endOf('day').toISOString() : null)} format="DD MMM YYYY" />
             </div>
 
             <Button type="primary" icon={<SearchOutlined />} className="bg-blue-500">Cari</Button>
             <Button icon={<ReloadOutlined />}>Refresh</Button>
+            <Button
+              icon={<SearchOutlined />}
+              onClick={async () => {
+                try {
+                  const res = await window.api.query.export.exportCsv({
+                    entity: 'servicerequest',
+                    usePagination: true,
+                    page: currentPage,
+                    items: pageSize,
+                    startDate: startDate ?? undefined,
+                    endDate: endDate ?? undefined,
+                  })
+                  if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                    window.open(res.url as string, '_blank')
+                  } else {
+                    message.error('Gagal menyiapkan URL ekspor')
+                  }
+                } catch (e: unknown) {
+                  const msg = e instanceof Error ? e.message : String(e)
+                  message.error(msg || 'Gagal ekspor CSV')
+                }
+              }}
+            >Export</Button>
         </div>
       </div>
 
@@ -185,7 +214,17 @@ export default function ServiceRequestTable() {
           fixedRight: true,
           render: (record) => <RowActions record={record} />
         }}
-        tableProps={{ pagination: { pageSize: 10 }, scroll: { x: 1000 } }}
+        tableProps={{
+          pagination: {
+            pageSize,
+            current: currentPage,
+            onChange: (page, size) => {
+              setCurrentPage(page)
+              setPageSize(size || 10)
+            }
+          },
+          scroll: { x: 1000 }
+        }}
       />
     </div>
   )

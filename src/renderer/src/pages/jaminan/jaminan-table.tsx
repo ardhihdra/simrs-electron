@@ -127,6 +127,21 @@ export function JaminanTable() {
         />
         <div className="flex gap-2 flex-wrap md:justify-end">
           <Button onClick={() => refetch()}>Refresh</Button>
+          <Button
+            onClick={async () => {
+              try {
+                const res = await window.api.query.export.exportCsv({
+                  entity: 'jaminan',
+                  usePagination: false
+                })
+                if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                  window.open(res.url as string, '_blank')
+                }
+              } catch (e) {
+                console.error(e instanceof Error ? e.message : String(e))
+              }
+            }}
+          >Export CSV</Button>
           <Button type="primary" onClick={() => navigate('/dashboard/registration/jaminan/create')}>
             Tambah Jaminan
           </Button>

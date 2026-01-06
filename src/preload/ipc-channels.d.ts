@@ -10,6 +10,7 @@ import type * as Mod_query_doctorSchedule from '../main/routes/query/doctorSched
 import type * as Mod_query_encounter from '../main/routes/query/encounter'
 import type * as Mod_query_expense from '../main/routes/query/expense'
 import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
+import type * as Mod_query_export from '../main/routes/query/export'
 import type * as Mod_query_jaminan from '../main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '../main/routes/query/kepegawaian'
 import type * as Mod_query_medicalStaffSchedule from '../main/routes/query/medicalStaffSchedule'
@@ -106,6 +107,8 @@ type Args_Mod_query_expenseHead_list = InferArgs<typeof Mod_query_expenseHead, '
 type Result_Mod_query_expenseHead_list = InferResult<typeof Mod_query_expenseHead, 'list'>
 type Args_Mod_query_expenseHead_seed = InferArgs<typeof Mod_query_expenseHead, 'seed'>
 type Result_Mod_query_expenseHead_seed = InferResult<typeof Mod_query_expenseHead, 'seed'>
+type Args_Mod_query_export_exportCsv = InferArgs<typeof Mod_query_export, 'exportCsv'>
+type Result_Mod_query_export_exportCsv = InferResult<typeof Mod_query_export, 'exportCsv'>
 type Args_Mod_query_jaminan_create = InferArgs<typeof Mod_query_jaminan, 'create'>
 type Result_Mod_query_jaminan_create = InferResult<typeof Mod_query_jaminan, 'create'>
 type Args_Mod_query_jaminan_deleteById = InferArgs<typeof Mod_query_jaminan, 'deleteById'>
@@ -160,6 +163,8 @@ type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRe
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
 type Args_Mod_query_serviceRequest_deleteById = InferArgs<typeof Mod_query_serviceRequest, 'deleteById'>
 type Result_Mod_query_serviceRequest_deleteById = InferResult<typeof Mod_query_serviceRequest, 'deleteById'>
+type Args_Mod_query_serviceRequest_exportCsv = InferArgs<typeof Mod_query_serviceRequest, 'exportCsv'>
+type Result_Mod_query_serviceRequest_exportCsv = InferResult<typeof Mod_query_serviceRequest, 'exportCsv'>
 type Args_Mod_query_serviceRequest_getById = InferArgs<typeof Mod_query_serviceRequest, 'getById'>
 type Result_Mod_query_serviceRequest_getById = InferResult<typeof Mod_query_serviceRequest, 'getById'>
 type Args_Mod_query_serviceRequest_list = InferArgs<typeof Mod_query_serviceRequest, 'list'>
@@ -223,6 +228,9 @@ declare global {
           list: Invoke<Args_Mod_query_expenseHead_list, Result_Mod_query_expenseHead_list>
           seed: Invoke<Args_Mod_query_expenseHead_seed, Result_Mod_query_expenseHead_seed>
         }
+        export: {
+          exportCsv: Invoke<Args_Mod_query_export_exportCsv, Result_Mod_query_export_exportCsv>
+        }
         jaminan: {
           create: Invoke<Args_Mod_query_jaminan_create, Result_Mod_query_jaminan_create>
           deleteById: Invoke<Args_Mod_query_jaminan_deleteById, Result_Mod_query_jaminan_deleteById>
@@ -261,6 +269,7 @@ declare global {
         serviceRequest: {
           create: Invoke<Args_Mod_query_serviceRequest_create, Result_Mod_query_serviceRequest_create>
           deleteById: Invoke<Args_Mod_query_serviceRequest_deleteById, Result_Mod_query_serviceRequest_deleteById>
+          exportCsv: Invoke<Args_Mod_query_serviceRequest_exportCsv, Result_Mod_query_serviceRequest_exportCsv>
           getById: Invoke<Args_Mod_query_serviceRequest_getById, Result_Mod_query_serviceRequest_getById>
           list: Invoke<Args_Mod_query_serviceRequest_list, Result_Mod_query_serviceRequest_list>
           update: Invoke<Args_Mod_query_serviceRequest_update, Result_Mod_query_serviceRequest_update>
