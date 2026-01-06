@@ -1,29 +1,15 @@
-import { Button, DatePicker, Input, Select, Table, Popconfirm, message, Tooltip } from 'antd'
-import { SelectPoli } from '../../components/dynamic/SelectPoli'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, DatePicker, Input, Popconfirm, Select, Table, Tooltip } from 'antd'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { queryClient } from '@renderer/query-client'
-import type { EncounterAttributes } from '@shared/encounter'
-import { EncounterStatus } from '@shared/encounter'
+import type { EncounterRow, EncounterTableRow } from '@shared/encounter'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
+import { useDeleteEncounter, useEncounterList } from '@renderer/hooks/query/use-encounter'
+import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
 
-export type EncounterListResult = {
-  success: boolean
-  data?: EncounterRow[]
-  error?: string
-}
-type EncounterRow = Omit<EncounterAttributes, 'visitDate' | 'status'> & {
-  visitDate: string | Date
-  status: string
-  patient?: { name?: string }
-}
 
-type Row = EncounterRow & { no: number }
-
-const columns: ColumnsType<Row> = [
+const columns: ColumnsType<EncounterTableRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Tanggal Kunjungan', dataIndex: 'visitDate', key: 'visitDate', render: (v: string | Date) => (v ? dayjs(v).format('DD MMMM YYYY HH:mm') : '-') },
   { title: 'Pasien', dataIndex: ['patient', 'name'], key: 'patient' },
@@ -35,29 +21,15 @@ const columns: ColumnsType<Row> = [
     title: 'Action',
     key: 'action',
     width: 100,
-    render: (_: Row, record: Row) => (
+    render: (_: EncounterTableRow, record: EncounterTableRow) => (
       <RowActions record={record} />
     )
   }
 ]
 
-function RowActions({ record }: { record: Row }) {
+function RowActions({ record }: { record: EncounterTableRow }) {
   const navigate = useNavigate()
-  const deleteMutation = useMutation({
-    mutationKey: ['encounter', 'delete'],
-    mutationFn: (id: number) => {
-      const fn = window.api?.query?.encounter?.deleteById
-      if (!fn) throw new Error('API encounter tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn({ id })
-    },
-    onSuccess: () => {
-      message.success('Kunjungan berhasil dihapus')
-      queryClient.invalidateQueries({ queryKey: ['encounter', 'list'] })
-    },
-    onError: (err) => {
-      message.error(`Gagal menghapus kunjungan: ${err instanceof Error ? err.message : String(err)}`)
-    }
-  })
+  const deleteMutation = useDeleteEncounter()
   return (
     <div className="flex gap-2">
       <Tooltip title="Lihat Detail">
@@ -102,25 +74,11 @@ export function EncounterTable() {
   const [searchReason, setSearchReason] = useState('')
   const [status, setStatus] = useState<string | undefined>(undefined)
   const [visitDate, setVisitDate] = useState<string | null>(null)
-  type EncounterListResult = {
-    success: boolean
-    data?: EncounterRow[]
-    error?: string
-  }
-  const [search, setSearch] = useState('')
-
-  const { data, refetch, isError } = useQuery<EncounterListResult>({
-    queryKey: ['encounter', 'list'],
-    queryFn: () => {
-      const fn = window.api?.query?.encounter?.list
-      if (!fn) throw new Error('API encounter tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn() as Promise<EncounterListResult>
-    }
-  })
+  const { data, refetch, isError } = useEncounterList()
 
   const filtered = useMemo(() => {
     const source: EncounterRow[] = Array.isArray(data?.data) ? (data!.data as EncounterRow[]) : []
-    const rows: Row[] = source.map((e, idx) => ({ ...e, no: idx + 1 }))
+    const rows: EncounterTableRow[] = source.map((e, idx) => ({ ...e, no: idx + 1 }))
     return rows.filter((r) => {
       const matchPatient = searchPatient ? String(r.patient?.name || '').toLowerCase().includes(searchPatient.toLowerCase()) : true
       const matchService = searchService ? String(r.serviceType || '').toLowerCase().includes(searchService.toLowerCase()) : true
@@ -176,7 +134,7 @@ export function EncounterTable() {
         <div />
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table<Row>
+      <Table<EncounterTableRow>
         dataSource={filtered}
         columns={columns}
         rowKey={(r) => String(r.id ?? `${r.serviceType}-${r.patient?.name || ''}`)}

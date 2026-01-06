@@ -27,7 +27,7 @@ export const schemas = {
       alamat: z.string().nullable().optional(),
       nomorTelepon: z.string().nullable().optional(),
       hakAkses: z
-        .enum(['administrator','manager','admin','admin_backoffice','operator_gudang','doctor','nurse','pharmacist','receptionist','lab_technician','radiologist','accountant','patient'])
+        .enum(['administrator', 'manager', 'admin', 'admin_backoffice', 'operator_gudang', 'doctor', 'nurse', 'pharmacist', 'receptionist', 'lab_technician', 'radiologist', 'accountant', 'patient'])
         .nullable()
         .optional()
     }),
@@ -44,7 +44,7 @@ export const schemas = {
       alamat: z.string().nullable().optional(),
       nomorTelepon: z.string().nullable().optional(),
       hakAkses: z
-        .enum(['administrator','manager','admin','admin_backoffice','operator_gudang','doctor','nurse','pharmacist','receptionist','lab_technician','radiologist','accountant','patient'])
+        .enum(['administrator', 'manager', 'admin', 'admin_backoffice', 'operator_gudang', 'doctor', 'nurse', 'pharmacist', 'receptionist', 'lab_technician', 'radiologist', 'accountant', 'patient'])
         .nullable()
         .optional()
     }),
@@ -59,9 +59,12 @@ export const schemas = {
 const ContractItemSchema = z.object({
   id: z.number().optional(),
   pegawaiId: z.number().optional(),
+  idPegawai: z.number().optional(),
   active: z.boolean().optional(),
+  statusKontrak: z.string().optional(),
   jenisKontrak: z.string().optional(),
-  role: z.string().optional()
+  role: z.string().optional(),
+  kodeJabatan: z.string().optional()
 })
 
 export const list = async (ctx: IpcContext) => {
@@ -90,34 +93,38 @@ export const list = async (ctx: IpcContext) => {
 
     const pegawaiList = parsedPegawai.data.result || []
     const kontrakList = parsedKontrak.ok && parsedKontrak.data?.success ? parsedKontrak.data.result || [] : []
-
+    console.log('pegawaiList', pegawaiList)
+    console.log('kontrakList', kontrakList)
     const allowedRoles = new Set(['doctor', 'nurse', 'pharmacist', 'lab_technician', 'radiologist'])
     const kontrakActiveByPegawaiId = new Map<number, boolean>()
     const kontrakRoleByPegawaiId = new Map<number, string>()
     for (const k of kontrakList) {
-      const id = typeof k.pegawaiId === 'number' ? k.pegawaiId : undefined
+      const id = typeof k.idPegawai === 'number' ? k.idPegawai : typeof k.pegawaiId === 'number' ? k.pegawaiId : undefined
       if (id === undefined) continue
-      const active = k.active === true
-      const role = typeof k.role === 'string' ? k.role : undefined
+      const active = k.statusKontrak === 'aktif' || k.active === true
+      const role = k.kodeJabatan || k.role
       if (active) kontrakActiveByPegawaiId.set(id, true)
       if (role) kontrakRoleByPegawaiId.set(id, role)
     }
 
-    const hasKontrak = kontrakList.length > 0
+    const validKontrakList = kontrakList.filter(k => typeof k.idPegawai === 'number' || typeof k.pegawaiId === 'number')
+    const hasKontrak = validKontrakList.length > 0
+
     const filtered = hasKontrak
       ? pegawaiList.filter((p) => {
-          const id = typeof p.id === 'number' ? p.id : undefined
-          const role = typeof p.hakAkses === 'string' ? p.hakAkses.toLowerCase() : undefined
-          const kontrakActive = id !== undefined ? kontrakActiveByPegawaiId.get(id) === true : false
-          const kontrakRole = id !== undefined ? String(kontrakRoleByPegawaiId.get(id)).toLowerCase() : ''
-          const fromKontrakRole = kontrakActive && allowedRoles.has(kontrakRole)
-          const fromHakAkses = role ? allowedRoles.has(role) : false
-          return fromKontrakRole || fromHakAkses
-        })
+        const id = typeof p.id === 'number' ? p.id : undefined
+        const role = typeof p.hakAkses === 'string' ? p.hakAkses.toLowerCase() : typeof p.hakAksesId === 'string' ? p.hakAksesId.toLowerCase() : undefined
+        const kontrakActive = id !== undefined ? kontrakActiveByPegawaiId.get(id) === true : false
+        const kontrakRole = id !== undefined ? String(kontrakRoleByPegawaiId.get(id)).toLowerCase() : ''
+        const fromKontrakRole = kontrakActive && allowedRoles.has(kontrakRole)
+        const fromHakAkses = role ? allowedRoles.has(role) : false
+        return fromKontrakRole || fromHakAkses
+      })
       : pegawaiList.filter((p) => p.removed !== true)
-
+    console.log('filtered', filtered)
     return { success: true, data: filtered }
   } catch (err) {
+    console.log(err)
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }

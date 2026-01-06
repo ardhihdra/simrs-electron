@@ -49,7 +49,7 @@ export const SelectKepegawaian = ({ hakAksesCode, ...props }: SelectKepegawaianP
 
         fetchData()
     }, [hakAksesCode])
-
+    console.log('options:', options)
     return (
         <Select
             placeholder="Pilih Pegawai"
