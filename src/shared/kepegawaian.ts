@@ -18,6 +18,14 @@ export type RoleEnum =
   | 'accountant'
   | 'patient'
 
+export const PegawaiCategoryOptions = [
+  { label: 'Dokter', value: 'doctor' },
+  { label: 'Perawat', value: 'nurse' },
+  { label: 'Apoteker', value: 'pharmacist' },
+  { label: 'Lab', value: 'lab_technician' },
+  { label: 'Radiologi', value: 'radiologist' }
+]
+
 export interface KontrakPegawaiAttributes {
   idKontrakPegawai?: number
   idPegawai?: number
