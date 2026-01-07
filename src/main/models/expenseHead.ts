@@ -1,6 +1,6 @@
 import { DataTypes } from 'sequelize'
 import z from 'zod'
-import { sequelize } from '../database'
+import { sequelize } from '@main/database'
 
 export const ExpenseHead = sequelize.define('ExpenseHead', {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },

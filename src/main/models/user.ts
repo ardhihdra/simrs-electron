@@ -1,6 +1,6 @@
 import { DataTypes } from 'sequelize'
 import z from 'zod'
-import { sequelize } from '../database'
+import { sequelize } from '@main/database'
 
 export const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },

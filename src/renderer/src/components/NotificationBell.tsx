@@ -1,6 +1,6 @@
 import { BellOutlined, CheckOutlined, DeleteOutlined } from '@ant-design/icons'
 import { Badge, Button, Empty, List, Popover, Typography } from 'antd'
-import { useNotificationStore } from '../store/notificationStore'
+import { useNotificationStore } from '@renderer/store/notificationStore'
 import dayjs from 'dayjs'
 
 const { Text, Title } = Typography
