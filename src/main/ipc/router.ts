@@ -1,6 +1,6 @@
 import { ipcMain, IpcMainInvokeEvent, WebContents } from 'electron'
-import { applyMiddlewares, IpcMiddleware } from './middleware'
-import { SessionStore } from './protected/session-store'
+import { applyMiddlewares, IpcMiddleware } from '@main/ipc/middleware'
+import { SessionStore } from '@main/ipc/protected/session-store'
 import fs from 'fs'
 import path from 'path'
 
@@ -103,7 +103,7 @@ export class IpcRouter {
         const parts = channel.split(':')
         const exportName = parts.pop() as string
         // Omit extension to satisfy TypeScript `allowImportingTsExtensions: false`
-        const moduleRel = `../main/routes/${parts.join('/')}`
+        const moduleRel = `@main/routes/${parts.join('/')}`
         return { moduleRel, exportName }
       }
       const toAlias = (moduleRel: string) => {
@@ -238,7 +238,7 @@ export {}
       } catch (err) {
         console.warn('[ipc] Failed to write JSON file to preload dir:', err)
       }
-      
+
       // For production environment - write to a location that will definitely exist
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -247,7 +247,7 @@ export {}
         const userDataJsonFile = path.join(userDataPath, 'ipc-channels.json')
         fs.writeFileSync(userDataJsonFile, JSON.stringify(tree, null, 2))
         console.log('[ipc] Generated runtime JSON (fallback):', userDataJsonFile)
-        
+
         // Also write to the app's resources directory which should be accessible in production
         try {
           const resourcesPath = app.getPath('exe')

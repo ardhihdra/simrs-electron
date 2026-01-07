@@ -1,11 +1,11 @@
 import { DataTypes } from 'sequelize';
-import { sequelize } from '../database';
+import { sequelize } from '@main/database';
 import z from 'zod';
 import {
   ConditionClinicalStatus,
   ConditionSeverity,
   ConditionVerificationStatus,
-} from './enums/ResourceEnums';
+} from '@main/models/enums/ResourceEnums';
 
 export const Condition = sequelize.define(
   'Condition',

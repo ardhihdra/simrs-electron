@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize'
-import { sequelize } from '../database'
+import { sequelize } from '@main/database'
 import z from 'zod'
 
 // Sequelize model definition (kept for potential usage in main process)
@@ -55,17 +55,34 @@ export const Kepegawaian = sequelize.define(
 
 // Zod schemas used by IPC routes and backend client parsing
 const KontrakPegawaiSchema = z.object({
-  id: z.number(),
+  idKontrakPegawai: z.number().optional(),
   idPegawai: z.number(),
-  kodeJabatan: z.string(),
-  kodeDepartemen: z.string(),
-  kodeLokasiKerja: z.string(),
-  tanggalMulai: z.string(),
-  tanggalSelesai: z.string().nullable().optional(),
-  status: z.string(),
-  createdAt: z.string().optional().nullable(),
-  updatedAt: z.string().optional().nullable(),
-  deletedAt: z.string().optional().nullable()
+  nomorKontrak: z.string(),
+  nip: z.string(),
+  kodeDivisi: z.string().optional().nullable(),
+  kodeDepartemen: z.string().optional().nullable(),
+  kodeJabatan: z.string().optional().nullable(),
+  tanggalMulaiKontrak: z.coerce.date(),
+  tanggalBerakhirKontrak: z.coerce.date(),
+  durasiKontrak: z.number(),
+  gajiPokok: z.string().optional().nullable(),
+  tunjangan: z.string().optional().nullable(),
+  kodeLokasiKerja: z.string().optional().nullable(),
+  statusKontrak: z.string().optional().nullable(),
+  penanggungJawab: z.number().optional().nullable(),
+  tanggalPenandatanganan: z.coerce.date().optional().nullable(),
+  pendidikanTerakhir: z.string().optional().nullable(),
+  tahunIjazah: z.coerce.date().optional().nullable(),
+  npwp: z.string().optional().nullable(),
+  rekeningBank: z.string().optional().nullable(),
+  fotoPegawai: z.string().optional().nullable(),
+  dokumenKontrak: z.string().optional().nullable(),
+  createdBy: z.number(),
+  updatedBy: z.number().optional().nullable(),
+  createdAt: z.coerce.date().optional(),
+  updatedAt: z.coerce.date().optional(),
+  deletedAt: z.coerce.date().optional(),
+  deletedBy: z.number().optional().nullable()
 })
 
 export const KepegawaianSchema = z.object({
@@ -77,6 +94,7 @@ export const KepegawaianSchema = z.object({
   alamat: z.string().nullable().optional(),
   nomorTelepon: z.string().nullable().optional(),
   hakAksesId: z.string().nullable().optional(),
+  hakAkses: z.string().nullable().optional(),
   emailVerified: z.boolean().optional(),
   createdBy: z.number().nullable().optional(),
   updatedBy: z.number().nullable().optional(),

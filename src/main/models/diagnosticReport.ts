@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize'
-import { sequelize } from '../database'
+import { sequelize } from '@main/database'
 import { DiagnosticReportStatus } from './enums/ResourceEnums'
 
 export const DiagnosticReport = sequelize.define(

@@ -81,7 +81,7 @@ const items = [
         key: '/dashboard/registration/jaminan',
         icon: <DashboardOutlined />
       },
-     {
+      {
         label: 'Jadwal Praktek Dokter',
         key: '/dashboard/registration/doctor-schedule',
         icon: <CalendarOutlined />
@@ -156,6 +156,16 @@ const items = [
     ]
   },
   {
+    label: 'Farmasi',
+    key: '/dashboard/pharmacy',
+    icon: <WalletOutlined />,
+    children: [
+      { label: 'Medicine Categories', key: '/dashboard/pharmacy/medicine-categories', icon: <DashboardOutlined /> },
+      { label: 'Medicine Brands', key: '/dashboard/pharmacy/medicine-brands', icon: <DashboardOutlined /> },
+      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+    ]
+  },
+  {
     label: 'Laboratorium',
     key: '/dashboard/laboratory',
     icon: <DashboardOutlined />,
@@ -226,7 +236,8 @@ function Dashboard() {
     '/dashboard/queue',
     '/dashboard/diagnostic',
     '/dashboard/services',
-    '/dashboard/service-request'
+    '/dashboard/service-request',
+    '/dashboard/pharmacy'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -298,9 +309,11 @@ function Dashboard() {
     const children = childrenOfTop(newTop)
     setSideItems(children)
     const childKeys = childKeysOfTop(newTop)
-    setActiveSide(
-      childKeys.includes(location.pathname) ? location.pathname : (children[0]?.key as string)
-    )
+    const match = childKeys
+      .filter((key) => location.pathname.startsWith(key))
+      .sort((a, b) => b.length - a.length)[0]
+
+    setActiveSide(match || (children[0]?.key as string))
   }, [location.pathname])
   return (
     <div className="min-h-screen flex">
