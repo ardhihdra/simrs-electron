@@ -1,5 +1,5 @@
-import { withError } from '../ipc/middleware'
-import { User, UserSchema } from '../models/user'
+import { withError } from '@main/ipc/middleware'
+import { User, UserSchema } from '@main/models/user'
 import { z } from 'zod'
 
 // Middlewares to apply to all handlers in this file

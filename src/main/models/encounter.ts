@@ -1,5 +1,5 @@
 import { DataTypes } from 'sequelize'
-import { sequelize } from '../database'
+import { sequelize } from '@main/database'
 import z from 'zod'
 import { Patient } from './patient'
 
@@ -54,9 +54,9 @@ Patient.hasMany(Encounter, { foreignKey: 'patientId', onDelete: 'CASCADE', as: '
 Encounter.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' })
 
 export const EncounterSchema = z.object({
-  patientId: z.number(),
+  patientId: z.string(),
   visitDate: z.union([z.date(), z.string()]),
-  serviceType: z.string().min(1),
+  serviceType: z.union([z.string(), z.number()]),
   reason: z.string().nullable().optional(),
   note: z.string().nullable().optional(),
   status: z.enum([
@@ -75,26 +75,11 @@ export const EncounterSchema = z.object({
     'completed'
   ]),
   resourceType: z.literal('Encounter').optional(),
-  class: z
-    .object({
-      system: z.string().optional(),
-      version: z.string().optional(),
-      code: z.string().optional(),
-      display: z.string().optional(),
-      userSelected: z.boolean().optional()
-    })
-    .optional()
-    .nullable(),
+  class: z.any().optional().nullable(),
   classHistory: z
     .array(
       z.object({
-        class: z.object({
-          system: z.string().optional(),
-          version: z.string().optional(),
-          code: z.string().optional(),
-          display: z.string().optional(),
-          userSelected: z.boolean().optional()
-        }),
+        class: z.any(),
         period: z
           .object({
             start: z.string().optional(),
@@ -240,14 +225,15 @@ export const EncounterSchema = z.object({
     )
     .optional()
     .nullable(),
-  createdBy: z.number().nullable().optional(),
-  updatedBy: z.number().nullable().optional(),
-  deletedBy: z.number().nullable().optional()
+  encounterCode: z.string().nullable().optional(),
+  createdBy: z.union([z.number(), z.string()]).nullable().optional(),
+  updatedBy: z.union([z.number(), z.string()]).nullable().optional(),
+  deletedBy: z.union([z.number(), z.string()]).nullable().optional()
 })
 
 export const EncounterSchemaWithId = EncounterSchema.extend({
-  id: z.number(),
-  createdAt: z.date().optional().nullable(),
-  updatedAt: z.date().optional().nullable(),
-  deletedAt: z.date().optional().nullable()
+  id: z.string(),
+  createdAt: z.union([z.date(), z.string()]).optional().nullable(),
+  updatedAt: z.union([z.date(), z.string()]).optional().nullable(),
+  deletedAt: z.union([z.date(), z.string()]).optional().nullable()
 })

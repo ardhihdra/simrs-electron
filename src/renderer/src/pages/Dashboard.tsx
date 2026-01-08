@@ -1,21 +1,23 @@
-import { Menu } from 'antd'
+import { Menu, Button, App as AntdApp } from 'antd'
 import type { MenuProps } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import ProfileMenu from '@renderer/components/ProfileMenu'
+import NotificationBell from '@renderer/components/NotificationBell'
 import logoUrl from '@renderer/assets/logo.png'
 import {
   DashboardOutlined,
+  IdcardOutlined,
   LeftCircleFilled,
   RightCircleFilled,
   UserOutlined,
-  IdcardOutlined,
+  WalletOutlined,
   AuditOutlined,
-  SafetyCertificateOutlined,
   ScheduleOutlined,
   TeamOutlined,
   FileTextOutlined,
+  FileSearchOutlined,
   MedicineBoxOutlined,
   ExperimentOutlined,
   FileDoneOutlined,
@@ -23,15 +25,53 @@ import {
   OrderedListOutlined,
   UsergroupAddOutlined,
   DesktopOutlined,
-  FormOutlined,
-  FileSearchOutlined
+  FormOutlined
 } from '@ant-design/icons'
 
+const SendNotificationButton = () => {
+  const { message } = AntdApp.useApp()
+  return (
+    <Button
+      size="small"
+      onClick={async () => {
+        try {
+          await window.api.notification.send({
+            title: 'Test Notification',
+            content: 'This is a test notification sent from the renderer.'
+          })
+          message.success('Notification sent!')
+        } catch (error) {
+          console.error(error)
+          message.error('Failed to send notification')
+        }
+      }}
+    >
+      Send Notification
+    </Button>
+  )
+}
 const items = [
   {
     label: 'Dashboard',
     key: '/dashboard',
     icon: <DashboardOutlined />
+  },
+  {
+    label: 'Master Rumah Sakit',
+    key: '/dashboard/pegawai',
+    icon: <DashboardOutlined />,
+    children: [
+      {
+        label: 'Data Petugas Medis',
+        key: '/dashboard/pegawai',
+        icon: <UserOutlined />
+      },
+      {
+        label: 'Lap Data Petugas Medis',
+        key: '/dashboard/pegawai-report',
+        icon: <DashboardOutlined />
+      }
+    ]
   },
   {
     label: 'Pendaftaran Rumah Sakit',
@@ -50,8 +90,8 @@ const items = [
       },
       {
         label: 'Data Jaminan',
-        key: '/dashboard/registration/insurance',
-        icon: <SafetyCertificateOutlined />
+        key: '/dashboard/registration/jaminan',
+        icon: <DashboardOutlined />
       },
       {
         label: 'Jadwal Praktek Dokter',
@@ -91,6 +131,16 @@ const items = [
     icon: <MedicineBoxOutlined />,
     children: [
       {
+        label: 'Diagnosa',
+        key: '/dashboard/diagnostic',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Pemeriksaan Utama',
+        key: '/dashboard/services/pemeriksaan-utama',
+        icon: <WalletOutlined />
+      },
+      {
         label: 'Pemeriksaan Umum',
         key: '/dashboard/services/general-checkup',
         icon: <FileSearchOutlined />
@@ -118,10 +168,51 @@ const items = [
     ]
   },
   {
+    label: 'Farmasi',
+    key: '/dashboard/pharmacy',
+    icon: <WalletOutlined />,
+    children: [
+      {
+        label: 'Medicine Categories',
+        key: '/dashboard/pharmacy/medicine-categories',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Medicine Brands',
+        key: '/dashboard/pharmacy/medicine-brands',
+        icon: <DashboardOutlined />
+      },
+      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+    ]
+  },
+  {
+    label: 'Farmasi',
+    key: '/dashboard/pharmacy',
+    icon: <WalletOutlined />,
+    children: [
+      {
+        label: 'Medicine Categories',
+        key: '/dashboard/pharmacy/medicine-categories',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Medicine Brands',
+        key: '/dashboard/pharmacy/medicine-brands',
+        icon: <DashboardOutlined />
+      },
+      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+    ]
+  },
+  {
     label: 'Laboratorium',
     key: '/dashboard/laboratory',
     icon: <ExperimentOutlined />,
     children: [
+      {
+        label: 'Permintaan Lab',
+        key: '/dashboard/service-request',
+        icon: <DashboardOutlined />
+      },
       {
         label: 'Pemeriksaan Lab',
         key: '/dashboard/laboratory/exam',
@@ -175,7 +266,21 @@ function Dashboard() {
     '/dashboard/patient',
     '/dashboard/encounter',
     '/dashboard/income',
-    '/dashboard/pemeriksaan-awal'
+    '/dashboard/expense',
+    '/dashboard/patient',
+    '/dashboard/encounter',
+    '/dashboard/income',
+    '/dashboard/pemeriksaan-awal',
+    '/dashboard/registration/jaminan',
+    '/dashboard/registration/medical-staff-schedule',
+    '/dashboard/pegawai',
+    '/dashboard/registration',
+    '/dashboard/registration/medical-staff-schedule',
+    '/dashboard/queue',
+    '/dashboard/diagnostic',
+    '/dashboard/services',
+    '/dashboard/service-request',
+    '/dashboard/pharmacy'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -210,7 +315,13 @@ function Dashboard() {
     }
     return [{ label: top.label, key: top.key, icon: top.icon } as ItemType]
   }
-
+  const childKeysOfTop = (key: string): string[] => {
+    const top = items.find((i) => i.key === key)
+    if (!top) return []
+    if (Array.isArray(top.children) && top.children.length > 0)
+      return top.children.map((c) => c.key)
+    return [top.key]
+  }
   const [sideItems, setSideItems] = useState<ItemType[]>(childrenOfTop(initialTop))
   const initialSide = location.pathname.startsWith(initialTop)
     ? location.pathname
@@ -240,33 +351,30 @@ function Dashboard() {
     setActiveTop(newTop)
     const children = childrenOfTop(newTop)
     setSideItems(children)
-    const matchChild = children.find(
-      (c) => c && c.key && location.pathname.startsWith(c.key as string)
+    const childKeys = childKeysOfTop(newTop)
+    setActiveSide(
+      childKeys.includes(location.pathname) ? location.pathname : (children[0]?.key as string)
     )
-    setActiveSide(matchChild ? (matchChild.key as string) : (children[0]?.key as string))
   }, [location.pathname])
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-50">
-      <aside
-        className={`${collapsed ? 'w-20' : 'w-64'} bg-white shadow-sm flex flex-col  transition-all duration-300 z-20`}
-      >
-        <div className="h-14 px-4 flex items-center shadow-sm justify-center shrink-0">
+    <div className="min-h-screen flex">
+      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white flex flex-col`}>
+        <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200">
           <div className="flex items-center justify-center gap-2">
             <img src={logoUrl} alt="Logo" className="w-8 h-8" />
             <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}>SIMRS</span>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto scrollbar-hide">
-          <Menu
-            onClick={onSideClick}
-            selectedKeys={[activeSide]}
-            mode="inline"
-            inlineCollapsed={collapsed}
-            items={sideItems}
-            className="border-none"
-          />
-        </div>
-        <div className="mt-auto px-4 py-3 flex justify-center shrink-0 ">
+        <Menu
+          onClick={onSideClick}
+          selectedKeys={[activeSide]}
+          mode="inline"
+          inlineCollapsed={collapsed}
+          items={sideItems}
+          className=""
+          style={{ borderInlineEnd: 0 }}
+        />
+        <div className="mt-auto px-4 py-3 flex justify-center">
           <button
             aria-label="Toggle sidebar"
             className="p-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 shadow"
@@ -276,8 +384,8 @@ function Dashboard() {
           </button>
         </div>
       </aside>
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="bg-white shadow-sm h-14 px-4 flex items-center justify-between gap-4 shrink-0 z-10">
+      <div className="flex-1">
+        <header className="sticky top-0 z-50 bg-white border-b border-gray-200 h-14 px-4 flex items-center justify-between gap-4">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
@@ -285,14 +393,16 @@ function Dashboard() {
             items={topItems}
             className="flex-1 border-none"
           />
+          <SendNotificationButton />
+          <NotificationBell />
           <ProfileMenu />
         </header>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="p-4">
           {isRegisteredPath(location.pathname) ? (
             <Outlet />
           ) : (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-base md:text-lg font-medium text-gray-400">
+            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+              <div className="text-base md:text-lg font-medium">
                 {findLabelByPath(location.pathname)}
               </div>
             </div>

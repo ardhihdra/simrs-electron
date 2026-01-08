@@ -1,11 +1,12 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { initDatabase } from './database'
-import { IpcRouter } from './ipc/router'
-import { SessionStore } from './ipc/protected/session-store'
-import { autoRegisterRoutes } from './routes/loader'
+import { initDatabase } from '@main/database'
+import { IpcRouter } from '@main/ipc/router'
+import { SessionStore } from '@main/ipc/protected/session-store'
+import { autoRegisterRoutes } from '@main/routes/loader'
+import { notificationService } from '@main/services/notification-service'
 import * as fs from 'fs'
 
 // Simple file logger
@@ -53,8 +54,8 @@ function createWindow(): void {
     console.log('Creating main window...')
     // Create the browser window.
     const mainWindow = new BrowserWindow({
-      width: 900,
-      height: 670,
+      width: 1280,
+      height: 800,
       show: false,
       autoHideMenuBar: true,
       ...(process.platform === 'linux' ? { icon } : {}),
@@ -66,13 +67,42 @@ function createWindow(): void {
       }
     })
 
+    notificationService.setMainWindow(mainWindow)
+
     mainWindow.on('ready-to-show', () => {
       console.log('Window ready to show')
       mainWindow.show()
     })
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
+      const u = details.url
+      const isCsvExport = /\/api\/[^/]+\/export\?/.test(u) && u.includes('export=csv')
+      if (isCsvExport) {
+        ;(async () => {
+          try {
+            const res = await fetch(u)
+            const buf = Buffer.from(await res.arrayBuffer())
+            let filename = 'export.csv'
+            const cd = res.headers.get('content-disposition')
+            if (cd) {
+              const m = cd.match(/filename="?([^";]+)"?/i)
+              if (m && m[1]) filename = m[1]
+            }
+            const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+              title: 'Simpan CSV',
+              defaultPath: filename,
+              filters: [{ name: 'CSV', extensions: ['csv'] }]
+            })
+            if (!canceled && filePath) {
+              fs.writeFileSync(filePath, buf)
+            }
+          } catch (e) {
+            console.error('Gagal mengunduh CSV:', e)
+          }
+        })()
+        return { action: 'deny' }
+      }
+      shell.openExternal(u)
       return { action: 'deny' }
     })
 
