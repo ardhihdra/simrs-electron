@@ -69,7 +69,6 @@ function DiagnosticForm() {
 
   useEffect(() => {
     const item = detail.data?.data as Partial<DiagnosticReportAttributes> | undefined
-    console.log('Diagnostic detail:', item)
     if (item) {
       //@ts-expect-error - type mismatch
       form.setFieldsValue({
