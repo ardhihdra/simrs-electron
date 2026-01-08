@@ -1,5 +1,6 @@
 import { Button, DatePicker, Input, Popconfirm, Select, Table, Tooltip } from 'antd'
 import { useMemo, useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import type { EncounterRow, EncounterTableRow } from '@shared/encounter'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
@@ -89,6 +90,21 @@ export function EncounterTable() {
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/encounter/create')}>Tambah</Button>
         <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
+        <Button
+          onClick={async () => {
+            try {
+              const res = await window.api.query.export.exportCsv({
+                entity: 'encounter',
+                usePagination: false
+              })
+              if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                window.open(res.url as string, '_blank')
+              }
+            } catch (e) {
+              console.error(e instanceof Error ? e.message : String(e))
+            }
+          }}
+        >Export CSV</Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-3 mb-3">
         <Input placeholder="Pasien" value={searchPatient} onChange={(e) => setSearchPatient(e.target.value)} />

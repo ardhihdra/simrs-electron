@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -75,7 +75,34 @@ function createWindow(): void {
     })
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
+      const u = details.url
+      const isCsvExport = /\/api\/[^/]+\/export\?/.test(u) && u.includes('export=csv')
+      if (isCsvExport) {
+        ;(async () => {
+          try {
+            const res = await fetch(u)
+            const buf = Buffer.from(await res.arrayBuffer())
+            let filename = 'export.csv'
+            const cd = res.headers.get('content-disposition')
+            if (cd) {
+              const m = cd.match(/filename="?([^";]+)"?/i)
+              if (m && m[1]) filename = m[1]
+            }
+            const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+              title: 'Simpan CSV',
+              defaultPath: filename,
+              filters: [{ name: 'CSV', extensions: ['csv'] }]
+            })
+            if (!canceled && filePath) {
+              fs.writeFileSync(filePath, buf)
+            }
+          } catch (e) {
+            console.error('Gagal mengunduh CSV:', e)
+          }
+        })()
+        return { action: 'deny' }
+      }
+      shell.openExternal(u)
       return { action: 'deny' }
     })
 

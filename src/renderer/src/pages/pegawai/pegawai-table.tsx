@@ -1,5 +1,6 @@
 import { Button, DatePicker, Input, Select } from 'antd'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { PegawaiCategoryOptions } from '@shared/kepegawaian'
 
@@ -9,7 +10,15 @@ import { EditOutlined, EyeOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined
 import dayjs from 'dayjs'
 import { useKepegawaianList, useDeletePegawai, PegawaiRow } from '@renderer/hooks/use-kepegawaian'
 
-const baseColumns: ColumnsType<PegawaiRow> = [
+type Row = PegawaiRow & {
+  no: number
+  kategori?: string | null
+  idSatuSehat?: string | null
+  bagianSpesialis?: string | null
+  tanggalMulaiTugas?: string | null
+}
+
+const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Kategori', dataIndex: 'kategori', key: 'kategori' },
   { title: 'Nama', dataIndex: 'namaLengkap', key: 'namaLengkap' },
@@ -22,6 +31,16 @@ const baseColumns: ColumnsType<PegawaiRow> = [
     dataIndex: 'tanggalMulaiTugas',
     key: 'tanggalMulaiTugas',
     render: (v?: string | null) => (v ? dayjs(v).format('DD MMMM YYYY') : '-')
+  },
+  {
+    title: 'Nomor Telepon',
+    dataIndex: 'nomorTelepon',
+    key: 'nomorTelepon'
+  },
+  {
+    title: 'Hak Akses',
+    dataIndex: 'hakAksesId',
+    key: 'hakAksesId',
   },
 ]
 
@@ -62,6 +81,22 @@ function PegawaiTable() {
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/pegawai/create')}>Tambah</Button>
         <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
+        <Button
+          onClick={async () => {
+            try {
+              const res = await window.api.query.export.exportCsv({
+                entity: 'kepegawaian',
+                usePagination: false
+              })
+              if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                window.open(res.url as string, '_blank')
+              }
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : String(e)
+              console.error(msg)
+            }
+          }}
+        >Export CSV</Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-3 mb-3">
         <Select
@@ -84,7 +119,7 @@ function PegawaiTable() {
         />
       </div>
       <div className="">
-        <GenericTable<PegawaiRow>
+        <GenericTable<Row>
           rowKey={(r) => String(r.id ?? `${r.nik}-${r.email}`)}
           dataSource={filtered}
           columns={baseColumns}
