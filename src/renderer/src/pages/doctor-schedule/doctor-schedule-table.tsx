@@ -6,6 +6,46 @@ import type { ColumnsType } from 'antd/es/table'
 import GenericTable from '@renderer/components/GenericTable'
 import { useNavigate } from 'react-router'
 
+interface DaySchedule {
+  enabled: boolean
+  startTime: string
+  endTime: string
+}
+
+interface DoctorScheduleApiItem {
+  id: number
+  idPegawai: number
+  idPoli: number
+  kategori?: string | null
+  senin?: DaySchedule
+  selasa?: DaySchedule
+  rabu?: DaySchedule
+  kamis?: DaySchedule
+  jumat?: DaySchedule
+  sabtu?: DaySchedule
+  minggu?: DaySchedule
+  status?: string
+  pegawai?: {
+    id: number
+    namaLengkap: string
+    email?: string | null
+    nik?: string | null
+  } | null
+  poli?: {
+    id: number
+    name: string
+    description?: string | null
+    location?: string | null
+  } | null
+}
+
+type DoctorScheduleListResult = {
+  success: boolean
+  result?: DoctorScheduleApiItem[]
+  message?: string
+  error?: string
+}
+
 interface DoctorScheduleItem {
   id?: number
   doctorName: string
@@ -74,12 +114,6 @@ function RowActions({ record }: { record: Row }) {
   )
 }
 
-type DoctorScheduleListResult = {
-  success: boolean
-  data?: DoctorScheduleItem[]
-  error?: string
-}
-
 export default function DoctorScheduleTable() {
   const navigate = useNavigate()
   const [searchDokter, setSearchDokter] = useState('')
@@ -96,8 +130,22 @@ export default function DoctorScheduleTable() {
   })
 
   const filtered = useMemo(() => {
-    const source: DoctorScheduleItem[] = Array.isArray(data?.data)
-      ? (data!.data as DoctorScheduleItem[])
+    const apiResult = data?.result || []
+    const source: DoctorScheduleItem[] = Array.isArray(apiResult)
+      ? apiResult.map((item) => ({
+          id: item.id,
+          doctorName: item.pegawai?.namaLengkap || '-',
+          poli: item.poli?.name || '-',
+          monday: item.senin?.enabled ? `${item.senin.startTime} - ${item.senin.endTime}` : null,
+          tuesday: item.selasa?.enabled
+            ? `${item.selasa.startTime} - ${item.selasa.endTime}`
+            : null,
+          wednesday: item.rabu?.enabled ? `${item.rabu.startTime} - ${item.rabu.endTime}` : null,
+          thursday: item.kamis?.enabled ? `${item.kamis.startTime} - ${item.kamis.endTime}` : null,
+          friday: item.jumat?.enabled ? `${item.jumat.startTime} - ${item.jumat.endTime}` : null,
+          saturday: item.sabtu?.enabled ? `${item.sabtu.startTime} - ${item.sabtu.endTime}` : null,
+          sunday: item.minggu?.enabled ? `${item.minggu.startTime} - ${item.minggu.endTime}` : null
+        }))
       : []
     const rows: Row[] = source.map((e, idx) => ({ ...e, no: idx + 1 }))
     return rows.filter((r) => {
@@ -113,7 +161,7 @@ export default function DoctorScheduleTable() {
         : true
       return matchDokter && matchPoli
     })
-  }, [data?.data, searchDokter, searchPoli])
+  }, [data, searchDokter, searchPoli])
 
   return (
     <div>
