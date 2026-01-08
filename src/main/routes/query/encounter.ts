@@ -1,11 +1,12 @@
-import z from 'zod'
-import { EncounterSchema, EncounterSchemaWithId } from '@main/models/encounter'
 import { IpcContext } from '@main/ipc/router'
+import { EncounterSchemaWithId } from '@main/models/encounter'
 import {
-  parseBackendResponse,
   BackendListSchema,
-  getClient
+  getClient,
+  parseBackendResponse
 } from '@main/utils/backendClient'
+import { EncounterSchema } from 'simrs-types'
+import z from 'zod'
 
 export const requireSession = true
 

@@ -1,10 +1,10 @@
-import { Button, Form, Input, Select, DatePicker, message } from 'antd'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import dayjs, { type Dayjs } from 'dayjs'
 import type { KepegawaianAttributes } from '@shared/kepegawaian'
 import { JenisKelaminEnum } from '@shared/kepegawaian'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, DatePicker, Form, Input, message, Select } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
 
 type ReadResult = { success: boolean; data?: KepegawaianAttributes; error?: string }
 type CreateResult = { success: boolean; data?: KepegawaianAttributes; error?: string }
@@ -103,31 +103,8 @@ function PegawaiForm() {
     try {
       setSubmitting(true)
       const payload: KepegawaianAttributes = {
-        removed: false,
-        email: String(values.email),
-        namaLengkap: String(values.namaLengkap),
-        nik: String(values.nik),
-        tanggalLahir: values.tanggalLahir.toDate(),
-        jenisKelamin: values.jenisKelamin,
-        alamat: values.alamat ?? null,
-        nomorTelepon: values.nomorTelepon ?? null,
-        hakAkses: values.hakAkses ?? null,
-        kodeHakAkses: values.kodeHakAkses ?? null,
-        hakAksesId: values.hakAksesId ?? null,
-        hash: values.hash ?? null,
-        emailToken: values.emailToken ?? null,
-        resetToken: values.resetToken ?? null,
-        emailVerified: values.emailVerified ?? null,
-        loggedSessions: values.loggedSessions ?? null,
-        idSatuSehat: values.idSatuSehat ?? null,
-        kontrakPegawai: values.kontrakPegawai,
-        createdBy: values.createdBy,
-        updatedBy: values.updatedBy ?? null,
-        deletedBy: values.deletedBy ?? null,
-        createdAt: values.createdAt,
-        updatedAt: values.updatedAt,
-        deletedAt: values.deletedAt ?? null,
-        id: values.id
+        ...values,
+        tanggalLahir: values.tanggalLahir.toDate()
       }
       if (isEdit && typeof detail.data?.data?.id === 'number') {
         await updateMutation.mutateAsync({ ...payload, id: detail.data!.data!.id! })

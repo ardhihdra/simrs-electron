@@ -1,3 +1,5 @@
+import { CodeableConcept, Identifier, Reference } from "simrs-types"
+
 export enum ServiceRequestStatus {
   Draft = 'draft',
   Active = 'active',
@@ -27,35 +29,11 @@ export enum ServiceRequestPriority {
   Stat = 'stat'
 }
 
-export interface Coding {
-  system?: string
-  version?: string
-  code?: string
-  display?: string
-  userSelected?: boolean
-}
-
-export interface CodeableConcept {
-  coding?: Coding[]
-  text?: string
-}
-
-export interface Reference {
-  reference?: string
-  type?: string
-  display?: string
-}
-
 export interface Annotation {
   text?: string
   time?: Date
   authorReference?: Reference
   authorString?: string
-}
-
-export interface Identifier {
-  value?: string
-  system?: string
 }
 
 export interface ServiceRequestAttributes {
@@ -93,7 +71,7 @@ export interface ServiceRequestAttributes {
   note?: Annotation[] | null
   patientInstruction?: string[] | null
   relevantHistory?: Reference[] | null
-  
+
   resourceType?: string | null
 
   createdBy?: number | null

@@ -1,19 +1,14 @@
-import { Form, Input, Select, Radio, DatePicker, Tabs, Card, Typography } from 'antd'
 import type { FormInstance } from 'antd'
-import type { Dayjs } from 'dayjs'
+import { Card, DatePicker, Form, Input, Radio, Select, Tabs, Typography } from 'antd'
 import { useEffect } from 'react'
+import { PatientAttributes } from 'simrs-types'
 
 const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
 
 export interface GeneralConsentFormProps {
   form: FormInstance // Antd form instance
-  patientData?: {
-    name?: string | null
-    birthDate?: Dayjs
-    addressLine?: string | null
-    phone?: string | null
-  }
+  patientData?: PatientAttributes | any
 }
 
 export function GeneralConsentForm({ form, patientData }: GeneralConsentFormProps) {

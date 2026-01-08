@@ -1,10 +1,10 @@
-import { Form, Input, Button, DatePicker, Select, message, Steps } from 'antd'
+import { GeneralConsentForm } from '@renderer/components/GeneralConsentForm'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, DatePicker, Form, Input, message, Select, Steps } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { PatientAttributes } from '@shared/patient'
-import dayjs, { type Dayjs } from 'dayjs'
-import { GeneralConsentForm } from '@renderer/components/GeneralConsentForm'
+import { PatientAttributes } from 'simrs-types'
 
 type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & { birthDate: Dayjs }
 
@@ -30,22 +30,8 @@ function PatientForm() {
     const item = detail.data?.data as Partial<PatientAttributes> | undefined
     if (item) {
       form.setFieldsValue({
-        kode: item.kode,
-        identifier: item.identifier ?? undefined,
-        name: item.name,
-        gender: item.gender,
-        birthDate: item.birthDate ? dayjs(item.birthDate as unknown as string) : undefined,
-        placeOfBirth: item.placeOfBirth ?? undefined,
-        phone: item.phone ?? undefined,
-        email: item.email ?? undefined,
-        addressLine: item.addressLine ?? undefined,
-        province: item.province ?? undefined,
-        city: item.city ?? undefined,
-        district: item.district ?? undefined,
-        village: item.village ?? undefined,
-        postalCode: item.postalCode ?? undefined,
-        country: item.country ?? undefined,
-        maritalStatus: item.maritalStatus ?? undefined
+        ...item,
+        birthDate: item.birthDate ? dayjs(item.birthDate as unknown as string) : undefined
       })
     }
   }, [detail.data, form])
@@ -70,7 +56,7 @@ function PatientForm() {
 
   const updateMutation = useMutation({
     mutationKey: ['patient', 'update'],
-    mutationFn: async (payload: PatientAttributes & { id: number }) => {
+    mutationFn: async (payload: PatientAttributes & { id: string }) => {
       const updateFn = window.api?.query?.patient?.update
       if (!updateFn) throw new Error('API patient tidak tersedia')
       const result = await updateFn({ ...payload, id: payload.id })
@@ -86,27 +72,13 @@ function PatientForm() {
   const onFinish = async (values: PatientFormValues) => {
     try {
       setSubmitting(true)
+      const { birthDate, ...rest } = values
       const payload: PatientAttributes = {
-        active: values.active ?? true,
-        identifier: values.identifier ?? null,
-        kode: values.kode,
-        name: values.name,
-        gender: values.gender,
-        birthDate: values.birthDate.toDate(),
-        placeOfBirth: values.placeOfBirth ?? null,
-        phone: values.phone ?? null,
-        email: values.email ?? null,
-        addressLine: values.addressLine ?? null,
-        province: values.province ?? null,
-        city: values.city ?? null,
-        district: values.district ?? null,
-        village: values.village ?? null,
-        postalCode: values.postalCode ?? null,
-        country: values.country ?? null,
-        maritalStatus: values.maritalStatus ?? null
-      }
+        ...rest,
+        birthDate: birthDate ? dayjs(birthDate).format('YYYY-MM-DD') : undefined
+      } as PatientAttributes
       if (isEdit && params.id) {
-        await updateMutation.mutateAsync({ ...payload, id: Number(params.id) })
+        await updateMutation.mutateAsync({ ...payload, id: params.id })
       } else {
         await createMutation.mutateAsync(payload)
       }

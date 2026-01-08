@@ -1,13 +1,13 @@
 import z from 'zod'
 
 import { IpcContext } from '@main/ipc/router'
-import { DiagnosticReportSchema, DiagnosticReportSchemaWithId } from '@main/models/diagnosticReport'
+import { DiagnosticReportSchemaWithId } from '@main/models/diagnosticReport'
 import {
-  createBackendClient,
-  parseBackendResponse,
   BackendListSchema,
-  getClient
+  getClient,
+  parseBackendResponse
 } from '@main/utils/backendClient'
+import { DiagnosticReportSchema } from 'simrs-types'
 
 export const requireSession = true
 

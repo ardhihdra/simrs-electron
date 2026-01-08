@@ -1,5 +1,5 @@
-import { DataTypes } from 'sequelize'
 import { sequelize } from '@main/database'
+import { DataTypes } from 'sequelize'
 import z from 'zod'
 
 export const Patient = sequelize.define(
@@ -35,36 +35,16 @@ export const Patient = sequelize.define(
     indexes: [{ fields: ['kode'] }, { fields: ['name'] }]
   }
 )
-
 export const PatientSchema = z.object({
+  kode: z.string().optional(),
+  name: z.string().optional(),
+  gender: z.string().optional(),
+  birthDate: z.string().optional(),
   active: z.boolean().optional(),
-  identifier: z.string().nullable().optional(),
-  kode: z.string().min(1).optional(),
-  name: z.string().min(1),
-  gender: z.enum(['male', 'female']),
-  birthDate: z.union([z.date(), z.string()]),
-  placeOfBirth: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  email: z.string().email().nullable().optional(),
-  addressLine: z.string().nullable().optional(),
-  province: z.string().nullable().optional(),
-  city: z.string().nullable().optional(),
-  district: z.string().nullable().optional(),
-  village: z.string().nullable().optional(),
-  postalCode: z.string().nullable().optional(),
-  country: z.string().nullable().optional(),
-  maritalStatus: z.enum(['single', 'married', 'divorced']).nullable().optional(),
-  createdBy: z.number().nullable().optional(),
-  updatedBy: z.number().nullable().optional(),
-  deletedBy: z.number().nullable().optional()
+  phone: z.string().optional(),
+  email: z.string().optional(),
+  address: z.string().optional().nullable(),
 })
-
 export const PatientSchemaWithId = PatientSchema.extend({
   id: z.string().optional(),
-  // createdBy: z.number().nullable().optional(),
-  // updatedBy: z.number().nullable().optional(),
-  // deletedBy: z.number().nullable().optional(),
-  // createdAt: z.date().optional().nullable(),
-  // updatedAt: z.date().optional().nullable(),
-  // deletedAt: z.date().optional().nullable()
 })

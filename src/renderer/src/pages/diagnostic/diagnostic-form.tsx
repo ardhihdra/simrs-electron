@@ -1,13 +1,13 @@
-import { Form, Input, Button, DatePicker, Select, message } from 'antd'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQuery } from '@tanstack/react-query'
 import type {
   DiagnosticReportAttributes,
   DiagnosticReportCreationAttributes
 } from '@shared/diagnostic'
 import { DiagnosticReportStatus } from '@shared/diagnostic'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, DatePicker, Form, Input, Select, message } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
 
 type DiagnosticFormValues = Omit<
   DiagnosticReportAttributes,
@@ -70,7 +70,6 @@ function DiagnosticForm() {
   useEffect(() => {
     const item = detail.data?.data as Partial<DiagnosticReportAttributes> | undefined
     if (item) {
-      //@ts-expect-error - type mismatch
       form.setFieldsValue({
         ...item,
         subjectId: item.subjectId,

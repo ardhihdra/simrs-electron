@@ -1,5 +1,5 @@
-import { DataTypes } from 'sequelize'
 import { sequelize } from '@main/database'
+import { DataTypes } from 'sequelize'
 import { DiagnosticReportStatus } from './enums/ResourceEnums'
 
 export const DiagnosticReport = sequelize.define(
@@ -162,4 +162,5 @@ export const DiagnosticReport = sequelize.define(
   }
 )
 
-export { DiagnosticReportSchema, DiagnosticReportSchemaWithId } from '../../shared/diagnostic'
+export { DiagnosticReportSchemaWithId } from '../../shared/diagnostic'
+

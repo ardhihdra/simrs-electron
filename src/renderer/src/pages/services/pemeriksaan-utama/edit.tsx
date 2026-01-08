@@ -1,13 +1,12 @@
 import { Button, Descriptions, Tabs, TabsProps } from 'antd'
-import PemeriksaanUtamaTable from './table'
-import { SubjectiveTab } from './subjective-tab'
-import { ObjectiveTab } from './objective-tab'
 import AssessmentTab from './assessment-tab'
-import { PasienKontrolTab } from './pasien-kontrol-tab'
-import { PlanTab } from './plan-tab'
-import { PerawatanTab } from './perawatan-tab'
 import { LabolatoriumTab } from './labolatorium-tab'
+import { ObjectiveTab } from './objective-tab'
+import { PasienKontrolTab } from './pasien-kontrol-tab'
+import { PerawatanTab } from './perawatan-tab'
+import { PlanTab } from './plan-tab'
 import { ResepElektronikTab } from './resep-elektronik-tab'
+import { SubjectiveTab } from './subjective-tab'
 
 const items: TabsProps['items'] = [
   {

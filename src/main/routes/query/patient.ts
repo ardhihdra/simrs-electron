@@ -1,11 +1,11 @@
-import z from 'zod'
-import { PatientSchema, PatientSchemaWithId } from '@main/models/patient'
 import { IpcContext } from '@main/ipc/router'
+import { PatientSchema, PatientSchemaWithId } from '@main/models/patient'
 import {
-  parseBackendResponse,
   BackendListSchema,
-  getClient
+  getClient,
+  parseBackendResponse
 } from '@main/utils/backendClient'
+import z from 'zod'
 
 export const requireSession = true
 
@@ -26,7 +26,7 @@ export const schemas = {
     })
   },
   create: {
-    args: PatientSchema.partial(),
+    args: PatientSchema,
     result: z.object({
       success: z.boolean(),
       data: PatientSchemaWithId.optional(),
@@ -92,24 +92,8 @@ export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.crea
     console.log('args :', args)
 
     const payload = {
+      ...args,
       active: args.active ?? true,
-      identifier: args.identifier ?? null,
-      kode: String(args.kode),
-      name: String(args.name),
-      gender: String(args.gender),
-      birthDate: args.birthDate instanceof Date ? args.birthDate : new Date(args.birthDate || ''),
-      placeOfBirth: args.placeOfBirth ?? null,
-      phone: args.phone ?? null,
-      email: args.email ?? null,
-      addressLine: args.addressLine ?? null,
-      province: args.province ?? null,
-      city: args.city ?? null,
-      district: args.district ?? null,
-      village: args.village ?? null,
-      postalCode: args.postalCode ?? null,
-      country: args.country ?? null,
-      maritalStatus: args.maritalStatus ?? null,
-      createdBy: args.createdBy ?? null
     }
 
     const res = await client.post('/api/patient', payload)
@@ -135,24 +119,7 @@ export const update = async (_ctx: IpcContext, args: z.infer<typeof schemas.upda
     const client = getClient(_ctx)
     const payload = {
       id: crypto.randomUUID(), // Preserving original behavior
-      active: args.active,
-      identifier: args.identifier,
-      kode: args.kode,
-      name: args.name,
-      gender: args.gender,
-      birthDate: args.birthDate instanceof Date ? args.birthDate : new Date(args.birthDate || ''),
-      placeOfBirth: args.placeOfBirth,
-      phone: args.phone,
-      email: args.email,
-      addressLine: args.addressLine,
-      province: args.province,
-      city: args.city,
-      district: args.district,
-      village: args.village,
-      postalCode: args.postalCode,
-      country: args.country,
-      maritalStatus: args.maritalStatus,
-      updatedBy: args.updatedBy ?? null
+      ...args
     }
 
     const res = await client.put(`/api/patient/${args.id}`, payload)

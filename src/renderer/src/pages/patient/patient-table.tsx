@@ -1,15 +1,15 @@
-import { Button, DatePicker, Input, Select } from 'antd'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 import { queryClient } from '@renderer/query-client'
 import type { PatientAttributes } from '@shared/patient'
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, DatePicker, Input, Select } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import GenericTable from '@renderer/components/GenericTable'
+import dayjs from 'dayjs'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 
-type Row = PatientAttributes & { no: number }
+type Row = any & { no: number }
 
 const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },

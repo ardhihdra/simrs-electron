@@ -36,7 +36,7 @@
     "sqlite3": "^5.1.7",
     "tailwindcss": "^4.1.14",
     "ws": "^8.18.3",
-    "zod": "^4.1.11",
+    "zod": "^4.3.5",
     "zustand": "^5.0.8"
   },
   "devDependencies": {
@@ -58,13 +58,15 @@
     "prettier": "^3.6.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "simrs-types": "git+https://git.asmuldev.web.id/asmuldev/shared.git#develop",
     "typescript": "^5.9.2",
     "vite": "^7.1.6"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "electron",
-      "esbuild"
+      "esbuild",
+      "simrs-types"
     ]
   }
 }

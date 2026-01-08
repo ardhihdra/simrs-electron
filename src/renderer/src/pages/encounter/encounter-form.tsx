@@ -1,11 +1,11 @@
-import { Form, Input, Button, DatePicker, Select, message } from 'antd'
+import { Button, DatePicker, Form, Input, Select, message } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import dayjs, { type Dayjs } from 'dayjs'
-import type { EncounterAttributes } from '@shared/encounter'
+import type { EncounterAttributes } from 'simrs-types'
 
-import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
 import { SelectKepegawaian } from '@renderer/components/dynamic/SelectKepegawaian'
+import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
 import { useCreateEncounter, useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { usePatientOptions } from '@renderer/hooks/query/use-patient'
 
@@ -57,7 +57,7 @@ function EncounterForm() {
         reason: values.reason ?? null,
         note: values.note ?? null,
         status: values.status
-      }
+      } as unknown as EncounterAttributes
       if (isEdit && params.id) {
         await updateMutation.mutateAsync({ ...payload, id: params.id })
         message.success('Encounter berhasil diperbarui')

@@ -54,8 +54,8 @@ importers:
         specifier: ^8.18.3
         version: 8.18.3
       zod:
-        specifier: ^4.1.11
-        version: 4.1.11
+        specifier: ^4.3.5
+        version: 4.3.5
       zustand:
         specifier: ^5.0.8
         version: 5.0.8(@types/react@19.2.0)(react@19.2.0)
@@ -114,6 +114,9 @@ importers:
       react-dom:
         specifier: ^19.1.1
         version: 19.2.0(react@19.2.0)
+      simrs-types:
+        specifier: git+https://git.asmuldev.web.id/asmuldev/shared.git#develop
+        version: git+https://git.asmuldev.web.id/asmuldev/shared.git#837911981e26d30726da40135a88dcde802962ed(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
@@ -3280,6 +3283,10 @@ packages:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
     engines: {node: '>=10'}
 
+  simrs-types@git+https://git.asmuldev.web.id/asmuldev/shared.git#837911981e26d30726da40135a88dcde802962ed:
+    resolution: {commit: 837911981e26d30726da40135a88dcde802962ed, repo: https://git.asmuldev.web.id/asmuldev/shared.git, type: git}
+    version: 1.0.0
+
   slice-ansi@3.0.0:
     resolution: {integrity: sha512-pSyv7bSTC7ig9Dcgbw9AuRNUb5k5V6oDudjZoMBSr13qpLBG7tB+zgCkARjq7xIUgdz5P1Qe8u+rSGdouOOIyQ==}
     engines: {node: '>=8'}
@@ -3706,8 +3713,8 @@ packages:
     resolution: {integrity: sha512-9qv4rlDiopXg4E69k+vMHjNN63YFMe9sZMrdlvKnCjlCRWeCBswPPMPUfx+ipsAWq1LXHe70RcbaHdJJpS6hyQ==}
     engines: {node: '>= 10'}
 
-  zod@4.1.11:
-    resolution: {integrity: sha512-WPsqwxITS2tzx1bzhIKsEs19ABD5vmCVa4xBo2tq/SrV4RNZtfws1EnCWQXM6yh8bD08a1idvkB5MZSBiZsjwg==}
+  zod@4.3.5:
+    resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
 
   zustand@5.0.8:
     resolution: {integrity: sha512-gyPKpIaxY9XcO2vSMrLbiER7QMAMGOQZVRdJ6Zi782jkbzZygq5GI9nG8g+sMgitRtndwaBSl7uiqC49o1SSiw==}
@@ -7460,6 +7467,23 @@ snapshots:
     dependencies:
       semver: 7.7.2
 
+  simrs-types@git+https://git.asmuldev.web.id/asmuldev/shared.git#837911981e26d30726da40135a88dcde802962ed(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7):
+    dependencies:
+      sequelize: 6.37.7(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      typescript: 5.9.3
+      zod: 4.3.5
+    transitivePeerDependencies:
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
+
   slice-ansi@3.0.0:
     dependencies:
       ansi-styles: 4.3.0
@@ -7942,7 +7966,7 @@ snapshots:
       compress-commons: 4.1.2
       readable-stream: 3.6.2
 
-  zod@4.1.11: {}
+  zod@4.3.5: {}
 
   zustand@5.0.8(@types/react@19.2.0)(react@19.2.0):
     optionalDependencies:

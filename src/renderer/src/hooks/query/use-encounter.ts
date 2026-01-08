@@ -1,9 +1,7 @@
 import { queryClient } from "@renderer/query-client"
 import { EncounterListResult } from "@shared/encounter"
 import { useMutation, useQuery } from "@tanstack/react-query"
-
-
-import { EncounterAttributes } from '@shared/encounter'
+import { EncounterAttributes } from 'simrs-types'
 
 export const useCreateEncounter = () => {
     return useMutation({
@@ -75,9 +73,9 @@ export const useDeleteEncounter = () => {
     })
 }
 
+import { EncounterRow } from '@shared/encounter'
 import dayjs from 'dayjs'
 import { useCallback } from "react"
-import { EncounterRow } from '@shared/encounter'
 
 export const useEncounterMonitor = () => {
     return useQuery<EncounterListResult>({

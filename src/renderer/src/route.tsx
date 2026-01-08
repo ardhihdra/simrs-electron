@@ -1,51 +1,49 @@
 import { Link, Route, Routes, useLocation } from 'react-router'
 
 import AppLayout from './components/AppLayout'
-import HomePage from './pages/home'
 import Dashboard from './pages/Dashboard'
-import Expense from './pages/expense/Expense'
-import Patient from './pages/patient/Patient'
 import DashboardHome from './pages/DashboardHome'
-import ExpenseTable from './pages/expense/expense-table'
-import IncomeForm from './pages/expense/expense-form'
-import Income from './pages/income/income'
-import IncomeTable from './pages/income/income-table'
-import ExpenseForm from './pages/expense/expense-form'
-import PatientTable from './pages/patient/patient-table'
-import PatientForm from './pages/patient/patient-form'
-import Encounter from './pages/encounter/Encounter'
-import EncounterTable from './pages/encounter/encounter-table'
-import EncounterForm from './pages/encounter/encounter-form'
-import ServiceRequest from './pages/service-request/ServiceRequest'
-import ServiceRequestTable from './pages/service-request/service-request-table'
-import ServiceRequestForm from './pages/service-request/service-request-form'
-import Jaminan from './pages/jaminan/Jaminan'
-import JaminanTable from './pages/jaminan/jaminan-table'
-import JaminanForm from './pages/jaminan/jaminan-form'
-import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
-import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
-import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
-import Pegawai from './pages/pegawai/Pegawai'
-import PegawaiTable from './pages/pegawai/pegawai-table'
-import PegawaiForm from './pages/pegawai/pegawai-form'
-import PegawaiReport from './pages/pegawai/pegawai-report'
-import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
-import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
-import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
-import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
-import Services from './pages/services/services'
-import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
-import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
-import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
+import DiagnosticTable from './pages/diagnostic/diagnostic-table'
+import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
+import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
+import Encounter from './pages/encounter/Encounter'
+import EncounterForm from './pages/encounter/encounter-form'
+import EncounterTable from './pages/encounter/encounter-table'
+import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
+import Expense from './pages/expense/Expense'
+import { default as ExpenseForm, default as IncomeForm } from './pages/expense/expense-form'
+import ExpenseTable from './pages/expense/expense-table'
+import HomePage from './pages/home'
+import Income from './pages/income/income'
+import IncomeTable from './pages/income/income-table'
+import Jaminan from './pages/jaminan/Jaminan'
+import JaminanForm from './pages/jaminan/jaminan-form'
+import JaminanTable from './pages/jaminan/jaminan-table'
+import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
+import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
+import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
+import Patient from './pages/patient/Patient'
+import PatientForm from './pages/patient/patient-form'
+import PatientTable from './pages/patient/patient-table'
+import Pegawai from './pages/pegawai/Pegawai'
+import PegawaiForm from './pages/pegawai/pegawai-form'
+import PegawaiReport from './pages/pegawai/pegawai-report'
+import PegawaiTable from './pages/pegawai/pegawai-table'
 import Pharmacy from './pages/pharmacy/Pharmacy'
-import MedicineCategoryTable from './pages/pharmacy/medicine-category-table'
-import MedicineCategoryForm from './pages/pharmacy/medicine-category-form'
-import MedicineBrandTable from './pages/pharmacy/medicine-brand-table'
 import MedicineBrandForm from './pages/pharmacy/medicine-brand-form'
-import MedicinesTable from './pages/pharmacy/medicines-table'
+import MedicineBrandTable from './pages/pharmacy/medicine-brand-table'
+import MedicineCategoryForm from './pages/pharmacy/medicine-category-form'
+import MedicineCategoryTable from './pages/pharmacy/medicine-category-table'
 import MedicinesForm from './pages/pharmacy/medicines-form'
+import MedicinesTable from './pages/pharmacy/medicines-table'
+import ServiceRequest from './pages/service-request/ServiceRequest'
+import ServiceRequestForm from './pages/service-request/service-request-form'
+import ServiceRequestTable from './pages/service-request/service-request-table'
+import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
+import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
+import Services from './pages/services/services'
 
 function MainRoute() {
   const location = useLocation()
@@ -106,22 +104,22 @@ function MainRoute() {
             <Route path="create" element={<DiagnosticForm />} />
             <Route path="edit/:id" element={<DiagnosticForm />} />
           </Route>
-        <Route path="services" element={<Services />}>
-          <Route index element={<PemeriksaanUtamaPage />} />
-          <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
-          <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
-        </Route>
-        <Route path="pharmacy" element={<Pharmacy />}>
-          <Route path="medicine-categories" element={<MedicineCategoryTable />} />
-          <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
-          <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
-          <Route path="medicine-brands" element={<MedicineBrandTable />} />
-          <Route path="medicine-brands/create" element={<MedicineBrandForm />} />
-          <Route path="medicine-brands/edit/:id" element={<MedicineBrandForm />} />
-          <Route path="medicines" element={<MedicinesTable />} />
-          <Route path="medicines/create" element={<MedicinesForm />} />
-          <Route path="medicines/edit/:id" element={<MedicinesForm />} />
-        </Route>
+          <Route path="services" element={<Services />}>
+            <Route index element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          </Route>
+          <Route path="pharmacy" element={<Pharmacy />}>
+            <Route path="medicine-categories" element={<MedicineCategoryTable />} />
+            <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
+            <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
+            <Route path="medicine-brands" element={<MedicineBrandTable />} />
+            <Route path="medicine-brands/create" element={<MedicineBrandForm />} />
+            <Route path="medicine-brands/edit/:id" element={<MedicineBrandForm />} />
+            <Route path="medicines" element={<MedicinesTable />} />
+            <Route path="medicines/create" element={<MedicinesForm />} />
+            <Route path="medicines/edit/:id" element={<MedicinesForm />} />
+          </Route>
         </Route>
         <Route
           path="*"

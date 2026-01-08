@@ -1,8 +1,8 @@
-import { useQuery, useMutation } from "@tanstack/react-query"
-import { useCallback } from "react"
-import type { KepegawaianAttributes } from '@shared/kepegawaian'
-import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
+import { useMutation, useQuery } from "@tanstack/react-query"
+import dayjs from 'dayjs'
+import { useCallback } from "react"
+import { KepegawaianAttributes } from "simrs-types"
 
 export type PegawaiRow = KepegawaianAttributes & {
     no: number
@@ -29,9 +29,9 @@ export const useKepegawaianList = (filters?: PegawaiListFilter) => {
             const fn = window.api?.query?.pegawai?.list
             if (!fn) throw new Error('API pegawai tidak tersedia. Silakan restart aplikasi/dev server.')
             const result = await fn()
-            return result as unknown as { data: KepegawaianAttributes[] }
+            return result as unknown as { data: KepegawaianAttributes & { kontrakPegawai: any, hakAkses: any, idSatuSehat: any }[] }
         },
-        select: useCallback((data: { data: KepegawaianAttributes[] }) => {
+        select: useCallback((data: { data: KepegawaianAttributes & { kontrakPegawai: any, hakAkses: any, idSatuSehat: any }[] }) => {
             const source = data.data || []
             const rows: PegawaiRow[] = source.map((p, idx) => {
                 const kontrak = Array.isArray(p.kontrakPegawai) ? p.kontrakPegawai[0] : undefined
@@ -42,7 +42,7 @@ export const useKepegawaianList = (filters?: PegawaiListFilter) => {
                     idSatuSehat: p.idSatuSehat ?? null,
                     bagianSpesialis: kontrak?.kodeJabatan || kontrak?.kodeDepartemen || null,
                     tanggalMulaiTugas: kontrak?.tanggalMulaiKontrak ? String(kontrak.tanggalMulaiKontrak) : null
-                }
+                } as unknown as PegawaiRow
             })
 
             if (!filters) return rows
