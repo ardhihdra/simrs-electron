@@ -186,24 +186,6 @@ const items = [
     ]
   },
   {
-    label: 'Farmasi',
-    key: '/dashboard/pharmacy',
-    icon: <WalletOutlined />,
-    children: [
-      {
-        label: 'Medicine Categories',
-        key: '/dashboard/pharmacy/medicine-categories',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Medicine Brands',
-        key: '/dashboard/pharmacy/medicine-brands',
-        icon: <DashboardOutlined />
-      },
-      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
-    ]
-  },
-  {
     label: 'Laboratorium',
     key: '/dashboard/laboratory',
     icon: <ExperimentOutlined />,
@@ -262,10 +244,6 @@ const items = [
 function Dashboard() {
   const location = useLocation()
   const registeredPrefixes = [
-    '/dashboard/expense',
-    '/dashboard/patient',
-    '/dashboard/encounter',
-    '/dashboard/income',
     '/dashboard/expense',
     '/dashboard/patient',
     '/dashboard/encounter',
@@ -391,7 +369,7 @@ function Dashboard() {
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            className="flex-1 border-none"
+            className="flex-1"
           />
           <SendNotificationButton />
           <NotificationBell />
