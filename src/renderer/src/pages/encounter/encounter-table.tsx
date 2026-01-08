@@ -5,11 +5,12 @@ import type { EncounterRow, EncounterTableRow } from '@shared/encounter'
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
+import GenericTable from '@renderer/components/GenericTable'
 import { useDeleteEncounter, useEncounterList } from '@renderer/hooks/query/use-encounter'
 import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
 
 
-const columns: ColumnsType<EncounterTableRow> = [
+const baseColumns: ColumnsType<EncounterTableRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Kode Antrian', dataIndex: 'encounterCode', key: 'encounterCode', render: (v: string | null) => (v ? v : '-') },
   { title: 'Tanggal Kunjungan', dataIndex: 'visitDate', key: 'visitDate', render: (v: string | Date) => (v ? dayjs(v).format('DD MMMM YYYY HH:mm') : '-') },
@@ -18,14 +19,6 @@ const columns: ColumnsType<EncounterTableRow> = [
   { title: 'Alasan', dataIndex: 'reason', key: 'reason' },
   { title: 'Status', dataIndex: 'status', key: 'status' },
   { title: 'Catatan', dataIndex: 'note', key: 'note' },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 100,
-    render: (_: EncounterTableRow, record: EncounterTableRow) => (
-      <RowActions record={record} />
-    )
-  }
 ]
 
 function RowActions({ record }: { record: EncounterTableRow }) {
@@ -135,14 +128,20 @@ export function EncounterTable() {
         <div />
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table<EncounterTableRow>
+      <GenericTable<EncounterTableRow>
+        columns={baseColumns}
         dataSource={filtered}
-        columns={columns}
         rowKey={(r) => String(r.id ?? `${r.serviceType}-${r.patient?.name || ''}`)}
+        action={{
+          title: 'Action',
+          width: 100,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
       />
     </div>
   )
 }
 
 export default EncounterTable
-

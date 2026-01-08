@@ -1,6 +1,7 @@
-import { Table, Button } from 'antd'
+import { Button } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlayCircleOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
 interface DataType {
   key: string
@@ -25,7 +26,7 @@ interface DataType {
 const data: DataType[] = []
 
 export const LabolatoriumTab = () => {
-  const columns: ColumnsType<DataType> = [
+  const baseColumns: ColumnsType<DataType> = [
     {
       title: 'No',
       dataIndex: 'no',
@@ -39,18 +40,6 @@ export const LabolatoriumTab = () => {
       width: 50,
       align: 'center',
       render: () => <Button type="text" icon={<PlayCircleOutlined />} size="small" />
-    },
-    {
-      title: 'Action',
-      key: 'action',
-      width: 80,
-      align: 'center',
-      render: () => (
-        <div className="flex justify-center gap-1">
-          <Button type="text" icon={<EditOutlined />} size="small" />
-          <Button type="text" icon={<DeleteOutlined />} size="small" />
-        </div>
-      )
     },
     { title: 'Kode LOINC', dataIndex: 'kodeLoinc', key: 'kodeLoinc' },
     { title: 'Bidang', dataIndex: 'bidang', key: 'bidang' },
@@ -71,13 +60,23 @@ export const LabolatoriumTab = () => {
 
   return (
     <div className="p-4">
-      <Table
-        columns={columns}
+      <GenericTable<DataType>
+        columns={baseColumns}
         dataSource={data}
-        pagination={false}
-        size="small"
-        bordered
-        scroll={{ x: 'max-content' }}
+        rowKey={(r) => r.key}
+        action={{
+          title: 'Action',
+          width: 80,
+          align: 'center',
+          fixedRight: true,
+          render: () => (
+            <div className="flex justify-center gap-1">
+              <Button type="text" icon={<EditOutlined />} size="small" />
+              <Button type="text" icon={<DeleteOutlined />} size="small" />
+            </div>
+          )
+        }}
+        tableProps={{ pagination: false, size: 'small', bordered: true, scroll: { x: 'max-content' } }}
       />
     </div>
   )

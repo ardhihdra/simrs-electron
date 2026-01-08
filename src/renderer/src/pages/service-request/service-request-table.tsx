@@ -1,8 +1,9 @@
-import { Table, Button, DatePicker, Select, Popconfirm, message } from 'antd'
+import { Button, DatePicker, Select, Popconfirm, message } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { ServiceRequestAttributes } from '@shared/service-request'
 import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 import dayjs from 'dayjs'
 
 const { Option } = Select
@@ -10,26 +11,17 @@ const { Option } = Select
 // Extend attributes to include potential joined fields or formatted values
 type ServiceRequestRow = ServiceRequestAttributes
 
-const columns = [
-  {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center' as const,
-    render: (_: ServiceRequestRow, record: ServiceRequestRow) => (
-      <RowActions record={record} />
-    )
-  },
+const baseColumns = [
   { 
     title: 'Tanggal', 
     dataIndex: 'authoredOn', 
     key: 'authoredOn', 
-    render: (v: string | Date) => v ? dayjs(v).format('DD MMM YYYY HH:mm:ss') : '-' 
+    render: (v: ServiceRequestRow['authoredOn']) => v ? dayjs(v).format('DD MMM YYYY HH:mm:ss') : '-' 
   },
   {
     title: 'No. Faktur',
     key: 'faktur',
-    render: (_: unknown, record: ServiceRequestRow) => {
+    render: (_value: ServiceRequestRow['identifier'], record: ServiceRequestRow) => {
         // Mocking/extracting identifier if available, otherwise ID
         return record.identifier?.[0]?.value || `INV-${record.id}`
     }
@@ -43,9 +35,8 @@ const columns = [
   {
     title: 'No. RM',
     key: 'mrn',
-    render: (_: unknown, record: ServiceRequestRow) => {
-        // Extract ID from Patient/123
-        const ref = (record.subject as any)?.reference || ''
+    render: (_value: ServiceRequestRow['subject'], record: ServiceRequestRow) => {
+        const ref = record.subject?.reference || ''
         return ref.split('/')[1] || '-'
     }
   },
@@ -66,14 +57,14 @@ const columns = [
   {
     title: 'Rujukan',
     key: 'rujukan',
-    render: (_: unknown, record: ServiceRequestRow) => {
+    render: (_value: ServiceRequestRow['reason'], record: ServiceRequestRow) => {
         return record.reason?.[0]?.text || '-'
     }
   },
   {
     title: 'Catatan',
     key: 'catatan',
-    render: (_: unknown, record: ServiceRequestRow) => {
+    render: (_value: ServiceRequestRow['note'], record: ServiceRequestRow) => {
         return record.note?.[0]?.text || '-'
     }
   },
@@ -183,12 +174,18 @@ export default function ServiceRequestTable() {
          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/service-request/create')}>Buat Baru</Button>
       </div>
 
-      <Table 
-        columns={columns} 
-        dataSource={serviceRequests} 
-        rowKey="id" 
-        pagination={{ pageSize: 10 }}
-        scroll={{ x: 1000 }}
+      <GenericTable<ServiceRequestRow>
+        columns={baseColumns}
+        dataSource={serviceRequests || []}
+        rowKey={(r) => String(r.id || '')}
+        action={{
+          title: 'Action',
+          width: 80,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
+        tableProps={{ pagination: { pageSize: 10 }, scroll: { x: 1000 } }}
       />
     </div>
   )

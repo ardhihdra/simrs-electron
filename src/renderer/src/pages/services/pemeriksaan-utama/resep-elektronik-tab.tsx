@@ -1,6 +1,7 @@
-import { Table, Button, Input, Checkbox, Select, InputNumber } from 'antd'
+import { Button, Input, Checkbox, Select, InputNumber } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { SyncOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
 interface DataType {
   key: string
@@ -63,7 +64,7 @@ const data: DataType[] = [
 ]
 
 export const ResepElektronikTab = () => {
-  const columns: ColumnsType<DataType> = [
+  const baseColumns: ColumnsType<DataType> = [
     {
       title: 'No',
       dataIndex: 'no',
@@ -138,7 +139,12 @@ export const ResepElektronikTab = () => {
 
   return (
     <div className="p-4">
-      <Table columns={columns} dataSource={data} pagination={false} size="small" bordered />
+      <GenericTable<DataType>
+        columns={baseColumns}
+        dataSource={data}
+        rowKey={(r) => r.key}
+        tableProps={{ pagination: false, size: 'small', bordered: true }}
+      />
     </div>
   )
 }

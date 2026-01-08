@@ -1,9 +1,20 @@
 import Action from '@renderer/components/Action'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Input, Table } from 'antd'
+import { Button, Input } from 'antd'
 import { useNavigate } from 'react-router'
+import GenericTable from '@renderer/components/GenericTable'
 
-const expenseColumns = [
+type ExpenseRow = {
+  id: string | number
+  name: string
+  expenseHead?: { name?: string }
+  date: string | Date
+  invoiceNumber: string
+  amount: number
+  description?: string
+}
+
+const baseColumns = [
   {
     title: 'Name',
     dataIndex: 'name',
@@ -18,7 +29,7 @@ const expenseColumns = [
     title: 'Date',
     dataIndex: 'date',
     key: 'date',
-    render: (value: string) => new Date(value).toLocaleDateString()
+    render: (value: ExpenseRow['date']) => new Date(value).toLocaleDateString()
   },
   {
     title: 'Invoice Number',
@@ -29,7 +40,7 @@ const expenseColumns = [
     title: 'Amount',
     dataIndex: 'amount',
     key: 'amount',
-    render: (value: string) =>
+    render: (value: ExpenseRow['amount']) =>
       new Intl.NumberFormat('id-ID', {
         style: 'currency',
         currency: 'IDR'
@@ -40,11 +51,6 @@ const expenseColumns = [
     dataIndex: 'description',
     key: 'description',
     ellipsis: true // potong jika terlalu panjang
-  },
-  {
-    title: 'Action',
-    key: 'action',
-    render: (_: any, record: any) => <Action record={record} />
   }
 ]
 
@@ -78,12 +84,18 @@ export function ExpenseTable() {
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table
-        dataSource={data?.data || []}
-        columns={expenseColumns}
-        size="small"
-        className="mt-4 rounded-xl shadow-sm"
-        scroll={{ x: 'max-content' }}
+      <GenericTable<ExpenseRow>
+        columns={baseColumns}
+        dataSource={(data?.data as ExpenseRow[]) || []}
+        rowKey={(r) => String(r.id)}
+        action={{
+          title: 'Action',
+          width: 100,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <Action record={record} />
+        }}
+        tableProps={{ className: 'mt-4 rounded-xl shadow-sm', scroll: { x: 'max-content' } }}
       />
     </div>
   )

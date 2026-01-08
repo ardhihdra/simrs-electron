@@ -5,14 +5,14 @@ import type { MenuProps } from 'antd'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
 
-type ExpenseRecord = { id: number }
+type ExpenseRecord = { id: number | string }
 type ActionProps = { record: ExpenseRecord }
 
 function Action({ record }: ActionProps) {
   const navigate = useNavigate()
   const deleteMutation = useMutation({
     mutationKey: ['expense', 'delete'],
-    mutationFn: (id: number) => window.api.query.expense.deleteById({ id }),
+    mutationFn: (id: string) => window.api.query.expense.deleteById({ id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expense', 'list'] })
       message.success('Expense deleted successfully')
@@ -39,7 +39,12 @@ function Action({ record }: ActionProps) {
       danger: true,
       label: 'Delete',
       icon: <DeleteOutlined />,
-      onClick: () => deleteMutation.mutate(record.id)
+      onClick: () => {
+        const idStr = String(record.id)
+        if (idStr) {
+          deleteMutation.mutate(idStr)
+        }
+      }
     }
   ]
 
