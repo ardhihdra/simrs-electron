@@ -1,14 +1,16 @@
-import { Button, DatePicker, Input, Select, Table } from 'antd'
+import { Button, DatePicker, Input, Select } from 'antd'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
-import { queryClient } from '@renderer/query-client'
-import type { KepegawaianAttributes } from '@shared/kepegawaian'
+import { PegawaiCategoryOptions } from '@shared/kepegawaian'
+
 import type { ColumnsType } from 'antd/es/table'
+import GenericTable from '@renderer/components/GenericTable'
 import { EditOutlined, EyeOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { useKepegawaianList, useDeletePegawai, PegawaiRow } from '@renderer/hooks/use-kepegawaian'
 
-type Row = KepegawaianAttributes & {
+type Row = PegawaiRow & {
   no: number
   kategori?: string | null
   idSatuSehat?: string | null
@@ -16,7 +18,7 @@ type Row = KepegawaianAttributes & {
   tanggalMulaiTugas?: string | null
 }
 
-const columns: ColumnsType<Row> = [
+const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Kategori', dataIndex: 'kategori', key: 'kategori' },
   { title: 'Nama', dataIndex: 'namaLengkap', key: 'namaLengkap' },
@@ -31,26 +33,20 @@ const columns: ColumnsType<Row> = [
     render: (v?: string | null) => (v ? dayjs(v).format('DD MMMM YYYY') : '-')
   },
   {
-    title: 'Action',
-    key: 'action',
-    width: 100,
-    render: (_: Row, record: Row) => <RowActions record={record} />
+    title: 'Nomor Telepon',
+    dataIndex: 'nomorTelepon',
+    key: 'nomorTelepon'
+  },
+  {
+    title: 'Hak Akses',
+    dataIndex: 'hakAksesId',
+    key: 'hakAksesId',
   },
 ]
 
-function RowActions({ record }: { record: Row }) {
+function RowActions({ record }: { record: PegawaiRow }) {
   const navigate = useNavigate()
-  const deleteMutation = useMutation({
-    mutationKey: ['pegawai', 'delete'],
-    mutationFn: (id: number) => {
-      const fn = window.api?.query?.pegawai?.deleteById
-      if (!fn) throw new Error('API pegawai tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn({ id })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pegawai', 'list'] })
-    }
-  })
+  const deleteMutation = useDeletePegawai()
   return (
     <div className="flex gap-2">
       <EyeOutlined onClick={() => { if (typeof record.id === 'number') navigate(`/dashboard/pegawai/edit/${record.id}`) }} />
@@ -69,39 +65,15 @@ function PegawaiTable() {
   const [searchAlamat, setSearchAlamat] = useState('')
   const [kategori, setKategori] = useState<string | undefined>(undefined)
   const [mulaiTugas, setMulaiTugas] = useState<string | null>(null)
-  const { data, refetch } = useQuery({
-    queryKey: ['pegawai', 'list'],
-    queryFn: () => {
-      const fn = window.api?.query?.pegawai?.list
-      if (!fn) throw new Error('API pegawai tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn()
-    }
+  const { data: filtered = [], refetch } = useKepegawaianList({
+    searchNama,
+    searchNik,
+    searchIdSehat,
+    searchBagian,
+    searchAlamat,
+    kategori,
+    mulaiTugas
   })
-
-  const filtered = useMemo(() => {
-    const source: KepegawaianAttributes[] = (data?.data as KepegawaianAttributes[]) || []
-    const rows: Row[] = source.map((p, idx) => {
-      const kontrak = Array.isArray(p.kontrakPegawai) ? p.kontrakPegawai[0] : undefined
-      return {
-        ...p,
-        no: idx + 1,
-        kategori: p.hakAkses ?? null,
-        idSatuSehat: p.idSatuSehat ?? null,
-        bagianSpesialis: kontrak?.kodeJabatan || kontrak?.kodeDepartemen || null,
-        tanggalMulaiTugas: kontrak?.tanggalMulaiKontrak ? String(kontrak.tanggalMulaiKontrak) : null
-      }
-    })
-    return rows.filter((r) => {
-      const matchKategori = kategori ? String(r.kategori || '').toLowerCase() === kategori.toLowerCase() : true
-      const matchNama = searchNama ? String(r.namaLengkap || '').toLowerCase().includes(searchNama.toLowerCase()) : true
-      const matchNik = searchNik ? String(r.nik || '').toLowerCase().includes(searchNik.toLowerCase()) : true
-      const matchIdSehat = searchIdSehat ? String(r.idSatuSehat || '').toLowerCase().includes(searchIdSehat.toLowerCase()) : true
-      const matchBagian = searchBagian ? String(r.bagianSpesialis || '').toLowerCase().includes(searchBagian.toLowerCase()) : true
-      const matchAlamat = searchAlamat ? String(r.alamat || '').toLowerCase().includes(searchAlamat.toLowerCase()) : true
-      const matchMulai = mulaiTugas ? dayjs(r.tanggalMulaiTugas).isSame(dayjs(mulaiTugas), 'day') : true
-      return matchKategori && matchNama && matchNik && matchIdSehat && matchBagian && matchAlamat && matchMulai
-    })
-  }, [data?.data, kategori, searchNama, searchNik, searchIdSehat, searchBagian, searchAlamat, mulaiTugas])
 
   return (
     <div>
@@ -109,6 +81,22 @@ function PegawaiTable() {
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/pegawai/create')}>Tambah</Button>
         <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
+        <Button
+          onClick={async () => {
+            try {
+              const res = await window.api.query.export.exportCsv({
+                entity: 'kepegawaian',
+                usePagination: false
+              })
+              if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                window.open(res.url as string, '_blank')
+              }
+            } catch (e: unknown) {
+              const msg = e instanceof Error ? e.message : String(e)
+              console.error(msg)
+            }
+          }}
+        >Export CSV</Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-3 mb-3">
         <Select
@@ -116,13 +104,7 @@ function PegawaiTable() {
           placeholder="SEMUA KATEGORI"
           value={kategori}
           onChange={(v) => setKategori(v)}
-          options={[
-            { label: 'Dokter', value: 'doctor' },
-            { label: 'Perawat', value: 'nurse' },
-            { label: 'Apoteker', value: 'pharmacist' },
-            { label: 'Lab', value: 'lab_technician' },
-            { label: 'Radiologi', value: 'radiologist' }
-          ]}
+          options={PegawaiCategoryOptions}
         />
         <Input placeholder="Nama" value={searchNama} onChange={(e) => setSearchNama(e.target.value)} />
         <Input placeholder="NIK" value={searchNik} onChange={(e) => setSearchNik(e.target.value)} />
@@ -137,10 +119,17 @@ function PegawaiTable() {
         />
       </div>
       <div className="">
-        <Table<Row>
+        <GenericTable<Row>
           rowKey={(r) => String(r.id ?? `${r.nik}-${r.email}`)}
           dataSource={filtered}
-          columns={columns}
+          columns={baseColumns}
+          action={{
+            title: 'Action',
+            width: 100,
+            align: 'center',
+            fixedRight: true,
+            render: (record) => <RowActions record={record} />
+          }}
         />
       </div>
     </div>

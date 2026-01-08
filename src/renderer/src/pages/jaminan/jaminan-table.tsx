@@ -1,10 +1,11 @@
-import { Button, Dropdown, Input, Table, Tag } from 'antd'
+import { Button, Dropdown, Input, Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
-import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import  { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
 interface JaminanAttributes {
   id?: number
@@ -14,7 +15,7 @@ interface JaminanAttributes {
   status: 'active' | 'inactive'
 }
 
-const columns = [
+const baseColumns = [
   {
     title: 'Kode',
     dataIndex: 'kode',
@@ -43,13 +44,6 @@ const columns = [
       </Tag>
     )
   },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center' as const,
-    render: (_: JaminanAttributes, record: JaminanAttributes) => <RowActions record={record} />
-  }
 ]
 
 function RowActions({ record }: { record: JaminanAttributes }) {
@@ -133,19 +127,39 @@ export function JaminanTable() {
         />
         <div className="flex gap-2 flex-wrap md:justify-end">
           <Button onClick={() => refetch()}>Refresh</Button>
+          <Button
+            onClick={async () => {
+              try {
+                const res = await window.api.query.export.exportCsv({
+                  entity: 'jaminan',
+                  usePagination: false
+                })
+                if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                  window.open(res.url as string, '_blank')
+                }
+              } catch (e) {
+                console.error(e instanceof Error ? e.message : String(e))
+              }
+            }}
+          >Export CSV</Button>
           <Button type="primary" onClick={() => navigate('/dashboard/registration/jaminan/create')}>
             Tambah Jaminan
           </Button>
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.message}</div>)}
-      <Table
+      <GenericTable<JaminanAttributes>
+        columns={baseColumns}
         dataSource={filtered}
-        columns={columns}
-        size="small"
-        className="mt-4 rounded-xl shadow-sm"
-        rowKey="id"
-        scroll={{ x: 'max-content' }}
+        rowKey={(r) => String(r.id ?? `${r.kode}-${r.nama}`)}
+        action={{
+          title: 'Action',
+          width: 80,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
+        tableProps={{ size: 'small', className: 'mt-4 rounded-xl shadow-sm', scroll: { x: 'max-content' } }}
       />
     </div>
   )

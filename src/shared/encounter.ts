@@ -60,3 +60,16 @@ export interface EncounterAttributes {
   deletedAt?: Date | null
   deletedBy?: number | null
 }
+
+export type EncounterListResult = {
+  success: boolean
+  data?: EncounterRow[]
+  error?: string
+}
+export type EncounterRow = Omit<EncounterAttributes, 'visitDate' | 'status'> & {
+  visitDate: string | Date
+  status: string
+  patient?: { name?: string }
+}
+
+export type EncounterTableRow = EncounterRow & { no: number }

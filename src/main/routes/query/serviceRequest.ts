@@ -92,6 +92,34 @@ export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.
   }
 }
 
+export const exportCsv = async (
+  ctx: IpcContext,
+  args: {
+    usePagination?: boolean;
+    page?: number;
+    items?: number;
+    startDate?: string;
+    endDate?: string;
+  }
+) => {
+  const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
+  const token = ctx?.sessionStore?.getBackendTokenForWindow?.(ctx.senderId)
+  if (!token) {
+    return { success: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  }
+  const root = String(base).endsWith('/') ? String(base).slice(0, -1) : String(base)
+  const params = new URLSearchParams()
+  params.append('export', 'csv')
+  if (args.usePagination) params.append('usePagination', 'true')
+  if (typeof args.page === 'number') params.append('page', String(args.page))
+  if (typeof args.items === 'number') params.append('items', String(args.items))
+  if (args.startDate) params.append('startDate', args.startDate)
+  if (args.endDate) params.append('endDate', args.endDate)
+  params.append('token', token)
+  const url = `${root}/api/servicerequest/export?${params.toString()}`
+  return { success: true, url }
+}
+
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
   const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
   const token = ctx?.sessionStore?.getBackendTokenForWindow?.(ctx.senderId)

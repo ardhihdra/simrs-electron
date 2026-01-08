@@ -1,13 +1,14 @@
-import { Button, Dropdown, Input, Table, Tag } from 'antd'
+import { Button, Dropdown, Input, Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import type { DiagnosticReportAttributes } from '@shared/diagnostic'
-import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import  { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
-const columns = [
+const baseColumns = [
   { title: 'Code', dataIndex: 'code', key: 'code' },
   {
     title: 'Status',
@@ -31,15 +32,6 @@ const columns = [
         : '-'
   },
   { title: 'Conclusiom', dataIndex: 'conclusion', key: 'conclusion', ellipsis: true },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center' as const,
-    render: (_: DiagnosticReportAttributes, record: DiagnosticReportAttributes) => (
-      <RowActions record={record} />
-    )
-  }
 ]
 
 function RowActions({ record }: { record: DiagnosticReportAttributes }) {
@@ -111,7 +103,7 @@ export function DiagnosticTable() {
       return hay.includes(q)
     })
   }, [data?.data, search])
-  console.log(filtered)
+
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Diagnostic Reports</h2>
@@ -125,19 +117,39 @@ export function DiagnosticTable() {
         />
         <div className="flex gap-2 flex-wrap md:justify-end">
           <Button onClick={() => refetch()}>Refresh</Button>
+          <Button
+            onClick={async () => {
+              try {
+                const res = await window.api.query.export.exportCsv({
+                  entity: 'diagnosticreport',
+                  usePagination: false
+                })
+                if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                  window.open(res.url as string, '_blank')
+                }
+              } catch (e) {
+                console.error(e instanceof Error ? e.message : String(e))
+              }
+            }}
+          >Export CSV</Button>
           <Button type="primary" onClick={() => navigate('/dashboard/diagnostic/create')}>
             Add Diagnostic
           </Button>
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table
+      <GenericTable<DiagnosticReportAttributes>
+        columns={baseColumns}
         dataSource={filtered}
-        columns={columns}
-        size="small"
-        className="mt-4 rounded-xl shadow-sm"
-        rowKey="id"
-        scroll={{ x: 'max-content' }}
+        rowKey={(r) => String(r.id ?? `${r.code}-${r.status}`)}
+        action={{
+          title: 'Action',
+          width: 80,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
+        tableProps={{ size: 'small', className: 'mt-4 rounded-xl shadow-sm', scroll: { x: 'max-content' } }}
       />
     </div>
   )

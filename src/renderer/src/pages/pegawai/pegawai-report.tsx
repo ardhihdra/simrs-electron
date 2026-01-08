@@ -49,7 +49,7 @@ function PegawaiReport() {
   })
 
   const rows: KepegawaianAttributes[] = useMemo(() => {
-    return ((data?.data as KepegawaianAttributes[]) || []).map((r) => ({ ...r }))
+    return ((data?.data as unknown as KepegawaianAttributes[]) || []).map((r) => ({ ...r }))
   }, [data?.data])
 
   const onExport = () => {

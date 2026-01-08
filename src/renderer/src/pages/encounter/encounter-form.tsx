@@ -1,46 +1,42 @@
 import { Form, Input, Button, DatePicker, Select, message } from 'antd'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useNavigate, useParams, useSearchParams } from 'react-router'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { EncounterAttributes } from '@shared/encounter'
-import type { PatientAttributes } from '@shared/patient'
+
+import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
+import { SelectKepegawaian } from '@renderer/components/dynamic/SelectKepegawaian'
+import { useCreateEncounter, useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
+import { usePatientOptions } from '@renderer/hooks/query/use-patient'
 
 type EncounterFormValues = Omit<EncounterAttributes, 'visitDate'> & { visitDate: Dayjs }
+
+
 
 function EncounterForm() {
   const [form] = Form.useForm<EncounterFormValues>()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const params = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const mode = searchParams.get('mode')
   const isEdit = !!params.id
+  const isView = mode === 'view'
 
-  const patients = useQuery({
-    queryKey: ['patient', 'list'],
-    queryFn: () => {
-      const fn = window.api?.query?.patient?.list
-      if (!fn) throw new Error('API patient tidak tersedia')
-      return fn()
-    }
-  })
-
-  const detail = useQuery({
-    queryKey: ['encounter', 'detail', params.id],
-    queryFn: () => {
-      const fn = window.api?.query?.encounter?.getById
-      if (!fn || !params.id) throw new Error('API encounter tidak tersedia')
-      return fn({ id: Number(params.id) })
-    },
-    enabled: isEdit
-  })
+  const patients = usePatientOptions()
+  const detail = useEncounterDetail(params.id)
+  const createMutation = useCreateEncounter()
+  const updateMutation = useUpdateEncounter()
 
   useEffect(() => {
+    console.log('Encounter detail data:', detail.data)
+    // @ts-ignore - Response type is not fully inferred
     const item = detail.data?.data as Partial<EncounterAttributes> | undefined
     if (item) {
       form.setFieldsValue({
-        patientId: item.patientId!,
+        patientId: String(item.patientId),
         visitDate: item.visitDate ? dayjs(item.visitDate as unknown as string) : dayjs(),
-        serviceType: item.serviceType!,
+        serviceType: String(item.serviceType),
         reason: item.reason ?? undefined,
         note: item.note ?? undefined,
         status: item.status!
@@ -48,44 +44,14 @@ function EncounterForm() {
     }
   }, [detail.data, form])
 
-  const createMutation = useMutation({
-    mutationKey: ['encounter', 'create'],
-    mutationFn: async (payload: EncounterAttributes) => {
-      const fn = window.api?.query?.encounter?.create
-      if (!fn) throw new Error('API encounter tidak tersedia')
-      const result = await fn(payload)
-    console.log(result)
-      if (!result.success) throw new Error(result.error || 'Failed to create encounter')
-      return result
-    },
-    onSuccess: () => {
-      message.success('Encounter berhasil disimpan')
-      form.resetFields()
-      navigate('/dashboard/encounter')
-    }
-  })
-
-  const updateMutation = useMutation({
-    mutationKey: ['encounter', 'update'],
-    mutationFn: async (payload: EncounterAttributes & { id: string }) => {
-      const fn =  window.api?.query?.encounter?.update
-      if (!fn) throw new Error('API encounter tidak tersedia')
-      const result = await fn({ ...payload, id: payload.id })
-      if (!result.success) throw new Error(result.error || 'Failed to update encounter')
-      return result
-    },
-    onSuccess: () => {
-      message.success('Encounter berhasil diperbarui')
-      navigate('/dashboard/encounter')
-    }
-  })
-
   const onFinish = async (values: EncounterFormValues) => {
+    if (isView) return // Prevent submit in view mode
+
     console.log(values)
     try {
       setSubmitting(true)
       const payload: EncounterAttributes = {
-        patientId:  values.patientId,
+        patientId: values.patientId,
         visitDate: values.visitDate.toDate(),
         serviceType: values.serviceType,
         reason: values.reason ?? null,
@@ -94,9 +60,17 @@ function EncounterForm() {
       }
       if (isEdit && params.id) {
         await updateMutation.mutateAsync({ ...payload, id: params.id })
+        message.success('Encounter berhasil diperbarui')
+        navigate('/dashboard/encounter')
       } else {
         await createMutation.mutateAsync(payload)
+        message.success('Encounter berhasil disimpan')
+        form.resetFields()
+        navigate('/dashboard/encounter')
       }
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      message.error(msg || 'Gagal menyimpan data')
     } finally {
       setSubmitting(false)
     }
@@ -104,23 +78,31 @@ function EncounterForm() {
 
   return (
     <div className="my-4">
-      <Form form={form} layout="vertical" onFinish={onFinish} className="max-w-md mx-auto">
+      <Form form={form} layout="vertical" onFinish={onFinish} className="max-w-md mx-auto" disabled={isView}>
         <div className="grid grid-cols-2 gap-4">
           <Form.Item label="Pasien" name="patientId" rules={[{ required: true, message: 'Pilih pasien' }]}>
-            <Select placeholder="Pilih pasien" loading={patients.isLoading}>
-              {(patients.data?.data as PatientAttributes[] | undefined)?.map((p) => (
-                <Select.Option key={String(p.id)} value={p.id!}>
-                  {p.name} ({p.kode})
-                </Select.Option>
-              ))}
-            </Select>
+            <Select
+              placeholder="Pilih pasien"
+              loading={patients.isLoading}
+              options={patients.data}
+              showSearch
+              filterOption={(input, option) =>
+                (String(option?.label ?? '')).toLowerCase().includes(input.toLowerCase())
+              }
+            />
           </Form.Item>
           <Form.Item label="Tanggal Kunjungan" name="visitDate" rules={[{ required: true, message: 'Tanggal kunjungan wajib' }]}>
             <DatePicker showTime className="w-full" />
           </Form.Item>
+
           <Form.Item label="Jenis Layanan" name="serviceType" rules={[{ required: true, message: 'Jenis layanan wajib' }]}>
-            <Input placeholder="Jenis layanan" />
+            <SelectPoli valueType="name" />
           </Form.Item>
+
+          <Form.Item label="Dokter" name="doctorId" rules={[{ required: true, message: 'Dokter wajib' }]}>
+            <SelectKepegawaian hakAksesCode="doctor" />
+          </Form.Item>
+
           <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Status wajib' }]}>
             <Select placeholder="Pilih status">
               <Select.Option value="planned">Planned</Select.Option>
@@ -142,9 +124,11 @@ function EncounterForm() {
           </Form.Item>
         </div>
         <Form.Item className="text-right">
-          <Button type="primary" htmlType="submit" className="mr-2" loading={submitting}>
-            {isEdit ? 'Update' : 'Simpan'}
-          </Button>
+          {!isView && (
+            <Button type="primary" htmlType="submit" className="mr-2" loading={submitting}>
+              {isEdit ? 'Update' : 'Simpan'}
+            </Button>
+          )}
           <Button
             htmlType="button"
             onClick={() => {
@@ -152,7 +136,7 @@ function EncounterForm() {
               navigate('/dashboard/encounter')
             }}
           >
-            Batal
+            {isView ? 'Kembali' : 'Batal'}
           </Button>
         </Form.Item>
       </Form>

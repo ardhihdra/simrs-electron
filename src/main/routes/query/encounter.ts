@@ -2,7 +2,6 @@ import z from 'zod'
 import { EncounterSchema, EncounterSchemaWithId } from '@main/models/encounter'
 import { IpcContext } from '@main/ipc/router'
 import {
-  createBackendClient,
   parseBackendResponse,
   BackendListSchema,
   getClient
@@ -16,7 +15,7 @@ export const schemas = {
     result: z.any()
   },
   getById: {
-    args: z.object({ id: z.number() }),
+    args: z.object({ id: z.string() }),
     result: z.object({
       success: z.boolean(),
       data: EncounterSchemaWithId.extend({
@@ -48,8 +47,8 @@ export const schemas = {
     })
   },
   deleteById: {
-    args: z.object({ id: z.number() }),
-    result: z.object({ success: z.boolean(), error: z.string().optional() })
+    args: z.object({ id: z.string() }),
+    result: z.object({ success: z.boolean(), error: z.string().optional().nullable() })
   }
 } as const
 
@@ -77,7 +76,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
       success: z.boolean(),
       result: EncounterSchemaWithId.extend({
         patient: z
-          .object({ id: z.number(), kode: z.string().optional(), name: z.string() })
+          .object({ id: z.union([z.string(), z.number()]), kode: z.string().optional(), name: z.string() })
           .optional()
       })
         .optional()
@@ -162,10 +161,8 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     })
 
     const result = await parseBackendResponse(res, BackendUpdateSchema)
-    console.log(result)
     return { success: true, data: result }
   } catch (err) {
-    console.log(err)
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
@@ -181,9 +178,6 @@ export const deleteById = async (
 
     const BackendDeleteSchema = z.object({
       success: z.boolean(),
-      result: z.object({}).optional(),
-      message: z.string().optional(),
-      error: z.any().optional()
     })
 
     await parseBackendResponse(res, BackendDeleteSchema)
