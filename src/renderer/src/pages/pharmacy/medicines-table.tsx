@@ -40,7 +40,7 @@ function RowActions({ record }: { record: MedicineAttributes }) {
     }
   })
   const items: MenuProps['items'] = [
-    { key: 'edit', label: 'Edit', icon: <EditOutlined />, onClick: () => typeof record.id === 'number' && navigate(`/dashboard/pharmacy/medicines/edit/${record.id}`) },
+    { key: 'edit', label: 'Edit', icon: <EditOutlined />, onClick: () => typeof record.id === 'number' && navigate(`/dashboard/medicine/medicines/edit/${record.id}`) },
     { type: 'divider' },
     { key: 'delete', danger: true, label: 'Delete', icon: <DeleteOutlined />, onClick: () => typeof record.id === 'number' && deleteMutation.mutate(record.id) }
   ]
@@ -74,12 +74,12 @@ export function MedicinesTable() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-4">Medicines</h2>
+      <h2 className="text-4xl font-bold mb-4 justify-center flex">Data Master Obat</h2>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <Input type="text" placeholder="Search" className="w-full md:max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input type="text" placeholder="Cari" className="w-full md:max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="flex gap-2 flex-wrap md:justify-end">
           <Button onClick={() => refetch()}>Refresh</Button>
-          <Button type="primary" onClick={() => navigate('/dashboard/pharmacy/medicines/create')}>New Medicine</Button>
+          <Button type="primary" onClick={() => navigate('/dashboard/medicine/medicines/create')}>Tambah</Button>
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.message}</div>)}

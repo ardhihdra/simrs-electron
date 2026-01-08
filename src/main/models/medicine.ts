@@ -11,8 +11,6 @@ export const MedicineSchema = z.object({
   description: z.string().nullable().optional()
 })
 
-import { MedicineCategoryWithIdSchema } from './medicineCategory'
-import { MedicineBrandWithIdSchema } from './medicineBrand'
 
 export const MedicineWithIdSchema = MedicineSchema.extend({
   id: z.number(),

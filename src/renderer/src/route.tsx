@@ -40,6 +40,13 @@ import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import Pharmacy from './pages/pharmacy/Pharmacy'
+import PharmacyProduction from './pages/pharmacy-production/PharmacyProduction'
+import RawMaterialCategoryTable from './pages/pharmacy-production/raw-material-category-table'
+import RawMaterialCategoryForm from './pages/pharmacy-production/raw-material-category-form'
+import RawMaterialTable from './pages/pharmacy-production/raw-material-table'
+import RawMaterialForm from './pages/pharmacy-production/raw-material-form'
+import SupplierTable from './pages/pharmacy-production/supplier-table'
+import SupplierForm from './pages/pharmacy-production/supplier-form'
 import MedicineCategoryTable from './pages/pharmacy/medicine-category-table'
 import MedicineCategoryForm from './pages/pharmacy/medicine-category-form'
 import MedicineBrandTable from './pages/pharmacy/medicine-brand-table'
@@ -111,7 +118,7 @@ function MainRoute() {
           <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
           <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
         </Route>
-        <Route path="pharmacy" element={<Pharmacy />}>
+        <Route path="medicine" element={<Pharmacy />}>
           <Route path="medicine-categories" element={<MedicineCategoryTable />} />
           <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
           <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
@@ -121,6 +128,17 @@ function MainRoute() {
           <Route path="medicines" element={<MedicinesTable />} />
           <Route path="medicines/create" element={<MedicinesForm />} />
           <Route path="medicines/edit/:id" element={<MedicinesForm />} />
+        </Route>
+        <Route path="farmasi" element={<PharmacyProduction />}>
+          <Route path="raw-materials" element={<RawMaterialTable />} />
+          <Route path="raw-materials/create" element={<RawMaterialForm />} />
+          <Route path="raw-materials/edit/:id" element={<RawMaterialForm />} />
+          <Route path="raw-material-categories" element={<RawMaterialCategoryTable />} />
+          <Route path="raw-material-categories/create" element={<RawMaterialCategoryForm />} />
+          <Route path="raw-material-categories/edit/:id" element={<RawMaterialCategoryForm />} />
+          <Route path="suppliers" element={<SupplierTable />} />
+          <Route path="suppliers/create" element={<SupplierForm />} />
+          <Route path="suppliers/edit/:id" element={<SupplierForm />} />
         </Route>
         </Route>
         <Route

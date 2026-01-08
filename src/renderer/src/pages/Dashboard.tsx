@@ -156,13 +156,23 @@ const items = [
     ]
   },
   {
-    label: 'Farmasi',
-    key: '/dashboard/pharmacy',
+    label: 'Obat',
+    key: '/dashboard/medicine',
     icon: <WalletOutlined />,
     children: [
-      { label: 'Medicine Categories', key: '/dashboard/pharmacy/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Medicine Brands', key: '/dashboard/pharmacy/medicine-brands', icon: <DashboardOutlined /> },
-      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+      { label: 'Master Obat - Kategori', key: '/dashboard/medicine/medicine-categories', icon: <DashboardOutlined /> },
+      { label: 'Master Obat - Merek', key: '/dashboard/medicine/medicine-brands', icon: <DashboardOutlined /> },
+      { label: 'Master Obat', key: '/dashboard/medicine/medicines', icon: <DashboardOutlined /> }
+    ]
+  },
+  {
+    label: 'Farmasi',
+    key: '/dashboard/farmasi',
+    icon: <WalletOutlined />,
+    children: [
+      { label: 'Bahan Baku', key: '/dashboard/farmasi/raw-materials', icon: <DashboardOutlined /> },
+      { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
+      { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> }
     ]
   },
   {
@@ -237,7 +247,8 @@ function Dashboard() {
     '/dashboard/diagnostic',
     '/dashboard/services',
     '/dashboard/service-request',
-    '/dashboard/pharmacy'
+    '/dashboard/medicine',
+    '/dashboard/farmasi'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
