@@ -7,12 +7,25 @@ import ProfileMenu from '@renderer/components/ProfileMenu'
 import NotificationBell from '@renderer/components/NotificationBell'
 import logoUrl from '@renderer/assets/logo.png'
 import {
-  CalendarOutlined,
   DashboardOutlined,
+  IdcardOutlined,
   LeftCircleFilled,
   RightCircleFilled,
   UserOutlined,
-  WalletOutlined
+  WalletOutlined,
+  AuditOutlined,
+  ScheduleOutlined,
+  TeamOutlined,
+  FileTextOutlined,
+  FileSearchOutlined,
+  MedicineBoxOutlined,
+  ExperimentOutlined,
+  FileDoneOutlined,
+  BarChartOutlined,
+  OrderedListOutlined,
+  UsergroupAddOutlined,
+  DesktopOutlined,
+  FormOutlined
 } from '@ant-design/icons'
 
 const SendNotificationButton = () => {
@@ -37,7 +50,6 @@ const SendNotificationButton = () => {
     </Button>
   )
 }
-
 const items = [
   {
     label: 'Dashboard',
@@ -64,7 +76,7 @@ const items = [
   {
     label: 'Pendaftaran Rumah Sakit',
     key: '/dashboard/registration',
-    icon: <CalendarOutlined />,
+    icon: <IdcardOutlined />,
     children: [
       {
         label: 'Pasien',
@@ -74,7 +86,7 @@ const items = [
       {
         label: 'Kunjungan Pasien',
         key: '/dashboard/encounter',
-        icon: <CalendarOutlined />
+        icon: <AuditOutlined />
       },
       {
         label: 'Data Jaminan',
@@ -84,44 +96,39 @@ const items = [
       {
         label: 'Jadwal Praktek Dokter',
         key: '/dashboard/registration/doctor-schedule',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Data Jaminan',
-        key: '/dashboard/registration/insurance',
-        icon: <CalendarOutlined />
+        icon: <ScheduleOutlined />
       },
       {
         label: 'Jadwal Praktek Petugas Medis',
         key: '/dashboard/registration/medical-staff-schedule',
-        icon: <CalendarOutlined />
+        icon: <TeamOutlined />
       },
       {
         label: 'Lap Data Jaminan',
         key: '/dashboard/registration/report-insurance',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Lap Data Registrasi Pasien',
         key: '/dashboard/registration/report-patient',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Lap Data Jadwal Praktek',
         key: '/dashboard/registration/report-schedule',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Lap Data Kunjungan Pasien',
         key: '/dashboard/registration/report-visit',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       }
     ]
   },
   {
     label: 'Pelayanan Rumah Sakit',
     key: '/dashboard/services',
-    icon: <WalletOutlined />,
+    icon: <MedicineBoxOutlined />,
     children: [
       {
         label: 'Diagnosa',
@@ -136,22 +143,27 @@ const items = [
       {
         label: 'Pemeriksaan Umum',
         key: '/dashboard/services/general-checkup',
-        icon: <WalletOutlined />
+        icon: <FileSearchOutlined />
       },
       {
         label: 'Pemeriksaan Khusus',
         key: '/dashboard/services/special-checkup',
-        icon: <WalletOutlined />
+        icon: <FileSearchOutlined />
       },
       {
         label: 'Tindakan Medis',
         key: '/dashboard/services/medical-action',
-        icon: <WalletOutlined />
+        icon: <MedicineBoxOutlined />
       },
       {
         label: 'Resep Obat',
         key: '/dashboard/services/prescription',
-        icon: <WalletOutlined />
+        icon: <FileTextOutlined />
+      },
+      {
+        label: 'Pemeriksaan Awal',
+        key: '/dashboard/pemeriksaan-awal',
+        icon: <FormOutlined />
       }
     ]
   },
@@ -160,15 +172,23 @@ const items = [
     key: '/dashboard/pharmacy',
     icon: <WalletOutlined />,
     children: [
-      { label: 'Medicine Categories', key: '/dashboard/pharmacy/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Medicine Brands', key: '/dashboard/pharmacy/medicine-brands', icon: <DashboardOutlined /> },
+      {
+        label: 'Medicine Categories',
+        key: '/dashboard/pharmacy/medicine-categories',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Medicine Brands',
+        key: '/dashboard/pharmacy/medicine-brands',
+        icon: <DashboardOutlined />
+      },
       { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
     ]
   },
   {
     label: 'Laboratorium',
     key: '/dashboard/laboratory',
-    icon: <DashboardOutlined />,
+    icon: <ExperimentOutlined />,
     children: [
       {
         label: 'Permintaan Lab',
@@ -178,24 +198,24 @@ const items = [
       {
         label: 'Pemeriksaan Lab',
         key: '/dashboard/laboratory/exam',
-        icon: <DashboardOutlined />
+        icon: <ExperimentOutlined />
       },
       {
         label: 'Hasil Lab',
         key: '/dashboard/laboratory/result',
-        icon: <DashboardOutlined />
+        icon: <FileDoneOutlined />
       },
       {
         label: 'Laporan Lab',
         key: '/dashboard/laboratory/report',
-        icon: <DashboardOutlined />
+        icon: <BarChartOutlined />
       }
     ]
   },
   {
     label: 'Sistem Antrian',
     key: '/dashboard/queue',
-    icon: <UserOutlined />,
+    icon: <OrderedListOutlined />,
     children: [
       {
         label: 'Antrian Pendaftaran',
@@ -205,17 +225,17 @@ const items = [
       {
         label: 'Antrian Poli',
         key: '/dashboard/queue/poli',
-        icon: <UserOutlined />
+        icon: <UsergroupAddOutlined />
       },
       {
         label: 'Antrian Laboratorium',
         key: '/dashboard/queue/laboratory',
-        icon: <UserOutlined />
+        icon: <ExperimentOutlined />
       },
       {
         label: 'Monitor Antrian',
         key: '/dashboard/queue/monitor',
-        icon: <UserOutlined />
+        icon: <DesktopOutlined />
       }
     ]
   }
@@ -228,6 +248,7 @@ function Dashboard() {
     '/dashboard/patient',
     '/dashboard/encounter',
     '/dashboard/income',
+    '/dashboard/pemeriksaan-awal',
     '/dashboard/registration/jaminan',
     '/dashboard/registration/medical-staff-schedule',
     '/dashboard/pegawai',
@@ -309,11 +330,9 @@ function Dashboard() {
     const children = childrenOfTop(newTop)
     setSideItems(children)
     const childKeys = childKeysOfTop(newTop)
-    const match = childKeys
-      .filter((key) => location.pathname.startsWith(key))
-      .sort((a, b) => b.length - a.length)[0]
-
-    setActiveSide(match || (children[0]?.key as string))
+    setActiveSide(
+      childKeys.includes(location.pathname) ? location.pathname : (children[0]?.key as string)
+    )
   }, [location.pathname])
   return (
     <div className="min-h-screen flex">
