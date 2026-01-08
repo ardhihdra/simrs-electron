@@ -1,10 +1,11 @@
-import { Button, Dropdown, Input, Table, Tag } from 'antd'
+import { Button, Dropdown, Input, Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
 interface DaySchedule {
   enabled: boolean
@@ -37,7 +38,7 @@ interface MedicalStaffScheduleAttributes {
   status: 'active' | 'inactive'
 }
 
-const columns = [
+const baseColumns = [
   {
     title: 'Nama Petugas',
     dataIndex: ['pegawai', 'namaLengkap'],
@@ -110,15 +111,7 @@ const columns = [
       </Tag>
     )
   },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center' as const,
-    render: (_: MedicalStaffScheduleAttributes, record: MedicalStaffScheduleAttributes) => (
-      <RowActions record={record} />
-    )
-  }
+  
 ]
 
 function RowActions({ record }: { record: MedicalStaffScheduleAttributes }) {
@@ -221,13 +214,18 @@ export function MedicalStaffScheduleTable() {
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.message}</div>)}
-      <Table
+      <GenericTable<MedicalStaffScheduleAttributes>
+        columns={baseColumns}
         dataSource={filtered}
-        columns={columns}
-        size="small"
-        className="mt-4 rounded-xl shadow-sm"
-        rowKey="id"
-        scroll={{ x: 'max-content' }}
+        rowKey={(r) => String(r.id ?? `${r.kategori}-${r.pegawai?.namaLengkap}`)}
+        action={{
+          title: 'Action',
+          width: 80,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
+        tableProps={{ size: 'small', className: 'mt-4 rounded-xl shadow-sm', scroll: { x: 'max-content' } }}
       />
     </div>
   )

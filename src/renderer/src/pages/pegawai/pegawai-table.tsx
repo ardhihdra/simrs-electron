@@ -1,14 +1,15 @@
-import { Button, DatePicker, Input, Select, Table } from 'antd'
+import { Button, DatePicker, Input, Select } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { PegawaiCategoryOptions } from '@shared/kepegawaian'
 
 import type { ColumnsType } from 'antd/es/table'
+import GenericTable from '@renderer/components/GenericTable'
 import { EditOutlined, EyeOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useKepegawaianList, useDeletePegawai, PegawaiRow } from '@renderer/hooks/use-kepegawaian'
 
-const columns: ColumnsType<PegawaiRow> = [
+const baseColumns: ColumnsType<PegawaiRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Kategori', dataIndex: 'kategori', key: 'kategori' },
   { title: 'Nama', dataIndex: 'namaLengkap', key: 'namaLengkap' },
@@ -21,22 +22,6 @@ const columns: ColumnsType<PegawaiRow> = [
     dataIndex: 'tanggalMulaiTugas',
     key: 'tanggalMulaiTugas',
     render: (v?: string | null) => (v ? dayjs(v).format('DD MMMM YYYY') : '-')
-  },
-  {
-    title: 'Nomor Telepon',
-    dataIndex: 'nomorTelepon',
-    key: 'nomorTelepon'
-  },
-  {
-    title: 'Hak Akses',
-    dataIndex: 'hakAksesId',
-    key: 'hakAksesId',
-  },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 100,
-    render: (_: PegawaiRow, record: PegawaiRow) => <RowActions record={record} />
   },
 ]
 
@@ -99,10 +84,17 @@ function PegawaiTable() {
         />
       </div>
       <div className="">
-        <Table<PegawaiRow>
+        <GenericTable<PegawaiRow>
           rowKey={(r) => String(r.id ?? `${r.nik}-${r.email}`)}
           dataSource={filtered}
-          columns={columns}
+          columns={baseColumns}
+          action={{
+            title: 'Action',
+            width: 100,
+            align: 'center',
+            fixedRight: true,
+            render: (record) => <RowActions record={record} />
+          }}
         />
       </div>
     </div>

@@ -1,8 +1,9 @@
-import { Button, Input, Table } from 'antd'
+import { Button, Input } from 'antd'
 import { EyeOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
+import GenericTable from '@renderer/components/GenericTable'
 import { useNavigate } from 'react-router'
 
 interface DoctorScheduleItem {
@@ -20,7 +21,7 @@ interface DoctorScheduleItem {
 
 type Row = DoctorScheduleItem & { no: number }
 
-const columns: ColumnsType<Row> = [
+const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   { title: 'Dokter', dataIndex: 'doctorName', key: 'doctorName' },
   { title: 'Poli', dataIndex: 'poli', key: 'poli' },
@@ -31,12 +32,6 @@ const columns: ColumnsType<Row> = [
   { title: 'Jumat', dataIndex: 'friday', key: 'friday', render: (v?: string | null) => v || '-' },
   { title: 'Sabtu', dataIndex: 'saturday', key: 'saturday', render: (v?: string | null) => v || '-' },
   { title: 'Minggu', dataIndex: 'sunday', key: 'sunday', render: (v?: string | null) => v || '-' },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 100,
-    render: (_: Row, record: Row) => <RowActions record={record} />
-  }
 ]
 
 function RowActions({ record }: { record: Row }) {
@@ -94,10 +89,17 @@ export default function DoctorScheduleTable() {
         <div />
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table<Row>
+      <GenericTable<Row>
+        columns={baseColumns}
         dataSource={filtered}
-        columns={columns}
         rowKey={(r) => String(r.id ?? `${r.doctorName}-${r.poli}`)}
+        action={{
+          title: 'Action',
+          width: 100,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
       />
     </div>
   )

@@ -1,13 +1,14 @@
-import { Button, Dropdown, Input, Table, Tag } from 'antd'
+import { Button, Dropdown, Input, Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import type { DiagnosticReportAttributes } from '@shared/diagnostic'
-import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import  { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
-const columns = [
+const baseColumns = [
   { title: 'Code', dataIndex: 'code', key: 'code' },
   {
     title: 'Status',
@@ -31,15 +32,6 @@ const columns = [
         : '-'
   },
   { title: 'Conclusiom', dataIndex: 'conclusion', key: 'conclusion', ellipsis: true },
-  {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center' as const,
-    render: (_: DiagnosticReportAttributes, record: DiagnosticReportAttributes) => (
-      <RowActions record={record} />
-    )
-  }
 ]
 
 function RowActions({ record }: { record: DiagnosticReportAttributes }) {
@@ -131,13 +123,18 @@ export function DiagnosticTable() {
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table
+      <GenericTable<DiagnosticReportAttributes>
+        columns={baseColumns}
         dataSource={filtered}
-        columns={columns}
-        size="small"
-        className="mt-4 rounded-xl shadow-sm"
-        rowKey="id"
-        scroll={{ x: 'max-content' }}
+        rowKey={(r) => String(r.id ?? `${r.code}-${r.status}`)}
+        action={{
+          title: 'Action',
+          width: 80,
+          align: 'center',
+          fixedRight: true,
+          render: (record) => <RowActions record={record} />
+        }}
+        tableProps={{ size: 'small', className: 'mt-4 rounded-xl shadow-sm', scroll: { x: 'max-content' } }}
       />
     </div>
   )
