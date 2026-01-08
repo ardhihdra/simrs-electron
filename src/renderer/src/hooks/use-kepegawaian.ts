@@ -74,3 +74,30 @@ export const useDeletePegawai = () => {
         }
     })
 }
+
+export const useKepegawaianOptions = (hakAksesCode?: string) => {
+    return useQuery({
+        queryKey: ['select-kepegawaian', hakAksesCode || 'all'],
+        queryFn: async () => {
+            if (!hakAksesCode) {
+                const res = await window.api.query.kepegawaian.list()
+                if (res.success && res.result) {
+                    return (res.result as unknown as KepegawaianAttributes[]).map((item) => ({
+                        label: item.namaLengkap,
+                        value: item.id!
+                    }))
+                }
+            } else {
+                const res = await window.api.query.hakAkses.getByCode({ code: hakAksesCode })
+                if (res.success && res.data) {
+                    const pegawaiList = res.data.pegawaiByHakAkses || []
+                    return (pegawaiList as KepegawaianAttributes[]).map((item) => ({
+                        label: item.namaLengkap,
+                        value: item.id!
+                    }))
+                }
+            }
+            return []
+        }
+    })
+}

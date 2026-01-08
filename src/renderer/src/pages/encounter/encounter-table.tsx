@@ -1,4 +1,4 @@
-import { Button, DatePicker, Input, Select } from 'antd'
+import { Button, DatePicker, Input, Popconfirm, Select, Table, Tooltip } from 'antd'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { EncounterRow, EncounterTableRow } from '@shared/encounter'
@@ -7,10 +7,12 @@ import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import GenericTable from '@renderer/components/GenericTable'
 import { useDeleteEncounter, useEncounterList } from '@renderer/hooks/query/use-encounter'
+import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
 
 
 const baseColumns: ColumnsType<EncounterTableRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
+  { title: 'Kode Antrian', dataIndex: 'encounterCode', key: 'encounterCode', render: (v: string | null) => (v ? v : '-') },
   { title: 'Tanggal Kunjungan', dataIndex: 'visitDate', key: 'visitDate', render: (v: string | Date) => (v ? dayjs(v).format('DD MMMM YYYY HH:mm') : '-') },
   { title: 'Pasien', dataIndex: ['patient', 'name'], key: 'patient' },
   { title: 'Layanan', dataIndex: 'serviceType', key: 'serviceType' },
@@ -24,9 +26,37 @@ function RowActions({ record }: { record: EncounterTableRow }) {
   const deleteMutation = useDeleteEncounter()
   return (
     <div className="flex gap-2">
-      <EyeOutlined onClick={() => { if (typeof record.id === 'number') navigate(`/dashboard/encounter/edit/${record.id}`) }} />
-      <EditOutlined onClick={() => { if (typeof record.id === 'number') navigate(`/dashboard/encounter/edit/${record.id}`) }} />
-      <DeleteOutlined onClick={() => { if (typeof record.id === 'number') deleteMutation.mutate(record.id) }} />
+      <Tooltip title="Lihat Detail">
+        <Button
+          icon={<EyeOutlined />}
+          size="small"
+          onClick={() => { if (record.id) navigate(`/dashboard/encounter/edit/${record.id}?mode=view`) }}
+        />
+      </Tooltip>
+      <Tooltip title="Edit">
+        <Button
+          icon={<EditOutlined />}
+          size="small"
+          onClick={() => { if (record.id) navigate(`/dashboard/encounter/edit/${record.id}`) }}
+        />
+      </Tooltip>
+      <Popconfirm
+        title="Hapus Kunjungan"
+        description="Apakah anda yakin ingin menghapus data ini?"
+        onConfirm={() => { if (record.id) deleteMutation.mutate(record.id) }}
+        okText="Ya"
+        cancelText="Batal"
+        disabled={deleteMutation.isPending}
+      >
+        <Tooltip title="Hapus">
+          <Button
+            icon={<DeleteOutlined />}
+            size="small"
+            danger
+            loading={deleteMutation.isPending}
+          />
+        </Tooltip>
+      </Popconfirm>
     </div>
   )
 }
@@ -51,7 +81,7 @@ export function EncounterTable() {
       const matchDate = visitDate ? dayjs(r.visitDate).isSame(dayjs(visitDate), 'day') : true
       return matchPatient && matchService && matchReason && matchStatus && matchDate
     })
-  }, [data?.data, searchPatient, searchService, searchReason, status, visitDate])
+  }, [data, searchPatient, searchService, searchReason, status, visitDate])
 
   return (
     <div>
@@ -62,7 +92,14 @@ export function EncounterTable() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-3 mb-3">
         <Input placeholder="Pasien" value={searchPatient} onChange={(e) => setSearchPatient(e.target.value)} />
-        <Input placeholder="Layanan" value={searchService} onChange={(e) => setSearchService(e.target.value)} />
+        <SelectPoli
+          valueType="name"
+          placeholder="Layanan"
+          value={searchService}
+          onChange={(val) => setSearchService(val as string)}
+          allowClear
+          className="w-full"
+        />
         <Input placeholder="Alasan" value={searchReason} onChange={(e) => setSearchReason(e.target.value)} />
         <Select
           allowClear
