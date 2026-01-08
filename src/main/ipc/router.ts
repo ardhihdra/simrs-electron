@@ -53,15 +53,33 @@ export class IpcRouter {
         sessionStore: this.sessionStore
       }
 
-      if (this.sessionStore && (args as any)?.token) {
-        const s = this.sessionStore.get((args as any).token)
+      if (this.sessionStore && typeof args === 'object' && args && 'token' in (args as object)) {
+        const s = this.sessionStore.get((args as { token?: string }).token as string)
         if (s) {
           ctx.session = s
           ctx.user = { id: s.userId }
         }
       }
 
-      return final(ctx, args)
+      let argKeys: string[] = []
+      if (args && typeof args === 'object') {
+        argKeys = Object.keys(args as object).filter((k) => k !== 'token')
+      }
+      console.log('[ipc] invoke', channel, { senderId: event.sender.id, argKeys })
+
+      try {
+        const res = await final(ctx, args)
+        let success: boolean | undefined
+        if (res && typeof res === 'object' && 'success' in (res as object)) {
+          success = (res as { success?: boolean }).success
+        }
+        console.log('[ipc] result', channel, { success })
+        return res
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        console.error('[ipc] error', channel, msg)
+        throw e
+      }
     })
   }
 

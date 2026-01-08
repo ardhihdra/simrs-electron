@@ -10,6 +10,7 @@ import type * as Mod_query_doctorSchedule from '@main/routes/query/doctorSchedul
 import type * as Mod_query_encounter from '@main/routes/query/encounter'
 import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
+import type * as Mod_query_export from '@main/routes/query/export'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
@@ -20,25 +21,11 @@ import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCat
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
 import type * as Mod_query_poli from '@main/routes/query/poli'
+import type * as Mod_query_rawMaterial from '@main/routes/query/rawMaterial'
+import type * as Mod_query_rawMaterialCategory from '@main/routes/query/rawMaterialCategory'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
+import type * as Mod_query_suplier from '@main/routes/query/suplier'
 import type * as Mod_user from '@main/routes/user'
-import type * as Mod_auth from '../main/routes/auth'
-import type * as Mod_macaddress from '../main/routes/macaddress'
-import type * as Mod_notification from '../main/routes/notification'
-import type * as Mod_query_departemen from '../main/routes/query/departemen'
-import type * as Mod_query_diagnostic from '../main/routes/query/diagnostic'
-import type * as Mod_query_doctorSchedule from '../main/routes/query/doctorSchedule'
-import type * as Mod_query_encounter from '../main/routes/query/encounter'
-import type * as Mod_query_expense from '../main/routes/query/expense'
-import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
-import type * as Mod_query_export from '../main/routes/query/export'
-import type * as Mod_query_jaminan from '../main/routes/query/jaminan'
-import type * as Mod_query_kepegawaian from '../main/routes/query/kepegawaian'
-import type * as Mod_query_medicalStaffSchedule from '../main/routes/query/medicalStaffSchedule'
-import type * as Mod_query_patient from '../main/routes/query/patient'
-import type * as Mod_query_pegawai from '../main/routes/query/pegawai'
-import type * as Mod_query_serviceRequest from '../main/routes/query/serviceRequest'
-import type * as Mod_user from '../main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
@@ -214,6 +201,26 @@ type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
 type Args_Mod_query_poli_list = InferArgs<typeof Mod_query_poli, 'list'>
 type Result_Mod_query_poli_list = InferResult<typeof Mod_query_poli, 'list'>
+type Args_Mod_query_rawMaterial_create = InferArgs<typeof Mod_query_rawMaterial, 'create'>
+type Result_Mod_query_rawMaterial_create = InferResult<typeof Mod_query_rawMaterial, 'create'>
+type Args_Mod_query_rawMaterial_deleteById = InferArgs<typeof Mod_query_rawMaterial, 'deleteById'>
+type Result_Mod_query_rawMaterial_deleteById = InferResult<typeof Mod_query_rawMaterial, 'deleteById'>
+type Args_Mod_query_rawMaterial_list = InferArgs<typeof Mod_query_rawMaterial, 'list'>
+type Result_Mod_query_rawMaterial_list = InferResult<typeof Mod_query_rawMaterial, 'list'>
+type Args_Mod_query_rawMaterial_read = InferArgs<typeof Mod_query_rawMaterial, 'read'>
+type Result_Mod_query_rawMaterial_read = InferResult<typeof Mod_query_rawMaterial, 'read'>
+type Args_Mod_query_rawMaterial_update = InferArgs<typeof Mod_query_rawMaterial, 'update'>
+type Result_Mod_query_rawMaterial_update = InferResult<typeof Mod_query_rawMaterial, 'update'>
+type Args_Mod_query_rawMaterialCategory_create = InferArgs<typeof Mod_query_rawMaterialCategory, 'create'>
+type Result_Mod_query_rawMaterialCategory_create = InferResult<typeof Mod_query_rawMaterialCategory, 'create'>
+type Args_Mod_query_rawMaterialCategory_deleteById = InferArgs<typeof Mod_query_rawMaterialCategory, 'deleteById'>
+type Result_Mod_query_rawMaterialCategory_deleteById = InferResult<typeof Mod_query_rawMaterialCategory, 'deleteById'>
+type Args_Mod_query_rawMaterialCategory_getById = InferArgs<typeof Mod_query_rawMaterialCategory, 'getById'>
+type Result_Mod_query_rawMaterialCategory_getById = InferResult<typeof Mod_query_rawMaterialCategory, 'getById'>
+type Args_Mod_query_rawMaterialCategory_list = InferArgs<typeof Mod_query_rawMaterialCategory, 'list'>
+type Result_Mod_query_rawMaterialCategory_list = InferResult<typeof Mod_query_rawMaterialCategory, 'list'>
+type Args_Mod_query_rawMaterialCategory_update = InferArgs<typeof Mod_query_rawMaterialCategory, 'update'>
+type Result_Mod_query_rawMaterialCategory_update = InferResult<typeof Mod_query_rawMaterialCategory, 'update'>
 type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRequest, 'create'>
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
 type Args_Mod_query_serviceRequest_deleteById = InferArgs<typeof Mod_query_serviceRequest, 'deleteById'>
@@ -226,6 +233,16 @@ type Args_Mod_query_serviceRequest_list = InferArgs<typeof Mod_query_serviceRequ
 type Result_Mod_query_serviceRequest_list = InferResult<typeof Mod_query_serviceRequest, 'list'>
 type Args_Mod_query_serviceRequest_update = InferArgs<typeof Mod_query_serviceRequest, 'update'>
 type Result_Mod_query_serviceRequest_update = InferResult<typeof Mod_query_serviceRequest, 'update'>
+type Args_Mod_query_suplier_create = InferArgs<typeof Mod_query_suplier, 'create'>
+type Result_Mod_query_suplier_create = InferResult<typeof Mod_query_suplier, 'create'>
+type Args_Mod_query_suplier_list = InferArgs<typeof Mod_query_suplier, 'list'>
+type Result_Mod_query_suplier_list = InferResult<typeof Mod_query_suplier, 'list'>
+type Args_Mod_query_suplier_read = InferArgs<typeof Mod_query_suplier, 'read'>
+type Result_Mod_query_suplier_read = InferResult<typeof Mod_query_suplier, 'read'>
+type Args_Mod_query_suplier_remove = InferArgs<typeof Mod_query_suplier, 'remove'>
+type Result_Mod_query_suplier_remove = InferResult<typeof Mod_query_suplier, 'remove'>
+type Args_Mod_query_suplier_update = InferArgs<typeof Mod_query_suplier, 'update'>
+type Result_Mod_query_suplier_update = InferResult<typeof Mod_query_suplier, 'update'>
 type Args_Mod_user_create = InferArgs<typeof Mod_user, 'create'>
 type Result_Mod_user_create = InferResult<typeof Mod_user, 'create'>
 type Args_Mod_user_get = InferArgs<typeof Mod_user, 'get'>
@@ -348,6 +365,20 @@ declare global {
         poli: {
           list: Invoke<Args_Mod_query_poli_list, Result_Mod_query_poli_list>
         }
+        rawMaterial: {
+          create: Invoke<Args_Mod_query_rawMaterial_create, Result_Mod_query_rawMaterial_create>
+          deleteById: Invoke<Args_Mod_query_rawMaterial_deleteById, Result_Mod_query_rawMaterial_deleteById>
+          list: Invoke<Args_Mod_query_rawMaterial_list, Result_Mod_query_rawMaterial_list>
+          read: Invoke<Args_Mod_query_rawMaterial_read, Result_Mod_query_rawMaterial_read>
+          update: Invoke<Args_Mod_query_rawMaterial_update, Result_Mod_query_rawMaterial_update>
+        }
+        rawMaterialCategory: {
+          create: Invoke<Args_Mod_query_rawMaterialCategory_create, Result_Mod_query_rawMaterialCategory_create>
+          deleteById: Invoke<Args_Mod_query_rawMaterialCategory_deleteById, Result_Mod_query_rawMaterialCategory_deleteById>
+          getById: Invoke<Args_Mod_query_rawMaterialCategory_getById, Result_Mod_query_rawMaterialCategory_getById>
+          list: Invoke<Args_Mod_query_rawMaterialCategory_list, Result_Mod_query_rawMaterialCategory_list>
+          update: Invoke<Args_Mod_query_rawMaterialCategory_update, Result_Mod_query_rawMaterialCategory_update>
+        }
         serviceRequest: {
           create: Invoke<Args_Mod_query_serviceRequest_create, Result_Mod_query_serviceRequest_create>
           deleteById: Invoke<Args_Mod_query_serviceRequest_deleteById, Result_Mod_query_serviceRequest_deleteById>
@@ -355,6 +386,13 @@ declare global {
           getById: Invoke<Args_Mod_query_serviceRequest_getById, Result_Mod_query_serviceRequest_getById>
           list: Invoke<Args_Mod_query_serviceRequest_list, Result_Mod_query_serviceRequest_list>
           update: Invoke<Args_Mod_query_serviceRequest_update, Result_Mod_query_serviceRequest_update>
+        }
+        suplier: {
+          create: Invoke<Args_Mod_query_suplier_create, Result_Mod_query_suplier_create>
+          list: Invoke<Args_Mod_query_suplier_list, Result_Mod_query_suplier_list>
+          read: Invoke<Args_Mod_query_suplier_read, Result_Mod_query_suplier_read>
+          remove: Invoke<Args_Mod_query_suplier_remove, Result_Mod_query_suplier_remove>
+          update: Invoke<Args_Mod_query_suplier_update, Result_Mod_query_suplier_update>
         }
       }
       user: {
