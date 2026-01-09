@@ -1,189 +1,337 @@
-import { Form, Input, Button, TimePicker, message } from 'antd'
-import type { Dayjs } from 'dayjs'
-import dayjs from 'dayjs'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { Button, Checkbox, Form, Select, TimePicker } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import { useNavigate, useParams } from 'react-router'
+import { useEffect } from 'react'
+import { queryClient } from '@renderer/query-client'
+import dayjs from 'dayjs'
 
-interface DoctorScheduleFormValues {
-  doctorName: string
-  poli: string
-  monday?: Dayjs[]
-  tuesday?: Dayjs[]
-  wednesday?: Dayjs[]
-  thursday?: Dayjs[]
-  friday?: Dayjs[]
-  saturday?: Dayjs[]
-  sunday?: Dayjs[]
+interface DaySchedule {
+  enabled: boolean
+  startTime: string
+  endTime: string
 }
 
-type DoctorScheduleItem = {
-  id?: number
-  doctorName: string
-  poli: string
-  monday?: string | null
-  tuesday?: string | null
-  wednesday?: string | null
-  thursday?: string | null
-  friday?: string | null
-  saturday?: string | null
-  sunday?: string | null
+interface DoctorScheduleFormData {
+  idPegawai: number
+  idPoli: number
+  kategori: string
+  senin: DaySchedule
+  selasa: DaySchedule
+  rabu: DaySchedule
+  kamis: DaySchedule
+  jumat: DaySchedule
+  sabtu: DaySchedule
+  minggu: DaySchedule
+  status: 'active' | 'inactive'
 }
 
-function toRangeString(v?: Dayjs[]): string | null {
-  if (!v || v.length !== 2 || !v[0] || !v[1]) return null
-  return `${v[0].format('HH:mm')}-${v[1].format('HH:mm')}`
+const defaultDaySchedule = {
+  enabled: false,
+  startTime: dayjs('08:00', 'HH:mm'),
+  endTime: dayjs('16:00', 'HH:mm')
 }
 
-function toRangeValue(s?: string | null): Dayjs[] | undefined {
-  if (!s) return undefined
-  const parts = String(s).split('-')
-  if (parts.length !== 2) return undefined
-  const start = dayjs(parts[0], 'HH:mm')
-  const end = dayjs(parts[1], 'HH:mm')
-  if (!start.isValid() || !end.isValid()) return undefined
-  return [start, end]
-}
-
-export default function DoctorScheduleForm() {
-  const [form] = Form.useForm<DoctorScheduleFormValues>()
+export function DoctorScheduleForm() {
   const navigate = useNavigate()
-  const params = useParams<{ id: string }>()
-  const isEdit = !!params.id
-  const [submitting, setSubmitting] = useState(false)
+  const { id } = useParams()
+  const [form] = Form.useForm()
+  const isEdit = Boolean(id)
 
-  const detail = useQuery({
-    queryKey: ['doctorSchedule', 'detail', params.id],
+  const { data: detailData } = useQuery({
+    queryKey: ['doctorSchedule', 'detail', id],
     queryFn: () => {
       const fn = window.api?.query?.doctorSchedule?.getById
-      if (!fn || !params.id) throw new Error('API jadwal dokter tidak tersedia')
-      return fn({ id: Number(params.id) })
+      if (!fn)
+        throw new Error('API jadwal dokter tidak tersedia. Silakan restart aplikasi/dev server.')
+      return fn({ id: Number(id) })
     },
     enabled: isEdit
   })
 
-  useEffect(() => {
-    const item = detail.data?.data as DoctorScheduleItem | undefined
-    if (item) {
-      form.setFieldsValue({
-        doctorName: item.doctorName,
-        poli: item.poli,
-        monday: toRangeValue(item.monday),
-        tuesday: toRangeValue(item.tuesday),
-        wednesday: toRangeValue(item.wednesday),
-        thursday: toRangeValue(item.thursday),
-        friday: toRangeValue(item.friday),
-        saturday: toRangeValue(item.saturday),
-        sunday: toRangeValue(item.sunday)
-      })
+  const { data: pegawaiData } = useQuery({
+    queryKey: ['kepegawaian', 'list'],
+    queryFn: () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      return fn()
     }
-  }, [detail.data, form])
+  })
+
+  const { data: poliData } = useQuery({
+    queryKey: ['poli', 'list'],
+    queryFn: () => {
+      const fn = window.api?.query?.poli?.list
+      if (!fn) throw new Error('API poli tidak tersedia')
+      return fn()
+    }
+  })
+
+  useEffect(() => {
+    if (isEdit && detailData?.success && detailData.result) {
+      const data = detailData.result
+      const convertDaySchedule = (day: DaySchedule | undefined) => {
+        if (!day) return defaultDaySchedule
+        return {
+          enabled: day.enabled,
+          startTime: day.startTime ? dayjs(day.startTime, 'HH:mm') : dayjs('08:00', 'HH:mm'),
+          endTime: day.endTime ? dayjs(day.endTime, 'HH:mm') : dayjs('16:00', 'HH:mm')
+        }
+      }
+
+      const formValues = {
+        idPegawai: data.idPegawai,
+        idPoli: data.idPoli,
+        kategori: data.kategori,
+        status: data.status,
+        senin: convertDaySchedule(data.senin),
+        selasa: convertDaySchedule(data.selasa),
+        rabu: convertDaySchedule(data.rabu),
+        kamis: convertDaySchedule(data.kamis),
+        jumat: convertDaySchedule(data.jumat),
+        sabtu: convertDaySchedule(data.sabtu),
+        minggu: convertDaySchedule(data.minggu)
+      }
+
+      form.setFieldsValue(formValues)
+    }
+  }, [isEdit, detailData, form])
 
   const createMutation = useMutation({
     mutationKey: ['doctorSchedule', 'create'],
-    mutationFn: async (payload: DoctorScheduleItem) => {
+    mutationFn: (data: DoctorScheduleFormData) => {
       const fn = window.api?.query?.doctorSchedule?.create
-      if (!fn) throw new Error('API jadwal dokter tidak tersedia')
-      const result = await fn(payload)
-      if (!result.success) throw new Error(result.error || 'Gagal menyimpan jadwal dokter')
-      return result
+      if (!fn)
+        throw new Error('API jadwal dokter tidak tersedia. Silakan restart aplikasi/dev server.')
+      return fn(data)
     },
-    onSuccess: () => {
-      message.success('Jadwal dokter berhasil disimpan')
-      form.resetFields()
-      navigate('/dashboard/registration/doctor-schedule')
+    onSuccess: (data) => {
+      if (data?.success) {
+        queryClient.invalidateQueries({ queryKey: ['doctorSchedule', 'list'] })
+        navigate('/dashboard/registration/doctor-schedule')
+      } else {
+        console.log('data', data)
+        alert(data?.message || 'Gagal membuat jadwal dokter')
+      }
+    },
+    onError: (error: { message: string }) => {
+      alert(error?.message || 'Terjadi kesalahan saat membuat jadwal dokter')
     }
   })
 
   const updateMutation = useMutation({
     mutationKey: ['doctorSchedule', 'update'],
-    mutationFn: async (payload: DoctorScheduleItem & { id: number }) => {
+    mutationFn: (data: DoctorScheduleFormData & { id: number }) => {
       const fn = window.api?.query?.doctorSchedule?.update
-      if (!fn) throw new Error('API jadwal dokter tidak tersedia')
-      const result = await fn(payload)
-      if (!result.success) throw new Error(result.error || 'Gagal memperbarui jadwal dokter')
-      return result
+      if (!fn)
+        throw new Error('API jadwal dokter tidak tersedia. Silakan restart aplikasi/dev server.')
+      return fn(data)
     },
-    onSuccess: () => {
-      message.success('Jadwal dokter berhasil diperbarui')
-      navigate('/dashboard/registration/doctor-schedule')
+    onSuccess: (data) => {
+      if (data?.success) {
+        queryClient.invalidateQueries({ queryKey: ['doctorSchedule', 'list'] })
+        queryClient.invalidateQueries({ queryKey: ['doctorSchedule', 'detail', id] })
+        navigate('/dashboard/registration/doctor-schedule')
+      } else {
+        alert(data?.message || 'Gagal mengupdate jadwal dokter')
+      }
+    },
+    onError: (error: { message: string }) => {
+      alert(error?.message || 'Terjadi kesalahan saat mengupdate jadwal dokter')
     }
   })
 
-  const onFinish = async (values: DoctorScheduleFormValues) => {
-    try {
-      setSubmitting(true)
-      const payload: DoctorScheduleItem = {
-        doctorName: values.doctorName,
-        poli: values.poli,
-        monday: toRangeString(values.monday),
-        tuesday: toRangeString(values.tuesday),
-        wednesday: toRangeString(values.wednesday),
-        thursday: toRangeString(values.thursday),
-        friday: toRangeString(values.friday),
-        saturday: toRangeString(values.saturday),
-        sunday: toRangeString(values.sunday)
+  const onFinish = (values: DoctorScheduleFormData) => {
+    const formattedValues = { ...values }
+    const days = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']
+
+    days.forEach((day) => {
+      if (formattedValues[day]) {
+        const dayData = formattedValues[day]
+        formattedValues[day] = {
+          enabled: dayData.enabled || false,
+          startTime:
+            dayData.startTime && dayjs.isDayjs(dayData.startTime)
+              ? dayData.startTime.format('HH:mm')
+              : dayData.startTime || '08:00',
+          endTime:
+            dayData.endTime && dayjs.isDayjs(dayData.endTime)
+              ? dayData.endTime.format('HH:mm')
+              : dayData.endTime || '16:00'
+        }
       }
-      if (isEdit) {
-        await updateMutation.mutateAsync({ ...payload, id: Number(params.id) })
-      } else {
-        await createMutation.mutateAsync(payload)
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      message.error(msg)
-    } finally {
-      setSubmitting(false)
+    })
+
+    if (isEdit) {
+      updateMutation.mutate({ ...formattedValues, id: Number(id) })
+    } else {
+      createMutation.mutate(formattedValues)
     }
   }
 
-  return (
-    <div className="my-4">
-      <Form form={form} layout="vertical" onFinish={onFinish} className="w-full">
-        <div className="grid grid-cols-2 gap-4">
-          <Form.Item label="Nama Dokter" name="doctorName" rules={[{ required: true, message: 'Nama dokter wajib' }]}>
-            <Input placeholder="Nama dokter" />
-          </Form.Item>
-          <Form.Item label="Poli" name="poli" rules={[{ required: true, message: 'Poli wajib' }]}>
-            <Input placeholder="Poli" />
-          </Form.Item>
-          <Form.Item label="Senin" name="monday">
-            <TimePicker.RangePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-          <Form.Item label="Selasa" name="tuesday">
-            <TimePicker.RangePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-          <Form.Item label="Rabu" name="wednesday">
-            <TimePicker.RangePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-          <Form.Item label="Kamis" name="thursday">
-            <TimePicker.RangePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-          <Form.Item label="Jumat" name="friday">
-            <TimePicker.RangePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-          <Form.Item label="Sabtu" name="saturday">
-            <TimePicker.RangePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-          <Form.Item label="Minggu" name="sunday">
-            <TimePicker.RangePicker format="HH:mm" className="w-full" />
-          </Form.Item>
-        </div>
-        <Form.Item className="text-right">
-          <Button type="primary" htmlType="submit" className="mr-2" loading={submitting}>
-            {isEdit ? 'Update' : 'Simpan'}
-          </Button>
-          <Button
-            htmlType="button"
-            onClick={() => {
-              form.resetFields()
-              navigate('/dashboard/registration/doctor-schedule')
-            }}
-          >
-            Batal
-          </Button>
+  const DayScheduleField = ({ name, label }: { name: string; label: string }) => {
+    const enabled = Form.useWatch([name, 'enabled'], form)
+
+    return (
+      <div className="flex items-center h-full justify-between ml-32">
+        <Form.Item name={[name, 'enabled']} valuePropName="checked" className="mb-0 min-w-[100px]">
+          <Checkbox>{label}</Checkbox>
         </Form.Item>
-      </Form>
+        {enabled && (
+          <>
+            <div className="flex items-center w-full justify-start gap-10">
+              <Form.Item
+                name={[name, 'startTime']}
+                className="mb-0"
+                rules={[{ required: enabled, message: 'Waktu mulai harus diisi' }]}
+              >
+                <TimePicker format="HH:mm" placeholder="Mulai" className="w-42" />
+              </Form.Item>
+              <div className="-mt-7">s/d</div>
+              <Form.Item
+                name={[name, 'endTime']}
+                className="mb-0"
+                rules={[{ required: enabled, message: 'Waktu selesai harus diisi' }]}
+              >
+                <TimePicker format="HH:mm" placeholder="Selesai" className="w-42" />
+              </Form.Item>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex justify-center">
+      <div className="w-full max-w-3xl">
+        <h2 className="text-2xl font-bold mb-6 text-center">
+          {isEdit ? 'Edit Jadwal Dokter' : 'Tambah Jadwal Dokter'}
+        </h2>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{
+            senin: defaultDaySchedule,
+            selasa: defaultDaySchedule,
+            rabu: defaultDaySchedule,
+            kamis: defaultDaySchedule,
+            jumat: defaultDaySchedule,
+            sabtu: defaultDaySchedule,
+            minggu: defaultDaySchedule,
+            status: 'active'
+          }}
+        >
+          <Form.Item
+            label="Nama Dokter"
+            name="idPegawai"
+            rules={[{ required: true, message: 'Nama dokter harus diisi' }]}
+          >
+            <Select
+              placeholder="Pilih nama dokter"
+              showSearch
+              optionFilterProp="children"
+              loading={!pegawaiData}
+            >
+              {pegawaiData?.success &&
+                pegawaiData.result?.map(
+                  (pegawai: { email: string; id: number; namaLengkap: string }) => (
+                    <Select.Option key={pegawai.id} value={pegawai.id}>
+                      {pegawai.namaLengkap}
+                    </Select.Option>
+                  )
+                )}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Kategori"
+            name="kategori"
+            rules={[{ required: true, message: 'Kategori harus diisi' }]}
+          >
+            <Select placeholder="Pilih kategori">
+              <Select.Option value="Dokter Umum">Dokter Umum</Select.Option>
+              <Select.Option value="Dokter Spesialis Anak">Dokter Spesialis Anak</Select.Option>
+              <Select.Option value="Dokter Spesialis Kandungan">
+                Dokter Spesialis Kandungan
+              </Select.Option>
+              <Select.Option value="Dokter Spesialis Bedah">Dokter Spesialis Bedah</Select.Option>
+              <Select.Option value="Dokter Spesialis Penyakit Dalam">
+                Dokter Spesialis Penyakit Dalam
+              </Select.Option>
+              <Select.Option value="Dokter Spesialis Mata">Dokter Spesialis Mata</Select.Option>
+              <Select.Option value="Dokter Spesialis THT">Dokter Spesialis THT</Select.Option>
+              <Select.Option value="Dokter Spesialis Kulit">Dokter Spesialis Kulit</Select.Option>
+              <Select.Option value="Dokter Spesialis Jantung">
+                Dokter Spesialis Jantung
+              </Select.Option>
+              <Select.Option value="Dokter Spesialis Saraf">Dokter Spesialis Saraf</Select.Option>
+              <Select.Option value="Dokter Gigi">Dokter Gigi</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label="Poli"
+            name="idPoli"
+            rules={[{ required: true, message: 'Poli harus diisi' }]}
+          >
+            <Select
+              placeholder="Pilih poli"
+              showSearch
+              optionFilterProp="children"
+              loading={!poliData}
+            >
+              {poliData?.success &&
+                poliData.result?.map((poli: { id: number; name: string }) => (
+                  <Select.Option key={poli.id} value={poli.id}>
+                    {poli.name}
+                  </Select.Option>
+                ))}
+            </Select>
+          </Form.Item>
+
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-3">Jadwal Praktek</label>
+            <div className="space-y-3">
+              <DayScheduleField name="senin" label="Senin" />
+              <DayScheduleField name="selasa" label="Selasa" />
+              <DayScheduleField name="rabu" label="Rabu" />
+              <DayScheduleField name="kamis" label="Kamis" />
+              <DayScheduleField name="jumat" label="Jumat" />
+              <DayScheduleField name="sabtu" label="Sabtu" />
+              <DayScheduleField name="minggu" label="Minggu" />
+            </div>
+          </div>
+
+          <Form.Item
+            label="Status"
+            name="status"
+            rules={[{ required: true, message: 'Status harus dipilih' }]}
+          >
+            <Select placeholder="Pilih status">
+              <Select.Option value="active">Aktif</Select.Option>
+              <Select.Option value="inactive">Tidak Aktif</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item>
+            <div className="flex gap-2 justify-center">
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={createMutation.isPending || updateMutation.isPending}
+              >
+                {isEdit ? 'Update' : 'Simpan'}
+              </Button>
+              <Button onClick={() => navigate('/dashboard/registration/doctor-schedule')}>
+                Batal
+              </Button>
+            </div>
+          </Form.Item>
+        </Form>
+      </div>
     </div>
   )
 }
+
+export default DoctorScheduleForm

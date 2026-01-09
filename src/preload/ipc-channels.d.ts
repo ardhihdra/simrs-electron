@@ -42,31 +42,31 @@ import type * as Mod_user from '../main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-    ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
-      ? z.input<A>
-      : unknown
-    : unknown
+  ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
+  ? z.input<A>
+  : unknown
+  : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-    ? S[K] extends { args: infer A extends z.ZodTypeAny }
-      ? z.input<A>
-      : unknown
-    : unknown
+  ? S[K] extends { args: infer A extends z.ZodTypeAny }
+  ? z.input<A>
+  : unknown
+  : unknown
   : M extends { argsSchema: infer A extends z.ZodTypeAny }
   ? z.input<A>
   : unknown
 type InferResult<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-    ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
-      ? z.output<R>
-      : unknown
-    : unknown
+  ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
+  ? z.output<R>
+  : unknown
+  : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-    ? S[K] extends { result: infer R extends z.ZodTypeAny }
-      ? z.output<R>
-      : unknown
-    : unknown
+  ? S[K] extends { result: infer R extends z.ZodTypeAny }
+  ? z.output<R>
+  : unknown
+  : unknown
   : M extends { resultSchema: infer R extends z.ZodTypeAny }
   ? z.output<R>
   : unknown
@@ -212,8 +212,6 @@ type Args_Mod_query_pegawai_list = InferArgs<typeof Mod_query_pegawai, 'list'>
 type Result_Mod_query_pegawai_list = InferResult<typeof Mod_query_pegawai, 'list'>
 type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update'>
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
-type Args_Mod_query_poli_list = InferArgs<typeof Mod_query_poli, 'list'>
-type Result_Mod_query_poli_list = InferResult<typeof Mod_query_poli, 'list'>
 type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRequest, 'create'>
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
 type Args_Mod_query_serviceRequest_deleteById = InferArgs<typeof Mod_query_serviceRequest, 'deleteById'>
@@ -346,7 +344,11 @@ declare global {
           update: Invoke<Args_Mod_query_pegawai_update, Result_Mod_query_pegawai_update>
         }
         poli: {
+          create: Invoke<Args_Mod_query_poli_create, Result_Mod_query_poli_create>
+          deleteById: Invoke<Args_Mod_query_poli_deleteById, Result_Mod_query_poli_deleteById>
+          getById: Invoke<Args_Mod_query_poli_getById, Result_Mod_query_poli_getById>
           list: Invoke<Args_Mod_query_poli_list, Result_Mod_query_poli_list>
+          update: Invoke<Args_Mod_query_poli_update, Result_Mod_query_poli_update>
         }
         serviceRequest: {
           create: Invoke<Args_Mod_query_serviceRequest_create, Result_Mod_query_serviceRequest_create>
@@ -365,4 +367,4 @@ declare global {
     }
   }
 }
-export {}
+export { }
