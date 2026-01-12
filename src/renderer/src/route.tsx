@@ -36,7 +36,6 @@ import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
 import Services from './pages/services/services'
-import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import Pharmacy from './pages/pharmacy/Pharmacy'
@@ -46,6 +45,7 @@ import MedicineBrandTable from './pages/pharmacy/medicine-brand-table'
 import MedicineBrandForm from './pages/pharmacy/medicine-brand-form'
 import MedicinesTable from './pages/pharmacy/medicines-table'
 import MedicinesForm from './pages/pharmacy/medicines-form'
+import QueueList from './pages/queue/queue-list'
 
 function MainRoute() {
   const location = useLocation()
@@ -77,6 +77,9 @@ function MainRoute() {
           <Route path="queue" element={<Encounter />}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
+            <Route path="registration" element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />} />
+            <Route path="poli" element={<QueueList title="Antrian Poli" serviceType="poli" />} />
+            <Route path="laboratory" element={<QueueList title="Antrian Laboratorium" serviceType="laboratorium" />} />
           </Route>
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />

@@ -1,4 +1,6 @@
 import z from 'zod'
+import { MedicineBrandWithIdSchema } from './medicineBrand'
+import { MedicineCategoryWithIdSchema } from './medicineCategory'
 
 export const MedicineSchema = z.object({
   name: z.string().min(1),
@@ -11,15 +13,12 @@ export const MedicineSchema = z.object({
   description: z.string().nullable().optional()
 })
 
-import { MedicineCategoryWithIdSchema } from './medicineCategory'
-import { MedicineBrandWithIdSchema } from './medicineBrand'
-
 export const MedicineWithIdSchema = MedicineSchema.extend({
   id: z.number(),
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional(),
-  category: z.any().optional(),
-  brand: z.any().optional()
+  category: MedicineCategoryWithIdSchema.optional(),
+  brand: MedicineBrandWithIdSchema.optional()
 })
 

@@ -73,7 +73,7 @@ function PatientForm() {
     mutationFn: async (payload: PatientAttributes & { id: number }) => {
       const updateFn = window.api?.query?.patient?.update
       if (!updateFn) throw new Error('API patient tidak tersedia')
-      const result = await updateFn({ ...payload, id: payload.id })
+      const result = await updateFn({ ...payload, id: String(payload.id) })
       if (!result.success) throw new Error(result.error || 'Failed to update patient')
       return result
     },

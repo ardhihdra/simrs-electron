@@ -4,15 +4,18 @@ import MainRoute from '@renderer/route'
 import { App as AntdApp } from 'antd'
 import { queryClient } from '@renderer/query-client'
 import { useNotificationListener } from '@renderer/hooks/useNotificationListener'
+import { ThemeProvider } from '@renderer/providers/ThemeProvider'
 
 function App() {
   useNotificationListener()
   return (
     <HashRouter>
       <QueryClientProvider client={queryClient}>
-        <AntdApp>
-          <MainRoute />
-        </AntdApp>
+        <ThemeProvider>
+          <AntdApp>
+            <MainRoute />
+          </AntdApp>
+        </ThemeProvider>
       </QueryClientProvider>
     </HashRouter>
   )

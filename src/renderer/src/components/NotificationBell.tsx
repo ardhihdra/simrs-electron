@@ -14,7 +14,7 @@ const NotificationBell = () => {
   }
 
   const content = (
-    <div className="w-80 max-h-[500px] flex flex-col">
+    <div className="w-80 max-h-[500px] flex flex-col text-gray-900 dark:text-gray-100">
       <div className="flex justify-between items-center mb-2 px-1">
         <Title level={5} style={{ margin: 0 }}>
           Notifications
@@ -50,7 +50,7 @@ const NotificationBell = () => {
             dataSource={notifications}
             renderItem={(item) => (
               <List.Item
-                className={`cursor-pointer hover:bg-gray-50 transition-colors px-2 rounded ${!item.read ? 'bg-blue-50' : ''}`}
+                className={`cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors px-2 rounded ${!item.read ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                 onClick={() => markAsRead(item.id)}
               >
                 <List.Item.Meta
@@ -64,8 +64,12 @@ const NotificationBell = () => {
                   }
                   description={
                     <div className="px-4">
-                      <div className="text-xs text-gray-600 line-clamp-2">{item.body}</div>
-                      <div className="text-[10px] text-gray-400 mt-1 capitalize">{item.type}</div>
+                      <div className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2">
+                        {item.body}
+                      </div>
+                      <div className="text-[10px] text-gray-400 dark:text-gray-400 mt-1 capitalize">
+                        {item.type}
+                      </div>
                     </div>
                   }
                 />
@@ -91,7 +95,7 @@ const NotificationBell = () => {
     >
       <div className="cursor-pointer p-2 flex items-center">
         <Badge count={unreadCount} overflowCount={99} size="small">
-          <BellOutlined style={{ fontSize: '20px', color: '#555' }} />
+          <BellOutlined className="text-[20px] text-[#555] dark:text-gray-200" />
         </Badge>
       </div>
     </Popover>
