@@ -12,7 +12,11 @@ import {
   LeftCircleFilled,
   RightCircleFilled,
   UserOutlined,
-  WalletOutlined
+  WalletOutlined,
+  PhoneOutlined,
+  FileTextOutlined,
+  MedicineBoxOutlined,
+  PlusCircleOutlined
 } from '@ant-design/icons'
 
 const SendNotificationButton = () => {
@@ -160,8 +164,16 @@ const items = [
     key: '/dashboard/pharmacy',
     icon: <WalletOutlined />,
     children: [
-      { label: 'Medicine Categories', key: '/dashboard/pharmacy/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Medicine Brands', key: '/dashboard/pharmacy/medicine-brands', icon: <DashboardOutlined /> },
+      {
+        label: 'Medicine Categories',
+        key: '/dashboard/pharmacy/medicine-categories',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Medicine Brands',
+        key: '/dashboard/pharmacy/medicine-brands',
+        icon: <DashboardOutlined />
+      },
       { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
     ]
   },
@@ -189,6 +201,40 @@ const items = [
         label: 'Laporan Lab',
         key: '/dashboard/laboratory/report',
         icon: <DashboardOutlined />
+      }
+    ]
+  },
+  {
+    label: 'Perawat',
+    key: '/dashboard/nurse-calling',
+    icon: <UserOutlined />,
+    children: [
+      {
+        label: 'Pemanggilan Pasien',
+        key: '/dashboard/nurse-calling',
+        icon: <PhoneOutlined />
+      }
+    ]
+  },
+  {
+    label: 'Dokter',
+    key: '/dashboard/doctor-medical-records',
+    icon: <UserOutlined />,
+    children: [
+      {
+        label: 'Rekam Medis',
+        key: '/dashboard/doctor-medical-records',
+        icon: <FileTextOutlined />
+      },
+      {
+        label: 'Tindakan',
+        key: '/dashboard/doctor-procedures',
+        icon: <MedicineBoxOutlined />
+      },
+      {
+        label: 'Resep',
+        key: '/dashboard/doctor-prescription',
+        icon: <PlusCircleOutlined />
       }
     ]
   },
@@ -237,7 +283,11 @@ function Dashboard() {
     '/dashboard/diagnostic',
     '/dashboard/services',
     '/dashboard/service-request',
-    '/dashboard/pharmacy'
+    '/dashboard/pharmacy',
+    '/dashboard/nurse-calling',
+    '/dashboard/doctor-medical-records',
+    '/dashboard/doctor-procedures',
+    '/dashboard/doctor-prescription'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
