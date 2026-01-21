@@ -15,6 +15,7 @@ import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
+import type * as Mod_query_medicationRequest from '@main/routes/query/medicationRequest'
 import type * as Mod_query_medicine from '@main/routes/query/medicine'
 import type * as Mod_query_medicineBrand from '@main/routes/query/medicineBrand'
 import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCategory'
@@ -149,6 +150,16 @@ type Args_Mod_query_medicalStaffSchedule_list = InferArgs<typeof Mod_query_medic
 type Result_Mod_query_medicalStaffSchedule_list = InferResult<typeof Mod_query_medicalStaffSchedule, 'list'>
 type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_medicalStaffSchedule, 'update'>
 type Result_Mod_query_medicalStaffSchedule_update = InferResult<typeof Mod_query_medicalStaffSchedule, 'update'>
+type Args_Mod_query_medicationRequest_create = InferArgs<typeof Mod_query_medicationRequest, 'create'>
+type Result_Mod_query_medicationRequest_create = InferResult<typeof Mod_query_medicationRequest, 'create'>
+type Args_Mod_query_medicationRequest_deleteById = InferArgs<typeof Mod_query_medicationRequest, 'deleteById'>
+type Result_Mod_query_medicationRequest_deleteById = InferResult<typeof Mod_query_medicationRequest, 'deleteById'>
+type Args_Mod_query_medicationRequest_getById = InferArgs<typeof Mod_query_medicationRequest, 'getById'>
+type Result_Mod_query_medicationRequest_getById = InferResult<typeof Mod_query_medicationRequest, 'getById'>
+type Args_Mod_query_medicationRequest_list = InferArgs<typeof Mod_query_medicationRequest, 'list'>
+type Result_Mod_query_medicationRequest_list = InferResult<typeof Mod_query_medicationRequest, 'list'>
+type Args_Mod_query_medicationRequest_update = InferArgs<typeof Mod_query_medicationRequest, 'update'>
+type Result_Mod_query_medicationRequest_update = InferResult<typeof Mod_query_medicationRequest, 'update'>
 type Args_Mod_query_medicine_create = InferArgs<typeof Mod_query_medicine, 'create'>
 type Result_Mod_query_medicine_create = InferResult<typeof Mod_query_medicine, 'create'>
 type Args_Mod_query_medicine_deleteById = InferArgs<typeof Mod_query_medicine, 'deleteById'>
@@ -326,6 +337,13 @@ declare global {
           getById: Invoke<Args_Mod_query_medicalStaffSchedule_getById, Result_Mod_query_medicalStaffSchedule_getById>
           list: Invoke<Args_Mod_query_medicalStaffSchedule_list, Result_Mod_query_medicalStaffSchedule_list>
           update: Invoke<Args_Mod_query_medicalStaffSchedule_update, Result_Mod_query_medicalStaffSchedule_update>
+        }
+        medicationRequest: {
+          create: Invoke<Args_Mod_query_medicationRequest_create, Result_Mod_query_medicationRequest_create>
+          deleteById: Invoke<Args_Mod_query_medicationRequest_deleteById, Result_Mod_query_medicationRequest_deleteById>
+          getById: Invoke<Args_Mod_query_medicationRequest_getById, Result_Mod_query_medicationRequest_getById>
+          list: Invoke<Args_Mod_query_medicationRequest_list, Result_Mod_query_medicationRequest_list>
+          update: Invoke<Args_Mod_query_medicationRequest_update, Result_Mod_query_medicationRequest_update>
         }
         medicine: {
           create: Invoke<Args_Mod_query_medicine_create, Result_Mod_query_medicine_create>
