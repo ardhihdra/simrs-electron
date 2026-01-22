@@ -27,6 +27,10 @@ interface QuantityInfo {
 	unit?: string
 }
 
+interface DosageInstructionEntry {
+	text?: string
+}
+
 interface MedicationInfo {
 	name?: string
 }
@@ -45,6 +49,7 @@ interface MedicationDispenseAttributes {
 	patient?: PatientInfo
 	medication?: MedicationInfo
 	performer?: PerformerInfo
+	dosageInstruction?: DosageInstructionEntry[] | null
 }
 
 interface MedicationDispenseListArgs {
@@ -68,10 +73,13 @@ interface MedicationDispenseListResult {
 interface DispenseItemRow {
 	key: string
 	id?: number
+	jenis: string
 	medicineName?: string
-	quantityText?: string
+	quantity?: number
+	unit?: string
 	status: string
 	performerName?: string
+	instruksi?: string
 }
 
 interface ParentRow {
@@ -162,6 +170,11 @@ function getPatientDisplayName(patient?: PatientInfo): string {
   return 'Tanpa nama'
 }
 
+function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
+	if (!Array.isArray(dosage) || dosage.length === 0) return ''
+	return dosage[0]?.text ?? ''
+}
+
 const columns = [
   {
     title: 'Pasien',
@@ -240,9 +253,8 @@ export function MedicationDispenseTable() {
 
 			const quantityValue = item.quantity?.value
 			const quantityUnit = item.quantity?.unit
-			const quantityText = typeof quantityValue === 'number'
-				? `${quantityValue}${quantityUnit ? ` ${quantityUnit}` : ''}`
-				: '-'
+			const jenis = 'Obat Biasa'
+			const instruksi = getInstructionText(item.dosageInstruction)
 
 			const handedOverAt = item.whenHandedOver
 				? dayjs(item.whenHandedOver).format('DD/MM/YYYY HH:mm')
@@ -251,10 +263,13 @@ export function MedicationDispenseTable() {
 			const rowItem: DispenseItemRow = {
 				key: `${key}-${item.id ?? item.medicationId}`,
 				id: item.id,
+				jenis,
 				medicineName: item.medication?.name,
-				quantityText,
+				quantity: typeof quantityValue === 'number' ? quantityValue : undefined,
+				unit: quantityUnit,
 				status: item.status,
-				performerName: item.performer?.name
+				performerName: item.performer?.name,
+				instruksi
 			}
 
 			const existing = groups.get(key)
@@ -306,11 +321,14 @@ export function MedicationDispenseTable() {
 				expandable={{
 					expandedRowRender: (record: ParentRow) => {
 						const detailColumns = [
-							{ title: 'Obat', dataIndex: 'medicineName', key: 'medicineName' },
-							{ title: 'Quantity', dataIndex: 'quantityText', key: 'quantityText' },
+							{ title: 'Jenis Obat', dataIndex: 'jenis', key: 'jenis' },
+							{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
+							{ title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
+							{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
+							{ title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
 							{ title: 'Status', dataIndex: 'status', key: 'status' },
-								{ title: 'Petugas', dataIndex: 'performerName', key: 'performerName' },
-								{
+							{ title: 'Petugas', dataIndex: 'performerName', key: 'performerName' },
+							{
 									title: 'Aksi',
 									key: 'action',
 									render: (_: DispenseItemRow, row: DispenseItemRow) => <RowActions record={row} />
