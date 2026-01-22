@@ -151,6 +151,8 @@ type Args_Mod_query_medicalStaffSchedule_list = InferArgs<typeof Mod_query_medic
 type Result_Mod_query_medicalStaffSchedule_list = InferResult<typeof Mod_query_medicalStaffSchedule, 'list'>
 type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_medicalStaffSchedule, 'update'>
 type Result_Mod_query_medicalStaffSchedule_update = InferResult<typeof Mod_query_medicalStaffSchedule, 'update'>
+type Args_Mod_query_medicationDispense_createFromRequest = InferArgs<typeof Mod_query_medicationDispense, 'createFromRequest'>
+type Result_Mod_query_medicationDispense_createFromRequest = InferResult<typeof Mod_query_medicationDispense, 'createFromRequest'>
 type Args_Mod_query_medicationDispense_list = InferArgs<typeof Mod_query_medicationDispense, 'list'>
 type Result_Mod_query_medicationDispense_list = InferResult<typeof Mod_query_medicationDispense, 'list'>
 type Args_Mod_query_medicationRequest_create = InferArgs<typeof Mod_query_medicationRequest, 'create'>
@@ -342,6 +344,7 @@ declare global {
           update: Invoke<Args_Mod_query_medicalStaffSchedule_update, Result_Mod_query_medicalStaffSchedule_update>
         }
         medicationDispense: {
+          createFromRequest: Invoke<Args_Mod_query_medicationDispense_createFromRequest, Result_Mod_query_medicationDispense_createFromRequest>
           list: Invoke<Args_Mod_query_medicationDispense_list, Result_Mod_query_medicationDispense_list>
         }
         medicationRequest: {

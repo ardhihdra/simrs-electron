@@ -53,5 +53,5 @@ export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
   deletedAt: z.string().nullable().optional(),
   patient: PatientSchema.optional(),
   medication: MedicationSchema.optional(),
-  performer: PerformerSchema.optional()
+  performer: PerformerSchema.nullable().optional()
 })

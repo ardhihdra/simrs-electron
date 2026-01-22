@@ -189,7 +189,36 @@ function RowActions({ record }: { record: ParentRow }) {
       queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
     }
   })
+  const processDispenseMutation = useMutation({
+    mutationKey: ['medicationDispense', 'createFromRequest'],
+    mutationFn: async (id: number) => {
+      const api = window.api?.query as {
+        medicationDispense?: {
+          createFromRequest: (args: {
+            medicationRequestId: number
+          }) => Promise<{ success: boolean; error?: string }>
+        }
+      }
+
+      const fn = api?.medicationDispense?.createFromRequest
+      if (!fn) {
+        throw new Error('API MedicationDispense tidak tersedia.')
+      }
+
+      return fn({ medicationRequestId: id })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
+    }
+  })
   const items: MenuProps['items'] = [
+    {
+      key: 'process-dispense',
+      label: 'Proses Dispense',
+      onClick: () =>
+        typeof record.baseId === 'number' && processDispenseMutation.mutate(record.baseId)
+    },
+    { type: 'divider' },
     {
       key: 'edit',
       label: 'Edit',

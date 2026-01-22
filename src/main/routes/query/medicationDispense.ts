@@ -1,5 +1,7 @@
 import z from 'zod'
 import { MedicationDispenseWithIdSchema } from '@main/models/medicationDispense'
+import { MedicationRequestWithIdSchema } from '@main/models/medicationRequest'
+import { MedicationDispenseStatus } from '@main/models/enums/ResourceEnums'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
 
@@ -25,6 +27,16 @@ export const schemas = {
           pages: z.number()
         })
         .optional(),
+      error: z.string().optional()
+    })
+  },
+  createFromRequest: {
+    args: z.object({
+      medicationRequestId: z.number()
+    }),
+    result: z.object({
+      success: z.boolean(),
+      data: MedicationDispenseWithIdSchema.optional(),
       error: z.string().optional()
     })
   }
@@ -59,6 +71,51 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('MedicationDispense IPC list error:', msg)
+    return { success: false, error: msg }
+  }
+}
+
+export const createFromRequest = async (
+  ctx: IpcContext,
+  args: z.infer<typeof schemas.createFromRequest.args>
+) => {
+  try {
+    const client = getClient(ctx)
+
+    const requestRes = await client.get(`/api/medicationrequest/read/${args.medicationRequestId}`)
+    const ReadSchema = z.object({
+      success: z.boolean(),
+      result: MedicationRequestWithIdSchema.optional(),
+      error: z.string().optional()
+    })
+    const request = await parseBackendResponse(requestRes, ReadSchema)
+
+    if (!request) {
+      throw new Error('MedicationRequest tidak ditemukan.')
+    }
+
+    if (typeof request.medicationId !== 'number' || typeof request.patientId !== 'string') {
+      throw new Error('MedicationRequest tidak memiliki medicationId atau patientId yang valid.')
+    }
+
+    const payload = {
+      medicationId: request.medicationId,
+      patientId: request.patientId,
+      authorizingPrescriptionId: request.id,
+      status: MedicationDispenseStatus.PREPARATION
+    }
+
+    const createRes = await client.post('/api/medicationdispense', payload)
+    const CreateSchema = z.object({
+      success: z.boolean(),
+      result: MedicationDispenseWithIdSchema.optional(),
+      error: z.string().optional()
+    })
+    const created = await parseBackendResponse(createRes, CreateSchema)
+
+    return { success: true, data: created }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
 }
