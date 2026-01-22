@@ -30,6 +30,14 @@ export const schemas = {
       error: z.string().optional()
     })
   },
+  update: {
+    args: MedicationDispenseWithIdSchema.partial().extend({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      data: MedicationDispenseWithIdSchema.optional(),
+      error: z.string().optional()
+    })
+  },
   createFromRequest: {
     args: z.object({
       medicationRequestId: z.number()
@@ -71,6 +79,27 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('MedicationDispense IPC list error:', msg)
+    return { success: false, error: msg }
+  }
+}
+
+export const update = async (
+  ctx: IpcContext,
+  args: z.infer<typeof schemas.update.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const { id, ...data } = args
+    const res = await client.put(`/api/medicationdispense/${id}`, data)
+    const UpdateSchema = z.object({
+      success: z.boolean(),
+      result: MedicationDispenseWithIdSchema.optional(),
+      error: z.string().optional()
+    })
+    const result = await parseBackendResponse(res, UpdateSchema)
+    return { success: true, data: result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
 }

@@ -155,6 +155,8 @@ type Args_Mod_query_medicationDispense_createFromRequest = InferArgs<typeof Mod_
 type Result_Mod_query_medicationDispense_createFromRequest = InferResult<typeof Mod_query_medicationDispense, 'createFromRequest'>
 type Args_Mod_query_medicationDispense_list = InferArgs<typeof Mod_query_medicationDispense, 'list'>
 type Result_Mod_query_medicationDispense_list = InferResult<typeof Mod_query_medicationDispense, 'list'>
+type Args_Mod_query_medicationDispense_update = InferArgs<typeof Mod_query_medicationDispense, 'update'>
+type Result_Mod_query_medicationDispense_update = InferResult<typeof Mod_query_medicationDispense, 'update'>
 type Args_Mod_query_medicationRequest_create = InferArgs<typeof Mod_query_medicationRequest, 'create'>
 type Result_Mod_query_medicationRequest_create = InferResult<typeof Mod_query_medicationRequest, 'create'>
 type Args_Mod_query_medicationRequest_deleteById = InferArgs<typeof Mod_query_medicationRequest, 'deleteById'>
@@ -346,6 +348,7 @@ declare global {
         medicationDispense: {
           createFromRequest: Invoke<Args_Mod_query_medicationDispense_createFromRequest, Result_Mod_query_medicationDispense_createFromRequest>
           list: Invoke<Args_Mod_query_medicationDispense_list, Result_Mod_query_medicationDispense_list>
+          update: Invoke<Args_Mod_query_medicationDispense_update, Result_Mod_query_medicationDispense_update>
         }
         medicationRequest: {
           create: Invoke<Args_Mod_query_medicationRequest_create, Result_Mod_query_medicationRequest_create>

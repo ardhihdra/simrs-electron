@@ -1,8 +1,9 @@
-import { Button, Input, Table, Tag } from 'antd'
-import { useQuery } from '@tanstack/react-query'
+import { Button, Input, Table, Tag, message } from 'antd'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import dayjs from 'dayjs'
+import { queryClient } from '@renderer/query-client'
 
 type PatientNameEntry = {
   text?: string
@@ -66,6 +67,7 @@ interface MedicationDispenseListResult {
 
 interface DispenseItemRow {
 	key: string
+	id?: number
 	medicineName?: string
 	quantityText?: string
 	status: string
@@ -78,6 +80,56 @@ interface ParentRow {
 	status: string
 	handedOverAt?: string
 	items: DispenseItemRow[]
+}
+
+function RowActions({ record }: { record: DispenseItemRow }) {
+	const updateMutation = useMutation({
+		mutationKey: ['medicationDispense', 'update'],
+		mutationFn: async () => {
+			if (typeof record.id !== 'number') {
+				throw new Error('ID MedicationDispense tidak valid.')
+			}
+			const fn = window.api?.query?.medicationDispense?.update
+			if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
+			const payload = {
+				id: record.id,
+				status: 'completed',
+				whenHandedOver: new Date().toISOString()
+			}
+			const res = await fn(payload as never)
+			if (!res.success) {
+				throw new Error(res.error || 'Gagal memperbarui MedicationDispense')
+			}
+			return res
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
+			message.success('Obat berhasil diserahkan')
+		},
+		onError: (error) => {
+			const msg = error instanceof Error ? error.message : String(error)
+			message.error(msg || 'Gagal menyerahkan obat')
+		}
+	})
+
+	const disabled =
+		updateMutation.isPending ||
+		record.status === 'completed' ||
+		record.status === 'cancelled' ||
+		record.status === 'declined' ||
+		typeof record.id !== 'number'
+
+	return (
+		<Button
+			type="primary"
+			size="small"
+			disabled={disabled}
+			loading={updateMutation.isPending}
+			onClick={() => updateMutation.mutate()}
+		>
+			Serahkan Obat
+		</Button>
+	)
 }
 
 function getPatientDisplayName(patient?: PatientInfo): string {
@@ -139,6 +191,7 @@ const columns = [
 export function MedicationDispenseTable() {
 	const navigate = useNavigate()
 	const [search, setSearch] = useState('')
+	const [showOnlyPending, setShowOnlyPending] = useState(false)
 
 	const { data, refetch, isError } = useQuery({
 		queryKey: ['medicationDispense', 'list'],
@@ -158,9 +211,14 @@ export function MedicationDispenseTable() {
 	})
 
 	const filtered = useMemo(() => {
-		const source: MedicationDispenseAttributes[] = Array.isArray(data?.data)
+		let source: MedicationDispenseAttributes[] = Array.isArray(data?.data)
 			? data.data
 			: []
+
+		if (showOnlyPending) {
+			source = source.filter((item) => item.status !== 'completed')
+		}
+
 		const q = search.trim().toLowerCase()
 		if (!q) return source
 
@@ -169,7 +227,7 @@ export function MedicationDispenseTable() {
 			const medicineName = item.medication?.name?.toLowerCase() ?? ''
 			return patientName.includes(q) || medicineName.includes(q)
 		})
-	}, [data?.data, search])
+	}, [data?.data, search, showOnlyPending])
 
 	const groupedData = useMemo<ParentRow[]>(() => {
 		const groups = new Map<string, ParentRow>()
@@ -192,6 +250,7 @@ export function MedicationDispenseTable() {
 
 			const rowItem: DispenseItemRow = {
 				key: `${key}-${item.id ?? item.medicationId}`,
+				id: item.id,
 				medicineName: item.medication?.name,
 				quantityText,
 				status: item.status,
@@ -227,6 +286,9 @@ export function MedicationDispenseTable() {
 					onChange={(e) => setSearch(e.target.value)}
 				/>
 				<div className="flex gap-2 flex-wrap md:justify-end">
+					<Button type={showOnlyPending ? 'primary' : 'default'} onClick={() => setShowOnlyPending((prev) => !prev)}>
+						Belum diserahkan
+					</Button>
 					<Button onClick={() => refetch()}>Refresh</Button>
 					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
 						Ke Daftar Resep
@@ -247,7 +309,12 @@ export function MedicationDispenseTable() {
 							{ title: 'Obat', dataIndex: 'medicineName', key: 'medicineName' },
 							{ title: 'Quantity', dataIndex: 'quantityText', key: 'quantityText' },
 							{ title: 'Status', dataIndex: 'status', key: 'status' },
-							{ title: 'Petugas', dataIndex: 'performerName', key: 'performerName' }
+								{ title: 'Petugas', dataIndex: 'performerName', key: 'performerName' },
+								{
+									title: 'Aksi',
+									key: 'action',
+									render: (_: DispenseItemRow, row: DispenseItemRow) => <RowActions record={row} />
+								}
 						]
 
 						return (
