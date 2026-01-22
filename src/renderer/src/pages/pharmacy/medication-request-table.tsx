@@ -18,13 +18,36 @@ type PatientIdentifier = {
   value?: string
 }
 
+interface GroupIdentifier {
+  system?: string
+  value?: string
+}
+
+interface CategoryEntry {
+  text?: string
+  code?: string
+}
+
+interface QuantityInfo {
+  value?: number
+  unit?: string
+}
+
+interface DispenseRequestInfo {
+  quantity?: QuantityInfo
+}
+
+interface DosageInstructionEntry {
+  text?: string
+}
+
 interface PatientInfo {
   name?: string | PatientNameEntry[]
   identifier?: PatientIdentifier[]
   mrNo?: string
 }
 
-interface MedicationRequestAttributes { 
+interface MedicationRequestAttributes {
   id?: number
   status: string
   intent: string
@@ -33,9 +56,33 @@ interface MedicationRequestAttributes {
   patientId: string
   authoredOn?: string
   patient?: PatientInfo
-  medication?: { name: string }
+  medication?: { name?: string }
   encounter?: { id: string }
   requester?: { name: string }
+  groupIdentifier?: GroupIdentifier | null
+  category?: CategoryEntry[] | null
+  dosageInstruction?: DosageInstructionEntry[] | null
+  dispenseRequest?: DispenseRequestInfo | null
+}
+
+interface MedicationItemRow {
+  key: string
+  jenis: string
+  namaObat: string
+  quantity?: number
+  unit?: string
+  instruksi?: string
+}
+
+interface ParentRow {
+  key: string
+  baseId?: number
+  patient?: PatientInfo
+  status: string
+  intent: string
+  priority?: string
+  authoredOn?: string
+  items: MedicationItemRow[]
 }
 
 function getPatientDisplayName(patient?: PatientInfo): string {
@@ -68,55 +115,68 @@ function getPatientDisplayName(patient?: PatientInfo): string {
   return 'Tanpa nama'
 }
 
+function isCompound(record: MedicationRequestAttributes): boolean {
+  const categories = record.category ?? []
+  return categories.some((category) => {
+    const code = category.code?.toLowerCase()
+    const text = category.text?.toLowerCase()
+    return code === 'compound' || text === 'racikan'
+  })
+}
+
+function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
+  if (!Array.isArray(dosage) || dosage.length === 0) return ''
+  return dosage[0]?.text ?? ''
+}
+
 const columns = [
-  { 
-    title: 'Pasien', 
-    dataIndex: 'patient', 
-    key: 'patient', 
+  {
+    title: 'Pasien',
+    dataIndex: 'patient',
+    key: 'patient',
     render: (val: PatientInfo | undefined) => {
       const name = getPatientDisplayName(val)
       return name || '-'
     }
   },
-  { 
-    title: 'Obat', 
-    dataIndex: 'medication', 
-    key: 'medication', 
-    render: (val: any) => val ? val.name : '-' 
-  },
-  { 
-    title: 'Status', 
-    dataIndex: 'status', 
+  {
+    title: 'Status',
+    dataIndex: 'status',
     key: 'status',
     render: (val: string) => <Tag color={val === 'active' ? 'green' : 'default'}>{val}</Tag>
   },
-  { 
-    title: 'Tujuan', 
-    dataIndex: 'intent', 
-    key: 'intent' 
+  {
+    title: 'Tujuan',
+    dataIndex: 'intent',
+    key: 'intent'
   },
-  { 
-    title: 'Prioritas', 
-    dataIndex: 'priority', 
+  {
+    title: 'Prioritas',
+    dataIndex: 'priority',
     key: 'priority',
-    render: (val: string) => val ? <Tag color={val === 'urgent' || val === 'stat' ? 'red' : 'blue'}>{val}</Tag> : '-'
+    render: (val: string) =>
+      val ? (
+        <Tag color={val === 'urgent' || val === 'stat' ? 'red' : 'blue'}>{val}</Tag>
+      ) : (
+        '-'
+      )
   },
-  { 
-    title: 'Tanggal', 
-    dataIndex: 'authoredOn', 
+  {
+    title: 'Tanggal',
+    dataIndex: 'authoredOn',
     key: 'authoredOn',
-    render: (val: string) => val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-'
+    render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
   },
-  { 
-    title: 'Aksi', 
-    key: 'action', 
-    width: 60, 
-    align: 'center' as const, 
-    render: (_: MedicationRequestAttributes, r: MedicationRequestAttributes) => <RowActions record={r} /> 
+  {
+    title: 'Aksi',
+    key: 'action',
+    width: 60,
+    align: 'center' as const,
+    render: (_: ParentRow, r: ParentRow) => <RowActions record={r} />
   }
 ]
 
-function RowActions({ record }: { record: MedicationRequestAttributes }) {
+function RowActions({ record }: { record: ParentRow }) {
   const navigate = useNavigate()
   const deleteMutation = useMutation({
     mutationKey: ['medicationRequest', 'delete'],
@@ -130,9 +190,23 @@ function RowActions({ record }: { record: MedicationRequestAttributes }) {
     }
   })
   const items: MenuProps['items'] = [
-    { key: 'edit', label: 'Edit', icon: <EditOutlined />, onClick: () => typeof record.id === 'number' && navigate(`/dashboard/medicine/medication-requests/edit/${record.id}`) },
+    {
+      key: 'edit',
+      label: 'Edit',
+      icon: <EditOutlined />,
+      onClick: () =>
+        typeof record.baseId === 'number' &&
+        navigate(`/dashboard/medicine/medication-requests/edit/${record.baseId}`)
+    },
     { type: 'divider' },
-    { key: 'delete', danger: true, label: 'Delete', icon: <DeleteOutlined />, onClick: () => typeof record.id === 'number' && deleteMutation.mutate(record.id) }
+    {
+      key: 'delete',
+      danger: true,
+      label: 'Delete',
+      icon: <DeleteOutlined />,
+      onClick: () =>
+        typeof record.baseId === 'number' && deleteMutation.mutate(record.baseId)
+    }
   ]
   return (
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
@@ -169,6 +243,42 @@ export function MedicationRequestTable() {
     )
   }, [data?.data, search])
 
+  const groupedData = useMemo<ParentRow[]>(() => {
+    const groups = new Map<string, ParentRow>()
+
+    filtered.forEach((record) => {
+      const groupId = record.groupIdentifier?.value
+      const key = groupId && groupId.trim().length > 0 ? groupId : `single-${record.id ?? ''}`
+
+      const item: MedicationItemRow = {
+        key: `${key}-${record.id ?? ''}`,
+        jenis: isCompound(record) ? 'Racikan' : 'Obat Biasa',
+        namaObat: record.medication?.name ?? '-',
+        quantity: record.dispenseRequest?.quantity?.value,
+        unit: record.dispenseRequest?.quantity?.unit,
+        instruksi: getInstructionText(record.dosageInstruction)
+      }
+
+      const existing = groups.get(key)
+      if (!existing) {
+        groups.set(key, {
+          key,
+          baseId: record.id,
+          patient: record.patient,
+          status: record.status,
+          intent: record.intent,
+          priority: record.priority,
+          authoredOn: record.authoredOn,
+          items: [item]
+        })
+      } else {
+        existing.items.push(item)
+      }
+    })
+
+    return Array.from(groups.values())
+  }, [filtered])
+
   return (
     <div>
       <h2 className="text-4xl font-bold mb-4 justify-center flex">Permintaan Obat (Resep)</h2>
@@ -180,7 +290,35 @@ export function MedicationRequestTable() {
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table dataSource={filtered} columns={columns} size="small" className="mt-4 rounded-xl shadow-sm" rowKey="id" scroll={{ x: 'max-content' }} />
+      <Table
+        dataSource={groupedData}
+        columns={columns}
+        size="small"
+        className="mt-4 rounded-xl shadow-sm"
+        rowKey="key"
+        scroll={{ x: 'max-content' }}
+        expandable={{
+          expandedRowRender: (record: ParentRow) => {
+            const detailColumns = [
+              { title: 'Jenis', dataIndex: 'jenis', key: 'jenis' },
+              { title: 'Nama Obat', dataIndex: 'namaObat', key: 'namaObat' },
+              { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
+              { title: 'Satuan', dataIndex: 'unit', key: 'unit' },
+              { title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' }
+            ]
+
+            return (
+              <Table
+                columns={detailColumns}
+                dataSource={record.items}
+                pagination={false}
+                size="small"
+                rowKey="key"
+              />
+            )
+          }
+        }}
+      />
     </div>
   )
 }

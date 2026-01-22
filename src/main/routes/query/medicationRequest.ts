@@ -38,7 +38,7 @@ export const schemas = {
     })
   },
   create: {
-    args: MedicationRequestSchema,
+    args: z.union([MedicationRequestSchema, MedicationRequestSchema.array()]),
     result: z.object({
       success: z.boolean(),
       data: MedicationRequestWithIdSchema.optional(),

@@ -15,7 +15,8 @@ export const MedicationRequestSchema = z.object({
   requesterId: z.number().nullable().optional(),
   authoredOn: z.string().or(z.date()).optional(),
   dosageInstruction: z.any().nullable().optional(),
-  note: z.string().nullable().optional()
+  note: z.string().nullable().optional(),
+  dispenseRequest: z.any().nullable().optional()
 })
 
 export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({

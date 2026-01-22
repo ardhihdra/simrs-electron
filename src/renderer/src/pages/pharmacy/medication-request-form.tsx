@@ -1,4 +1,4 @@
-import { Button, Form, Input, Select, DatePicker, Row, Col, Card } from 'antd'
+import { Button, Form, Input, InputNumber, Select, DatePicker, Row, Col, Card } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
@@ -53,11 +53,15 @@ interface FormData {
     medicationId: number
     dosageInstruction?: string
     note?: string
+    quantity?: number
+    quantityUnit?: string
   }>
   // Compounds mode (Racikan)
   compounds?: Array<{
     name: string
     dosageInstruction?: string
+    quantity?: number
+    quantityUnit?: string
     items: Array<{
       medicationId: number
       note?: string // Used for strength/amount in racikan
@@ -72,6 +76,16 @@ export function MedicationRequestForm() {
   const selectedPatientId = Form.useWatch('patientId', form)
   const isEdit = Boolean(id)
   const [session, setSession] = useState<any>(null)
+
+  const buildDispenseRequest = (quantity?: number, unit?: string) => {
+    if (!quantity) return null
+    return {
+      quantity: {
+        value: quantity,
+        unit: unit || undefined
+      }
+    }
+  }
 
   useEffect(() => {
     window.api.auth.getSession().then((res) => {
@@ -170,6 +184,12 @@ export function MedicationRequestForm() {
       const d = detailData.data as FormData & {
         id: number
         dosageInstruction?: Array<{ text?: string }>
+        dispenseRequest?: {
+          quantity?: {
+            value?: number
+            unit?: string
+          }
+        }
       }
 
       form.setFieldsValue({
@@ -187,7 +207,9 @@ export function MedicationRequestForm() {
               d.dosageInstruction && d.dosageInstruction[0]
                 ? d.dosageInstruction[0].text ?? ''
                 : '',
-            note: d.note ?? ''
+            note: d.note ?? '',
+            quantity: d.dispenseRequest?.quantity?.value,
+            quantityUnit: d.dispenseRequest?.quantity?.unit
           }
         ]
       })
@@ -251,7 +273,8 @@ export function MedicationRequestForm() {
         dosageInstruction: firstItem?.dosageInstruction
           ? [{ text: firstItem.dosageInstruction }]
           : null,
-        note: firstItem?.note ?? null
+        note: firstItem?.note ?? null,
+        dispenseRequest: buildDispenseRequest(firstItem?.quantity, firstItem?.quantityUnit)
       }
 
       const extraItems = items.slice(1)
@@ -268,7 +291,8 @@ export function MedicationRequestForm() {
             groupIdentifier,
             medicationId: item.medicationId,
             dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
-            note: item.note
+            note: item.note,
+            dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)
           }))
         : []
 
@@ -283,7 +307,8 @@ export function MedicationRequestForm() {
               dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
               identifier: [{ system: 'racikan-group', value: compoundId }],
               note: `[Racikan: ${comp.name}] ${item.note || ''}`,
-              category: [{ text: 'racikan', code: 'compound' }]
+              category: [{ text: 'racikan', code: 'compound' }],
+              dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit)
             }))
           })
         : []
@@ -312,22 +337,22 @@ export function MedicationRequestForm() {
          groupIdentifier,
          medicationId: item.medicationId,
          dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
-         note: item.note
+         note: item.note,
+         dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)
        }))
 
        const compoundPayloads = compounds.flatMap((comp, idx) => {
-         const compoundId = `${Date.now()}-comp-${idx}`
-         return (comp.items || []).map(item => ({
-            ...commonPayload,
-            groupIdentifier,
-            medicationId: item.medicationId,
-            dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
-            // Use identifier to link ingredients of the same racikan
-            identifier: [{ system: 'racikan-group', value: compoundId }],
-            // Use note to store racikan name and ingredient strength
-            note: `[Racikan: ${comp.name}] ${item.note || ''}`,
-            category: [{ text: 'racikan', code: 'compound' }]
-         }))
+        const compoundId = `${Date.now()}-comp-${idx}`
+        return (comp.items || []).map(item => ({
+           ...commonPayload,
+           groupIdentifier,
+           medicationId: item.medicationId,
+           dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
+           identifier: [{ system: 'racikan-group', value: compoundId }],
+           note: `[Racikan: ${comp.name}] ${item.note || ''}`,
+           category: [{ text: 'racikan', code: 'compound' }],
+           dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit)
+        }))
        })
 
        const payload = [...simplePayloads, ...compoundPayloads]
@@ -406,30 +431,48 @@ export function MedicationRequestForm() {
                       key={key}
                       className="flex gap-4 items-start bg-gray-50 p-4 rounded-lg relative group"
                     >
-                      <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'medicationId']}
-                          label="Obat"
-                          rules={[{ required: true, message: 'Wajib diisi' }]}
-                          className="mb-0"
-                        >
-                          <Select
-                            options={medicineOptions}
-                            placeholder="Pilih Obat"
-                            showSearch
-                            optionFilterProp="label"
-                            loading={medicineLoading}
-                          />
-                        </Form.Item>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'dosageInstruction']}
-                          label="Instruksi"
-                          className="mb-0"
-                        >
-                          <Input placeholder="Dosis..." />
-                        </Form.Item>
+                      <div className="flex-1 space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'medicationId']}
+                            label="Obat"
+                            rules={[{ required: true, message: 'Wajib diisi' }]}
+                            className="mb-0"
+                          >
+                            <Select
+                              options={medicineOptions}
+                              placeholder="Pilih Obat"
+                              showSearch
+                              optionFilterProp="label"
+                              loading={medicineLoading}
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'dosageInstruction']}
+                            label="Instruksi"
+                            className="mb-0"
+                          >
+                            <Input placeholder="Dosis..." />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'quantity']}
+                            label="Jumlah"
+                            className="mb-0"
+                          >
+                            <InputNumber<number> min={1} className="w-full" />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'quantityUnit']}
+                            label="Satuan"
+                            className="mb-0"
+                          >
+                            <Input placeholder="Contoh: tablet, kapsul, botol" />
+                          </Form.Item>
+                        </div>
                         <Form.Item
                           {...restField}
                           name={[name, 'note']}
@@ -478,7 +521,7 @@ export function MedicationRequestForm() {
                         }
                         className="bg-orange-50 border-orange-100"
                       >
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                           <Form.Item
                             {...restField}
                             name={[name, 'name']}
@@ -496,6 +539,22 @@ export function MedicationRequestForm() {
                             className="mb-0"
                           >
                             <Input placeholder="Contoh: 3x1 Bungkus" />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'quantity']}
+                            label="Jumlah Racikan"
+                            className="mb-0"
+                          >
+                            <InputNumber<number> min={1} className="w-full" />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'quantityUnit']}
+                            label="Satuan Racikan"
+                            className="mb-0"
+                          >
+                            <Input placeholder="Contoh: bungkus, botol" />
                           </Form.Item>
                         </div>
 
