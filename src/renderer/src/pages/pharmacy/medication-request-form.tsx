@@ -289,7 +289,7 @@ export function MedicationRequestForm() {
       patientId: values.patientId,
       encounterId: values.encounterId,
       requesterId: values.requesterId,
-      authoredOn: values.authoredOn ? values.authoredOn.format('YYYY-MM-DD HH:mm:ss') : null,
+      authoredOn: values.authoredOn ? values.authoredOn.format('YYYY-MM-DD HH:mm:ss') : null
     }
 
     if (isEdit) {
@@ -298,6 +298,29 @@ export function MedicationRequestForm() {
 
       const firstItem = items.length > 0 ? items[0] : undefined
 
+      type DetailWithGroup = FormData & {
+        id: number
+        groupIdentifier?: {
+          system?: string
+          value?: string
+        } | null
+      }
+
+      const detail = (detailData?.data as DetailWithGroup | undefined) || undefined
+
+      const extraItems = items.slice(1)
+      const hasExtraItems = extraItems.length > 0
+      const hasCompounds = compounds.length > 0
+
+      const baseGroupIdentifier = detail?.groupIdentifier ?? undefined
+
+      const groupIdentifier = hasExtraItems || hasCompounds
+        ? baseGroupIdentifier ?? {
+            system: 'http://sys-ids/prescription-group',
+            value: `${Date.now()}`
+          }
+        : baseGroupIdentifier
+
       const updatePayload = {
         ...commonPayload,
         medicationId: firstItem?.medicationId,
@@ -305,16 +328,9 @@ export function MedicationRequestForm() {
           ? [{ text: firstItem.dosageInstruction }]
           : null,
         note: firstItem?.note ?? null,
-        dispenseRequest: buildDispenseRequest(firstItem?.quantity, firstItem?.quantityUnit)
+        dispenseRequest: buildDispenseRequest(firstItem?.quantity, firstItem?.quantityUnit),
+        groupIdentifier
       }
-
-      const extraItems = items.slice(1)
-      const hasExtraItems = extraItems.length > 0
-      const hasCompounds = compounds.length > 0
-
-      const groupIdentifier = hasExtraItems || hasCompounds
-        ? { system: 'http://sys-ids/prescription-group', value: `${Date.now()}` }
-        : undefined
 
       const extraSimplePayloads = groupIdentifier
         ? extraItems.map((item) => ({

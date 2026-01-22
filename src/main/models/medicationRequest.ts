@@ -1,31 +1,55 @@
 import z from 'zod'
 import {
-  MedicationRequestStatus,
-  MedicationRequestIntent,
-  MedicationRequestPriority
+	MedicationRequestStatus,
+	MedicationRequestIntent,
+	MedicationRequestPriority
 } from './enums/ResourceEnums'
 
+const GroupIdentifierSchema = z.object({
+	system: z.string().optional(),
+	value: z.string().optional()
+})
+
+const QuantitySchema = z.object({
+	value: z.number().optional(),
+	unit: z.string().optional()
+})
+
+const DispenseRequestSchema = z
+	.object({
+		quantity: QuantitySchema.optional()
+	})
+	.nullable()
+	.optional()
+
+const CategoryEntrySchema = z.object({
+	text: z.string().optional(),
+	code: z.string().optional()
+})
+
 export const MedicationRequestSchema = z.object({
-  status: z.nativeEnum(MedicationRequestStatus),
-  intent: z.nativeEnum(MedicationRequestIntent),
-  priority: z.nativeEnum(MedicationRequestPriority).optional(),
-  medicationId: z.number().nullable().optional(),
-  patientId: z.string(),
-  encounterId: z.string().nullable().optional(),
-  requesterId: z.number().nullable().optional(),
-  authoredOn: z.string().or(z.date()).optional(),
-  dosageInstruction: z.any().nullable().optional(),
-  note: z.string().nullable().optional(),
-  dispenseRequest: z.any().nullable().optional()
+	status: z.nativeEnum(MedicationRequestStatus),
+	intent: z.nativeEnum(MedicationRequestIntent),
+	priority: z.nativeEnum(MedicationRequestPriority).optional(),
+	medicationId: z.number().nullable().optional(),
+	patientId: z.string(),
+	encounterId: z.string().nullable().optional(),
+	requesterId: z.number().nullable().optional(),
+	authoredOn: z.string().or(z.date()).optional(),
+	dosageInstruction: z.any().nullable().optional(),
+	note: z.string().nullable().optional(),
+	groupIdentifier: GroupIdentifierSchema.nullable().optional(),
+	category: CategoryEntrySchema.array().nullable().optional(),
+	dispenseRequest: DispenseRequestSchema
 })
 
 export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({
-  id: z.number(),
-  createdAt: z.string().nullable().optional(),
-  updatedAt: z.string().nullable().optional(),
-  deletedAt: z.string().nullable().optional(),
-  patient: z.any().optional(),
-  requester: z.any().optional(),
-  encounter: z.any().optional(),
-  medication: z.any().optional()
+	id: z.number(),
+	createdAt: z.string().nullable().optional(),
+	updatedAt: z.string().nullable().optional(),
+	deletedAt: z.string().nullable().optional(),
+	patient: z.any().optional(),
+	requester: z.any().optional(),
+	encounter: z.any().optional(),
+	medication: z.any().optional()
 })

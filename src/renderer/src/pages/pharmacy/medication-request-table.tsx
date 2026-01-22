@@ -85,6 +85,23 @@ interface ParentRow {
   items: MedicationItemRow[]
 }
 
+interface MedicationDispenseForFilter {
+  id?: number
+  authorizingPrescriptionId?: number | null
+}
+
+interface MedicationDispenseListResultForFilter {
+  success: boolean
+  data?: MedicationDispenseForFilter[]
+  pagination?: {
+    page: number
+    limit: number
+    total: number
+    pages: number
+  }
+  error?: string
+}
+
 function getPatientDisplayName(patient?: PatientInfo): string {
   if (!patient) return ''
 
@@ -260,17 +277,55 @@ export function MedicationRequestTable() {
     }
   })
 
+  const { data: dispenseListData } = useQuery({
+    queryKey: ['medicationDispense', 'forFilter'],
+    queryFn: async () => {
+      const api = window.api?.query as {
+        medicationDispense?: {
+          list: (args?: { limit?: number }) => Promise<MedicationDispenseListResultForFilter>
+        }
+      }
+
+      const fn = api?.medicationDispense?.list
+      if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
+
+      return fn({ limit: 1000 })
+    }
+  })
+
+  const dispensedRequestIds = useMemo(() => {
+    const source: MedicationDispenseForFilter[] = Array.isArray(dispenseListData?.data)
+      ? dispenseListData.data
+      : []
+
+    const idSet = new Set<number>()
+
+    source.forEach((item) => {
+      if (typeof item.authorizingPrescriptionId === 'number') {
+        idSet.add(item.authorizingPrescriptionId)
+      }
+    })
+
+    return idSet
+  }, [dispenseListData?.data])
+
   const filtered = useMemo(() => {
     const source: MedicationRequestAttributes[] = Array.isArray(data?.data)
       ? (data.data as MedicationRequestAttributes[])
       : []
+
+    const baseFiltered = source.filter((request) => {
+      if (typeof request.id !== 'number') return true
+      return !dispensedRequestIds.has(request.id)
+    })
+
     const q = search.trim().toLowerCase()
-    if (!q) return source
-    return source.filter((p) => 
+    if (!q) return baseFiltered
+    return baseFiltered.filter((p) => 
       getPatientDisplayName(p.patient).toLowerCase().includes(q) || 
       p.medication?.name?.toLowerCase().includes(q)
     )
-  }, [data?.data, search])
+  }, [data?.data, search, dispensedRequestIds])
 
   const groupedData = useMemo<ParentRow[]>(() => {
     const groups = new Map<string, ParentRow>()

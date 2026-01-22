@@ -22,28 +22,28 @@ interface PatientInfo {
 }
 
 interface QuantityInfo {
-  value?: number
-  unit?: string
+	value?: number
+	unit?: string
 }
 
 interface MedicationInfo {
-  name?: string
+	name?: string
 }
 
 interface PerformerInfo {
-  name?: string
+	name?: string
 }
 
 interface MedicationDispenseAttributes {
-  id?: number
-  status: string
-  medicationId: number
-  patientId: string
-  whenHandedOver?: string
-  quantity?: QuantityInfo | null
-  patient?: PatientInfo
-  medication?: MedicationInfo
-  performer?: PerformerInfo
+	id?: number
+	status: string
+	medicationId: number
+	patientId: string
+	whenHandedOver?: string
+	quantity?: QuantityInfo | null
+	patient?: PatientInfo
+	medication?: MedicationInfo
+	performer?: PerformerInfo
 }
 
 interface MedicationDispenseListArgs {
@@ -64,15 +64,20 @@ interface MedicationDispenseListResult {
   error?: string
 }
 
-interface RowData {
-  key: string
-  id?: number
-  patient?: PatientInfo
-  status: string
-  medicineName?: string
-  quantityText?: string
-  handedOverAt?: string
-  performerName?: string
+interface DispenseItemRow {
+	key: string
+	medicineName?: string
+	quantityText?: string
+	status: string
+	performerName?: string
+}
+
+interface ParentRow {
+	key: string
+	patient?: PatientInfo
+	status: string
+	handedOverAt?: string
+	items: DispenseItemRow[]
 }
 
 function getPatientDisplayName(patient?: PatientInfo): string {
@@ -108,7 +113,7 @@ function getPatientDisplayName(patient?: PatientInfo): string {
 const columns = [
   {
     title: 'Pasien',
-    dataIndex: 'patient',
+		dataIndex: 'patient',
     key: 'patient',
     render: (val: PatientInfo | undefined) => {
       const name = getPatientDisplayName(val)
@@ -117,7 +122,7 @@ const columns = [
   },
   {
     title: 'Status',
-    dataIndex: 'status',
+		dataIndex: 'status',
     key: 'status',
     render: (val: string) => {
       const color = val === 'completed' ? 'green' : val === 'cancelled' ? 'red' : 'default'
@@ -125,117 +130,140 @@ const columns = [
     }
   },
   {
-    title: 'Obat',
-    dataIndex: 'medicineName',
-    key: 'medicineName'
-  },
-  {
-    title: 'Quantity',
-    dataIndex: 'quantityText',
-    key: 'quantityText'
-  },
-  {
     title: 'Diserahkan',
     dataIndex: 'handedOverAt',
     key: 'handedOverAt'
-  },
-  {
-    title: 'Petugas',
-    dataIndex: 'performerName',
-    key: 'performerName'
   }
 ]
 
 export function MedicationDispenseTable() {
-  const navigate = useNavigate()
-  const [search, setSearch] = useState('')
+	const navigate = useNavigate()
+	const [search, setSearch] = useState('')
 
-  const { data, refetch, isError } = useQuery({
-    queryKey: ['medicationDispense', 'list'],
-    queryFn: async () => {
-      const api = window.api?.query as {
-        medicationDispense?: {
-          list: (args: MedicationDispenseListArgs) => Promise<MedicationDispenseListResult>
-        }
-      }
+	const { data, refetch, isError } = useQuery({
+		queryKey: ['medicationDispense', 'list'],
+		queryFn: async () => {
+			const api = window.api?.query as {
+				medicationDispense?: {
+					list: (args: MedicationDispenseListArgs) => Promise<MedicationDispenseListResult>
+				}
+			}
 
-      const fn = api?.medicationDispense?.list
-      if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
+			const fn = api?.medicationDispense?.list
+			if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
 
-      const res = await fn({})
-      console.log('MedicationDispenseTable query result:', res)
-      return res
-    }
-  })
+			const res = await fn({})
+			return res
+		}
+	})
 
-  const filtered = useMemo(() => {
-    const source: MedicationDispenseAttributes[] = Array.isArray(data?.data)
-      ? data.data
-      : []
-    const q = search.trim().toLowerCase()
-    if (!q) return source
+	const filtered = useMemo(() => {
+		const source: MedicationDispenseAttributes[] = Array.isArray(data?.data)
+			? data.data
+			: []
+		const q = search.trim().toLowerCase()
+		if (!q) return source
 
-    return source.filter((item) => {
-      const patientName = getPatientDisplayName(item.patient).toLowerCase()
-      const medicineName = item.medication?.name?.toLowerCase() ?? ''
-      return patientName.includes(q) || medicineName.includes(q)
-    })
-  }, [data?.data, search])
+		return source.filter((item) => {
+			const patientName = getPatientDisplayName(item.patient).toLowerCase()
+			const medicineName = item.medication?.name?.toLowerCase() ?? ''
+			return patientName.includes(q) || medicineName.includes(q)
+		})
+	}, [data?.data, search])
 
-  const tableData: RowData[] = useMemo(() => {
-    return filtered.map((item) => {
-      const quantityValue = item.quantity?.value
-      const quantityUnit = item.quantity?.unit
-      const quantityText = typeof quantityValue === 'number'
-        ? `${quantityValue}${quantityUnit ? ` ${quantityUnit}` : ''}`
-        : '-'
+	const groupedData = useMemo<ParentRow[]>(() => {
+		const groups = new Map<string, ParentRow>()
 
-      const handedOverAt = item.whenHandedOver
-        ? dayjs(item.whenHandedOver).format('DD/MM/YYYY HH:mm')
-        : '-'
+		filtered.forEach((item) => {
+			const handedKey = item.whenHandedOver
+				? dayjs(item.whenHandedOver).format('YYYY-MM-DD HH:mm')
+				: 'pending'
+			const key = `${item.patientId}-${handedKey}`
 
-      return {
-        key: String(item.id ?? `${item.patientId}-${item.medicationId}`),
-        id: item.id,
-        patient: item.patient,
-        status: item.status,
-        medicineName: item.medication?.name,
-        quantityText,
-        handedOverAt,
-        performerName: item.performer?.name
-      }
-    })
-  }, [filtered])
+			const quantityValue = item.quantity?.value
+			const quantityUnit = item.quantity?.unit
+			const quantityText = typeof quantityValue === 'number'
+				? `${quantityValue}${quantityUnit ? ` ${quantityUnit}` : ''}`
+				: '-'
 
-  return (
-    <div>
-      <h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat (Dispensing)</h2>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <Input
-          type="text"
-          placeholder="Cari Pasien atau Obat"
-          className="w-full md:max-w-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="flex gap-2 flex-wrap md:justify-end">
-          <Button onClick={() => refetch()}>Refresh</Button>
-          <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
-            Ke Daftar Resep
-          </Button>
-        </div>
-      </div>
-      {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table
-        dataSource={tableData}
-        columns={columns}
-        size="small"
-        className="mt-4 rounded-xl shadow-sm"
-        rowKey="key"
-        scroll={{ x: 'max-content' }}
-      />
-    </div>
-  )
+			const handedOverAt = item.whenHandedOver
+				? dayjs(item.whenHandedOver).format('DD/MM/YYYY HH:mm')
+				: '-'
+
+			const rowItem: DispenseItemRow = {
+				key: `${key}-${item.id ?? item.medicationId}`,
+				medicineName: item.medication?.name,
+				quantityText,
+				status: item.status,
+				performerName: item.performer?.name
+			}
+
+			const existing = groups.get(key)
+			if (!existing) {
+				groups.set(key, {
+					key,
+					patient: item.patient,
+					status: item.status,
+					handedOverAt,
+					items: [rowItem]
+				})
+			} else {
+				existing.items.push(rowItem)
+			}
+		})
+
+		return Array.from(groups.values())
+	}, [filtered])
+
+	return (
+		<div>
+			<h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat (Dispensing)</h2>
+			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+				<Input
+					type="text"
+					placeholder="Cari Pasien atau Obat"
+					className="w-full md:max-w-sm"
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+				/>
+				<div className="flex gap-2 flex-wrap md:justify-end">
+					<Button onClick={() => refetch()}>Refresh</Button>
+					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
+						Ke Daftar Resep
+					</Button>
+				</div>
+			</div>
+			{isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
+			<Table
+				dataSource={groupedData}
+				columns={columns}
+				size="small"
+				className="mt-4 rounded-xl shadow-sm"
+				rowKey="key"
+				scroll={{ x: 'max-content' }}
+				expandable={{
+					expandedRowRender: (record: ParentRow) => {
+						const detailColumns = [
+							{ title: 'Obat', dataIndex: 'medicineName', key: 'medicineName' },
+							{ title: 'Quantity', dataIndex: 'quantityText', key: 'quantityText' },
+							{ title: 'Status', dataIndex: 'status', key: 'status' },
+							{ title: 'Petugas', dataIndex: 'performerName', key: 'performerName' }
+						]
+
+						return (
+							<Table
+								columns={detailColumns}
+								dataSource={record.items}
+								pagination={false}
+								size="small"
+								rowKey="key"
+							/>
+						)
+					}
+				}}
+			/>
+		</div>
+	)
 }
 
 export default MedicationDispenseTable
