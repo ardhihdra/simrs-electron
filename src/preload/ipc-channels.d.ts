@@ -15,6 +15,7 @@ import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
+import type * as Mod_query_medicationDispense from '@main/routes/query/medicationDispense'
 import type * as Mod_query_medicationRequest from '@main/routes/query/medicationRequest'
 import type * as Mod_query_medicine from '@main/routes/query/medicine'
 import type * as Mod_query_medicineBrand from '@main/routes/query/medicineBrand'
@@ -150,6 +151,8 @@ type Args_Mod_query_medicalStaffSchedule_list = InferArgs<typeof Mod_query_medic
 type Result_Mod_query_medicalStaffSchedule_list = InferResult<typeof Mod_query_medicalStaffSchedule, 'list'>
 type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_medicalStaffSchedule, 'update'>
 type Result_Mod_query_medicalStaffSchedule_update = InferResult<typeof Mod_query_medicalStaffSchedule, 'update'>
+type Args_Mod_query_medicationDispense_list = InferArgs<typeof Mod_query_medicationDispense, 'list'>
+type Result_Mod_query_medicationDispense_list = InferResult<typeof Mod_query_medicationDispense, 'list'>
 type Args_Mod_query_medicationRequest_create = InferArgs<typeof Mod_query_medicationRequest, 'create'>
 type Result_Mod_query_medicationRequest_create = InferResult<typeof Mod_query_medicationRequest, 'create'>
 type Args_Mod_query_medicationRequest_deleteById = InferArgs<typeof Mod_query_medicationRequest, 'deleteById'>
@@ -337,6 +340,9 @@ declare global {
           getById: Invoke<Args_Mod_query_medicalStaffSchedule_getById, Result_Mod_query_medicalStaffSchedule_getById>
           list: Invoke<Args_Mod_query_medicalStaffSchedule_list, Result_Mod_query_medicalStaffSchedule_list>
           update: Invoke<Args_Mod_query_medicalStaffSchedule_update, Result_Mod_query_medicalStaffSchedule_update>
+        }
+        medicationDispense: {
+          list: Invoke<Args_Mod_query_medicationDispense_list, Result_Mod_query_medicationDispense_list>
         }
         medicationRequest: {
           create: Invoke<Args_Mod_query_medicationRequest_create, Result_Mod_query_medicationRequest_create>

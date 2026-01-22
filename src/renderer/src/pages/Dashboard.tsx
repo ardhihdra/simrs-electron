@@ -163,7 +163,8 @@ const items = [
       { label: 'Master Obat - Kategori', key: '/dashboard/medicine/medicine-categories', icon: <DashboardOutlined /> },
       { label: 'Master Obat - Merek', key: '/dashboard/medicine/medicine-brands', icon: <DashboardOutlined /> },
       { label: 'Master Obat', key: '/dashboard/medicine/medicines', icon: <DashboardOutlined /> },
-      { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <DashboardOutlined /> }
+      { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <DashboardOutlined /> },
+      { label: 'Penyerahan Obat (Dispensing)', key: '/dashboard/medicine/medication-dispenses', icon: <DashboardOutlined /> }
     ]
   },
   {
