@@ -63,8 +63,10 @@ interface FormData {
     quantity?: number
     quantityUnit?: string
     items: Array<{
-      medicationId: number
-      note?: string // Used for strength/amount in racikan
+      sourceType?: 'medicine' | 'substance'
+      medicationId?: number
+      rawMaterialId?: number
+      note?: string
     }>
   }>
 }
@@ -114,6 +116,25 @@ export function MedicationRequestForm() {
     queryFn: () => window.api?.query?.medicine?.list({ limit: 100 })
   })
 
+  interface RawMaterialAttributes {
+    id?: number
+    name: string
+  }
+
+  interface RawMaterialApi {
+    list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
+  }
+
+  const { data: rawMaterialData, isLoading: rawMaterialLoading } = useQuery({
+    queryKey: ['rawMaterial', 'list'],
+    queryFn: async () => {
+      const api = (window.api?.query as { rawMaterial?: RawMaterialApi }).rawMaterial
+      const fn = api?.list
+      if (!fn) throw new Error('API bahan baku tidak tersedia.')
+      return fn()
+    }
+  })
+
   const { data: encounterData, isLoading: encounterLoading } = useQuery({
     queryKey: ['encounter', 'list', selectedPatientId],
     queryFn: () => window.api?.query?.encounter?.list({ 
@@ -136,6 +157,16 @@ export function MedicationRequestForm() {
   const medicineOptions = useMemo(() => 
     ((medicineData?.result || []) as any[]).map((m) => ({ label: m.name, value: m.id })), 
     [medicineData]
+  )
+
+  const rawMaterialOptions = useMemo(
+    () => {
+      const source = ((rawMaterialData?.result || rawMaterialData?.data) || []) as RawMaterialAttributes[]
+      return source
+        .filter((rm) => typeof rm.id === 'number')
+        .map((rm) => ({ label: rm.name, value: rm.id as number }))
+    },
+    [rawMaterialData]
   )
 
   const encounterOptions = useMemo(() => 
@@ -300,16 +331,18 @@ export function MedicationRequestForm() {
         ? compounds.flatMap((comp, idx) => {
             const compoundId = `${Date.now()}-comp-${idx}`
             const compoundItems = comp.items ?? []
-            return compoundItems.map((item) => ({
-              ...commonPayload,
-              groupIdentifier,
-              medicationId: item.medicationId,
-              dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
-              identifier: [{ system: 'racikan-group', value: compoundId }],
-              note: `[Racikan: ${comp.name}] ${item.note || ''}`,
-              category: [{ text: 'racikan', code: 'compound' }],
-              dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit)
-            }))
+            return compoundItems
+              .filter((item) => typeof item.medicationId === 'number')
+              .map((item) => ({
+                ...commonPayload,
+                groupIdentifier,
+                medicationId: item.medicationId as number,
+                dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
+                identifier: [{ system: 'racikan-group', value: compoundId }],
+                note: `[Racikan: ${comp.name}] ${item.note || ''}`,
+                category: [{ text: 'racikan', code: 'compound' }],
+                dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit)
+              }))
           })
         : []
 
@@ -343,16 +376,19 @@ export function MedicationRequestForm() {
 
        const compoundPayloads = compounds.flatMap((comp, idx) => {
         const compoundId = `${Date.now()}-comp-${idx}`
-        return (comp.items || []).map(item => ({
-           ...commonPayload,
-           groupIdentifier,
-           medicationId: item.medicationId,
-           dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
-           identifier: [{ system: 'racikan-group', value: compoundId }],
-           note: `[Racikan: ${comp.name}] ${item.note || ''}`,
-           category: [{ text: 'racikan', code: 'compound' }],
-           dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit)
-        }))
+        const compoundItems = comp.items || []
+        return compoundItems
+          .filter(item => typeof item.medicationId === 'number')
+          .map(item => ({
+             ...commonPayload,
+             groupIdentifier,
+             medicationId: item.medicationId as number,
+             dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
+             identifier: [{ system: 'racikan-group', value: compoundId }],
+             note: `[Racikan: ${comp.name}] ${item.note || ''}`,
+             category: [{ text: 'racikan', code: 'compound' }],
+             dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit)
+          }))
        })
 
        const payload = [...simplePayloads, ...compoundPayloads]
@@ -426,7 +462,7 @@ export function MedicationRequestForm() {
             <Form.List name="items">
               {(fields, { add, remove }) => (
                 <div className="space-y-4">
-                  {fields.map(({ key, name, ...restField }) => (
+                  {fields.map(({ key, name, ...restField }, index) => (
                     <div
                       key={key}
                       className="flex gap-4 items-start bg-gray-50 p-4 rounded-lg relative group"
@@ -482,7 +518,7 @@ export function MedicationRequestForm() {
                           <Input placeholder="Catatan..." />
                         </Form.Item>
                       </div>
-                      {!isEdit && fields.length > 1 && (
+                      {fields.length > 1 && index > 0 && (
                         <Button
                           type="text"
                           danger
@@ -493,13 +529,11 @@ export function MedicationRequestForm() {
                       )}
                     </div>
                   ))}
-                  {!isEdit && (
-                    <Form.Item>
-                      <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                        Tambah Obat
-                      </Button>
-                    </Form.Item>
-                  )}
+                  <Form.Item>
+                    <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                      Tambah Obat
+                    </Button>
+                  </Form.Item>
                 </div>
               )}
             </Form.List>
@@ -567,16 +601,61 @@ export function MedicationRequestForm() {
                                   <div key={subField.key} className="flex gap-2 items-start">
                                     <Form.Item
                                       {...subField}
-                                      name={[subField.name, 'medicationId']}
-                                      className="mb-0 flex-1"
-                                      rules={[{ required: true, message: 'Pilih obat' }]}
+                                      name={[subField.name, 'sourceType']}
+                                      className="mb-0 w-32"
+                                      initialValue="medicine"
                                     >
                                       <Select
-                                        options={medicineOptions}
-                                        placeholder="Pilih Obat"
-                                        showSearch
-                                        optionFilterProp="label"
+                                        options={[
+                                          { label: 'Obat', value: 'medicine' },
+                                          { label: 'Bahan Baku', value: 'substance' }
+                                        ]}
                                       />
+                                    </Form.Item>
+                                    <Form.Item shouldUpdate noStyle>
+                                      {() => {
+                                        const compounds = form.getFieldValue('compounds') as FormData['compounds']
+                                        const compound = Array.isArray(compounds) ? compounds[name] : undefined
+                                        const items = compound?.items || []
+                                        const currentItem = items[subField.name] || {}
+                                        const sourceType = currentItem.sourceType || 'medicine'
+
+                                        if (sourceType === 'substance') {
+                                          return (
+                                            <Form.Item
+                                              {...subField}
+                                              name={[subField.name, 'rawMaterialId']}
+                                              className="mb-0 flex-1"
+                                              rules={[{ required: true, message: 'Pilih bahan baku' }]}
+                                            >
+                                              <Select
+                                                options={rawMaterialOptions}
+                                                placeholder="Pilih Bahan Baku"
+                                                showSearch
+                                                optionFilterProp="label"
+                                                loading={rawMaterialLoading}
+                                              />
+                                            </Form.Item>
+                                          )
+                                        }
+
+                                        return (
+                                          <Form.Item
+                                            {...subField}
+                                            name={[subField.name, 'medicationId']}
+                                            className="mb-0 flex-1"
+                                            rules={[{ required: true, message: 'Pilih obat' }]}
+                                          >
+                                            <Select
+                                              options={medicineOptions}
+                                              placeholder="Pilih Obat"
+                                              showSearch
+                                              optionFilterProp="label"
+                                              loading={medicineLoading}
+                                            />
+                                          </Form.Item>
+                                        )
+                                      }}
                                     </Form.Item>
                                     <Form.Item
                                       {...subField}
