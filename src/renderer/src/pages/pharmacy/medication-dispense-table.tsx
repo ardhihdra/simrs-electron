@@ -1,7 +1,7 @@
 import { Button, Input, Table, Tag, message } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useLocation } from 'react-router'
 import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
 
@@ -44,6 +44,7 @@ interface MedicationDispenseAttributes {
 	status: string
 	medicationId: number
 	patientId: string
+	authorizingPrescriptionId?: number | null
 	whenHandedOver?: string
 	quantity?: QuantityInfo | null
 	patient?: PatientInfo
@@ -203,8 +204,18 @@ const columns = [
 
 export function MedicationDispenseTable() {
 	const navigate = useNavigate()
+	const location = useLocation()
 	const [search, setSearch] = useState('')
 	const [showOnlyPending, setShowOnlyPending] = useState(false)
+
+	const prescriptionIdParam = useMemo(() => {
+		const params = new URLSearchParams(location.search)
+		const raw = params.get('authorizingPrescriptionId')
+		if (!raw) return undefined
+		const parsed = Number(raw)
+		if (Number.isNaN(parsed)) return undefined
+		return parsed
+	}, [location.search])
 
 	const { data, refetch, isError } = useQuery({
 		queryKey: ['medicationDispense', 'list'],
@@ -232,6 +243,10 @@ export function MedicationDispenseTable() {
 			source = source.filter((item) => item.status !== 'completed')
 		}
 
+		if (typeof prescriptionIdParam === 'number') {
+			source = source.filter((item) => item.authorizingPrescriptionId === prescriptionIdParam)
+		}
+
 		const q = search.trim().toLowerCase()
 		if (!q) return source
 
@@ -240,7 +255,7 @@ export function MedicationDispenseTable() {
 			const medicineName = item.medication?.name?.toLowerCase() ?? ''
 			return patientName.includes(q) || medicineName.includes(q)
 		})
-	}, [data?.data, search, showOnlyPending])
+	}, [data?.data, search, showOnlyPending, prescriptionIdParam])
 
 	const groupedData = useMemo<ParentRow[]>(() => {
 		const groups = new Map<string, ParentRow>()
@@ -310,6 +325,11 @@ export function MedicationDispenseTable() {
 					</Button>
 				</div>
 			</div>
+			{typeof prescriptionIdParam === 'number' && (
+				<div className="mt-2 text-sm text-gray-500">
+					Menampilkan riwayat dispense untuk resep ID {prescriptionIdParam}
+				</div>
+			)}
 			{isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
 			<Table
 				dataSource={groupedData}

@@ -229,6 +229,17 @@ function RowActions({ record }: { record: ParentRow }) {
         }
       }
     },
+		{
+			key: 'history',
+			label: 'Riwayat Dispense',
+			onClick: () => {
+				if (typeof record.baseId === 'number') {
+					navigate(
+						`/dashboard/medicine/medication-dispenses?authorizingPrescriptionId=${record.baseId}`
+					)
+				}
+			}
+		},
     { type: 'divider' },
     {
       key: 'edit',
