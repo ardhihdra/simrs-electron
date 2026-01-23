@@ -21,6 +21,7 @@ interface RawMaterialAttributes {
   description?: string | null
   category?: { name: string } | null
   defaultSupplier?: { nama: string } | null
+  stock?: number
 }
 
 type RawMaterialApi = {
@@ -34,6 +35,7 @@ const columns = [
   { title: 'Supplier Default', dataIndex: 'defaultSupplier', key: 'defaultSupplier', render: (v: { nama: string } | null) => (v?.nama || '-') },
   { title: 'Kode Internal', dataIndex: 'internalCode', key: 'internalCode', render: (v: string | null) => v || '-' },
   { title: 'CAS', dataIndex: 'casCode', key: 'casCode', render: (v: string | null) => v || '-' },
+  { title: 'Stok', dataIndex: 'stock', key: 'stock', width: 100, render: (value: number | null | undefined) => (typeof value === 'number' ? value : 0) },
   { title: 'Action', key: 'action', width: 80, align: 'center' as const, render: (_: RawMaterialAttributes, r: RawMaterialAttributes) => <RowActions record={r} /> }
 ]
 

@@ -21,7 +21,8 @@ export const RawMaterialSchema = z.object({
   hazardClass: z.string().nullable().optional(),
   msdsUrl: z.string().nullable().optional(),
   status: z.boolean().optional(),
-  description: z.string().nullable().optional()
+  description: z.string().nullable().optional(),
+  stock: z.number().optional()
 })
 
 export const RawMaterialWithIdSchema = RawMaterialSchema.extend({

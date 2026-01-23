@@ -185,6 +185,27 @@ function RowActions({ record }: { record: DispenseItemRow }) {
 	const canComplete = !isCompleted && !isTerminal && typeof record.id === 'number'
 	const canVoid = isCompleted && typeof record.id === 'number'
 
+	const handlePrintLabel = () => {
+		const name = record.medicineName ?? 'Obat'
+		const quantityValue = typeof record.quantity === 'number' ? record.quantity : 0
+		const unitLabel = record.unit ?? ''
+		const instructionText = record.instruksi ?? ''
+
+		const parts: string[] = []
+		parts.push(`Nama Obat: ${name}`)
+		parts.push(`Qty: ${quantityValue} ${unitLabel}`.trim())
+		if (instructionText.trim().length > 0) {
+			parts.push(`Instruksi: ${instructionText}`)
+		}
+
+		const content = parts.join(' | ')
+		if (content.length === 0) {
+			message.info('Data label obat tidak tersedia')
+			return
+		}
+		message.info(content)
+	}
+
 	return (
 		<div className="flex gap-2">
 			{canComplete && (
@@ -220,6 +241,9 @@ function RowActions({ record }: { record: DispenseItemRow }) {
 					Return / Void
 				</Button>
 			)}
+			<Button type="default" size="small" onClick={handlePrintLabel}>
+				Cetak Label
+			</Button>
 		</div>
 	)
 }

@@ -8,7 +8,8 @@ export const MedicineSchema = z.object({
   buyingPrice: z.coerce.number(),
   sellingPrice: z.coerce.number(),
   sideEffects: z.string().nullable().optional(),
-  description: z.string().nullable().optional()
+  description: z.string().nullable().optional(),
+  stock: z.number().optional()
 })
 
 

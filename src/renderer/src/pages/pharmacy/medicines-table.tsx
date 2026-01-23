@@ -13,6 +13,7 @@ interface MedicineAttributes {
   medicineBrandId: number; 
   buyingPrice: number; 
   sellingPrice: number; 
+  stock?: number;
   category?: { name: string }; 
   brand?: { name: string }; 
 }
@@ -21,6 +22,7 @@ const columns = [
   { title: 'Medicine', dataIndex: 'name', key: 'name' },
   { title: 'Category', dataIndex: 'category', key: 'category', render: (val: any) => val ? val.name : '-' },
   { title: 'Brand', dataIndex: 'brand', key: 'brand', render: (val: any) => val ? val.name : '-' },
+  { title: 'Stock', dataIndex: 'stock', key: 'stock', width: 100, render: (value: number | null | undefined) => (typeof value === 'number' ? value : 0) },
   { title: 'Buying', dataIndex: 'buyingPrice', key: 'buyingPrice', width: 120 },
   { title: 'Selling', dataIndex: 'sellingPrice', key: 'sellingPrice', width: 120 },
   { title: 'Action', key: 'action', width: 60, align: 'center' as const, render: (_: MedicineAttributes, r: MedicineAttributes) => <RowActions record={r} /> }
