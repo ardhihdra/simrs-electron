@@ -66,40 +66,48 @@ interface MedicationRequestAttributes {
 }
 
 interface MedicationItemRow {
-  key: string
-  jenis: string
-  namaObat: string
-  quantity?: number
-  unit?: string
-  instruksi?: string
+	key: string
+	jenis: string
+	namaObat: string
+	quantity?: number
+	unit?: string
+	instruksi?: string
 }
 
 interface ParentRow {
-  key: string
-  baseId?: number
-  patient?: PatientInfo
-  status: string
-  intent: string
-  priority?: string
-  authoredOn?: string
-  items: MedicationItemRow[]
+	key: string
+	baseId?: number
+	patient?: PatientInfo
+	status: string
+	intent: string
+	priority?: string
+	authoredOn?: string
+	isPartial?: boolean
+	items: MedicationItemRow[]
+}
+
+interface MedicationDispenseQuantityInfo {
+	value?: number
+	unit?: string
 }
 
 interface MedicationDispenseForFilter {
-  id?: number
-  authorizingPrescriptionId?: number | null
+	id?: number
+	authorizingPrescriptionId?: number | null
+	status?: string
+	quantity?: MedicationDispenseQuantityInfo | null
 }
 
 interface MedicationDispenseListResultForFilter {
-  success: boolean
-  data?: MedicationDispenseForFilter[]
-  pagination?: {
-    page: number
-    limit: number
-    total: number
-    pages: number
-  }
-  error?: string
+	success: boolean
+	data?: MedicationDispenseForFilter[]
+	pagination?: {
+		page: number
+		limit: number
+		total: number
+		pages: number
+	}
+	error?: string
 }
 
 function getPatientDisplayName(patient?: PatientInfo): string {
@@ -160,7 +168,12 @@ const columns = [
     title: 'Status',
     dataIndex: 'status',
     key: 'status',
-    render: (val: string) => <Tag color={val === 'active' ? 'green' : 'default'}>{val}</Tag>
+		render: (val: string, record: ParentRow) => {
+			if (val === 'active' && record.isPartial) {
+				return <Tag color="gold">active (parsial)</Tag>
+			}
+			return <Tag color={val === 'active' ? 'green' : 'default'}>{val}</Tag>
+		}
   },
   {
     title: 'Tujuan',
@@ -206,34 +219,15 @@ function RowActions({ record }: { record: ParentRow }) {
       queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
     }
   })
-  const processDispenseMutation = useMutation({
-    mutationKey: ['medicationDispense', 'createFromRequest'],
-    mutationFn: async (id: number) => {
-      const api = window.api?.query as {
-        medicationDispense?: {
-          createFromRequest: (args: {
-            medicationRequestId: number
-          }) => Promise<{ success: boolean; error?: string }>
-        }
-      }
-
-      const fn = api?.medicationDispense?.createFromRequest
-      if (!fn) {
-        throw new Error('API MedicationDispense tidak tersedia.')
-      }
-
-      return fn({ medicationRequestId: id })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
-    }
-  })
   const items: MenuProps['items'] = [
     {
       key: 'process-dispense',
       label: 'Proses Dispense',
-      onClick: () =>
-        typeof record.baseId === 'number' && processDispenseMutation.mutate(record.baseId)
+      onClick: () => {
+        if (typeof record.baseId === 'number') {
+          navigate(`/dashboard/medicine/medication-requests/dispense/${record.baseId}`)
+        }
+      }
     },
     { type: 'divider' },
     {
@@ -266,66 +260,66 @@ function RowActions({ record }: { record: ParentRow }) {
 export function MedicationRequestTable() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
-  const { data, refetch, isError } = useQuery({
-    queryKey: ['medicationRequest', 'list'],
-    queryFn: async () => {
-      const fn = window.api?.query?.medicationRequest?.list
-      if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
-      const res = await fn({})
-      console.log('MedicationRequest List Response (Renderer):', res)
-      return res
-    }
-  })
+	const { data, refetch, isError } = useQuery({
+		queryKey: ['medicationRequest', 'list'],
+		queryFn: async () => {
+			const fn = window.api?.query?.medicationRequest?.list
+			if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
+			const res = await fn({})
+			console.log('MedicationRequest List Response (Renderer):', res)
+			return res
+		}
+	})
 
-  const { data: dispenseListData } = useQuery({
-    queryKey: ['medicationDispense', 'forFilter'],
-    queryFn: async () => {
-      const api = window.api?.query as {
-        medicationDispense?: {
-          list: (args?: { limit?: number }) => Promise<MedicationDispenseListResultForFilter>
-        }
-      }
+	const { data: dispenseListData } = useQuery({
+		queryKey: ['medicationDispense', 'forStatus'],
+		queryFn: async () => {
+			const api = window.api?.query as {
+				medicationDispense?: {
+					list: (args?: { limit?: number }) => Promise<MedicationDispenseListResultForFilter>
+				}
+			}
+			const fn = api?.medicationDispense?.list
+			if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
+			return fn({ limit: 1000 })
+		}
+	})
 
-      const fn = api?.medicationDispense?.list
-      if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
+	const dispensedSummaryByRequestId = useMemo(() => {
+		const source: MedicationDispenseForFilter[] = Array.isArray(dispenseListData?.data)
+			? dispenseListData.data
+			: []
 
-      return fn({ limit: 1000 })
-    }
-  })
+		const map = new Map<number, { totalCompleted: number }>()
 
-  const dispensedRequestIds = useMemo(() => {
-    const source: MedicationDispenseForFilter[] = Array.isArray(dispenseListData?.data)
-      ? dispenseListData.data
-      : []
+		source.forEach((item) => {
+			if (typeof item.authorizingPrescriptionId !== 'number') return
+			if (item.status !== 'completed') return
+			const qty = item.quantity?.value
+			if (typeof qty !== 'number') return
+			const prev = map.get(item.authorizingPrescriptionId) ?? { totalCompleted: 0 }
+			map.set(item.authorizingPrescriptionId, {
+				totalCompleted: prev.totalCompleted + qty
+			})
+		})
 
-    const idSet = new Set<number>()
+		return map
+	}, [dispenseListData?.data])
 
-    source.forEach((item) => {
-      if (typeof item.authorizingPrescriptionId === 'number') {
-        idSet.add(item.authorizingPrescriptionId)
-      }
-    })
+	const filtered = useMemo(() => {
+		const source: MedicationRequestAttributes[] = Array.isArray(data?.data)
+			? (data.data as MedicationRequestAttributes[])
+			: []
 
-    return idSet
-  }, [dispenseListData?.data])
+		const baseFiltered = source.filter((request) => request.status === 'active')
 
-  const filtered = useMemo(() => {
-    const source: MedicationRequestAttributes[] = Array.isArray(data?.data)
-      ? (data.data as MedicationRequestAttributes[])
-      : []
-
-    const baseFiltered = source.filter((request) => {
-      if (typeof request.id !== 'number') return true
-      return !dispensedRequestIds.has(request.id)
-    })
-
-    const q = search.trim().toLowerCase()
-    if (!q) return baseFiltered
-    return baseFiltered.filter((p) => 
-      getPatientDisplayName(p.patient).toLowerCase().includes(q) || 
-      p.medication?.name?.toLowerCase().includes(q)
-    )
-  }, [data?.data, search, dispensedRequestIds])
+		const q = search.trim().toLowerCase()
+		if (!q) return baseFiltered
+		return baseFiltered.filter((p) =>
+			getPatientDisplayName(p.patient).toLowerCase().includes(q) ||
+			p.medication?.name?.toLowerCase().includes(q)
+		)
+	}, [data?.data, search])
 
   const groupedData = useMemo<ParentRow[]>(() => {
     const groups = new Map<string, ParentRow>()
@@ -345,6 +339,15 @@ export function MedicationRequestTable() {
 
       const existing = groups.get(key)
       if (!existing) {
+				let isPartial = false
+				if (typeof record.id === 'number') {
+					const summary = dispensedSummaryByRequestId.get(record.id)
+					const prescribed = record.dispenseRequest?.quantity?.value
+					const completed = summary?.totalCompleted ?? 0
+					if (typeof prescribed === 'number' && completed > 0 && completed < prescribed) {
+						isPartial = true
+					}
+				}
         groups.set(key, {
           key,
           baseId: record.id,
@@ -352,7 +355,8 @@ export function MedicationRequestTable() {
           status: record.status,
           intent: record.intent,
           priority: record.priority,
-          authoredOn: record.authoredOn,
+					authoredOn: record.authoredOn,
+					isPartial,
           items: [item]
         })
       } else {
@@ -360,8 +364,8 @@ export function MedicationRequestTable() {
       }
     })
 
-    return Array.from(groups.values())
-  }, [filtered])
+		return Array.from(groups.values())
+	}, [filtered, dispensedSummaryByRequestId])
 
   return (
     <div>

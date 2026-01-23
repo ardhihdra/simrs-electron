@@ -5,6 +5,15 @@ import { MedicationDispenseStatus } from '@main/models/enums/ResourceEnums'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
 
+interface QuantityInfo {
+	value?: number
+	unit?: string
+}
+
+interface DispenseRequestInfo {
+	quantity?: QuantityInfo
+}
+
 export const requireSession = true
 
 export const schemas = {
@@ -39,9 +48,15 @@ export const schemas = {
     })
   },
   createFromRequest: {
-    args: z.object({
-      medicationRequestId: z.number()
-    }),
+		args: z.object({
+			medicationRequestId: z.number(),
+			quantity: z
+				.object({
+					value: z.number().optional(),
+					unit: z.string().optional()
+				})
+				.optional()
+		}),
     result: z.object({
       success: z.boolean(),
       data: MedicationDispenseWithIdSchema.optional(),
@@ -127,11 +142,41 @@ export const createFromRequest = async (
       throw new Error('MedicationRequest tidak memiliki medicationId atau patientId yang valid.')
     }
 
-    const payload = {
+    const rawDispense = request.dispenseRequest
+
+    let quantity: QuantityInfo | undefined
+
+    if (args.quantity && typeof args.quantity.value === 'number') {
+      quantity = {
+        value: args.quantity.value,
+        unit: args.quantity.unit
+      }
+    } else if (rawDispense && typeof rawDispense === 'object') {
+      const maybe = rawDispense as DispenseRequestInfo
+      const rawQuantity = maybe.quantity
+      if (rawQuantity && typeof rawQuantity.value === 'number') {
+        quantity = {
+          value: rawQuantity.value,
+          unit: typeof rawQuantity.unit === 'string' ? rawQuantity.unit : undefined
+        }
+      }
+    }
+
+    const payload: {
+      medicationId: number
+      patientId: string
+      authorizingPrescriptionId: number
+      status: MedicationDispenseStatus
+      quantity?: QuantityInfo
+    } = {
       medicationId: request.medicationId,
       patientId: request.patientId,
       authorizingPrescriptionId: request.id,
       status: MedicationDispenseStatus.PREPARATION
+    }
+
+    if (quantity) {
+      payload.quantity = quantity
     }
 
     const createRes = await client.post('/api/medicationdispense', payload)

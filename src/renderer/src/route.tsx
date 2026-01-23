@@ -55,6 +55,7 @@ import MedicinesTable from './pages/pharmacy/medicines-table'
 import MedicinesForm from './pages/pharmacy/medicines-form'
 import MedicationRequestTable from './pages/pharmacy/medication-request-table'
 import MedicationRequestForm from './pages/pharmacy/medication-request-form'
+import MedicationDispenseFromRequest from './pages/pharmacy/medication-dispense-from-request'
 import MedicationDispenseTable from './pages/pharmacy/medication-dispense-table'
 
 function MainRoute() {
@@ -134,6 +135,7 @@ function MainRoute() {
           <Route path="medication-requests" element={<MedicationRequestTable />} />
           <Route path="medication-requests/create" element={<MedicationRequestForm />} />
           <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
+          <Route path="medication-requests/dispense/:id" element={<MedicationDispenseFromRequest />} />
           <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
         </Route>
         <Route path="farmasi" element={<PharmacyProduction />}>
