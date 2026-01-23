@@ -78,6 +78,30 @@ interface TableRow {
 	quantityDiambil?: number
 }
 
+interface MedicationDispenseQuantityInfo {
+	value?: number
+	unit?: string
+}
+
+interface MedicationDispenseForSummary {
+	id?: number
+	authorizingPrescriptionId?: number | null
+	status?: string
+	quantity?: MedicationDispenseQuantityInfo | null
+}
+
+interface MedicationDispenseListResultForSummary {
+	success: boolean
+	data?: MedicationDispenseForSummary[]
+	pagination?: {
+		page: number
+		limit: number
+		total: number
+		pages: number
+	}
+	error?: string
+}
+
 function getPatientDisplayName(patient?: PatientInfo): string {
 	if (!patient) return ''
 
@@ -131,6 +155,21 @@ export default function MedicationDispenseFromRequest() {
 			return fn({ id: requestId }) as Promise<BackendDetailResult>
 		},
 		enabled: Number.isFinite(requestId)
+	})
+
+	const { data: dispenseListData } = useQuery({
+		queryKey: ['medicationDispense', 'forCreateFromRequest', requestId],
+		enabled: Number.isFinite(requestId),
+		queryFn: async () => {
+			const api = window.api?.query as {
+				medicationDispense?: {
+					list: (args?: { limit?: number }) => Promise<MedicationDispenseListResultForSummary>
+				}
+			}
+			const fn = api?.medicationDispense?.list
+			if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
+			return fn({ limit: 1000 })
+		}
 	})
 
 	const createDispenseMutation = useMutation({
@@ -200,6 +239,31 @@ export default function MedicationDispenseFromRequest() {
 
 	const detail: MedicationRequestDetail | undefined = data?.data
 
+	const remainingQuantityFromHistory = useMemo(() => {
+		if (!detail || typeof detail.id !== 'number') return undefined
+		const prescribed = detail.dispenseRequest?.quantity?.value
+		if (typeof prescribed !== 'number') return undefined
+
+		const source: MedicationDispenseForSummary[] = Array.isArray(dispenseListData?.data)
+			? dispenseListData.data
+			: []
+
+		let totalCompleted = 0
+
+		source.forEach((item) => {
+			if (item.authorizingPrescriptionId !== detail.id) return
+			const qty = item.quantity?.value
+			if (typeof qty !== 'number') return
+			if (item.status === 'completed') {
+				totalCompleted += qty
+			}
+		})
+
+		const remaining = prescribed - totalCompleted
+		if (remaining <= 0) return 0
+		return remaining
+	}, [detail, dispenseListData?.data])
+
 	const tableData: TableRow[] = useMemo(() => {
 		if (!detail) return []
 		const quantityValue = detail.dispenseRequest?.quantity?.value
@@ -222,6 +286,15 @@ export default function MedicationDispenseFromRequest() {
 			}
 		]
 	}, [detail, quantityOverride])
+
+	const isPrescriptionFulfilled = useMemo(() => {
+		if (!detail) return false
+		if (detail.status === 'completed') return true
+		if (typeof remainingQuantityFromHistory === 'number') {
+			return remainingQuantityFromHistory <= 0
+		}
+		return false
+	}, [detail, remainingQuantityFromHistory])
 
 	const columns = [
 		{ title: 'Jenis Obat', dataIndex: 'jenis', key: 'jenis' },
@@ -283,11 +356,17 @@ export default function MedicationDispenseFromRequest() {
 					<Button
 						type="primary"
 						loading={createDispenseMutation.isPending}
+						disabled={isPrescriptionFulfilled}
 						onClick={() => createDispenseMutation.mutate()}
 					>
 						Buat Dispense
 					</Button>
 				</div>
+				{isPrescriptionFulfilled && (
+					<div className="mt-2 text-sm text-green-600">
+						Resep ini sudah terpenuhi, tidak dapat membuat dispense baru.
+					</div>
+				)}
 			</Card>
 		</div>
 	)

@@ -44,7 +44,8 @@ export const schemas = {
     result: z.object({
       success: z.boolean(),
       data: MedicationDispenseWithIdSchema.optional(),
-      error: z.string().optional()
+      error: z.string().optional(),
+      message: z.string().optional()
     })
   },
   createFromRequest: {
@@ -57,13 +58,15 @@ export const schemas = {
 				})
 				.optional()
 		}),
-    result: z.object({
-      success: z.boolean(),
-      data: MedicationDispenseWithIdSchema.optional(),
-      error: z.string().optional()
-    })
+		result: z.object({
+			 success: z.boolean(),
+			 data: MedicationDispenseWithIdSchema.optional(),
+			 error: z.string().optional(),
+			 message: z.string().optional()
+		})
   }
 } as const
+
 
 type ListArgs = z.infer<typeof schemas.list.args>
 
@@ -130,7 +133,8 @@ export const createFromRequest = async (
     const ReadSchema = z.object({
       success: z.boolean(),
       result: MedicationRequestWithIdSchema.optional(),
-      error: z.string().optional()
+      error: z.string().optional(),
+      message: z.string().optional()
     })
     const request = await parseBackendResponse(requestRes, ReadSchema)
 
@@ -183,7 +187,8 @@ export const createFromRequest = async (
     const CreateSchema = z.object({
       success: z.boolean(),
       result: MedicationDispenseWithIdSchema.optional(),
-      error: z.string().optional()
+      error: z.string().optional(),
+      message: z.string().optional()
     })
     const created = await parseBackendResponse(createRes, CreateSchema)
 

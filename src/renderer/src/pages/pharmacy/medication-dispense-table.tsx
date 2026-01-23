@@ -71,6 +71,27 @@ interface MedicationDispenseListResult {
   error?: string
 }
 
+interface MedicationRequestQuantityInfo {
+	value?: number
+	unit?: string
+}
+
+interface MedicationRequestDispenseRequestInfo {
+	quantity?: MedicationRequestQuantityInfo
+}
+
+interface MedicationRequestDetailForSummary {
+	id?: number
+	medication?: MedicationInfo
+	dispenseRequest?: MedicationRequestDispenseRequestInfo | null
+}
+
+interface MedicationRequestDetailResult {
+	success: boolean
+	data?: MedicationRequestDetailForSummary
+	error?: string
+}
+
 interface DispenseItemRow {
 	key: string
 	id?: number
@@ -91,16 +112,21 @@ interface ParentRow {
 	items: DispenseItemRow[]
 }
 
+function getStatusLabel(status: string): string {
+	if (status === 'entered-in-error') return 'return'
+	return status
+}
+
 function RowActions({ record }: { record: DispenseItemRow }) {
 	const updateMutation = useMutation({
-		mutationKey: ['medicationDispense', 'update'],
+		mutationKey: ['medicationDispense', 'update', 'complete'],
 		mutationFn: async () => {
 			if (typeof record.id !== 'number') {
 				throw new Error('ID MedicationDispense tidak valid.')
 			}
 			const fn = window.api?.query?.medicationDispense?.update
 			if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
-			const payload = {
+			const payload: { id: number; status: 'completed'; whenHandedOver: string } = {
 				id: record.id,
 				status: 'completed',
 				whenHandedOver: new Date().toISOString()
@@ -121,23 +147,68 @@ function RowActions({ record }: { record: DispenseItemRow }) {
 		}
 	})
 
-	const disabled =
-		updateMutation.isPending ||
-		record.status === 'completed' ||
+	const voidMutation = useMutation({
+		mutationKey: ['medicationDispense', 'update', 'void'],
+		mutationFn: async () => {
+			if (typeof record.id !== 'number') {
+				throw new Error('ID MedicationDispense tidak valid.')
+			}
+			const fn = window.api?.query?.medicationDispense?.update
+			if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
+			const payload: { id: number; status: 'entered-in-error' } = {
+				id: record.id,
+				status: 'entered-in-error'
+			}
+			const res = await fn(payload as never)
+			if (!res.success) {
+				throw new Error(res.error || 'Gagal melakukan Return/Void MedicationDispense')
+			}
+			return res
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
+			message.success('Dispense berhasil di-void / dikembalikan')
+		},
+		onError: (error) => {
+			const msg = error instanceof Error ? error.message : String(error)
+			message.error(msg || 'Gagal melakukan Return/Void MedicationDispense')
+		}
+	})
+
+	const isCompleted = record.status === 'completed'
+	const isTerminal =
 		record.status === 'cancelled' ||
 		record.status === 'declined' ||
-		typeof record.id !== 'number'
+		record.status === 'entered-in-error'
+	const canComplete = !isCompleted && !isTerminal && typeof record.id === 'number'
+	const canVoid = isCompleted && typeof record.id === 'number'
 
 	return (
-		<Button
-			type="primary"
-			size="small"
-			disabled={disabled}
-			loading={updateMutation.isPending}
-			onClick={() => updateMutation.mutate()}
-		>
-			Serahkan Obat
-		</Button>
+		<div className="flex gap-2">
+			{canComplete && (
+				<Button
+					type="primary"
+					size="small"
+					disabled={updateMutation.isPending}
+					loading={updateMutation.isPending}
+					onClick={() => updateMutation.mutate()}
+				>
+					Serahkan Obat
+				</Button>
+			)}
+			{canVoid && (
+				<Button
+					type="default"
+					size="small"
+					danger
+					disabled={voidMutation.isPending}
+					loading={voidMutation.isPending}
+					onClick={() => voidMutation.mutate()}
+				>
+					Return / Void
+				</Button>
+			)}
+		</div>
 	)
 }
 
@@ -191,8 +262,13 @@ const columns = [
 		dataIndex: 'status',
     key: 'status',
     render: (val: string) => {
-      const color = val === 'completed' ? 'green' : val === 'cancelled' ? 'red' : 'default'
-      return <Tag color={color}>{val}</Tag>
+	      const color =
+	        val === 'completed'
+	          ? 'green'
+	          : val === 'cancelled' || val === 'entered-in-error'
+	          ? 'red'
+	          : 'default'
+	      return <Tag color={color}>{getStatusLabel(val)}</Tag>
     }
   },
   {
@@ -234,6 +310,24 @@ export function MedicationDispenseTable() {
 		}
 	})
 
+	const { data: prescriptionDetailData } = useQuery({
+		queryKey: ['medicationRequest', 'detailForDispenseSummary', prescriptionIdParam],
+		enabled: typeof prescriptionIdParam === 'number',
+		queryFn: async () => {
+			if (typeof prescriptionIdParam !== 'number') {
+				throw new Error('Prescription ID tidak valid.')
+			}
+			const api = window.api?.query as {
+				medicationRequest?: {
+					getById: (args: { id: number }) => Promise<MedicationRequestDetailResult>
+				}
+			}
+			const fn = api?.medicationRequest?.getById
+			if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
+			return fn({ id: prescriptionIdParam })
+		}
+	})
+
 	const filtered = useMemo(() => {
 		let source: MedicationDispenseAttributes[] = Array.isArray(data?.data)
 			? data.data
@@ -256,6 +350,51 @@ export function MedicationDispenseTable() {
 			return patientName.includes(q) || medicineName.includes(q)
 		})
 	}, [data?.data, search, showOnlyPending, prescriptionIdParam])
+
+	const summaryForPrescription = useMemo(() => {
+		if (typeof prescriptionIdParam !== 'number') return undefined
+
+		const source: MedicationDispenseAttributes[] = Array.isArray(data?.data)
+			? data.data
+			: []
+
+		let totalCompleted = 0
+
+		source.forEach((item) => {
+			if (item.authorizingPrescriptionId !== prescriptionIdParam) return
+			const qty = item.quantity?.value
+			if (typeof qty !== 'number') return
+			if (item.status === 'completed') {
+				totalCompleted += qty
+			}
+		})
+
+		const prescribedQuantity =
+			prescriptionDetailData?.data?.dispenseRequest?.quantity?.value
+		const quantityUnit =
+			prescriptionDetailData?.data?.dispenseRequest?.quantity?.unit
+
+		let remaining: number | undefined
+		if (typeof prescribedQuantity === 'number') {
+			remaining = prescribedQuantity - totalCompleted
+			if (remaining < 0) {
+				remaining = 0
+			}
+		}
+
+		const medicationName = prescriptionDetailData?.data?.medication?.name
+		const isFulfilled =
+			typeof prescribedQuantity === 'number' && typeof remaining === 'number' && remaining === 0
+
+		return {
+			prescribedQuantity,
+			totalCompleted,
+			remaining,
+			unit: quantityUnit,
+			medicationName,
+			isFulfilled
+		}
+	}, [data?.data, prescriptionDetailData, prescriptionIdParam])
 
 	const groupedData = useMemo<ParentRow[]>(() => {
 		const groups = new Map<string, ParentRow>()
@@ -330,6 +469,36 @@ export function MedicationDispenseTable() {
 					Menampilkan riwayat dispense untuk resep ID {prescriptionIdParam}
 				</div>
 			)}
+			{summaryForPrescription && (
+				<div className="mt-2 text-sm bg-gray-50 rounded-md p-2 inline-block">
+					{summaryForPrescription.medicationName && (
+						<div className="font-semibold">
+							Resep: {summaryForPrescription.medicationName}
+						</div>
+					)}
+					<div>
+						Diresepkan:{' '}
+						{typeof summaryForPrescription.prescribedQuantity === 'number'
+							? `${summaryForPrescription.prescribedQuantity} ${summaryForPrescription.unit ?? ''}`.trim()
+							: '-'}
+					</div>
+					<div>
+						Sudah diambil:{' '}
+						{`${summaryForPrescription.totalCompleted} ${summaryForPrescription.unit ?? ''}`.trim()}
+					</div>
+					{typeof summaryForPrescription.prescribedQuantity === 'number' && (
+						<div>
+							Sisa:{' '}
+							{`${summaryForPrescription.remaining ?? 0} ${summaryForPrescription.unit ?? ''}`.trim()}
+						</div>
+					)}
+					{summaryForPrescription.isFulfilled && (
+						<div className="mt-1 text-green-600 font-semibold">
+							Permintaan sudah terpenuhi
+						</div>
+					)}
+				</div>
+			)}
 			{isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
 			<Table
 				dataSource={groupedData}
@@ -346,7 +515,12 @@ export function MedicationDispenseTable() {
 							{ title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
 							{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
 							{ title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
-							{ title: 'Status', dataIndex: 'status', key: 'status' },
+						{
+							title: 'Status',
+							dataIndex: 'status',
+							key: 'status',
+							render: (val: string) => getStatusLabel(val)
+						},
 							{ title: 'Petugas', dataIndex: 'performerName', key: 'performerName' },
 							{
 									title: 'Aksi',
