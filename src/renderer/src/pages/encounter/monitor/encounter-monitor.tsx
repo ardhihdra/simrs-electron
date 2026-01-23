@@ -21,7 +21,8 @@ export default function EncounterMonitor() {
                  startDate: startDate,
              })
          },
-         refetchInterval:500
+         refetchInterval:5000,
+         staleTime:5000
      })
 
     

@@ -350,7 +350,7 @@ function Dashboard() {
           </button>
         </div>
       </aside>
-      <div className="flex-1 max-w-[calc(100vw-16rem)]">
+      <div className={`flex-1 ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}>
         <header className="sticky top-0 z-50 bg-white border-b border-gray-200 h-14 px-4 flex items-center justify-between gap-4">
           <Menu
             mode="horizontal"
