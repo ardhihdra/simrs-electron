@@ -2,7 +2,7 @@ import { createCrudRoutes } from '@main/utils/crud'
 import z from 'zod'
 
 const crud = createCrudRoutes({
-  entity: 'poli',
+  entity: 'referencecode',
   schema: z.any()
 })
 

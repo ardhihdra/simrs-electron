@@ -122,7 +122,13 @@ export const BackendListSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
     }),
     z.object({
       success: z.literal(false),
-      error: z.string(),
+      error: z.any().transform((val) => {
+        // Handle error that could be string, array, object, etc.
+        if (typeof val === 'string') return val
+        if (Array.isArray(val)) return JSON.stringify(val)
+        if (typeof val === 'object') return JSON.stringify(val)
+        return String(val)
+      }),
       message: z.string().optional()
     })
   ])

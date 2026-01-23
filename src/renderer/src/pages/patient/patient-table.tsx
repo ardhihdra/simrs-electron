@@ -1,19 +1,18 @@
-import { Button, DatePicker, Input, Select } from 'antd'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 import { queryClient } from '@renderer/query-client'
 import type { PatientAttributes } from '@shared/patient'
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, DatePicker, Input, Select } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import GenericTable from '@renderer/components/GenericTable'
+import dayjs from 'dayjs'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 
 type Row = PatientAttributes & { no: number }
 
 const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
-  { title: 'Kode', dataIndex: 'kode', key: 'kode' },
   { title: 'Nama', dataIndex: 'name', key: 'name' },
   { title: 'Gender', dataIndex: 'gender', key: 'gender' },
   {
@@ -24,7 +23,7 @@ const baseColumns: ColumnsType<Row> = [
   },
   { title: 'Phone', dataIndex: 'phone', key: 'phone' },
   { title: 'Email', dataIndex: 'email', key: 'email' },
-  { title: 'Alamat', dataIndex: 'addressLine', key: 'addressLine' },
+  { title: 'Alamat', dataIndex: 'address', key: 'address' },
 ]
 
 function RowActions({ record }: { record: Row }) {
@@ -58,7 +57,7 @@ export function PatientTable() {
   const [searchAlamat, setSearchAlamat] = useState('')
   const [gender, setGender] = useState<string | undefined>(undefined)
   const [birthDate, setBirthDate] = useState<string | null>(null)
-  const { data, refetch, isError } = useQuery({
+  const { data, refetch, isError } = useQuery<any>({
     queryKey: ['patient', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.patient?.list
@@ -81,7 +80,7 @@ export function PatientTable() {
       return matchKode && matchNama && matchPhone && matchEmail && matchAlamat && matchGender && matchBirth
     })
   }, [data?.data, searchKode, searchNama, searchPhone, searchEmail, searchAlamat, gender, birthDate])
-
+console.log("patient data:",data)
   return (
     <div>
       <h2 className="text-4xl font-bold mb-4 justify-center flex">Daftar Pasien</h2>

@@ -1,8 +1,8 @@
-import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { buildApiFromTree } from './api'
+import { contextBridge } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { buildApiFromTree } from './api'
 
 let tree: any = {}
 

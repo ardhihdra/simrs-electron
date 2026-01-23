@@ -10,6 +10,7 @@ import type * as Mod_query_doctorSchedule from '@main/routes/query/doctorSchedul
 import type * as Mod_query_encounter from '@main/routes/query/encounter'
 import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
+import type * as Mod_query_export from '@main/routes/query/export'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
@@ -20,25 +21,12 @@ import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCat
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
 import type * as Mod_query_poli from '@main/routes/query/poli'
+import type * as Mod_query_queue from '@main/routes/query/queue'
+import type * as Mod_query_queueticket from '@main/routes/query/queueticket'
+import type * as Mod_query_referencecode from '@main/routes/query/referencecode'
+import type * as Mod_query_registration from '@main/routes/query/registration'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
 import type * as Mod_user from '@main/routes/user'
-import type * as Mod_auth from '../main/routes/auth'
-import type * as Mod_macaddress from '../main/routes/macaddress'
-import type * as Mod_notification from '../main/routes/notification'
-import type * as Mod_query_departemen from '../main/routes/query/departemen'
-import type * as Mod_query_diagnostic from '../main/routes/query/diagnostic'
-import type * as Mod_query_doctorSchedule from '../main/routes/query/doctorSchedule'
-import type * as Mod_query_encounter from '../main/routes/query/encounter'
-import type * as Mod_query_expense from '../main/routes/query/expense'
-import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
-import type * as Mod_query_export from '../main/routes/query/export'
-import type * as Mod_query_jaminan from '../main/routes/query/jaminan'
-import type * as Mod_query_kepegawaian from '../main/routes/query/kepegawaian'
-import type * as Mod_query_medicalStaffSchedule from '../main/routes/query/medicalStaffSchedule'
-import type * as Mod_query_patient from '../main/routes/query/patient'
-import type * as Mod_query_pegawai from '../main/routes/query/pegawai'
-import type * as Mod_query_serviceRequest from '../main/routes/query/serviceRequest'
-import type * as Mod_user from '../main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
@@ -150,6 +138,8 @@ type Args_Mod_query_kepegawaian_getById = InferArgs<typeof Mod_query_kepegawaian
 type Result_Mod_query_kepegawaian_getById = InferResult<typeof Mod_query_kepegawaian, 'getById'>
 type Args_Mod_query_kepegawaian_list = InferArgs<typeof Mod_query_kepegawaian, 'list'>
 type Result_Mod_query_kepegawaian_list = InferResult<typeof Mod_query_kepegawaian, 'list'>
+type Args_Mod_query_kepegawaian_listAll = InferArgs<typeof Mod_query_kepegawaian, 'listAll'>
+type Result_Mod_query_kepegawaian_listAll = InferResult<typeof Mod_query_kepegawaian, 'listAll'>
 type Args_Mod_query_kepegawaian_update = InferArgs<typeof Mod_query_kepegawaian, 'update'>
 type Result_Mod_query_kepegawaian_update = InferResult<typeof Mod_query_kepegawaian, 'update'>
 type Args_Mod_query_medicalStaffSchedule_create = InferArgs<typeof Mod_query_medicalStaffSchedule, 'create'>
@@ -200,6 +190,8 @@ type Args_Mod_query_patient_getById = InferArgs<typeof Mod_query_patient, 'getBy
 type Result_Mod_query_patient_getById = InferResult<typeof Mod_query_patient, 'getById'>
 type Args_Mod_query_patient_list = InferArgs<typeof Mod_query_patient, 'list'>
 type Result_Mod_query_patient_list = InferResult<typeof Mod_query_patient, 'list'>
+type Args_Mod_query_patient_listAll = InferArgs<typeof Mod_query_patient, 'listAll'>
+type Result_Mod_query_patient_listAll = InferResult<typeof Mod_query_patient, 'listAll'>
 type Args_Mod_query_patient_update = InferArgs<typeof Mod_query_patient, 'update'>
 type Result_Mod_query_patient_update = InferResult<typeof Mod_query_patient, 'update'>
 type Args_Mod_query_pegawai_create = InferArgs<typeof Mod_query_pegawai, 'create'>
@@ -212,8 +204,58 @@ type Args_Mod_query_pegawai_list = InferArgs<typeof Mod_query_pegawai, 'list'>
 type Result_Mod_query_pegawai_list = InferResult<typeof Mod_query_pegawai, 'list'>
 type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update'>
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
+type Args_Mod_query_poli_create = InferArgs<typeof Mod_query_poli, 'create'>
+type Result_Mod_query_poli_create = InferResult<typeof Mod_query_poli, 'create'>
 type Args_Mod_query_poli_list = InferArgs<typeof Mod_query_poli, 'list'>
 type Result_Mod_query_poli_list = InferResult<typeof Mod_query_poli, 'list'>
+type Args_Mod_query_poli_listAll = InferArgs<typeof Mod_query_poli, 'listAll'>
+type Result_Mod_query_poli_listAll = InferResult<typeof Mod_query_poli, 'listAll'>
+type Args_Mod_query_poli_read = InferArgs<typeof Mod_query_poli, 'read'>
+type Result_Mod_query_poli_read = InferResult<typeof Mod_query_poli, 'read'>
+type Args_Mod_query_poli_remove = InferArgs<typeof Mod_query_poli, 'remove'>
+type Result_Mod_query_poli_remove = InferResult<typeof Mod_query_poli, 'remove'>
+type Args_Mod_query_poli_update = InferArgs<typeof Mod_query_poli, 'update'>
+type Result_Mod_query_poli_update = InferResult<typeof Mod_query_poli, 'update'>
+type Args_Mod_query_queue_create = InferArgs<typeof Mod_query_queue, 'create'>
+type Result_Mod_query_queue_create = InferResult<typeof Mod_query_queue, 'create'>
+type Args_Mod_query_queue_list = InferArgs<typeof Mod_query_queue, 'list'>
+type Result_Mod_query_queue_list = InferResult<typeof Mod_query_queue, 'list'>
+type Args_Mod_query_queueticket_create = InferArgs<typeof Mod_query_queueticket, 'create'>
+type Result_Mod_query_queueticket_create = InferResult<typeof Mod_query_queueticket, 'create'>
+type Args_Mod_query_queueticket_list = InferArgs<typeof Mod_query_queueticket, 'list'>
+type Result_Mod_query_queueticket_list = InferResult<typeof Mod_query_queueticket, 'list'>
+type Args_Mod_query_queueticket_listAll = InferArgs<typeof Mod_query_queueticket, 'listAll'>
+type Result_Mod_query_queueticket_listAll = InferResult<typeof Mod_query_queueticket, 'listAll'>
+type Args_Mod_query_queueticket_read = InferArgs<typeof Mod_query_queueticket, 'read'>
+type Result_Mod_query_queueticket_read = InferResult<typeof Mod_query_queueticket, 'read'>
+type Args_Mod_query_queueticket_remove = InferArgs<typeof Mod_query_queueticket, 'remove'>
+type Result_Mod_query_queueticket_remove = InferResult<typeof Mod_query_queueticket, 'remove'>
+type Args_Mod_query_queueticket_update = InferArgs<typeof Mod_query_queueticket, 'update'>
+type Result_Mod_query_queueticket_update = InferResult<typeof Mod_query_queueticket, 'update'>
+type Args_Mod_query_referencecode_create = InferArgs<typeof Mod_query_referencecode, 'create'>
+type Result_Mod_query_referencecode_create = InferResult<typeof Mod_query_referencecode, 'create'>
+type Args_Mod_query_referencecode_list = InferArgs<typeof Mod_query_referencecode, 'list'>
+type Result_Mod_query_referencecode_list = InferResult<typeof Mod_query_referencecode, 'list'>
+type Args_Mod_query_referencecode_listAll = InferArgs<typeof Mod_query_referencecode, 'listAll'>
+type Result_Mod_query_referencecode_listAll = InferResult<typeof Mod_query_referencecode, 'listAll'>
+type Args_Mod_query_referencecode_read = InferArgs<typeof Mod_query_referencecode, 'read'>
+type Result_Mod_query_referencecode_read = InferResult<typeof Mod_query_referencecode, 'read'>
+type Args_Mod_query_referencecode_remove = InferArgs<typeof Mod_query_referencecode, 'remove'>
+type Result_Mod_query_referencecode_remove = InferResult<typeof Mod_query_referencecode, 'remove'>
+type Args_Mod_query_referencecode_update = InferArgs<typeof Mod_query_referencecode, 'update'>
+type Result_Mod_query_referencecode_update = InferResult<typeof Mod_query_referencecode, 'update'>
+type Args_Mod_query_registration_create = InferArgs<typeof Mod_query_registration, 'create'>
+type Result_Mod_query_registration_create = InferResult<typeof Mod_query_registration, 'create'>
+type Args_Mod_query_registration_deleteById = InferArgs<typeof Mod_query_registration, 'deleteById'>
+type Result_Mod_query_registration_deleteById = InferResult<typeof Mod_query_registration, 'deleteById'>
+type Args_Mod_query_registration_list = InferArgs<typeof Mod_query_registration, 'list'>
+type Result_Mod_query_registration_list = InferResult<typeof Mod_query_registration, 'list'>
+type Args_Mod_query_registration_listAll = InferArgs<typeof Mod_query_registration, 'listAll'>
+type Result_Mod_query_registration_listAll = InferResult<typeof Mod_query_registration, 'listAll'>
+type Args_Mod_query_registration_read = InferArgs<typeof Mod_query_registration, 'read'>
+type Result_Mod_query_registration_read = InferResult<typeof Mod_query_registration, 'read'>
+type Args_Mod_query_registration_update = InferArgs<typeof Mod_query_registration, 'update'>
+type Result_Mod_query_registration_update = InferResult<typeof Mod_query_registration, 'update'>
 type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRequest, 'create'>
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
 type Args_Mod_query_serviceRequest_deleteById = InferArgs<typeof Mod_query_serviceRequest, 'deleteById'>
@@ -301,6 +343,7 @@ declare global {
           deleteById: Invoke<Args_Mod_query_kepegawaian_deleteById, Result_Mod_query_kepegawaian_deleteById>
           getById: Invoke<Args_Mod_query_kepegawaian_getById, Result_Mod_query_kepegawaian_getById>
           list: Invoke<Args_Mod_query_kepegawaian_list, Result_Mod_query_kepegawaian_list>
+          listAll: Invoke<Args_Mod_query_kepegawaian_listAll, Result_Mod_query_kepegawaian_listAll>
           update: Invoke<Args_Mod_query_kepegawaian_update, Result_Mod_query_kepegawaian_update>
         }
         medicalStaffSchedule: {
@@ -336,6 +379,7 @@ declare global {
           deleteById: Invoke<Args_Mod_query_patient_deleteById, Result_Mod_query_patient_deleteById>
           getById: Invoke<Args_Mod_query_patient_getById, Result_Mod_query_patient_getById>
           list: Invoke<Args_Mod_query_patient_list, Result_Mod_query_patient_list>
+          listAll: Invoke<Args_Mod_query_patient_listAll, Result_Mod_query_patient_listAll>
           update: Invoke<Args_Mod_query_patient_update, Result_Mod_query_patient_update>
         }
         pegawai: {
@@ -346,7 +390,40 @@ declare global {
           update: Invoke<Args_Mod_query_pegawai_update, Result_Mod_query_pegawai_update>
         }
         poli: {
+          create: Invoke<Args_Mod_query_poli_create, Result_Mod_query_poli_create>
           list: Invoke<Args_Mod_query_poli_list, Result_Mod_query_poli_list>
+          listAll: Invoke<Args_Mod_query_poli_listAll, Result_Mod_query_poli_listAll>
+          read: Invoke<Args_Mod_query_poli_read, Result_Mod_query_poli_read>
+          remove: Invoke<Args_Mod_query_poli_remove, Result_Mod_query_poli_remove>
+          update: Invoke<Args_Mod_query_poli_update, Result_Mod_query_poli_update>
+        }
+        queue: {
+          create: Invoke<Args_Mod_query_queue_create, Result_Mod_query_queue_create>
+          list: Invoke<Args_Mod_query_queue_list, Result_Mod_query_queue_list>
+        }
+        queueticket: {
+          create: Invoke<Args_Mod_query_queueticket_create, Result_Mod_query_queueticket_create>
+          list: Invoke<Args_Mod_query_queueticket_list, Result_Mod_query_queueticket_list>
+          listAll: Invoke<Args_Mod_query_queueticket_listAll, Result_Mod_query_queueticket_listAll>
+          read: Invoke<Args_Mod_query_queueticket_read, Result_Mod_query_queueticket_read>
+          remove: Invoke<Args_Mod_query_queueticket_remove, Result_Mod_query_queueticket_remove>
+          update: Invoke<Args_Mod_query_queueticket_update, Result_Mod_query_queueticket_update>
+        }
+        referencecode: {
+          create: Invoke<Args_Mod_query_referencecode_create, Result_Mod_query_referencecode_create>
+          list: Invoke<Args_Mod_query_referencecode_list, Result_Mod_query_referencecode_list>
+          listAll: Invoke<Args_Mod_query_referencecode_listAll, Result_Mod_query_referencecode_listAll>
+          read: Invoke<Args_Mod_query_referencecode_read, Result_Mod_query_referencecode_read>
+          remove: Invoke<Args_Mod_query_referencecode_remove, Result_Mod_query_referencecode_remove>
+          update: Invoke<Args_Mod_query_referencecode_update, Result_Mod_query_referencecode_update>
+        }
+        registration: {
+          create: Invoke<Args_Mod_query_registration_create, Result_Mod_query_registration_create>
+          deleteById: Invoke<Args_Mod_query_registration_deleteById, Result_Mod_query_registration_deleteById>
+          list: Invoke<Args_Mod_query_registration_list, Result_Mod_query_registration_list>
+          listAll: Invoke<Args_Mod_query_registration_listAll, Result_Mod_query_registration_listAll>
+          read: Invoke<Args_Mod_query_registration_read, Result_Mod_query_registration_read>
+          update: Invoke<Args_Mod_query_registration_update, Result_Mod_query_registration_update>
         }
         serviceRequest: {
           create: Invoke<Args_Mod_query_serviceRequest_create, Result_Mod_query_serviceRequest_create>
