@@ -1,4 +1,4 @@
-import { Button, Input, Table, Tag, message } from 'antd'
+import { Button, Input, Table, Tag, message, Modal, Segmented } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
@@ -112,6 +112,8 @@ interface ParentRow {
 	items: DispenseItemRow[]
 }
 
+type StatusFilter = 'all' | 'completed' | 'return'
+
 function getStatusLabel(status: string): string {
 	if (status === 'entered-in-error') return 'return'
 	return status
@@ -203,7 +205,17 @@ function RowActions({ record }: { record: DispenseItemRow }) {
 					danger
 					disabled={voidMutation.isPending}
 					loading={voidMutation.isPending}
-					onClick={() => voidMutation.mutate()}
+					onClick={() => {
+						Modal.confirm({
+							title: 'Konfirmasi Return / Void',
+							content:
+								'Yakin ingin melakukan Return / Void dispense ini? Stok obat akan dikembalikan.',
+							okText: 'Ya, Return / Void',
+							cancelText: 'Batal',
+							okButtonProps: { danger: true },
+							onOk: () => voidMutation.mutate()
+						})
+					}}
 				>
 					Return / Void
 				</Button>
@@ -283,6 +295,7 @@ export function MedicationDispenseTable() {
 	const location = useLocation()
 	const [search, setSearch] = useState('')
 	const [showOnlyPending, setShowOnlyPending] = useState(false)
+		const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
 
 	const prescriptionIdParam = useMemo(() => {
 		const params = new URLSearchParams(location.search)
@@ -341,6 +354,12 @@ export function MedicationDispenseTable() {
 			source = source.filter((item) => item.authorizingPrescriptionId === prescriptionIdParam)
 		}
 
+			if (statusFilter === 'completed') {
+				source = source.filter((item) => item.status === 'completed')
+			} else if (statusFilter === 'return') {
+				source = source.filter((item) => item.status === 'entered-in-error')
+			}
+
 		const q = search.trim().toLowerCase()
 		if (!q) return source
 
@@ -349,7 +368,7 @@ export function MedicationDispenseTable() {
 			const medicineName = item.medication?.name?.toLowerCase() ?? ''
 			return patientName.includes(q) || medicineName.includes(q)
 		})
-	}, [data?.data, search, showOnlyPending, prescriptionIdParam])
+		}, [data?.data, search, showOnlyPending, prescriptionIdParam, statusFilter])
 
 	const summaryForPrescription = useMemo(() => {
 		if (typeof prescriptionIdParam !== 'number') return undefined
@@ -443,27 +462,39 @@ export function MedicationDispenseTable() {
 		return Array.from(groups.values())
 	}, [filtered])
 
-	return (
-		<div>
-			<h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat (Dispensing)</h2>
-			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-				<Input
-					type="text"
-					placeholder="Cari Pasien atau Obat"
-					className="w-full md:max-w-sm"
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-				/>
-				<div className="flex gap-2 flex-wrap md:justify-end">
-					<Button type={showOnlyPending ? 'primary' : 'default'} onClick={() => setShowOnlyPending((prev) => !prev)}>
-						Belum diserahkan
-					</Button>
-					<Button onClick={() => refetch()}>Refresh</Button>
-					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
-						Ke Daftar Resep
-					</Button>
+		return (
+			<div>
+				<h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat (Dispensing)</h2>
+				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+					<Input
+						type="text"
+						placeholder="Cari Pasien atau Obat"
+						className="w-full md:max-w-sm"
+						value={search}
+						onChange={(e) => setSearch(e.target.value)}
+					/>
+					<div className="flex gap-2 flex-wrap md:justify-end items-center">
+						<Segmented
+							options={[
+								{ label: 'Semua', value: 'all' },
+								{ label: 'Selesai', value: 'completed' },
+								{ label: 'Return', value: 'return' }
+							]}
+							value={statusFilter}
+							onChange={(val) => setStatusFilter(val as StatusFilter)}
+						/>
+						<Button type={showOnlyPending ? 'primary' : 'default'} onClick={() => setShowOnlyPending((prev) => !prev)}>
+							Belum diserahkan
+						</Button>
+						<Button onClick={() => refetch()}>Refresh</Button>
+						<Button onClick={() => navigate('/dashboard/medicine/medication-dispenses/report')}>
+							Laporan Harian
+						</Button>
+						<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
+							Ke Daftar Resep
+						</Button>
+					</div>
 				</div>
-			</div>
 			{typeof prescriptionIdParam === 'number' && (
 				<div className="mt-2 text-sm text-gray-500">
 					Menampilkan riwayat dispense untuk resep ID {prescriptionIdParam}

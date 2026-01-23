@@ -57,6 +57,7 @@ import MedicationRequestTable from './pages/pharmacy/medication-request-table'
 import MedicationRequestForm from './pages/pharmacy/medication-request-form'
 import MedicationDispenseFromRequest from './pages/pharmacy/medication-dispense-from-request'
 import MedicationDispenseTable from './pages/pharmacy/medication-dispense-table'
+import MedicationDispenseReport from './pages/pharmacy/medication-dispense-report'
 
 function MainRoute() {
   const location = useLocation()
@@ -137,6 +138,7 @@ function MainRoute() {
           <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
           <Route path="medication-requests/dispense/:id" element={<MedicationDispenseFromRequest />} />
           <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
+          <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
         </Route>
         <Route path="farmasi" element={<PharmacyProduction />}>
           <Route path="raw-materials" element={<RawMaterialTable />} />
