@@ -1,19 +1,20 @@
-import { Menu, Button, App as AntdApp } from 'antd'
-import type { MenuProps } from 'antd'
-import { ItemType } from 'antd/es/menu/interface'
-import { useEffect, useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
-import ProfileMenu from '@renderer/components/ProfileMenu'
-import NotificationBell from '@renderer/components/NotificationBell'
-import logoUrl from '@renderer/assets/logo.png'
 import {
   CalendarOutlined,
   DashboardOutlined,
   LeftCircleFilled,
   RightCircleFilled,
+  UserAddOutlined,
   UserOutlined,
   WalletOutlined
 } from '@ant-design/icons'
+import logoUrl from '@renderer/assets/logo.png'
+import NotificationBell from '@renderer/components/NotificationBell'
+import ProfileMenu from '@renderer/components/ProfileMenu'
+import type { MenuProps } from 'antd'
+import { App as AntdApp, Button, Menu } from 'antd'
+import { ItemType } from 'antd/es/menu/interface'
+import { useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router'
 
 const SendNotificationButton = () => {
   const { message } = AntdApp.useApp()
@@ -70,6 +71,11 @@ const items = [
         label: 'Pasien',
         key: '/dashboard/patient',
         icon: <UserOutlined />
+      },
+      {
+        label: 'Daftar Antrian',
+        key: '/dashboard/pendaftaran',
+        icon: <UserAddOutlined />
       },
       {
         label: 'Kunjungan Pasien',
@@ -237,7 +243,8 @@ function Dashboard() {
     '/dashboard/diagnostic',
     '/dashboard/services',
     '/dashboard/service-request',
-    '/dashboard/pharmacy'
+    '/dashboard/pharmacy',
+    '/dashboard/pendaftaran'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -316,7 +323,7 @@ function Dashboard() {
     setActiveSide(match || (children[0]?.key as string))
   }, [location.pathname])
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen overflow-hidden flex">
       <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white flex flex-col`}>
         <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200">
           <div className="flex items-center justify-center gap-2">
@@ -343,16 +350,16 @@ function Dashboard() {
           </button>
         </div>
       </aside>
-      <div className="flex-1">
+      <div className="flex-1 max-w-[calc(100vw-16rem)]">
         <header className="sticky top-0 z-50 bg-white border-b border-gray-200 h-14 px-4 flex items-center justify-between gap-4">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            className="flex-1"
+            style={{ minWidth: 0, flex: "auto" }}
           />
-          <SendNotificationButton />
+          {/* <SendNotificationButton /> */}
           <NotificationBell />
           <ProfileMenu />
         </header>
@@ -360,7 +367,7 @@ function Dashboard() {
           {isRegisteredPath(location.pathname) ? (
             <Outlet />
           ) : (
-            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+            <div className="min-h-[calc(100vh-16rem)] flex items-center justify-center">
               <div className="text-base md:text-lg font-medium">
                 {findLabelByPath(location.pathname)}
               </div>
