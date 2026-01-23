@@ -287,7 +287,8 @@ function Dashboard() {
     '/dashboard/nurse-calling',
     '/dashboard/doctor-medical-records',
     '/dashboard/doctor-procedures',
-    '/dashboard/doctor-prescription'
+    '/dashboard/doctor-prescription',
+    '/dashboard/doctor-consultation'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true

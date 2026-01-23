@@ -7,7 +7,6 @@ import {
   Table,
   Space,
   App,
-  Spin,
   Tabs,
   Select,
   InputNumber,
@@ -17,14 +16,8 @@ import {
   Modal,
   Divider
 } from 'antd'
-import {
-  SaveOutlined,
-  DeleteOutlined,
-  PlusOutlined,
-  ArrowLeftOutlined,
-  ShoppingCartOutlined
-} from '@ant-design/icons'
-import { useNavigate, useParams } from 'react-router'
+import { SaveOutlined, DeleteOutlined, PlusOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { useNavigate } from 'react-router'
 import type { ColumnsType } from 'antd/es/table'
 import {
   Medicine,
@@ -38,7 +31,6 @@ import {
   PatientWithMedicalRecord
 } from '../../types/doctor.types'
 import {
-  getPatientMedicalRecord,
   getMedicines,
   searchMedicines,
   getSupplies,
@@ -57,26 +49,26 @@ interface CartItem extends PrescriptionItem {
   itemName: string
 }
 
-const PrescriptionForm = () => {
+interface PrescriptionFormProps {
+  encounterId: string
+  patientData: PatientWithMedicalRecord
+}
+
+export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormProps) => {
   const navigate = useNavigate()
-  const { encounterId } = useParams<{ encounterId: string }>()
   const { message, modal } = App.useApp()
-  const [form] = Form.useForm()
+  const [form] = Form.useForm() // Kept as it might be used in Form component
   const [compoundForm] = Form.useForm()
 
-  const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [patientData, setPatientData] = useState<PatientWithMedicalRecord | null>(null)
 
   // Medicine states
   const [medicines, setMedicines] = useState<Medicine[]>([])
   const [medicineCategory, setMedicineCategory] = useState<MedicineCategory | undefined>(undefined)
-  const [medicineSearch, setMedicineSearch] = useState('')
 
   // Supply states
   const [supplies, setSupplies] = useState<Supply[]>([])
   const [supplyCategory, setSupplyCategory] = useState<SupplyCategory | undefined>(undefined)
-  const [supplySearch, setSupplySearch] = useState('')
 
   // Compound states
   const [compounds, setCompounds] = useState<CompoundFormulation[]>([])
@@ -90,32 +82,13 @@ const PrescriptionForm = () => {
   const [compoundModalVisible, setCompoundModalVisible] = useState(false)
 
   useEffect(() => {
-    loadPatientData()
     loadMedicines()
     loadSupplies()
     loadCompounds()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId])
 
-  const loadPatientData = async () => {
-    if (!encounterId) return
-
-    setLoading(true)
-    try {
-      const data = await getPatientMedicalRecord(encounterId)
-      if (data) {
-        setPatientData(data)
-      } else {
-        message.error('Data pasien tidak ditemukan')
-        navigate('/dashboard/doctor-medical-records')
-      }
-    } catch (error) {
-      message.error('Gagal memuat data pasien')
-      console.error(error)
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Removed loadPatientData
 
   const loadMedicines = async (category?: MedicineCategory, search?: string) => {
     try {
@@ -169,7 +142,7 @@ const PrescriptionForm = () => {
   }
 
   const handleMedicineSearch = (value: string) => {
-    setMedicineSearch(value)
+    // setMedicineSearch(value) // Removed state
     if (value.length >= 2) {
       loadMedicines(undefined, value)
     } else if (value.length === 0) {
@@ -183,7 +156,7 @@ const PrescriptionForm = () => {
   }
 
   const handleSupplySearch = (value: string) => {
-    setSupplySearch(value)
+    // setSupplySearch(value) // Removed state
     if (value.length >= 2) {
       loadSupplies(undefined, value)
     } else if (value.length === 0) {
@@ -515,50 +488,8 @@ const PrescriptionForm = () => {
     }
   ]
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Spin size="large" />
-      </div>
-    )
-  }
-
-  if (!patientData) {
-    return null
-  }
-
   return (
     <div>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/dashboard/doctor-medical-records')}
-        className="mb-4"
-      >
-        Kembali ke Daftar Pasien
-      </Button>
-
-      {/* Patient Summary */}
-      <Card className="mb-4" size="small">
-        <Row gutter={16}>
-          <Col span={4}>
-            <div className="text-gray-500 text-xs">No. Antrian</div>
-            <div className="text-xl font-bold text-blue-600">{patientData.queueNumber}</div>
-          </Col>
-          <Col span={5}>
-            <div className="text-gray-500 text-xs">No. RM</div>
-            <div className="font-semibold">{patientData.patient.medicalRecordNumber}</div>
-          </Col>
-          <Col span={5}>
-            <div className="text-gray-500 text-xs">Nama</div>
-            <div className="font-semibold">{patientData.patient.name}</div>
-          </Col>
-          <Col span={5}>
-            <div className="text-gray-500 text-xs">Umur</div>
-            <div>{patientData.patient.age} tahun</div>
-          </Col>
-        </Row>
-      </Card>
-
       {/* Tabs for Medicine, Supply, Compound */}
       <Card className="mb-4">
         <Tabs defaultActiveKey="1">

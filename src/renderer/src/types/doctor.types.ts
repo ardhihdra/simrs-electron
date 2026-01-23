@@ -24,12 +24,11 @@ export interface PatientDiagnosis {
 
 export interface MedicalProcedure {
     id: string
-    code: string // Internal/custom code
-    icd9Code?: string // ICD-9-CM procedure code (for billing & Satu Sehat)
+    code: string
+    icd9Code?: string
     name: string
     description?: string
     category?: string
-    price: number
 }
 
 export interface PatientProcedure {
@@ -177,6 +176,7 @@ export interface DoctorEncounterRecord {
 
 export interface SaveDiagnosisAndProceduresRequest {
     encounterId: string
+    patientId?: string // Added patientId
     diagnoses: PatientDiagnosis[]
     procedures: PatientProcedure[]
     clinicalNotes?: string
@@ -212,6 +212,7 @@ export interface SaveCompoundFormulationResponse {
 // ============ View Models ============
 
 export interface PatientWithMedicalRecord extends PatientQueue {
+    paymentMethod?: string // Added for display in header
     nurseRecord?: {
         vitalSigns: VitalSigns
         anamnesis: Anamnesis

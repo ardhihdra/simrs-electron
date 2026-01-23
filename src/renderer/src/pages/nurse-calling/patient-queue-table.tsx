@@ -3,8 +3,10 @@ import { Table, Button, Tag, Select, Space, Card, App, Spin } from 'antd'
 import { PhoneOutlined, ReloadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
-import { PatientQueue, PatientStatus, Poli } from '../../types/nurse.types'
-import { getPatientQueue, getPolis, callPatient } from '../../services/nurse.service'
+import { useQuery } from '@tanstack/react-query'
+import dayjs from 'dayjs'
+import { PatientQueue, PatientStatus, Poli, Gender } from '../../types/nurse.types'
+import { getPolis } from '../../services/nurse.service'
 
 const { Option } = Select
 
@@ -12,31 +14,74 @@ interface PatientQueueTableData extends PatientQueue {
   key: string
 }
 
+function mapEncounterStatusToPatientStatus(status: string): PatientStatus {
+  const s = status?.toLowerCase()
+  if (s === 'arrived') return PatientStatus.WAITING
+  if (s === 'triaged') return PatientStatus.EXAMINING
+  if (s === 'in-progress') return PatientStatus.EXAMINING
+  if (s === 'finished') return PatientStatus.COMPLETED
+  if (s === 'cancelled') return PatientStatus.CANCELLED
+  return PatientStatus.WAITING
+}
+
 const PatientQueueTable = () => {
   const navigate = useNavigate()
   const { message } = App.useApp()
-  const [loading, setLoading] = useState(false)
   const [calling, setCalling] = useState<string | null>(null)
-  const [patientQueue, setPatientQueue] = useState<PatientQueueTableData[]>([])
   const [polis, setPolis] = useState<Poli[]>([])
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
 
-  const loadQueue = async (poliId?: string) => {
-    setLoading(true)
-    try {
-      const queue = await getPatientQueue(poliId)
-      const tableData: PatientQueueTableData[] = queue.map((q) => ({
-        ...q,
-        key: q.id
-      }))
-      setPatientQueue(tableData)
-    } catch (error) {
-      message.error('Gagal memuat data antrian')
-      console.error(error)
-    } finally {
-      setLoading(false)
+  const {
+    data: encounterData,
+    isLoading,
+    refetch
+  } = useQuery({
+    queryKey: ['encounter', 'list', selectedPoli],
+    queryFn: () => {
+      const fn = window.api?.query?.encounter?.list
+      if (!fn) throw new Error('API encounter tidak tersedia')
+      return fn({ serviceType: selectedPoli })
     }
-  }
+  })
+
+  // Derive patientQueue from encounterData
+  const patientQueue: PatientQueueTableData[] = (encounterData?.result || []).map(
+    (enc: any, index: number) => {
+      const birthDate = enc.patient?.birthDate ? dayjs(enc.patient.birthDate) : null
+      const age = birthDate ? dayjs().diff(birthDate, 'year') : 0
+
+      return {
+        key: enc.id,
+        id: enc.id,
+        encounterId: enc.id,
+        queueNumber: parseInt(enc.encounterCode?.split('-')?.[1] || (index + 1).toString()),
+        patient: {
+          id: enc.patient?.id || '',
+          name: enc.patient?.name || 'Unknown',
+          medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
+          gender: enc.patient?.gender === 'male' ? Gender.MALE : Gender.FEMALE,
+          birthDate: enc.patient?.birthDate || '',
+          age: age,
+          phone: '',
+          address: '',
+          identityNumber: enc.patient?.nik || ''
+        },
+        poli: {
+          id: '1',
+          code: 'POL',
+          name: enc.serviceType || '-'
+        },
+        doctor: {
+          id: 'doc1',
+          name: 'Dr. Umum',
+          specialization: 'General',
+          sipNumber: '123'
+        },
+        status: mapEncounterStatusToPatientStatus(enc.status),
+        registrationDate: enc.visitDate
+      }
+    }
+  )
 
   const loadPolis = async () => {
     try {
@@ -48,25 +93,29 @@ const PatientQueueTable = () => {
   }
 
   useEffect(() => {
-    loadQueue()
     loadPolis()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const handleCallPatient = async (record: PatientQueueTableData) => {
     setCalling(record.id)
     try {
-      const response = await callPatient({
-        queueId: record.id,
-        encounterId: record.encounterId!
+      const fn = window.api?.query?.encounter?.update
+      if (!fn) throw new Error('API encounter update tidak tersedia')
+
+      const response = await fn({
+        id: record.encounterId!,
+        status: 'in-progress',
+        patientId: record.patient.id,
+        visitDate: record.registrationDate,
+        serviceType: record.poli.name
       })
 
       if (response.success) {
-        message.success(response.message)
-        // Navigate to medical record form
+        message.success('Pasien berhasil dipanggil')
+        refetch()
         navigate(`/dashboard/nurse-calling/medical-record/${record.encounterId}`)
       } else {
-        message.error(response.message)
+        message.error(response.error || 'Gagal memanggil pasien')
       }
     } catch (error) {
       message.error('Gagal memanggil pasien')
@@ -78,11 +127,10 @@ const PatientQueueTable = () => {
 
   const handlePoliChange = (value: string) => {
     setSelectedPoli(value)
-    loadQueue(value)
   }
 
   const handleRefresh = () => {
-    loadQueue(selectedPoli)
+    refetch()
   }
 
   const getStatusTag = (status: PatientStatus) => {
@@ -202,7 +250,7 @@ const PatientQueueTable = () => {
           </div>
         }
       >
-        <Spin spinning={loading}>
+        <Spin spinning={isLoading}>
           <Table
             columns={columns}
             dataSource={patientQueue}

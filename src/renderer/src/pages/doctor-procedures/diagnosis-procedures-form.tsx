@@ -1,38 +1,38 @@
 import { useState, useEffect } from 'react'
-import {
-  Form,
-  Input,
-  Button,
-  Card,
-  Table,
-  Space,
-  App,
-  Spin,
-  Select,
-  AutoComplete,
-  Checkbox,
-  Row,
-  Col
-} from 'antd'
-import { SaveOutlined, DeleteOutlined, PlusOutlined, ArrowLeftOutlined } from '@ant-design/icons'
-import { useNavigate, useParams } from 'react-router'
+import { Form, Input, Button, Card, Table, Space, App, Spin, AutoComplete, Checkbox } from 'antd'
+import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import {
-  DiagnosisCode,
-  MedicalProcedure,
   PatientDiagnosis,
   PatientProcedure,
   PatientWithMedicalRecord
 } from '../../types/doctor.types'
-import {
-  getPatientMedicalRecord,
-  searchDiagnosisCodes,
-  searchMedicalProcedures,
-  saveDiagnosisAndProcedures
-} from '../../services/doctor.service'
+import { saveDiagnosisAndProcedures } from '../../services/doctor.service'
+import { useConditionByEncounter } from '../../hooks/query/use-condition'
+import { useProcedureByEncounter } from '../../hooks/query/use-procedure'
+import { useClinicalNoteByEncounter } from '../../hooks/query/use-clinical-note'
 
 const { TextArea } = Input
-const { Option } = Select
+
+interface DiagnosisCode {
+  id: string
+  code: string
+  display: string
+  id_display: string
+  system: string
+  url: string
+}
+
+interface MedicalProcedure {
+  id: string
+  code: string
+  name: string
+  display: string
+  id_display: string
+  system: string
+  url: string
+  status: string
+}
 
 interface DiagnosisTableData extends PatientDiagnosis {
   key: string
@@ -42,82 +42,234 @@ interface ProcedureTableData extends PatientProcedure {
   key: string
 }
 
-const DiagnosisProceduresForm = () => {
-  const navigate = useNavigate()
-  const { encounterId } = useParams<{ encounterId: string }>()
-  const { message, modal } = App.useApp()
+interface DiagnosisProceduresFormProps {
+  encounterId: string
+  patientData: PatientWithMedicalRecord
+}
+
+export const DiagnosisProceduresForm = ({
+  encounterId,
+  patientData
+}: DiagnosisProceduresFormProps) => {
+  const { message } = App.useApp()
   const [form] = Form.useForm()
 
-  const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [patientData, setPatientData] = useState<PatientWithMedicalRecord | null>(null)
 
-  // Diagnosis states
+  // Fetch existing data
+  const { data: conditionsData, isLoading: isLoadingConditions } =
+    useConditionByEncounter(encounterId)
+  const { data: proceduresData, isLoading: isLoadingProcedures } =
+    useProcedureByEncounter(encounterId)
+  const { data: clinicalNotesData } = useClinicalNoteByEncounter(encounterId)
+
   const [diagnosisOptions, setDiagnosisOptions] = useState<DiagnosisCode[]>([])
   const [selectedDiagnoses, setSelectedDiagnoses] = useState<DiagnosisTableData[]>([])
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
+  const [searchingDiagnosis, setSearchingDiagnosis] = useState(false)
 
-  // Procedure states
   const [procedureOptions, setProcedureOptions] = useState<MedicalProcedure[]>([])
   const [selectedProcedures, setSelectedProcedures] = useState<ProcedureTableData[]>([])
+  const [procedureSearch, setProcedureSearch] = useState('')
+  const [searchingProcedure, setSearchingProcedure] = useState(false)
+
+  // Populate form with existing data
+  useEffect(() => {
+    if (conditionsData?.result && Array.isArray(conditionsData.result)) {
+      const mappedDiagnoses: DiagnosisTableData[] = conditionsData.result.map((cond: any) => {
+        // Find existing code details from codeCoding
+        const codeCoding = cond.codeCoding?.[0]
+        const diagnosisCode = codeCoding?.diagnosisCode
+
+        return {
+          key: `dx-${cond.id}`, // Use actual ID from DB
+          diagnosisCode: {
+            id: diagnosisCode?.id ? String(diagnosisCode.id) : '',
+            code: diagnosisCode?.code || codeCoding?.code || '',
+            name: diagnosisCode?.name || diagnosisCode?.display || '',
+            category: cond.categories?.[0]?.code || ''
+          },
+          isPrimary: codeCoding?.isPrimary || false,
+          diagnosedAt: cond.recordedDate || new Date().toISOString()
+        }
+      })
+
+      // Only set if we have data to avoid overwriting empty state on initial load if API is slow but empty
+      if (mappedDiagnoses.length > 0) {
+        setSelectedDiagnoses(mappedDiagnoses)
+      }
+    }
+  }, [conditionsData])
 
   useEffect(() => {
-    loadPatientData()
-    loadProcedures()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [encounterId])
+    if (proceduresData?.result && Array.isArray(proceduresData.result)) {
+      const mappedProcedures: ProcedureTableData[] = proceduresData.result.map((proc: any) => {
+        const codeCoding = proc.codeCoding?.[0]
+        const procedureCode = codeCoding?.procedureCode
+        const notes = proc.notes?.[0]?.text || ''
 
-  const loadPatientData = async () => {
-    if (!encounterId) return
+        return {
+          key: `proc-${proc.id}`,
+          procedure: {
+            id: procedureCode?.id ? String(procedureCode.id) : '',
+            code: procedureCode?.code || codeCoding?.code || '',
+            name: procedureCode?.name || procedureCode?.display || '',
+            category: procedureCode?.system || '',
+            icd9Code: procedureCode?.code
+          },
+          notes: notes,
+          performedAt: proc.performedDateTime || new Date().toISOString()
+        }
+      })
 
-    setLoading(true)
-    try {
-      const data = await getPatientMedicalRecord(encounterId)
-      if (data) {
-        setPatientData(data)
-      } else {
-        message.error('Data pasien tidak ditemukan')
-        navigate('/dashboard/doctor-medical-records')
+      if (mappedProcedures.length > 0) {
+        setSelectedProcedures(mappedProcedures)
       }
-    } catch (error) {
-      message.error('Gagal memuat data pasien')
-      console.error(error)
-    } finally {
-      setLoading(false)
     }
-  }
+  }, [proceduresData])
 
-  const loadProcedures = async () => {
-    try {
-      const procedures = await searchMedicalProcedures('')
-      setProcedureOptions(procedures)
-    } catch (error) {
-      console.error('Error loading procedures:', error)
+  // Populate Clinical Notes
+  useEffect(() => {
+    if (clinicalNotesData?.result && Array.isArray(clinicalNotesData.result)) {
+      const notes = clinicalNotesData.result as any[]
+
+      // Find latest progress note
+      const progressNote = notes.find((n) => n.noteType === 'progress')
+      // Find latest discharge note (referral)
+      const referralNote = notes.find((n) => n.noteType === 'discharge')
+
+      if (progressNote) {
+        form.setFieldValue('clinicalNotes', progressNote.noteText)
+      }
+      if (referralNote) {
+        form.setFieldValue('referralNotes', referralNote.noteText)
+      }
     }
-  }
+  }, [clinicalNotesData, form])
 
-  const handleDiagnosisSearch = async (value: string) => {
-    setDiagnosisSearch(value)
+  const searchProcedures = async (value: string) => {
     if (value.length >= 2) {
-      const results = await searchDiagnosisCodes(value)
-      setDiagnosisOptions(results)
+      setSearchingProcedure(true)
+      try {
+        const fn = window.api?.query?.masterProcedure?.list
+        if (!fn) {
+          console.error('masterProcedure API not available')
+          throw new Error('API master procedure tidak tersedia')
+        }
+
+        const response = await fn({
+          search: value,
+          items: 20
+        })
+
+        if (response.success) {
+          const resultArray = Object.entries(response)
+            .filter(([key]) => !isNaN(Number(key)))
+            .map(([, value]) => value)
+            .filter((item) => typeof item === 'object' && item !== null)
+
+          const procedures: MedicalProcedure[] = resultArray.map((proc: any) => ({
+            id: String(proc.id),
+            code: proc.code,
+            name: proc.name || proc.display,
+            display: proc.display,
+            id_display: proc.id_display,
+            system: proc.system,
+            url: proc.url,
+            status: proc.status
+          }))
+          setProcedureOptions(procedures)
+        }
+      } catch (error) {
+        console.error('Error searching procedures:', error)
+      } finally {
+        setSearchingProcedure(false)
+      }
+    } else {
+      setProcedureOptions([])
     }
+  }
+
+  const debounce = <T extends (...args: any[]) => any>(func: T, delay: number) => {
+    let timeoutId: NodeJS.Timeout
+    return (...args: Parameters<T>) => {
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => func(...args), delay)
+    }
+  }
+
+  const searchDiagnosis = async (value: string) => {
+    if (value.length >= 2) {
+      setSearchingDiagnosis(true)
+      try {
+        const fn = window.api?.query?.diagnosisCode?.list
+        if (!fn) {
+          console.error('diagnosisCode API not available')
+          throw new Error('API diagnosis code tidak tersedia')
+        }
+
+        const response = await fn({
+          search: value,
+          items: 20
+        })
+
+        if (response.success) {
+          const resultArray = Object.entries(response)
+            .filter(([key]) => !isNaN(Number(key)))
+            .map(([, value]) => value)
+            .filter((item) => typeof item === 'object' && item !== null)
+
+          const codes: DiagnosisCode[] = resultArray.map((dx: any) => ({
+            id: String(dx.id),
+            code: dx.code,
+            display: dx.display,
+            id_display: dx.id_display,
+            system: dx.system,
+            url: dx.url
+          }))
+          setDiagnosisOptions(codes)
+        }
+      } catch (error) {
+        console.error('Error searching diagnosis:', error)
+      } finally {
+        setSearchingDiagnosis(false)
+      }
+    } else {
+      setDiagnosisOptions([])
+    }
+  }
+
+  const debouncedSearchDiagnosis = debounce(searchDiagnosis, 500)
+  const debouncedSearchProcedures = debounce(searchProcedures, 500)
+
+  const handleDiagnosisSearch = (value: string) => {
+    setDiagnosisSearch(value)
+    debouncedSearchDiagnosis(value)
+  }
+
+  const handleProcedureSearch = (value: string) => {
+    setProcedureSearch(value)
+    debouncedSearchProcedures(value)
   }
 
   const handleAddDiagnosis = (value: string) => {
     const diagnosis = diagnosisOptions.find((d) => d.id === value)
     if (!diagnosis) return
 
-    // Check if already added
-    if (selectedDiagnoses.find((d) => d.diagnosisCode.id === diagnosis.id)) {
+    if (selectedDiagnoses.find((d) => d.diagnosisCode.code === diagnosis.code)) {
       message.warning('Diagnosis ini sudah ditambahkan')
       return
     }
 
     const newDiagnosis: DiagnosisTableData = {
       key: `dx-${Date.now()}`,
-      diagnosisCode: diagnosis,
-      isPrimary: selectedDiagnoses.length === 0, // First one is primary
+      diagnosisCode: {
+        id: diagnosis.id,
+        code: diagnosis.code,
+        name: diagnosis.display,
+        category: diagnosis.system
+      },
+      isPrimary: selectedDiagnoses.length === 0,
       diagnosedAt: new Date().toISOString()
     }
 
@@ -128,7 +280,6 @@ const DiagnosisProceduresForm = () => {
 
   const handleRemoveDiagnosis = (key: string) => {
     const updated = selectedDiagnoses.filter((d) => d.key !== key)
-    // If removed was primary and there are others, make first one primary
     if (updated.length > 0 && !updated.some((d) => d.isPrimary)) {
       updated[0].isPrimary = true
     }
@@ -147,20 +298,26 @@ const DiagnosisProceduresForm = () => {
     const procedure = procedureOptions.find((p) => p.id === procedureId)
     if (!procedure) return
 
-    // Check if already added
-    if (selectedProcedures.find((p) => p.procedure.id === procedure.id)) {
+    if (selectedProcedures.find((p) => p.procedure.code === procedure.code)) {
       message.warning('Tindakan ini sudah ditambahkan')
       return
     }
 
     const newProcedure: ProcedureTableData = {
       key: `proc-${Date.now()}`,
-      procedure,
+      procedure: {
+        id: procedure.id,
+        code: procedure.code,
+        name: procedure.name,
+        category: procedure.system,
+        icd9Code: procedure.code
+      },
       performedAt: new Date().toISOString()
     }
 
     setSelectedProcedures([...selectedProcedures, newProcedure])
-    form.setFieldValue('procedureSelect', undefined)
+    setProcedureSearch('')
+    form.setFieldValue('procedureSearch', undefined)
   }
 
   const handleRemoveProcedure = (key: string) => {
@@ -184,6 +341,7 @@ const DiagnosisProceduresForm = () => {
     try {
       const response = await saveDiagnosisAndProcedures({
         encounterId,
+        patientId: patientData?.patient.id, // Explicitly pass patientId
         diagnoses: selectedDiagnoses,
         procedures: selectedProcedures,
         clinicalNotes: values.clinicalNotes,
@@ -191,26 +349,7 @@ const DiagnosisProceduresForm = () => {
       })
 
       if (response.success) {
-        modal.success({
-          title: 'Berhasil!',
-          content:
-            'Data diagnosis dan tindakan berhasil disimpan. Pasien dapat mengambil surat rujukan di konter pelayanan.',
-          onOk: () => {
-            // Option to continue to prescription
-            modal.confirm({
-              title: 'Lanjut ke Resep?',
-              content: 'Apakah Anda ingin melanjutkan untuk membuat resep?',
-              okText: 'Ya, Lanjut',
-              cancelText: 'Tidak',
-              onOk: () => {
-                navigate(`/dashboard/doctor-prescription/${encounterId}`)
-              },
-              onCancel: () => {
-                navigate('/dashboard/doctor-medical-records')
-              }
-            })
-          }
-        })
+        message.success('Data diagnosis dan tindakan berhasil disimpan')
       } else {
         message.error(response.message)
       }
@@ -322,61 +461,22 @@ const DiagnosisProceduresForm = () => {
     }
   ]
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <Spin size="large" />
-      </div>
-    )
-  }
-
   if (!patientData) {
     return null
   }
 
+  // Show loading during initial data fetch
+  if (isLoadingConditions || isLoadingProcedures) {
+    return (
+      <div className="flex justify-center items-center h-48">
+        <Spin size="large" tip="Memuat data diagnosa dan tindakan..." />
+      </div>
+    )
+  }
+
   return (
     <div>
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate(`/dashboard/doctor-medical-records/detail/${encounterId}`)}
-        className="mb-4"
-      >
-        Kembali ke Rekam Medis
-      </Button>
-
-      {/* Patient Summary Card */}
-      <Card className="mb-4" size="small">
-        <Row gutter={16}>
-          <Col span={4}>
-            <div className="text-gray-500 text-xs">No. Antrian</div>
-            <div className="text-xl font-bold text-blue-600">{patientData.queueNumber}</div>
-          </Col>
-          <Col span={5}>
-            <div className="text-gray-500 text-xs">No. RM</div>
-            <div className="font-semibold">{patientData.patient.medicalRecordNumber}</div>
-          </Col>
-          <Col span={5}>
-            <div className="text-gray-500 text-xs">Nama</div>
-            <div className="font-semibold">{patientData.patient.name}</div>
-          </Col>
-          <Col span={5}>
-            <div className="text-gray-500 text-xs">Umur</div>
-            <div>{patientData.patient.age} tahun</div>
-          </Col>
-          <Col span={5}>
-            <Button
-              type="link"
-              size="small"
-              onClick={() => navigate(`/dashboard/doctor-medical-records/detail/${encounterId}`)}
-            >
-              Lihat Rekam Medis Lengkap →
-            </Button>
-          </Col>
-        </Row>
-      </Card>
-
       <Form form={form} layout="vertical" onFinish={onFinish}>
-        {/* Diagnosis Section */}
         <Card title="Diagnosis (ICD-10)" className="mb-4">
           <Space direction="vertical" className="w-full" size="large">
             <div>
@@ -384,13 +484,14 @@ const DiagnosisProceduresForm = () => {
                 <AutoComplete
                   options={diagnosisOptions.map((d) => ({
                     value: d.id,
-                    label: `${d.code} - ${d.name}`
+                    label: `${d.code} - ${d.id_display || d.display}`
                   }))}
                   onSearch={handleDiagnosisSearch}
                   onSelect={handleAddDiagnosis}
                   placeholder="Ketik kode ICD-10 atau nama diagnosis (min 2 karakter)"
                   className="w-full"
                   value={diagnosisSearch}
+                  notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
                 />
               </Form.Item>
             </div>
@@ -404,24 +505,24 @@ const DiagnosisProceduresForm = () => {
           </Space>
         </Card>
 
-        {/* Procedures Section */}
-        <Card title="Tindakan Medis" className="mb-4">
+        <Card title="Tindakan Medis (ICD-9-CM)" className="mb-4">
           <Space direction="vertical" className="w-full" size="large">
-            <Form.Item label="Pilih Tindakan" name="procedureSelect">
-              <Select
-                placeholder="Pilih tindakan medis"
-                showSearch
-                optionFilterProp="children"
+            <Form.Item label="Cari dan Tambah Tindakan" name="procedureSearch">
+              <AutoComplete
+                options={(() => {
+                  const opts = procedureOptions.map((p) => ({
+                    value: p.id,
+                    label: `${p.code} - ${p.id_display || p.display}`
+                  }))
+                  return opts
+                })()}
+                onSearch={handleProcedureSearch}
                 onSelect={handleAddProcedure}
-                suffixIcon={<PlusOutlined />}
-              >
-                {procedureOptions.map((proc) => (
-                  <Option key={proc.id} value={proc.id}>
-                    {proc.code} {proc.icd9Code ? `[${proc.icd9Code}]` : ''} - {proc.name} (
-                    {proc.category})
-                  </Option>
-                ))}
-              </Select>
+                placeholder="Ketik kode ICD-9 atau nama tindakan (min 2 karakter)"
+                className="w-full"
+                value={procedureSearch}
+                notFoundContent={searchingProcedure ? <Spin size="small" /> : null}
+              />
             </Form.Item>
 
             <Table
@@ -433,7 +534,6 @@ const DiagnosisProceduresForm = () => {
           </Space>
         </Card>
 
-        {/* Additional Notes */}
         <Card title="Catatan Tambahan" className="mb-4">
           <Form.Item label="Catatan Klinis" name="clinicalNotes">
             <TextArea rows={4} placeholder="Catatan tambahan dokter..." />
@@ -444,7 +544,6 @@ const DiagnosisProceduresForm = () => {
           </Form.Item>
         </Card>
 
-        {/* Action Buttons */}
         <Form.Item>
           <Space>
             <Button
@@ -456,12 +555,7 @@ const DiagnosisProceduresForm = () => {
             >
               Simpan Tindakan
             </Button>
-            <Button
-              size="large"
-              onClick={() => navigate(`/dashboard/doctor-medical-records/detail/${encounterId}`)}
-            >
-              Batal
-            </Button>
+            {/* Remove cancel functionality inside workspace, simple reset maybe? or nothing. Keeping cancel button but doing nothing for now or reload */}
           </Space>
         </Form.Item>
       </Form>

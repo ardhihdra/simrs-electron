@@ -56,6 +56,7 @@ import DoctorProcedures from './pages/doctor-procedures/DoctorProcedures'
 import DiagnosisProceduresForm from './pages/doctor-procedures/diagnosis-procedures-form'
 import DoctorPrescription from './pages/doctor-prescription/DoctorPrescription'
 import PrescriptionForm from './pages/doctor-prescription/prescription-form'
+import DoctorConsultationWorkspace from './pages/doctor-consultation/DoctorConsultationWorkspace'
 
 function MainRoute() {
   const location = useLocation()
@@ -124,6 +125,10 @@ function MainRoute() {
             <Route index element={<PatientList />} />
             <Route path="detail/:encounterId" element={<MedicalRecordDetail />} />
           </Route>
+          <Route
+            path="doctor-consultation/:encounterId"
+            element={<DoctorConsultationWorkspace />}
+          />
           <Route path="doctor-procedures" element={<DoctorProcedures />}>
             <Route path=":encounterId" element={<DiagnosisProceduresForm />} />
           </Route>

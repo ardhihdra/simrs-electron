@@ -3,23 +3,52 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import type { EncounterRow, EncounterTableRow } from '@shared/encounter'
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  EyeOutlined,
+  PlusOutlined,
+  ReloadOutlined
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import GenericTable from '@renderer/components/GenericTable'
 import { useDeleteEncounter, useEncounterList } from '@renderer/hooks/query/use-encounter'
 import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
 
-
 const baseColumns: ColumnsType<EncounterTableRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
-  { title: 'Kode Antrian', dataIndex: 'encounterCode', key: 'encounterCode', render: (v: string | null) => (v ? v : '-') },
-  { title: 'Tanggal Kunjungan', dataIndex: 'visitDate', key: 'visitDate', render: (v: string | Date) => (v ? dayjs(v).format('DD MMMM YYYY HH:mm') : '-') },
+  {
+    title: 'Kode Antrian',
+    dataIndex: 'encounterCode',
+    key: 'encounterCode',
+    render: (v: string | null) => (v ? v : '-')
+  },
+  {
+    title: 'Tanggal Kunjungan',
+    dataIndex: 'visitDate',
+    key: 'visitDate',
+    render: (v: string | Date) => (v ? dayjs(v).format('DD MMMM YYYY HH:mm') : '-')
+  },
   { title: 'Pasien', dataIndex: ['patient', 'name'], key: 'patient' },
   { title: 'Layanan', dataIndex: 'serviceType', key: 'serviceType' },
   { title: 'Alasan', dataIndex: 'reason', key: 'reason' },
   { title: 'Status', dataIndex: 'status', key: 'status' },
-  { title: 'Catatan', dataIndex: 'note', key: 'note' },
+  {
+    title: 'Status Perawat',
+    key: 'nurseStatus',
+    render: (_, record) => {
+      // Dummy logic for Nurse Status based on Encounter Status
+      const status = record.status?.toLowerCase()
+      if (status === 'arrived') return <span className="text-orange-500">Menunggu Pemeriksaan</span>
+      if (status === 'triaged') return <span className="text-green-500">Sudah Diperiksa</span>
+      if (status === 'in-progress')
+        return <span className="text-blue-500">Dalam Penanganan Dokter</span>
+      if (status === 'finished') return <span className="text-gray-500">Selesai</span>
+      return <span className="text-gray-400">-</span>
+    }
+  },
+  { title: 'Catatan', dataIndex: 'note', key: 'note' }
 ]
 
 function RowActions({ record }: { record: EncounterTableRow }) {
@@ -31,20 +60,26 @@ function RowActions({ record }: { record: EncounterTableRow }) {
         <Button
           icon={<EyeOutlined />}
           size="small"
-          onClick={() => { if (record.id) navigate(`/dashboard/encounter/edit/${record.id}?mode=view`) }}
+          onClick={() => {
+            if (record.id) navigate(`/dashboard/encounter/edit/${record.id}?mode=view`)
+          }}
         />
       </Tooltip>
       <Tooltip title="Edit">
         <Button
           icon={<EditOutlined />}
           size="small"
-          onClick={() => { if (record.id) navigate(`/dashboard/encounter/edit/${record.id}`) }}
+          onClick={() => {
+            if (record.id) navigate(`/dashboard/encounter/edit/${record.id}`)
+          }}
         />
       </Tooltip>
       <Popconfirm
         title="Hapus Kunjungan"
         description="Apakah anda yakin ingin menghapus data ini?"
-        onConfirm={() => { if (record.id) deleteMutation.mutate(record.id) }}
+        onConfirm={() => {
+          if (record.id) deleteMutation.mutate(record.id)
+        }}
         okText="Ya"
         cancelText="Batal"
         disabled={deleteMutation.isPending}
@@ -75,10 +110,24 @@ export function EncounterTable() {
     const source: EncounterRow[] = Array.isArray(data?.data) ? (data!.data as EncounterRow[]) : []
     const rows: EncounterTableRow[] = source.map((e, idx) => ({ ...e, no: idx + 1 }))
     return rows.filter((r) => {
-      const matchPatient = searchPatient ? String(r.patient?.name || '').toLowerCase().includes(searchPatient.toLowerCase()) : true
-      const matchService = searchService ? String(r.serviceType || '').toLowerCase().includes(searchService.toLowerCase()) : true
-      const matchReason = searchReason ? String(r.reason || '').toLowerCase().includes(searchReason.toLowerCase()) : true
-      const matchStatus = status ? String(r.status || '').toLowerCase() === status.toLowerCase() : true
+      const matchPatient = searchPatient
+        ? String(r.patient?.name || '')
+            .toLowerCase()
+            .includes(searchPatient.toLowerCase())
+        : true
+      const matchService = searchService
+        ? String(r.serviceType || '')
+            .toLowerCase()
+            .includes(searchService.toLowerCase())
+        : true
+      const matchReason = searchReason
+        ? String(r.reason || '')
+            .toLowerCase()
+            .includes(searchReason.toLowerCase())
+        : true
+      const matchStatus = status
+        ? String(r.status || '').toLowerCase() === status.toLowerCase()
+        : true
       const matchDate = visitDate ? dayjs(r.visitDate).isSame(dayjs(visitDate), 'day') : true
       return matchPatient && matchService && matchReason && matchStatus && matchDate
     })
@@ -88,8 +137,16 @@ export function EncounterTable() {
     <div>
       <h2 className="text-4xl font-bold mb-4 justify-center flex">Daftar Kunjungan</h2>
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/encounter/create')}>Tambah</Button>
-        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>Refresh</Button>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => navigate('/dashboard/encounter/create')}
+        >
+          Tambah
+        </Button>
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
+          Refresh
+        </Button>
         <Button
           onClick={async () => {
             try {
@@ -97,17 +154,30 @@ export function EncounterTable() {
                 entity: 'encounter',
                 usePagination: false
               })
-              if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+              if (
+                res &&
+                typeof res === 'object' &&
+                'success' in res &&
+                res.success &&
+                'url' in res &&
+                res.url
+              ) {
                 window.open(res.url as string, '_blank')
               }
             } catch (e) {
               console.error(e instanceof Error ? e.message : String(e))
             }
           }}
-        >Export CSV</Button>
+        >
+          Export CSV
+        </Button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-7 gap-2 md:gap-3 mb-3">
-        <Input placeholder="Pasien" value={searchPatient} onChange={(e) => setSearchPatient(e.target.value)} />
+        <Input
+          placeholder="Pasien"
+          value={searchPatient}
+          onChange={(e) => setSearchPatient(e.target.value)}
+        />
         <SelectPoli
           valueType="name"
           placeholder="Layanan"
@@ -116,7 +186,11 @@ export function EncounterTable() {
           allowClear
           className="w-full"
         />
-        <Input placeholder="Alasan" value={searchReason} onChange={(e) => setSearchReason(e.target.value)} />
+        <Input
+          placeholder="Alasan"
+          value={searchReason}
+          onChange={(e) => setSearchReason(e.target.value)}
+        />
         <Select
           allowClear
           placeholder="SEMUA STATUS"

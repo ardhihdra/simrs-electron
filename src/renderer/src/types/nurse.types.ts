@@ -57,12 +57,16 @@ export interface VitalSigns {
     // Tekanan Darah
     systolicBloodPressure: number // mmHg
     diastolicBloodPressure: number // mmHg
+    bloodPressureBodySite?: string // e.g. Left Arm
+    bloodPressurePosition?: string // e.g. Sitting
 
     // Suhu Tubuh
     temperature: number // Celsius
+    temperatureMethod?: string // e.g. Axillary, Oral
 
     // Nadi
     pulseRate: number // bpm (beats per minute)
+    pulseRateBodySite?: string // e.g. Radial
 
     // Pernapasan
     respiratoryRate: number // breaths per minute

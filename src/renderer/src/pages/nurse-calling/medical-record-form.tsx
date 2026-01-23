@@ -15,19 +15,9 @@ import {
 } from 'antd'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
-import {
-  MedicalRecord,
-  VitalSigns,
-  Anamnesis,
-  PhysicalExamination,
-  PatientQueue
-} from '../../types/nurse.types'
-import {
-  submitMedicalRecord,
-  getPatientQueueByEncounterId,
-  updatePatientStatus
-} from '../../services/nurse.service'
+import { VitalSigns, Anamnesis, PhysicalExamination, PatientQueue } from '../../types/nurse.types'
 import { PatientStatus } from '../../types/nurse.types'
+import { useBulkCreateObservation } from '../../hooks/query/use-observation'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -38,9 +28,10 @@ const MedicalRecordForm = () => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
   const [patientData, setPatientData] = useState<PatientQueue | null>(null)
   const [bmi, setBmi] = useState<number | null>(null)
+
+  const bulkCreateMutation = useBulkCreateObservation()
 
   useEffect(() => {
     loadPatientData()
@@ -52,11 +43,52 @@ const MedicalRecordForm = () => {
 
     setLoading(true)
     try {
-      const queue = await getPatientQueueByEncounterId(encounterId)
-      if (queue) {
-        setPatientData(queue)
-        // Update status to EXAMINING
-        await updatePatientStatus(queue.id, PatientStatus.EXAMINING)
+      const fn = window.api?.query?.encounter?.getById
+      if (!fn) throw new Error('API encounter tidak tersedia')
+
+      const response = await fn({ id: encounterId })
+
+      if (response.success && response.data) {
+        const enc = response.data as any
+        // Map API response to PatientQueue type
+        // Calculate age
+        const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
+        const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
+
+        const mappedData: PatientQueue = {
+          id: enc.id,
+          encounterId: enc.id,
+          queueNumber: parseInt(enc.encounterCode?.split('-')?.[1] || '0'),
+          patient: {
+            id: enc.patient?.id || '',
+            name: enc.patient?.name || 'Unknown',
+            medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
+            gender: (enc.patient?.gender === 'male' ? 'MALE' : 'FEMALE') as any,
+            birthDate: enc.patient?.birthDate || '',
+            age: age,
+            phone: '',
+            address: '',
+            identityNumber: enc.patient?.nik || ''
+          },
+          poli: {
+            id: '1',
+            code: 'POL',
+            name: enc.serviceType ? String(enc.serviceType) : '-'
+          },
+          doctor: {
+            id: 'doc1',
+            name: 'Dr. Umum',
+            specialization: 'General',
+            sipNumber: '-'
+          },
+          status: PatientStatus.EXAMINING,
+          registrationDate:
+            typeof enc.visitDate === 'object'
+              ? enc.visitDate.toISOString()
+              : String(enc.visitDate || new Date().toISOString())
+        }
+
+        setPatientData(mappedData)
       } else {
         message.error('Data pasien tidak ditemukan')
         navigate('/dashboard/nurse-calling')
@@ -100,37 +132,276 @@ const MedicalRecordForm = () => {
       return
     }
 
-    setSubmitting(true)
     try {
-      const medicalRecord: MedicalRecord = {
-        encounterId,
-        patientId: patientData.patient.id,
-        nurseId: 'nurse-001', // TODO: Get from logged in user
-        nurseName: 'Perawat Demo', // TODO: Get from logged in user
-        vitalSigns: values.vitalSigns as VitalSigns,
-        anamnesis: values.anamnesis as Anamnesis,
-        physicalExamination: values.physicalExamination as PhysicalExamination,
-        examinationDate: new Date().toISOString(),
-        notes: values.notes
+      // TODO: Get real logged in user
+      const currentUser = {
+        id: 'nurse-001',
+        name: 'Perawat Demo'
       }
 
-      const response = await submitMedicalRecord({ medicalRecord })
+      const observations: Array<{
+        category: string
+        code: string
+        display?: string
+        system?: string
+        valueQuantity?: any
+        valueString?: string
+        valueBoolean?: boolean
+        performers?: { performerId: string; performerName: string }[]
+        bodySites?: { code: string; display: string; system?: string }[]
+        methods?: { code: string; display: string; system?: string }[]
+        interpretations?: { code: string; display: string; system?: string }[]
+        notes?: (string | { text: string })[]
+      }> = []
 
-      if (response.success) {
-        message.success(response.message)
+      if (values.vitalSigns.systolicBloodPressure) {
+        observations.push({
+          category: 'vital-signs',
+          code: '8480-6',
+          display: 'Systolic blood pressure',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.systolicBloodPressure, unit: 'mmHg' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }],
+          bodySites: [
+            values.vitalSigns.bloodPressureBodySite
+              ? {
+                  code: values.vitalSigns.bloodPressureBodySite, // Using values as code/display for simplicity or map them
+                  display: values.vitalSigns.bloodPressureBodySite,
+                  system: 'http://snomed.info/sct'
+                }
+              : null,
+            values.vitalSigns.bloodPressurePosition
+              ? {
+                  code: values.vitalSigns.bloodPressurePosition,
+                  display: values.vitalSigns.bloodPressurePosition,
+                  system: 'http://snomed.info/sct'
+                }
+              : null
+          ].filter(Boolean) as any
+        })
+      }
+
+      if (values.vitalSigns.diastolicBloodPressure) {
+        observations.push({
+          category: 'vital-signs',
+          code: '8462-4',
+          display: 'Diastolic blood pressure',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.diastolicBloodPressure, unit: 'mmHg' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }],
+          bodySites: [
+            values.vitalSigns.bloodPressureBodySite
+              ? {
+                  code: values.vitalSigns.bloodPressureBodySite,
+                  display: values.vitalSigns.bloodPressureBodySite,
+                  system: 'http://snomed.info/sct'
+                }
+              : null,
+            values.vitalSigns.bloodPressurePosition
+              ? {
+                  code: values.vitalSigns.bloodPressurePosition,
+                  display: values.vitalSigns.bloodPressurePosition,
+                  system: 'http://snomed.info/sct'
+                }
+              : null
+          ].filter(Boolean) as any
+        })
+      }
+
+      if (values.vitalSigns.temperature) {
+        observations.push({
+          category: 'vital-signs',
+          code: '8310-5',
+          display: 'Body temperature',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.temperature, unit: 'Cel' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }],
+          methods: values.vitalSigns.temperatureMethod
+            ? [
+                {
+                  code: values.vitalSigns.temperatureMethod,
+                  display: values.vitalSigns.temperatureMethod,
+                  system: 'http://snomed.info/sct'
+                }
+              ]
+            : undefined
+        })
+      }
+
+      if (values.vitalSigns.pulseRate) {
+        observations.push({
+          category: 'vital-signs',
+          code: '8867-4',
+          display: 'Heart rate',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.pulseRate, unit: '/min' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }],
+          bodySites: values.vitalSigns.pulseRateBodySite
+            ? [
+                {
+                  code: values.vitalSigns.pulseRateBodySite,
+                  display: values.vitalSigns.pulseRateBodySite,
+                  system: 'http://snomed.info/sct'
+                }
+              ]
+            : undefined
+        })
+      }
+
+      if (values.vitalSigns.respiratoryRate) {
+        observations.push({
+          category: 'vital-signs',
+          code: '9279-1',
+          display: 'Respiratory rate',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.respiratoryRate, unit: '/min' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }]
+        })
+      }
+
+      if (values.vitalSigns.height) {
+        observations.push({
+          category: 'vital-signs',
+          code: '8302-2',
+          display: 'Body height',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.height, unit: 'cm' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }]
+        })
+      }
+
+      if (values.vitalSigns.weight) {
+        observations.push({
+          category: 'vital-signs',
+          code: '29463-7',
+          display: 'Body weight',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.weight, unit: 'kg' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }]
+        })
+      }
+
+      if (values.vitalSigns.bmi) {
+        observations.push({
+          category: 'vital-signs',
+          code: '39156-5',
+          display: 'Body mass index (BMI)',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.bmi, unit: 'kg/m2' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }],
+          interpretations: [
+            {
+              code: getBMICategory(values.vitalSigns.bmi).text.toUpperCase(),
+              display: getBMICategory(values.vitalSigns.bmi).text,
+              system: 'http://custom-bmi-category'
+            }
+          ]
+        })
+      }
+
+      if (values.vitalSigns.oxygenSaturation) {
+        observations.push({
+          category: 'vital-signs',
+          code: '2708-6',
+          display: 'Oxygen saturation',
+          system: 'http://loinc.org',
+          valueQuantity: { value: values.vitalSigns.oxygenSaturation, unit: '%' },
+          performers: [{ performerId: currentUser.id, performerName: currentUser.name }]
+        })
+      }
+
+      if (values.anamnesis.chiefComplaint) {
+        observations.push({
+          category: 'survey',
+          code: 'chief-complaint',
+          display: 'Chief complaint',
+          valueString: values.anamnesis.chiefComplaint
+        })
+      }
+
+      if (values.anamnesis.historyOfPresentIllness) {
+        observations.push({
+          category: 'survey',
+          code: 'history-present-illness',
+          display: 'History of present illness',
+          valueString: values.anamnesis.historyOfPresentIllness
+        })
+      }
+
+      if (values.anamnesis.historyOfPastIllness) {
+        observations.push({
+          category: 'survey',
+          code: 'history-past-illness',
+          display: 'History of past illness',
+          valueString: values.anamnesis.historyOfPastIllness
+        })
+      }
+
+      if (values.anamnesis.allergyHistory) {
+        observations.push({
+          category: 'survey',
+          code: 'allergy-history',
+          display: 'Allergy history',
+          valueString: values.anamnesis.allergyHistory
+        })
+      }
+
+      if (values.physicalExamination.consciousness) {
+        observations.push({
+          category: 'exam',
+          code: 'consciousness',
+          display: 'Level of consciousness',
+          valueString: values.physicalExamination.consciousness
+        })
+      }
+
+      if (values.physicalExamination.generalCondition) {
+        observations.push({
+          category: 'exam',
+          code: 'general-condition',
+          display: 'General condition',
+          valueString: values.physicalExamination.generalCondition
+        })
+      }
+
+      if (values.physicalExamination.additionalNotes) {
+        observations.push({
+          category: 'exam',
+          code: 'physical-exam-notes',
+          display: 'Physical examination notes',
+          valueString: values.physicalExamination.additionalNotes
+        })
+      }
+
+      if (values.notes) {
+        observations.push({
+          category: 'exam',
+          code: 'additional-notes',
+          display: 'Additional notes',
+          valueString: values.notes
+        })
+      }
+
+      const result = await bulkCreateMutation.mutateAsync({
+        encounterId,
+        patientId: patientData.patient.id,
+        observations,
+        performerId: 'nurse-001', // TODO: Get from logged in user
+        performerName: 'Perawat Demo' // TODO: Get from logged in user
+      })
+
+      if (result.success) {
+        message.success('Rekam medis berhasil disimpan')
         form.resetFields()
-        // Navigate back to queue
         setTimeout(() => {
           navigate('/dashboard/nurse-calling')
         }, 1500)
       } else {
-        message.error(response.message)
+        message.error(result.error || 'Gagal menyimpan rekam medis')
       }
     } catch (error) {
       message.error('Gagal menyimpan rekam medis')
       console.error(error)
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -156,7 +427,6 @@ const MedicalRecordForm = () => {
         Kembali ke Antrian
       </Button>
 
-      {/* Patient Info Card */}
       <Card className="mb-4">
         <Row gutter={[16, 16]}>
           <Col span={6}>
@@ -189,11 +459,10 @@ const MedicalRecordForm = () => {
         </Row>
       </Card>
 
-      {/* Medical Record Form */}
       <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
         <Card title="Vital Signs / Tanda Vital" className="mb-4">
           <Row gutter={16}>
-            <Col span={12}>
+            <Col span={6}>
               <Form.Item
                 label="Tekanan Darah Sistolik (mmHg)"
                 name={['vitalSigns', 'systolicBloodPressure']}
@@ -208,7 +477,7 @@ const MedicalRecordForm = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col span={6}>
               <Form.Item
                 label="Tekanan Darah Diastolik (mmHg)"
                 name={['vitalSigns', 'diastolicBloodPressure']}
@@ -221,6 +490,23 @@ const MedicalRecordForm = () => {
                   className="w-full"
                   addonAfter="mmHg"
                 />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label="Lokasi Pengukuran" name={['vitalSigns', 'bloodPressureBodySite']}>
+                <Select placeholder="Pilih lokasi">
+                  <Option value="Left arm">Lengan Kiri</Option>
+                  <Option value="Right arm">Lengan Kanan</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label="Posisi" name={['vitalSigns', 'bloodPressurePosition']}>
+                <Select placeholder="Pilih posisi">
+                  <Option value="Sitting position">Duduk</Option>
+                  <Option value="Supine position">Berbaring</Option>
+                  <Option value="Standing position">Berdiri</Option>
+                </Select>
               </Form.Item>
             </Col>
           </Row>
@@ -243,6 +529,16 @@ const MedicalRecordForm = () => {
               </Form.Item>
             </Col>
             <Col span={8}>
+              <Form.Item label="Metode Suhu" name={['vitalSigns', 'temperatureMethod']}>
+                <Select placeholder="Pilih metode">
+                  <Option value="Axillary">Axilla (Ketiak)</Option>
+                  <Option value="Oral">Oral (Mulut)</Option>
+                  <Option value="Rectal">Rectal (Anus)</Option>
+                  <Option value="Tympanic">Tympanic (Telinga)</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={8}>
               <Form.Item
                 label="Nadi (bpm)"
                 name={['vitalSigns', 'pulseRate']}
@@ -257,6 +553,18 @@ const MedicalRecordForm = () => {
                 />
               </Form.Item>
             </Col>
+            <Col span={8}>
+              <Form.Item label="Lokasi Nadi" name={['vitalSigns', 'pulseRateBodySite']}>
+                <Select placeholder="Pilih lokasi">
+                  <Option value="Radial">Radial (Pergelangan Tangan)</Option>
+                  <Option value="Carotid">Carotid (Leher)</Option>
+                  <Option value="Brachial">Brachial (Siku)</Option>
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col span={8}>
               <Form.Item
                 label="Pernapasan (per menit)"
@@ -410,7 +718,7 @@ const MedicalRecordForm = () => {
               htmlType="submit"
               icon={<SaveOutlined />}
               size="large"
-              loading={submitting}
+              loading={bulkCreateMutation.isPending}
             >
               Simpan Rekam Medis
             </Button>
