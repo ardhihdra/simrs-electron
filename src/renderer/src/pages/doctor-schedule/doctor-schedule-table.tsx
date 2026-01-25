@@ -3,7 +3,7 @@ import { EyeOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-de
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { useNavigate } from 'react-router'
 
 interface DoctorScheduleItem {

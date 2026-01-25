@@ -12,9 +12,9 @@ import {
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { useDeleteEncounter, useEncounterList } from '@renderer/hooks/query/use-encounter'
-import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
+import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
 
 const baseColumns: ColumnsType<EncounterTableRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
@@ -112,18 +112,18 @@ export function EncounterTable() {
     return rows.filter((r) => {
       const matchPatient = searchPatient
         ? String(r.patient?.name || '')
-            .toLowerCase()
-            .includes(searchPatient.toLowerCase())
+          .toLowerCase()
+          .includes(searchPatient.toLowerCase())
         : true
       const matchService = searchService
         ? String(r.serviceType || '')
-            .toLowerCase()
-            .includes(searchService.toLowerCase())
+          .toLowerCase()
+          .includes(searchService.toLowerCase())
         : true
       const matchReason = searchReason
         ? String(r.reason || '')
-            .toLowerCase()
-            .includes(searchReason.toLowerCase())
+          .toLowerCase()
+          .includes(searchReason.toLowerCase())
         : true
       const matchStatus = status
         ? String(r.status || '').toLowerCase() === status.toLowerCase()

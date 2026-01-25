@@ -1,4 +1,8 @@
-// Helper functions to transform observation API data for UI display
+import {
+    ConditionData,
+    FormattedAnamnesis,
+    formatAnamnesisFromConditions
+} from './condition-helpers'
 
 export interface ObservationData {
     id?: number
@@ -35,13 +39,6 @@ export interface FormattedVitalSigns {
     oxygenSaturation?: number
 }
 
-export interface FormattedAnamnesis {
-    chiefComplaint?: string
-    historyOfPresentIllness?: string
-    historyOfPastIllness?: string
-    allergyHistory?: string
-}
-
 export interface FormattedPhysicalExamination {
     consciousness?: string
     generalCondition?: string
@@ -56,9 +53,6 @@ export interface FormattedObservationSummary {
     examinationDate?: string
 }
 
-/**
- * Find observation by LOINC code or custom code
- */
 export const getObservationByCode = (
     observations: ObservationData[],
     code: string
@@ -68,44 +62,27 @@ export const getObservationByCode = (
     )
 }
 
-/**
- * Extract quantity value from observation
- */
 export const extractQuantityValue = (observation?: ObservationData): number | undefined => {
     return observation?.valueQuantity?.value
 }
 
-/**
- * Extract string value from observation
- */
 export const extractStringValue = (observation?: ObservationData): string | undefined => {
     return observation?.valueString
 }
 
-/**
- * Get body site display text
- */
 export const getBodySiteDisplay = (observation?: ObservationData): string | undefined => {
     return observation?.bodySites?.[0]?.display
 }
 
-/**
- * Get method display text
- */
 export const getMethodDisplay = (observation?: ObservationData): string | undefined => {
     return observation?.methods?.[0]?.display
 }
 
-/**
- * Get interpretation display text
- */
 export const getInterpretationDisplay = (observation?: ObservationData): string | undefined => {
     return observation?.interpretations?.[0]?.display
 }
 
-/**
- * Get performer display text
- */
+
 export const getPerformerDisplay = (observation?: ObservationData): string | undefined => {
     return observation?.performers?.[0]?.display
 }
@@ -142,26 +119,27 @@ export const formatVitalSigns = (observations: ObservationData[]): FormattedVita
     }
 }
 
-/**
- * Format anamnesis from observations
- */
+
 export const formatAnamnesis = (observations: ObservationData[]): FormattedAnamnesis => {
     const chiefComplaintObs = getObservationByCode(observations, 'chief-complaint')
     const historyPresentObs = getObservationByCode(observations, 'history-present-illness')
     const historyPastObs = getObservationByCode(observations, 'history-past-illness')
     const allergyObs = getObservationByCode(observations, 'allergy-history')
+    const symptomsObs = getObservationByCode(observations, 'associated-symptoms')
+    const familyHistoryObs = getObservationByCode(observations, 'family-history')
+    const medicationHistoryObs = getObservationByCode(observations, 'medication-history')
 
     return {
         chiefComplaint: extractStringValue(chiefComplaintObs),
         historyOfPresentIllness: extractStringValue(historyPresentObs),
         historyOfPastIllness: extractStringValue(historyPastObs),
-        allergyHistory: extractStringValue(allergyObs)
+        allergyHistory: extractStringValue(allergyObs),
+        associatedSymptoms: extractStringValue(symptomsObs),
+        familyHistory: extractStringValue(familyHistoryObs),
+        medicationHistory: extractStringValue(medicationHistoryObs)
     }
 }
 
-/**
- * Format physical examination from observations
- */
 export const formatPhysicalExamination = (
     observations: ObservationData[]
 ): FormattedPhysicalExamination => {
@@ -176,9 +154,6 @@ export const formatPhysicalExamination = (
     }
 }
 
-/**
- * Get performer and date information from first observation
- */
 export const getObservationMetadata = (
     observations: ObservationData[]
 ): { performerName?: string; examinationDate?: string } => {
@@ -193,16 +168,20 @@ export const getObservationMetadata = (
     }
 }
 
-/**
- * Transform all observations into formatted summary
- */
 export const formatObservationSummary = (
-    allObservations: ObservationData[]
+    allObservations: ObservationData[],
+    allConditions: ConditionData[] = []
 ): FormattedObservationSummary => {
     const vitalSigns = formatVitalSigns(allObservations)
-    const anamnesis = formatAnamnesis(allObservations)
+    const anamnesisFromObs = formatAnamnesis(allObservations)
+    const anamnesisFromCond = formatAnamnesisFromConditions(allConditions)
     const physicalExamination = formatPhysicalExamination(allObservations)
     const metadata = getObservationMetadata(allObservations)
+
+    const anamnesis = {
+        ...anamnesisFromObs,
+        ...Object.fromEntries(Object.entries(anamnesisFromCond).filter(([_, v]) => v))
+    }
 
     return {
         vitalSigns,

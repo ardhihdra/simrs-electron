@@ -1,4 +1,3 @@
-// Type definitions for Nurse Flow Module
 
 export enum PatientStatus {
     WAITING = 'WAITING',
@@ -22,7 +21,7 @@ export interface Patient {
     age: number
     phone: string
     address: string
-    identityNumber: string // NIK
+    identityNumber: string
 }
 
 export interface Poli {
@@ -36,7 +35,7 @@ export interface Doctor {
     id: string
     name: string
     specialization: string
-    sipNumber: string // Surat Izin Praktik
+    sipNumber: string
 }
 
 export interface PatientQueue {
@@ -85,6 +84,9 @@ export interface Anamnesis {
     historyOfPresentIllness: string // Riwayat Penyakit Sekarang
     historyOfPastIllness?: string // Riwayat Penyakit Dahulu
     allergyHistory?: string // Riwayat Alergi
+    associatedSymptoms?: string // Keluhan Penyerta
+    familyHistory?: string // Riwayat Penyakit Keluarga
+    medicationHistory?: string // Riwayat Pengobatan
 }
 
 export interface PhysicalExamination {

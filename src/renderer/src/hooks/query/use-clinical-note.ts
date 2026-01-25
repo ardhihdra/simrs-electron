@@ -17,7 +17,8 @@ export const useUpsertClinicalNote = () => {
     return useMutation({
         mutationKey: ['clinical-note', 'upsert'],
         mutationFn: async (payload: any) => {
-            const fn = window.api?.query?.clinicalNote?.upsert
+            // Updated to call 'create'
+            const fn = window.api?.query?.clinicalNote?.create
             if (!fn) throw new Error('API clinicalNote tidak tersedia')
             return fn(payload)
         },

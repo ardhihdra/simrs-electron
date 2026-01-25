@@ -56,10 +56,25 @@ export const schemas = {
   }
 } as const
 
-export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.args>) => {
+export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get('/api/encounter?items=100&depth=1')
+
+    // Convert args to query string
+    const queryParams = new URLSearchParams()
+    if (args) {
+      Object.entries(args).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+
+    // Set default items if not present
+    if (!queryParams.has('items')) queryParams.set('items', '100')
+    if (!queryParams.has('depth')) queryParams.set('depth', '1')
+
+    const res = await client.get(`/api/encounter?${queryParams.toString()}`)
 
     // Extend the base schema to include the joined 'patient' relation
     const EncounterWithPatientSchema = EncounterSchemaWithId.extend({

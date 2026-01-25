@@ -1,12 +1,8 @@
-// Type definitions for Doctor Flow Module
-
-import { Patient, PatientQueue, VitalSigns, Anamnesis, PhysicalExamination } from './nurse.types'
-
-// ============ Diagnosis Types ============
+import { PatientQueue, VitalSigns, Anamnesis, PhysicalExamination } from './nurse.types'
 
 export interface DiagnosisCode {
     id: string
-    code: string // ICD-10 code
+    code: string
     name: string
     description?: string
     category?: string
@@ -15,12 +11,10 @@ export interface DiagnosisCode {
 export interface PatientDiagnosis {
     id?: string
     diagnosisCode: DiagnosisCode
-    isPrimary: boolean // Primary diagnosis flag
+    isPrimary: boolean
     notes?: string
     diagnosedAt: string
 }
-
-// ============ Medical Procedure Types ============
 
 export interface MedicalProcedure {
     id: string
@@ -29,6 +23,7 @@ export interface MedicalProcedure {
     name: string
     description?: string
     category?: string
+    system?: string
 }
 
 export interface PatientProcedure {
@@ -37,8 +32,6 @@ export interface PatientProcedure {
     notes?: string
     performedAt: string
 }
-
-// ============ Medicine Types ============
 
 export enum MedicineCategory {
     ANTIBIOTIC = 'ANTIBIOTIC',
@@ -69,15 +62,13 @@ export interface Medicine {
     name: string
     category: MedicineCategory
     dosageForm: DosageForm
-    strength?: string // e.g., "500mg", "10mg/ml"
-    unit: string // tablet, kapsul, ml, dll
+    strength?: string
+    unit: string
     stock: number
     price: number
     manufacturer?: string
     description?: string
 }
-
-// ============ Supply Types ============
 
 export enum SupplyCategory {
     MEDICAL_EQUIPMENT = 'MEDICAL_EQUIPMENT',
@@ -98,26 +89,21 @@ export interface Supply {
     description?: string
 }
 
-// ============ Compound/Racikan Types ============
-
 export interface CompoundIngredient {
     id?: string
-    item: Medicine | Supply // Bahan bisa dari obat atau barang
-    itemType: 'medicine' | 'supply'
+    item: Medicine | Supply
     quantity: number
-    dosage: string // Takaran, e.g., "1 sendok teh", "5 ml"
+    dosage: string
 }
 
 export interface CompoundFormulation {
     id?: string
-    name: string // Nama racikan
+    name: string
     ingredients: CompoundIngredient[]
-    instructions: string // Keterangan cara pakai
+    instructions: string
     createdBy?: string
     createdAt?: string
 }
-
-// ============ Prescription Types ============
 
 export enum PrescriptionItemType {
     MEDICINE = 'MEDICINE',
@@ -130,7 +116,7 @@ export interface PrescriptionItem {
     type: PrescriptionItemType
     item: Medicine | Supply | CompoundFormulation
     quantity: number
-    dosageInstructions: string // e.g., "3x1 sehari sesudah makan"
+    dosageInstructions: string
     notes?: string
 }
 
@@ -146,37 +132,26 @@ export interface Prescription {
     status?: 'pending' | 'processed' | 'completed'
 }
 
-// ============ Doctor Encounter Record ============
-
 export interface DoctorEncounterRecord {
     id?: string
     encounterId: string
     patientId: string
     doctorId: string
     doctorName: string
-
-    // Reference to nurse data
     nurseRecordId?: string
-
-    // Doctor's additions
     diagnoses: PatientDiagnosis[]
     procedures: PatientProcedure[]
     prescription?: Prescription
-
-    // Additional notes
     clinicalNotes?: string
     followUpInstructions?: string
-    referralNotes?: string // Catatan rujukan
-
+    referralNotes?: string
     examinationDate: string
     completedAt?: string
 }
 
-// ============ Request/Response Types ============
-
 export interface SaveDiagnosisAndProceduresRequest {
     encounterId: string
-    patientId?: string // Added patientId
+    patientId?: string
     diagnoses: PatientDiagnosis[]
     procedures: PatientProcedure[]
     clinicalNotes?: string
@@ -209,10 +184,8 @@ export interface SaveCompoundFormulationResponse {
     compoundId?: string
 }
 
-// ============ View Models ============
-
 export interface PatientWithMedicalRecord extends PatientQueue {
-    paymentMethod?: string // Added for display in header
+    paymentMethod?: string
     nurseRecord?: {
         vitalSigns: VitalSigns
         anamnesis: Anamnesis

@@ -1,6 +1,6 @@
 import { Link, Route, Routes, useLocation } from 'react-router'
 
-import AppLayout from './components/AppLayout'
+import AppLayout from './components/templates/AppLayout'
 import HomePage from './pages/home'
 import Dashboard from './pages/Dashboard'
 import Expense from './pages/expense/Expense'
@@ -36,7 +36,6 @@ import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
 import Services from './pages/services/services'
-import PemeriksaanUtamaTable from './pages/services/pemeriksaan-utama/table'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import Pharmacy from './pages/pharmacy/Pharmacy'
@@ -49,14 +48,9 @@ import MedicinesForm from './pages/pharmacy/medicines-form'
 import NurseCalling from './pages/nurse-calling/NurseCalling'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
 import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
-import DoctorMedicalRecords from './pages/doctor-medical-records/DoctorMedicalRecords'
-import PatientList from './pages/doctor-medical-records/patient-list'
-import MedicalRecordDetail from './pages/doctor-medical-records/medical-record-detail'
-import DoctorProcedures from './pages/doctor-procedures/DoctorProcedures'
-import DiagnosisProceduresForm from './pages/doctor-procedures/diagnosis-procedures-form'
-import DoctorPrescription from './pages/doctor-prescription/DoctorPrescription'
-import PrescriptionForm from './pages/doctor-prescription/prescription-form'
-import DoctorConsultationWorkspace from './pages/doctor-consultation/DoctorConsultationWorkspace'
+import DoctorEMR from './pages/doctor-emr/doctor-emr'
+import PatientList from './pages/doctor-emr/patient-list'
+import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 
 function MainRoute() {
   const location = useLocation()
@@ -121,19 +115,9 @@ function MainRoute() {
             <Route index element={<PatientQueueTable />} />
             <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />
           </Route>
-          <Route path="doctor-medical-records" element={<DoctorMedicalRecords />}>
+          <Route path="doctor" element={<DoctorEMR />}>
             <Route index element={<PatientList />} />
-            <Route path="detail/:encounterId" element={<MedicalRecordDetail />} />
-          </Route>
-          <Route
-            path="doctor-consultation/:encounterId"
-            element={<DoctorConsultationWorkspace />}
-          />
-          <Route path="doctor-procedures" element={<DoctorProcedures />}>
-            <Route path=":encounterId" element={<DiagnosisProceduresForm />} />
-          </Route>
-          <Route path="doctor-prescription" element={<DoctorPrescription />}>
-            <Route path=":encounterId" element={<PrescriptionForm />} />
+            <Route path=":encounterId" element={<DoctorWorkspace />} />
           </Route>
           <Route path="services" element={<Services />}>
             <Route index element={<PemeriksaanUtamaPage />} />

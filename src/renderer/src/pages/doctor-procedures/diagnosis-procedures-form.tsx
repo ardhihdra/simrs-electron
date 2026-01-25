@@ -475,9 +475,9 @@ export const DiagnosisProceduresForm = ({
   }
 
   return (
-    <div>
-      <Form form={form} layout="vertical" onFinish={onFinish}>
-        <Card title="Diagnosis (ICD-10)" className="mb-4">
+    <div className="flex flex-col gap-4">
+      <Form form={form} layout="vertical" onFinish={onFinish} className="flex flex-col gap-4">
+        <Card title="Diagnosis (ICD-10)">
           <Space direction="vertical" className="w-full" size="large">
             <div>
               <Form.Item label="Cari dan Tambah Diagnosis" name="diagnosisSearch">
@@ -505,7 +505,7 @@ export const DiagnosisProceduresForm = ({
           </Space>
         </Card>
 
-        <Card title="Tindakan Medis (ICD-9-CM)" className="mb-4">
+        <Card title="Tindakan Medis (ICD-9-CM)">
           <Space direction="vertical" className="w-full" size="large">
             <Form.Item label="Cari dan Tambah Tindakan" name="procedureSearch">
               <AutoComplete
@@ -534,7 +534,7 @@ export const DiagnosisProceduresForm = ({
           </Space>
         </Card>
 
-        <Card title="Catatan Tambahan" className="mb-4">
+        <Card title="Catatan Tambahan">
           <Form.Item label="Catatan Klinis" name="clinicalNotes">
             <TextArea rows={4} placeholder="Catatan tambahan dokter..." />
           </Form.Item>

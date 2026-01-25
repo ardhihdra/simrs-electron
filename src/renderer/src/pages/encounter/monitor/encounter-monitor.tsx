@@ -1,6 +1,6 @@
 import { Card } from 'antd'
 import { useState } from 'react'
-import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
+import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
 import { EncounterListResult } from '@shared/encounter'
 
 import { useEncounterMonitor } from '@renderer/hooks/query/use-encounter'

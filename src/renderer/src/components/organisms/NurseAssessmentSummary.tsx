@@ -1,18 +1,17 @@
 import { Card, Descriptions, Alert, Spin, Tag } from 'antd'
-import { useObservationByEncounter } from '../hooks/query/use-observation'
-import { formatObservationSummary } from '../utils/observation-helpers'
+import { useObservationByEncounter } from '../../hooks/query/use-observation'
+import { useConditionByEncounter } from '../../hooks/query/use-condition'
+import { formatObservationSummary } from '../../utils/observation-helpers'
 
 interface NurseAssessmentSummaryProps {
   encounterId: string
 }
 
 export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryProps) => {
-  const { data, isLoading, isError } = useObservationByEncounter(encounterId)
+  const { data: obsData, isLoading: obsLoading, isError: obsError } = useObservationByEncounter(encounterId)
+  const { data: condData, isLoading: condLoading } = useConditionByEncounter(encounterId)
 
-  // Temporary debug
-  console.log('🔍 Full data object:', JSON.stringify(data, null, 2))
-  console.log('🔍 data?.result:', data?.result)
-  console.log('🔍 data?.result?.all:', data?.result?.all)
+  const isLoading = obsLoading || condLoading
 
   if (isLoading) {
     return (
@@ -22,21 +21,21 @@ export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryPr
     )
   }
 
-  if (isError) {
+  if (obsError) {
     return <Alert message="Gagal memuat data pemeriksaan awal" type="error" showIcon />
   }
 
-  // Check if we have observation data
-  const observations = data?.result?.all || []
-  if (!observations || observations.length === 0) {
-    console.log('🔍 No observations found - showing warning')
+  const observations = obsData?.result?.all || []
+  const conditions = condData?.result || []
+
+  // Check if we have ANY data (either obs or conditions)
+  if ((!observations || observations.length === 0) && (!conditions || conditions.length === 0)) {
     return <Alert message="Belum ada data pemeriksaan awal perawat" type="warning" showIcon />
   }
 
-  const summary = formatObservationSummary(observations)
+  const summary = formatObservationSummary(observations, conditions)
   const { vitalSigns, anamnesis, physicalExamination, performerName, examinationDate } = summary
 
-  // Helper to get BMI category color
   const getBMIColor = (category?: string): string => {
     if (!category) return 'default'
     const cat = category.toLowerCase()
@@ -48,7 +47,7 @@ export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryPr
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <Card title="Tanda Vital (Vital Signs)" size="small">
         <Descriptions column={3} size="small" bordered>
           <Descriptions.Item label="Tekanan Darah">
@@ -125,11 +124,16 @@ export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryPr
           <Descriptions.Item label="Keluhan Utama">
             <span className="font-semibold">{anamnesis.chiefComplaint || '-'}</span>
           </Descriptions.Item>
-          <Descriptions.Item label="Riwayat Penyakit Sekarang">
-            {anamnesis.historyOfPresentIllness || '-'}
+          {/* Keluhan Penyerta */}
+          <Descriptions.Item label="Keluhan Penyerta">
+            {anamnesis.associatedSymptoms || '-'}
           </Descriptions.Item>
-          <Descriptions.Item label="Riwayat Penyakit Dahulu">
-            {anamnesis.historyOfPastIllness || '-'}
+          <Descriptions.Item label="Riwayat Penyakit">
+            {anamnesis.historyOfIllness || '-'}
+          </Descriptions.Item>
+          {/* Riwayat Penyakit Keluarga */}
+          <Descriptions.Item label="Riwayat Penyakit Keluarga">
+            {anamnesis.familyHistory || '-'}
           </Descriptions.Item>
           <Descriptions.Item label="Alergi">
             {anamnesis.allergyHistory ? (
@@ -137,6 +141,10 @@ export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryPr
             ) : (
               '-'
             )}
+          </Descriptions.Item>
+          {/* Riwayat Pengobatan */}
+          <Descriptions.Item label="Riwayat Pengobatan">
+            {anamnesis.medicationHistory || '-'}
           </Descriptions.Item>
         </Descriptions>
       </Card>

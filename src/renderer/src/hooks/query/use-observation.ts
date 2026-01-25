@@ -30,7 +30,7 @@ export const useBulkCreateObservation = () => {
     return useMutation({
         mutationKey: ['observation', 'bulk-create'],
         mutationFn: async (payload: BulkCreateObservationPayload) => {
-            const fn = window.api?.query?.observation?.bulkCreate
+            const fn = window.api?.query?.observation?.create
             if (!fn) throw new Error('API observation tidak tersedia')
             return fn(payload)
         },

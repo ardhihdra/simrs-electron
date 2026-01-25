@@ -489,9 +489,9 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
   ]
 
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       {/* Tabs for Medicine, Supply, Compound */}
-      <Card className="mb-4">
+      <Card>
         <Tabs defaultActiveKey="1">
           {/* Tab 1: Medicines */}
           <TabPane tab="Obat" key="1">
@@ -632,7 +632,6 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
             <span>Keranjang Resep ({cartItems.length} item)</span>
           </Space>
         }
-        className="mb-4"
       >
         <Table
           columns={cartColumns}

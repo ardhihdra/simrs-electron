@@ -29,6 +29,7 @@ export const schemas = {
         args: z.object({
             page: z.number().optional(),
             items: z.number().optional(),
+            q: z.string().optional(),
             search: z.string().optional(),
             code: z.string().optional(),
             status: z.string().optional()
@@ -52,7 +53,8 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 
         if (args?.page) params.append('page', args.page.toString())
         if (args?.items) params.append('items', args.items.toString())
-        if (args?.search) params.append('search', args.search)
+        if (args?.q) params.append('q', args.q)
+        if (args?.search) params.append('q', args.search) // Map search to q
         if (args?.code) params.append('code', args.code)
         if (args?.status) params.append('status', args.status)
 

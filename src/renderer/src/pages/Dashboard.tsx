@@ -3,8 +3,8 @@ import type { MenuProps } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
-import ProfileMenu from '@renderer/components/ProfileMenu'
-import NotificationBell from '@renderer/components/NotificationBell'
+import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import logoUrl from '@renderer/assets/logo.png'
 import {
   CalendarOutlined,
@@ -218,23 +218,13 @@ const items = [
   },
   {
     label: 'Dokter',
-    key: '/dashboard/doctor-medical-records',
+    key: '/dashboard/doctor',
     icon: <UserOutlined />,
     children: [
       {
         label: 'Rekam Medis',
-        key: '/dashboard/doctor-medical-records',
+        key: '/dashboard/doctor',
         icon: <FileTextOutlined />
-      },
-      {
-        label: 'Tindakan',
-        key: '/dashboard/doctor-procedures',
-        icon: <MedicineBoxOutlined />
-      },
-      {
-        label: 'Resep',
-        key: '/dashboard/doctor-prescription',
-        icon: <PlusCircleOutlined />
       }
     ]
   },
@@ -285,10 +275,8 @@ function Dashboard() {
     '/dashboard/service-request',
     '/dashboard/pharmacy',
     '/dashboard/nurse-calling',
-    '/dashboard/doctor-medical-records',
-    '/dashboard/doctor-procedures',
-    '/dashboard/doctor-prescription',
-    '/dashboard/doctor-consultation'
+    '/dashboard/nurse-calling',
+    '/dashboard/doctor'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -304,6 +292,7 @@ function Dashboard() {
     return top ? top.label : path
   }
   const getTopKeyFromPath = (path: string): string => {
+    if (path.startsWith('/dashboard/doctor')) return '/dashboard/doctor'
     for (const top of items) {
       const children = Array.isArray(top.children) ? top.children : []
       const match = children.find((c) => path.startsWith(c.key))

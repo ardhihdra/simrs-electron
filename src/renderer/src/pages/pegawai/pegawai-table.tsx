@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router'
 import { PegawaiCategoryOptions } from '@shared/kepegawaian'
 
 import type { ColumnsType } from 'antd/es/table'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { EditOutlined, EyeOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useKepegawaianList, useDeletePegawai, PegawaiRow } from '@renderer/hooks/use-kepegawaian'

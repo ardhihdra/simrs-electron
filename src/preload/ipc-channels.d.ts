@@ -4,41 +4,33 @@ import type { z } from 'zod'
 import type * as Mod_auth from '@main/routes/auth'
 import type * as Mod_macaddress from '@main/routes/macaddress'
 import type * as Mod_notification from '@main/routes/notification'
+import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
+import type * as Mod_query_composition from '@main/routes/query/composition'
+import type * as Mod_query_condition from '@main/routes/query/condition'
 import type * as Mod_query_departemen from '@main/routes/query/departemen'
+import type * as Mod_query_diagnosisCode from '@main/routes/query/diagnosisCode'
 import type * as Mod_query_diagnostic from '@main/routes/query/diagnostic'
+import type * as Mod_query_diagnosticReport from '@main/routes/query/diagnosticReport'
 import type * as Mod_query_doctorSchedule from '@main/routes/query/doctorSchedule'
 import type * as Mod_query_encounter from '@main/routes/query/encounter'
 import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
+import type * as Mod_query_export from '@main/routes/query/export'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
+import type * as Mod_query_masterProcedure from '@main/routes/query/masterProcedure'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
 import type * as Mod_query_medicine from '@main/routes/query/medicine'
 import type * as Mod_query_medicineBrand from '@main/routes/query/medicineBrand'
 import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCategory'
+import type * as Mod_query_observation from '@main/routes/query/observation'
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
 import type * as Mod_query_poli from '@main/routes/query/poli'
+import type * as Mod_query_procedure from '@main/routes/query/procedure'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
 import type * as Mod_user from '@main/routes/user'
-import type * as Mod_auth from '../main/routes/auth'
-import type * as Mod_macaddress from '../main/routes/macaddress'
-import type * as Mod_notification from '../main/routes/notification'
-import type * as Mod_query_departemen from '../main/routes/query/departemen'
-import type * as Mod_query_diagnostic from '../main/routes/query/diagnostic'
-import type * as Mod_query_doctorSchedule from '../main/routes/query/doctorSchedule'
-import type * as Mod_query_encounter from '../main/routes/query/encounter'
-import type * as Mod_query_expense from '../main/routes/query/expense'
-import type * as Mod_query_expenseHead from '../main/routes/query/expenseHead'
-import type * as Mod_query_export from '../main/routes/query/export'
-import type * as Mod_query_jaminan from '../main/routes/query/jaminan'
-import type * as Mod_query_kepegawaian from '../main/routes/query/kepegawaian'
-import type * as Mod_query_medicalStaffSchedule from '../main/routes/query/medicalStaffSchedule'
-import type * as Mod_query_patient from '../main/routes/query/patient'
-import type * as Mod_query_pegawai from '../main/routes/query/pegawai'
-import type * as Mod_query_serviceRequest from '../main/routes/query/serviceRequest'
-import type * as Mod_user from '../main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
@@ -82,8 +74,24 @@ type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress,
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Args_Mod_notification_send = InferArgs<typeof Mod_notification, 'send'>
 type Result_Mod_notification_send = InferResult<typeof Mod_notification, 'send'>
+type Args_Mod_query_clinicalNote_create = InferArgs<typeof Mod_query_clinicalNote, 'create'>
+type Result_Mod_query_clinicalNote_create = InferResult<typeof Mod_query_clinicalNote, 'create'>
+type Args_Mod_query_clinicalNote_getByEncounter = InferArgs<typeof Mod_query_clinicalNote, 'getByEncounter'>
+type Result_Mod_query_clinicalNote_getByEncounter = InferResult<typeof Mod_query_clinicalNote, 'getByEncounter'>
+type Args_Mod_query_composition_create = InferArgs<typeof Mod_query_composition, 'create'>
+type Result_Mod_query_composition_create = InferResult<typeof Mod_query_composition, 'create'>
+type Args_Mod_query_composition_getByEncounter = InferArgs<typeof Mod_query_composition, 'getByEncounter'>
+type Result_Mod_query_composition_getByEncounter = InferResult<typeof Mod_query_composition, 'getByEncounter'>
+type Args_Mod_query_condition_create = InferArgs<typeof Mod_query_condition, 'create'>
+type Result_Mod_query_condition_create = InferResult<typeof Mod_query_condition, 'create'>
+type Args_Mod_query_condition_getByEncounter = InferArgs<typeof Mod_query_condition, 'getByEncounter'>
+type Result_Mod_query_condition_getByEncounter = InferResult<typeof Mod_query_condition, 'getByEncounter'>
 type Args_Mod_query_departemen_list = InferArgs<typeof Mod_query_departemen, 'list'>
 type Result_Mod_query_departemen_list = InferResult<typeof Mod_query_departemen, 'list'>
+type Args_Mod_query_diagnosisCode_getById = InferArgs<typeof Mod_query_diagnosisCode, 'getById'>
+type Result_Mod_query_diagnosisCode_getById = InferResult<typeof Mod_query_diagnosisCode, 'getById'>
+type Args_Mod_query_diagnosisCode_list = InferArgs<typeof Mod_query_diagnosisCode, 'list'>
+type Result_Mod_query_diagnosisCode_list = InferResult<typeof Mod_query_diagnosisCode, 'list'>
 type Args_Mod_query_diagnostic_create = InferArgs<typeof Mod_query_diagnostic, 'create'>
 type Result_Mod_query_diagnostic_create = InferResult<typeof Mod_query_diagnostic, 'create'>
 type Args_Mod_query_diagnostic_deleteById = InferArgs<typeof Mod_query_diagnostic, 'deleteById'>
@@ -94,6 +102,10 @@ type Args_Mod_query_diagnostic_list = InferArgs<typeof Mod_query_diagnostic, 'li
 type Result_Mod_query_diagnostic_list = InferResult<typeof Mod_query_diagnostic, 'list'>
 type Args_Mod_query_diagnostic_update = InferArgs<typeof Mod_query_diagnostic, 'update'>
 type Result_Mod_query_diagnostic_update = InferResult<typeof Mod_query_diagnostic, 'update'>
+type Args_Mod_query_diagnosticReport_create = InferArgs<typeof Mod_query_diagnosticReport, 'create'>
+type Result_Mod_query_diagnosticReport_create = InferResult<typeof Mod_query_diagnosticReport, 'create'>
+type Args_Mod_query_diagnosticReport_getByEncounter = InferArgs<typeof Mod_query_diagnosticReport, 'getByEncounter'>
+type Result_Mod_query_diagnosticReport_getByEncounter = InferResult<typeof Mod_query_diagnosticReport, 'getByEncounter'>
 type Args_Mod_query_doctorSchedule_create = InferArgs<typeof Mod_query_doctorSchedule, 'create'>
 type Result_Mod_query_doctorSchedule_create = InferResult<typeof Mod_query_doctorSchedule, 'create'>
 type Args_Mod_query_doctorSchedule_deleteById = InferArgs<typeof Mod_query_doctorSchedule, 'deleteById'>
@@ -152,6 +164,10 @@ type Args_Mod_query_kepegawaian_list = InferArgs<typeof Mod_query_kepegawaian, '
 type Result_Mod_query_kepegawaian_list = InferResult<typeof Mod_query_kepegawaian, 'list'>
 type Args_Mod_query_kepegawaian_update = InferArgs<typeof Mod_query_kepegawaian, 'update'>
 type Result_Mod_query_kepegawaian_update = InferResult<typeof Mod_query_kepegawaian, 'update'>
+type Args_Mod_query_masterProcedure_getById = InferArgs<typeof Mod_query_masterProcedure, 'getById'>
+type Result_Mod_query_masterProcedure_getById = InferResult<typeof Mod_query_masterProcedure, 'getById'>
+type Args_Mod_query_masterProcedure_list = InferArgs<typeof Mod_query_masterProcedure, 'list'>
+type Result_Mod_query_masterProcedure_list = InferResult<typeof Mod_query_masterProcedure, 'list'>
 type Args_Mod_query_medicalStaffSchedule_create = InferArgs<typeof Mod_query_medicalStaffSchedule, 'create'>
 type Result_Mod_query_medicalStaffSchedule_create = InferResult<typeof Mod_query_medicalStaffSchedule, 'create'>
 type Args_Mod_query_medicalStaffSchedule_deleteById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'deleteById'>
@@ -192,6 +208,16 @@ type Args_Mod_query_medicineCategory_list = InferArgs<typeof Mod_query_medicineC
 type Result_Mod_query_medicineCategory_list = InferResult<typeof Mod_query_medicineCategory, 'list'>
 type Args_Mod_query_medicineCategory_update = InferArgs<typeof Mod_query_medicineCategory, 'update'>
 type Result_Mod_query_medicineCategory_update = InferResult<typeof Mod_query_medicineCategory, 'update'>
+type Args_Mod_query_observation_create = InferArgs<typeof Mod_query_observation, 'create'>
+type Result_Mod_query_observation_create = InferResult<typeof Mod_query_observation, 'create'>
+type Args_Mod_query_observation_deleteById = InferArgs<typeof Mod_query_observation, 'deleteById'>
+type Result_Mod_query_observation_deleteById = InferResult<typeof Mod_query_observation, 'deleteById'>
+type Args_Mod_query_observation_getByEncounter = InferArgs<typeof Mod_query_observation, 'getByEncounter'>
+type Result_Mod_query_observation_getByEncounter = InferResult<typeof Mod_query_observation, 'getByEncounter'>
+type Args_Mod_query_observation_list = InferArgs<typeof Mod_query_observation, 'list'>
+type Result_Mod_query_observation_list = InferResult<typeof Mod_query_observation, 'list'>
+type Args_Mod_query_observation_update = InferArgs<typeof Mod_query_observation, 'update'>
+type Result_Mod_query_observation_update = InferResult<typeof Mod_query_observation, 'update'>
 type Args_Mod_query_patient_create = InferArgs<typeof Mod_query_patient, 'create'>
 type Result_Mod_query_patient_create = InferResult<typeof Mod_query_patient, 'create'>
 type Args_Mod_query_patient_deleteById = InferArgs<typeof Mod_query_patient, 'deleteById'>
@@ -214,16 +240,14 @@ type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
 type Args_Mod_query_poli_list = InferArgs<typeof Mod_query_poli, 'list'>
 type Result_Mod_query_poli_list = InferResult<typeof Mod_query_poli, 'list'>
+type Args_Mod_query_procedure_bulkCreate = InferArgs<typeof Mod_query_procedure, 'bulkCreate'>
+type Result_Mod_query_procedure_bulkCreate = InferResult<typeof Mod_query_procedure, 'bulkCreate'>
+type Args_Mod_query_procedure_getByEncounter = InferArgs<typeof Mod_query_procedure, 'getByEncounter'>
+type Result_Mod_query_procedure_getByEncounter = InferResult<typeof Mod_query_procedure, 'getByEncounter'>
 type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRequest, 'create'>
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
-type Args_Mod_query_serviceRequest_deleteById = InferArgs<typeof Mod_query_serviceRequest, 'deleteById'>
-type Result_Mod_query_serviceRequest_deleteById = InferResult<typeof Mod_query_serviceRequest, 'deleteById'>
-type Args_Mod_query_serviceRequest_exportCsv = InferArgs<typeof Mod_query_serviceRequest, 'exportCsv'>
-type Result_Mod_query_serviceRequest_exportCsv = InferResult<typeof Mod_query_serviceRequest, 'exportCsv'>
-type Args_Mod_query_serviceRequest_getById = InferArgs<typeof Mod_query_serviceRequest, 'getById'>
-type Result_Mod_query_serviceRequest_getById = InferResult<typeof Mod_query_serviceRequest, 'getById'>
-type Args_Mod_query_serviceRequest_list = InferArgs<typeof Mod_query_serviceRequest, 'list'>
-type Result_Mod_query_serviceRequest_list = InferResult<typeof Mod_query_serviceRequest, 'list'>
+type Args_Mod_query_serviceRequest_getByEncounter = InferArgs<typeof Mod_query_serviceRequest, 'getByEncounter'>
+type Result_Mod_query_serviceRequest_getByEncounter = InferResult<typeof Mod_query_serviceRequest, 'getByEncounter'>
 type Args_Mod_query_serviceRequest_update = InferArgs<typeof Mod_query_serviceRequest, 'update'>
 type Result_Mod_query_serviceRequest_update = InferResult<typeof Mod_query_serviceRequest, 'update'>
 type Args_Mod_user_create = InferArgs<typeof Mod_user, 'create'>
@@ -248,8 +272,24 @@ declare global {
         send: Invoke<Args_Mod_notification_send, Result_Mod_notification_send>
       }
       query: {
+        clinicalNote: {
+          create: Invoke<Args_Mod_query_clinicalNote_create, Result_Mod_query_clinicalNote_create>
+          getByEncounter: Invoke<Args_Mod_query_clinicalNote_getByEncounter, Result_Mod_query_clinicalNote_getByEncounter>
+        }
+        composition: {
+          create: Invoke<Args_Mod_query_composition_create, Result_Mod_query_composition_create>
+          getByEncounter: Invoke<Args_Mod_query_composition_getByEncounter, Result_Mod_query_composition_getByEncounter>
+        }
+        condition: {
+          create: Invoke<Args_Mod_query_condition_create, Result_Mod_query_condition_create>
+          getByEncounter: Invoke<Args_Mod_query_condition_getByEncounter, Result_Mod_query_condition_getByEncounter>
+        }
         departemen: {
           list: Invoke<Args_Mod_query_departemen_list, Result_Mod_query_departemen_list>
+        }
+        diagnosisCode: {
+          getById: Invoke<Args_Mod_query_diagnosisCode_getById, Result_Mod_query_diagnosisCode_getById>
+          list: Invoke<Args_Mod_query_diagnosisCode_list, Result_Mod_query_diagnosisCode_list>
         }
         diagnostic: {
           create: Invoke<Args_Mod_query_diagnostic_create, Result_Mod_query_diagnostic_create>
@@ -257,6 +297,10 @@ declare global {
           getById: Invoke<Args_Mod_query_diagnostic_getById, Result_Mod_query_diagnostic_getById>
           list: Invoke<Args_Mod_query_diagnostic_list, Result_Mod_query_diagnostic_list>
           update: Invoke<Args_Mod_query_diagnostic_update, Result_Mod_query_diagnostic_update>
+        }
+        diagnosticReport: {
+          create: Invoke<Args_Mod_query_diagnosticReport_create, Result_Mod_query_diagnosticReport_create>
+          getByEncounter: Invoke<Args_Mod_query_diagnosticReport_getByEncounter, Result_Mod_query_diagnosticReport_getByEncounter>
         }
         doctorSchedule: {
           create: Invoke<Args_Mod_query_doctorSchedule_create, Result_Mod_query_doctorSchedule_create>
@@ -303,6 +347,10 @@ declare global {
           list: Invoke<Args_Mod_query_kepegawaian_list, Result_Mod_query_kepegawaian_list>
           update: Invoke<Args_Mod_query_kepegawaian_update, Result_Mod_query_kepegawaian_update>
         }
+        masterProcedure: {
+          getById: Invoke<Args_Mod_query_masterProcedure_getById, Result_Mod_query_masterProcedure_getById>
+          list: Invoke<Args_Mod_query_masterProcedure_list, Result_Mod_query_masterProcedure_list>
+        }
         medicalStaffSchedule: {
           create: Invoke<Args_Mod_query_medicalStaffSchedule_create, Result_Mod_query_medicalStaffSchedule_create>
           deleteById: Invoke<Args_Mod_query_medicalStaffSchedule_deleteById, Result_Mod_query_medicalStaffSchedule_deleteById>
@@ -331,6 +379,13 @@ declare global {
           list: Invoke<Args_Mod_query_medicineCategory_list, Result_Mod_query_medicineCategory_list>
           update: Invoke<Args_Mod_query_medicineCategory_update, Result_Mod_query_medicineCategory_update>
         }
+        observation: {
+          create: Invoke<Args_Mod_query_observation_create, Result_Mod_query_observation_create>
+          deleteById: Invoke<Args_Mod_query_observation_deleteById, Result_Mod_query_observation_deleteById>
+          getByEncounter: Invoke<Args_Mod_query_observation_getByEncounter, Result_Mod_query_observation_getByEncounter>
+          list: Invoke<Args_Mod_query_observation_list, Result_Mod_query_observation_list>
+          update: Invoke<Args_Mod_query_observation_update, Result_Mod_query_observation_update>
+        }
         patient: {
           create: Invoke<Args_Mod_query_patient_create, Result_Mod_query_patient_create>
           deleteById: Invoke<Args_Mod_query_patient_deleteById, Result_Mod_query_patient_deleteById>
@@ -348,12 +403,13 @@ declare global {
         poli: {
           list: Invoke<Args_Mod_query_poli_list, Result_Mod_query_poli_list>
         }
+        procedure: {
+          bulkCreate: Invoke<Args_Mod_query_procedure_bulkCreate, Result_Mod_query_procedure_bulkCreate>
+          getByEncounter: Invoke<Args_Mod_query_procedure_getByEncounter, Result_Mod_query_procedure_getByEncounter>
+        }
         serviceRequest: {
           create: Invoke<Args_Mod_query_serviceRequest_create, Result_Mod_query_serviceRequest_create>
-          deleteById: Invoke<Args_Mod_query_serviceRequest_deleteById, Result_Mod_query_serviceRequest_deleteById>
-          exportCsv: Invoke<Args_Mod_query_serviceRequest_exportCsv, Result_Mod_query_serviceRequest_exportCsv>
-          getById: Invoke<Args_Mod_query_serviceRequest_getById, Result_Mod_query_serviceRequest_getById>
-          list: Invoke<Args_Mod_query_serviceRequest_list, Result_Mod_query_serviceRequest_list>
+          getByEncounter: Invoke<Args_Mod_query_serviceRequest_getByEncounter, Result_Mod_query_serviceRequest_getByEncounter>
           update: Invoke<Args_Mod_query_serviceRequest_update, Result_Mod_query_serviceRequest_update>
         }
       }

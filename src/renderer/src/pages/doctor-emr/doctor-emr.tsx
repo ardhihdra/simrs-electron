@@ -1,11 +1,11 @@
 import { Outlet } from 'react-router'
 
-const DoctorMedicalRecords = () => {
+const DoctorEMR = () => {
   return (
-    <div>
+    <div className="h-full">
       <Outlet />
     </div>
   )
 }
 
-export default DoctorMedicalRecords
+export default DoctorEMR
