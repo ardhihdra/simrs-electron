@@ -1,5 +1,4 @@
 import { Button, Descriptions, Tabs, TabsProps } from 'antd'
-import PemeriksaanUtamaTable from './table'
 import { SubjectiveTab } from './subjective-tab'
 import { ObjectiveTab } from './objective-tab'
 import AssessmentTab from './assessment-tab'

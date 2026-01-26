@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import type { MenuProps } from 'antd'
-import { LogoutOutlined, UserOutlined } from '@ant-design/icons'
+import { LogoutOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
+import SettingsModal from './SettingsModal'
 
 type SessionUser = { id: number | string; username: string }
 type GetSessionResult = { success: boolean; session?: Record<string, never>; user?: SessionUser; error?: string }
@@ -11,6 +12,7 @@ type LogoutResult = { success: boolean }
 function ProfileMenu() {
   const [profile, setProfile] = useState<SessionUser | undefined>(undefined)
   const [open, setOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -43,6 +45,12 @@ function ProfileMenu() {
       label: 'Profile',
       icon: <UserOutlined />,
       onClick: () => setOpen(true)
+    },
+    {
+      key: 'settings',
+      label: 'Settings',
+      icon: <SettingOutlined />,
+      onClick: () => setSettingsOpen(true)
     },
     {
       type: 'divider'
@@ -100,6 +108,8 @@ function ProfileMenu() {
           </Button>
         </div>
       </Modal>
+
+      <SettingsModal open={settingsOpen} onCancel={() => setSettingsOpen(false)} />
     </>
   )
 }

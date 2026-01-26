@@ -1,1 +1,86 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900 dark:bg-[#141414] dark:text-gray-100;
+  }
+}
+
+@layer components {
+  .dark .notification-popover .ant-popover-inner {
+    background: #1f1f1f !important;
+    border: 1px solid rgb(31 41 55) !important;
+  }
+
+  .dark .notification-popover .ant-popover-title {
+    color: rgb(243 244 246) !important;
+  }
+
+  .dark .notification-popover .ant-popover-arrow::before {
+    background: #1f1f1f !important;
+  }
+
+  .dark .notification-popover .ant-list,
+  .dark .notification-popover .ant-list-item,
+  .dark .notification-popover .ant-list-item-meta,
+  .dark .notification-popover .ant-list-item-meta-title,
+  .dark .notification-popover .ant-list-item-meta-description {
+    background: transparent !important;
+    color: rgb(243 244 246) !important;
+    border-color: rgb(31 41 55) !important;
+  }
+
+  .dark .ant-table-wrapper,
+  .dark .ant-table,
+  .dark .ant-table-container,
+  .dark .ant-table-content {
+    background: #141414 !important;
+    color: rgb(243 244 246) !important;
+  }
+
+  .dark .ant-table-thead > tr > th {
+    background: #1f1f1f !important;
+    color: rgb(243 244 246) !important;
+    border-color: rgb(31 41 55) !important;
+  }
+
+  .dark .ant-table-tbody > tr > td {
+    background: #141414 !important;
+    color: rgb(243 244 246) !important;
+    border-color: rgb(31 41 55) !important;
+  }
+
+  .dark .ant-table-tbody > tr.ant-table-row:hover > td {
+    background: #262626 !important;
+  }
+
+  .dark .ant-dropdown-menu {
+    background: #1f1f1f !important;
+    border: 1px solid rgb(31 41 55) !important;
+  }
+
+  .dark .ant-dropdown-menu-item,
+  .dark .ant-dropdown-menu-submenu-title {
+    color: rgb(243 244 246) !important;
+  }
+
+  .dark .ant-dropdown-menu-item:hover {
+    background: #262626 !important;
+  }
+
+  .dark .ant-menu {
+    background: #141414 !important;
+    color: rgb(243 244 246) !important;
+  }
+
+  .dark .ant-menu-item,
+  .dark .ant-menu-submenu-title {
+    color: rgb(243 244 246) !important;
+  }
+
+  .dark .ant-menu-item-selected {
+    background: #262626 !important;
+  }
+}

@@ -45,6 +45,7 @@ import MedicineBrandTable from './pages/pharmacy/medicine-brand-table'
 import MedicineBrandForm from './pages/pharmacy/medicine-brand-form'
 import MedicinesTable from './pages/pharmacy/medicines-table'
 import MedicinesForm from './pages/pharmacy/medicines-form'
+import QueueList from './pages/queue/queue-list'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
@@ -79,6 +80,9 @@ function MainRoute() {
           <Route path="queue" element={<Encounter />}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
+            <Route path="registration" element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />} />
+            <Route path="poli" element={<QueueList title="Antrian Poli" serviceType="poli" />} />
+            <Route path="laboratory" element={<QueueList title="Antrian Laboratorium" serviceType="laboratorium" />} />
           </Route>
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />
