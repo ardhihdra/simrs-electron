@@ -3,6 +3,7 @@ import { initDatabase } from '@main/database'
 import { SessionStore } from '@main/ipc/protected/session-store'
 import { IpcRouter } from '@main/ipc/router'
 import { autoRegisterRoutes } from '@main/routes/loader'
+import '@main/rpc/rpc-entry'
 import { notificationService } from '@main/services/notification-service'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as fs from 'fs'
@@ -46,8 +47,7 @@ console.warn = (...args) => {
   writeToLogFile('WARN', ...args)
 }
 
-const sessionStore = new SessionStore()
-
+export const sessionStore = new SessionStore()
 export const router = new IpcRouter({ sessionStore })
 
 function createWindow(): void {
