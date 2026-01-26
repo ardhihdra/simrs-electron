@@ -119,7 +119,7 @@ function getStatusLabel(status: string): string {
 	return status
 }
 
-function RowActions({ record }: { record: DispenseItemRow }) {
+function RowActions({ record, patient }: { record: DispenseItemRow; patient?: PatientInfo }) {
 	const updateMutation = useMutation({
 		mutationKey: ['medicationDispense', 'update', 'complete'],
 		mutationFn: async () => {
@@ -186,24 +186,75 @@ function RowActions({ record }: { record: DispenseItemRow }) {
 	const canVoid = isCompleted && typeof record.id === 'number'
 
 	const handlePrintLabel = () => {
+		const patientLabel = getPatientDisplayName(patient)
 		const name = record.medicineName ?? 'Obat'
 		const quantityValue = typeof record.quantity === 'number' ? record.quantity : 0
 		const unitLabel = record.unit ?? ''
 		const instructionText = record.instruksi ?? ''
 
 		const parts: string[] = []
+		if (patientLabel.trim().length > 0) {
+			parts.push(`Pasien: ${patientLabel}`)
+		}
 		parts.push(`Nama Obat: ${name}`)
 		parts.push(`Qty: ${quantityValue} ${unitLabel}`.trim())
 		if (instructionText.trim().length > 0) {
 			parts.push(`Instruksi: ${instructionText}`)
 		}
 
-		const content = parts.join(' | ')
-		if (content.length === 0) {
+		if (parts.length === 0) {
 			message.info('Data label obat tidak tersedia')
 			return
 		}
-		message.info(content)
+
+		const htmlLines = parts
+			.map((line) => `<div class="line">${line}</div>`)
+			.join('')
+		const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Label Obat</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; margin: 8px; }
+    .label { border: 1px solid #000; padding: 4px 8px; max-width: 320px; }
+    .line { margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  <div class="label">
+    ${htmlLines}
+  </div>
+</body>
+</html>`
+
+		const iframe = document.createElement('iframe')
+		iframe.style.position = 'fixed'
+		iframe.style.right = '0'
+		iframe.style.bottom = '0'
+		iframe.style.width = '0'
+		iframe.style.height = '0'
+		iframe.style.border = '0'
+		document.body.appendChild(iframe)
+
+		const iframeWindow = iframe.contentWindow
+		if (!iframeWindow) {
+			message.info('Gagal menyiapkan tampilan cetak label')
+			iframe.remove()
+			return
+		}
+
+		const doc = iframeWindow.document
+		doc.open()
+		doc.write(html)
+		doc.close()
+
+		iframeWindow.focus()
+		iframeWindow.print()
+
+		setTimeout(() => {
+			iframe.remove()
+		}, 1000)
 	}
 
 	return (
@@ -577,11 +628,13 @@ export function MedicationDispenseTable() {
 							render: (val: string) => getStatusLabel(val)
 						},
 							{ title: 'Petugas', dataIndex: 'performerName', key: 'performerName' },
-							{
-									title: 'Aksi',
-									key: 'action',
-									render: (_: DispenseItemRow, row: DispenseItemRow) => <RowActions record={row} />
-								}
+						{
+							title: 'Aksi',
+							key: 'action',
+							render: (_: DispenseItemRow, row: DispenseItemRow) => (
+								<RowActions record={row} patient={record.patient} />
+							)
+						}
 						]
 
 						return (
