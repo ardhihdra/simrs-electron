@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { App, Card, Tabs, Spin, Empty, Button, Row, Col, Tag, Modal, Select } from 'antd'
 import {
@@ -13,6 +13,9 @@ import {
 } from '@ant-design/icons'
 import { NurseAssessmentSummary } from '@renderer/components/organisms/NurseAssessmentSummary'
 import { HeadToToeForm } from '@renderer/components/organisms/HeadToToeForm'
+import { ClinicalAnnotationForm } from '@renderer/components/organisms/ClinicalAnnotationForm'
+import { InpatientTimeline } from '@renderer/components/organisms/InpatientTimeline'
+import { AssessmentDetailModal } from '@renderer/components/organisms/AssessmentDetailModal'
 import { DiagnosisProceduresForm } from '@renderer/components/organisms/DiagnosisProceduresForm'
 import { PrescriptionForm } from '@renderer/components/organisms/PrescriptionForm'
 import { CPPTForm } from '@renderer/components/organisms/CPPTForm'
@@ -39,14 +42,13 @@ const DoctorWorkspace = () => {
 
   const [activeTab, setActiveTab] = useState('1')
 
+  const [selectedAssessment, setSelectedAssessment] = useState<any>(null)
+  const [isDetailModalVisible, setIsDetailModalVisible] = useState(false)
+
   const { data: encounterDetail } = useEncounterDetail(encounterId)
   const updateEncounter = useUpdateEncounter()
 
-  useEffect(() => {
-    loadData()
-  }, [encounterId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!encounterId) return
 
     setLoading(true)
@@ -64,7 +66,11 @@ const DoctorWorkspace = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [encounterId, message, navigate])
+
+  useEffect(() => {
+    loadData()
+  }, [encounterId, loadData])
 
   const handleStatusUpdate = () => {
     if (!encounterId || !selectedStatus) return
@@ -74,8 +80,8 @@ const DoctorWorkspace = () => {
         id: encounterId,
         status: selectedStatus,
         patientId: patientData?.patient.id || '',
-        visitDate: new Date(), // Required by type but likely ignored for status update
-        serviceType: 'outpatient' // Placeholder
+        visitDate: new Date(),
+        serviceType: 'outpatient'
       },
       {
         onSuccess: () => {
@@ -91,7 +97,6 @@ const DoctorWorkspace = () => {
 
   const openStatusModal = () => {
     if (encounterDetail?.data?.status) {
-      // Cast string status to enum if needed, or just rely on value compatibility
       setSelectedStatus(encounterDetail.data.status as EncounterStatus)
     }
     setIsStatusModalVisible(true)
@@ -129,25 +134,29 @@ const DoctorWorkspace = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case EncounterStatus.Planned: return 'default';
-      case EncounterStatus.Arrived: return 'blue';
-      case EncounterStatus.Triaged: return 'cyan';
-      case EncounterStatus.InProgress: return 'processing';
-      case EncounterStatus.OnHold: return 'warning';
-      case EncounterStatus.Finished: return 'success';
-      case EncounterStatus.Cancelled: return 'error';
-      default: return 'default';
+      case EncounterStatus.Planned:
+        return 'default'
+      case EncounterStatus.Arrived:
+        return 'blue'
+      case EncounterStatus.Triaged:
+        return 'cyan'
+      case EncounterStatus.InProgress:
+        return 'processing'
+      case EncounterStatus.OnHold:
+        return 'warning'
+      case EncounterStatus.Finished:
+        return 'success'
+      case EncounterStatus.Cancelled:
+        return 'error'
+      default:
+        return 'default'
     }
   }
 
   return (
     <div className="flex flex-col h-full bg-gray-50 min-h-screen">
       <div className="px-4 pt-4 flex justify-between items-center">
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={handleBack}
-          className="mb-4"
-        >
+        <Button icon={<ArrowLeftOutlined />} onClick={handleBack} className="mb-4">
           Kembali ke Daftar Pasien
         </Button>
       </div>
@@ -205,7 +214,9 @@ const DoctorWorkspace = () => {
             </Col>
             <Col span={5}>
               <div className="text-gray-500 text-sm">Penjamin</div>
-              <Tag color="green" className="mt-1">{paymentMethod}</Tag>
+              <Tag color="green" className="mt-1">
+                {paymentMethod}
+              </Tag>
             </Col>
             <Col span={5}>
               <div className="text-gray-500 text-sm">Alergi</div>
@@ -223,6 +234,16 @@ const DoctorWorkspace = () => {
             </Col>
           </Row>
         </Card>
+      </div>
+
+      <div className="px-4 mb-4">
+        <InpatientTimeline
+          encounterId={encounterId || ''}
+          onViewDetail={(time, items) => {
+            setSelectedAssessment({ time, items })
+            setIsDetailModalVisible(true)
+          }}
+        />
       </div>
 
       <div className="flex-1 px-4 pb-4 overflow-auto">
@@ -246,8 +267,14 @@ const DoctorWorkspace = () => {
                     <div className="mb-6">
                       <NurseAssessmentSummary encounterId={encounterId || ''} />
                     </div>
-                    <div>
+                    <div className="mb-6">
                       <HeadToToeForm
+                        encounterId={encounterId || ''}
+                        patientId={patientData?.patient.id}
+                      />
+                    </div>
+                    <div>
+                      <ClinicalAnnotationForm
                         encounterId={encounterId || ''}
                         patientId={patientData?.patient.id}
                       />
@@ -324,12 +351,15 @@ const DoctorWorkspace = () => {
                 ),
                 children: (
                   <div className="p-4">
-                    <DiagnosticResultViewer encounterId={encounterId || ''} patientId={patientData.patient.id} />
+                    <DiagnosticResultViewer
+                      encounterId={encounterId || ''}
+                      patientId={patientData.patient.id}
+                    />
                   </div>
                 )
               },
               {
-                key: '7',
+                key: '8',
                 label: (
                   <span>
                     <FormOutlined />
@@ -370,11 +400,16 @@ const DoctorWorkspace = () => {
               { label: 'On Hold', value: EncounterStatus.OnHold },
               { label: 'Finished', value: EncounterStatus.Finished },
               { label: 'Cancelled', value: EncounterStatus.Cancelled },
-              { label: 'Entered in Error', value: EncounterStatus.EnteredInError },
+              { label: 'Entered in Error', value: EncounterStatus.EnteredInError }
             ]}
           />
         </div>
       </Modal>
+      <AssessmentDetailModal
+        visible={isDetailModalVisible}
+        onClose={() => setIsDetailModalVisible(false)}
+        data={selectedAssessment}
+      />
     </div>
   )
 }

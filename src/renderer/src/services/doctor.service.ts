@@ -13,9 +13,11 @@ import {
     SaveCompoundFormulationRequest,
     SaveCompoundFormulationResponse,
     DoctorEncounterRecord,
-    PatientWithMedicalRecord
+    PatientWithMedicalRecord,
+    DosageForm,
+    Prescription
 } from '../types/doctor.types'
-import { PatientStatus } from '../types/nurse.types'
+import { PatientStatus, Gender } from '../types/nurse.types'
 import {
     dummySupplies,
     dummyCompoundFormulations,
@@ -46,12 +48,8 @@ export const getPatientsForDoctor = async (
         patients = patients.filter((p) => p.poli.id === poliId)
     }
 
-    // Map to PatientWithMedicalRecord
     const patientsWithRecords: PatientWithMedicalRecord[] = patients.map((patient) => {
-        // Find nurse record
         const nurseRecord = dummyMedicalRecords.find((r) => r.encounterId === patient.encounterId)
-
-        // Find doctor record
         const doctorRecord = dummyDoctorRecords.find((r) => r.encounterId === patient.encounterId)
 
         return {
@@ -72,75 +70,188 @@ export const getPatientsForDoctor = async (
     return patientsWithRecords
 }
 
-/**
- * Get patient with complete medical record
- */
+interface BackendEncounterPatient {
+    id: string
+    name: string
+    kode?: string
+    medicalRecordNumber?: string
+    gender?: string
+    birthDate?: string | Date
+    nik?: string
+    phone?: string
+    address?: string
+}
+
+interface BackendCoding {
+    code?: string
+    display?: string
+}
+
+interface BackendObservation {
+    codeCoding?: BackendCoding[]
+    valueString?: string
+    valueQuantity?: { value: number; unit?: string }
+    valueBoolean?: boolean
+    valueInteger?: number
+}
+
+interface BackendConditionCategory {
+    coding?: BackendCoding[]
+    code?: string
+}
+
+interface BackendCondition {
+    id: string
+    category?: string
+    categories?: BackendConditionCategory[]
+    note?: string
+    notes?: string
+}
+
+interface BackendMedicine {
+    id: string | number
+    code?: string
+    name: string
+    medicineCategoryId?: string | number
+    sellingPrice?: string | number
+    description?: string
+}
+
+interface BackendConcept {
+    id: string | number
+    code: string
+    display?: string
+    name?: string
+}
+
+const mapEncounterStatus = (status: string): PatientStatus => {
+    switch (status) {
+        case 'arrived': return PatientStatus.WAITING
+        case 'triaged': return PatientStatus.WAITING
+        case 'in-progress': return PatientStatus.EXAMINING
+        case 'finished': return PatientStatus.COMPLETED
+        case 'cancelled': return PatientStatus.CANCELLED
+        default: return PatientStatus.WAITING
+    }
+}
+
 export const getPatientMedicalRecord = async (
     encounterId: string
 ): Promise<PatientWithMedicalRecord | null> => {
     try {
-        // 1. Fetch Encounter to get Patient details
         const encounterRes = await window.api.query.encounter.getById({ id: encounterId })
 
-        // encounterRes.data IS the encounter object because parseBackendResponse returns the 'result' field
         if (!encounterRes.success || !encounterRes.data) {
             console.error('Encounter not found or error:', encounterRes.error)
             return null
         }
 
         const encounter = encounterRes.data
-        const patient = encounter.patient
+        const patient = encounter.patient as unknown as BackendEncounterPatient
 
         if (!patient) {
             console.error('Encounter has no patient data')
             return null
         }
 
-        // 2. Fetch Observations for Nurse Record
         const obsRes = await window.api.query.observation.getByEncounter({ encounterId })
         const observations = obsRes.success && obsRes.result?.grouped ? obsRes.result.grouped : null
 
-        // Map observations to NurseRecord structure
+        const condRes = await window.api.query.condition?.getByEncounter({ encounterId })
+
+        const conditions = condRes?.success && Array.isArray(condRes.result) ? condRes.result : []
+
         let nurseRecord: PatientWithMedicalRecord['nurseRecord'] | undefined
 
-        if (observations) {
-            // Helper to extract value from observation array
-            const getVal = (arr: any[], codes: string | string[]) => {
+        if (observations || conditions.length > 0) {
+            const getStringVal = (arr: any[], codes: string | string[]): string => {
                 const codeList = Array.isArray(codes) ? codes : [codes]
-                const obs = arr.find(o => o.codeCoding?.[0]?.code && codeList.includes(o.codeCoding[0].code))
-                return obs?.valueString || obs?.valueQuantity?.value || obs?.valueBoolean || obs?.valueInteger || '-'
+                const obs = arr?.find(o => {
+                    const code = o?.codeCoding?.[0]?.code
+                    return code && codeList.includes(code)
+                })
+                return obs?.valueString || ''
             }
 
-            // Vital Signs
+            const getNumberVal = (arr: any[], codes: string | string[]): number => {
+                const codeList = Array.isArray(codes) ? codes : [codes]
+                const obs = arr?.find(o => {
+                    const code = o?.codeCoding?.[0]?.code
+                    return code && codeList.includes(code)
+                })
+                if (obs?.valueQuantity?.value !== undefined) return obs.valueQuantity.value
+                if (obs?.valueInteger !== undefined) return obs.valueInteger
+                if (obs?.valueString) return parseFloat(obs.valueString) || 0
+                return 0
+            }
+
+            const getCondVal = (arr: any[], cats: string[]): string => {
+                const cond = arr.find(c => {
+                    if (c.category && cats.includes(c.category)) return true
+                    if (Array.isArray(c.categories)) {
+                        return c.categories.some((cat: any) => {
+                            if (Array.isArray(cat.coding)) {
+                                return cat.coding.some((coding: any) => coding.code && cats.includes(coding.code))
+                            }
+                            if (cat.code && cats.includes(cat.code)) return true
+
+                            return false
+                        })
+                    }
+                    return false
+                })
+
+                return cond?.note || cond?.notes || ''
+            }
+
             const vitalSigns = {
-                systolicBloodPressure: getVal(observations.vitalSigns || [], ['systolic-blood-pressure', '8480-6']),
-                diastolicBloodPressure: getVal(observations.vitalSigns || [], ['diastolic-blood-pressure', '8462-4']),
-                heartRate: getVal(observations.vitalSigns || [], ['heart-rate', '8867-4']),
-                pulseRate: getVal(observations.vitalSigns || [], ['pulse-rate', 'heart-rate', '8867-4']),
-                respiratoryRate: getVal(observations.vitalSigns || [], ['respiratory-rate', '9279-1']),
-                temperature: getVal(observations.vitalSigns || [], ['body-temperature', '8310-5']),
-                oxygenSaturation: getVal(observations.vitalSigns || [], ['oxygen-saturation', '2708-6', '59408-5']),
-                height: getVal(observations.vitalSigns || [], ['body-height', '8302-2']),
-                weight: getVal(observations.vitalSigns || [], ['body-weight', '29463-7']),
-                bmi: getVal(observations.vitalSigns || [], ['bmi', 'body-mass-index', '39156-5']),
-                consciousness: getVal(observations.vitalSigns || [], ['consciousness']) // Fallback (though mostly in physicalExam)
+                systolicBloodPressure: getNumberVal(observations?.vitalSigns || [], ['systolic-blood-pressure', '8480-6']),
+                diastolicBloodPressure: getNumberVal(observations?.vitalSigns || [], ['diastolic-blood-pressure', '8462-4']),
+                heartRate: getNumberVal(observations?.vitalSigns || [], ['heart-rate', '8867-4']),
+                pulseRate: getNumberVal(observations?.vitalSigns || [], ['pulse-rate', 'heart-rate', '8867-4']),
+                respiratoryRate: getNumberVal(observations?.vitalSigns || [], ['respiratory-rate', '9279-1']),
+                temperature: getNumberVal(observations?.vitalSigns || [], ['body-temperature', '8310-5']),
+                oxygenSaturation: getNumberVal(observations?.vitalSigns || [], ['oxygen-saturation', '2708-6', '59408-5']),
+                height: getNumberVal(observations?.vitalSigns || [], ['body-height', '8302-2']),
+                weight: getNumberVal(observations?.vitalSigns || [], ['body-weight', '29463-7']),
+                bmi: getNumberVal(observations?.vitalSigns || [], ['bmi', 'body-mass-index', '39156-5']),
+                consciousness: getStringVal(observations?.vitalSigns || [], ['consciousness'])
             }
 
-            // Anamnesis
             const anamnesis = {
-                chiefComplaint: getVal(observations.anamnesis || [], ['chief-complaint']),
-                mainComplaint: getVal(observations.anamnesis || [], ['chief-complaint']),
-                historyOfPresentIllness: getVal(observations.anamnesis || [], ['history-present-illness', 'history-of-present-illness']),
-                historyOfPastIllness: getVal(observations.anamnesis || [], ['history-past-illness', 'history-of-past-illness']),
-                allergyHistory: getVal(observations.anamnesis || [], ['allergy-history']),
-                allergies: getVal(observations.anamnesis || [], ['allergy-history'])
+                chiefComplaint:
+                    getCondVal(conditions, ['chief-complaint']) ||
+                    getStringVal(observations?.anamnesis || [], ['chief-complaint']),
+                mainComplaint:
+                    getCondVal(conditions, ['chief-complaint']) ||
+                    getStringVal(observations?.anamnesis || [], ['chief-complaint']),
+                historyOfPresentIllness:
+                    getCondVal(conditions, ['history-of-present-illness']) ||
+                    getStringVal(observations?.anamnesis || [], ['history-present-illness', 'history-of-present-illness']),
+                historyOfPastIllness:
+                    getCondVal(conditions, ['history-past-illness', 'history-of-past-illness']) ||
+                    getStringVal(observations?.anamnesis || [], ['history-past-illness', 'history-of-past-illness']),
+                allergyHistory:
+                    getCondVal(conditions, ['allergy-history']) ||
+                    getStringVal(observations?.anamnesis || [], ['allergy-history']),
+                allergies:
+                    getCondVal(conditions, ['allergy-history']) ||
+                    getStringVal(observations?.anamnesis || [], ['allergy-history']),
+                associatedSymptoms:
+                    getCondVal(conditions, ['associated-symptoms']) ||
+                    getStringVal(observations?.anamnesis || [], ['associated-symptoms']),
+                familyHistory:
+                    getCondVal(conditions, ['family-history']) ||
+                    getStringVal(observations?.anamnesis || [], ['family-history']),
+                medicationHistory:
+                    getCondVal(conditions, ['medication-history']) ||
+                    getStringVal(observations?.anamnesis || [], ['medication-history'])
             }
 
-            // Physical Exam
             const physicalExamination = {
-                consciousness: getVal(observations.physicalExam || [], ['consciousness']),
-                generalCondition: getVal(observations.physicalExam || [], ['general-condition']),
-                additionalNotes: getVal(observations.physicalExam || [], ['additional-notes', 'physical-notes'])
+                consciousness: getStringVal(observations?.physicalExam || [], ['consciousness']),
+                generalCondition: getStringVal(observations?.physicalExam || [], ['general-condition']),
+                additionalNotes: getStringVal(observations?.physicalExam || [], ['additional-notes', 'physical-notes'])
             }
 
             nurseRecord = {
@@ -152,7 +263,6 @@ export const getPatientMedicalRecord = async (
             }
         }
 
-        // Calculate Age
         const birthDate = patient.birthDate ? new Date(patient.birthDate) : new Date()
         const age = new Date().getFullYear() - birthDate.getFullYear()
 
@@ -164,18 +274,15 @@ export const getPatientMedicalRecord = async (
                 id: String(patient.id),
                 name: patient.name || 'Unknown',
                 medicalRecordNumber: patient.medicalRecordNumber || '',
-                gender: (patient.gender as any) || 'male',
+                gender: patient.gender?.toLowerCase() === 'female' ? Gender.FEMALE : Gender.MALE,
                 birthDate: patient.birthDate ? String(patient.birthDate) : '',
                 phone: patient.phone || '',
                 address: patient.address || '',
-                identityNumber: patient.nik || '', // Map NIK to identityNumber
+                identityNumber: patient.nik || '',
                 age: age,
-                // Extra fields for Doctor flow (if needed by other types, but Patient interface is strict)
-                // mrn: patient.medicalRecordNumber || '', // Patient interface is strict, only supports fields in nurse.types.ts
-                // paymentMethod: 'Umum' 
-            } as any, // Cast as any because PatientWithMedicalRecord expects Patient from nurse.types.ts but might also be used elsewhere expecting extra fields
-            status: encounter.status as any,
-            paymentMethod: 'Umum', // Default
+            },
+            status: mapEncounterStatus(encounter.status),
+            paymentMethod: 'Umum',
             registrationDate: encounter.period?.start ? String(encounter.period.start) : new Date().toISOString(),
             poli: {
                 id: '',
@@ -200,12 +307,6 @@ export const getPatientMedicalRecord = async (
     }
 }
 
-/**
- * Search diagnosis codes (ICD-10)
- */
-/**
- * Search diagnosis codes (ICD-10)
- */
 export const searchDiagnosisCodes = async (query: string): Promise<DiagnosisCode[]> => {
     try {
         if (!query || query.length < 2) {
@@ -213,12 +314,11 @@ export const searchDiagnosisCodes = async (query: string): Promise<DiagnosisCode
         }
 
         const response = await window.api.query.diagnosisCode?.list({
-            search: query,
-            limit: 20
+            search: query
         })
 
         if (response?.success && Array.isArray(response.result)) {
-            return response.result.map((item: any) => ({
+            return (response.result as BackendConcept[]).map((item) => ({
                 id: String(item.id),
                 code: item.code,
                 name: item.display || item.name || '',
@@ -233,25 +333,14 @@ export const searchDiagnosisCodes = async (query: string): Promise<DiagnosisCode
     }
 }
 
-/**
- * Get all diagnosis codes
- */
 export const getAllDiagnosisCodes = async (): Promise<DiagnosisCode[]> => {
-    // Ideally we shouldn't fetch ALL, but if needed, fetch a subset
     return searchDiagnosisCodes('a')
 }
 
-/**
- * Get medical procedures
- */
 export const getMedicalProcedures = async (): Promise<MedicalProcedure[]> => {
-    // Ideally we shouldn't fetch ALL, but if needed, fetch a subset
     return searchMedicalProcedures('a')
 }
 
-/**
- * Search medical procedures
- */
 export const searchMedicalProcedures = async (query: string): Promise<MedicalProcedure[]> => {
     try {
         if (!query || query.length < 2) {
@@ -259,12 +348,11 @@ export const searchMedicalProcedures = async (query: string): Promise<MedicalPro
         }
 
         const response = await window.api.query.masterProcedure?.list({
-            search: query,
-            limit: 20
+            search: query
         })
 
         if (response?.success && Array.isArray(response.result)) {
-            return response.result.map((item: any) => ({
+            return (response.result as BackendConcept[]).map((item) => ({
                 id: String(item.id),
                 code: item.code,
                 name: item.display || item.name || '',
@@ -280,23 +368,18 @@ export const searchMedicalProcedures = async (query: string): Promise<MedicalPro
     }
 }
 
-/**
- * Save diagnosis and procedures
- */
 export const saveDiagnosisAndProcedures = async (
     request: SaveDiagnosisAndProceduresRequest
 ): Promise<SaveDiagnosisAndProceduresResponse> => {
     try {
         const { encounterId, patientId, diagnoses, procedures } = request
 
-        // Validate required data
         if (!patientId) {
             throw new Error('Patient ID is required')
         }
 
         const doctorId = 1 // TODO: Get from logged in user session
 
-        // 1. Save Diagnoses (Conditions)
         if (diagnoses.length > 0) {
             const conditionsPayload = diagnoses.map((d) => ({
                 diagnosisCodeId: parseInt(d.diagnosisCode.id),
@@ -305,7 +388,7 @@ export const saveDiagnosisAndProcedures = async (
                 notes: d.notes
             }))
 
-            const conditionRes = await window.api.query.condition.bulkCreate({
+            const conditionRes = await window.api.query.condition.create({
                 encounterId,
                 patientId,
                 doctorId,
@@ -318,7 +401,6 @@ export const saveDiagnosisAndProcedures = async (
             }
         }
 
-        // 2. Save Procedures
         if (procedures.length > 0) {
             const proceduresPayload = procedures.map((p) => ({
                 procedureCodeId: parseInt(p.procedure.id),
@@ -339,8 +421,7 @@ export const saveDiagnosisAndProcedures = async (
             }
         }
 
-        // 3. Save Clinical Notes and Referral Notes
-        const notesToSave = []
+        const notesToSave: { type: string; text: string }[] = []
         if (request.clinicalNotes) {
             notesToSave.push({
                 type: 'progress',
@@ -349,24 +430,22 @@ export const saveDiagnosisAndProcedures = async (
         }
         if (request.referralNotes) {
             notesToSave.push({
-                type: 'discharge', // Using 'discharge' type for referral/resume notes
+                type: 'discharge',
                 text: request.referralNotes
             })
         }
 
         if (notesToSave.length > 0) {
-            const noteRes = await window.api.query.clinicalNote.upsert({
+            const noteRes = await window.api.query.clinicalNote.create({
                 encounterId,
                 doctorId,
                 notes: notesToSave
             })
 
             if (!noteRes.success) {
-                console.error('Error saving clinical notes:', noteRes.error)
-                // We don't throw error here to avoid blocking success if diagnoses/procedures saved ok? 
-                // But user wants them saved. Let's log warning strictly. 
-                // Or maybe throw? Better throw to alert user.
-                throw new Error(noteRes.error || 'Failed to save clinical/referral notes')
+                const errorMsg = noteRes.message || (noteRes as any).error || 'Failed to save clinical/referral notes'
+                console.error('Error saving clinical notes:', errorMsg)
+                throw new Error(errorMsg)
             }
         }
 
@@ -383,18 +462,12 @@ export const saveDiagnosisAndProcedures = async (
     }
 }
 
-/**
- * Get medicines with optional category filter
- */
-/**
- * Get medicines with optional category filter
- */
 export const getMedicines = async (category?: MedicineCategory): Promise<Medicine[]> => {
     try {
         const response = await window.api.query.medicine?.list({})
 
         if (response?.success && Array.isArray(response.result)) {
-            let medicines = response.result.map((m: any) => ({
+            let medicines = (response.result as BackendMedicine[]).map((m) => ({
                 id: String(m.id),
                 code: m.code || `MED-${m.id}`,
                 name: m.name,
@@ -402,7 +475,7 @@ export const getMedicines = async (category?: MedicineCategory): Promise<Medicin
                 dosageForm: DosageForm.TABLET, // TODO: Map form
                 unit: 'pcs',
                 stock: 100,
-                price: parseFloat(m.sellingPrice) || 0,
+                price: typeof m.sellingPrice === 'string' ? parseFloat(m.sellingPrice) : (m.sellingPrice || 0),
                 description: m.description
             })) as Medicine[]
 
@@ -421,8 +494,6 @@ export const getMedicines = async (category?: MedicineCategory): Promise<Medicin
 
 export const searchMedicines = async (query: string): Promise<Medicine[]> => {
     try {
-        // Since backend search isn't ready, we fetch all (limit 100) and filter
-        // Ideally backend should support search
         const allMedicines = await getMedicines()
 
         if (!query || query.length < 2) {
@@ -442,9 +513,6 @@ export const searchMedicines = async (query: string): Promise<Medicine[]> => {
     }
 }
 
-/**
- * Get supplies with optional category filter
- */
 export const getSupplies = async (category?: SupplyCategory): Promise<Supply[]> => {
     await simulateDelay(300)
 
@@ -455,9 +523,6 @@ export const getSupplies = async (category?: SupplyCategory): Promise<Supply[]> 
     return dummySupplies.filter((sup) => sup.category === category)
 }
 
-/**
- * Search supplies by name
- */
 export const searchSupplies = async (query: string): Promise<Supply[]> => {
     await simulateDelay(200)
 
@@ -474,9 +539,6 @@ export const searchSupplies = async (query: string): Promise<Supply[]> => {
     )
 }
 
-/**
- * Save compound formulation (racikan)
- */
 export const saveCompoundFormulation = async (
     request: SaveCompoundFormulationRequest
 ): Promise<SaveCompoundFormulationResponse> => {
@@ -494,9 +556,6 @@ export const saveCompoundFormulation = async (
 
         dummyCompoundFormulations.push(compound)
 
-        console.log('Compound formulation saved:', compound)
-        console.log('Total compounds:', dummyCompoundFormulations.length)
-
         return {
             success: true,
             message: 'Racikan berhasil disimpan',
@@ -511,17 +570,11 @@ export const saveCompoundFormulation = async (
     }
 }
 
-/**
- * Get all compound formulations
- */
 export const getCompoundFormulations = async (): Promise<CompoundFormulation[]> => {
     await simulateDelay(200)
     return dummyCompoundFormulations
 }
 
-/**
- * Create prescription
- */
 export const createPrescription = async (
     request: CreatePrescriptionRequest
 ): Promise<CreatePrescriptionResponse> => {
@@ -555,9 +608,6 @@ export const createPrescription = async (
             doctorRecord.completedAt = new Date().toISOString()
         }
 
-        console.log('Prescription created:', prescription)
-        console.log('Total prescriptions:', dummyPrescriptions.length)
-
         return {
             success: true,
             message: 'Resep berhasil dibuat',
@@ -572,18 +622,12 @@ export const createPrescription = async (
     }
 }
 
-/**
- * Get prescription by encounter ID
- */
-export const getPrescriptionByEncounter = async (encounterId: string): Promise<any | null> => {
+export const getPrescriptionByEncounter = async (encounterId: string): Promise<Prescription | null> => {
     await simulateDelay(200)
     const prescription = dummyPrescriptions.find((p) => p.encounterId === encounterId)
     return prescription || null
 }
 
-/**
- * Get doctor record by encounter ID
- */
 export const getDoctorRecordByEncounter = async (
     encounterId: string
 ): Promise<DoctorEncounterRecord | null> => {

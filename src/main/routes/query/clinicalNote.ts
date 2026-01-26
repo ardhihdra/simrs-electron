@@ -34,7 +34,7 @@ export const schemas = {
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/clinical-note/read/${args.encounterId}`)
+        const res = await client.get(`/api/clinicalnote/read/${args.encounterId}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {
@@ -46,7 +46,7 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.post('/api/clinical-note', args)
+        const res = await client.post('/api/clinicalnote', args)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {

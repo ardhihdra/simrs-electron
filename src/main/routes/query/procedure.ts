@@ -62,7 +62,7 @@ export const bulkCreate = async (ctx: IpcContext, args: z.infer<typeof schemas.b
             procedures: args.procedures
         }
 
-        const res = await client.post('/api/procedure/bulk-create', payload)
+        const res = await client.post('/api/procedure', payload)
 
         const BackendCreateSchema = z.object({
             success: z.boolean(),
@@ -82,7 +82,7 @@ export const bulkCreate = async (ctx: IpcContext, args: z.infer<typeof schemas.b
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/procedure/by-encounter/${args.encounterId}`)
+        const res = await client.get(`/api/procedure/read/${args.encounterId}`)
 
         // Manual extraction to ensure robust handling
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))

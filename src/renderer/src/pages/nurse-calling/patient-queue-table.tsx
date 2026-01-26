@@ -1,6 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Table, Button, Tag, Select, Space, Card, App, Spin } from 'antd'
-import { PhoneOutlined, ReloadOutlined } from '@ant-design/icons'
+import {
+  Table,
+  Button,
+  Tag,
+  Select,
+  Space,
+  Card,
+  App,
+  Spin,
+  Input,
+  DatePicker,
+  Row,
+  Col,
+  Tabs
+} from 'antd'
+import { PhoneOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
@@ -9,6 +23,7 @@ import { PatientQueue, PatientStatus, Poli, Gender } from '../../types/nurse.typ
 import { getPolis } from '../../services/nurse.service'
 
 const { Option } = Select
+const { RangePicker } = DatePicker
 
 interface PatientQueueTableData extends PatientQueue {
   key: string
@@ -29,18 +44,38 @@ const PatientQueueTable = () => {
   const { message } = App.useApp()
   const [calling, setCalling] = useState<string | null>(null)
   const [polis, setPolis] = useState<Poli[]>([])
+
+  // Filter States
+  const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
+  const [activeStatus, setActiveStatus] = useState<string>('all')
 
   const {
     data: encounterData,
     isLoading,
     refetch
   } = useQuery({
-    queryKey: ['encounter', 'list', selectedPoli],
+    queryKey: ['encounter', 'list', selectedPoli, searchText, activeStatus, dateRange],
     queryFn: () => {
       const fn = window.api?.query?.encounter?.list
       if (!fn) throw new Error('API encounter tidak tersedia')
-      return fn({ serviceType: selectedPoli })
+
+      const params: any = {}
+      if (searchText) params.q = searchText
+      if (selectedPoli) params.serviceType = selectedPoli
+      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+
+      if (dateRange) {
+        params.startDate = dateRange[0].startOf('day').toISOString()
+        params.endDate = dateRange[1].endOf('day').toISOString()
+      }
+
+      // Default sort for queue
+      params.sortBy = 'visitDate'
+      params.sortOrder = 'ASC'
+
+      return fn(params)
     }
   })
 
@@ -123,10 +158,6 @@ const PatientQueueTable = () => {
     } finally {
       setCalling(null)
     }
-  }
-
-  const handlePoliChange = (value: string) => {
-    setSelectedPoli(value)
   }
 
   const handleRefresh = () => {
@@ -223,19 +254,50 @@ const PatientQueueTable = () => {
     }
   ]
 
+  const statusTabs = [
+    { key: 'all', label: 'Semua' },
+    { key: 'arrived', label: 'Menunggu' },
+    { key: 'in-progress', label: 'Sedang Diperiksa' },
+    { key: 'finished', label: 'Selesai' }
+  ]
+
   return (
-    <div>
+    <div className="flex flex-col gap-4 h-full">
       <Card
-        title={
-          <div className="flex items-center justify-between">
-            <span className="text-xl font-semibold">Pemanggilan Pasien</span>
-            <Space>
-              <Select
-                placeholder="Filter by Poli"
-                style={{ width: 200 }}
+        bodyStyle={{ padding: '16px' }}
+        title="Pemanggilan Pasien"
+        extra={
+          <Space>
+            <span className="text-gray-400 text-xs italic mr-2">
+              Last Updated: {dayjs().format('HH:mm')}
+            </span>
+            <Button
+              type="text"
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+              loading={isLoading}
+            />
+          </Space>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={8}>
+              <Input
+                placeholder="Cari Nama / No RM..."
+                prefix={<SearchOutlined />}
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
                 allowClear
-                onChange={handlePoliChange}
+              />
+            </Col>
+            <Col xs={24} md={6}>
+              <Select
+                placeholder="Pilih Poli"
+                className="w-full"
+                allowClear
                 value={selectedPoli}
+                onChange={setSelectedPoli}
               >
                 {polis.map((poli) => (
                   <Option key={poli.id} value={poli.id}>
@@ -243,13 +305,28 @@ const PatientQueueTable = () => {
                   </Option>
                 ))}
               </Select>
-              <Button icon={<ReloadOutlined />} onClick={handleRefresh}>
-                Refresh
-              </Button>
-            </Space>
-          </div>
-        }
-      >
+            </Col>
+            <Col xs={24} md={6}>
+              <RangePicker
+                className="w-full"
+                value={dateRange}
+                onChange={(dates) => setDateRange(dates as any)}
+                format="DD/MM/YYYY"
+              />
+            </Col>
+          </Row>
+
+          <Tabs
+            activeKey={activeStatus}
+            onChange={setActiveStatus}
+            items={statusTabs}
+            type="card"
+            className="mb-[-17px]"
+          />
+        </div>
+      </Card>
+
+      <Card bodyStyle={{ padding: '0' }} className="flex-1 overflow-hidden flex flex-col">
         <Spin spinning={isLoading}>
           <Table
             columns={columns}
@@ -259,7 +336,8 @@ const PatientQueueTable = () => {
               showTotal: (total) => `Total ${total} pasien`,
               showSizeChanger: true
             }}
-            scroll={{ x: 1200 }}
+            scroll={{ x: 1200, y: 'calc(100vh - 350px)' }}
+            className="flex-1"
           />
         </Spin>
       </Card>

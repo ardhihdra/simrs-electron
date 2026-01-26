@@ -16,15 +16,19 @@ export interface FormattedAnamnesis {
 }
 
 export const formatAnamnesisFromConditions = (conditions: ConditionData[]): FormattedAnamnesis => {
-    const getNoteByCategory = (cat: string) => {
-        return conditions.find((c) => c.categories?.some((cc) => cc.code === cat))?.note
+    const getNoteByCategory = (cats: string | string[]) => {
+        const categories = Array.isArray(cats) ? cats : [cats]
+        return conditions.find((c) => c.categories?.some((cc) => categories.includes(cc.code)))?.note
     }
+
+    const presentIllness = getNoteByCategory('history-of-present-illness')
+    const pastIllness = getNoteByCategory(['history-past-illness', 'history-of-past-illness'])
 
     return {
         chiefComplaint: getNoteByCategory('chief-complaint'),
-        historyOfIllness: getNoteByCategory('history-of-illness'),
-        historyOfPresentIllness: getNoteByCategory('history-present-illness'),
-        historyOfPastIllness: getNoteByCategory('history-past-illness'),
+        historyOfIllness: presentIllness, // Map present illness to historyOfIllness for summary view
+        historyOfPresentIllness: presentIllness,
+        historyOfPastIllness: pastIllness,
         allergyHistory: getNoteByCategory('allergy-history'),
         associatedSymptoms: getNoteByCategory('associated-symptoms'),
         familyHistory: getNoteByCategory('family-history'),
