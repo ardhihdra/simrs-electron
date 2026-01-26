@@ -615,6 +615,86 @@ export function MedicationDispenseTable() {
 				scroll={{ x: 'max-content' }}
 				expandable={{
 					expandedRowRender: (record: ParentRow) => {
+						const patientLabel = getPatientDisplayName(record.patient)
+						const handlePrintAllLabels = () => {
+							const labelLinesList: string[][] = record.items
+								.map((item) => {
+									const name = item.medicineName ?? 'Obat'
+									const quantityValue = typeof item.quantity === 'number' ? item.quantity : 0
+									const unitLabel = item.unit ?? ''
+									const instructionText = item.instruksi ?? ''
+
+									const lines: string[] = []
+									if (patientLabel.trim().length > 0) {
+										lines.push(`Pasien: ${patientLabel}`)
+									}
+									lines.push(`Nama Obat: ${name}`)
+									lines.push(`Qty: ${quantityValue} ${unitLabel}`.trim())
+									if (instructionText.trim().length > 0) {
+										lines.push(`Instruksi: ${instructionText}`)
+									}
+									return lines
+								})
+								.filter((lines) => lines.length > 0)
+
+							if (labelLinesList.length === 0) {
+								message.info('Data label obat tidak tersedia')
+								return
+							}
+
+							const labelBlocks = labelLinesList
+								.map((lines) => {
+									const inner = lines
+										.map((line) => `<div class="line">${line}</div>`)
+										.join('')
+									return `<div class="label">${inner}</div>`
+								})
+								.join('')
+
+							const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Label Obat</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; margin: 8px; }
+    .label { border: 1px solid #000; padding: 4px 8px; max-width: 320px; margin-bottom: 8px; }
+    .line { margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  ${labelBlocks}
+</body>
+</html>`
+
+							const iframe = document.createElement('iframe')
+							iframe.style.position = 'fixed'
+							iframe.style.right = '0'
+							iframe.style.bottom = '0'
+							iframe.style.width = '0'
+							iframe.style.height = '0'
+							iframe.style.border = '0'
+							document.body.appendChild(iframe)
+
+							const iframeWindow = iframe.contentWindow
+							if (!iframeWindow) {
+								message.info('Gagal menyiapkan tampilan cetak semua label')
+								iframe.remove()
+								return
+							}
+
+							const doc = iframeWindow.document
+							doc.open()
+							doc.write(html)
+							doc.close()
+
+							iframeWindow.focus()
+							iframeWindow.print()
+
+							setTimeout(() => {
+								iframe.remove()
+							}, 1000)
+						}
 						const detailColumns = [
 							{ title: 'Jenis Obat', dataIndex: 'jenis', key: 'jenis' },
 							{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
@@ -638,13 +718,20 @@ export function MedicationDispenseTable() {
 						]
 
 						return (
-							<Table
-								columns={detailColumns}
-								dataSource={record.items}
-								pagination={false}
-								size="small"
-								rowKey="key"
-							/>
+							<div>
+								<div className="mb-2 flex justify-end">
+									<Button size="small" onClick={handlePrintAllLabels}>
+										Cetak Semua Label
+									</Button>
+								</div>
+								<Table
+									columns={detailColumns}
+									dataSource={record.items}
+									pagination={false}
+									size="small"
+									rowKey="key"
+								/>
+							</div>
 						)
 					}
 				}}
