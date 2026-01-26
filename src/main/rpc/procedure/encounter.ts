@@ -4,13 +4,23 @@ import { t } from '../'
 export const encounterRpc = {
   // list: GET /module/encounter?depth=1 (Active encounters usually)
   list: t
-    .input(z.object({ depth: z.number().optional() }))
+    .input(
+      z.object({
+        depth: z.number().optional(),
+        status: z.string().optional(),
+        id: z.string().optional()
+      })
+    )
     .output(z.any())
     .query(async ({ client }, input) => {
       // Assuming a general list endpoint exists or we use one that fits
       // Based on reference, maybe just /api/module/encounter with query params
-      const query = input?.depth ? `?depth=${input.depth}` : ''
-      const data = await client.get(`/api/encounter${query}`)
+      const params = new URLSearchParams()
+      if (input.depth) params.append('depth', String(input.depth))
+      if (input.status) params.append('status', input.status)
+      if (input.id) params.append('id', input.id)
+
+      const data = await client.get(`/api/encounter?${params.toString()}`)
       return await data.json()
     }),
 

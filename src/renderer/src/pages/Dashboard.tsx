@@ -2,6 +2,7 @@ import {
   CalendarOutlined,
   DashboardOutlined,
   LeftCircleFilled,
+  MedicineBoxOutlined,
   RightCircleFilled,
   UserAddOutlined,
   UserOutlined,
@@ -81,6 +82,11 @@ const items = [
         label: 'Kunjungan Pasien',
         key: '/dashboard/encounter/transition',
         icon: <CalendarOutlined />
+      },
+      {
+        label: 'Triage',
+        key: '/dashboard/encounter/triage',
+        icon: <MedicineBoxOutlined />
       },
       {
         label: 'Data Jaminan',

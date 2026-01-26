@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Col, Form, Input, message } from 'antd'
 import { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { QueueTicketResponse } from 'simrs-types'
 
 const columns: ColumnsType<QueueTicketResponse> = [
@@ -45,6 +46,7 @@ const columns: ColumnsType<QueueTicketResponse> = [
 ]
 
 export function EncounterTable() {
+  const navigate = useNavigate()
   const startDate = useMemo(() => {
     const now = new Date()
     now.setHours(0, 0, 0, 0)
@@ -56,10 +58,8 @@ export function EncounterTable() {
     return now.toISOString()
   }, [])
 
-  const [creatingEncounter, setCreatingEncounter] = useState<string | null>(null)
-
-  const handleCreateEncounter = async (ticketId: string) => {
-    setCreatingEncounter(ticketId)
+  // Modified to optionally navigate
+  const handleCreateEncounter = async (ticketId: string, shouldNavigate: boolean = false) => {
     try {
       const tickets = (data?.data as any) || []
       const ticket = tickets.find((t: any) => t.id === ticketId)
@@ -92,6 +92,21 @@ export function EncounterTable() {
 
         message.success('Encounter created successfully and patient checked in')
         refetch()
+
+        if (shouldNavigate) {
+          const resp = encounterResponse as any
+          let createdEncounter = resp.data || resp.result
+
+          // Handle nested result structure
+          if (createdEncounter && createdEncounter.result) {
+            createdEncounter = createdEncounter.result
+          }
+          if (createdEncounter && createdEncounter.id) {
+            navigate('/dashboard/encounter/triage', { state: { encounterId: createdEncounter.id } })
+          } else {
+            console.warn('Encounter created but ID not found in response', encounterResponse)
+          }
+        }
       } else {
         throw new Error(encounterResponse.error || 'Failed to create encounter')
       }
@@ -99,8 +114,6 @@ export function EncounterTable() {
       console.error('Failed to create encounter', error)
       const msg = error instanceof Error ? error.message : 'Failed to create encounter'
       message.error(msg)
-    } finally {
-      setCreatingEncounter(null)
     }
   }
 
@@ -173,7 +186,7 @@ export function EncounterTable() {
                 {
                   key: 'start',
                   label: 'Pemeriksaan Awal',
-                  onClick: () => handleCreateEncounter(record.id),
+                  onClick: () => handleCreateEncounter(record.id, true),
                   confirm: {
                     title: 'Pemeriksaan Awal',
                     description: 'Apakah anda yakin ingin memulai pemeriksaan untuk pasien ini?'
@@ -182,7 +195,7 @@ export function EncounterTable() {
                 {
                   key: 'transfer',
                   label: 'Panggil Pasien',
-                  onClick: () => handleCreateEncounter(record.id),
+                  onClick: () => handleCreateEncounter(record.id, false),
                   confirm: {
                     title: 'Panggil Pasien',
                     description: 'Apakah anda yakin ingin memanggil pasien ini?'

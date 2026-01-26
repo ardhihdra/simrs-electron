@@ -8,3 +8,5 @@ out
 .env.local
 
 /src/generated/prisma
+.antigravity
+.agent

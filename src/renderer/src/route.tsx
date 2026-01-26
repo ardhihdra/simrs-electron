@@ -46,6 +46,7 @@ import ServiceRequestTable from './pages/service-request/service-request-table'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
+import TriagePage from './pages/triage'
 
 function MainRoute() {
   const location = useLocation()
@@ -71,7 +72,9 @@ function MainRoute() {
             <Route index element={<EncounterTable />} />
             <Route path="create" element={<EncounterForm />} />
             <Route path="edit/:id" element={<EncounterForm />} />
+            <Route path="edit/:id" element={<EncounterForm />} />
             <Route path="transition" element={<EncounterTransitionPage />} />
+            <Route path="triage" element={<TriagePage />} />
           </Route>
           <Route path="service-request" element={<ServiceRequest />}>
             <Route index element={<ServiceRequestTable />} />
