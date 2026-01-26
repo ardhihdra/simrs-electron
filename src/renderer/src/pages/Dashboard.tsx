@@ -12,33 +12,33 @@ import logoUrl from '@renderer/assets/logo.png'
 import NotificationBell from '@renderer/components/NotificationBell'
 import ProfileMenu from '@renderer/components/ProfileMenu'
 import type { MenuProps } from 'antd'
-import { App as AntdApp, Button, Menu } from 'antd'
+import { Menu } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 
-const SendNotificationButton = () => {
-  const { message } = AntdApp.useApp()
-  return (
-    <Button
-      size="small"
-      onClick={async () => {
-        try {
-          await window.api.notification.send({
-            title: 'Test Notification',
-            content: 'This is a test notification sent from the renderer.'
-          })
-          message.success('Notification sent!')
-        } catch (error) {
-          console.error(error)
-          message.error('Failed to send notification')
-        }
-      }}
-    >
-      Send Notification
-    </Button>
-  )
-}
+// const SendNotificationButton = () => {
+//   const { message } = AntdApp.useApp()
+//   return (
+//     <Button
+//       size="small"
+//       onClick={async () => {
+//         try {
+//           await window.api.notification.send({
+//             title: 'Test Notification',
+//             content: 'This is a test notification sent from the renderer.'
+//           })
+//           message.success('Notification sent!')
+//         } catch (error) {
+//           console.error(error)
+//           message.error('Failed to send notification')
+//         }
+//       }}
+//     >
+//       Send Notification
+//     </Button>
+//   )
+// }
 
 const items = [
   {
@@ -344,7 +344,7 @@ function Dashboard() {
     setActiveSide(match || (children[0]?.key as string))
   }, [location.pathname])
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex overflow-hidden">
       <aside
         className={`${collapsed ? 'w-20' : 'w-64'} bg-white dark:bg-[#141414] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300`}
       >
@@ -375,14 +375,17 @@ function Dashboard() {
           </button>
         </div>
       </aside>
-      <div className="flex-1 flex flex-col">
+      <div
+        className={`flex-1 transition-all duration-300 flex flex-col ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
+      >
         <header className="sticky top-0 z-50 bg-white dark:bg-[#141414] border-b border-gray-200 dark:border-gray-800 h-14 px-4 flex items-center justify-between gap-4 transition-colors">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            className="flex-1 dark:bg-[#141414] border-none"
+            className="dark:bg-[#141414] border-none"
+            style={{ minWidth: 0, flex: 'auto' }}
           />
           {/* <SendNotificationButton /> */}
           <NotificationBell />

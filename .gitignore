@@ -10,3 +10,4 @@ out
 /src/generated/prisma
 .antigravity
 .agent
+src/preload/ipc-channels.d.ts
