@@ -61,6 +61,10 @@ import MedicationRequestForm from './pages/pharmacy/medication-request-form'
 import MedicationDispenseFromRequest from './pages/pharmacy/medication-dispense-from-request'
 import MedicationDispenseTable from './pages/pharmacy/medication-dispense-table'
 import MedicationDispenseReport from './pages/pharmacy/medication-dispense-report'
+import QueueList from './pages/queue/queue-list'
+import DoctorLeave from './pages/doctor-leave/DoctorLeave'
+import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
+import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 
 function MainRoute() {
   const location = useLocation()
@@ -92,6 +96,9 @@ function MainRoute() {
           <Route path="queue" element={<Encounter />}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
+            <Route path="registration" element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />} />
+            <Route path="poli" element={<QueueList title="Antrian Poli" serviceType="poli" />} />
+            <Route path="laboratory" element={<QueueList title="Antrian Laboratorium" serviceType="laboratorium" />} />
           </Route>
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />
@@ -116,50 +123,55 @@ function MainRoute() {
           <Route path="registration/doctor-schedule" element={<DoctorScheduleTable />} />
           <Route path="registration/doctor-schedule/create" element={<DoctorScheduleForm />} />
           <Route path="registration/doctor-schedule/edit/:id" element={<DoctorScheduleForm />} />
+          <Route path="registration/doctor-leave" element={<DoctorLeave />}>
+            <Route index element={<DoctorLeaveTable />} />
+            <Route path="create" element={<DoctorLeaveForm />} />
+            <Route path="edit/:id" element={<DoctorLeaveForm />} />
+          </Route>
           <Route path="diagnostic" element={<Diagnostic />}>
             <Route index element={<DiagnosticTable />} />
             <Route path="create" element={<DiagnosticForm />} />
             <Route path="edit/:id" element={<DiagnosticForm />} />
           </Route>
-        <Route path="services" element={<Services />}>
-          <Route index element={<PemeriksaanUtamaPage />} />
-          <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
-          <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
-        </Route>
-        <Route path="medicine" element={<Pharmacy />}>
-          <Route path="medicine-categories" element={<MedicineCategoryTable />} />
-          <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
-          <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
-          <Route path="medicine-brands" element={<MedicineBrandTable />} />
-          <Route path="medicine-brands/create" element={<MedicineBrandForm />} />
-          <Route path="medicine-brands/edit/:id" element={<MedicineBrandForm />} />
-          <Route path="medicines" element={<MedicinesTable />} />
-          <Route path="medicines/create" element={<MedicinesForm />} />
-          <Route path="medicines/edit/:id" element={<MedicinesForm />} />
-          <Route path="medication-requests" element={<MedicationRequestTable />} />
-          <Route path="medication-requests/create" element={<MedicationRequestForm />} />
-          <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
-          <Route path="medication-requests/dispense/:id" element={<MedicationDispenseFromRequest />} />
-          <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
-          <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
-        </Route>
-        <Route path="farmasi" element={<PharmacyProduction />}>
-          <Route path="raw-materials" element={<RawMaterialTable />} />
-          <Route path="raw-materials/create" element={<RawMaterialForm />} />
-          <Route path="raw-materials/edit/:id" element={<RawMaterialForm />} />
-          <Route path="raw-material-categories" element={<RawMaterialCategoryTable />} />
-          <Route path="raw-material-categories/create" element={<RawMaterialCategoryForm />} />
-          <Route path="raw-material-categories/edit/:id" element={<RawMaterialCategoryForm />} />
-          <Route path="suppliers" element={<SupplierTable />} />
-          <Route path="suppliers/create" element={<SupplierForm />} />
-          <Route path="suppliers/edit/:id" element={<SupplierForm />} />
-          <Route path="formulas" element={<ProductionFormulaTable />} />
-          <Route path="formulas/create" element={<ProductionFormulaForm />} />
-          <Route path="formulas/edit/:id" element={<ProductionFormulaForm />} />
-          <Route path="production-requests" element={<ProductionRequestTable />} />
-          <Route path="production-requests/create" element={<ProductionRequestForm />} />
-          <Route path="production-requests/edit/:id" element={<ProductionRequestForm />} />
-        </Route>
+          <Route path="services" element={<Services />}>
+            <Route index element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          </Route>
+          <Route path="medicine" element={<Pharmacy />}>
+            <Route path="medicine-categories" element={<MedicineCategoryTable />} />
+            <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
+            <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
+            <Route path="medicine-brands" element={<MedicineBrandTable />} />
+            <Route path="medicine-brands/create" element={<MedicineBrandForm />} />
+            <Route path="medicine-brands/edit/:id" element={<MedicineBrandForm />} />
+            <Route path="medicines" element={<MedicinesTable />} />
+            <Route path="medicines/create" element={<MedicinesForm />} />
+            <Route path="medicines/edit/:id" element={<MedicinesForm />} />
+            <Route path="medication-requests" element={<MedicationRequestTable />} />
+            <Route path="medication-requests/create" element={<MedicationRequestForm />} />
+            <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
+            <Route path="medication-requests/dispense/:id" element={<MedicationDispenseFromRequest />} />
+            <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
+            <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
+          </Route>
+          <Route path="farmasi" element={<PharmacyProduction />}>
+            <Route path="raw-materials" element={<RawMaterialTable />} />
+            <Route path="raw-materials/create" element={<RawMaterialForm />} />
+            <Route path="raw-materials/edit/:id" element={<RawMaterialForm />} />
+            <Route path="raw-material-categories" element={<RawMaterialCategoryTable />} />
+            <Route path="raw-material-categories/create" element={<RawMaterialCategoryForm />} />
+            <Route path="raw-material-categories/edit/:id" element={<RawMaterialCategoryForm />} />
+            <Route path="suppliers" element={<SupplierTable />} />
+            <Route path="suppliers/create" element={<SupplierForm />} />
+            <Route path="suppliers/edit/:id" element={<SupplierForm />} />
+            <Route path="formulas" element={<ProductionFormulaTable />} />
+            <Route path="formulas/create" element={<ProductionFormulaForm />} />
+            <Route path="formulas/edit/:id" element={<ProductionFormulaForm />} />
+            <Route path="production-requests" element={<ProductionRequestTable />} />
+            <Route path="production-requests/create" element={<ProductionRequestForm />} />
+            <Route path="production-requests/edit/:id" element={<ProductionRequestForm />} />
+          </Route>
         </Route>
         <Route
           path="*"

@@ -2,7 +2,11 @@ import z from 'zod'
 
 import { IpcContext } from '@main/ipc/router'
 import { DiagnosticReportSchema, DiagnosticReportSchemaWithId } from '@main/models/diagnosticReport'
-import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
+import {
+  parseBackendResponse,
+  BackendListSchema,
+  getClient
+} from '@main/utils/backendClient'
 
 export const requireSession = true
 

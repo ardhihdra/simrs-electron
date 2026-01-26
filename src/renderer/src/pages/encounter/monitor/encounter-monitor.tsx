@@ -23,8 +23,8 @@ export default function EncounterMonitor() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-center bg-white p-4 rounded-lg shadow-sm">
-        <h2 className="text-xl font-bold">Monitor Kunjungan</h2>
+      <div className="flex justify-between items-center bg-white dark:bg-[#141414] p-4 rounded-lg shadow-sm border border-gray-100 dark:border-gray-800">
+        <h2 className="text-xl font-bold dark:text-white">Monitor Kunjungan</h2>
         <SelectPoli
           valueType="name"
           placeholder="Filter Layanan"
@@ -36,7 +36,7 @@ export default function EncounterMonitor() {
       </div>
       {grouped && Object.entries(grouped).map(([service, items]) => (
         <div key={service}>
-          <h2 className="text-2xl font-bold mb-4 capitalize border-b pb-2">{service}</h2>
+          <h2 className="text-2xl font-bold mb-4 capitalize border-b pb-2 dark:text-white dark:border-gray-700">{service}</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {items.map((item) => (
               <Card

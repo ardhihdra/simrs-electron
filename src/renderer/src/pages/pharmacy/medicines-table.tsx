@@ -1,10 +1,11 @@
-import { Button, Dropdown, Input, Table } from 'antd'
+import { Button, Dropdown, Input } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
 
 interface MedicineAttributes { 
   id?: number; 
@@ -20,14 +21,35 @@ interface MedicineAttributes {
 
 const columns = [
   { title: 'Medicine', dataIndex: 'name', key: 'name' },
-  { title: 'Category', dataIndex: 'category', key: 'category', render: (val: any) => val ? val.name : '-' },
-  { title: 'Brand', dataIndex: 'brand', key: 'brand', render: (val: any) => val ? val.name : '-' },
-  { title: 'Stock', dataIndex: 'stock', key: 'stock', width: 100, render: (value: number | null | undefined) => (typeof value === 'number' ? value : 0) },
+  {
+    title: 'Category',
+    dataIndex: 'category',
+    key: 'category',
+    render: (val: MedicineAttributes['category']) => (val?.name ? val.name : '-')
+  },
+  {
+    title: 'Brand',
+    dataIndex: 'brand',
+    key: 'brand',
+    render: (val: MedicineAttributes['brand']) => (val?.name ? val.name : '-')
+  },
+  {
+    title: 'Stock',
+    dataIndex: 'stock',
+    key: 'stock',
+    width: 100,
+    render: (value: MedicineAttributes['stock']) => (typeof value === 'number' ? value : 0)
+  },
   { title: 'Buying', dataIndex: 'buyingPrice', key: 'buyingPrice', width: 120 },
   { title: 'Selling', dataIndex: 'sellingPrice', key: 'sellingPrice', width: 120 },
-  { title: 'Action', key: 'action', width: 60, align: 'center' as const, render: (_: MedicineAttributes, r: MedicineAttributes) => <RowActions record={r} /> }
+  {
+    title: 'Action',
+    key: 'action',
+    width: 60,
+    align: 'center' as const,
+    render: (_: MedicineAttributes, r: MedicineAttributes) => <RowActions record={r} />
+  }
 ]
-
 function RowActions({ record }: { record: MedicineAttributes }) {
   const navigate = useNavigate()
   const deleteMutation = useMutation({
@@ -48,9 +70,11 @@ function RowActions({ record }: { record: MedicineAttributes }) {
   ]
   return (
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-      <button aria-label="Actions" className="p-1 rounded hover:bg-gray-100">
-        <MoreOutlined />
-      </button>
+      <Button
+        type="text"
+        icon={<MoreOutlined />}
+        className="text-gray-700 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+      />
     </Dropdown>
   )
 }
@@ -84,11 +108,23 @@ export function MedicinesTable() {
           <Button type="primary" onClick={() => navigate('/dashboard/medicine/medicines/create')}>Tambah</Button>
         </div>
       </div>
-      {isError || (!data?.success && <div className="text-red-500">{data?.message}</div>)}
-      <Table dataSource={filtered} columns={columns} size="small" className="mt-4 rounded-xl shadow-sm" rowKey="id" scroll={{ x: 'max-content' }} />
+      {isError || (!data?.success && <div className="text-red-500 mb-4">{data?.message}</div>)}
+      
+      <div className="bg-white dark:bg-[#141414] rounded-lg shadow border border-gray-200 dark:border-gray-800">
+        <GenericTable 
+            columns={columns} 
+            dataSource={filtered} 
+            rowKey="id" 
+            action={{
+                title: 'Action',
+                width: 80,
+                align: 'center',
+                render: (record) => <RowActions record={record} />
+            }}
+        />
+      </div>
     </div>
   )
 }
 
 export default MedicinesTable
-
