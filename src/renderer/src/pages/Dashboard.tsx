@@ -174,7 +174,8 @@ const items = [
     children: [
       { label: 'Bahan Baku', key: '/dashboard/farmasi/raw-materials', icon: <DashboardOutlined /> },
       { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
-      { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> }
+      { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
+      { label: 'Formula Produksi', key: '/dashboard/farmasi/formulas', icon: <DashboardOutlined /> }
     ]
   },
   {

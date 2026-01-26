@@ -47,6 +47,8 @@ import RawMaterialTable from './pages/pharmacy-production/raw-material-table'
 import RawMaterialForm from './pages/pharmacy-production/raw-material-form'
 import SupplierTable from './pages/pharmacy-production/supplier-table'
 import SupplierForm from './pages/pharmacy-production/supplier-form'
+import ProductionFormulaTable from './pages/pharmacy-production/formula-table'
+import ProductionFormulaForm from './pages/pharmacy-production/formula-form'
 import MedicineCategoryTable from './pages/pharmacy/medicine-category-table'
 import MedicineCategoryForm from './pages/pharmacy/medicine-category-form'
 import MedicineBrandTable from './pages/pharmacy/medicine-brand-table'
@@ -150,6 +152,9 @@ function MainRoute() {
           <Route path="suppliers" element={<SupplierTable />} />
           <Route path="suppliers/create" element={<SupplierForm />} />
           <Route path="suppliers/edit/:id" element={<SupplierForm />} />
+          <Route path="formulas" element={<ProductionFormulaTable />} />
+          <Route path="formulas/create" element={<ProductionFormulaForm />} />
+          <Route path="formulas/edit/:id" element={<ProductionFormulaForm />} />
         </Route>
         </Route>
         <Route
