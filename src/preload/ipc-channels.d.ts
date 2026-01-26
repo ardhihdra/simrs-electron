@@ -7,6 +7,7 @@ import type * as Mod_macaddress from '@main/routes/macaddress'
 import type * as Mod_notification from '@main/routes/notification'
 import type * as Mod_query_departemen from '@main/routes/query/departemen'
 import type * as Mod_query_diagnostic from '@main/routes/query/diagnostic'
+import type * as Mod_query_doctorLeave from '@main/routes/query/doctorLeave'
 import type * as Mod_query_doctorSchedule from '@main/routes/query/doctorSchedule'
 import type * as Mod_query_encounter from '@main/routes/query/encounter'
 import type * as Mod_query_expense from '@main/routes/query/expense'
@@ -87,6 +88,16 @@ type Args_Mod_query_diagnostic_list = InferArgs<typeof Mod_query_diagnostic, 'li
 type Result_Mod_query_diagnostic_list = InferResult<typeof Mod_query_diagnostic, 'list'>
 type Args_Mod_query_diagnostic_update = InferArgs<typeof Mod_query_diagnostic, 'update'>
 type Result_Mod_query_diagnostic_update = InferResult<typeof Mod_query_diagnostic, 'update'>
+type Args_Mod_query_doctorLeave_create = InferArgs<typeof Mod_query_doctorLeave, 'create'>
+type Result_Mod_query_doctorLeave_create = InferResult<typeof Mod_query_doctorLeave, 'create'>
+type Args_Mod_query_doctorLeave_deleteById = InferArgs<typeof Mod_query_doctorLeave, 'deleteById'>
+type Result_Mod_query_doctorLeave_deleteById = InferResult<typeof Mod_query_doctorLeave, 'deleteById'>
+type Args_Mod_query_doctorLeave_getById = InferArgs<typeof Mod_query_doctorLeave, 'getById'>
+type Result_Mod_query_doctorLeave_getById = InferResult<typeof Mod_query_doctorLeave, 'getById'>
+type Args_Mod_query_doctorLeave_list = InferArgs<typeof Mod_query_doctorLeave, 'list'>
+type Result_Mod_query_doctorLeave_list = InferResult<typeof Mod_query_doctorLeave, 'list'>
+type Args_Mod_query_doctorLeave_update = InferArgs<typeof Mod_query_doctorLeave, 'update'>
+type Result_Mod_query_doctorLeave_update = InferResult<typeof Mod_query_doctorLeave, 'update'>
 type Args_Mod_query_doctorSchedule_create = InferArgs<typeof Mod_query_doctorSchedule, 'create'>
 type Result_Mod_query_doctorSchedule_create = InferResult<typeof Mod_query_doctorSchedule, 'create'>
 type Args_Mod_query_doctorSchedule_deleteById = InferArgs<typeof Mod_query_doctorSchedule, 'deleteById'>
@@ -203,6 +214,8 @@ type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
 type Args_Mod_query_poli_create = InferArgs<typeof Mod_query_poli, 'create'>
 type Result_Mod_query_poli_create = InferResult<typeof Mod_query_poli, 'create'>
+type Args_Mod_query_poli_deleteById = InferArgs<typeof Mod_query_poli, 'deleteById'>
+type Result_Mod_query_poli_deleteById = InferResult<typeof Mod_query_poli, 'deleteById'>
 type Args_Mod_query_poli_list = InferArgs<typeof Mod_query_poli, 'list'>
 type Result_Mod_query_poli_list = InferResult<typeof Mod_query_poli, 'list'>
 type Args_Mod_query_poli_listAll = InferArgs<typeof Mod_query_poli, 'listAll'>
@@ -301,6 +314,13 @@ declare global {
           list: Invoke<Args_Mod_query_diagnostic_list, Result_Mod_query_diagnostic_list>
           update: Invoke<Args_Mod_query_diagnostic_update, Result_Mod_query_diagnostic_update>
         }
+        doctorLeave: {
+          create: Invoke<Args_Mod_query_doctorLeave_create, Result_Mod_query_doctorLeave_create>
+          deleteById: Invoke<Args_Mod_query_doctorLeave_deleteById, Result_Mod_query_doctorLeave_deleteById>
+          getById: Invoke<Args_Mod_query_doctorLeave_getById, Result_Mod_query_doctorLeave_getById>
+          list: Invoke<Args_Mod_query_doctorLeave_list, Result_Mod_query_doctorLeave_list>
+          update: Invoke<Args_Mod_query_doctorLeave_update, Result_Mod_query_doctorLeave_update>
+        }
         doctorSchedule: {
           create: Invoke<Args_Mod_query_doctorSchedule_create, Result_Mod_query_doctorSchedule_create>
           deleteById: Invoke<Args_Mod_query_doctorSchedule_deleteById, Result_Mod_query_doctorSchedule_deleteById>
@@ -388,6 +408,7 @@ declare global {
         }
         poli: {
           create: Invoke<Args_Mod_query_poli_create, Result_Mod_query_poli_create>
+          deleteById: Invoke<Args_Mod_query_poli_deleteById, Result_Mod_query_poli_deleteById>
           list: Invoke<Args_Mod_query_poli_list, Result_Mod_query_poli_list>
           listAll: Invoke<Args_Mod_query_poli_listAll, Result_Mod_query_poli_listAll>
           read: Invoke<Args_Mod_query_poli_read, Result_Mod_query_poli_read>

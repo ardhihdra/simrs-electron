@@ -51,7 +51,10 @@ function RowActions({ record }: { record: MedicineCategoryAttributes }) {
   ]
   return (
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-      <button aria-label="Actions" className="p-1 rounded hover:bg-gray-100">
+      <button
+        aria-label="Actions"
+        className="p-1 rounded text-gray-700 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+      >
         <MoreOutlined />
       </button>
     </Dropdown>

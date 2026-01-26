@@ -1,11 +1,15 @@
 import { Link, Route, Routes, useLocation } from 'react-router'
 
 import AppLayout from './components/AppLayout'
+
 import Dashboard from './pages/Dashboard'
 import DashboardHome from './pages/DashboardHome'
 import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
 import DiagnosticTable from './pages/diagnostic/diagnostic-table'
+import DoctorLeave from './pages/doctor-leave/DoctorLeave'
+import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
+import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
 import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
 import EncounterTransitionPage from './pages/encounter-transition/encounter-transition'
@@ -40,6 +44,7 @@ import MedicineCategoryForm from './pages/pharmacy/medicine-category-form'
 import MedicineCategoryTable from './pages/pharmacy/medicine-category-table'
 import MedicinesForm from './pages/pharmacy/medicines-form'
 import MedicinesTable from './pages/pharmacy/medicines-table'
+import QueueList from './pages/queue/queue-list'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
 import ServiceRequestTable from './pages/service-request/service-request-table'
@@ -84,6 +89,15 @@ function MainRoute() {
           <Route path="queue" element={<Encounter />}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
+            <Route
+              path="registration"
+              element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />}
+            />
+            <Route path="poli" element={<QueueList title="Antrian Poli" serviceType="poli" />} />
+            <Route
+              path="laboratory"
+              element={<QueueList title="Antrian Laboratorium" serviceType="laboratorium" />}
+            />
           </Route>
           <Route path="income" element={<Income />}>
             <Route index element={<IncomeTable />} />
@@ -108,6 +122,11 @@ function MainRoute() {
           <Route path="registration/doctor-schedule" element={<DoctorScheduleTable />} />
           <Route path="registration/doctor-schedule/create" element={<DoctorScheduleForm />} />
           <Route path="registration/doctor-schedule/edit/:id" element={<DoctorScheduleForm />} />
+          <Route path="registration/doctor-leave" element={<DoctorLeave />}>
+            <Route index element={<DoctorLeaveTable />} />
+            <Route path="create" element={<DoctorLeaveForm />} />
+            <Route path="edit/:id" element={<DoctorLeaveForm />} />
+          </Route>
           <Route path="diagnostic" element={<Diagnostic />}>
             <Route index element={<DiagnosticTable />} />
             <Route path="create" element={<DiagnosticForm />} />

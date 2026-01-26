@@ -107,9 +107,9 @@ export function MedicinesForm() {
 
   return (
     <div className="flex justify-center p-4">
-      <div className="w-full max-w-5xl bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h2 className="text-xl font-bold text-gray-800">{isEdit ? 'Edit Medicine' : 'New Medicine'}</h2>
+      <div className="w-full max-w-5xl bg-white dark:bg-[#141414] rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-800">
+        <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{isEdit ? 'Edit Medicine' : 'New Medicine'}</h2>
           <Button onClick={() => navigate('/dashboard/pharmacy/medicines')}>Back</Button>
         </div>
         
