@@ -1,7 +1,8 @@
 import GenericTable from '@renderer/components/GenericTable'
+import { TableHeader } from '@renderer/components/TableHeader'
 import { singkatPoli } from '@renderer/utils/singkatPoli'
 import { useQuery } from '@tanstack/react-query'
-import { Button, message } from 'antd'
+import { Col, Form, Input, message } from 'antd'
 import { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { QueueTicketResponse } from 'simrs-types'
@@ -19,6 +20,11 @@ const columns: ColumnsType<QueueTicketResponse> = [
     dataIndex: ['queueTicket', 'queueNumber'],
     key: 'queueNumber',
     render: (value, record) => `${singkatPoli(record.poli?.name)} - ${record.queueNumber}`
+  },
+  {
+    title: 'MRN',
+    dataIndex: ['patient', 'medicalRecordNumber'],
+    key: 'medicalRecordNumber'
   },
   {
     title: 'Asuransi',
@@ -111,28 +117,82 @@ export function EncounterTable() {
       })
     }
   })
+  const [filter, setFilter] = useState({ name: '', medicalRecordNumber: '' })
+
+  const filteredData = useMemo(() => {
+    const rawData = (data?.data as any[]) || []
+    return rawData.filter((item) => {
+      const patientName = item.patient?.name || ''
+      const patientMrn = item.patient?.medicalRecordNumber || ''
+
+      const filterName = filter.name || ''
+      const filterMrn = filter.medicalRecordNumber || ''
+
+      const matchName = patientName.toLowerCase().includes(filterName.toLowerCase())
+      const matchMrn = patientMrn.toLowerCase().includes(filterMrn.toLowerCase())
+
+      if (filterName && !matchName) return false
+      if (filterMrn && !matchMrn) return false
+      return true
+    })
+  }, [data, filter])
+
   return (
     <div>
-      <GenericTable
+      <TableHeader
+        title="Daftar Antrian"
+        onSearch={(values) => setFilter(values)}
+        onReset={() => setFilter({ name: '', medicalRecordNumber: '' })}
         loading={isLoading || isRefetching}
-        columns={columns}
-        dataSource={(data?.data as any) || []}
-        rowKey="id"
-        action={{
-          render(record) {
-            return (
-              <div>
-                <Button
-                  loading={creatingEncounter === record.id}
-                  onClick={() => handleCreateEncounter(record.id)}
-                >
-                  Buat
-                </Button>
-              </div>
-            )
-          }
-        }}
-      />
+      >
+        <Col span={12}>
+          <Form.Item name="name" label="Nama Pasien">
+            <Input placeholder="Cari Nama Pasien" allowClear />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item name="medicalRecordNumber" label="MRN">
+            <Input placeholder="Cari MRN" allowClear />
+          </Form.Item>
+        </Col>
+        <Col span={24}>
+          <div className="text-gray-500">
+            Menampilkan antrian untuk tanggal {new Date(startDate).toLocaleDateString()}
+          </div>
+        </Col>
+      </TableHeader>
+      <div className="mt-4">
+        <GenericTable
+          loading={isLoading || isRefetching}
+          columns={columns}
+          dataSource={filteredData}
+          rowKey="id"
+          action={{
+            items(record) {
+              return [
+                {
+                  key: 'start',
+                  label: 'Pemeriksaan Awal',
+                  onClick: () => handleCreateEncounter(record.id),
+                  confirm: {
+                    title: 'Pemeriksaan Awal',
+                    description: 'Apakah anda yakin ingin memulai pemeriksaan untuk pasien ini?'
+                  }
+                },
+                {
+                  key: 'transfer',
+                  label: 'Panggil Pasien',
+                  onClick: () => handleCreateEncounter(record.id),
+                  confirm: {
+                    title: 'Panggil Pasien',
+                    description: 'Apakah anda yakin ingin memanggil pasien ini?'
+                  }
+                }
+              ]
+            }
+          }}
+        />
+      </div>
     </div>
   )
 }

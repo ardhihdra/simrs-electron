@@ -43,6 +43,13 @@ export function createBackendClient(ctx: IpcContext) {
         body: JSON.stringify(body)
       }),
 
+    patch: (path: string, body: unknown) =>
+      fetch(`${root}${path}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body)
+      }),
+
     delete: (path: string) =>
       fetch(`${root}${path}`, {
         method: 'DELETE',

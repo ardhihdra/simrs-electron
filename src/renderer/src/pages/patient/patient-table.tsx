@@ -1,142 +1,126 @@
-import { DeleteOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons'
-import { queryClient } from '@renderer/query-client'
-import type { PatientAttributes } from '@shared/patient'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/GenericTable'
+import { useQuery } from '@tanstack/react-query'
+import { Col, Form, Input } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
+import { PatientAttributes } from 'simrs-types'
+
+import { TableHeader } from '@renderer/components/TableHeader'
 import { useNavigate } from 'react-router'
+import RegistrationSheet from './components/RegistrationSheet'
 
-type Row = PatientAttributes & { no: number }
-
-const baseColumns: ColumnsType<Row> = [
-  { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
-  { title: 'Nama', dataIndex: 'name', key: 'name' },
-  { title: 'Gender', dataIndex: 'gender', key: 'gender' },
-  {
-    title: 'Tanggal Lahir',
-    dataIndex: 'birthDate',
-    key: 'birthDate',
-    render: (value: string | Date) => (value ? dayjs(value).format('DD MMMM YYYY') : '-')
-  },
-  { title: 'Phone', dataIndex: 'phone', key: 'phone' },
-  { title: 'Email', dataIndex: 'email', key: 'email' },
-  { title: 'Alamat', dataIndex: 'address', key: 'address' }
-]
-
-function RowActions({ record }: { record: Row }) {
+const PatientTable = () => {
   const navigate = useNavigate()
-  const deleteMutation = useMutation({
-    mutationKey: ['patient', 'delete'],
-    mutationFn: (id: number) => {
-      const fn = window.api?.query?.patient?.deleteById
-      if (!fn) throw new Error('API patient tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn({ id })
+  const [filter, setFilter] = useState({ nik: '', name: '' })
+  const [openRegistration, setOpenRegistration] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>(undefined)
+
+  const {
+    data: queryData,
+    isLoading,
+    refetch,
+    isRefetching
+  } = useQuery({
+    queryKey: ['patient', 'list', filter.nik, filter.name],
+    queryFn: async () => {
+      const fn = window.api.query.patient.list
+      if (!fn) {
+        throw new Error('Failed to load data')
+      }
+      return fn({
+        nik: filter.nik,
+        name: filter.name
+      })
+    }
+  })
+
+  const columns: ColumnsType<PatientAttributes & { no: number }> = [
+    { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
+    { title: 'RM', dataIndex: 'medicalRecordNumber', key: 'medicalRecordNumber' },
+    { title: 'NIK', dataIndex: 'nik', key: 'nik' },
+    { title: 'Nama', dataIndex: 'name', key: 'name' },
+    {
+      title: 'Gender',
+      dataIndex: 'gender',
+      key: 'gender',
+      render: (value: string) => (value === 'male' ? 'Laki-laki' : 'Perempuan')
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['patient', 'list'] })
-    }
-  })
-  return (
-    <div className="flex gap-2">
-      <EyeOutlined
-        onClick={() => {
-          if (typeof record.id === 'number') navigate(`/dashboard/patient/edit/${record.id}`)
-        }}
-      />
-      <EditOutlined
-        onClick={() => {
-          if (typeof record.id === 'number') navigate(`/dashboard/patient/edit/${record.id}`)
-        }}
-      />
-      <DeleteOutlined
-        onClick={() => {
-          if (typeof record.id === 'number') deleteMutation.mutate(record.id)
-        }}
-      />
-    </div>
-  )
-}
+    {
+      title: 'Tgl Lahir',
+      dataIndex: 'birthDate',
+      key: 'birthDate',
+      render: (value: string | Date) => (value ? dayjs(value).format('DD MMM YYYY') : '-')
+    },
+    { title: 'Alamat', dataIndex: 'address', key: 'address' }
+  ]
 
-export function PatientTable() {
-  const navigate = useNavigate()
-  const [searchKode, setSearchKode] = useState('')
-  const [searchNama, setSearchNama] = useState('')
-  const [searchPhone, setSearchPhone] = useState('')
-  const [searchEmail, setSearchEmail] = useState('')
-  const [searchAlamat, setSearchAlamat] = useState('')
-  const [gender, setGender] = useState<string | undefined>(undefined)
-  const [birthDate, setBirthDate] = useState<string | null>(null)
-  const { data, refetch, isError } = useQuery<any>({
-    queryKey: ['patient', 'list'],
-    queryFn: () => {
-      const fn = window.api?.query?.patient?.list
-      if (!fn) throw new Error('API patient tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn()
-    }
-  })
+  const dataSource = (queryData?.data || []).map((item, idx) => ({ ...item, no: idx + 1 }))
 
-  const filtered = useMemo(() => {
-    const source: PatientAttributes[] = (data?.data as PatientAttributes[]) || []
-    const rows: Row[] = source.map((p, idx) => ({ ...p, no: idx + 1 }))
-    return rows.filter((r) => {
-      const matchKode = searchKode
-        ? String(r.kode || '')
-            .toLowerCase()
-            .includes(searchKode.toLowerCase())
-        : true
-      const matchNama = searchNama
-        ? String(r.name || '')
-            .toLowerCase()
-            .includes(searchNama.toLowerCase())
-        : true
-      const matchPhone = searchPhone
-        ? String(r.phone || '')
-            .toLowerCase()
-            .includes(searchPhone.toLowerCase())
-        : true
-      const matchEmail = searchEmail
-        ? String(r.email || '')
-            .toLowerCase()
-            .includes(searchEmail.toLowerCase())
-        : true
-      const matchAlamat = searchAlamat
-        ? String(r.addressLine || '')
-            .toLowerCase()
-            .includes(searchAlamat.toLowerCase())
-        : true
-      const matchGender = gender
-        ? String(r.gender || '').toLowerCase() === gender.toLowerCase()
-        : true
-      const matchBirth = birthDate ? dayjs(r.birthDate).isSame(dayjs(birthDate), 'day') : true
-      return (
-        matchKode &&
-        matchNama &&
-        matchPhone &&
-        matchEmail &&
-        matchAlamat &&
-        matchGender &&
-        matchBirth
-      )
-    })
-  }, [
-    data?.data,
-    searchKode,
-    searchNama,
-    searchPhone,
-    searchEmail,
-    searchAlamat,
-    gender,
-    birthDate
-  ])
-  console.log('patient data:', data)
+  const onFinish = async (values: any) => {
+    console.log('Registration Values:', values)
+    // TODO: Implement actual registration logic here
+    // window.api.query.queue.create(values)
+    setOpenRegistration(false)
+  }
+
   return (
     <div>
-      {data.data?.result?.map((item) => (
-        <div key={item.id}>
-          {item.medicalRecordNumber} - {item.name}
-        </div>
-      ))}
+      <TableHeader
+        title="Daftar Pasien"
+        onSearch={(values) => setFilter(values)}
+        onReset={() => setFilter({ nik: '', name: '' })}
+        onCreate={() => navigate('/dashboard/patient/register')}
+        createLabel="Pasien Baru"
+        loading={isLoading || isRefetching}
+      >
+        <Col span={12}>
+          <Form.Item name="nik" label="NIK">
+            <Input placeholder="Cari NIK" allowClear />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item name="name" label="Nama">
+            <Input placeholder="Cari Nama" allowClear />
+          </Form.Item>
+        </Col>
+      </TableHeader>
+
+      <div className="mt-4">
+        <GenericTable
+          columns={columns}
+          dataSource={dataSource as any}
+          rowKey="id"
+          loading={isLoading || isRefetching}
+          action={{
+            items(record) {
+              return [
+                {
+                  label: 'Detail',
+                  icon: <SearchOutlined />,
+                  onClick: () => console.log(record)
+                },
+                {
+                  label: 'Daftar',
+                  icon: <PlusOutlined />,
+                  onClick: () => {
+                    setSelectedPatient(record)
+                    setOpenRegistration(true)
+                  }
+                }
+              ]
+            }
+          }}
+        />
+      </div>
+
+      <RegistrationSheet
+        open={openRegistration}
+        onClose={() => setOpenRegistration(false)}
+        patient={selectedPatient}
+        onFinish={onFinish}
+      />
     </div>
   )
 }

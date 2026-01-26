@@ -1,35 +1,6 @@
+import { PatientSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
-
-const PatientSchema = z.object({
-  id: z.string(),
-  medicalRecordNumber: z.string(),
-  name: z.string(),
-  gender: z.string(),
-  birthDate: z.string(),
-  maritalStatus: z.string(),
-  phone: z.string(),
-  email: z.string(),
-  address: z.string(),
-  city: z.string(),
-  province: z.string(),
-  postalCode: z.string(),
-  country: z.string(),
-  relatedPerson: z.array(z.any()),
-  insuranceProvider: z.any(),
-  insuranceNumber: z.any(),
-  active: z.boolean(),
-  fhirId: z.any(),
-  fhirServer: z.any(),
-  fhirVersion: z.any(),
-  lastFhirUpdated: z.any(),
-  lastSyncedAt: z.any(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  encounters: z.array(z.any()),
-  observations: z.array(z.any()),
-  conditions: z.array(z.any())
-})
 
 export const patientRpc = {
   list: t
@@ -40,9 +11,38 @@ export const patientRpc = {
         result: z.array(PatientSchema)
       })
     )
-    .query(async ({ client }) => {
-      const data = await client.get('/api/patient')
+    .query(async ({ client }, input) => {
+      const query = input?.page ? `?page=${input.page}` : ''
+      const data = await client.get(`/api/patient${query}`)
       const res = await data.json()
       return res
+    }),
+  getById: t
+    .input(z.object({ id: z.string() }))
+    .output(
+      z.object({
+        message: z.string(),
+        data: PatientSchema
+      })
+    )
+    .query(async ({ client }, input) => {
+      const data = await client.get(`/api/patient/${input.id}`)
+      return await data.json()
+    }),
+  create: t
+    .input(PatientSchema.omit({ id: true }))
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      const data = await client.post('/api/module/registration/patients', input)
+      const res = await data.json()
+      return res
+    }),
+  update: t
+    .input(PatientSchema.partial().required({ id: true }))
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      console.log(input)
+      const data = await client.put(`/api/module/registration/patients/${input.id}`, input)
+      return await data.json()
     })
 }

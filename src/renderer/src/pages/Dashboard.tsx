@@ -74,12 +74,12 @@ const items = [
       },
       {
         label: 'Daftar Antrian',
-        key: '/dashboard/pendaftaran',
+        key: '/dashboard/encounter',
         icon: <UserAddOutlined />
       },
       {
         label: 'Kunjungan Pasien',
-        key: '/dashboard/encounter',
+        key: '/dashboard/encounter/transition',
         icon: <CalendarOutlined />
       },
       {
@@ -166,8 +166,16 @@ const items = [
     key: '/dashboard/pharmacy',
     icon: <WalletOutlined />,
     children: [
-      { label: 'Medicine Categories', key: '/dashboard/pharmacy/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Medicine Brands', key: '/dashboard/pharmacy/medicine-brands', icon: <DashboardOutlined /> },
+      {
+        label: 'Medicine Categories',
+        key: '/dashboard/pharmacy/medicine-categories',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Medicine Brands',
+        key: '/dashboard/pharmacy/medicine-brands',
+        icon: <DashboardOutlined />
+      },
       { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
     ]
   },
@@ -350,14 +358,16 @@ function Dashboard() {
           </button>
         </div>
       </aside>
-      <div className={`flex-1 ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}>
+      <div
+        className={`flex-1 ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
+      >
         <header className="sticky top-0 z-50 bg-white border-b border-gray-200 h-14 px-4 flex items-center justify-between gap-4">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            style={{ minWidth: 0, flex: "auto" }}
+            style={{ minWidth: 0, flex: 'auto' }}
           />
           {/* <SendNotificationButton /> */}
           <NotificationBell />
