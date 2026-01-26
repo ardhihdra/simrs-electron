@@ -1,4 +1,4 @@
-import { Button, Dropdown, Input, Table, Tag } from 'antd'
+import { Button, Dropdown, Input, Table, Tag, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
@@ -34,6 +34,7 @@ type ProductionRequestListResponse = {
 type ProductionRequestApi = {
   list: () => Promise<ProductionRequestListResponse>
   deleteById: (args: { id: number }) => Promise<{ success: boolean; message?: string }>
+  update: (data: ProductionRequestAttributes & { id: number }) => Promise<{ success: boolean; result?: ProductionRequestAttributes; message?: string }>
 }
 
 const statusLabel: Record<ProductionRequestStatus, string> = {
@@ -75,6 +76,48 @@ function RowActions({ record }: { record: ProductionRequestAttributes }) {
     }
   })
 
+  const updateStatusMutation = useMutation({
+    mutationKey: ['productionRequest', 'updateStatus', record.id],
+    mutationFn: (data: ProductionRequestAttributes & { id: number }) => {
+      const fn = api?.update
+      if (!fn) throw new Error('API permintaan produksi tidak tersedia.')
+      return fn(data)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['productionRequest', 'list'] })
+    },
+    onError: (error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error)
+      message.error(msg || 'Gagal memperbarui status permintaan produksi')
+    }
+  })
+
+  const canStart = record.status === 'approved'
+  const canComplete = record.status === 'in_progress'
+
+  const handleStart = () => {
+    if (!canStart || typeof record.id !== 'number') return
+    const nowIso = new Date().toISOString()
+    updateStatusMutation.mutate({
+      ...record,
+      id: record.id,
+      status: 'in_progress',
+      actualStartDate: record.actualStartDate ?? nowIso
+    })
+  }
+
+  const handleComplete = () => {
+    if (!canComplete || typeof record.id !== 'number') return
+    const nowIso = new Date().toISOString()
+    updateStatusMutation.mutate({
+      ...record,
+      id: record.id,
+      status: 'completed',
+      actualStartDate: record.actualStartDate ?? nowIso,
+      actualEndDate: nowIso
+    })
+  }
+
   const items: MenuProps['items'] = [
     {
       key: 'edit',
@@ -85,6 +128,18 @@ function RowActions({ record }: { record: ProductionRequestAttributes }) {
           navigate(`/dashboard/farmasi/production-requests/edit/${record.id}`)
         }
       }
+    },
+    {
+      key: 'start',
+      label: 'Mulai Produksi',
+      disabled: !canStart,
+      onClick: handleStart
+    },
+    {
+      key: 'complete',
+      label: 'Tandai Selesai',
+      disabled: !canComplete,
+      onClick: handleComplete
     },
     { type: 'divider' },
     {
@@ -181,6 +236,18 @@ export function ProductionRequestTable() {
       title: 'Jadwal Selesai',
       dataIndex: 'scheduledEndDate',
       key: 'scheduledEndDate',
+      render: (value: string | null | undefined) => formatDate(value)
+    },
+    {
+      title: 'Mulai Real',
+      dataIndex: 'actualStartDate',
+      key: 'actualStartDate',
+      render: (value: string | null | undefined) => formatDate(value)
+    },
+    {
+      title: 'Selesai Real',
+      dataIndex: 'actualEndDate',
+      key: 'actualEndDate',
       render: (value: string | null | undefined) => formatDate(value)
     },
     {
