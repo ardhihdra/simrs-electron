@@ -46,6 +46,9 @@ import MedicineBrandForm from './pages/pharmacy/medicine-brand-form'
 import MedicinesTable from './pages/pharmacy/medicines-table'
 import MedicinesForm from './pages/pharmacy/medicines-form'
 import QueueList from './pages/queue/queue-list'
+import DoctorLeave from './pages/doctor-leave/DoctorLeave'
+import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
+import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 
 function MainRoute() {
   const location = useLocation()
@@ -104,27 +107,32 @@ function MainRoute() {
           <Route path="registration/doctor-schedule" element={<DoctorScheduleTable />} />
           <Route path="registration/doctor-schedule/create" element={<DoctorScheduleForm />} />
           <Route path="registration/doctor-schedule/edit/:id" element={<DoctorScheduleForm />} />
+          <Route path="registration/doctor-leave" element={<DoctorLeave />}>
+            <Route index element={<DoctorLeaveTable />} />
+            <Route path="create" element={<DoctorLeaveForm />} />
+            <Route path="edit/:id" element={<DoctorLeaveForm />} />
+          </Route>
           <Route path="diagnostic" element={<Diagnostic />}>
             <Route index element={<DiagnosticTable />} />
             <Route path="create" element={<DiagnosticForm />} />
             <Route path="edit/:id" element={<DiagnosticForm />} />
           </Route>
-        <Route path="services" element={<Services />}>
-          <Route index element={<PemeriksaanUtamaPage />} />
-          <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
-          <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
-        </Route>
-        <Route path="pharmacy" element={<Pharmacy />}>
-          <Route path="medicine-categories" element={<MedicineCategoryTable />} />
-          <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
-          <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
-          <Route path="medicine-brands" element={<MedicineBrandTable />} />
-          <Route path="medicine-brands/create" element={<MedicineBrandForm />} />
-          <Route path="medicine-brands/edit/:id" element={<MedicineBrandForm />} />
-          <Route path="medicines" element={<MedicinesTable />} />
-          <Route path="medicines/create" element={<MedicinesForm />} />
-          <Route path="medicines/edit/:id" element={<MedicinesForm />} />
-        </Route>
+          <Route path="services" element={<Services />}>
+            <Route index element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          </Route>
+          <Route path="pharmacy" element={<Pharmacy />}>
+            <Route path="medicine-categories" element={<MedicineCategoryTable />} />
+            <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
+            <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
+            <Route path="medicine-brands" element={<MedicineBrandTable />} />
+            <Route path="medicine-brands/create" element={<MedicineBrandForm />} />
+            <Route path="medicine-brands/edit/:id" element={<MedicineBrandForm />} />
+            <Route path="medicines" element={<MedicinesTable />} />
+            <Route path="medicines/create" element={<MedicinesForm />} />
+            <Route path="medicines/edit/:id" element={<MedicinesForm />} />
+          </Route>
         </Route>
         <Route
           path="*"

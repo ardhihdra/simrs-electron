@@ -87,6 +87,11 @@ const items = [
         icon: <CalendarOutlined />
       },
       {
+        label: 'Jadwal Libur Dokter',
+        key: '/dashboard/registration/doctor-leave',
+        icon: <CalendarOutlined />
+      },
+      {
         label: 'Data Jaminan',
         key: '/dashboard/registration/insurance',
         icon: <CalendarOutlined />
@@ -160,8 +165,16 @@ const items = [
     key: '/dashboard/pharmacy',
     icon: <WalletOutlined />,
     children: [
-      { label: 'Medicine Categories', key: '/dashboard/pharmacy/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Medicine Brands', key: '/dashboard/pharmacy/medicine-brands', icon: <DashboardOutlined /> },
+      {
+        label: 'Medicine Categories',
+        key: '/dashboard/pharmacy/medicine-categories',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Medicine Brands',
+        key: '/dashboard/pharmacy/medicine-brands',
+        icon: <DashboardOutlined />
+      },
       { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
     ]
   },
@@ -237,6 +250,7 @@ function Dashboard() {
     '/dashboard/diagnostic',
     '/dashboard/services',
     '/dashboard/service-request',
+    '/dashboard/registration/doctor-leave',
     '/dashboard/pharmacy'
   ]
   const isRegisteredPath = (path: string): boolean => {
