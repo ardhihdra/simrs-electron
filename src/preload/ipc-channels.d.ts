@@ -24,6 +24,7 @@ import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
 import type * as Mod_query_poli from '@main/routes/query/poli'
 import type * as Mod_query_productionFormula from '@main/routes/query/productionFormula'
+import type * as Mod_query_productionRequest from '@main/routes/query/productionRequest'
 import type * as Mod_query_rawMaterial from '@main/routes/query/rawMaterial'
 import type * as Mod_query_rawMaterialCategory from '@main/routes/query/rawMaterialCategory'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
@@ -230,6 +231,16 @@ type Args_Mod_query_productionFormula_list = InferArgs<typeof Mod_query_producti
 type Result_Mod_query_productionFormula_list = InferResult<typeof Mod_query_productionFormula, 'list'>
 type Args_Mod_query_productionFormula_update = InferArgs<typeof Mod_query_productionFormula, 'update'>
 type Result_Mod_query_productionFormula_update = InferResult<typeof Mod_query_productionFormula, 'update'>
+type Args_Mod_query_productionRequest_create = InferArgs<typeof Mod_query_productionRequest, 'create'>
+type Result_Mod_query_productionRequest_create = InferResult<typeof Mod_query_productionRequest, 'create'>
+type Args_Mod_query_productionRequest_deleteById = InferArgs<typeof Mod_query_productionRequest, 'deleteById'>
+type Result_Mod_query_productionRequest_deleteById = InferResult<typeof Mod_query_productionRequest, 'deleteById'>
+type Args_Mod_query_productionRequest_getById = InferArgs<typeof Mod_query_productionRequest, 'getById'>
+type Result_Mod_query_productionRequest_getById = InferResult<typeof Mod_query_productionRequest, 'getById'>
+type Args_Mod_query_productionRequest_list = InferArgs<typeof Mod_query_productionRequest, 'list'>
+type Result_Mod_query_productionRequest_list = InferResult<typeof Mod_query_productionRequest, 'list'>
+type Args_Mod_query_productionRequest_update = InferArgs<typeof Mod_query_productionRequest, 'update'>
+type Result_Mod_query_productionRequest_update = InferResult<typeof Mod_query_productionRequest, 'update'>
 type Args_Mod_query_rawMaterial_create = InferArgs<typeof Mod_query_rawMaterial, 'create'>
 type Result_Mod_query_rawMaterial_create = InferResult<typeof Mod_query_rawMaterial, 'create'>
 type Args_Mod_query_rawMaterial_deleteById = InferArgs<typeof Mod_query_rawMaterial, 'deleteById'>
@@ -412,6 +423,13 @@ declare global {
           getById: Invoke<Args_Mod_query_productionFormula_getById, Result_Mod_query_productionFormula_getById>
           list: Invoke<Args_Mod_query_productionFormula_list, Result_Mod_query_productionFormula_list>
           update: Invoke<Args_Mod_query_productionFormula_update, Result_Mod_query_productionFormula_update>
+        }
+        productionRequest: {
+          create: Invoke<Args_Mod_query_productionRequest_create, Result_Mod_query_productionRequest_create>
+          deleteById: Invoke<Args_Mod_query_productionRequest_deleteById, Result_Mod_query_productionRequest_deleteById>
+          getById: Invoke<Args_Mod_query_productionRequest_getById, Result_Mod_query_productionRequest_getById>
+          list: Invoke<Args_Mod_query_productionRequest_list, Result_Mod_query_productionRequest_list>
+          update: Invoke<Args_Mod_query_productionRequest_update, Result_Mod_query_productionRequest_update>
         }
         rawMaterial: {
           create: Invoke<Args_Mod_query_rawMaterial_create, Result_Mod_query_rawMaterial_create>

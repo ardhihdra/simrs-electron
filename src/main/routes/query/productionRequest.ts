@@ -45,27 +45,36 @@ export const schemas = {
 
 const BackendDetailSchema = z.object({
   success: z.boolean(),
-  result: ProductionRequestWithIdSchema.optional(),
+  // Backend success response: result is object
+  // Backend error response: often { result: null, error: object }
+  result: ProductionRequestWithIdSchema.nullable().optional(),
   message: z.string().optional(),
-  error: z.string().optional()
+  error: z.union([z.string(), z.record(z.any())]).optional()
 })
 
 export const list = async (ctx: IpcContext) => {
   const client = createBackendClient(ctx)
+  console.log('[IPC][productionRequest][list] request /api/productionrequest?items=100&depth=1')
   const res = await client.get('/api/productionrequest?items=100&depth=1')
+  console.log('[IPC][productionRequest][list] raw response', res)
   const result = await parseBackendResponse(res, BackendListSchema(ProductionRequestWithIdSchema))
+  console.log('[IPC][productionRequest][list] parsed result', result)
   return { success: true, result }
 }
 
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
   const client = createBackendClient(ctx)
+  console.log('[IPC][productionRequest][getById] args', args)
   const res = await client.get(`/api/productionrequest/read/${args.id}`)
+  console.log('[IPC][productionRequest][getById] raw response', res)
   const result = await parseBackendResponse(res, BackendDetailSchema)
+  console.log('[IPC][productionRequest][getById] parsed result', result)
   return { success: true, result }
 }
 
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
   const client = createBackendClient(ctx)
+  console.log('[IPC][productionRequest][create] args', args)
   const payload = {
     code: args.code,
     finishedGoodMedicineId: args.finishedGoodMedicineId,
@@ -78,13 +87,17 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     actualEndDate: args.actualEndDate ?? null,
     notes: args.notes ?? null
   }
+  console.log('[IPC][productionRequest][create] payload', payload)
   const res = await client.post('/api/productionrequest', payload)
+  console.log('[IPC][productionRequest][create] raw response', res)
   const result = await parseBackendResponse(res, BackendDetailSchema)
+  console.log('[IPC][productionRequest][create] parsed result', result)
   return { success: true, result }
 }
 
 export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
   const client = createBackendClient(ctx)
+  console.log('[IPC][productionRequest][update] args', args)
   const payload = {
     code: args.code,
     finishedGoodMedicineId: args.finishedGoodMedicineId,
@@ -97,8 +110,11 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     actualEndDate: args.actualEndDate ?? null,
     notes: args.notes ?? null
   }
+  console.log('[IPC][productionRequest][update] payload', payload)
   const res = await client.put(`/api/productionrequest/${args.id}`, payload)
+  console.log('[IPC][productionRequest][update] raw response', res)
   const result = await parseBackendResponse(res, BackendDetailSchema)
+  console.log('[IPC][productionRequest][update] parsed result', result)
   return { success: true, result }
 }
 
@@ -107,7 +123,9 @@ export const deleteById = async (
   args: z.infer<typeof schemas.deleteById.args>
 ) => {
   const client = createBackendClient(ctx)
+  console.log('[IPC][productionRequest][deleteById] args', args)
   const res = await client.delete(`/api/productionrequest/${args.id}`)
+  console.log('[IPC][productionRequest][deleteById] raw response', res)
   const DeleteSchema = z.object({
     success: z.boolean(),
     message: z.string().optional(),
@@ -116,4 +134,3 @@ export const deleteById = async (
   await parseBackendResponse(res, DeleteSchema)
   return { success: true }
 }
-

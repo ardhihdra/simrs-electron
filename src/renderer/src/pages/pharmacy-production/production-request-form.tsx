@@ -158,7 +158,16 @@ export function ProductionRequestForm() {
     mutationFn: (data: ProductionRequestAttributes & { id: number }) => {
       const fn = api?.update
       if (!fn) throw new Error('API permintaan produksi tidak tersedia.')
-      return fn(data)
+      console.log('[UI][ProductionRequestForm] update payload', data)
+      const result = fn(data)
+      result
+        .then((res) => {
+          console.log('[UI][ProductionRequestForm] update result', res)
+        })
+        .catch((error) => {
+          console.log('[UI][ProductionRequestForm] update error', error)
+        })
+      return result
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['productionRequest', 'list'] })
@@ -186,6 +195,7 @@ export function ProductionRequestForm() {
     }))
 
   const onFinish = (values: FormData) => {
+    console.log('[UI][ProductionRequestForm] onFinish values', values)
     const payload: ProductionRequestAttributes = {
       code: values.code.trim() || generateCode(),
       finishedGoodMedicineId: values.finishedGoodMedicineId,
@@ -203,9 +213,12 @@ export function ProductionRequestForm() {
       notes: values.notes?.trim() || null
     }
 
+    console.log('[UI][ProductionRequestForm] payload', payload)
+
     if (isEdit && id) {
       updateMutation.mutate({ ...payload, id: Number(id) })
     } else {
+      console.log('[UI][ProductionRequestForm] create payload', payload)
       createMutation.mutate(payload)
     }
   }
@@ -296,4 +309,3 @@ export function ProductionRequestForm() {
 }
 
 export default ProductionRequestForm
-

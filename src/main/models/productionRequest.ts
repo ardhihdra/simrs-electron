@@ -22,6 +22,9 @@ export const ProductionRequestSchema = z.object({
 })
 
 export const ProductionRequestWithIdSchema = ProductionRequestSchema.extend({
+  qtyPlanned: z
+    .union([z.number(), z.string()])
+    .transform((value) => (typeof value === 'string' ? Number(value) : value)),
   id: z.number(),
   medicine: z
     .object({
@@ -39,4 +42,3 @@ export const ProductionRequestWithIdSchema = ProductionRequestSchema.extend({
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional()
 })
-

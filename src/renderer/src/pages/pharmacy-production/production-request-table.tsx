@@ -1,7 +1,7 @@
 import { Button, Dropdown, Input, Table, Tag } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { DeleteOutlined, EditOutlined, MoreOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -123,6 +123,11 @@ export function ProductionRequestTable() {
     }
   })
 
+  useEffect(() => {
+    console.log('[UI][ProductionRequestTable] query data', data)
+    console.log('[UI][ProductionRequestTable] isError', isError)
+  }, [data, isError])
+
   const filtered = useMemo(() => {
     const source: ProductionRequestAttributes[] = (data?.result as ProductionRequestAttributes[]) || []
     const q = search.trim().toLowerCase()
@@ -227,4 +232,3 @@ export function ProductionRequestTable() {
 }
 
 export default ProductionRequestTable
-
