@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Select, DatePicker, Row, Col, Card } from 'antd'
+import { Button, Form, Input, InputNumber, Select, DatePicker, Card } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
@@ -144,9 +144,9 @@ export function MedicationRequestForm() {
     enabled: !!selectedPatientId || isEdit // Only fetch when patient is selected or in edit mode
   })
   
-  const { data: requesterData, isLoading: requesterLoading } = useQuery({
+  const { data: requesterData } = useQuery({
     queryKey: ['kepegawaian', 'list'],
-    queryFn: () => window.api?.query?.kepegawaian?.list({ limit: 100 })
+    queryFn: () => window.api?.query?.kepegawaian?.list()
   })
 
   const patientOptions = useMemo(() => 
@@ -161,7 +161,7 @@ export function MedicationRequestForm() {
 
   const rawMaterialOptions = useMemo(
     () => {
-      const source = ((rawMaterialData?.result || rawMaterialData?.data) || []) as RawMaterialAttributes[]
+      const source = (rawMaterialData?.result ?? []) as RawMaterialAttributes[]
       return source
         .filter((rm) => typeof rm.id === 'number')
         .map((rm) => ({ label: rm.name, value: rm.id as number }))
@@ -174,17 +174,12 @@ export function MedicationRequestForm() {
     [encounterData]
   )
 
-  const requesterOptions = useMemo(() => 
-    ((requesterData?.data || []) as any[]).map((r) => ({ label: r.namaLengkap || r.name, value: r.id, nik: r.nik })), 
-    [requesterData]
-  )
-
   // Auto-fill Requester from Session (match NIK)
   useEffect(() => {
-    if (session?.user?.username && requesterData?.data && !isEdit) {
+    if (session?.user?.username && requesterData?.result && !isEdit) {
       // session.user.username stores NIK based on main/routes/auth.ts logic
       const currentNik = session.user.username
-      const employees = (requesterData.data as any[])
+      const employees = requesterData.result as { nik?: string; id: number }[]
       const foundEmployee = employees.find(e => e.nik === currentNik)
       
       if (foundEmployee) {

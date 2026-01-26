@@ -43,13 +43,16 @@ export const schemas = {
   }
 } as const
 
-const BackendDetailSchema = z.object({
-  success: z.boolean(),
-  // Backend success response: result is object
-  // Backend error response: often { result: null, error: object }
-  result: ProductionRequestWithIdSchema.nullable().optional(),
-  message: z.string().optional(),
-  error: z.union([z.string(), z.record(z.any())]).optional()
+const BackendDetailSchema: z.ZodSchema<{
+	success: boolean
+	result?: z.infer<typeof ProductionRequestWithIdSchema> | null
+	message?: string
+	error?: string
+}> = z.object({
+	success: z.boolean(),
+	result: ProductionRequestWithIdSchema.nullable().optional(),
+	message: z.string().optional(),
+	error: z.string().optional()
 })
 
 export const list = async (ctx: IpcContext) => {
