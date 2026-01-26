@@ -7,6 +7,13 @@ import {
 } from '@main/utils/backendClient'
 import z from 'zod'
 
+function formatQueryValue(v: any): string {
+  if (v instanceof Date) {
+    return v.toISOString()
+  }
+  return String(v)
+}
+
 export interface ListOptions {
   page?: number
   items?: number
@@ -55,9 +62,9 @@ export function createCrudRoutes<T extends z.ZodTypeAny>(options: CrudOptions<T>
           Object.entries(args).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
               if (Array.isArray(value)) {
-                value.forEach((v) => params.append(key, String(v)))
+                value.forEach((v) => params.append(key, formatQueryValue(v)))
               } else {
-                params.append(key, String(value))
+                params.append(key, formatQueryValue(value))
               }
             }
           })
@@ -91,9 +98,9 @@ export function createCrudRoutes<T extends z.ZodTypeAny>(options: CrudOptions<T>
           Object.entries(args).forEach(([key, value]) => {
             if (value !== undefined && value !== null) {
               if (Array.isArray(value)) {
-                value.forEach((v) => params.append(key, String(v)))
+                value.forEach((v) => params.append(key, formatQueryValue(v)))
               } else {
-                params.append(key, String(value))
+                params.append(key, formatQueryValue(value))
               }
             }
           })
