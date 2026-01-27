@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Select, DatePicker, Card } from 'antd'
+import { Button, Form, Input, InputNumber, Select, DatePicker, Card, Tooltip } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
@@ -116,6 +116,14 @@ export function MedicationRequestForm() {
     queryFn: () => window.api?.query?.medicine?.list({ limit: 100 })
   })
 
+  interface MedicineAttributes {
+    id?: number
+    name: string
+    stock?: number
+    medicineCategoryId?: number
+    category?: { name?: string | null } | null
+  }
+
   interface RawMaterialAttributes {
     id?: number
     name: string
@@ -154,8 +162,37 @@ export function MedicationRequestForm() {
     [patientData]
   )
 
-  const medicineOptions = useMemo(() => 
-    ((medicineData?.result || []) as any[]).map((m) => ({ label: m.name, value: m.id })), 
+  const medicineOptions = useMemo(
+    () => {
+      const source: MedicineAttributes[] = Array.isArray(medicineData?.result)
+        ? (medicineData!.result as MedicineAttributes[])
+        : []
+
+      return source
+        .filter((m) => typeof m.id === 'number')
+        .map((m) => {
+          const stockValue = typeof m.stock === 'number' ? m.stock : undefined
+          const categoryName =
+            m.category && typeof m.category.name === 'string' ? m.category.name : undefined
+          const categoryPrefix = categoryName ? `[${categoryName}] ` : ''
+          let suffix = ''
+
+          if (typeof stockValue === 'number') {
+            if (stockValue === 0) {
+              suffix = ' - Stok habis'
+            } else {
+              suffix = ` - Stok: ${stockValue}`
+            }
+          } else {
+            suffix = ' - Stok: -'
+          }
+
+          return {
+            label: `${categoryPrefix}${m.name}${suffix}`,
+            value: m.id as number
+          }
+        })
+    },
     [medicineData]
   )
 
@@ -483,7 +520,14 @@ export function MedicationRequestForm() {
                           <Form.Item
                             {...restField}
                             name={[name, 'medicationId']}
-                            label="Obat"
+                            label={
+                              <div className="flex items-center gap-1">
+                                <span>Obat</span>
+                                <Tooltip title="Pilih obat. Nama menampilkan informasi stok saat ini.">
+                                  <span className="text-gray-400 cursor-help">?</span>
+                                </Tooltip>
+                              </div>
+                            }
                             rules={[{ required: true, message: 'Wajib diisi' }]}
                             className="mb-0"
                           >
@@ -498,7 +542,14 @@ export function MedicationRequestForm() {
                           <Form.Item
                             {...restField}
                             name={[name, 'dosageInstruction']}
-                            label="Instruksi"
+                            label={
+                              <div className="flex items-center gap-1">
+                                <span>Instruksi</span>
+                                <Tooltip title="Aturan pakai atau signa untuk obat ini.">
+                                  <span className="text-gray-400 cursor-help">?</span>
+                                </Tooltip>
+                              </div>
+                            }
                             className="mb-0"
                           >
                             <Input placeholder="Dosis..." />
@@ -506,7 +557,14 @@ export function MedicationRequestForm() {
                           <Form.Item
                             {...restField}
                             name={[name, 'quantity']}
-                            label="Jumlah"
+                            label={
+                              <div className="flex items-center gap-1">
+                                <span>Jumlah</span>
+                                <Tooltip title="Isi jumlah yang diminta, perhatikan stok yang tersedia.">
+                                  <span className="text-gray-400 cursor-help">?</span>
+                                </Tooltip>
+                              </div>
+                            }
                             className="mb-0"
                           >
                             <InputNumber<number> min={1} className="w-full" />
