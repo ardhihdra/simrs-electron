@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import {
   Button,
   App,
-  Spin
+  Spin,
+  Card
 } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
@@ -35,8 +36,6 @@ const MedicalRecordForm = () => {
 
       if (response.success && response.data) {
         const enc = response.data as any
-        // Map API response to PatientQueue type
-        // Calculate age
         const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
         const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
 
@@ -99,7 +98,7 @@ const MedicalRecordForm = () => {
   }
 
   return (
-    <div>
+    <div className="p-4">
       <Button
         icon={<ArrowLeftOutlined />}
         onClick={() => navigate('/dashboard/nurse-calling')}
@@ -107,10 +106,19 @@ const MedicalRecordForm = () => {
       >
         Kembali ke Antrian
       </Button>
+      <Card>
+        <div className="flex flex-col gap-4">
+          <PatientInfoCard
+            patientData={{
+              ...patientData,
+              visitDate: patientData.registrationDate,
+              status: String(patientData.status)
+            }}
+          />
 
-      <PatientInfoCard patientData={patientData} />
-
-      <NurseMedicalRecordForm encounterId={encounterId} patientData={patientData} />
+          <NurseMedicalRecordForm encounterId={encounterId} patientData={patientData} />
+        </div>
+      </Card>
     </div>
   )
 }

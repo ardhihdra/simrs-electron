@@ -53,13 +53,11 @@ export const NurseMedicalRecordForm = ({
     notes?: string
   }) => {
     try {
-      // TODO: Get real logged in user
       const currentUser = {
         id: 'nurse-001',
-        name: 'Perawat Demo'
+        name: 'Perawat Fahreza'
       }
 
-      // 1. Prepare Observations (Vital Signs & Physical Exam)
       const observations: Array<{
         category: string
         code: string
@@ -75,7 +73,6 @@ export const NurseMedicalRecordForm = ({
         notes?: (string | { text: string })[]
       }> = []
 
-      // Vital Signs Logic
       if (values.vitalSigns.systolicBloodPressure) {
         observations.push({
           category: 'vital-signs',
@@ -87,17 +84,17 @@ export const NurseMedicalRecordForm = ({
           bodySites: [
             values.vitalSigns.bloodPressureBodySite
               ? {
-                  code: values.vitalSigns.bloodPressureBodySite,
-                  display: values.vitalSigns.bloodPressureBodySite,
-                  system: 'http://snomed.info/sct'
-                }
+                code: values.vitalSigns.bloodPressureBodySite,
+                display: values.vitalSigns.bloodPressureBodySite,
+                system: 'http://snomed.info/sct'
+              }
               : null,
             values.vitalSigns.bloodPressurePosition
               ? {
-                  code: values.vitalSigns.bloodPressurePosition,
-                  display: values.vitalSigns.bloodPressurePosition,
-                  system: 'http://snomed.info/sct'
-                }
+                code: values.vitalSigns.bloodPressurePosition,
+                display: values.vitalSigns.bloodPressurePosition,
+                system: 'http://snomed.info/sct'
+              }
               : null
           ].filter(Boolean) as any
         })
@@ -114,17 +111,17 @@ export const NurseMedicalRecordForm = ({
           bodySites: [
             values.vitalSigns.bloodPressureBodySite
               ? {
-                  code: values.vitalSigns.bloodPressureBodySite,
-                  display: values.vitalSigns.bloodPressureBodySite,
-                  system: 'http://snomed.info/sct'
-                }
+                code: values.vitalSigns.bloodPressureBodySite,
+                display: values.vitalSigns.bloodPressureBodySite,
+                system: 'http://snomed.info/sct'
+              }
               : null,
             values.vitalSigns.bloodPressurePosition
               ? {
-                  code: values.vitalSigns.bloodPressurePosition,
-                  display: values.vitalSigns.bloodPressurePosition,
-                  system: 'http://snomed.info/sct'
-                }
+                code: values.vitalSigns.bloodPressurePosition,
+                display: values.vitalSigns.bloodPressurePosition,
+                system: 'http://snomed.info/sct'
+              }
               : null
           ].filter(Boolean) as any
         })
@@ -140,12 +137,12 @@ export const NurseMedicalRecordForm = ({
           performers: [{ performerId: currentUser.id, performerName: currentUser.name }],
           methods: values.vitalSigns.temperatureMethod
             ? [
-                {
-                  code: values.vitalSigns.temperatureMethod,
-                  display: values.vitalSigns.temperatureMethod,
-                  system: 'http://snomed.info/sct'
-                }
-              ]
+              {
+                code: values.vitalSigns.temperatureMethod,
+                display: values.vitalSigns.temperatureMethod,
+                system: 'http://snomed.info/sct'
+              }
+            ]
             : undefined
         })
       }
@@ -160,12 +157,12 @@ export const NurseMedicalRecordForm = ({
           performers: [{ performerId: currentUser.id, performerName: currentUser.name }],
           bodySites: values.vitalSigns.pulseRateBodySite
             ? [
-                {
-                  code: values.vitalSigns.pulseRateBodySite,
-                  display: values.vitalSigns.pulseRateBodySite,
-                  system: 'http://snomed.info/sct'
-                }
-              ]
+              {
+                code: values.vitalSigns.pulseRateBodySite,
+                display: values.vitalSigns.pulseRateBodySite,
+                system: 'http://snomed.info/sct'
+              }
+            ]
             : undefined
         })
       }
@@ -232,7 +229,6 @@ export const NurseMedicalRecordForm = ({
         })
       }
 
-      // Physical Examination
       if (values.physicalExamination.consciousness) {
         observations.push({
           category: 'exam',
@@ -256,7 +252,7 @@ export const NurseMedicalRecordForm = ({
           category: 'exam',
           code: 'physical-exam-notes',
           display: 'Physical examination notes',
-          valueString: values.physicalExamination.additionalNotes
+          notes: [values.physicalExamination.additionalNotes]
         })
       }
 
@@ -265,11 +261,10 @@ export const NurseMedicalRecordForm = ({
           category: 'exam',
           code: 'additional-notes',
           display: 'Additional notes',
-          valueString: values.notes
+          notes: [values.notes]
         })
       }
 
-      // 2. Prepare Conditions (Anamnesis)
       const conditions: Array<{
         category: string
         notes: string
@@ -337,7 +332,7 @@ export const NurseMedicalRecordForm = ({
           bulkCreateCondition.mutateAsync({
             encounterId,
             patientId: patientData.patient.id,
-            doctorId: 0, // 0 for Nurse? Or need nurse ID field in condition? Model checks recorder which is int. Maybe use 0 or safe default.
+            doctorId: 0,
             conditions
           })
         )
@@ -357,9 +352,8 @@ export const NurseMedicalRecordForm = ({
   }
 
   return (
-    <Form form={form} layout="vertical" onFinish={onFinish} autoComplete="off">
+    <Form form={form} layout="vertical" className="flex flex-col gap-4" onFinish={onFinish} autoComplete="off">
       <Card title="Vital Signs / Tanda Vital" className="py-4">
-        {/* Vital Signs Form Items reused */}
         <Row gutter={16}>
           <Col span={6}>
             <Form.Item
