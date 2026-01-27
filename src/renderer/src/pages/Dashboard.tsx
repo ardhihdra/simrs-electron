@@ -181,18 +181,7 @@ const items = [
       { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
       { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
       { label: 'Formula Produksi', key: '/dashboard/farmasi/formulas', icon: <DashboardOutlined /> },
-      { label: 'Permintaan Produksi', key: '/dashboard/farmasi/production-requests', icon: <DashboardOutlined /> },
-      {
-        label: 'Medicine Categories',
-        key: '/dashboard/pharmacy/medicine-categories',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Medicine Brands',
-        key: '/dashboard/pharmacy/medicine-brands',
-        icon: <DashboardOutlined />
-      },
-      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+      { label: 'Permintaan Produksi', key: '/dashboard/farmasi/production-requests', icon: <DashboardOutlined /> }
     ]
   },
   {

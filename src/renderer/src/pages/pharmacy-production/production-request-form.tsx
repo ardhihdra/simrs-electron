@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { Button, DatePicker, Form, Input, InputNumber, Select } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
@@ -48,12 +48,35 @@ interface ProductionFormulaOption {
   id?: number
   finishedGoodMedicineId: number
   version: string
+  items?: {
+    rawMaterialId: number
+    qty: number
+  }[] | null
 }
 
 type ProductionFormulaListResponse = {
   success: boolean
   result?: ProductionFormulaOption[]
   message?: string
+}
+
+interface RawMaterialForStock {
+  id?: number
+  name: string
+  stock?: number
+}
+
+type RawMaterialListResponseForForm = {
+  success: boolean
+  result?: RawMaterialForStock[]
+  message?: string
+}
+
+interface RequiredMaterialRow {
+  key: number
+  name: string
+  required: number
+  stock: number
 }
 
 interface FormData {
@@ -90,6 +113,8 @@ export function ProductionRequestForm() {
   const medicineApi = (window.api?.query as { medicine?: { list: () => Promise<MedicineListResponse> } }).medicine
   const formulaApi = (window.api?.query as { productionFormula?: { list: () => Promise<ProductionFormulaListResponse> } })
     .productionFormula
+  const rawMaterialApi = (window.api?.query as { rawMaterial?: { list: () => Promise<RawMaterialListResponseForForm> } })
+    .rawMaterial
 
   const { data: detailData } = useQuery({
     queryKey: ['productionRequest', 'detail', id],
@@ -115,6 +140,15 @@ export function ProductionRequestForm() {
     queryFn: () => {
       const fn = formulaApi?.list
       if (!fn) throw new Error('API formula produksi tidak tersedia.')
+      return fn()
+    }
+  })
+
+  const { data: rawMaterialsData } = useQuery({
+    queryKey: ['rawMaterial', 'list-for-production-request'],
+    queryFn: () => {
+      const fn = rawMaterialApi?.list
+      if (!fn) throw new Error('API bahan baku tidak tersedia.')
       return fn()
     }
   })
@@ -184,6 +218,8 @@ export function ProductionRequestForm() {
   }))
 
   const selectedMedicineId = Form.useWatch('finishedGoodMedicineId', form)
+  const selectedFormulaId = Form.useWatch('productionFormulaId', form)
+  const plannedQty = Form.useWatch('qtyPlanned', form)
 
   const formulaOptions = (formulasData?.result ?? [])
     .filter((f) =>
@@ -193,6 +229,38 @@ export function ProductionRequestForm() {
       label: `${f.version}`,
       value: f.id
     }))
+
+  const requiredMaterials: RequiredMaterialRow[] = useMemo(() => {
+    const currentFormulaId = typeof selectedFormulaId === 'number' ? selectedFormulaId : undefined
+    const qty = typeof plannedQty === 'number' && plannedQty > 0 ? plannedQty : undefined
+
+    if (!currentFormulaId || !qty) {
+      return []
+    }
+
+    const formulas = Array.isArray(formulasData?.result) ? formulasData.result : []
+    const rawMaterials = Array.isArray(rawMaterialsData?.result) ? rawMaterialsData.result : []
+
+    const formula = formulas.find((f) => f.id === currentFormulaId)
+    const items = Array.isArray(formula?.items) ? formula.items : []
+
+    if (!items.length) {
+      return []
+    }
+
+    return items.map((item, index) => {
+      const material = rawMaterials.find((rm) => rm.id === item.rawMaterialId)
+      const stockValue = typeof material?.stock === 'number' ? material.stock : 0
+      const requiredQty = item.qty * qty
+
+      return {
+        key: index,
+        name: material?.name ?? `ID ${item.rawMaterialId}`,
+        required: requiredQty,
+        stock: stockValue
+      }
+    })
+  }, [selectedFormulaId, plannedQty, formulasData?.result, rawMaterialsData?.result])
 
   const onFinish = (values: FormData) => {
     console.log('[UI][ProductionRequestForm] onFinish values', values)
@@ -271,6 +339,23 @@ export function ProductionRequestForm() {
           >
             <InputNumber min={0} className="w-full" />
           </Form.Item>
+
+          {requiredMaterials.length > 0 && (
+            <div className="mb-4 border rounded-md p-3 bg-gray-50">
+              <div className="font-semibold mb-2">Kebutuhan Bahan Baku (berdasarkan formula & qty)</div>
+              <div className="space-y-1 text-sm">
+                {requiredMaterials.map((row) => {
+                  const isEnough = row.stock >= row.required
+                  return (
+                    <div key={row.key} className={isEnough ? 'text-gray-800' : 'text-red-600'}>
+                      {row.name}: butuh {row.required}, stok {row.stock}{' '}
+                      {!isEnough && '(stok tidak cukup)'}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           <Form.Item
             label="Status"

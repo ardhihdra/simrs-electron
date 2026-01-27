@@ -34,31 +34,31 @@ import type * as Mod_user from '@main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-  ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
-  ? z.input<A>
-  : unknown
-  : unknown
+    ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
+      ? z.input<A>
+      : unknown
+    : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-  ? S[K] extends { args: infer A extends z.ZodTypeAny }
-  ? z.input<A>
-  : unknown
-  : unknown
+    ? S[K] extends { args: infer A extends z.ZodTypeAny }
+      ? z.input<A>
+      : unknown
+    : unknown
   : M extends { argsSchema: infer A extends z.ZodTypeAny }
   ? z.input<A>
   : unknown
 type InferResult<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-  ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
-  ? z.output<R>
-  : unknown
-  : unknown
+    ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
+      ? z.output<R>
+      : unknown
+    : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-  ? S[K] extends { result: infer R extends z.ZodTypeAny }
-  ? z.output<R>
-  : unknown
-  : unknown
+    ? S[K] extends { result: infer R extends z.ZodTypeAny }
+      ? z.output<R>
+      : unknown
+    : unknown
   : M extends { resultSchema: infer R extends z.ZodTypeAny }
   ? z.output<R>
   : unknown
@@ -499,4 +499,4 @@ declare global {
     }
   }
 }
-export { }
+export {}

@@ -37,6 +37,43 @@ type ProductionRequestApi = {
   update: (data: ProductionRequestAttributes & { id: number }) => Promise<{ success: boolean; result?: ProductionRequestAttributes; message?: string }>
 }
 
+interface ProductionFormulaItemForCheck {
+  rawMaterialId: number
+  qty: number
+}
+
+interface ProductionFormulaDetailForCheck {
+  id?: number
+  items?: ProductionFormulaItemForCheck[] | null
+}
+
+type ProductionFormulaDetailResponseForCheck = {
+  success: boolean
+  result?: ProductionFormulaDetailForCheck
+  message?: string
+}
+
+interface RawMaterialForStockCheck {
+  id?: number
+  name?: string
+  stock?: number
+}
+
+type RawMaterialListResponseForCheck = {
+  success: boolean
+  result?: RawMaterialForStockCheck[]
+  message?: string
+}
+
+type ProductionSupportApiForCheck = {
+  productionFormula?: {
+    getById: (args: { id: number }) => Promise<ProductionFormulaDetailResponseForCheck>
+  }
+  rawMaterial?: {
+    list: () => Promise<RawMaterialListResponseForCheck>
+  }
+}
+
 const statusLabel: Record<ProductionRequestStatus, string> = {
   draft: 'Draft',
   approved: 'Disetujui',
@@ -106,8 +143,79 @@ function RowActions({ record }: { record: ProductionRequestAttributes }) {
     })
   }
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (!canComplete || typeof record.id !== 'number') return
+
+    const productionFormulaId = record.productionFormulaId
+    const qtyPlanned = record.qtyPlanned
+
+    if (typeof productionFormulaId !== 'number' || typeof qtyPlanned !== 'number') {
+      message.error('Data formula atau qty rencana tidak lengkap.')
+      return
+    }
+
+    const supportApi = window.api?.query as ProductionSupportApiForCheck
+    const formulaApi = supportApi?.productionFormula
+    const rawMaterialApi = supportApi?.rawMaterial
+
+    if (!formulaApi?.getById || !rawMaterialApi?.list) {
+      message.error('API formula produksi atau bahan baku tidak tersedia.')
+      return
+    }
+
+    let formulaDetail: ProductionFormulaDetailForCheck | undefined
+
+    try {
+      const res = await formulaApi.getById({ id: productionFormulaId })
+      if (!res.success || !res.result) {
+        message.error(res.message || 'Gagal mengambil formula produksi.')
+        return
+      }
+      formulaDetail = res.result
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      message.error(errorMessage || 'Gagal mengambil formula produksi.')
+      return
+    }
+
+    const items: ProductionFormulaItemForCheck[] = Array.isArray(formulaDetail.items)
+      ? formulaDetail.items
+      : []
+
+    if (items.length === 0) {
+      message.error('Formula produksi belum memiliki komposisi bahan.')
+      return
+    }
+
+    let rawMaterials: RawMaterialForStockCheck[] = []
+
+    try {
+      const rawRes = await rawMaterialApi.list()
+      if (!rawRes.success || !Array.isArray(rawRes.result)) {
+        message.error(rawRes.message || 'Gagal mengambil data stok bahan baku.')
+        return
+      }
+      rawMaterials = rawRes.result
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      message.error(errorMessage || 'Gagal mengambil data stok bahan baku.')
+      return
+    }
+
+    for (const item of items) {
+      const material = rawMaterials.find((rm) => rm.id === item.rawMaterialId)
+      const stockValue = typeof material?.stock === 'number' ? material.stock : 0
+      const requiredQty = item.qty * qtyPlanned
+
+      if (stockValue < requiredQty) {
+        const name = material?.name || `ID ${item.rawMaterialId}`
+        message.error(
+          `Stok bahan baku "${name}" tidak cukup. Dibutuhkan ${requiredQty}, stok tersedia ${stockValue}.`
+        )
+        return
+      }
+    }
+
     const nowIso = new Date().toISOString()
     updateStatusMutation.mutate({
       ...record,
