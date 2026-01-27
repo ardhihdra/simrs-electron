@@ -7,6 +7,7 @@ import { message, Tabs, Typography } from 'antd'
 import { useState } from 'react'
 import { DischargeModal } from './components/DischargeModal'
 import { EncounterList } from './components/EncounterList'
+import { RujukanModal } from './components/RujukanModal'
 import { type TransferBedFormValues, TransferBedModal } from './components/TransferBedModal'
 import { useEncounterActions } from './hooks/useEncounterActions'
 import { Encounter } from './types'
@@ -20,6 +21,10 @@ export default function EncounterTransitionPage() {
     encounterId: string | null
   }>({ visible: false, encounterId: null })
   const [transferModal, setTransferModal] = useState<{
+    visible: boolean
+    encounterId: string | null
+  }>({ visible: false, encounterId: null })
+  const [rujukanModal, setRujukanModal] = useState<{
     visible: boolean
     encounterId: string | null
   }>({ visible: false, encounterId: null })
@@ -69,6 +74,12 @@ export default function EncounterTransitionPage() {
     })
   }
 
+  const handleRujukanConfirm = (referralType: string): void => {
+    console.log('Rujukan confirmed:', referralType)
+    message.success(`Pasien berhasil dirujuk (${referralType})`)
+    closeRujukanModal()
+  }
+
   const openDischargeModal = (encounterId: string): void => {
     setDischargeModal({ visible: true, encounterId })
   }
@@ -84,6 +95,14 @@ export default function EncounterTransitionPage() {
 
   const closeTransferModal = (): void => {
     setTransferModal({ visible: false, encounterId: null })
+  }
+
+  const openRujukanModal = (encounterId: string): void => {
+    setRujukanModal({ visible: true, encounterId })
+  }
+
+  const closeRujukanModal = (): void => {
+    setRujukanModal({ visible: false, encounterId: null })
   }
 
   const encounterList = (encounters as Encounter[]) || []
@@ -109,6 +128,7 @@ export default function EncounterTransitionPage() {
                 onStart={handleStart}
                 onTransfer={openTransferModal}
                 onDischarge={openDischargeModal}
+                onRujukan={openRujukanModal}
               />
             )
           },
@@ -123,6 +143,7 @@ export default function EncounterTransitionPage() {
                 onStart={handleStart}
                 onTransfer={openTransferModal}
                 onDischarge={openDischargeModal}
+                onRujukan={openRujukanModal}
               />
             )
           }
@@ -143,6 +164,13 @@ export default function EncounterTransitionPage() {
         loading={loading?.includes('-transfer') ?? false}
         onConfirm={handleTransferConfirm}
         onCancel={closeTransferModal}
+      />
+
+      <RujukanModal
+        visible={rujukanModal.visible}
+        // loading={loading?.includes('-rujukan') ?? false}
+        onConfirm={handleRujukanConfirm}
+        onCancel={closeRujukanModal}
       />
     </div>
   )

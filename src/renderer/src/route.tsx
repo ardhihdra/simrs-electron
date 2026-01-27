@@ -4,6 +4,14 @@ import AppLayout from './components/AppLayout'
 
 import Dashboard from './pages/Dashboard'
 import DashboardHome from './pages/DashboardHome'
+import LaboratoryPage from './pages/Laboratory'
+import CollectSpecimenPage from './pages/Laboratory/CollectSpecimenPage'
+import { LabReportPage } from './pages/Laboratory/LabReport'
+import LabReportDetailPage from './pages/Laboratory/LabReportDetailPage'
+import LabResultPage from './pages/Laboratory/LabResultPage'
+import LabSpecimenPage from './pages/Laboratory/LabSpecimenPage'
+import RecordResultPage from './pages/Laboratory/RecordResultPage'
+import PermintaanLab from './pages/PermintaanLab'
 import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
 import DiagnosticTable from './pages/diagnostic/diagnostic-table'
@@ -96,7 +104,7 @@ function MainRoute() {
             <Route path="poli" element={<QueueList title="Antrian Poli" serviceType="poli" />} />
             <Route
               path="laboratory"
-              element={<QueueList title="Antrian Laboratorium" serviceType="laboratorium" />}
+              element={<QueueList title="Antrian Laboratorium" serviceType="LAB" />}
             />
           </Route>
           <Route path="income" element={<Income />}>
@@ -147,6 +155,17 @@ function MainRoute() {
             <Route path="medicines" element={<MedicinesTable />} />
             <Route path="medicines/create" element={<MedicinesForm />} />
             <Route path="medicines/edit/:id" element={<MedicinesForm />} />
+          </Route>
+          <Route path="laboratory">
+            <Route index element={<LaboratoryPage />} />
+            <Route path="list" element={<LaboratoryPage />} />
+            <Route path="permintaan" element={<PermintaanLab />} />
+            <Route path="result" element={<LabResultPage />} />
+            <Route path="result/:id" element={<RecordResultPage />} />
+            <Route path="specimen" element={<LabSpecimenPage />} />
+            <Route path="specimen/:id" element={<CollectSpecimenPage />} />
+            <Route path="report" element={<LabReportPage />} />
+            <Route path="report/:id" element={<LabReportDetailPage />} />
           </Route>
         </Route>
         <Route

@@ -8,7 +8,8 @@ export const encounterRpc = {
       z.object({
         depth: z.number().optional(),
         status: z.string().optional(),
-        id: z.string().optional()
+        id: z.string().optional(),
+        include: z.string().optional()
       })
     )
     .output(z.any())

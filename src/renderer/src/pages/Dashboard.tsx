@@ -196,23 +196,28 @@ const items = [
     icon: <DashboardOutlined />,
     children: [
       {
+        label: 'List Lab',
+        key: '/dashboard/laboratory/list',
+        icon: <DashboardOutlined />
+      },
+      {
         label: 'Permintaan Lab',
-        key: '/dashboard/service-request',
+        key: '/dashboard/laboratory/permintaan',
         icon: <DashboardOutlined />
       },
       {
         label: 'Pemeriksaan Lab',
-        key: '/dashboard/laboratory/exam',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Hasil Lab',
         key: '/dashboard/laboratory/result',
         icon: <DashboardOutlined />
       },
       {
         label: 'Laporan Lab',
         key: '/dashboard/laboratory/report',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Pengambilan Spesimen',
+        key: '/dashboard/laboratory/specimen',
         icon: <DashboardOutlined />
       }
     ]
@@ -265,7 +270,8 @@ function Dashboard() {
     '/dashboard/pharmacy',
     '/dashboard/pendaftaran',
     '/dashboard/registration/doctor-leave',
-    '/dashboard/pharmacy'
+    '/dashboard/pharmacy',
+    '/dashboard/laboratory'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true

@@ -16,6 +16,7 @@ interface EncounterListProps {
   onStart: (encounterId: string) => void
   onTransfer: (encounterId: string) => void
   onDischarge: (encounterId: string) => void
+  onRujukan: (encounterId: string) => void
 }
 
 interface GroupedEncounters {
@@ -29,7 +30,8 @@ export function EncounterList({
   actionLoading,
   onStart,
   onTransfer,
-  onDischarge
+  onDischarge,
+  onRujukan
 }: EncounterListProps) {
   // Filter only active encounters
   const activeEncounters = encounters.filter(
@@ -78,6 +80,7 @@ export function EncounterList({
           onStart={onStart}
           onTransfer={onTransfer}
           onDischarge={onDischarge}
+          onRujukan={onRujukan}
         />
       )
     },
@@ -102,6 +105,7 @@ export function EncounterList({
           onStart={onStart}
           onTransfer={onTransfer}
           onDischarge={onDischarge}
+          onRujukan={onRujukan}
         />
       )
     }

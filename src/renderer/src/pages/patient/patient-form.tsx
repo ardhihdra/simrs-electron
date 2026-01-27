@@ -9,6 +9,34 @@ import type { PatientAttributes } from 'simrs-types'
 
 type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & { birthDate: Dayjs }
 
+// Wrapper component to isolate re-renders caused by useWatch
+const GeneralConsentWrapper = ({
+  form,
+  visible
+}: {
+  form: import('antd').FormInstance
+  visible: boolean
+}) => {
+  const patientName = Form.useWatch('name', form)
+  const patientBirthDate = Form.useWatch('birthDate', form)
+  const patientAddress = Form.useWatch('address', form)
+  const patientPhone = Form.useWatch('phone', form)
+
+  return (
+    <div style={{ display: visible ? 'block' : 'none' }}>
+      <GeneralConsentForm
+        form={form}
+        patientData={{
+          name: patientName,
+          birthDate: patientBirthDate,
+          addressLine: patientAddress,
+          phone: patientPhone
+        }}
+      />
+    </div>
+  )
+}
+
 function PatientForm() {
   const [form] = Form.useForm<PatientFormValues>()
   const navigate = useNavigate()
@@ -131,11 +159,6 @@ function PatientForm() {
     setCurrentStep(currentStep - 1)
   }
 
-  const patientName = Form.useWatch('name', form)
-  const patientBirthDate = Form.useWatch('birthDate', form)
-  const patientAddress = Form.useWatch('address', form)
-  const patientPhone = Form.useWatch('phone', form)
-
   return (
     <div className="my-4 space-y-6">
       <div className="w-full max-w-xl mx-auto">
@@ -215,17 +238,7 @@ function PatientForm() {
           </div>
         </div>
 
-        <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-          <GeneralConsentForm
-            form={form}
-            patientData={{
-              name: patientName,
-              birthDate: patientBirthDate,
-              addressLine: patientAddress, // Component likely expects addressLine, but we have address from useWatch
-              phone: patientPhone
-            }}
-          />
-        </div>
+        <GeneralConsentWrapper form={form} visible={currentStep === 1} />
 
         <div className="mt-6 flex justify-end gap-2">
           {currentStep > 0 && <Button onClick={prev}>Kembali</Button>}

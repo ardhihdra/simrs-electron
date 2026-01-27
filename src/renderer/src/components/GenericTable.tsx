@@ -9,6 +9,7 @@ export type ActionItem<T> = {
   icon?: ReactNode
   onClick: (record: T) => void
   danger?: boolean
+  disabled?: boolean
   type?: 'link' | 'text' | 'primary' | 'default' | 'dashed'
   tooltip?: string
   confirm?: {
@@ -67,6 +68,7 @@ function GenericTable<T extends object>({
                       <Button
                         type={item.type ?? 'link'}
                         danger={item.danger}
+                        disabled={item.disabled}
                         icon={item.icon}
                         onClick={(e) => {
                           if (!item.confirm) {

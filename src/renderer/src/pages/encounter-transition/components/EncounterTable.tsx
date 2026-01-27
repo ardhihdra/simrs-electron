@@ -13,6 +13,7 @@ interface EncounterTableProps {
   onStart: (encounterId: string) => void
   onTransfer: (encounterId: string) => void
   onDischarge: (encounterId: string) => void
+  onRujukan: (encounterId: string) => void
 }
 
 export function EncounterTable({
@@ -20,7 +21,8 @@ export function EncounterTable({
   loading,
   onStart,
   onTransfer,
-  onDischarge
+  onDischarge,
+  onRujukan
 }: EncounterTableProps) {
   const columns: ColumnsType<Encounter> = [
     {
@@ -68,6 +70,7 @@ export function EncounterTable({
       dataSource={encounters}
       rowKey="id"
       action={{
+        width: 250,
         items(record) {
           return [
             {
@@ -75,6 +78,12 @@ export function EncounterTable({
               label: 'Mulai',
               onClick: () => onStart(record.id),
               disabled: record.status !== 'PLANNED'
+            },
+            {
+              key: 'rujukan',
+              label: 'Rujukan',
+              onClick: () => onRujukan(record.id),
+              disabled: record.status !== 'IN_PROGRESS'
             },
             {
               key: 'transfer',
