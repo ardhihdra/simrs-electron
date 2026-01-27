@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, InputNumber, Table, message } from 'antd'
+import { Button, Card, Descriptions, InputNumber, Table, Tooltip, message } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -264,6 +264,18 @@ export default function MedicationDispenseFromRequest() {
 		return remaining
 	}, [detail, dispenseListData?.data])
 
+	const isOutOfStockForCurrentQuantity = useMemo(() => {
+		if (!detail) return false
+		const stokSaatIni =
+			typeof detail.medication?.stock === 'number' ? detail.medication.stock : undefined
+		const baseQuantity = detail.dispenseRequest?.quantity?.value
+		const valueToUse =
+			typeof quantityOverride === 'number' ? quantityOverride : baseQuantity
+		if (typeof stokSaatIni !== 'number') return false
+		if (typeof valueToUse !== 'number') return false
+		return valueToUse > stokSaatIni
+	}, [detail, quantityOverride])
+
 	const tableData: TableRow[] = useMemo(() => {
 		if (!detail) return []
 		const quantityValue = detail.dispenseRequest?.quantity?.value
@@ -295,6 +307,18 @@ export default function MedicationDispenseFromRequest() {
 		}
 		return false
 	}, [detail, remainingQuantityFromHistory])
+
+	const isCreateDisabled = isPrescriptionFulfilled || isOutOfStockForCurrentQuantity
+
+	const createDisabledReason = (() => {
+		if (isPrescriptionFulfilled) {
+			return 'Resep ini sudah terpenuhi, tidak dapat membuat dispense baru.'
+		}
+		if (isOutOfStockForCurrentQuantity) {
+			return 'Stok obat tidak cukup untuk Qty Diambil yang dipilih.'
+		}
+		return undefined
+	})()
 
 	const columns = [
 		{ title: 'Jenis Obat', dataIndex: 'jenis', key: 'jenis' },
@@ -353,14 +377,16 @@ export default function MedicationDispenseFromRequest() {
 					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
 						Kembali ke Daftar Resep
 					</Button>
-					<Button
-						type="primary"
-						loading={createDispenseMutation.isPending}
-						disabled={isPrescriptionFulfilled}
-						onClick={() => createDispenseMutation.mutate()}
-					>
-						Buat Dispense
-					</Button>
+					<Tooltip title={createDisabledReason}>
+						<Button
+							type="primary"
+							loading={createDispenseMutation.isPending}
+							disabled={isCreateDisabled}
+							onClick={() => createDispenseMutation.mutate()}
+						>
+							Buat Dispense
+						</Button>
+					</Tooltip>
 				</div>
 				{isPrescriptionFulfilled && (
 					<div className="mt-2 text-sm text-green-600">

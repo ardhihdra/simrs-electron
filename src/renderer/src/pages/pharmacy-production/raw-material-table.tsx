@@ -1,4 +1,4 @@
-import { Button, Dropdown, Input, Table } from 'antd'
+import { Button, Dropdown, Input, Table, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
@@ -24,19 +24,44 @@ interface RawMaterialAttributes {
   stock?: number
 }
 
+const LOW_STOCK_THRESHOLD_RAW_MATERIAL = 50
+
 type RawMaterialApi = {
   list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
   deleteById: (args: { id: number }) => Promise<{ success: boolean; message?: string }>
 }
 
 const columns = [
-  { title: 'Nama', dataIndex: 'name', key: 'name' },
-  { title: 'Kategori', dataIndex: 'category', key: 'category', render: (v: { name: string } | null) => (v?.name || '-') },
-  { title: 'Supplier Default', dataIndex: 'defaultSupplier', key: 'defaultSupplier', render: (v: { nama: string } | null) => (v?.nama || '-') },
-  { title: 'Kode Internal', dataIndex: 'internalCode', key: 'internalCode', render: (v: string | null) => v || '-' },
-  { title: 'CAS', dataIndex: 'casCode', key: 'casCode', render: (v: string | null) => v || '-' },
-  { title: 'Stok', dataIndex: 'stock', key: 'stock', width: 100, render: (value: number | null | undefined) => (typeof value === 'number' ? value : 0) },
-  { title: 'Action', key: 'action', width: 80, align: 'center' as const, render: (_: RawMaterialAttributes, r: RawMaterialAttributes) => <RowActions record={r} /> }
+	{ title: 'Nama', dataIndex: 'name', key: 'name' },
+	{ title: 'Kategori', dataIndex: 'category', key: 'category', render: (v: { name: string } | null) => (v?.name || '-') },
+	{ title: 'Supplier Default', dataIndex: 'defaultSupplier', key: 'defaultSupplier', render: (v: { nama: string } | null) => (v?.nama || '-') },
+	{ title: 'Kode Internal', dataIndex: 'internalCode', key: 'internalCode', render: (v: string | null) => v || '-' },
+	{ title: 'CAS', dataIndex: 'casCode', key: 'casCode', render: (v: string | null) => v || '-' },
+	{
+	  title: 'Stok',
+	  dataIndex: 'stock',
+	  key: 'stock',
+	  width: 120,
+	  render: (value: number | null | undefined) => {
+	    const stockValue = typeof value === 'number' ? value : 0
+	    if (stockValue === 0) {
+	      return (
+	        <Tooltip title="Stok habis">
+	          <span className="text-red-600 font-semibold">{stockValue}</span>
+	        </Tooltip>
+	      )
+	    }
+	    if (stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD_RAW_MATERIAL) {
+	      return (
+	        <Tooltip title="Stok hampir habis">
+	          <span className="text-orange-600 font-semibold">{stockValue}</span>
+	        </Tooltip>
+	      )
+	    }
+	    return stockValue
+	  }
+	},
+	{ title: 'Action', key: 'action', width: 80, align: 'center' as const, render: (_: RawMaterialAttributes, r: RawMaterialAttributes) => <RowActions record={r} /> }
 ]
 
 function RowActions({ record }: { record: RawMaterialAttributes }) {

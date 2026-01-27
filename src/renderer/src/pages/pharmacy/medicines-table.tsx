@@ -1,4 +1,4 @@
-import { Button, Dropdown, Input } from 'antd'
+import { Button, Dropdown, Input, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
@@ -19,6 +19,8 @@ interface MedicineAttributes {
   brand?: { name: string }; 
 }
 
+const LOW_STOCK_THRESHOLD_MEDICINE = 20
+
 const columns = [
   { title: 'Medicine', dataIndex: 'name', key: 'name' },
   {
@@ -37,8 +39,25 @@ const columns = [
     title: 'Stock',
     dataIndex: 'stock',
     key: 'stock',
-    width: 100,
-    render: (value: MedicineAttributes['stock']) => (typeof value === 'number' ? value : 0)
+    width: 120,
+    render: (value: MedicineAttributes['stock']) => {
+      const stockValue = typeof value === 'number' ? value : 0
+      if (stockValue === 0) {
+        return (
+          <Tooltip title="Stok habis">
+            <span className="text-red-600 font-semibold">{stockValue}</span>
+          </Tooltip>
+        )
+      }
+      if (stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD_MEDICINE) {
+        return (
+          <Tooltip title="Stok hampir habis">
+            <span className="text-orange-600 font-semibold">{stockValue}</span>
+          </Tooltip>
+        )
+      }
+      return stockValue
+    }
   },
   { title: 'Buying', dataIndex: 'buyingPrice', key: 'buyingPrice', width: 120 },
   { title: 'Selling', dataIndex: 'sellingPrice', key: 'sellingPrice', width: 120 },
