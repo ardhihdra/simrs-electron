@@ -10,7 +10,7 @@ interface LabServiceRequest {
   id: string
   encounterId: string
   patientId: string
-  testCodeId: string
+  serviceCodeId: string
   priority: 'ROUTINE' | 'URGENT' | 'ASAP' | 'STAT'
   status: 'REQUESTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
   requestedAt: string
@@ -19,9 +19,10 @@ interface LabServiceRequest {
     medicalRecordNumber: string
     gender: string
   }
-  testCode?: {
+  serviceCode?: {
     code: string
     name: string
+    display?: string
   }
 }
 
@@ -59,9 +60,14 @@ export function PermintaanLabTable({ data, isLoading }: PermintaanLabTableProps)
     },
     {
       title: 'Pemeriksaan',
-      dataIndex: ['testCode', 'name'],
+      dataIndex: ['serviceCode', 'name'],
       key: 'testName',
-      render: (value, record) => value || record.testCode?.code || '-'
+      render: (value, record) =>
+        record.serviceCode?.display ||
+        value ||
+        record.serviceCode?.code ||
+        record.serviceCodeId ||
+        '-'
     },
     {
       title: 'Prioritas',

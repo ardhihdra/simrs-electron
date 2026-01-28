@@ -1,5 +1,5 @@
 import { client } from '@renderer/utils/client'
-import { Button, Card, Form, message } from 'antd'
+import { Button, Card, Col, Divider, Form, InputNumber, message, Row } from 'antd'
 import PatientSelector from './components/PatientSelector'
 import PractitionerSelector from './components/PractitionerSelector'
 import TriageNotesInput from './components/TriageNotesInput'
@@ -90,6 +90,31 @@ export default function TriagePage() {
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <PatientSelector />
           <PractitionerSelector />
+          <Divider>Pemeriksaan Fisik</Divider>
+          <div className="mt-8 mb-4">
+            <Row gutter={16}>
+              <Col span={6}>
+                <Form.Item label="Tinggi Badan" name="height">
+                  <InputNumber addonAfter="cm" className="w-full" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item label="Berat Badan" name="weight">
+                  <InputNumber addonAfter="kg" className="w-full" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item label="Lingkar Perut" name="waistCircumference">
+                  <InputNumber addonAfter="cm" className="w-full" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item label="IMT" name="bmi">
+                  <InputNumber addonAfter="kg/m²" className="w-full" readOnly />
+                </Form.Item>
+              </Col>
+            </Row>
+          </div>
           <VitalSignsInputs />
           <TriageNotesInput />
 

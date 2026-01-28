@@ -1,15 +1,22 @@
 import { SelectAsync } from '@renderer/components/dynamic/SelectAsync'
-import { Input, Modal, Select } from 'antd'
+import { Button, Input, Modal, Select } from 'antd'
 import { useState } from 'react'
 
 interface RujukanModalProps {
   visible: boolean
   loading?: boolean
+  encounterId?: string // Added encounterId
   onConfirm: (referralType: string) => void
   onCancel: () => void
 }
 
-export function RujukanModal({ visible, loading, onConfirm, onCancel }: RujukanModalProps) {
+export function RujukanModal({
+  visible,
+  loading,
+  encounterId,
+  onConfirm,
+  onCancel
+}: RujukanModalProps) {
   const [referralType, setReferralType] = useState<string>('Internal')
 
   return (
@@ -41,7 +48,24 @@ export function RujukanModal({ visible, loading, onConfirm, onCancel }: RujukanM
         )}
         {referralType === 'Eksternal' && (
           <div className="mt-4">
-            <label className="block mb-2 font-medium">Pilih Tujuan</label>
+            <div className="flex justify-between items-center mb-2">
+              <label className="block font-medium">Pilih Tujuan</label>
+              <Button
+                type="primary"
+                size="small"
+                onClick={() => {
+                  if (encounterId) {
+                    const url = `/dashboard/encounter/referral-request/${encounterId}`
+                    console.log('Navigating to:', url)
+                    onCancel() // Close modal
+                    window.location.hash = `#${url}` // Force navigation if useNavigate fails in modal context, or pass navigate prop
+                    // Ideally use useNavigate from parent or context
+                  }
+                }}
+              >
+                Buat Surat Rujukan
+              </Button>
+            </div>
             <Select
               options={[
                 {

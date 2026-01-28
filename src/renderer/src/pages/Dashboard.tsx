@@ -1,9 +1,14 @@
 import {
   CalendarOutlined,
   DashboardOutlined,
+  ExperimentOutlined,
+  FileAddOutlined,
+  FileSearchOutlined,
+  FileTextOutlined,
   LeftCircleFilled,
   MedicineBoxOutlined,
   RightCircleFilled,
+  UnorderedListOutlined,
   UserAddOutlined,
   UserOutlined,
   WalletOutlined
@@ -198,27 +203,32 @@ const items = [
       {
         label: 'List Lab',
         key: '/dashboard/laboratory/list',
-        icon: <DashboardOutlined />
+        icon: <UnorderedListOutlined />
       },
       {
         label: 'Permintaan Lab',
         key: '/dashboard/laboratory/permintaan',
-        icon: <DashboardOutlined />
+        icon: <FileAddOutlined />
       },
       {
         label: 'Pemeriksaan Lab',
         key: '/dashboard/laboratory/result',
-        icon: <DashboardOutlined />
+        icon: <ExperimentOutlined />
       },
       {
         label: 'Laporan Lab',
         key: '/dashboard/laboratory/report',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
       },
       {
         label: 'Pengambilan Spesimen',
         key: '/dashboard/laboratory/specimen',
-        icon: <DashboardOutlined />
+        icon: <MedicineBoxOutlined />
+      },
+      {
+        label: 'Diagnostic Report',
+        key: '/dashboard/laboratory/diagnostic-report',
+        icon: <FileSearchOutlined />
       }
     ]
   },

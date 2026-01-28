@@ -54,10 +54,14 @@ export default function RecordResultPage() {
         <Form form={form} layout="vertical">
           <Form.Item name="serviceRequestId" label="Lab Order" rules={[{ required: true }]}>
             <Select
-              options={requests.map((r: any) => ({
-                label: `${r.testCode?.display || r.testCode?.name || r.testCodeId} (${r.priority})`,
-                value: r.id
-              }))}
+              options={requests
+                .filter((r: any) => r.status !== 'COMPLETED')
+                .map((r: any) => {
+                  return {
+                    label: `${r.serviceCode?.display || r.serviceCode?.name || r.serviceCodeId || r.testCodeId} (${r.priority})`,
+                    value: r.id
+                  }
+                })}
             />
           </Form.Item>
 

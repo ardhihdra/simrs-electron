@@ -12,6 +12,7 @@ interface OrderModalProps {
 export function OrderModal({ visible, encounter, onCancel, onSuccess }: OrderModalProps) {
   const [form] = Form.useForm()
   const { handleCreateOrder, loading } = useLaboratoryActions(onSuccess)
+  const category = Form.useWatch('category', form)
 
   const handleSubmit = async () => {
     try {
@@ -27,7 +28,8 @@ export function OrderModal({ visible, encounter, onCancel, onSuccess }: OrderMod
         ],
         // TODO: Mocking requester for now - ideally from auth context
         requesterPractitionerId: 'practitioner-uuid',
-        requesterOrganizationId: encounter.serviceUnitId
+        requesterOrganizationId: encounter.serviceUnitId,
+        category: values.category
       })
       form.resetFields()
       onCancel()
@@ -38,30 +40,44 @@ export function OrderModal({ visible, encounter, onCancel, onSuccess }: OrderMod
 
   return (
     <Modal
-      title="Create Lab Order"
+      title="Create Order"
       open={visible}
       onCancel={onCancel}
       onOk={handleSubmit}
       confirmLoading={loading === 'create-order'}
     >
-      <Form form={form} layout="vertical">
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={{ category: 'LABORATORY', priority: 'ROUTINE' }}
+      >
+        <Form.Item name="category" label="Category" rules={[{ required: true }]}>
+          <Select
+            options={[
+              { label: 'Laboratory', value: 'LABORATORY' },
+              { label: 'Radiology', value: 'RADIOLOGY' }
+            ]}
+            onChange={() => form.setFieldValue('testCodeId', undefined)}
+          />
+        </Form.Item>
         <Form.Item
           name="testCodeId"
-          label="Test"
-          rules={[{ required: true, message: 'Please select a test' }]}
+          label="Test / Exam"
+          rules={[{ required: true, message: 'Please select a test/exam' }]}
         >
           {/* @ts-ignore: SelectAsync props injected by Form.Item */}
           <SelectAsync
+            key={category} // Force re-render when category changes
             entity={'referencecode'}
             display={'display'}
             output={'id'}
-            placeHolder="Select Lab Test"
+            placeHolder={category === 'RADIOLOGY' ? 'Select Radiology Exam' : 'Select Lab Test'}
             filters={{
-              category: 'LAB_TEST'
+              category: category === 'RADIOLOGY' ? 'RADIOLOGY_EXAM' : 'LAB_TEST'
             }}
           />
         </Form.Item>
-        <Form.Item name="priority" label="Priority" initialValue="ROUTINE">
+        <Form.Item name="priority" label="Priority">
           <Select
             options={[
               { label: 'Routine', value: 'ROUTINE' },

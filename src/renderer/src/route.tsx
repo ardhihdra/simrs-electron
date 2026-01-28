@@ -10,6 +10,7 @@ import { LabReportPage } from './pages/Laboratory/LabReport'
 import LabReportDetailPage from './pages/Laboratory/LabReportDetailPage'
 import LabResultPage from './pages/Laboratory/LabResultPage'
 import LabSpecimenPage from './pages/Laboratory/LabSpecimenPage'
+import { ListDiagnosticReport } from './pages/Laboratory/ListDiagnosticReport'
 import RecordResultPage from './pages/Laboratory/RecordResultPage'
 import PermintaanLab from './pages/PermintaanLab'
 import Diagnostic from './pages/diagnostic/diagnostic'
@@ -20,6 +21,7 @@ import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
 import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
+import ReferralRequestPage from './pages/encounter-transition/ReferralRequestPage'
 import EncounterTransitionPage from './pages/encounter-transition/encounter-transition'
 import Encounter from './pages/encounter/Encounter'
 import EncounterForm from './pages/encounter/encounter-form'
@@ -87,6 +89,7 @@ function MainRoute() {
             <Route path="edit/:id" element={<EncounterForm />} />
             <Route path="edit/:id" element={<EncounterForm />} />
             <Route path="transition" element={<EncounterTransitionPage />} />
+            <Route path="referral-request/:id" element={<ReferralRequestPage />} />
             <Route path="triage" element={<TriagePage />} />
           </Route>
           <Route path="service-request" element={<ServiceRequest />}>
@@ -166,6 +169,7 @@ function MainRoute() {
             <Route path="specimen/:id" element={<CollectSpecimenPage />} />
             <Route path="report" element={<LabReportPage />} />
             <Route path="report/:id" element={<LabReportDetailPage />} />
+            <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
           </Route>
         </Route>
         <Route

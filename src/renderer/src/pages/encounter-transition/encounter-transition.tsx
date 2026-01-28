@@ -169,6 +169,7 @@ export default function EncounterTransitionPage() {
       <RujukanModal
         visible={rujukanModal.visible}
         // loading={loading?.includes('-rujukan') ?? false}
+        encounterId={rujukanModal.encounterId || undefined}
         onConfirm={handleRujukanConfirm}
         onCancel={closeRujukanModal}
       />

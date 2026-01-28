@@ -18,7 +18,7 @@ export const laboratoryRpc = {
       params.append('status', 'IN_PROGRESS')
       params.append(
         'include',
-        'labServiceRequests.testCode,labServiceRequests.observations,patient'
+        'labServiceRequests.serviceCode,labServiceRequests.observations,patient'
       )
       if (input.limit) params.append('limit', String(input.limit))
       if (input.offset) params.append('offset', String(input.offset))
@@ -27,7 +27,6 @@ export const laboratoryRpc = {
       const data = await client.get(`/api/encounter?${params.toString()}`)
       const result = await data.json()
       console.log('List Encounters', result)
-      return result
       return result
     }),
 
@@ -47,7 +46,7 @@ export const laboratoryRpc = {
       params.append('status', 'FINISHED')
       params.append(
         'include',
-        'labServiceRequests.testCode,labServiceRequests.observations,patient'
+        'labServiceRequests.serviceCode,labServiceRequests.observations,patient'
       )
       if (input.limit) params.append('limit', String(input.limit))
       if (input.offset) params.append('offset', String(input.offset))
@@ -100,9 +99,21 @@ export const laboratoryRpc = {
     .input(z.any())
     .output(z.any())
     .query(async ({ client }) => {
-      const data = await client.get(`/api/labservicerequest`)
+      const data = await client.get(`/api/clinicalservicerequest`)
       const result = await data.json()
       console.log('List Order', result)
+      return result
+    }),
+
+  listDiagnosticReport: t
+    .input(z.any())
+    .output(z.any())
+    .query(async ({ client }) => {
+      const params = new URLSearchParams()
+      params.append('include', 'encounter.labServiceRequests.serviceCode,patient,observations')
+      const data = await client.get(`/api/labdiagnosticreport?${params.toString()}`)
+      const result = await data.json()
+      console.log('List Report', result)
       return result
     })
 }
