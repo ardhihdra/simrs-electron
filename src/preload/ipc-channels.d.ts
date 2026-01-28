@@ -13,6 +13,7 @@ import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
 import type * as Mod_query_export from '@main/routes/query/export'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
+import type * as Mod_query_inventoryStock from '@main/routes/query/inventoryStock'
 import type * as Mod_query_item from '@main/routes/query/item'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
@@ -136,6 +137,8 @@ type Args_Mod_query_export_exportCsv = InferArgs<typeof Mod_query_export, 'expor
 type Result_Mod_query_export_exportCsv = InferResult<typeof Mod_query_export, 'exportCsv'>
 type Args_Mod_query_hakAkses_getByCode = InferArgs<typeof Mod_query_hakAkses, 'getByCode'>
 type Result_Mod_query_hakAkses_getByCode = InferResult<typeof Mod_query_hakAkses, 'getByCode'>
+type Args_Mod_query_inventoryStock_list = InferArgs<typeof Mod_query_inventoryStock, 'list'>
+type Result_Mod_query_inventoryStock_list = InferResult<typeof Mod_query_inventoryStock, 'list'>
 type Args_Mod_query_item_create = InferArgs<typeof Mod_query_item, 'create'>
 type Result_Mod_query_item_create = InferResult<typeof Mod_query_item, 'create'>
 type Args_Mod_query_item_deleteById = InferArgs<typeof Mod_query_item, 'deleteById'>
@@ -385,6 +388,9 @@ declare global {
         }
         hakAkses: {
           getByCode: Invoke<Args_Mod_query_hakAkses_getByCode, Result_Mod_query_hakAkses_getByCode>
+        }
+        inventoryStock: {
+          list: Invoke<Args_Mod_query_inventoryStock_list, Result_Mod_query_inventoryStock_list>
         }
         item: {
           create: Invoke<Args_Mod_query_item_create, Result_Mod_query_item_create>
