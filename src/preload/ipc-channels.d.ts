@@ -13,6 +13,7 @@ import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
 import type * as Mod_query_export from '@main/routes/query/export'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
+import type * as Mod_query_item from '@main/routes/query/item'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
@@ -30,6 +31,7 @@ import type * as Mod_query_rawMaterial from '@main/routes/query/rawMaterial'
 import type * as Mod_query_rawMaterialCategory from '@main/routes/query/rawMaterialCategory'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
 import type * as Mod_query_suplier from '@main/routes/query/suplier'
+import type * as Mod_query_unit from '@main/routes/query/unit'
 import type * as Mod_user from '@main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
@@ -134,6 +136,16 @@ type Args_Mod_query_export_exportCsv = InferArgs<typeof Mod_query_export, 'expor
 type Result_Mod_query_export_exportCsv = InferResult<typeof Mod_query_export, 'exportCsv'>
 type Args_Mod_query_hakAkses_getByCode = InferArgs<typeof Mod_query_hakAkses, 'getByCode'>
 type Result_Mod_query_hakAkses_getByCode = InferResult<typeof Mod_query_hakAkses, 'getByCode'>
+type Args_Mod_query_item_create = InferArgs<typeof Mod_query_item, 'create'>
+type Result_Mod_query_item_create = InferResult<typeof Mod_query_item, 'create'>
+type Args_Mod_query_item_deleteById = InferArgs<typeof Mod_query_item, 'deleteById'>
+type Result_Mod_query_item_deleteById = InferResult<typeof Mod_query_item, 'deleteById'>
+type Args_Mod_query_item_list = InferArgs<typeof Mod_query_item, 'list'>
+type Result_Mod_query_item_list = InferResult<typeof Mod_query_item, 'list'>
+type Args_Mod_query_item_read = InferArgs<typeof Mod_query_item, 'read'>
+type Result_Mod_query_item_read = InferResult<typeof Mod_query_item, 'read'>
+type Args_Mod_query_item_update = InferArgs<typeof Mod_query_item, 'update'>
+type Result_Mod_query_item_update = InferResult<typeof Mod_query_item, 'update'>
 type Args_Mod_query_jaminan_create = InferArgs<typeof Mod_query_jaminan, 'create'>
 type Result_Mod_query_jaminan_create = InferResult<typeof Mod_query_jaminan, 'create'>
 type Args_Mod_query_jaminan_deleteById = InferArgs<typeof Mod_query_jaminan, 'deleteById'>
@@ -302,6 +314,8 @@ type Args_Mod_query_suplier_remove = InferArgs<typeof Mod_query_suplier, 'remove
 type Result_Mod_query_suplier_remove = InferResult<typeof Mod_query_suplier, 'remove'>
 type Args_Mod_query_suplier_update = InferArgs<typeof Mod_query_suplier, 'update'>
 type Result_Mod_query_suplier_update = InferResult<typeof Mod_query_suplier, 'update'>
+type Args_Mod_query_unit_list = InferArgs<typeof Mod_query_unit, 'list'>
+type Result_Mod_query_unit_list = InferResult<typeof Mod_query_unit, 'list'>
 type Args_Mod_user_create = InferArgs<typeof Mod_user, 'create'>
 type Result_Mod_user_create = InferResult<typeof Mod_user, 'create'>
 type Args_Mod_user_get = InferArgs<typeof Mod_user, 'get'>
@@ -371,6 +385,13 @@ declare global {
         }
         hakAkses: {
           getByCode: Invoke<Args_Mod_query_hakAkses_getByCode, Result_Mod_query_hakAkses_getByCode>
+        }
+        item: {
+          create: Invoke<Args_Mod_query_item_create, Result_Mod_query_item_create>
+          deleteById: Invoke<Args_Mod_query_item_deleteById, Result_Mod_query_item_deleteById>
+          list: Invoke<Args_Mod_query_item_list, Result_Mod_query_item_list>
+          read: Invoke<Args_Mod_query_item_read, Result_Mod_query_item_read>
+          update: Invoke<Args_Mod_query_item_update, Result_Mod_query_item_update>
         }
         jaminan: {
           create: Invoke<Args_Mod_query_jaminan_create, Result_Mod_query_jaminan_create>
@@ -489,6 +510,9 @@ declare global {
           read: Invoke<Args_Mod_query_suplier_read, Result_Mod_query_suplier_read>
           remove: Invoke<Args_Mod_query_suplier_remove, Result_Mod_query_suplier_remove>
           update: Invoke<Args_Mod_query_suplier_update, Result_Mod_query_suplier_update>
+        }
+        unit: {
+          list: Invoke<Args_Mod_query_unit_list, Result_Mod_query_unit_list>
         }
       }
       user: {

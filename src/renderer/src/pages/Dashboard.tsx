@@ -181,7 +181,8 @@ const items = [
       { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
       { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
       { label: 'Formula Produksi', key: '/dashboard/farmasi/formulas', icon: <DashboardOutlined /> },
-      { label: 'Permintaan Produksi', key: '/dashboard/farmasi/production-requests', icon: <DashboardOutlined /> }
+      { label: 'Permintaan Produksi', key: '/dashboard/farmasi/production-requests', icon: <DashboardOutlined /> },
+      { label: 'Item', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> }
     ]
   },
   {
