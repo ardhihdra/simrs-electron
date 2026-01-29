@@ -16,7 +16,6 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
   const queryClient = useQueryClient()
   const { message: antdMessage } = App.useApp()
 
-  // Fetch existing observations
   const { data: observationData, isLoading } = useQuery({
     queryKey: ['observations', encounterId, 'exam'],
     queryFn: async () => {
@@ -30,7 +29,6 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
     }
   })
 
-  // Mutation to save
   const saveMutation = useMutation({
     mutationFn: async (observations: any[]) => {
       const fn = window.api?.query?.observation?.create
@@ -52,7 +50,6 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
     }
   })
 
-  // Populate Form
   useEffect(() => {
     if (observationData && Array.isArray(observationData)) {
       const examObservations = observationData.filter((obs: any) =>

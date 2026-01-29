@@ -4,18 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 const { TextArea } = Input
 
-/**
- * ClinicalAnnotationForm - Komponen Reusable untuk Catatan Pemeriksaan (FHIR Observation Note).
- * Digunakan untuk mencatat temuan naratif yang memiliki riwayat audit log.
- *
- * @example
- * // Contoh untuk Laboratorium:
- * <ClinicalAnnotationForm
- *   code="55233-1"
- *   label="Catatan Laboratorium"
- *   placeholder="Masukan interpretasi hasil lab..."
- * />
- */
 interface ClinicalAnnotationFormProps {
   encounterId: string
   patientId?: string
@@ -122,7 +110,7 @@ export const ClinicalAnnotationForm = ({
           </Space>
         }
         size="small"
-        className="border-blue-100 shadow-sm"
+        className="border-blue-100"
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
           <Form.Item name="note" className="mb-2">

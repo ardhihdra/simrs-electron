@@ -4,6 +4,7 @@ import type { z } from 'zod'
 import type * as Mod_auth from '@main/routes/auth'
 import type * as Mod_macaddress from '@main/routes/macaddress'
 import type * as Mod_notification from '@main/routes/notification'
+import type * as Mod_query_allergyIntolerance from '@main/routes/query/allergyIntolerance'
 import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
 import type * as Mod_query_composition from '@main/routes/query/composition'
 import type * as Mod_query_condition from '@main/routes/query/condition'
@@ -16,6 +17,7 @@ import type * as Mod_query_encounter from '@main/routes/query/encounter'
 import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
 import type * as Mod_query_export from '@main/routes/query/export'
+import type * as Mod_query_familyMemberHistory from '@main/routes/query/familyMemberHistory'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
@@ -29,6 +31,7 @@ import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
 import type * as Mod_query_poli from '@main/routes/query/poli'
 import type * as Mod_query_procedure from '@main/routes/query/procedure'
+import type * as Mod_query_referral from '@main/routes/query/referral'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
 import type * as Mod_user from '@main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
@@ -74,6 +77,14 @@ type Args_Mod_macaddress_getPrimaryMacAddress = InferArgs<typeof Mod_macaddress,
 type Result_Mod_macaddress_getPrimaryMacAddress = InferResult<typeof Mod_macaddress, 'getPrimaryMacAddress'>
 type Args_Mod_notification_send = InferArgs<typeof Mod_notification, 'send'>
 type Result_Mod_notification_send = InferResult<typeof Mod_notification, 'send'>
+type Args_Mod_query_allergyIntolerance_create = InferArgs<typeof Mod_query_allergyIntolerance, 'create'>
+type Result_Mod_query_allergyIntolerance_create = InferResult<typeof Mod_query_allergyIntolerance, 'create'>
+type Args_Mod_query_allergyIntolerance_deleteById = InferArgs<typeof Mod_query_allergyIntolerance, 'deleteById'>
+type Result_Mod_query_allergyIntolerance_deleteById = InferResult<typeof Mod_query_allergyIntolerance, 'deleteById'>
+type Args_Mod_query_allergyIntolerance_list = InferArgs<typeof Mod_query_allergyIntolerance, 'list'>
+type Result_Mod_query_allergyIntolerance_list = InferResult<typeof Mod_query_allergyIntolerance, 'list'>
+type Args_Mod_query_allergyIntolerance_update = InferArgs<typeof Mod_query_allergyIntolerance, 'update'>
+type Result_Mod_query_allergyIntolerance_update = InferResult<typeof Mod_query_allergyIntolerance, 'update'>
 type Args_Mod_query_clinicalNote_create = InferArgs<typeof Mod_query_clinicalNote, 'create'>
 type Result_Mod_query_clinicalNote_create = InferResult<typeof Mod_query_clinicalNote, 'create'>
 type Args_Mod_query_clinicalNote_getByEncounter = InferArgs<typeof Mod_query_clinicalNote, 'getByEncounter'>
@@ -142,6 +153,14 @@ type Args_Mod_query_expenseHead_seed = InferArgs<typeof Mod_query_expenseHead, '
 type Result_Mod_query_expenseHead_seed = InferResult<typeof Mod_query_expenseHead, 'seed'>
 type Args_Mod_query_export_exportCsv = InferArgs<typeof Mod_query_export, 'exportCsv'>
 type Result_Mod_query_export_exportCsv = InferResult<typeof Mod_query_export, 'exportCsv'>
+type Args_Mod_query_familyMemberHistory_create = InferArgs<typeof Mod_query_familyMemberHistory, 'create'>
+type Result_Mod_query_familyMemberHistory_create = InferResult<typeof Mod_query_familyMemberHistory, 'create'>
+type Args_Mod_query_familyMemberHistory_deleteById = InferArgs<typeof Mod_query_familyMemberHistory, 'deleteById'>
+type Result_Mod_query_familyMemberHistory_deleteById = InferResult<typeof Mod_query_familyMemberHistory, 'deleteById'>
+type Args_Mod_query_familyMemberHistory_list = InferArgs<typeof Mod_query_familyMemberHistory, 'list'>
+type Result_Mod_query_familyMemberHistory_list = InferResult<typeof Mod_query_familyMemberHistory, 'list'>
+type Args_Mod_query_familyMemberHistory_update = InferArgs<typeof Mod_query_familyMemberHistory, 'update'>
+type Result_Mod_query_familyMemberHistory_update = InferResult<typeof Mod_query_familyMemberHistory, 'update'>
 type Args_Mod_query_hakAkses_getByCode = InferArgs<typeof Mod_query_hakAkses, 'getByCode'>
 type Result_Mod_query_hakAkses_getByCode = InferResult<typeof Mod_query_hakAkses, 'getByCode'>
 type Args_Mod_query_jaminan_create = InferArgs<typeof Mod_query_jaminan, 'create'>
@@ -244,6 +263,10 @@ type Args_Mod_query_procedure_bulkCreate = InferArgs<typeof Mod_query_procedure,
 type Result_Mod_query_procedure_bulkCreate = InferResult<typeof Mod_query_procedure, 'bulkCreate'>
 type Args_Mod_query_procedure_getByEncounter = InferArgs<typeof Mod_query_procedure, 'getByEncounter'>
 type Result_Mod_query_procedure_getByEncounter = InferResult<typeof Mod_query_procedure, 'getByEncounter'>
+type Args_Mod_query_referral_create = InferArgs<typeof Mod_query_referral, 'create'>
+type Result_Mod_query_referral_create = InferResult<typeof Mod_query_referral, 'create'>
+type Args_Mod_query_referral_getByEncounter = InferArgs<typeof Mod_query_referral, 'getByEncounter'>
+type Result_Mod_query_referral_getByEncounter = InferResult<typeof Mod_query_referral, 'getByEncounter'>
 type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRequest, 'create'>
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
 type Args_Mod_query_serviceRequest_getByEncounter = InferArgs<typeof Mod_query_serviceRequest, 'getByEncounter'>
@@ -272,6 +295,12 @@ declare global {
         send: Invoke<Args_Mod_notification_send, Result_Mod_notification_send>
       }
       query: {
+        allergyIntolerance: {
+          create: Invoke<Args_Mod_query_allergyIntolerance_create, Result_Mod_query_allergyIntolerance_create>
+          deleteById: Invoke<Args_Mod_query_allergyIntolerance_deleteById, Result_Mod_query_allergyIntolerance_deleteById>
+          list: Invoke<Args_Mod_query_allergyIntolerance_list, Result_Mod_query_allergyIntolerance_list>
+          update: Invoke<Args_Mod_query_allergyIntolerance_update, Result_Mod_query_allergyIntolerance_update>
+        }
         clinicalNote: {
           create: Invoke<Args_Mod_query_clinicalNote_create, Result_Mod_query_clinicalNote_create>
           getByEncounter: Invoke<Args_Mod_query_clinicalNote_getByEncounter, Result_Mod_query_clinicalNote_getByEncounter>
@@ -329,6 +358,12 @@ declare global {
         }
         export: {
           exportCsv: Invoke<Args_Mod_query_export_exportCsv, Result_Mod_query_export_exportCsv>
+        }
+        familyMemberHistory: {
+          create: Invoke<Args_Mod_query_familyMemberHistory_create, Result_Mod_query_familyMemberHistory_create>
+          deleteById: Invoke<Args_Mod_query_familyMemberHistory_deleteById, Result_Mod_query_familyMemberHistory_deleteById>
+          list: Invoke<Args_Mod_query_familyMemberHistory_list, Result_Mod_query_familyMemberHistory_list>
+          update: Invoke<Args_Mod_query_familyMemberHistory_update, Result_Mod_query_familyMemberHistory_update>
         }
         hakAkses: {
           getByCode: Invoke<Args_Mod_query_hakAkses_getByCode, Result_Mod_query_hakAkses_getByCode>
@@ -406,6 +441,10 @@ declare global {
         procedure: {
           bulkCreate: Invoke<Args_Mod_query_procedure_bulkCreate, Result_Mod_query_procedure_bulkCreate>
           getByEncounter: Invoke<Args_Mod_query_procedure_getByEncounter, Result_Mod_query_procedure_getByEncounter>
+        }
+        referral: {
+          create: Invoke<Args_Mod_query_referral_create, Result_Mod_query_referral_create>
+          getByEncounter: Invoke<Args_Mod_query_referral_getByEncounter, Result_Mod_query_referral_getByEncounter>
         }
         serviceRequest: {
           create: Invoke<Args_Mod_query_serviceRequest_create, Result_Mod_query_serviceRequest_create>

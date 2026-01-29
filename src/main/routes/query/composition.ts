@@ -26,6 +26,7 @@ const CompositionSchema = z.object({
 export const schemas = {
     create: {
         args: z.object({
+            id: z.number().optional(),
             encounterId: z.string(),
             patientId: z.string(),
             doctorId: z.number(),
@@ -33,7 +34,8 @@ export const schemas = {
             soapSubjective: z.string().optional(),
             soapObjective: z.string().optional(),
             soapAssessment: z.string().optional(),
-            soapPlan: z.string().optional()
+            soapPlan: z.string().optional(),
+            status: z.string().optional()
         }),
         result: z.object({
             success: z.boolean(),
@@ -59,6 +61,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     try {
         const client = getClient(ctx)
         const payload = {
+            id: args.id,
             encounterId: args.encounterId,
             patientId: args.patientId,
             doctorId: args.doctorId,
@@ -66,7 +69,8 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
             soapSubjective: args.soapSubjective,
             soapObjective: args.soapObjective,
             soapAssessment: args.soapAssessment,
-            soapPlan: args.soapPlan
+            soapPlan: args.soapPlan,
+            status: args.status
         }
 
         const res = await client.post('/api/composition', payload)

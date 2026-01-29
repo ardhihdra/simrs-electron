@@ -1,17 +1,33 @@
 import { Card, Descriptions, Alert, Spin, Tag } from 'antd'
 import { useObservationByEncounter } from '../../hooks/query/use-observation'
 import { useConditionByEncounter } from '../../hooks/query/use-condition'
+import { useAllergyByEncounter } from '../../hooks/query/use-allergy'
+import { useFamilyHistoryByPatient } from '../../hooks/query/use-family-history'
 import { formatObservationSummary } from '../../utils/observation-helpers'
 
 interface NurseAssessmentSummaryProps {
   encounterId: string
+  patientId?: string
+  mode?: 'inpatient' | 'outpatient'
 }
 
-export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryProps) => {
-  const { data: obsData, isLoading: obsLoading, isError: obsError } = useObservationByEncounter(encounterId)
+export const NurseAssessmentSummary = ({
+  encounterId,
+  patientId: propPatientId,
+  mode = 'inpatient'
+}: NurseAssessmentSummaryProps) => {
+  const {
+    data: obsData,
+    isLoading: obsLoading,
+    isError: obsError
+  } = useObservationByEncounter(encounterId)
   const { data: condData, isLoading: condLoading } = useConditionByEncounter(encounterId)
+  const { data: allergyData, isLoading: allergyLoading } = useAllergyByEncounter(encounterId)
 
-  const isLoading = obsLoading || condLoading
+  const patientId = propPatientId || obsData?.result?.all?.[0]?.subject?.id || ''
+  const { data: familyData, isLoading: familyLoading } = useFamilyHistoryByPatient(patientId)
+
+  const isLoading = obsLoading || condLoading || allergyLoading || familyLoading
 
   if (isLoading) {
     return (
@@ -34,7 +50,19 @@ export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryPr
   }
 
   const summary = formatObservationSummary(observations, conditions)
-  const { vitalSigns, anamnesis, physicalExamination, performerName, examinationDate } = summary
+  const {
+    vitalSigns,
+    anamnesis,
+    physicalExamination,
+    painAssessment,
+    fallRisk,
+    functionalStatus,
+    psychosocialHistory,
+    screening,
+    conclusion,
+    performerName,
+    examinationDate
+  } = summary
 
   const getBMIColor = (category?: string): string => {
     if (!category) return 'default'
@@ -124,25 +152,44 @@ export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryPr
           <Descriptions.Item label="Keluhan Utama">
             <span className="font-semibold">{anamnesis.chiefComplaint || '-'}</span>
           </Descriptions.Item>
-          {/* Keluhan Penyerta */}
           <Descriptions.Item label="Keluhan Penyerta">
             {anamnesis.associatedSymptoms || '-'}
           </Descriptions.Item>
           <Descriptions.Item label="Riwayat Penyakit">
             {anamnesis.historyOfIllness || '-'}
           </Descriptions.Item>
-          {/* Riwayat Penyakit Keluarga */}
           <Descriptions.Item label="Riwayat Penyakit Keluarga">
-            {anamnesis.familyHistory || '-'}
+            {familyData?.result &&
+            Array.isArray(familyData.result) &&
+            familyData.result.length > 0 ? (
+              <span>
+                {familyData.result
+                  .map((fh: any) => fh.note)
+                  .filter(Boolean)
+                  .join(', ')}
+              </span>
+            ) : anamnesis.familyHistory ? (
+              <span>{anamnesis.familyHistory}</span>
+            ) : (
+              '-'
+            )}
           </Descriptions.Item>
           <Descriptions.Item label="Alergi">
-            {anamnesis.allergyHistory ? (
+            {allergyData?.result &&
+            Array.isArray(allergyData.result) &&
+            allergyData.result.length > 0 ? (
+              <span className="text-red-600 font-medium">
+                {allergyData.result
+                  .map((a: any) => a.note)
+                  .filter(Boolean)
+                  .join(', ')}
+              </span>
+            ) : anamnesis.allergyHistory ? (
               <span className="text-red-600 font-medium">{anamnesis.allergyHistory}</span>
             ) : (
               '-'
             )}
           </Descriptions.Item>
-          {/* Riwayat Pengobatan */}
           <Descriptions.Item label="Riwayat Pengobatan">
             {anamnesis.medicationHistory || '-'}
           </Descriptions.Item>
@@ -162,6 +209,83 @@ export const NurseAssessmentSummary = ({ encounterId }: NurseAssessmentSummaryPr
           </Descriptions.Item>
         </Descriptions>
       </Card>
+
+      {mode === 'inpatient' && (
+        <>
+          <Card title="Status Fungsional" size="small">
+            <Descriptions column={3} size="small" bordered>
+              <Descriptions.Item label="Alat Bantu">
+                {functionalStatus.aids_check || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Cacat Tubuh">
+                {functionalStatus.disability_check || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="ADL">{functionalStatus.adl_check || '-'}</Descriptions.Item>
+            </Descriptions>
+          </Card>
+
+          <Card title="Riwayat Psiko-Sosial, Spiritual & Budaya" size="small">
+            <Descriptions column={1} size="small" bordered>
+              <Descriptions.Item label="Status Psikologis">
+                {psychosocialHistory.psychological_status || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Hubungan Keluarga">
+                {psychosocialHistory.family_relation_note || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tinggal Dengan">
+                {psychosocialHistory.living_with_note || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Agama">
+                {psychosocialHistory.religion || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Budaya/Kepercayaan">
+                {psychosocialHistory.culture_values || '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Bahasa">
+                {psychosocialHistory.daily_language || '-'}
+              </Descriptions.Item>
+            </Descriptions>
+          </Card>
+        </>
+      )}
+
+      {mode === 'inpatient' && (
+        <Card title="Skrining & Pemeriksaan Lanjutan" size="small">
+          <Descriptions column={2} size="small" bordered>
+            <Descriptions.Item label="Kesadaran (Skrining)">
+              {screening.consciousness_level || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Pernapasan (Skrining)">
+              {screening.breathing_status || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Risiko Jatuh (GUG A)">
+              {fallRisk.gugA || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Risiko Jatuh (GUG B)">
+              {fallRisk.gugB || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Skala Nyeri (Wong-Baker)">
+              {painAssessment.painScore ?? '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Nyeri Dada">
+              {painAssessment.chestPain || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Skrining Batuk">
+              {screening.cough_screening_status || '-'}
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+      )}
+
+      {mode === 'inpatient' && (
+        <Card title="Keputusan" size="small">
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="Keputusan Tindak Lanjut">
+              <Tag color="blue">{conclusion.decision || '-'}</Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+      )}
 
       {(performerName || examinationDate) && (
         <div className="text-right text-xs text-gray-400">

@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Card, Button, Input, Spin, App, Empty, Tag, Avatar } from 'antd'
+import { Card, Button, Input, Spin, App, Empty, Tag, Avatar, Select, Space } from 'antd'
 import { PlusOutlined, UserOutlined, ClockCircleOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { CLINICAL_NOTE_TYPE_MAP } from '../../config/clinicalnote-maps'
 
 const { TextArea } = Input
 
@@ -49,6 +50,7 @@ export const ClinicalNoteForm = ({ encounterId, doctorId = 1 }: ClinicalNoteForm
   const { message } = App.useApp()
 
   const [noteText, setNoteText] = useState('')
+  const [noteType, setNoteType] = useState('progress')
   const [isEditing, setIsEditing] = useState(false)
 
   const handleSave = async () => {
@@ -58,10 +60,11 @@ export const ClinicalNoteForm = ({ encounterId, doctorId = 1 }: ClinicalNoteForm
       await upsertMutation.mutateAsync({
         encounterId,
         doctorId,
-        notes: [{ type: 'progress', text: noteText }]
+        notes: [{ type: noteType, text: noteText }]
       })
       message.success('Catatan berhasil disimpan')
       setNoteText('')
+      setNoteType('progress')
       setIsEditing(false)
     } catch (error) {
       console.error(error)
@@ -86,6 +89,16 @@ export const ClinicalNoteForm = ({ encounterId, doctorId = 1 }: ClinicalNoteForm
       >
         {isEditing ? (
           <div className="flex flex-col gap-2">
+            <Select
+              value={noteType}
+              onChange={setNoteType}
+              options={Object.entries(CLINICAL_NOTE_TYPE_MAP).map(([value, label]) => ({
+                value,
+                label
+              }))}
+              className="w-full md:w-1/2"
+              placeholder="Pilih Jenis Catatan"
+            />
             <TextArea
               rows={4}
               value={noteText}
@@ -114,8 +127,6 @@ export const ClinicalNoteForm = ({ encounterId, doctorId = 1 }: ClinicalNoteForm
           </div>
         )}
       </Card>
-
-      {/* List Section */}
       <div className="flex-1 overflow-auto">
         <h3 className="text-gray-600 font-semibold mb-2 px-1">Riwayat Catatan</h3>
 
@@ -128,14 +139,24 @@ export const ClinicalNoteForm = ({ encounterId, doctorId = 1 }: ClinicalNoteForm
         ) : (
           <div className="space-y-3">
             {notes.map((note: any) => (
-              <Card key={note.id} size="small" className="bg-yellow-50 border-yellow-200">
+              <Card
+                key={note.id}
+                size="small"
+                className="bg-yellow-50 border-yellow-200"
+                style={{ marginBottom: '0.5rem' }}
+              >
                 <div className="flex justify-between items-start mb-2">
                   <div className="flex items-center gap-2">
                     <Avatar size="small" icon={<UserOutlined />} className="bg-blue-400" />
-                    <span className="font-semibold text-gray-700">Dr. {note.authorId}</span>
-                    <Tag color="gold" className="text-xs">
-                      Dokter
-                    </Tag>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-gray-700">Dr. {note.authorId}</span>
+                        <Tag color="cyan" className="text-xs m-0">
+                          {CLINICAL_NOTE_TYPE_MAP[note.noteType] || note.noteType || 'Catatan'}
+                        </Tag>
+                      </div>
+                      <span className="text-xs text-gray-500">Dokter</span>
+                    </div>
                   </div>
                   <div className="text-xs text-gray-400 flex items-center">
                     <ClockCircleOutlined className="mr-1" />

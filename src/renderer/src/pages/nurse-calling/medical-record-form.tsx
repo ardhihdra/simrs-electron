@@ -1,16 +1,11 @@
 import { useState, useEffect } from 'react'
-import {
-  Button,
-  App,
-  Spin,
-  Card
-} from 'antd'
+import { Button, App, Spin, Card } from 'antd'
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
 import { PatientQueue } from '../../types/nurse.types'
 import { PatientStatus } from '../../types/nurse.types'
 import { PatientInfoCard } from '../../components/molecules/PatientInfoCard'
-import { NurseMedicalRecordForm } from '../../components/organisms/NurseMedicalRecordForm'
+import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
 
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
@@ -116,7 +111,11 @@ const MedicalRecordForm = () => {
             }}
           />
 
-          <NurseMedicalRecordForm encounterId={encounterId} patientData={patientData} />
+          <InitialAssessmentForm
+            encounterId={encounterId}
+            patientData={patientData}
+            mode="outpatient"
+          />
         </div>
       </Card>
     </div>
