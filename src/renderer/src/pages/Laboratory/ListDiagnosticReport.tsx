@@ -1,6 +1,6 @@
 import GenericTable from '@renderer/components/GenericTable'
 import { client } from '@renderer/utils/client'
-import { Card, Tag } from 'antd'
+import { Card, Image, Tag } from 'antd'
 
 export const ListDiagnosticReport = () => {
   const data = client.laboratory.listDiagnosticReport.useQuery({})
@@ -80,57 +80,90 @@ export const ListDiagnosticReport = () => {
               if (!observations?.length && !requests?.length) return null
 
               return (
-                <div className="p-4 bg-gray-50/50 rounded-lg grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-50/50 rounded-lg flex gap-4">
                   <Card
                     title={<span className="text-gray-700 font-semibold">Hasil Pemeriksaan</span>}
                     size="small"
+                    className="w-full"
                   >
                     {observations && observations.length > 0 ? (
                       <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">
-                        {observations.map((item: any) => (
-                          <div
-                            key={item.id}
-                            className="flex justify-between items-start p-3 hover:bg-gray-50 transition-colors"
-                          >
-                            <div className="flex flex-col gap-1">
-                              <span className="font-medium text-gray-800">
-                                {item.observationCodeId}
-                              </span>
-                              {item.interpretation && (
-                                <Tag
-                                  color={
-                                    ['HIGH', 'LOW', 'POS', 'ABNORMAL'].includes(item.interpretation)
-                                      ? 'error'
-                                      : 'success'
-                                  }
-                                  className="w-fit text-[10px] leading-tight px-1 py-0"
-                                >
-                                  {item.interpretation}
-                                </Tag>
-                              )}
+                        {observations.map((item: any) => {
+                          if (item.value.startsWith('cons')) return null
+                          return (
+                            <div
+                              key={item.id}
+                              className="flex justify-between items-start p-3 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex flex-col gap-1">
+                                <span className="font-medium text-gray-800">
+                                  {item.observationCodeId}
+                                </span>
+                                {item.interpretation && (
+                                  <Tag
+                                    color={
+                                      ['HIGH', 'LOW', 'POS', 'ABNORMAL'].includes(
+                                        item.interpretation
+                                      )
+                                        ? 'error'
+                                        : 'success'
+                                    }
+                                    className="w-fit text-[10px] leading-tight px-1 py-0"
+                                  >
+                                    {item.interpretation}
+                                  </Tag>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className="text-gray-900 font-semibold text-lg">
+                                  {item.value}
+                                </span>
+                                <span className="text-gray-500 text-sm ml-1">{item.unit}</span>
+                                {item.referenceRange && (
+                                  <div className="text-xs text-gray-400 mt-0.5">
+                                    Ref: {item.referenceRange}
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-right">
-                              <span className="text-gray-900 font-semibold text-lg">
-                                {item.value}
-                              </span>
-                              <span className="text-gray-500 text-sm ml-1">{item.unit}</span>
-                              {item.referenceRange && (
-                                <div className="text-xs text-gray-400 mt-0.5">
-                                  Ref: {item.referenceRange}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
-                    ) : (
+                    ) : record?.imagingStudies && record.imagingStudies.length > 0 ? null : (
                       <div className="p-6 text-center text-gray-400 italic">Belum ada hasil</div>
+                    )}
+
+                    {/* Render Image for Radiology */}
+                    {record?.imagingStudies && record.imagingStudies.length > 0 && (
+                      <div className="border-t border-gray-100 pt-4 mt-4">
+                        <span className="block text-gray-700 font-medium mb-2">
+                          Citra Radiologi
+                        </span>
+                        {record.imagingStudies.map((study: any) =>
+                          study.pacsEndpoint ? (
+                            <div
+                              key={study.id}
+                              className="rounded-lg overflow-hidden border border-gray-200"
+                            >
+                              <Image
+                                src={`http://localhost:8810/public/${study.pacsEndpoint}`}
+                                alt="Radiology Result"
+                                className="w-full h-auto object-contain max-h-[400px]"
+                              />
+                              <div className="p-2 bg-gray-50 text-xs text-gray-500">
+                                {study.modalityCode} - {new Date(study.started).toLocaleString()}
+                              </div>
+                            </div>
+                          ) : null
+                        )}
+                      </div>
                     )}
                   </Card>
 
                   <Card
                     title={<span className="text-gray-700 font-semibold">Permintaan Layanan</span>}
                     size="small"
+                    className="w-full"
                   >
                     {requests && requests.length > 0 ? (
                       <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto">

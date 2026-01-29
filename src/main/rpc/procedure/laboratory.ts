@@ -81,7 +81,29 @@ export const laboratoryRpc = {
     .input(z.any())
     .output(z.any())
     .mutation(async ({ client }, input) => {
-      const data = await client.post('/api/module/laboratory/result', input)
+      // Check if input contains a file to upload
+      // We now merge them into a single request:
+      // - jsonPayload: JSON string of input (minus file)
+      // - file: Binary file
+
+      const formData = new FormData()
+
+      const { file, filename, mimetype, ...restInput } = input
+
+      // Debug log to verify what we are about to send
+      console.log('RPC Processing Payload:', JSON.stringify(restInput, null, 2))
+      console.log('RPC Has File:', !!file)
+
+      formData.append('jsonPayload', JSON.stringify(restInput))
+
+      if (file && filename) {
+        const fileBlob = new Blob([file], {
+          type: mimetype || 'application/octet-stream'
+        })
+        formData.append('file', fileBlob, filename)
+      }
+
+      const data = await client.createWithUpload('/api/module/laboratory/result', formData)
       console.log('Record Result', data)
       return await data.json()
     }),
@@ -110,7 +132,10 @@ export const laboratoryRpc = {
     .output(z.any())
     .query(async ({ client }) => {
       const params = new URLSearchParams()
-      params.append('include', 'encounter.labServiceRequests.serviceCode,patient,observations')
+      params.append(
+        'include',
+        'encounter.labServiceRequests.serviceCode,patient,observations,imagingStudies'
+      )
       const data = await client.get(`/api/labdiagnosticreport?${params.toString()}`)
       const result = await data.json()
       console.log('List Report', result)

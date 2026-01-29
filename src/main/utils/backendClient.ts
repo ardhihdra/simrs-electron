@@ -54,6 +54,26 @@ export function createBackendClient(ctx: IpcContext) {
       fetch(`${root}${path}`, {
         method: 'DELETE',
         headers
+      }),
+
+    upload: (path: string, formData: any) =>
+      fetch(`${root}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-access-token': token
+        },
+        body: formData
+      }),
+
+    createWithUpload: (path: string, formData: any) =>
+      fetch(`${root}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-access-token': token
+        },
+        body: formData
       })
   }
 }
