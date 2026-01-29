@@ -59,14 +59,35 @@ const columns = [
       return stockValue
     }
   },
-  { title: 'Buying', dataIndex: 'buyingPrice', key: 'buyingPrice', width: 120 },
-  { title: 'Selling', dataIndex: 'sellingPrice', key: 'sellingPrice', width: 120 },
   {
-    title: 'Action',
-    key: 'action',
-    width: 60,
-    align: 'center' as const,
-    render: (_: MedicineAttributes, r: MedicineAttributes) => <RowActions record={r} />
+    title: 'Harga Beli',
+    dataIndex: 'buyingPrice',
+    key: 'buyingPrice',
+    width: 120,
+    render: (value: number) => (
+      <span className="text-gray-700 dark:text-gray-300">
+        {new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0
+        }).format(value)}
+      </span>
+    )
+  },
+  {
+    title: 'Harga Jual',
+    dataIndex: 'sellingPrice',
+    key: 'sellingPrice',
+    width: 120,
+    render: (value: number) => (
+      <span className="text-gray-700 dark:text-gray-300">
+        {new Intl.NumberFormat('id-ID', {
+          style: 'currency',
+          currency: 'IDR',
+          minimumFractionDigits: 0
+        }).format(value)}
+      </span>
+    )
   }
 ]
 function RowActions({ record }: { record: MedicineAttributes }) {

@@ -41,7 +41,9 @@ export const schemas = {
     args: z.union([MedicationRequestSchema, MedicationRequestSchema.array()]),
     result: z.object({
       success: z.boolean(),
-      data: MedicationRequestWithIdSchema.optional(),
+      data: z
+        .union([MedicationRequestWithIdSchema, MedicationRequestWithIdSchema.array()])
+        .optional(),
       error: z.string().optional()
     })
   },
@@ -100,13 +102,17 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     const res = await client.post('/api/medicationrequest', args)
     const CreateSchema = z.object({
       success: z.boolean(),
-      result: MedicationRequestWithIdSchema.optional(),
-      error: z.any().optional()
+      result: z
+        .union([MedicationRequestWithIdSchema, MedicationRequestWithIdSchema.array()])
+        .optional(),
+      error: z.any().optional(),
+      message: z.string().optional()
     })
     const result = await parseBackendResponse(res, CreateSchema)
     return { success: true, data: result }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    console.error('MedicationRequest IPC create error:', msg)
     return { success: false, error: msg }
   }
 }

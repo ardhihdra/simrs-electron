@@ -27,11 +27,20 @@ const CategoryEntrySchema = z.object({
 	code: z.string().optional()
 })
 
+const SupportingInformationEntrySchema = z.object({
+	type: z.string().optional(),
+	itemId: z.number().optional(),
+	unitCode: z.string().optional(),
+	quantity: z.number().optional(),
+	instruction: z.string().optional()
+})
+
 export const MedicationRequestSchema = z.object({
 	status: z.nativeEnum(MedicationRequestStatus),
 	intent: z.nativeEnum(MedicationRequestIntent),
 	priority: z.nativeEnum(MedicationRequestPriority).optional(),
 	medicationId: z.number().nullable().optional(),
+	itemId: z.number().nullable().optional(),
 	patientId: z.string(),
 	encounterId: z.string().nullable().optional(),
 	requesterId: z.number().nullable().optional(),
@@ -40,7 +49,8 @@ export const MedicationRequestSchema = z.object({
 	note: z.string().nullable().optional(),
 	groupIdentifier: GroupIdentifierSchema.nullable().optional(),
 	category: CategoryEntrySchema.array().nullable().optional(),
-	dispenseRequest: DispenseRequestSchema
+	dispenseRequest: DispenseRequestSchema,
+	supportingInformation: SupportingInformationEntrySchema.array().nullable().optional()
 })
 
 export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({
@@ -51,5 +61,11 @@ export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({
 	patient: z.any().optional(),
 	requester: z.any().optional(),
 	encounter: z.any().optional(),
-	medication: z.any().optional()
+	medication: z.any().optional(),
+	item: z
+		.object({
+			nama: z.string().optional()
+		})
+		.nullable()
+		.optional()
 })

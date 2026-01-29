@@ -53,10 +53,12 @@ interface MedicationRequestAttributes {
   intent: string
   priority?: string
   medicationId?: number | null
+	itemId?: number | null
   patientId: string
   authoredOn?: string
   patient?: PatientInfo
   medication?: { name?: string }
+	item?: { nama?: string }
   encounter?: { id: string }
   requester?: { name: string }
   groupIdentifier?: GroupIdentifier | null
@@ -276,9 +278,7 @@ export function MedicationRequestTable() {
 		queryFn: async () => {
 			const fn = window.api?.query?.medicationRequest?.list
 			if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
-			const res = await fn({})
-			console.log('MedicationRequest List Response (Renderer):', res)
-			return res
+			return fn({})
 		}
 	})
 
@@ -326,27 +326,37 @@ export function MedicationRequestTable() {
 
 		const q = search.trim().toLowerCase()
 		if (!q) return baseFiltered
-		return baseFiltered.filter((p) =>
-			getPatientDisplayName(p.patient).toLowerCase().includes(q) ||
-			p.medication?.name?.toLowerCase().includes(q)
-		)
+		return baseFiltered.filter((p) => {
+			const patientName = getPatientDisplayName(p.patient).toLowerCase()
+			const medicineName = p.medication?.name?.toLowerCase() ?? ''
+			const itemName = p.item?.nama?.toLowerCase() ?? ''
+			return (
+				patientName.includes(q) ||
+				medicineName.includes(q) ||
+				itemName.includes(q)
+			)
+		})
 	}, [data?.data, search])
 
   const groupedData = useMemo<ParentRow[]>(() => {
-    const groups = new Map<string, ParentRow>()
+		const groups = new Map<string, ParentRow>()
 
-    filtered.forEach((record) => {
+		filtered.forEach((record) => {
       const groupId = record.groupIdentifier?.value
       const key = groupId && groupId.trim().length > 0 ? groupId : `single-${record.id ?? ''}`
 
-      const item: MedicationItemRow = {
-        key: `${key}-${record.id ?? ''}`,
-        jenis: isCompound(record) ? 'Racikan' : 'Obat Biasa',
-        namaObat: record.medication?.name ?? '-',
-        quantity: record.dispenseRequest?.quantity?.value,
-        unit: record.dispenseRequest?.quantity?.unit,
-        instruksi: getInstructionText(record.dosageInstruction)
-      }
+			const isItem = typeof record.itemId === 'number' && record.itemId > 0
+
+			const item: MedicationItemRow = {
+				key: `${key}-${record.id ?? ''}`,
+				jenis: isItem ? 'Item' : isCompound(record) ? 'Racikan' : 'Obat Biasa',
+				namaObat: isItem
+					? record.item?.nama ?? '-'
+					: record.medication?.name ?? '-',
+				quantity: record.dispenseRequest?.quantity?.value,
+				unit: record.dispenseRequest?.quantity?.unit,
+				instruksi: getInstructionText(record.dosageInstruction)
+			}
 
       const existing = groups.get(key)
       if (!existing) {
