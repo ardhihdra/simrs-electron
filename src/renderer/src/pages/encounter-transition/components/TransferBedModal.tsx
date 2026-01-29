@@ -1,7 +1,4 @@
-/**
- * TransferBedModal Component
- */
-
+import type { RoomAvailableInput } from '@main/rpc/procedure/room'
 import { client } from '@renderer/utils/client'
 import { Form, Input, Modal, Select } from 'antd'
 
@@ -23,10 +20,8 @@ export interface TransferBedFormValues {
 export function TransferBedModal({ visible, loading, onConfirm, onCancel }: TransferBedModalProps) {
   const [form] = Form.useForm()
 
-  // Use useQuery to fetch available beds using window.api
-  const { data: availableBeds, isLoading: loadingBeds } = client.room.available.useQuery({
-    paginated: false
-  })
+  const input: RoomAvailableInput = { paginated: false }
+  const { data: availableBeds, isLoading: loadingBeds } = client.room.available.useQuery(input)
   const handleOk = async () => {
     try {
       const values = await form.validateFields()
@@ -72,10 +67,10 @@ export function TransferBedModal({ visible, loading, onConfirm, onCancel }: Tran
               <Select.Option
                 key={item.bedId}
                 value={item.bedId} // This is the UUID
-                label={item.bed.bedCodeId}
+                label={item.bed?.bedCodeId}
                 item={item} // Pass full item to option for onChange handler
               >
-                {item.bed.bedCodeId} - {item.room.roomCodeId} ({item.room.roomClassCodeId})
+                {item.bed?.bedCodeId} - {item.room?.roomCodeId} ({item.room?.roomClassCodeId})
               </Select.Option>
             ))}
           </Select>

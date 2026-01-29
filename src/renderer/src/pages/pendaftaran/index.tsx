@@ -8,6 +8,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 
+import type { PatientListInput } from '@main/rpc/procedure/patient'
 import RegistrationSheet from './components/RegistrationSheet'
 
 const Pendaftaran = () => {
@@ -31,10 +32,11 @@ const Pendaftaran = () => {
       if (!fn) {
         throw new Error('Failed to load data')
       }
-      return fn({
+      const payload: PatientListInput = {
         nik: debouncedKode,
         name: debouncedNama
-      })
+      }
+      return fn(payload)
     }
   })
 

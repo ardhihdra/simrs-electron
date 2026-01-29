@@ -5,6 +5,7 @@
 import { client } from '@renderer/utils/client'
 import { message, Tabs, Typography } from 'antd'
 import { useState } from 'react'
+import { EncounterListInput } from 'simrs-types'
 import { DischargeModal } from './components/DischargeModal'
 import { EncounterList } from './components/EncounterList'
 import { RujukanModal } from './components/RujukanModal'
@@ -32,13 +33,8 @@ export default function EncounterTransitionPage() {
   const [selectedDisposition, setSelectedDisposition] = useState<string>('')
 
   // Data fetching using useQuery and window.api.query
-  const {
-    data: queryData,
-    isLoading,
-    refetch
-  } = client.encounter.list.useQuery({
-    depth: 1
-  })
+  const listInput: EncounterListInput = { depth: 1 }
+  const { data: queryData, isLoading, refetch } = client.encounter.list.useQuery(listInput)
 
   // Safe access to result array
   const encounters = (queryData as any)?.result || []

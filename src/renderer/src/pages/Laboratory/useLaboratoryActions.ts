@@ -1,12 +1,13 @@
 import { client } from '@renderer/utils/client'
 import { message } from 'antd'
 import { useEffect, useState } from 'react'
+import type { RecordResultInput } from '../../../../main/rpc/procedure/laboratory'
 
 interface UseLaboratoryActionsReturn {
   loading: string | null
   handleCreateOrder: (data: any) => Promise<void>
   handleCollectSpecimen: (data: any) => Promise<void>
-  handleRecordResult: (data: any) => Promise<void>
+  handleRecordResult: (data: RecordResultInput) => Promise<void>
   handlePrintReport: (encounterId: string) => Promise<void>
 }
 
@@ -32,12 +33,28 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
   useEffect(() => {
     if (!printEncounterId) return
 
+    // accessing result directly as per new schema output
     if (!isPrinting && reportDataResponse?.result) {
       try {
         const reportData = reportDataResponse.result
-        const printWindow = window.open('', '_blank')
-        if (printWindow) {
-          printWindow.document.write(`
+
+        // Use iframe for printing in proper Electron way
+        const iframe = document.createElement('iframe')
+        iframe.style.position = 'fixed'
+        iframe.style.left = '-9999px'
+        iframe.style.top = '0'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.style.border = 'none'
+
+        document.body.appendChild(iframe)
+
+        const contentWindow = iframe.contentWindow
+        const doc = contentWindow?.document
+
+        if (doc && contentWindow) {
+          doc.open()
+          doc.write(`
                 <html>
                     <head>
                         <title>Lab Report - ${reportData.patient?.name}</title>
@@ -47,6 +64,9 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
                             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                             th { background-color: #f2f2f2; }
                             .header { margin-bottom: 20px; }
+                            @media print {
+                                body { -webkit-print-color-adjust: exact; }
+                            }
                         </style>
                     </head>
                     <body>
@@ -61,7 +81,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
                         ${reportData.labServiceRequests
                           ?.map(
                             (req: any) => `
-                            <h3>Order: ${req.testCode.display}</h3>
+                            <h3>Order: ${req.testCode?.display || req.serviceCode?.display || req.serviceCodeId || 'Test'}</h3>
                             <table>
                                 <thead>
                                     <tr>
@@ -91,14 +111,20 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
                         `
                           )
                           .join('')}
-                        
-                        <script>
-                            window.print();
-                        </script>
                     </body>
                 </html>
              `)
-          printWindow.document.close()
+          doc.close()
+
+          // Wait for content to load/render slightly
+          setTimeout(() => {
+            contentWindow.focus()
+            contentWindow.print()
+            // Cleanup
+            setTimeout(() => {
+              document.body.removeChild(iframe)
+            }, 1000)
+          }, 500)
         }
       } catch (e) {
         console.error(e)
@@ -142,7 +168,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     }
   }
 
-  const handleRecordResult = async (data: any) => {
+  const handleRecordResult = async (data: RecordResultInput) => {
     setLoading('record-result')
     try {
       await recordResultMutation.mutateAsync(data)

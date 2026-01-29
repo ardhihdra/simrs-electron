@@ -55,7 +55,7 @@ function PatientForm() {
   )
 
   useEffect(() => {
-    const item = detail.data?.data as Partial<PatientAttributes> | undefined
+    const item = detail.data?.result as Partial<PatientAttributes> | undefined
     if (item) {
       form.setFieldsValue({
         nik: item.nik,

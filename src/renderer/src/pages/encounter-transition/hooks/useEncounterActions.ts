@@ -1,6 +1,8 @@
+import { RoomTransferInput } from '@main/rpc/procedure/room'
 import { rpc } from '@renderer/utils/client'
 import { message } from 'antd'
 import { useState } from 'react'
+import { EncounterDischargeInput, EncounterFinishInput } from 'simrs-types'
 
 interface UseEncounterActionsParams {
   onSuccess: () => void
@@ -11,7 +13,7 @@ interface UseEncounterActionsReturn {
   handleStart: (encounterId: string) => Promise<void>
   handleFinish: (encounterId: string, disposition?: string) => Promise<void>
   handleDischarge: (encounterId: string, disposition: string) => Promise<void>
-  handleTransfer: (data: any) => Promise<void>
+  handleTransfer: (data: RoomTransferInput) => Promise<void>
 }
 
 export function useEncounterActions({
@@ -36,7 +38,8 @@ export function useEncounterActions({
   const handleFinish = async (encounterId: string, disposition?: string): Promise<void> => {
     setLoading(`${encounterId}-finish`)
     try {
-      await rpc.encounter.finish({ id: encounterId, dischargeDisposition: disposition })
+      const input: EncounterFinishInput = { id: encounterId, dischargeDisposition: disposition }
+      await rpc.encounter.finish(input)
       message.success('Encounter selesai')
       onSuccess()
     } catch (error: unknown) {
@@ -50,7 +53,8 @@ export function useEncounterActions({
   const handleDischarge = async (encounterId: string, disposition: string): Promise<void> => {
     setLoading(`${encounterId}-discharge`)
     try {
-      await rpc.encounter.discharge({ id: encounterId, dischargeDisposition: disposition })
+      const input: EncounterDischargeInput = { id: encounterId, dischargeDisposition: disposition }
+      await rpc.encounter.discharge(input)
       message.success('Pasien dipulangkan')
       onSuccess()
     } catch (error: unknown) {
@@ -61,13 +65,7 @@ export function useEncounterActions({
     }
   }
 
-  const handleTransfer = async (data: {
-    encounterId: string
-    newRoomCodeId: string
-    newBedCodeId: string
-    newClassOfCareCodeId: string
-    transferReason: string
-  }): Promise<void> => {
+  const handleTransfer = async (data: RoomTransferInput): Promise<void> => {
     setLoading(`${data.encounterId}-transfer`)
     try {
       await rpc.room.transfer(data)

@@ -1,17 +1,21 @@
+import {
+  ApiResponseSchema,
+  EncounterSchema,
+  LabDiagnosticReportSchema,
+  ListDiagnosticReportInputSchema,
+  ListEncountersInputSchema,
+  PatientSchema,
+  RecordResultInputSchema,
+  ReportResultSchema
+} from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
 export const laboratoryRpc = {
   // listEncounters: GET /api/encounter?encounterType=LAB&status=IN_PROGRESS&include=...
   listEncounters: t
-    .input(
-      z.object({
-        limit: z.number().optional(),
-        offset: z.number().optional(),
-        id: z.string().optional()
-      })
-    )
-    .output(z.any())
+    .input(ListEncountersInputSchema)
+    .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()
       params.append('encounterType', 'LAB')
@@ -32,14 +36,8 @@ export const laboratoryRpc = {
 
   // listLabReports: GET /api/encounter?encounterType=LAB&status=FINISHED
   listLabReports: t
-    .input(
-      z.object({
-        limit: z.number().optional(),
-        offset: z.number().optional(),
-        id: z.string().optional()
-      })
-    )
-    .output(z.any())
+    .input(ListEncountersInputSchema)
+    .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()
       params.append('encounterType', 'LAB')
@@ -61,7 +59,7 @@ export const laboratoryRpc = {
   // createOrder: POST /api/module/laboratory/order
   createOrder: t
     .input(z.any())
-    .output(z.any())
+    .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       const data = await client.post('/api/module/laboratory/order', input)
       return await data.json()
@@ -70,7 +68,7 @@ export const laboratoryRpc = {
   // collectSpecimen: POST /api/module/laboratory/specimen
   collectSpecimen: t
     .input(z.any())
-    .output(z.any())
+    .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       const data = await client.post('/api/module/laboratory/specimen', input)
       return await data.json()
@@ -78,21 +76,12 @@ export const laboratoryRpc = {
 
   // recordResult: POST /api/module/laboratory/result
   recordResult: t
-    .input(z.any())
-    .output(z.any())
+    .input(RecordResultInputSchema)
+    .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
-      // Check if input contains a file to upload
-      // We now merge them into a single request:
-      // - jsonPayload: JSON string of input (minus file)
-      // - file: Binary file
-
       const formData = new FormData()
 
       const { file, filename, mimetype, ...restInput } = input
-
-      // Debug log to verify what we are about to send
-      console.log('RPC Processing Payload:', JSON.stringify(restInput, null, 2))
-      console.log('RPC Has File:', !!file)
 
       formData.append('jsonPayload', JSON.stringify(restInput))
 
@@ -111,7 +100,7 @@ export const laboratoryRpc = {
   // getReport: GET /api/module/laboratory/report/{id}
   getReport: t
     .input(z.string())
-    .output(z.any())
+    .output(ApiResponseSchema(ReportResultSchema.optional()))
     .query(async ({ client }, id) => {
       const data = await client.get(`/api/module/laboratory/report/${id}`)
       return await data.json()
@@ -119,26 +108,41 @@ export const laboratoryRpc = {
 
   listOrder: t
     .input(z.any())
-    .output(z.any())
+    .output(ApiResponseSchema(z.any()))
     .query(async ({ client }) => {
       const data = await client.get(`/api/clinicalservicerequest`)
       const result = await data.json()
-      console.log('List Order', result)
       return result
     }),
 
   listDiagnosticReport: t
-    .input(z.any())
-    .output(z.any())
-    .query(async ({ client }) => {
+    .input(ListDiagnosticReportInputSchema)
+    .output(
+      ApiResponseSchema(
+        z.array(
+          LabDiagnosticReportSchema.extend({
+            patient: PatientSchema,
+            encounter: EncounterSchema.extend({
+              labServiceRequests: z.array(z.any())
+            }),
+            observations: z.array(z.any()),
+            imagingStudies: z.array(z.any())
+          })
+        )
+      )
+    )
+    .query(async ({ client }, input) => {
       const params = new URLSearchParams()
       params.append(
         'include',
         'encounter.labServiceRequests.serviceCode,patient,observations,imagingStudies'
       )
+      if (input.limit) params.append('limit', String(input.limit))
+      if (input.offset) params.append('offset', String(input.offset))
+      if (input.patientId) params.append('patientId', input.patientId)
+
       const data = await client.get(`/api/labdiagnosticreport?${params.toString()}`)
       const result = await data.json()
-      console.log('List Report', result)
       return result
     })
 }

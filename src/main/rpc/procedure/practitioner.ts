@@ -2,14 +2,15 @@ import { ApiResponseSchema, PractitionerSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
+export const PractitionerListInputSchema = z.object({
+  hakAksesId: z.string().optional(),
+  name: z.string().optional()
+})
+export type PractitionerListInput = z.infer<typeof PractitionerListInputSchema>
+
 export const practitionerRpc = {
   list: t
-    .input(
-      z.object({
-        hakAksesId: z.string().optional(),
-        name: z.string().optional()
-      })
-    )
+    .input(PractitionerListInputSchema)
     .output(ApiResponseSchema(PractitionerSchema.array()))
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()

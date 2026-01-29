@@ -9,7 +9,7 @@ const ObservationSchema = z.object({
   effectiveDateTime: z.string()
 })
 
-const TriageRecordSchema = z.object({
+export const TriageRecordSchema = z.object({
   encounterId: z.string().uuid(),
   practitionerId: z.number(),
   queueTicketId: z.string().optional(),
@@ -17,6 +17,7 @@ const TriageRecordSchema = z.object({
   consciousness: z.string(),
   notes: z.string().optional()
 })
+export type TriageRecordInput = z.infer<typeof TriageRecordSchema>
 
 export const triageRpc = {
   recordTriage: t

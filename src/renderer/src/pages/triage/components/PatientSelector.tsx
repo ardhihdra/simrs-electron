@@ -1,27 +1,29 @@
 import { client } from '@renderer/utils/client'
 import { Form, Select } from 'antd'
+import { EncounterListInput } from 'simrs-types'
 
 export default function PatientSelector() {
   const form = Form.useFormInstance()
   const encounterId = Form.useWatch('encounterId', form)
 
-  const { data: listData, isLoading: listLoading } = client.encounter.list.useQuery({
+  const listInput: EncounterListInput = {
     status: 'PLANNED',
     depth: 1
-  })
+  }
+
+  const { data: listData, isLoading: listLoading } = client.encounter.list.useQuery(listInput)
 
   // Also fetch the specific encounter if we have an ID, to ensure it's in the list
+  const specificInput: EncounterListInput = {
+    id: encounterId,
+    depth: 1
+  }
+
   const { data: specificEncounterData, isLoading: specificLoading } =
-    client.encounter.list.useQuery(
-      {
-        id: encounterId,
-        depth: 1
-      },
-      {
-        enabled: !!encounterId,
-        queryKey: ['encounter', encounterId]
-      }
-    )
+    client.encounter.list.useQuery(specificInput, {
+      enabled: !!encounterId,
+      queryKey: ['encounter', encounterId]
+    })
 
   const encounters = (listData as any)?.result || []
   const specificEncounter = (specificEncounterData as any)?.result?.[0]

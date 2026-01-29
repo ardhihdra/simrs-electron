@@ -46,7 +46,6 @@ export default function RecordResultPage() {
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
-      console.log('Form Values:', values)
 
       if (selectedRequest?.category === 'RADIOLOGY') {
         const fileObj = values.files && values.files[0] ? values.files[0].originFileObj : null

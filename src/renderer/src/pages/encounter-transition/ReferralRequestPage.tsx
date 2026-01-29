@@ -13,13 +13,13 @@ import {
   message
 } from 'antd'
 import { useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate } from 'react-router'
 import { SelectAsync } from '../../components/dynamic/SelectAsync'
 
 const { TextArea } = Input
 
 export default function ReferralRequestPage() {
-  const { id } = useParams()
+  // const { id } = useParams()
   const navigate = useNavigate()
   const [form] = Form.useForm()
   const [loading, setLoading] = useState(false)

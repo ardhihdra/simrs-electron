@@ -1,10 +1,10 @@
+import type { PractitionerListInput } from '@main/rpc/procedure/practitioner'
 import { client } from '@renderer/utils/client'
 import { Form, Select } from 'antd'
 
 export default function PractitionerSelector() {
-  const { data, isLoading } = client.practitioner.list.useQuery({
-    hakAksesId: 'nurse'
-  })
+  const input: PractitionerListInput = { hakAksesId: 'nurse' }
+  const { data, isLoading } = client.practitioner.list.useQuery(input)
 
   const practitioners = (data as any)?.result || []
 

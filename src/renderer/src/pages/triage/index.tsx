@@ -5,6 +5,7 @@ import PractitionerSelector from './components/PractitionerSelector'
 import TriageNotesInput from './components/TriageNotesInput'
 import VitalSignsInputs from './components/VitalSignsInputs'
 
+import { TriageRecordInput } from '@main/rpc/procedure/triage'
 import { useEffect } from 'react'
 import { useLocation } from 'react-router'
 
@@ -66,11 +67,11 @@ export default function TriagePage() {
       await recordTriage({
         encounterId: values.encounterId,
         practitionerId: Number(values.practitionerId),
-        queueTicketId: values.encounterId, // Using encounterId as placeholder per reference
+        queueTicketId: values.encounterId,
         observations,
         consciousness: values.consciousness,
         notes: values.notes
-      })
+      } as TriageRecordInput)
 
       message.success('Triage observation recorded successfully')
       form.resetFields()
