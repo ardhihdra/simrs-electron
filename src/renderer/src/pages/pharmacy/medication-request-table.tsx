@@ -59,6 +59,7 @@ interface MedicationRequestAttributes {
   patient?: PatientInfo
   medication?: { name?: string }
 	item?: { nama?: string }
+	note?: string | null
   encounter?: { id: string }
   requester?: { name: string }
   groupIdentifier?: GroupIdentifier | null
@@ -346,13 +347,21 @@ export function MedicationRequestTable() {
       const key = groupId && groupId.trim().length > 0 ? groupId : `single-${record.id ?? ''}`
 
 			const isItem = typeof record.itemId === 'number' && record.itemId > 0
+			const compound = isCompound(record)
+			const racikanTitleMatch = compound ? record.note?.match(/^\[Racikan:([^\]]+)\]/) : null
+			const racikanName =
+				racikanTitleMatch && racikanTitleMatch[1]
+					? racikanTitleMatch[1].trim()
+					: undefined
 
 			const item: MedicationItemRow = {
 				key: `${key}-${record.id ?? ''}`,
-				jenis: isItem ? 'Item' : isCompound(record) ? 'Racikan' : 'Obat Biasa',
+				jenis: isItem ? 'Item' : compound ? 'Racikan' : 'Obat Biasa',
 				namaObat: isItem
 					? record.item?.nama ?? '-'
-					: record.medication?.name ?? '-',
+					: compound
+						? racikanName ?? record.medication?.name ?? '-'
+						: record.medication?.name ?? '-',
 				quantity: record.dispenseRequest?.quantity?.value,
 				unit: record.dispenseRequest?.quantity?.unit,
 				instruksi: getInstructionText(record.dosageInstruction)

@@ -41,6 +41,16 @@ interface MedicationInfo {
 	uom?: string | null
 }
 
+interface GroupIdentifierInfo {
+	system?: string
+	value?: string
+}
+
+interface CategoryInfo {
+	text?: string
+	code?: string
+}
+
 interface MedicationRequestDetail {
 	id?: number
 	status: string
@@ -50,6 +60,11 @@ interface MedicationRequestDetail {
 	authoredOn?: string
 	patient?: PatientInfo
 	medication?: MedicationInfo
+	item?: { nama?: string; kode?: string } | null
+	itemId?: number | null
+	groupIdentifier?: GroupIdentifierInfo | null
+	category?: CategoryInfo[] | null
+	note?: string | null
 	dosageInstruction?: DosageInstructionEntry[] | null
 	dispenseRequest?: DispenseRequestInfo | null
 }
@@ -100,6 +115,21 @@ interface MedicationDispenseListResultForSummary {
 		pages: number
 	}
 	error?: string
+}
+
+interface InventoryStockItem {
+	kodeItem: string
+	namaItem: string
+	unit: string
+	stockIn: number
+	stockOut: number
+	availableStock: number
+}
+
+interface InventoryStockResponse {
+	success: boolean
+	result?: InventoryStockItem[]
+	message?: string
 }
 
 function getPatientDisplayName(patient?: PatientInfo): string {
@@ -157,6 +187,35 @@ export default function MedicationDispenseFromRequest() {
 		enabled: Number.isFinite(requestId)
 	})
 
+	const baseDetail: MedicationRequestDetail | undefined = data?.data
+
+	const { data: groupListData, isLoading: isGroupLoading } = useQuery({
+		queryKey: ['medicationRequest', 'groupListForDispense', requestId, baseDetail?.groupIdentifier?.value],
+		enabled: Number.isFinite(requestId) && !!baseDetail?.groupIdentifier?.value,
+		queryFn: async () => {
+			if (!baseDetail || !baseDetail.groupIdentifier?.value) {
+				return [] as MedicationRequestDetail[]
+			}
+			const api = window.api?.query as {
+				medicationRequest?: {
+					list: (args: { patientId?: string; limit?: number }) => Promise<{
+						success: boolean
+						data?: MedicationRequestDetail[]
+						pagination?: unknown
+						message?: string
+					}>
+				}
+			}
+			const fn = api?.medicationRequest?.list
+			if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
+			const res = await fn({ patientId: baseDetail.patientId, limit: 1000 })
+			const list = Array.isArray(res.data) ? res.data : []
+			return list.filter(
+				(item) => item.groupIdentifier?.value === baseDetail.groupIdentifier?.value
+			) as MedicationRequestDetail[]
+		}
+	})
+
 	const { data: dispenseListData } = useQuery({
 		queryKey: ['medicationDispense', 'forCreateFromRequest', requestId],
 		enabled: Number.isFinite(requestId),
@@ -171,6 +230,33 @@ export default function MedicationDispenseFromRequest() {
 			return fn({ limit: 1000 })
 		}
 	})
+
+	const { data: inventoryStockData } = useQuery<InventoryStockResponse>({
+		queryKey: ['inventoryStock', 'list'],
+		queryFn: () => {
+			const api = window.api?.query as {
+				inventoryStock?: { list: () => Promise<InventoryStockResponse> }
+			}
+			const fn = api?.inventoryStock?.list
+			if (!fn) throw new Error('API stok inventory tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const stockMapFromInventory = useMemo(() => {
+		const map = new Map<string, { availableStock: number; unit: string }>()
+		const stockList: InventoryStockItem[] = Array.isArray(inventoryStockData?.result)
+			? inventoryStockData.result
+			: []
+		for (const s of stockList) {
+			const kodeItem = s.kodeItem.trim().toUpperCase()
+			if (!kodeItem) continue
+			const availableStock = typeof s.availableStock === 'number' ? s.availableStock : 0
+			const unit = s.unit
+			map.set(kodeItem, { availableStock, unit })
+		}
+		return map
+	}, [inventoryStockData?.result])
 
 	const createDispenseMutation = useMutation({
 		mutationKey: ['medicationDispense', 'createFromRequest', requestId],
@@ -199,7 +285,21 @@ export default function MedicationDispenseFromRequest() {
 			const baseQuantity = detail.dispenseRequest?.quantity?.value
 			const unit = detail.dispenseRequest?.quantity?.unit
 			const valueToUse = typeof quantityOverride === 'number' ? quantityOverride : baseQuantity
-			const stokSaatIni = typeof detail.medication?.stock === 'number' ? detail.medication.stock : undefined
+			let stokSaatIni: number | undefined
+			if (typeof detail.medication?.stock === 'number') {
+				stokSaatIni = detail.medication.stock
+			}
+			const isItem = typeof detail.itemId === 'number' && detail.itemId > 0
+			if (isItem && !stokSaatIni) {
+				const kodeRaw = typeof detail.item?.kode === 'string' ? detail.item.kode : ''
+				const kode = kodeRaw.trim().toUpperCase()
+				if (kode) {
+					const stockInfo = stockMapFromInventory.get(kode)
+					if (stockInfo && typeof stockInfo.availableStock === 'number') {
+						stokSaatIni = stockInfo.availableStock
+					}
+				}
+			}
 			if (typeof valueToUse !== 'number' || valueToUse <= 0) {
 				throw new Error('Qty Diambil harus lebih dari 0')
 			}
@@ -237,7 +337,7 @@ export default function MedicationDispenseFromRequest() {
 		}
 	})
 
-	const detail: MedicationRequestDetail | undefined = data?.data
+	const detail: MedicationRequestDetail | undefined = baseDetail
 
 	const remainingQuantityFromHistory = useMemo(() => {
 		if (!detail || typeof detail.id !== 'number') return undefined
@@ -266,38 +366,82 @@ export default function MedicationDispenseFromRequest() {
 
 	const isOutOfStockForCurrentQuantity = useMemo(() => {
 		if (!detail) return false
-		const stokSaatIni =
-			typeof detail.medication?.stock === 'number' ? detail.medication.stock : undefined
+		let stokSaatIni: number | undefined
+		if (typeof detail.medication?.stock === 'number') {
+			stokSaatIni = detail.medication.stock
+		}
+		const isItem = typeof detail.itemId === 'number' && detail.itemId > 0
+		if (isItem && !stokSaatIni) {
+			const kodeRaw = typeof detail.item?.kode === 'string' ? detail.item.kode : ''
+			const kode = kodeRaw.trim().toUpperCase()
+			if (kode) {
+				const stockInfo = stockMapFromInventory.get(kode)
+				if (stockInfo && typeof stockInfo.availableStock === 'number') {
+					stokSaatIni = stockInfo.availableStock
+				}
+			}
+		}
 		const baseQuantity = detail.dispenseRequest?.quantity?.value
 		const valueToUse =
 			typeof quantityOverride === 'number' ? quantityOverride : baseQuantity
 		if (typeof stokSaatIni !== 'number') return false
 		if (typeof valueToUse !== 'number') return false
 		return valueToUse > stokSaatIni
-	}, [detail, quantityOverride])
+	}, [detail, quantityOverride, stockMapFromInventory])
 
 	const tableData: TableRow[] = useMemo(() => {
 		if (!detail) return []
-		const quantityValue = detail.dispenseRequest?.quantity?.value
-		const quantityUnit = detail.dispenseRequest?.quantity?.unit
-		const instruksi = getInstructionText(detail.dosageInstruction)
-		const stokSaatIni = typeof detail.medication?.stock === 'number' ? detail.medication.stock : undefined
-		const unitStok = detail.medication?.uom ?? null
 
-		return [
-			{
-				key: String(detail.id ?? detail.patientId),
-				jenis: 'Obat Biasa',
-				namaObat: detail.medication?.name ?? '-',
+		const records: MedicationRequestDetail[] =
+			Array.isArray(groupListData) && groupListData.length > 0
+				? groupListData
+				: [detail]
+
+		return records.map((record) => {
+			const quantityValue = record.dispenseRequest?.quantity?.value
+			const quantityUnit = record.dispenseRequest?.quantity?.unit
+			const instruksi = getInstructionText(record.dosageInstruction)
+			const isItem = typeof record.itemId === 'number' && record.itemId > 0
+			let stokSaatIni: number | undefined
+			let unitStok: string | null = null
+			if (isItem) {
+				const kodeRaw = typeof record.item?.kode === 'string' ? record.item.kode : ''
+				const kode = kodeRaw.trim().toUpperCase()
+				if (kode) {
+					const stockInfo = stockMapFromInventory.get(kode)
+					if (stockInfo) {
+						stokSaatIni = stockInfo.availableStock
+						unitStok = stockInfo.unit
+					}
+				}
+			} else {
+				stokSaatIni =
+					typeof record.medication?.stock === 'number' ? record.medication.stock : undefined
+				unitStok = record.medication?.uom ?? null
+			}
+			const jenis = isItem ? 'Item' : 'Obat Biasa'
+			const namaObat = isItem
+				? record.item?.nama ?? '-'
+				: record.medication?.name ?? '-'
+
+			return {
+				key: `${record.id ?? record.patientId}`,
+				jenis,
+				namaObat,
 				quantityDiminta: typeof quantityValue === 'number' ? quantityValue : undefined,
 				unitDiminta: quantityUnit,
 				instruksi,
 				stokSaatIni,
 				unitStok,
-				quantityDiambil: quantityOverride ?? (typeof quantityValue === 'number' ? quantityValue : undefined)
+				quantityDiambil:
+					record.id === detail.id
+						? quantityOverride ?? (typeof quantityValue === 'number' ? quantityValue : undefined)
+						: typeof quantityValue === 'number'
+							? quantityValue
+							: undefined
 			}
-		]
-	}, [detail, quantityOverride])
+		})
+	}, [detail, quantityOverride, groupListData, stockMapFromInventory])
 
 	const isPrescriptionFulfilled = useMemo(() => {
 		if (!detail) return false

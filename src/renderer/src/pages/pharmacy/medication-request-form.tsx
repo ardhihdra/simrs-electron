@@ -77,6 +77,62 @@ interface FormData {
   }>
 }
 
+interface GroupIdentifierInfo {
+	system?: string
+	value?: string
+}
+
+interface DispenseQuantityInfo {
+	value?: number
+	unit?: string
+}
+
+interface DispenseRequestInfo {
+	quantity?: DispenseQuantityInfo
+}
+
+interface DosageInstructionInfo {
+	text?: string
+}
+
+interface CategoryInfo {
+	text?: string
+	code?: string
+}
+
+interface SupportingInformationItemInfo {
+	type?: string
+	itemId?: number
+	unitCode?: string
+	quantity?: number
+	instruction?: string
+}
+
+interface IdentifierInfo {
+	system?: string
+	value?: string
+}
+
+interface MedicationRequestRecordForEdit {
+	id?: number
+	status: MedicationRequestStatus
+	intent: MedicationRequestIntent
+	priority?: MedicationRequestPriority
+	patientId: string
+	encounterId?: string | null
+	requesterId?: number | null
+	authoredOn?: string | Date
+	medicationId?: number | null
+	itemId?: number | null
+	groupIdentifier?: GroupIdentifierInfo | null
+	category?: CategoryInfo[] | null
+	identifier?: IdentifierInfo[] | null
+	note?: string | null
+	dosageInstruction?: DosageInstructionInfo[] | null
+	dispenseRequest?: DispenseRequestInfo | null
+	supportingInformation?: SupportingInformationItemInfo[] | null
+}
+
 export function MedicationRequestForm() {
   const navigate = useNavigate()
   const { id } = useParams()
@@ -84,6 +140,7 @@ export function MedicationRequestForm() {
   const selectedPatientId = Form.useWatch('patientId', form)
   const isEdit = Boolean(id)
   const [session, setSession] = useState<any>(null)
+  const [originalGroupRecords, setOriginalGroupRecords] = useState<MedicationRequestRecordForEdit[]>([])
 
   const buildDispenseRequest = (quantity?: number, unit?: string) => {
     if (!quantity) return null
@@ -297,11 +354,8 @@ export function MedicationRequestForm() {
           const unitName = item.unit?.nama ?? unitCode
           const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
           const name = item.nama ?? code
-          const labelParts: string[] = []
-          if (code) labelParts.push(code)
-          if (name) labelParts.push(name)
-          const baseLabel = labelParts.length > 0 ? labelParts.join(' - ') : String(item.id)
-          const label = unitName ? `${baseLabel} (${unitName})` : baseLabel
+          const displayName = name || code || String(item.id)
+          const label = unitName ? `${displayName} (${unitName})` : displayName
 
           return {
             value: item.id as number,
@@ -352,38 +406,146 @@ export function MedicationRequestForm() {
 
   useEffect(() => {
     if (isEdit && detailData?.success && detailData.data) {
-      const d = detailData.data as FormData & {
-        id: number
-        dosageInstruction?: Array<{ text?: string }>
-        dispenseRequest?: {
-          quantity?: {
-            value?: number
-            unit?: string
-          }
-        }
-      }
+			const base = detailData.data as MedicationRequestRecordForEdit
 
-      form.setFieldsValue({
-        status: d.status,
-        intent: d.intent,
-        priority: d.priority,
-        patientId: d.patientId,
-        encounterId: d.encounterId ?? null,
-        requesterId: d.requesterId ?? null,
-        authoredOn: d.authoredOn ? dayjs(d.authoredOn) : undefined,
-        items: [
-          {
-            medicationId: d.medicationId ?? 0,
-            dosageInstruction:
-              d.dosageInstruction && d.dosageInstruction[0]
-                ? d.dosageInstruction[0].text ?? ''
-                : '',
-            note: d.note ?? '',
-            quantity: d.dispenseRequest?.quantity?.value,
-            quantityUnit: d.dispenseRequest?.quantity?.unit
-          }
-        ]
-      })
+			const applyFormValues = (records: MedicationRequestRecordForEdit[]) => {
+				setOriginalGroupRecords(records)
+				if (records.length === 0) {
+					return
+				}
+
+				const baseRecord = records.find((r) => r.id === base.id) ?? records[0]
+
+				const allSimple = records.filter((r) => {
+					const isCompound = (r.category ?? []).some((c) => {
+						const code = c.code?.toLowerCase()
+						const text = c.text?.toLowerCase()
+						return code === 'compound' || text === 'racikan'
+					})
+					return !isCompound && typeof r.medicationId === 'number'
+				})
+
+				const compoundRecords = records.filter((r) => {
+					const categories = r.category ?? []
+					return categories.some((c) => {
+						const code = c.code?.toLowerCase()
+						const text = c.text?.toLowerCase()
+						return code === 'compound' || text === 'racikan'
+					})
+				})
+
+				const itemRecords = records.filter((r) => typeof r.itemId === 'number' && r.itemId > 0)
+
+				const items: NonNullable<FormData['items']> = allSimple.map((r) => ({
+					medicationId: r.medicationId ?? 0,
+					dosageInstruction:
+						r.dosageInstruction && r.dosageInstruction[0]
+							? r.dosageInstruction[0].text ?? ''
+							: '',
+					note: r.note ?? '',
+					quantity: r.dispenseRequest?.quantity?.value,
+					quantityUnit: r.dispenseRequest?.quantity?.unit
+				}))
+
+				const compoundsForm: NonNullable<FormData['compounds']> = []
+
+				compoundRecords.forEach((r) => {
+					const titleMatch = r.note?.match(/^\[Racikan:([^\]]+)\]/)
+					const name = titleMatch && titleMatch[1] ? titleMatch[1].trim() : 'Racikan'
+					const dosageText = r.dosageInstruction && r.dosageInstruction[0]
+						? r.dosageInstruction[0].text ?? ''
+						: ''
+
+					const itemsForCompound = records
+						.filter((candidate) => {
+							if (candidate.id === r.id) return true
+							if (!Array.isArray(candidate.identifier)) return false
+							if (!Array.isArray(r.identifier)) return false
+							const groupA = r.identifier.find((idEntry) => idEntry.system === 'racikan-group')
+							const groupB = candidate.identifier.find(
+								(idEntry) => idEntry.system === 'racikan-group'
+							)
+							return Boolean(groupA && groupB && groupA.value === groupB.value)
+						})
+						.map((itemRecord) => ({
+							sourceType: 'medicine' as const,
+							medicationId: itemRecord.medicationId ?? undefined,
+							note: itemRecord.id === r.id ? undefined : itemRecord.note ?? undefined
+						}))
+
+					compoundsForm.push({
+						name,
+						dosageInstruction: dosageText,
+						quantity: r.dispenseRequest?.quantity?.value,
+						quantityUnit: r.dispenseRequest?.quantity?.unit,
+						items: itemsForCompound
+					})
+				})
+
+				const otherItemsForm: NonNullable<FormData['otherItems']> = itemRecords.map((r) => {
+					const info = (r.supportingInformation ?? [])[0]
+					return {
+					unitCode:
+						info?.unitCode ??
+						(r.dispenseRequest?.quantity?.unit
+							? r.dispenseRequest.quantity.unit
+							: ''),
+						itemId: r.itemId ?? 0,
+						quantity: info?.quantity ?? r.dispenseRequest?.quantity?.value,
+						instruction: info?.instruction ?? r.note ?? ''
+					}
+				})
+
+				form.setFieldsValue({
+					status: baseRecord.status,
+					intent: baseRecord.intent,
+					priority: baseRecord.priority,
+					patientId: baseRecord.patientId,
+					encounterId: baseRecord.encounterId ?? null,
+					requesterId: baseRecord.requesterId ?? null,
+					authoredOn: baseRecord.authoredOn ? dayjs(baseRecord.authoredOn) : undefined,
+					items: items.length > 0 ? items : [
+						{
+							medicationId: baseRecord.medicationId ?? 0,
+							dosageInstruction:
+								baseRecord.dosageInstruction && baseRecord.dosageInstruction[0]
+									? baseRecord.dosageInstruction[0].text ?? ''
+									: '',
+							note: baseRecord.note ?? '',
+							quantity: baseRecord.dispenseRequest?.quantity?.value,
+							quantityUnit: baseRecord.dispenseRequest?.quantity?.unit
+						}
+					],
+					compounds: compoundsForm,
+					otherItems: otherItemsForm
+				})
+			}
+
+			const groupValue = base.groupIdentifier?.value
+
+			if (!groupValue) {
+				applyFormValues([base])
+				return
+			}
+
+			const loadGroup = async () => {
+				const api = window.api?.query?.medicationRequest
+				const fn = api?.list
+				if (!fn) {
+					applyFormValues([base])
+					return
+				}
+				const res = await fn({ patientId: base.patientId, limit: 1000 })
+				const list = Array.isArray(res.data) ? res.data : []
+				const sameGroup = list.filter((r) => r.groupIdentifier?.value === groupValue)
+				if (sameGroup.length === 0) {
+					applyFormValues([base])
+					return
+				}
+				applyFormValues(sameGroup as MedicationRequestRecordForEdit[])
+			}
+
+			loadGroup()
     } else if (!isEdit) {
       form.setFieldsValue({
         status: MedicationRequestStatus.ACTIVE,
@@ -437,101 +599,411 @@ export function MedicationRequestForm() {
       const compounds = values.compounds ?? []
       const otherItems = values.otherItems ?? []
 
-      const firstItem = items.length > 0 ? items[0] : undefined
+				type DetailWithGroup = FormData & {
+					id: number
+					groupIdentifier?: {
+						system?: string
+						value?: string
+					} | null
+				}
 
-      type DetailWithGroup = FormData & {
-        id: number
-        groupIdentifier?: {
-          system?: string
-          value?: string
-        } | null
-      }
+				const detail = (detailData?.data as DetailWithGroup | undefined) || undefined
+				const baseId = Number(id)
+				const sourceRecords =
+					Array.isArray(originalGroupRecords) && originalGroupRecords.length > 0
+						? originalGroupRecords
+						: detail
+							? [(detail as unknown) as MedicationRequestRecordForEdit]
+							: []
 
-      const detail = (detailData?.data as DetailWithGroup | undefined) || undefined
+				const simpleRecords = sourceRecords.filter((record) => {
+					const categories = record.category ?? []
+					const isCompound = categories.some((entry) => {
+						const code = entry.code?.toLowerCase()
+						const text = entry.text?.toLowerCase()
+						return code === 'compound' || text === 'racikan'
+					})
+					return !isCompound && typeof record.medicationId === 'number'
+				})
 
-      const extraItems = items.slice(1)
-      const hasExtraItems = extraItems.length > 0
-      const hasCompounds = compounds.length > 0
+				const compoundRecords = sourceRecords.filter((record) => {
+					const categories = record.category ?? []
+					return categories.some((entry) => {
+						const code = entry.code?.toLowerCase()
+						const text = entry.text?.toLowerCase()
+						return code === 'compound' || text === 'racikan'
+					})
+				})
 
-      const baseGroupIdentifier = detail?.groupIdentifier ?? undefined
+				const itemRecords = sourceRecords.filter(
+					(record) => typeof record.itemId === 'number' && record.itemId > 0
+				)
 
-      const groupIdentifier = hasExtraItems || hasCompounds
-        ? baseGroupIdentifier ?? {
-            system: 'http://sys-ids/prescription-group',
-            value: `${Date.now()}`
-          }
-        : baseGroupIdentifier
+				const existingGroupIdentifier =
+					detail?.groupIdentifier ??
+					(simpleRecords.find((record) => record.groupIdentifier)?.groupIdentifier ??
+						compoundRecords.find((record) => record.groupIdentifier)?.groupIdentifier ??
+							itemRecords.find((record) => record.groupIdentifier)?.groupIdentifier ?? null)
 
-      const updatePayload = {
-        ...baseCommonPayload,
-        medicationId: firstItem?.medicationId,
-        dosageInstruction: firstItem?.dosageInstruction
-          ? [{ text: firstItem.dosageInstruction }]
-          : null,
-        note: firstItem?.note ?? null,
-        dispenseRequest: buildDispenseRequest(firstItem?.quantity, firstItem?.quantityUnit),
-        groupIdentifier
-      }
+				const hasNewSimple = items.length > simpleRecords.length
+				const hasNewCompound = compounds.length > compoundRecords.length
+				const hasNewItems = (values.otherItems ?? []).length > itemRecords.length
 
-      const extraSimplePayloads = groupIdentifier
-        ? extraItems.map((item) => ({
-            ...baseCommonPayload,
-            groupIdentifier,
-            medicationId: item.medicationId,
-            dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
-            note: item.note,
-            dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)
-          }))
-        : []
+				const groupIdentifierForEdit: GroupIdentifierInfo | null =
+					existingGroupIdentifier ??
+					(hasNewSimple || hasNewCompound || hasNewItems
+						? {
+								 system: 'http://sys-ids/prescription-group',
+								 value: `${Date.now()}`
+							 }
+						: null)
 
-      const extraCompoundPayloads = groupIdentifier
-        ? compounds.flatMap((comp, idx) => {
-            const compoundId = `${Date.now()}-comp-${idx}`
-            const compoundItems = comp.items ?? []
-            return compoundItems
-              .filter((item) => typeof item.medicationId === 'number')
-              .map((item) => ({
-                ...baseCommonPayload,
-                groupIdentifier,
-                medicationId: item.medicationId as number,
-                dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
-                identifier: [{ system: 'racikan-group', value: compoundId }],
-                note: `[Racikan: ${comp.name}] ${item.note || ''}`,
-                category: [{ text: 'racikan', code: 'compound' }],
-                dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit)
-              }))
-          })
-        : []
+				interface UpdatePayload {
+					status: MedicationRequestStatus
+					intent: MedicationRequestIntent
+					priority?: MedicationRequestPriority
+					patientId: string
+					encounterId?: string | null
+					requesterId?: number | null
+					authoredOn: string | null
+					medicationId?: number | null
+					itemId?: number | null
+					note?: string | null
+					groupIdentifier?: {
+						system?: string
+						value?: string
+					} | null
+					dosageInstruction?: { text?: string }[] | null
+					dispenseRequest?: {
+						quantity?: {
+							value?: number
+							unit?: string
+						}
+					} | null
+					category?: CategoryInfo[] | null
+					identifier?: IdentifierInfo[] | null
+					supportingInformation?: SupportingInformationItemInfo[] | null
+				}
 
-      const extraItemPayloads = groupIdentifier
-        ? otherItems
-            .filter((it) => typeof it.itemId === 'number' && it.itemId > 0)
-            .map((it) => ({
-              ...baseCommonPayload,
-              groupIdentifier,
-              itemId: it.itemId,
-              medicationId: null,
-              note: it.instruction ?? null,
-              dispenseRequest:
-                typeof it.quantity === 'number'
-                  ? buildDispenseRequest(it.quantity, it.unitCode)
-                  : null
-            }))
-        : []
+				const updates: { id: number; payload: UpdatePayload }[] = []
+				const deleteIds: number[] = []
 
-      const createPayload = [...extraSimplePayloads, ...extraCompoundPayloads, ...extraItemPayloads]
+				const simpleCount = Math.min(simpleRecords.length, items.length)
+				for (let indexSimple = 0; indexSimple < simpleCount; indexSimple += 1) {
+					const record = simpleRecords[indexSimple]
+					if (typeof record.id !== 'number') {
+						continue
+					}
+					const item = items[indexSimple]
+					const groupIdentifier =
+						groupIdentifierForEdit ?? record.groupIdentifier ?? detail?.groupIdentifier ?? null
+					updates.push({
+						id: record.id,
+						payload: {
+							...baseCommonPayload,
+							medicationId: item.medicationId,
+							itemId: null,
+							note: item.note ?? null,
+							groupIdentifier,
+							dosageInstruction: item.dosageInstruction
+								? [{ text: item.dosageInstruction }]
+								: null,
+							dispenseRequest: buildDispenseRequest(
+								item.quantity,
+								item.quantityUnit
+							),
+							category: record.category ?? null,
+							identifier: record.identifier ?? null,
+							supportingInformation: record.supportingInformation ?? null
+						}
+					})
+				}
 
-      await updateMutation.mutateAsync({ ...updatePayload, id: Number(id) })
+				interface CompoundInputItem {
+					name: string
+					dosageInstruction?: string
+					quantity?: number
+					quantityUnit?: string
+					medicationId?: number
+					note?: string
+				}
 
-      if (createPayload.length > 0) {
-        const fn = window.api?.query?.medicationRequest?.create
-        if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
-        await fn(createPayload)
-      }
+				const compoundInputs: CompoundInputItem[] = []
+				compounds.forEach((compound) => {
+					const compoundItems = compound.items ?? []
+					compoundItems.forEach((entry) => {
+						if (typeof entry.medicationId === 'number') {
+							compoundInputs.push({
+								name: compound.name,
+								dosageInstruction: compound.dosageInstruction,
+								quantity: compound.quantity,
+								quantityUnit: compound.quantityUnit,
+								medicationId: entry.medicationId,
+								note: entry.note
+							})
+						}
+					})
+				})
 
-      queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
-      queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'detail', id] })
-      navigate('/dashboard/medicine/medication-requests')
+				const compoundCount = Math.min(
+					compoundRecords.length,
+					compoundInputs.length
+				)
+				for (let indexCompound = 0; indexCompound < compoundCount; indexCompound += 1) {
+					const record = compoundRecords[indexCompound]
+					if (typeof record.id !== 'number') {
+						continue
+					}
+					const input = compoundInputs[indexCompound]
+					const groupIdentifier =
+						groupIdentifierForEdit ?? record.groupIdentifier ?? detail?.groupIdentifier ?? null
+					const compoundNotePrefix = input.name ? `[Racikan: ${input.name}]` : '[Racikan]'
+					const fullNote = input.note
+						? `${compoundNotePrefix} ${input.note}`
+						: compoundNotePrefix
+					updates.push({
+						id: record.id,
+						payload: {
+							...baseCommonPayload,
+							medicationId:
+								typeof input.medicationId === 'number'
+									? input.medicationId
+									: null,
+							itemId: null,
+							note: fullNote,
+							groupIdentifier,
+							dosageInstruction: input.dosageInstruction
+								? [{ text: input.dosageInstruction }]
+								: null,
+							dispenseRequest: buildDispenseRequest(
+								input.quantity,
+								input.quantityUnit
+							),
+							category:
+								record.category && record.category.length > 0
+									? record.category
+									: [{ text: 'racikan', code: 'compound' }],
+							identifier: record.identifier ?? null,
+							supportingInformation: record.supportingInformation ?? null
+						}
+					})
+				}
+
+				const otherItemInputs = otherItems.filter(
+					(entry) => typeof entry.itemId === 'number' && entry.itemId > 0
+				)
+				const itemCount = Math.min(itemRecords.length, otherItemInputs.length)
+				for (let indexItem = 0; indexItem < itemCount; indexItem += 1) {
+					const record = itemRecords[indexItem]
+					if (typeof record.id !== 'number') {
+						continue
+					}
+					const input = otherItemInputs[indexItem]
+					const groupIdentifier =
+						groupIdentifierForEdit ?? record.groupIdentifier ?? detail?.groupIdentifier ?? null
+					const existingDispense = record.dispenseRequest ?? null
+					const newDispense =
+						typeof input.quantity === 'number'
+							? buildDispenseRequest(input.quantity, input.unitCode)
+							: existingDispense
+					updates.push({
+						id: record.id,
+						payload: {
+							...baseCommonPayload,
+							medicationId: null,
+							itemId: input.itemId,
+							note: input.instruction ?? record.note ?? null,
+							groupIdentifier,
+							dosageInstruction: record.dosageInstruction ?? null,
+							dispenseRequest: newDispense,
+							category: record.category ?? null,
+							identifier: record.identifier ?? null,
+							supportingInformation: record.supportingInformation ?? null
+						}
+					})
+				}
+
+				const simpleRemainingStart = simpleCount
+				for (
+					let indexSimpleRemain = simpleRemainingStart;
+					indexSimpleRemain < simpleRecords.length;
+					indexSimpleRemain += 1
+				) {
+					const record = simpleRecords[indexSimpleRemain]
+					if (typeof record.id === 'number') {
+						deleteIds.push(record.id)
+					}
+				}
+
+				const compoundRemainingStart = compoundCount
+				for (
+					let indexCompoundRemain = compoundRemainingStart;
+					indexCompoundRemain < compoundRecords.length;
+					indexCompoundRemain += 1
+				) {
+					const record = compoundRecords[indexCompoundRemain]
+					if (typeof record.id === 'number') {
+						deleteIds.push(record.id)
+					}
+				}
+
+				const itemRemainingStart = itemCount
+				for (
+					let indexItemRemain = itemRemainingStart;
+					indexItemRemain < itemRecords.length;
+					indexItemRemain += 1
+				) {
+					const record = itemRecords[indexItemRemain]
+					if (typeof record.id === 'number') {
+						deleteIds.push(record.id)
+					}
+				}
+
+				const api = window.api?.query as {
+					medicationRequest?: {
+						deleteById?: (args: { id: number }) => Promise<{ success: boolean }>
+						create?: (args: unknown) => Promise<{
+							success: boolean
+							data?: unknown
+						}>
+					}
+				}
+				const deleteFn = api?.medicationRequest?.deleteById
+				const createFn = api?.medicationRequest?.create
+
+				const extraSimplePayloads: UpdatePayload[] = []
+				if (items.length > simpleRecords.length) {
+					const groupIdentifier = groupIdentifierForEdit
+					for (
+						let indexSimpleNew = simpleRecords.length;
+						indexSimpleNew < items.length;
+						indexSimpleNew += 1
+					) {
+						const item = items[indexSimpleNew]
+						extraSimplePayloads.push({
+							...baseCommonPayload,
+							medicationId: item.medicationId,
+							itemId: null,
+							note: item.note ?? null,
+							groupIdentifier,
+							dosageInstruction: item.dosageInstruction
+								? [{ text: item.dosageInstruction }]
+								: null,
+							dispenseRequest: buildDispenseRequest(
+								item.quantity,
+								item.quantityUnit
+							),
+							category: null,
+							identifier: null,
+							supportingInformation: null
+						})
+					}
+				}
+
+				const extraCompoundPayloads: UpdatePayload[] = []
+				if (compoundInputs.length > compoundRecords.length) {
+					const groupIdentifier = groupIdentifierForEdit
+					for (
+						let indexCompoundNew = compoundRecords.length;
+						indexCompoundNew < compoundInputs.length;
+						indexCompoundNew += 1
+					) {
+						const input = compoundInputs[indexCompoundNew]
+						const compoundNotePrefix = input.name ? `[Racikan: ${input.name}]` : '[Racikan]'
+						const fullNote = input.note
+							? `${compoundNotePrefix} ${input.note}`
+							: compoundNotePrefix
+						extraCompoundPayloads.push({
+							...baseCommonPayload,
+							medicationId:
+								typeof input.medicationId === 'number'
+									? input.medicationId
+									: null,
+							itemId: null,
+							note: fullNote,
+							groupIdentifier,
+							dosageInstruction: input.dosageInstruction
+								? [{ text: input.dosageInstruction }]
+								: null,
+							dispenseRequest: buildDispenseRequest(
+								input.quantity,
+								input.quantityUnit
+							),
+							category: [{ text: 'racikan', code: 'compound' }],
+							identifier: null,
+							supportingInformation: null
+						})
+					}
+				}
+
+				const extraItemPayloads: UpdatePayload[] = []
+				if (otherItemInputs.length > itemRecords.length) {
+					const groupIdentifier = groupIdentifierForEdit
+					for (
+						let indexItemNew = itemRecords.length;
+						indexItemNew < otherItemInputs.length;
+						indexItemNew += 1
+					) {
+						const input = otherItemInputs[indexItemNew]
+						extraItemPayloads.push({
+							...baseCommonPayload,
+							medicationId: null,
+							itemId: input.itemId,
+							note: input.instruction ?? null,
+							groupIdentifier,
+							dosageInstruction: null,
+							dispenseRequest:
+								typeof input.quantity === 'number'
+									? buildDispenseRequest(input.quantity, input.unitCode)
+									: null,
+							category: null,
+							identifier: null,
+							supportingInformation: null
+						})
+					}
+				}
+
+				if (updates.length === 0 && typeof baseId === 'number' && !Number.isNaN(baseId)) {
+					const firstItem = items.length > 0 ? items[0] : undefined
+					await updateMutation.mutateAsync({
+						...baseCommonPayload,
+						medicationId: firstItem?.medicationId,
+						note: firstItem?.note ?? null,
+						dosageInstruction: firstItem?.dosageInstruction
+							? [{ text: firstItem.dosageInstruction }]
+							: null,
+						dispenseRequest: buildDispenseRequest(
+							firstItem?.quantity,
+							firstItem?.quantityUnit
+						),
+						id: baseId
+					})
+				} else {
+					for (const entry of updates) {
+						await updateMutation.mutateAsync({ ...entry.payload, id: entry.id })
+					}
+				}
+
+				if (createFn) {
+					const allCreatePayloads = [
+						...extraSimplePayloads,
+						...extraCompoundPayloads,
+						...extraItemPayloads
+					]
+					if (allCreatePayloads.length > 0) {
+						await createFn(allCreatePayloads)
+					}
+				}
+
+				if (deleteFn && deleteIds.length > 0) {
+					for (const deleteId of deleteIds) {
+						await deleteFn({ id: deleteId })
+					}
+				}
+
+				queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
+				queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'detail', id] })
+				navigate('/dashboard/medicine/medication-requests')
     } else {
       const items = values.items || []
       const compounds = values.compounds || []
@@ -729,7 +1201,7 @@ export function MedicationRequestForm() {
                           <Input placeholder="Catatan..." />
                         </Form.Item>
                       </div>
-                      {fields.length > 1 && index > 0 && (
+					  {fields.length > 0 && (
                         <Button
                           type="text"
                           danger
