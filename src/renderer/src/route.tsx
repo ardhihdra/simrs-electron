@@ -39,7 +39,9 @@ import Services from './pages/services/services'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import Pharmacy from './pages/pharmacy/Pharmacy'
+import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
 import PharmacyProduction from './pages/pharmacy-production/PharmacyProduction'
+import FarmasiDashboard from './pages/pharmacy-production/farmasi-dashboard'
 import RawMaterialCategoryTable from './pages/pharmacy-production/raw-material-category-table'
 import RawMaterialCategoryForm from './pages/pharmacy-production/raw-material-category-form'
 import RawMaterialTable from './pages/pharmacy-production/raw-material-table'
@@ -141,6 +143,7 @@ function MainRoute() {
             <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
           </Route>
           <Route path="medicine" element={<Pharmacy />}>
+				<Route index element={<PharmacyDashboard />} />
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
             <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
             <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
@@ -157,8 +160,9 @@ function MainRoute() {
             <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
           </Route>
-          <Route path="farmasi" element={<PharmacyProduction />}>
-            <Route path="raw-materials" element={<RawMaterialTable />} />
+			<Route path="farmasi" element={<PharmacyProduction />}>
+				<Route index element={<FarmasiDashboard />} />
+				<Route path="raw-materials" element={<RawMaterialTable />} />
             <Route path="raw-materials/create" element={<RawMaterialForm />} />
             <Route path="raw-materials/edit/:id" element={<RawMaterialForm />} />
             <Route path="items" element={<ItemTable />} />

@@ -171,12 +171,24 @@ const columns = [
     title: 'Status',
     dataIndex: 'status',
     key: 'status',
-		render: (val: string, record: ParentRow) => {
-			if (val === 'active' && record.isPartial) {
-				return <Tag color="gold">active (parsial)</Tag>
+			render: (val: string, record: ParentRow) => {
+				if (val === 'active') {
+					const numericQuantities: number[] = record.items
+						.map((item) => item.quantity)
+						.filter((q): q is number => typeof q === 'number')
+					const hasQuantity = numericQuantities.length > 0
+					const allZero = hasQuantity && numericQuantities.every((q) => q <= 0)
+
+					if (allZero) {
+						return <Tag color="blue">dispense</Tag>
+					}
+					if (record.isPartial) {
+						return <Tag color="gold">active (parsial)</Tag>
+					}
+					return <Tag color="green">active</Tag>
+				}
+				return <Tag color="default">{val}</Tag>
 			}
-			return <Tag color={val === 'active' ? 'green' : 'default'}>{val}</Tag>
-		}
   },
   {
     title: 'Tujuan',

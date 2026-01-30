@@ -165,6 +165,7 @@ const items = [
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
     children: [
+      { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <DashboardOutlined /> },
       { label: 'Master Obat - Kategori', key: '/dashboard/medicine/medicine-categories', icon: <DashboardOutlined /> },
       { label: 'Master Obat - Merek', key: '/dashboard/medicine/medicine-brands', icon: <DashboardOutlined /> },
       { label: 'Master Obat', key: '/dashboard/medicine/medicines', icon: <DashboardOutlined /> },
@@ -177,6 +178,7 @@ const items = [
     key: '/dashboard/farmasi',
     icon: <WalletOutlined />,
     children: [
+      { label: 'Dashboard Farmasi', key: '/dashboard/farmasi', icon: <DashboardOutlined /> },
       { label: 'Bahan Baku', key: '/dashboard/farmasi/raw-materials', icon: <DashboardOutlined /> },
       { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
       { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
