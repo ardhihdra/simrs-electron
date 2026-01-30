@@ -1,4 +1,4 @@
-import { Button, Input, Table, Tag, message, Modal, Segmented } from 'antd'
+import { Button, Input, Table, Tag, Modal, Segmented, App as AntdApp } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
@@ -33,16 +33,35 @@ interface DosageInstructionEntry {
 
 interface MedicationInfo {
 	name?: string
+	stock?: number
+	uom?: string
 }
 
 interface PerformerInfo {
 	name?: string
 }
 
+interface CategoryEntryInfo {
+	text?: string
+	code?: string
+}
+
+interface AuthorizingPrescriptionInfo {
+	id?: number
+	note?: string | null
+	category?: CategoryEntryInfo[] | null
+	medication?: MedicationInfo
+	item?: {
+		nama?: string
+	} | null
+	dosageInstruction?: DosageInstructionEntry[] | null
+}
+
 interface MedicationDispenseAttributes {
 	id?: number
 	status: string
-	medicationId: number
+	medicationId?: number | null
+	itemId?: number | null
 	patientId: string
 	authorizingPrescriptionId?: number | null
 	whenHandedOver?: string
@@ -51,6 +70,7 @@ interface MedicationDispenseAttributes {
 	medication?: MedicationInfo
 	performer?: PerformerInfo
 	dosageInstruction?: DosageInstructionEntry[] | null
+	authorizingPrescription?: AuthorizingPrescriptionInfo | null
 }
 
 interface MedicationDispenseListArgs {
@@ -102,6 +122,7 @@ interface DispenseItemRow {
 	status: string
 	performerName?: string
 	instruksi?: string
+	availableStock?: number
 }
 
 interface ParentRow {
@@ -116,10 +137,15 @@ type StatusFilter = 'all' | 'completed' | 'return'
 
 function getStatusLabel(status: string): string {
 	if (status === 'entered-in-error') return 'return'
+	if (status === 'cancelled' || status === 'stopped' || status === 'declined') return 'cancel'
+	if (status === 'preparation' || status === 'in-progress') return 'pending'
+	if (status === 'on-hold') return 'hold'
 	return status
 }
 
 function RowActions({ record, patient }: { record: DispenseItemRow; patient?: PatientInfo }) {
+	const { message } = AntdApp.useApp()
+
 	const updateMutation = useMutation({
 		mutationKey: ['medicationDispense', 'update', 'complete'],
 		mutationFn: async () => {
@@ -182,7 +208,12 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
 		record.status === 'cancelled' ||
 		record.status === 'declined' ||
 		record.status === 'entered-in-error'
-	const canComplete = !isCompleted && !isTerminal && typeof record.id === 'number'
+	const quantityToDispense = typeof record.quantity === 'number' ? record.quantity : 0
+	const hasStockInfo = typeof record.availableStock === 'number'
+	const isStockInsufficient =
+		hasStockInfo && quantityToDispense > (record.availableStock as number)
+	const canComplete =
+		!isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient
 	const canVoid = isCompleted && typeof record.id === 'number'
 
 	const handlePrintLabel = () => {
@@ -257,46 +288,53 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
 		}, 1000)
 	}
 
-	return (
-		<div className="flex gap-2">
-			{canComplete && (
-				<Button
-					type="primary"
-					size="small"
-					disabled={updateMutation.isPending}
-					loading={updateMutation.isPending}
-					onClick={() => updateMutation.mutate()}
-				>
-					Serahkan Obat
-				</Button>
-			)}
-			{canVoid && (
-				<Button
-					type="default"
-					size="small"
-					danger
-					disabled={voidMutation.isPending}
-					loading={voidMutation.isPending}
-					onClick={() => {
-						Modal.confirm({
-							title: 'Konfirmasi Return / Void',
-							content:
-								'Yakin ingin melakukan Return / Void dispense ini? Stok obat akan dikembalikan.',
-							okText: 'Ya, Return / Void',
-							cancelText: 'Batal',
-							okButtonProps: { danger: true },
-							onOk: () => voidMutation.mutate()
-						})
-					}}
-				>
-					Return / Void
-				</Button>
-			)}
-			<Button type="default" size="small" onClick={handlePrintLabel}>
-				Cetak Label
-			</Button>
-		</div>
-	)
+		return (
+			<div className="flex flex-col items-start gap-1">
+				<div className="flex gap-2">
+					{canComplete && (
+						<Button
+							type="primary"
+							size="small"
+							disabled={updateMutation.isPending || isStockInsufficient}
+							loading={updateMutation.isPending}
+							onClick={() => updateMutation.mutate()}
+						>
+							Serahkan Obat
+						</Button>
+					)}
+					{canVoid && (
+						<Button
+							type="default"
+							size="small"
+							danger
+							disabled={voidMutation.isPending}
+							loading={voidMutation.isPending}
+							onClick={() => {
+								Modal.confirm({
+									title: 'Konfirmasi Return / Void',
+									content:
+										'Yakin ingin melakukan Return / Void dispense ini? Stok obat akan dikembalikan.',
+									okText: 'Ya, Return / Void',
+									cancelText: 'Batal',
+									okButtonProps: { danger: true },
+									onOk: () => voidMutation.mutate()
+								})
+							}}
+						>
+							Return / Void
+						</Button>
+					)}
+					<Button type="default" size="small" onClick={handlePrintLabel}>
+						Cetak Label
+					</Button>
+				</div>
+				{isStockInsufficient && (
+					<div className="text-xs text-red-500">
+						Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
+					</div>
+				)}
+			</div>
+		)
 }
 
 function getPatientDisplayName(patient?: PatientInfo): string {
@@ -366,6 +404,8 @@ const columns = [
 ]
 
 export function MedicationDispenseTable() {
+	const { message } = AntdApp.useApp()
+
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [search, setSearch] = useState('')
@@ -421,10 +461,6 @@ export function MedicationDispenseTable() {
 			? data.data
 			: []
 
-		if (showOnlyPending) {
-			source = source.filter((item) => item.status !== 'completed')
-		}
-
 		if (typeof prescriptionIdParam === 'number') {
 			source = source.filter((item) => item.authorizingPrescriptionId === prescriptionIdParam)
 		}
@@ -443,7 +479,7 @@ export function MedicationDispenseTable() {
 			const medicineName = item.medication?.name?.toLowerCase() ?? ''
 			return patientName.includes(q) || medicineName.includes(q)
 		})
-		}, [data?.data, search, showOnlyPending, prescriptionIdParam, statusFilter])
+		}, [data?.data, search, prescriptionIdParam, statusFilter])
 
 	const summaryForPrescription = useMemo(() => {
 		if (typeof prescriptionIdParam !== 'number') return undefined
@@ -501,23 +537,63 @@ export function MedicationDispenseTable() {
 
 			const quantityValue = item.quantity?.value
 			const quantityUnit = item.quantity?.unit
-			const jenis = 'Obat Biasa'
 			const instruksi = getInstructionText(item.dosageInstruction)
+			const isItem = typeof item.itemId === 'number' && item.itemId > 0
+			const prescription = item.authorizingPrescription
+			const categories = Array.isArray(prescription?.category) ? prescription?.category : []
+			const hasRacikanCategory = categories.some((cat) => {
+				const text = cat.text?.toLowerCase() ?? ''
+				const code = cat.code?.toLowerCase() ?? ''
+				return text.includes('racikan') || code === 'compound'
+			})
+			const noteText = (prescription?.note ?? '').toLowerCase()
+			const isRacikan = hasRacikanCategory || noteText.includes('racikan')
+
+			let jenis: string
+			if (isItem) {
+				jenis = 'Item'
+			} else if (isRacikan) {
+				jenis = 'Obat Racikan'
+			} else {
+				jenis = 'Obat Biasa'
+			}
+
+			let medicineName: string | undefined
+			if (isItem) {
+				const itemNameFromPrescription = prescription?.item?.nama
+				medicineName = itemNameFromPrescription ?? item.medication?.name
+			} else if (isRacikan) {
+				const baseName = item.medication?.name ?? prescription?.medication?.name
+				const rawNote = prescription?.note ?? ''
+				const note = rawNote.trim()
+				if (note.length > 0 && baseName) {
+					medicineName = `${baseName} - ${note}`
+				} else if (baseName) {
+					medicineName = baseName
+				} else if (note.length > 0) {
+					medicineName = note
+				} else {
+					medicineName = undefined
+				}
+			} else {
+				medicineName = item.medication?.name ?? prescription?.medication?.name
+			}
 
 			const handedOverAt = item.whenHandedOver
 				? dayjs(item.whenHandedOver).format('DD/MM/YYYY HH:mm')
 				: '-'
 
 			const rowItem: DispenseItemRow = {
-				key: `${key}-${item.id ?? item.medicationId}`,
+				key: `${key}-${item.id ?? item.medicationId ?? item.itemId ?? ''}`,
 				id: item.id,
 				jenis,
-				medicineName: item.medication?.name,
+				medicineName,
 				quantity: typeof quantityValue === 'number' ? quantityValue : undefined,
 				unit: quantityUnit,
 				status: item.status,
 				performerName: item.performer?.name,
-				instruksi
+				instruksi,
+				availableStock: typeof item.medication?.stock === 'number' ? item.medication.stock : undefined
 			}
 
 			const existing = groups.get(key)
@@ -536,6 +612,13 @@ export function MedicationDispenseTable() {
 
 		return Array.from(groups.values())
 	}, [filtered])
+
+	const groupedDataForTable = useMemo<ParentRow[]>(() => {
+		if (!showOnlyPending) return groupedData
+		return groupedData.filter((group) =>
+			group.items.some((item) => item.status !== 'completed')
+		)
+	}, [groupedData, showOnlyPending])
 
 		return (
 			<div>
@@ -607,7 +690,7 @@ export function MedicationDispenseTable() {
 			)}
 			{isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
 			<Table
-				dataSource={groupedData}
+				dataSource={groupedDataForTable}
 				columns={columns}
 				size="small"
 				className="mt-4 rounded-xl shadow-sm"

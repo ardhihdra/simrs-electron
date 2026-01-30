@@ -354,6 +354,15 @@ export function MedicationRequestTable() {
 					? racikanTitleMatch[1].trim()
 					: undefined
 
+			let remainingQuantity: number | undefined
+			const prescribedQuantity = record.dispenseRequest?.quantity?.value
+			if (typeof record.id === 'number' && typeof prescribedQuantity === 'number') {
+				const summary = dispensedSummaryByRequestId.get(record.id)
+				const completed = summary?.totalCompleted ?? 0
+				const diff = prescribedQuantity - completed
+				remainingQuantity = diff > 0 ? diff : 0
+			}
+
 			const item: MedicationItemRow = {
 				key: `${key}-${record.id ?? ''}`,
 				jenis: isItem ? 'Item' : compound ? 'Racikan' : 'Obat Biasa',
@@ -362,7 +371,10 @@ export function MedicationRequestTable() {
 					: compound
 						? racikanName ?? record.medication?.name ?? '-'
 						: record.medication?.name ?? '-',
-				quantity: record.dispenseRequest?.quantity?.value,
+				quantity:
+					typeof remainingQuantity === 'number'
+						? remainingQuantity
+						: record.dispenseRequest?.quantity?.value,
 				unit: record.dispenseRequest?.quantity?.unit,
 				instruksi: getInstructionText(record.dosageInstruction)
 			}

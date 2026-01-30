@@ -299,30 +299,8 @@ export default function MedicationDispenseFromRequest() {
 					typeof record.id === 'number' ? quantityOverrides[record.id] : undefined
 				const resolvedQuantity =
 					typeof overrideForRecord === 'number' ? overrideForRecord : quantityFromRequest
-				let stokSaatIniUntukRecord: number | undefined
-				const isItemUntukRecord = typeof record.itemId === 'number' && record.itemId > 0
-				if (isItemUntukRecord) {
-					const kodeItemRaw = typeof record.item?.kode === 'string' ? record.item.kode : ''
-					const kodeItem = kodeItemRaw.trim().toUpperCase()
-					if (kodeItem) {
-						const stockInfo = stockMapFromInventory.get(kodeItem)
-						if (stockInfo && typeof stockInfo.availableStock === 'number') {
-							stokSaatIniUntukRecord = stockInfo.availableStock
-						}
-					}
-				} else if (typeof record.medication?.stock === 'number') {
-					stokSaatIniUntukRecord = record.medication.stock
-				}
 				if (typeof resolvedQuantity !== 'number' || resolvedQuantity <= 0) {
 					throw new Error('Qty Diambil harus lebih dari 0')
-				}
-				if (
-					typeof stokSaatIniUntukRecord === 'number' &&
-					resolvedQuantity > stokSaatIniUntukRecord
-				) {
-					throw new Error(
-						`Qty Diambil tidak boleh melebihi stok yang tersedia (stok: ${stokSaatIniUntukRecord})`
-					)
 				}
 				toProcess.push({
 					record,
@@ -373,10 +351,8 @@ export default function MedicationDispenseFromRequest() {
 					return hasValidItemId && !hasMedicationLink
 				})
 			if (hasOnlyItemRequests) {
-				message.success(
-					'Dispense item berhasil. Mutasi stok tersimpan di Inventory, tidak muncul di daftar Medication Dispense.'
-				)
-				navigate('/dashboard/medicine/medication-requests')
+				message.success('Dispense item berhasil dibuat. Lanjutkan serahkan obat dari daftar Medication Dispense.')
+				navigate('/dashboard/medicine/medication-dispenses')
 				return
 			}
 			message.success('Dispense berhasil dibuat dari resep')
@@ -388,57 +364,28 @@ export default function MedicationDispenseFromRequest() {
 		}
 	})
 
-	const remainingQuantityFromHistory = useMemo(() => {
-		if (!detail || typeof detail.id !== 'number') return undefined
-		const prescribed = detail.dispenseRequest?.quantity?.value
-		if (typeof prescribed !== 'number') return undefined
-
+	const completedQuantityByRequestId = useMemo(() => {
+		const map = new Map<number, number>()
 		const source: MedicationDispenseForSummary[] = Array.isArray(dispenseListData?.data)
 			? dispenseListData.data
 			: []
 
-		let totalCompleted = 0
-
 		source.forEach((item) => {
-			if (item.authorizingPrescriptionId !== detail.id) return
+			const reqId = item.authorizingPrescriptionId
+			if (typeof reqId !== 'number') return
+			if (item.status !== 'completed') return
 			const qty = item.quantity?.value
 			if (typeof qty !== 'number') return
-			if (item.status === 'completed') {
-				totalCompleted += qty
-			}
+			const prev = map.get(reqId) ?? 0
+			map.set(reqId, prev + qty)
 		})
 
-		const remaining = prescribed - totalCompleted
-		if (remaining <= 0) return 0
-		return remaining
-	}, [detail, dispenseListData?.data])
+		return map
+	}, [dispenseListData?.data])
 
 	const isOutOfStockForCurrentQuantity = useMemo(() => {
-		if (!detail) return false
-		let stokSaatIni: number | undefined
-		if (typeof detail.medication?.stock === 'number') {
-			stokSaatIni = detail.medication.stock
-		}
-		const isItem = typeof detail.itemId === 'number' && detail.itemId > 0
-		if (isItem && !stokSaatIni) {
-			const kodeRaw = typeof detail.item?.kode === 'string' ? detail.item.kode : ''
-			const kode = kodeRaw.trim().toUpperCase()
-			if (kode) {
-				const stockInfo = stockMapFromInventory.get(kode)
-				if (stockInfo && typeof stockInfo.availableStock === 'number') {
-					stokSaatIni = stockInfo.availableStock
-				}
-			}
-		}
-		const baseQuantity = detail.dispenseRequest?.quantity?.value
-		const overrideForDetail =
-			typeof detail.id === 'number' ? quantityOverrides[detail.id] : undefined
-		const valueToUse =
-			typeof overrideForDetail === 'number' ? overrideForDetail : baseQuantity
-		if (typeof stokSaatIni !== 'number') return false
-		if (typeof valueToUse !== 'number') return false
-		return valueToUse > stokSaatIni
-	}, [detail, quantityOverrides, stockMapFromInventory])
+		return false
+	}, [])
 
 	const tableData: TableRow[] = useMemo(() => {
 		if (!detail) return []
@@ -448,7 +395,9 @@ export default function MedicationDispenseFromRequest() {
 				? groupListData
 				: [detail]
 
-		return records.map((record) => {
+		const rows: TableRow[] = []
+
+		records.forEach((record) => {
 			const quantityValue = record.dispenseRequest?.quantity?.value
 			const quantityUnit = record.dispenseRequest?.quantity?.unit
 			const instruksi = getInstructionText(record.dosageInstruction)
@@ -482,11 +431,26 @@ export default function MedicationDispenseFromRequest() {
 					? quantityOverrides[medicationRequestId]
 					: undefined
 
-			return {
+			const prescribed = typeof quantityValue === 'number' ? quantityValue : undefined
+			let remainingForRecord: number | undefined
+
+			if (typeof prescribed === 'number' && typeof medicationRequestId === 'number') {
+				const completed = completedQuantityByRequestId.get(medicationRequestId) ?? 0
+				const remaining = prescribed - completed
+				if (remaining <= 0) {
+					return
+				}
+				remainingForRecord = remaining
+			}
+
+			rows.push({
 				key: `${record.id ?? record.patientId}`,
 				jenis,
 				namaObat,
-				quantityDiminta: typeof quantityValue === 'number' ? quantityValue : undefined,
+				quantityDiminta:
+					typeof remainingForRecord === 'number' && remainingForRecord >= 0
+						? remainingForRecord
+						: prescribed,
 				unitDiminta: quantityUnit,
 				instruksi,
 				stokSaatIni,
@@ -494,22 +458,50 @@ export default function MedicationDispenseFromRequest() {
 				quantityDiambil:
 					typeof overrideForRecord === 'number'
 						? overrideForRecord
-						: typeof quantityValue === 'number'
-								? quantityValue
-								: undefined,
+						: (() => {
+							if (typeof remainingForRecord === 'number' && remainingForRecord > 0) {
+								return remainingForRecord
+							}
+							return prescribed
+						})(),
 				medicationRequestId
-			}
+			})
 		})
-	}, [detail, groupListData, stockMapFromInventory, quantityOverrides])
+
+		return rows
+	}, [detail, groupListData, stockMapFromInventory, quantityOverrides, completedQuantityByRequestId])
 
 	const isPrescriptionFulfilled = useMemo(() => {
-		if (!detail) return false
-		if (detail.status === 'completed') return true
-		if (typeof remainingQuantityFromHistory === 'number') {
-			return remainingQuantityFromHistory <= 0
+		const records: MedicationRequestDetail[] =
+			Array.isArray(groupListData) && groupListData.length > 0
+				? groupListData
+				: detail
+					? [detail]
+					: []
+
+		if (records.length === 0) return false
+
+		for (const record of records) {
+			if (record.status === 'completed') {
+				continue
+			}
+			const prescribed = record.dispenseRequest?.quantity?.value
+			if (typeof prescribed !== 'number') {
+				return false
+			}
+			const medicationRequestId =
+				typeof record.id === 'number' && Number.isFinite(record.id) ? record.id : undefined
+			const completed =
+				typeof medicationRequestId === 'number'
+					? completedQuantityByRequestId.get(medicationRequestId) ?? 0
+					: 0
+			if (completed < prescribed) {
+				return false
+			}
 		}
-		return false
-	}, [detail, remainingQuantityFromHistory])
+
+		return true
+	}, [detail, groupListData, completedQuantityByRequestId])
 
 	const isCreateDisabled =
 		isPrescriptionFulfilled || isOutOfStockForCurrentQuantity
@@ -540,8 +532,12 @@ export default function MedicationDispenseFromRequest() {
 					return row.quantityDiambil ?? row.quantityDiminta ?? null
 				}
 				const currentOverride = quantityOverrides[row.medicationRequestId]
+				const baseValue =
+					typeof row.quantityDiambil === 'number'
+						? row.quantityDiambil
+						: row.quantityDiminta
 				const current =
-					typeof currentOverride === 'number' ? currentOverride : row.quantityDiminta
+					typeof currentOverride === 'number' ? currentOverride : baseValue
 				return (
 					<InputNumber
 						min={0}
@@ -595,8 +591,7 @@ export default function MedicationDispenseFromRequest() {
 					</Button>
 					<Tooltip title={createDisabledReason}>
 						<Popconfirm
-							title="Konfirmasi Pengurangan Stok"
-							description="Apakah Anda yakin stok akan berkurang untuk obat/item yang dipilih?"
+							title="Konfirmasi pembuatan dispense"
 							okText="Ya"
 							cancelText="Tidak"
 							onConfirm={() => createDispenseMutation.mutate()}

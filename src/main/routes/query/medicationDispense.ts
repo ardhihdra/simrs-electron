@@ -197,26 +197,7 @@ export const createFromRequest = async (
       })
       const created = await parseBackendResponse(createRes, CreateSchema)
 
-      const createdId = created?.id
-
-      if (typeof createdId !== 'number') {
-        throw new Error('Gagal membuat MedicationDispense dari resep.')
-      }
-
-      const updateRes = await client.put(`/api/medicationdispense/${createdId}`, {
-        status: MedicationDispenseStatus.COMPLETED,
-        whenHandedOver: new Date().toISOString()
-      })
-
-      const UpdateSchema = z.object({
-        success: z.boolean(),
-        result: MedicationDispenseWithIdSchema.optional(),
-        error: z.string().optional(),
-        message: z.string().optional()
-      })
-      const updated = await parseBackendResponse(updateRes, UpdateSchema)
-
-      return { success: true, data: updated }
+      return { success: true, data: created }
     }
 
     if (hasItemId) {
@@ -225,32 +206,35 @@ export const createFromRequest = async (
         throw new Error('Qty Diambil harus lebih dari 0')
       }
 
-      const payload = {
-        medicationRequestId: request.id,
+      const unit = quantity?.unit
+
+      const payload: {
+        itemId: number
+        patientId: string
+        authorizingPrescriptionId: number
+        status: MedicationDispenseStatus
+        quantity: QuantityInfo
+      } = {
+        itemId: request.itemId as number,
+        patientId: request.patientId,
+        authorizingPrescriptionId: request.id,
+        status: MedicationDispenseStatus.PREPARATION,
         quantity: {
           value,
-          unit: quantity?.unit
+          unit
         }
       }
 
-      const inventoryRes = await client.post(
-        '/api/inventorystock/dispense-from-medication-request',
-        payload
-      )
-      const InventorySchema = z.object({
+      const createRes = await client.post('/api/medicationdispense', payload)
+      const CreateSchema = z.object({
         success: z.boolean(),
-        result: z
-          .object({
-            id: z.number().optional(),
-            status: z.string().optional()
-          })
-          .optional(),
+        result: MedicationDispenseWithIdSchema.optional(),
         error: z.string().optional(),
         message: z.string().optional()
       })
-      await parseBackendResponse(inventoryRes, InventorySchema)
+      const created = await parseBackendResponse(createRes, CreateSchema)
 
-      return { success: true, data: undefined }
+      return { success: true, data: created }
     }
 
     throw new Error(
