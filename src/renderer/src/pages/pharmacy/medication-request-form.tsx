@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Select, DatePicker, Card, Tooltip } from 'antd'
+import { Button, Form, Input, InputNumber, Select, DatePicker, Card, Tooltip, App as AntdApp } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
@@ -141,6 +141,7 @@ export function MedicationRequestForm() {
   const isEdit = Boolean(id)
   const [session, setSession] = useState<any>(null)
   const [originalGroupRecords, setOriginalGroupRecords] = useState<MedicationRequestRecordForEdit[]>([])
+  const { message } = AntdApp.useApp()
 
   const buildDispenseRequest = (quantity?: number, unit?: string) => {
     if (!quantity) return null
@@ -417,12 +418,17 @@ export function MedicationRequestForm() {
 				const baseRecord = records.find((r) => r.id === base.id) ?? records[0]
 
 				const allSimple = records.filter((r) => {
-					const isCompound = (r.category ?? []).some((c) => {
+					const categories = r.category ?? []
+					const isCompound = categories.some((c) => {
 						const code = c.code?.toLowerCase()
 						const text = c.text?.toLowerCase()
 						return code === 'compound' || text === 'racikan'
 					})
-					return !isCompound && typeof r.medicationId === 'number'
+					const hasRacikanIdentifier =
+						Array.isArray(r.identifier) &&
+						r.identifier.some((idEntry) => idEntry.system === 'racikan-group')
+					const hasItem = typeof r.itemId === 'number' && r.itemId > 0
+					return !isCompound && !hasRacikanIdentifier && !hasItem && typeof r.medicationId === 'number'
 				})
 
 				const compoundRecords = records.filter((r) => {
@@ -496,6 +502,12 @@ export function MedicationRequestForm() {
 					}
 				})
 
+				const shouldUseFallbackSimpleItem =
+					items.length === 0 &&
+					compoundRecords.length === 0 &&
+					itemRecords.length === 0 &&
+					typeof baseRecord.medicationId === 'number'
+
 				form.setFieldsValue({
 					status: baseRecord.status,
 					intent: baseRecord.intent,
@@ -504,18 +516,20 @@ export function MedicationRequestForm() {
 					encounterId: baseRecord.encounterId ?? null,
 					requesterId: baseRecord.requesterId ?? null,
 					authoredOn: baseRecord.authoredOn ? dayjs(baseRecord.authoredOn) : undefined,
-					items: items.length > 0 ? items : [
-						{
-							medicationId: baseRecord.medicationId ?? 0,
-							dosageInstruction:
-								baseRecord.dosageInstruction && baseRecord.dosageInstruction[0]
-									? baseRecord.dosageInstruction[0].text ?? ''
-									: '',
-							note: baseRecord.note ?? '',
-							quantity: baseRecord.dispenseRequest?.quantity?.value,
-							quantityUnit: baseRecord.dispenseRequest?.quantity?.unit
-						}
-					],
+					items: shouldUseFallbackSimpleItem
+						? [
+								{
+									medicationId: baseRecord.medicationId ?? 0,
+									dosageInstruction:
+										baseRecord.dosageInstruction && baseRecord.dosageInstruction[0]
+											? baseRecord.dosageInstruction[0].text ?? ''
+											: '',
+									note: baseRecord.note ?? '',
+									quantity: baseRecord.dispenseRequest?.quantity?.value,
+									quantityUnit: baseRecord.dispenseRequest?.quantity?.unit
+								}
+						  ]
+						: items,
 					compounds: compoundsForm,
 					otherItems: otherItemsForm
 				})
@@ -552,7 +566,7 @@ export function MedicationRequestForm() {
         intent: MedicationRequestIntent.ORDER,
         priority: MedicationRequestPriority.ROUTINE,
         authoredOn: dayjs(),
-        items: [{ medicationId: null as unknown as number }]
+				items: []
       })
     }
   }, [isEdit, detailData, form])
@@ -598,6 +612,17 @@ export function MedicationRequestForm() {
       const items = values.items ?? []
       const compounds = values.compounds ?? []
       const otherItems = values.otherItems ?? []
+
+			const invalidCompoundIndex = compounds.findIndex((compound) => {
+				const compoundItems = compound.items ?? []
+				return !Array.isArray(compoundItems) || compoundItems.length === 0
+			})
+
+			if (invalidCompoundIndex >= 0) {
+				const nomor = invalidCompoundIndex + 1
+				message.error(`Komposisi untuk Racikan ${nomor} wajib diisi minimal 1 item.`)
+				return
+			}
 
 				type DetailWithGroup = FormData & {
 					id: number
@@ -1001,13 +1026,24 @@ export function MedicationRequestForm() {
 					}
 				}
 
-				queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
-				queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'detail', id] })
-				navigate('/dashboard/medicine/medication-requests')
+    			queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
+    			queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'detail', id] })
+    			navigate('/dashboard/medicine/medication-requests')
     } else {
       const items = values.items || []
       const compounds = values.compounds || []
       const otherItems = values.otherItems || []
+
+			const invalidCompoundIndex = compounds.findIndex((compound) => {
+				const compoundItems = compound.items ?? []
+				return !Array.isArray(compoundItems) || compoundItems.length === 0
+			})
+
+			if (invalidCompoundIndex >= 0) {
+				const nomor = invalidCompoundIndex + 1
+				message.error(`Komposisi untuk Racikan ${nomor} wajib diisi minimal 1 item.`)
+				return
+			}
       const groupIdentifier = {
         system: 'http://sys-ids/prescription-group',
         value: `${Date.now()}`
@@ -1057,6 +1093,7 @@ export function MedicationRequestForm() {
 			const payload = [...simplePayloads, ...compoundPayloads, ...itemPayloads]
 
 			if (payload.length === 0) {
+				message.error('Minimal isi salah satu: Obat, Racikan, atau Item.')
 				return
 			}
 
@@ -1071,7 +1108,7 @@ export function MedicationRequestForm() {
           <h2 className="text-xl font-bold text-gray-800">{isEdit ? 'Ubah Permintaan Obat' : 'Permintaan Obat Baru'}</h2>
           <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>Kembali</Button>
         </div>
-        
+
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mb-6">
             {/* Header Fields (Patient & Context) */}
@@ -1121,10 +1158,10 @@ export function MedicationRequestForm() {
 
           <div className="border-t pt-4">
             <h3 className="font-semibold text-lg mb-4">Daftar Obat</h3>
-            <Form.List name="items">
-              {(fields, { add, remove }) => (
-                <div className="space-y-4">
-                  {fields.map(({ key, name, ...restField }, index) => (
+			<Form.List name="items">
+			  {(fields, { add, remove }) => (
+				<div className="space-y-4">
+				  {fields.map(({ key, name, ...restField }) => (
                     <div
                       key={`item-${key}`}
                       className="flex gap-4 items-start bg-gray-50 p-4 rounded-lg relative group"
@@ -1277,7 +1314,7 @@ export function MedicationRequestForm() {
 
                         <div className="pl-4 border-l-2 border-orange-200">
                           <p className="text-xs text-gray-500 mb-2 font-semibold">KOMPOSISI:</p>
-                          <Form.List name={[name, 'items']}>
+							  <Form.List name={[name, 'items']}>
                             {(subFields, subOpt) => (
                               <div className="space-y-2">
                                 {subFields.map((subField) => {
@@ -1381,10 +1418,10 @@ export function MedicationRequestForm() {
 
             <div className="mt-8">
               <h3 className="font-semibold text-lg mb-4">Daftar Item</h3>
-              <Form.List name="otherItems">
-                {(fields, { add, remove }) => (
-                  <div className="space-y-4">
-                    {fields.map(({ key, name, ...restField }, index) => (
+				  <Form.List name="otherItems">
+					        {(fields, { add, remove }) => (
+					          <div className="space-y-4">
+						            {fields.map(({ key, name, ...restField }) => (
                       <div
                         key={`otherItem-${key}`}
                         className="flex gap-4 items-start bg-gray-50 p-4 rounded-lg relative group"
@@ -1458,7 +1495,7 @@ export function MedicationRequestForm() {
                             </Form.Item>
                           </div>
                         </div>
-                        {fields.length > 0 && index >= 0 && (
+                        {fields.length > 0 && (
                           <Button
                             type="text"
                             danger

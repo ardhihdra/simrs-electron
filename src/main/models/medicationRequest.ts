@@ -62,10 +62,5 @@ export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({
 	requester: z.any().optional(),
 	encounter: z.any().optional(),
 	medication: z.any().optional(),
-	item: z
-		.object({
-			nama: z.string().optional()
-		})
-		.nullable()
-		.optional()
+	item: z.any().optional()
 })

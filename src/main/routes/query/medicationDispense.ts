@@ -142,8 +142,12 @@ export const createFromRequest = async (
       throw new Error('MedicationRequest tidak ditemukan.')
     }
 
-    if (typeof request.medicationId !== 'number' || typeof request.patientId !== 'string') {
-      throw new Error('MedicationRequest tidak memiliki medicationId atau patientId yang valid.')
+    const hasMedicationId = typeof request.medicationId === 'number'
+    const hasItemId = typeof request.itemId === 'number'
+    const hasPatientId = typeof request.patientId === 'string'
+
+    if (!hasPatientId) {
+      throw new Error('MedicationRequest tidak memiliki patientId yang valid.')
     }
 
     const rawDispense = request.dispenseRequest
@@ -166,33 +170,92 @@ export const createFromRequest = async (
       }
     }
 
-    const payload: {
-      medicationId: number
-      patientId: string
-      authorizingPrescriptionId: number
-      status: MedicationDispenseStatus
-      quantity?: QuantityInfo
-    } = {
-      medicationId: request.medicationId,
-      patientId: request.patientId,
-      authorizingPrescriptionId: request.id,
-      status: MedicationDispenseStatus.PREPARATION
+    if (hasMedicationId) {
+      const payload: {
+        medicationId: number
+        patientId: string
+        authorizingPrescriptionId: number
+        status: MedicationDispenseStatus
+        quantity?: QuantityInfo
+      } = {
+        medicationId: request.medicationId as number,
+        patientId: request.patientId,
+        authorizingPrescriptionId: request.id,
+        status: MedicationDispenseStatus.PREPARATION
+      }
+
+      if (quantity) {
+        payload.quantity = quantity
+      }
+
+      const createRes = await client.post('/api/medicationdispense', payload)
+      const CreateSchema = z.object({
+        success: z.boolean(),
+        result: MedicationDispenseWithIdSchema.optional(),
+        error: z.string().optional(),
+        message: z.string().optional()
+      })
+      const created = await parseBackendResponse(createRes, CreateSchema)
+
+      const createdId = created?.id
+
+      if (typeof createdId !== 'number') {
+        throw new Error('Gagal membuat MedicationDispense dari resep.')
+      }
+
+      const updateRes = await client.put(`/api/medicationdispense/${createdId}`, {
+        status: MedicationDispenseStatus.COMPLETED,
+        whenHandedOver: new Date().toISOString()
+      })
+
+      const UpdateSchema = z.object({
+        success: z.boolean(),
+        result: MedicationDispenseWithIdSchema.optional(),
+        error: z.string().optional(),
+        message: z.string().optional()
+      })
+      const updated = await parseBackendResponse(updateRes, UpdateSchema)
+
+      return { success: true, data: updated }
     }
 
-    if (quantity) {
-      payload.quantity = quantity
+    if (hasItemId) {
+      const value = quantity?.value
+      if (typeof value !== 'number' || value <= 0) {
+        throw new Error('Qty Diambil harus lebih dari 0')
+      }
+
+      const payload = {
+        medicationRequestId: request.id,
+        quantity: {
+          value,
+          unit: quantity?.unit
+        }
+      }
+
+      const inventoryRes = await client.post(
+        '/api/inventorystock/dispense-from-medication-request',
+        payload
+      )
+      const InventorySchema = z.object({
+        success: z.boolean(),
+        result: z
+          .object({
+            id: z.number().optional(),
+            status: z.string().optional()
+          })
+          .optional(),
+        error: z.string().optional(),
+        message: z.string().optional()
+      })
+      await parseBackendResponse(inventoryRes, InventorySchema)
+
+      return { success: true, data: undefined }
     }
 
-    const createRes = await client.post('/api/medicationdispense', payload)
-    const CreateSchema = z.object({
-      success: z.boolean(),
-      result: MedicationDispenseWithIdSchema.optional(),
-      error: z.string().optional(),
-      message: z.string().optional()
-    })
-    const created = await parseBackendResponse(createRes, CreateSchema)
-
-    return { success: true, data: created }
+    throw new Error(
+      'MedicationRequest ini tidak berisi obat atau item yang dapat diproses untuk dispense.'
+    )
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

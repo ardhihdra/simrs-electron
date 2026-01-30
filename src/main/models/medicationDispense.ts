@@ -25,8 +25,8 @@ const PatientSchema = z.object({
 })
 
 const MedicationSchema = z.object({
-  id: z.number().optional(),
-  name: z.string().optional()
+	id: z.number().optional(),
+	name: z.string().optional()
 })
 
 const PerformerSchema = z.object({
@@ -35,15 +35,15 @@ const PerformerSchema = z.object({
 })
 
 export const MedicationDispenseSchema = z.object({
-  status: z.nativeEnum(MedicationDispenseStatus),
-  medicationId: z.number(),
-  patientId: z.string(),
-  encounterId: z.string().nullable().optional(),
-  authorizingPrescriptionId: z.number().nullable().optional(),
-  quantity: QuantitySchema.nullable().optional(),
-  whenPrepared: z.string().or(z.date()).nullable().optional(),
-  whenHandedOver: z.string().or(z.date()).nullable().optional(),
-  performerId: z.number().nullable().optional()
+	status: z.nativeEnum(MedicationDispenseStatus),
+	medicationId: z.number().nullable().optional(),
+	patientId: z.string(),
+	encounterId: z.string().nullable().optional(),
+	authorizingPrescriptionId: z.number().nullable().optional(),
+	quantity: QuantitySchema.nullable().optional(),
+	whenPrepared: z.string().or(z.date()).nullable().optional(),
+	whenHandedOver: z.string().or(z.date()).nullable().optional(),
+	performerId: z.number().nullable().optional()
 })
 
 export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
@@ -51,7 +51,7 @@ export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional(),
-  patient: PatientSchema.optional(),
-  medication: MedicationSchema.optional(),
-  performer: PerformerSchema.nullable().optional()
+	patient: PatientSchema.optional(),
+	medication: MedicationSchema.nullable().optional(),
+	performer: PerformerSchema.nullable().optional()
 })
