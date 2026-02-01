@@ -91,6 +91,11 @@ const items = [
         icon: <CalendarOutlined />
       },
       {
+        label: 'Jadwal Libur Dokter',
+        key: '/dashboard/registration/doctor-leave',
+        icon: <CalendarOutlined />
+      },
+      {
         label: 'Data Jaminan',
         key: '/dashboard/registration/insurance',
         icon: <CalendarOutlined />
@@ -274,7 +279,7 @@ function Dashboard() {
     '/dashboard/services',
     '/dashboard/service-request',
     '/dashboard/pharmacy',
-    '/dashboard/nurse-calling',
+    '/dashboard/registration/doctor-leave',
     '/dashboard/nurse-calling',
     '/dashboard/doctor'
   ]
@@ -357,11 +362,11 @@ function Dashboard() {
   }, [location.pathname])
   return (
     <div className="min-h-screen flex">
-      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white flex flex-col`}>
-        <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200">
+      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white dark:bg-[#141414] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300`}>
+        <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-center gap-2">
             <img src={logoUrl} alt="Logo" className="w-8 h-8" />
-            <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}>SIMRS</span>
+            <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg dark:text-white'}`}>SIMRS</span>
           </div>
         </div>
         <Menu
@@ -370,38 +375,38 @@ function Dashboard() {
           mode="inline"
           inlineCollapsed={collapsed}
           items={sideItems}
-          className=""
+          className="dark:bg-[#141414]"
           style={{ borderInlineEnd: 0 }}
         />
         <div className="mt-auto px-4 py-3 flex justify-center">
           <button
             aria-label="Toggle sidebar"
-            className="p-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 shadow"
+            className="p-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 shadow transition-colors"
             onClick={() => setCollapsed((p) => !p)}
           >
             {collapsed ? <RightCircleFilled /> : <LeftCircleFilled />}
           </button>
         </div>
       </aside>
-      <div className="flex-1">
-        <header className="sticky top-0 z-50 bg-white border-b border-gray-200 h-14 px-4 flex items-center justify-between gap-4">
+      <div className="flex-1 flex flex-col">
+        <header className="sticky top-0 z-50 bg-white dark:bg-[#141414] border-b border-gray-200 dark:border-gray-800 h-14 px-4 flex items-center justify-between gap-4 transition-colors">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            className="flex-1"
+            className="flex-1 dark:bg-[#141414] border-none"
           />
           <SendNotificationButton />
           <NotificationBell />
           <ProfileMenu />
         </header>
-        <div className="p-4">
+        <div className="p-4 flex-1 bg-gray-50 dark:bg-[#000000]">
           {isRegisteredPath(location.pathname) ? (
             <Outlet />
           ) : (
             <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-              <div className="text-base md:text-lg font-medium">
+              <div className="text-base md:text-lg font-medium dark:text-gray-200">
                 {findLabelByPath(location.pathname)}
               </div>
             </div>

@@ -17,7 +17,6 @@ import type * as Mod_query_encounter from '@main/routes/query/encounter'
 import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
 import type * as Mod_query_export from '@main/routes/query/export'
-import type * as Mod_query_familyMemberHistory from '@main/routes/query/familyMemberHistory'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
@@ -37,31 +36,31 @@ import type * as Mod_user from '@main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-    ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
-      ? z.input<A>
-      : unknown
-    : unknown
+  ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
+  ? z.input<A>
+  : unknown
+  : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-    ? S[K] extends { args: infer A extends z.ZodTypeAny }
-      ? z.input<A>
-      : unknown
-    : unknown
+  ? S[K] extends { args: infer A extends z.ZodTypeAny }
+  ? z.input<A>
+  : unknown
+  : unknown
   : M extends { argsSchema: infer A extends z.ZodTypeAny }
   ? z.input<A>
   : unknown
 type InferResult<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-    ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
-      ? z.output<R>
-      : unknown
-    : unknown
+  ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
+  ? z.output<R>
+  : unknown
+  : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-    ? S[K] extends { result: infer R extends z.ZodTypeAny }
-      ? z.output<R>
-      : unknown
-    : unknown
+  ? S[K] extends { result: infer R extends z.ZodTypeAny }
+  ? z.output<R>
+  : unknown
+  : unknown
   : M extends { resultSchema: infer R extends z.ZodTypeAny }
   ? z.output<R>
   : unknown
@@ -257,16 +256,6 @@ type Args_Mod_query_pegawai_list = InferArgs<typeof Mod_query_pegawai, 'list'>
 type Result_Mod_query_pegawai_list = InferResult<typeof Mod_query_pegawai, 'list'>
 type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update'>
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
-type Args_Mod_query_poli_list = InferArgs<typeof Mod_query_poli, 'list'>
-type Result_Mod_query_poli_list = InferResult<typeof Mod_query_poli, 'list'>
-type Args_Mod_query_procedure_bulkCreate = InferArgs<typeof Mod_query_procedure, 'bulkCreate'>
-type Result_Mod_query_procedure_bulkCreate = InferResult<typeof Mod_query_procedure, 'bulkCreate'>
-type Args_Mod_query_procedure_getByEncounter = InferArgs<typeof Mod_query_procedure, 'getByEncounter'>
-type Result_Mod_query_procedure_getByEncounter = InferResult<typeof Mod_query_procedure, 'getByEncounter'>
-type Args_Mod_query_referral_create = InferArgs<typeof Mod_query_referral, 'create'>
-type Result_Mod_query_referral_create = InferResult<typeof Mod_query_referral, 'create'>
-type Args_Mod_query_referral_getByEncounter = InferArgs<typeof Mod_query_referral, 'getByEncounter'>
-type Result_Mod_query_referral_getByEncounter = InferResult<typeof Mod_query_referral, 'getByEncounter'>
 type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRequest, 'create'>
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
 type Args_Mod_query_serviceRequest_getByEncounter = InferArgs<typeof Mod_query_serviceRequest, 'getByEncounter'>
@@ -436,7 +425,11 @@ declare global {
           update: Invoke<Args_Mod_query_pegawai_update, Result_Mod_query_pegawai_update>
         }
         poli: {
+          create: Invoke<Args_Mod_query_poli_create, Result_Mod_query_poli_create>
+          deleteById: Invoke<Args_Mod_query_poli_deleteById, Result_Mod_query_poli_deleteById>
+          getById: Invoke<Args_Mod_query_poli_getById, Result_Mod_query_poli_getById>
           list: Invoke<Args_Mod_query_poli_list, Result_Mod_query_poli_list>
+          update: Invoke<Args_Mod_query_poli_update, Result_Mod_query_poli_update>
         }
         procedure: {
           bulkCreate: Invoke<Args_Mod_query_procedure_bulkCreate, Result_Mod_query_procedure_bulkCreate>
@@ -460,4 +453,4 @@ declare global {
     }
   }
 }
-export {}
+export { }
