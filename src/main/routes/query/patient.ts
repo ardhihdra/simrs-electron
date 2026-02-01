@@ -7,6 +7,56 @@ import {
   getClient
 } from '@main/utils/backendClient'
 
+type FhirIdentifier = {
+  system?: string
+  value?: string
+}
+
+type FhirName = {
+  text?: string
+  given?: string[]
+  family?: string
+}
+
+type RawPatient = {
+  id?: number | string
+  identifier?: string | null | FhirIdentifier[] | null
+  name?: string | FhirName[] | null
+}
+
+const normalizePatient = (raw: RawPatient) => {
+  let identifier: string | null | undefined =
+    typeof raw.identifier === 'string' || raw.identifier === null
+      ? raw.identifier
+      : null
+
+  if (Array.isArray(raw.identifier) && raw.identifier.length > 0) {
+    const first = raw.identifier[0]
+    if (first && typeof first.value === 'string') {
+      identifier = first.value
+    }
+  }
+
+  let name: string | undefined = typeof raw.name === 'string' ? raw.name : undefined
+  if (Array.isArray(raw.name) && raw.name.length > 0) {
+    const first = raw.name[0]
+    const text = typeof first.text === 'string' ? first.text.trim() : ''
+    const given0 =
+      Array.isArray(first.given) && typeof first.given[0] === 'string'
+        ? first.given[0].trim()
+        : ''
+    const family = typeof first.family === 'string' ? first.family.trim() : ''
+    const combined = [given0, family].filter(Boolean).join(' ')
+    name = text || combined || undefined
+  }
+
+  return {
+    ...(raw as Record<string, unknown>),
+    identifier,
+    name
+  }
+}
+
 export const requireSession = true
 
 export const schemas = {
@@ -53,12 +103,12 @@ export const list = async (ctx: IpcContext) => {
     console.log('[ipc:patient.list] GET /api/patient?items=100')
     const res = await client.get('/api/patient?items=100')
 
-    // Using PatientSchemaWithId for items as existing schema defines it
     const ListSchema = BackendListSchema(PatientSchemaWithId)
+    const raw = await parseBackendResponse(res, ListSchema)
+    const normalized = Array.isArray(raw) ? raw.map((p) => normalizePatient(p as RawPatient)) : []
 
-    const result = await parseBackendResponse(res, ListSchema)
-    console.log('[ipc:patient.list] received=', Array.isArray(result) ? result.length : 0)
-    return { success: true, data: result }
+    console.log('[ipc:patient.list] received=', normalized.length)
+    return { success: true, data: normalized }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ipc:patient.list] exception=', msg)
@@ -78,8 +128,9 @@ export const getById = async (_ctx: IpcContext, args: z.infer<typeof schemas.get
       error: z.any().optional()
     })
 
-    const result = await parseBackendResponse(res, BackendReadSchema)
-    return { success: true, data: result }
+    const raw = await parseBackendResponse(res, BackendReadSchema)
+    const normalized = raw ? normalizePatient(raw as RawPatient) : undefined
+    return { success: true, data: normalized }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

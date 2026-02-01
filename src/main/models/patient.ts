@@ -2,6 +2,17 @@ import { DataTypes } from 'sequelize'
 import { sequelize } from '@main/database'
 import z from 'zod'
 
+const FhirPatientIdentifierSchema = z.object({
+  system: z.string().optional(),
+  value: z.string().optional()
+})
+
+const FhirPatientNameEntrySchema = z.object({
+  text: z.string().optional(),
+  given: z.array(z.string()).optional(),
+  family: z.string().optional()
+})
+
 export const Patient = sequelize.define(
   'Patient',
   {
@@ -38,9 +49,17 @@ export const Patient = sequelize.define(
 
 export const PatientSchema = z.object({
   active: z.boolean().optional(),
-  identifier: z.string().nullable().optional(),
+  identifier: z
+    .union([
+      z.string().nullable(),
+      z.array(FhirPatientIdentifierSchema).nullable()
+    ])
+    .optional(),
   kode: z.string().min(1).optional(),
-  name: z.string().min(1),
+  name: z.union([
+    z.string().min(1),
+    z.array(FhirPatientNameEntrySchema)
+  ]),
   gender: z.enum(['male', 'female']),
   birthDate: z.union([z.date(), z.string()]),
   placeOfBirth: z.string().nullable().optional(),
