@@ -1,6 +1,6 @@
 import { Link, Route, Routes, useLocation } from 'react-router'
 
-import AppLayout from './components/AppLayout'
+import AppLayout from './components/templates/AppLayout'
 import HomePage from './pages/home'
 import Dashboard from './pages/Dashboard'
 import Expense from './pages/expense/Expense'
@@ -69,6 +69,12 @@ import QueueList from './pages/queue/queue-list'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
+import NurseCalling from './pages/nurse-calling/NurseCalling'
+import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
+import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
+import DoctorEMR from './pages/doctor-emr/doctor-emr'
+import PatientList from './pages/doctor-emr/patient-list'
+import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 
 function MainRoute() {
   const location = useLocation()
@@ -180,6 +186,30 @@ function MainRoute() {
             <Route path="production-requests" element={<ProductionRequestTable />} />
             <Route path="production-requests/create" element={<ProductionRequestForm />} />
             <Route path="production-requests/edit/:id" element={<ProductionRequestForm />} />
+          </Route>
+          <Route path="nurse-calling" element={<NurseCalling />}>
+            <Route index element={<PatientQueueTable />} />
+            <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />
+          </Route>
+          <Route path="doctor" element={<DoctorEMR />}>
+            <Route index element={<PatientList />} />
+            <Route path=":encounterId" element={<DoctorWorkspace />} />
+          </Route>
+          <Route path="services" element={<Services />}>
+            <Route index element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
+            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          </Route>
+          <Route path="pharmacy" element={<Pharmacy />}>
+            <Route path="medicine-categories" element={<MedicineCategoryTable />} />
+            <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
+            <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
+            <Route path="medicine-brands" element={<MedicineBrandTable />} />
+            <Route path="medicine-brands/create" element={<MedicineBrandForm />} />
+            <Route path="medicine-brands/edit/:id" element={<MedicineBrandForm />} />
+            <Route path="medicines" element={<MedicinesTable />} />
+            <Route path="medicines/create" element={<MedicinesForm />} />
+            <Route path="medicines/edit/:id" element={<MedicinesForm />} />
           </Route>
         </Route>
         <Route

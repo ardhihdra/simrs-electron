@@ -3,8 +3,8 @@ import type { MenuProps } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
-import ProfileMenu from '@renderer/components/ProfileMenu'
-import NotificationBell from '@renderer/components/NotificationBell'
+import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import logoUrl from '@renderer/assets/logo.png'
 import {
   CalendarOutlined,
@@ -12,7 +12,11 @@ import {
   LeftCircleFilled,
   RightCircleFilled,
   UserOutlined,
-  WalletOutlined
+  WalletOutlined,
+  PhoneOutlined,
+  FileTextOutlined,
+  MedicineBoxOutlined,
+  PlusCircleOutlined
 } from '@ant-design/icons'
 
 const SendNotificationButton = () => {
@@ -215,6 +219,30 @@ const items = [
     ]
   },
   {
+    label: 'Perawat',
+    key: '/dashboard/nurse-calling',
+    icon: <UserOutlined />,
+    children: [
+      {
+        label: 'Pemanggilan Pasien',
+        key: '/dashboard/nurse-calling',
+        icon: <PhoneOutlined />
+      }
+    ]
+  },
+  {
+    label: 'Dokter',
+    key: '/dashboard/doctor',
+    icon: <UserOutlined />,
+    children: [
+      {
+        label: 'Rekam Medis',
+        key: '/dashboard/doctor',
+        icon: <FileTextOutlined />
+      }
+    ]
+  },
+  {
     label: 'Sistem Antrian',
     key: '/dashboard/queue',
     icon: <UserOutlined />,
@@ -259,10 +287,12 @@ function Dashboard() {
     '/dashboard/diagnostic',
     '/dashboard/services',
     '/dashboard/service-request',
+    '/dashboard/pharmacy',
     '/dashboard/medicine',
     '/dashboard/farmasi',
     '/dashboard/registration/doctor-leave',
-    '/dashboard/pharmacy'
+    '/dashboard/nurse-calling',
+    '/dashboard/doctor'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -278,6 +308,7 @@ function Dashboard() {
     return top ? top.label : path
   }
   const getTopKeyFromPath = (path: string): string => {
+    if (path.startsWith('/dashboard/doctor')) return '/dashboard/doctor'
     for (const top of items) {
       const children = Array.isArray(top.children) ? top.children : []
       const match = children.find((c) => path.startsWith(c.key))

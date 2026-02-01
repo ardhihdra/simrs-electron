@@ -26,7 +26,10 @@ const LoginForm: React.FC = () => {
   const [errorInfo, setErrorInfo] = useState<string>()
   const navigate = useNavigate()
   const onFinish: FormProps<FieldType>['onFinish'] = async (values) => {
-    const res = (await window.api.auth.login({ username: values.username, password: values.password })) as LoginResult
+    const res = (await window.api.auth.login({
+      username: values.username,
+      password: values.password
+    })) as LoginResult
     if (res.success) {
       navigate('/dashboard')
       setErrorInfo(undefined)
@@ -65,7 +68,12 @@ const LoginForm: React.FC = () => {
                 name="username"
                 rules={[{ required: true, message: 'Please input your NIK!' }]}
               >
-                <Input size="large" placeholder="eg. 3212010101010001" defaultValue={"0000000000000001"} prefix={<UserOutlined className="text-gray-400 px-1" />} />
+                <Input
+                  size="large"
+                  placeholder="eg. 3212010101010001"
+                  defaultValue={'3201010101900001'}
+                  prefix={<UserOutlined className="text-gray-400 px-1" />}
+                />
               </Form.Item>
 
               <Form.Item<FieldType>
@@ -73,7 +81,11 @@ const LoginForm: React.FC = () => {
                 name="password"
                 rules={[{ required: true, message: 'Please input your password!' }]}
               >
-                <Input.Password size="large" placeholder="************" prefix={<LockOutlined className="text-gray-400 px-1" />} />
+                <Input.Password
+                  size="large"
+                  placeholder="************"
+                  prefix={<LockOutlined className="text-gray-400 px-1" />}
+                />
               </Form.Item>
 
               <div className="flex items-center justify-between">

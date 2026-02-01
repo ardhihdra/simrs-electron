@@ -5,8 +5,8 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import type { DiagnosticReportAttributes } from '@shared/diagnostic'
-import  { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
-import GenericTable from '@renderer/components/GenericTable'
+import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 const baseColumns = [
   { title: 'Code', dataIndex: 'code', key: 'code' },

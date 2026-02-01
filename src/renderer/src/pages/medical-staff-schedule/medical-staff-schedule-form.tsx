@@ -68,6 +68,7 @@ export function MedicalStaffScheduleForm() {
       return fn()
     }
   })
+  console.log('data', departemenData)
 
   useEffect(() => {
     if (isEdit && detailData?.success && detailData.result) {

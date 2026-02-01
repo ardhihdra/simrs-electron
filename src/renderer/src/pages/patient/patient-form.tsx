@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { PatientAttributes } from '@shared/patient'
 import dayjs, { type Dayjs } from 'dayjs'
-import { GeneralConsentForm } from '@renderer/components/GeneralConsentForm'
+import { GeneralConsentForm } from '@renderer/components/organisms/GeneralConsentForm'
 
 type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & { birthDate: Dayjs }
 

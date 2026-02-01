@@ -1,6 +1,6 @@
 import { Outlet } from 'react-router'
-import MacAdress from './MacAdress'
-import Versions from './Versions'
+import MacAdress from '../atoms/MacAdress'
+import Versions from '../atoms/Versions'
 
 function AppLayout() {
   return (
