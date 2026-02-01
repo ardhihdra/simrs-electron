@@ -165,21 +165,30 @@ const items = [
     ]
   },
   {
-    label: 'Farmasi',
-    key: '/dashboard/pharmacy',
+    label: 'Obat',
+    key: '/dashboard/medicine',
     icon: <WalletOutlined />,
     children: [
-      {
-        label: 'Medicine Categories',
-        key: '/dashboard/pharmacy/medicine-categories',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Medicine Brands',
-        key: '/dashboard/pharmacy/medicine-brands',
-        icon: <DashboardOutlined />
-      },
-      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+      { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <DashboardOutlined /> },
+      { label: 'Master Obat - Kategori', key: '/dashboard/medicine/medicine-categories', icon: <DashboardOutlined /> },
+      { label: 'Master Obat - Merek', key: '/dashboard/medicine/medicine-brands', icon: <DashboardOutlined /> },
+      { label: 'Master Obat', key: '/dashboard/medicine/medicines', icon: <DashboardOutlined /> },
+      { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <DashboardOutlined /> },
+      { label: 'Penyerahan Obat (Dispensing)', key: '/dashboard/medicine/medication-dispenses', icon: <DashboardOutlined /> }
+    ]
+  },
+  {
+    label: 'Farmasi',
+    key: '/dashboard/farmasi',
+    icon: <WalletOutlined />,
+    children: [
+      { label: 'Dashboard Farmasi', key: '/dashboard/farmasi', icon: <DashboardOutlined /> },
+      { label: 'Bahan Baku', key: '/dashboard/farmasi/raw-materials', icon: <DashboardOutlined /> },
+      { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
+      { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
+      { label: 'Formula Produksi', key: '/dashboard/farmasi/formulas', icon: <DashboardOutlined /> },
+      { label: 'Permintaan Produksi', key: '/dashboard/farmasi/production-requests', icon: <DashboardOutlined /> },
+      { label: 'Item', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> }
     ]
   },
   {
@@ -279,6 +288,8 @@ function Dashboard() {
     '/dashboard/services',
     '/dashboard/service-request',
     '/dashboard/pharmacy',
+    '/dashboard/medicine',
+    '/dashboard/farmasi',
     '/dashboard/registration/doctor-leave',
     '/dashboard/nurse-calling',
     '/dashboard/doctor'

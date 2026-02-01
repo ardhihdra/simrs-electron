@@ -8,6 +8,8 @@ import { GeneralConsentForm } from '@renderer/components/organisms/GeneralConsen
 
 type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & { birthDate: Dayjs }
 
+type PatientUpdatePayload = Omit<PatientAttributes, 'id'> & { id: string }
+
 function PatientForm() {
   const [form] = Form.useForm<PatientFormValues>()
   const navigate = useNavigate()
@@ -70,10 +72,10 @@ function PatientForm() {
 
   const updateMutation = useMutation({
     mutationKey: ['patient', 'update'],
-    mutationFn: async (payload: PatientAttributes & { id: number }) => {
+    mutationFn: async (payload: PatientUpdatePayload) => {
       const updateFn = window.api?.query?.patient?.update
       if (!updateFn) throw new Error('API patient tidak tersedia')
-      const result = await updateFn({ ...payload, id: String(payload.id) })
+      const result = await updateFn(payload)
       if (!result.success) throw new Error(result.error || 'Failed to update patient')
       return result
     },
@@ -106,7 +108,7 @@ function PatientForm() {
         maritalStatus: values.maritalStatus ?? null
       }
       if (isEdit && params.id) {
-        await updateMutation.mutateAsync({ ...payload, id: Number(params.id) })
+        await updateMutation.mutateAsync({ ...payload, id: params.id })
       } else {
         await createMutation.mutateAsync(payload)
       }
