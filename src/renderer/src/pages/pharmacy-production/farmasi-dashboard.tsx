@@ -50,10 +50,25 @@ interface InventoryStockResponse {
 	message?: string
 }
 
+interface InventoryExpiryItem {
+	kodeItem: string
+	namaItem: string
+	unit: string
+	availableStock: number
+	earliestExpiryDate: string
+}
+
+interface InventoryExpiryResponse {
+	success: boolean
+	result?: InventoryExpiryItem[]
+	message?: string
+}
+
 interface StockSummaryRow {
 	key: string
 	name: string
 	stock: number
+	expiryDate?: string
 }
 
 interface MaterialTypeSummaryRow {
@@ -124,6 +139,46 @@ function FarmasiDashboard() {
 				throw new Error('API stok inventory tidak tersedia.')
 			}
 			return fn()
+		}
+	})
+
+	const { data: rawMaterialExpiryData } = useQuery<InventoryExpiryResponse>({
+		queryKey: ['inventoryStock', 'expiry', 'raw-material'],
+		queryFn: async () => {
+			const inventoryApi = window.api?.query?.inventoryStock as
+				| {
+						list?: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+						expirySummary?: (args?: {
+							itemType?: 'item' | 'substance' | 'medicine'
+							limit?: number
+						}) => Promise<InventoryExpiryResponse>
+				  }
+				| undefined
+			const fn = inventoryApi?.expirySummary
+			if (!fn) {
+				throw new Error('API ringkasan expired stok bahan baku tidak tersedia.')
+			}
+			return fn({ itemType: 'substance', limit: 20 })
+		}
+	})
+
+	const { data: itemExpiryData } = useQuery<InventoryExpiryResponse>({
+		queryKey: ['inventoryStock', 'expiry', 'item'],
+		queryFn: async () => {
+			const inventoryApi = window.api?.query?.inventoryStock as
+				| {
+						list?: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+						expirySummary?: (args?: {
+							itemType?: 'item' | 'substance' | 'medicine'
+							limit?: number
+						}) => Promise<InventoryExpiryResponse>
+				  }
+				| undefined
+			const fn = inventoryApi?.expirySummary
+			if (!fn) {
+				throw new Error('API ringkasan expired stok item tidak tersedia.')
+			}
+			return fn({ itemType: 'item', limit: 20 })
 		}
 	})
 
@@ -273,8 +328,40 @@ function FarmasiDashboard() {
 			.slice(0, 10)
 	}, [items])
 
+	const rawMaterialExpiryRows = useMemo(() => {
+		const list: InventoryExpiryItem[] = Array.isArray(rawMaterialExpiryData?.result)
+			? rawMaterialExpiryData.result ?? []
+			: []
+
+		return list.map((item): StockSummaryRow => ({
+			key: item.kodeItem,
+			name: `${item.namaItem} (${item.unit})`,
+			stock: item.availableStock,
+			expiryDate: item.earliestExpiryDate
+		}))
+	}, [rawMaterialExpiryData?.result])
+
+	const itemExpiryRows = useMemo(() => {
+		const list: InventoryExpiryItem[] = Array.isArray(itemExpiryData?.result)
+			? itemExpiryData.result ?? []
+			: []
+
+		return list.map((item): StockSummaryRow => ({
+			key: item.kodeItem,
+			name: `${item.namaItem} (${item.unit})`,
+			stock: item.availableStock,
+			expiryDate: item.earliestExpiryDate
+		}))
+	}, [itemExpiryData?.result])
+
 	const stockColumns: ColumnsType<StockSummaryRow> = [
 		{ title: 'Nama', dataIndex: 'name', key: 'name' },
+		{ title: 'Stok', dataIndex: 'stock', key: 'stock' }
+	]
+
+	const expiryColumns: ColumnsType<StockSummaryRow> = [
+		{ title: 'Nama', dataIndex: 'name', key: 'name' },
+		{ title: 'Expired', dataIndex: 'expiryDate', key: 'expiryDate' },
 		{ title: 'Stok', dataIndex: 'stock', key: 'stock' }
 	]
 
@@ -375,6 +462,26 @@ function FarmasiDashboard() {
 					<Table<StockSummaryRow>
 						dataSource={itemStockRows}
 						columns={stockColumns}
+						pagination={false}
+						rowKey="key"
+						size="small"
+					/>
+				</Card>
+			</div>
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<Card title="Top Expired Terdekat - Bahan Baku">
+					<Table<StockSummaryRow>
+						dataSource={rawMaterialExpiryRows}
+						columns={expiryColumns}
+						pagination={false}
+						rowKey="key"
+						size="small"
+					/>
+				</Card>
+				<Card title="Top Expired Terdekat - Item">
+					<Table<StockSummaryRow>
+						dataSource={itemExpiryRows}
+						columns={expiryColumns}
 						pagination={false}
 						rowKey="key"
 						size="small"

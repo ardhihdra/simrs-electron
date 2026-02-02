@@ -137,6 +137,8 @@ type Args_Mod_query_export_exportCsv = InferArgs<typeof Mod_query_export, 'expor
 type Result_Mod_query_export_exportCsv = InferResult<typeof Mod_query_export, 'exportCsv'>
 type Args_Mod_query_hakAkses_getByCode = InferArgs<typeof Mod_query_hakAkses, 'getByCode'>
 type Result_Mod_query_hakAkses_getByCode = InferResult<typeof Mod_query_hakAkses, 'getByCode'>
+type Args_Mod_query_inventoryStock_expirySummary = InferArgs<typeof Mod_query_inventoryStock, 'expirySummary'>
+type Result_Mod_query_inventoryStock_expirySummary = InferResult<typeof Mod_query_inventoryStock, 'expirySummary'>
 type Args_Mod_query_inventoryStock_list = InferArgs<typeof Mod_query_inventoryStock, 'list'>
 type Result_Mod_query_inventoryStock_list = InferResult<typeof Mod_query_inventoryStock, 'list'>
 type Args_Mod_query_item_create = InferArgs<typeof Mod_query_item, 'create'>
@@ -390,6 +392,7 @@ declare global {
           getByCode: Invoke<Args_Mod_query_hakAkses_getByCode, Result_Mod_query_hakAkses_getByCode>
         }
         inventoryStock: {
+          expirySummary: Invoke<Args_Mod_query_inventoryStock_expirySummary, Result_Mod_query_inventoryStock_expirySummary>
           list: Invoke<Args_Mod_query_inventoryStock_list, Result_Mod_query_inventoryStock_list>
         }
         item: {
