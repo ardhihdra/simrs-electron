@@ -26,6 +26,7 @@ interface FormData {
   density?: number | null
   hazardClass?: string | null
   msdsUrl?: string | null
+  minimumStock?: number | null
 }
 
 type RawMaterialApi = {
@@ -114,7 +115,8 @@ export function RawMaterialForm() {
         molecularWeight: d.molecularWeight ?? null,
         density: d.density ?? null,
         hazardClass: d.hazardClass ?? '',
-        msdsUrl: d.msdsUrl ?? ''
+        msdsUrl: d.msdsUrl ?? '',
+        minimumStock: d.minimumStock ?? null
       })
     }
   }, [isEdit, detailData, form])
@@ -173,7 +175,11 @@ export function RawMaterialForm() {
       molecularWeight: typeof values.molecularWeight === 'number' ? values.molecularWeight : null,
       density: typeof values.density === 'number' ? values.density : null,
       hazardClass: values.hazardClass?.trim() || null,
-      msdsUrl: values.msdsUrl?.trim() || null
+      msdsUrl: values.msdsUrl?.trim() || null,
+      minimumStock:
+        typeof values.minimumStock === 'number' && values.minimumStock >= 0
+          ? values.minimumStock
+          : null
     }
     if (isEdit) updateMutation.mutate({ ...payload, id: Number(id) })
     else createMutation.mutate(payload)
@@ -242,6 +248,12 @@ export function RawMaterialForm() {
             ]}
           >
             <Input placeholder="Opsional, contoh: kg, g, L" />
+          </Form.Item>
+          <Form.Item 
+            label="Minimum Stok" 
+            name="minimumStock"
+          >
+            <InputNumber min={0} className="w-full" />
           </Form.Item>
           <Form.Item 
             label="Grade" 

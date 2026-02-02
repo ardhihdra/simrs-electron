@@ -11,6 +11,7 @@ interface RawMaterialAttributes {
 	name: string
 	materialType: MaterialType
 	stock?: number
+	minimumStock?: number | null
 }
 
 interface RawMaterialListResponse {
@@ -216,10 +217,14 @@ function FarmasiDashboard() {
 
 		rawMaterials.forEach((rm) => {
 			const stockValue = typeof rm.stock === 'number' ? rm.stock : 0
+			const minimumStockValue =
+				typeof rm.minimumStock === 'number' && rm.minimumStock > 0
+					? rm.minimumStock
+					: 50
 			total += 1
 			totalStock += stockValue
 			if (stockValue === 0) zeroStock += 1
-			else if (stockValue > 0 && stockValue <= 50) lowStock += 1
+			else if (stockValue > 0 && stockValue <= minimumStockValue) lowStock += 1
 		})
 
 		return { total, totalStock, lowStock, zeroStock }
@@ -306,15 +311,26 @@ function FarmasiDashboard() {
 	}, [items])
 
 	const lowStockMaterials = useMemo<StockSummaryRow[]>(() => {
-		return rawMaterials
-			.map((rm) => ({
+		const withThreshold = rawMaterials.map((rm) => {
+			const stockValue = typeof rm.stock === 'number' ? rm.stock : 0
+			const minimumStockValue =
+				typeof rm.minimumStock === 'number' && rm.minimumStock > 0
+					? rm.minimumStock
+					: 50
+			return {
 				key: String(rm.id ?? rm.name),
 				name: rm.name,
-				stock: typeof rm.stock === 'number' ? rm.stock : 0
-			}))
-			.filter((row) => row.stock > 0 && row.stock <= 50)
+				stock: stockValue,
+				threshold: minimumStockValue
+			}
+		})
+
+		const filtered = withThreshold
+			.filter((row) => row.stock > 0 && row.stock <= row.threshold)
 			.sort((a, b) => a.stock - b.stock)
 			.slice(0, 10)
+
+		return filtered.map((row) => ({ key: row.key, name: row.name, stock: row.stock }))
 	}, [rawMaterials])
 
 	const itemStockRows = useMemo<StockSummaryRow[]>(() => {

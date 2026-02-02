@@ -1,4 +1,4 @@
-import { Button, Form, Input, Select, message } from 'antd'
+import { Button, Form, Input, InputNumber, Select, message } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -11,6 +11,7 @@ interface FormData {
   kode: string
   kodeUnit: string
   kind?: ItemKind | null
+  minimumStock?: number | null
 }
 
 type ItemApi = {
@@ -98,7 +99,10 @@ export function ItemForm() {
           typeof d.kodeUnit === 'string' && d.kodeUnit.length > 0
             ? d.kodeUnit.trim().toUpperCase()
             : d.kodeUnit,
-        kind: d.kind ?? null
+        kind: d.kind ?? null,
+        minimumStock: typeof (d as FormData & { minimumStock?: number | null }).minimumStock === 'number'
+          ? (d as FormData & { minimumStock?: number | null }).minimumStock
+          : null
       })
     }
   }, [isEdit, detailData, form])
@@ -164,7 +168,11 @@ export function ItemForm() {
       nama: values.nama.trim(),
       kode: values.kode.trim().toUpperCase(),
       kodeUnit: values.kodeUnit.trim().toUpperCase(),
-      kind: values.kind ?? null
+      kind: values.kind ?? null,
+      minimumStock:
+        typeof values.minimumStock === 'number' && values.minimumStock >= 0
+          ? values.minimumStock
+          : null
     }
 
     console.log('[ItemForm] submit', { isEdit, payload })
@@ -222,6 +230,10 @@ export function ItemForm() {
               placeholder="Pilih kategori item"
               options={kindOptions.map((k) => ({ label: k.label, value: k.value }))}
             />
+          </Form.Item>
+
+          <Form.Item label="Minimum Stok" name="minimumStock">
+            <InputNumber min={0} className="w-full" />
           </Form.Item>
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">

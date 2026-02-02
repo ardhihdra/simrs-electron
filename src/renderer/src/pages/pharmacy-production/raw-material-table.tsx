@@ -9,19 +9,20 @@ import { DeleteOutlined, EditOutlined, MoreOutlined, ReloadOutlined, PlusOutline
 type MaterialType = 'active' | 'excipient' | 'solvent'
 
 interface RawMaterialAttributes {
-  id?: number
-  name: string
-  rawMaterialCategoryId?: number | null
-  internalCode?: string | null
-  casCode?: string | null
-  materialType: MaterialType
-  defaultUom?: string | null
-  grade?: string | null
-  status: boolean
-  description?: string | null
-  category?: { name: string } | null
-  defaultSupplier?: { nama: string } | null
-  stock?: number
+	id?: number
+	name: string
+	rawMaterialCategoryId?: number | null
+	internalCode?: string | null
+	casCode?: string | null
+	materialType: MaterialType
+	defaultUom?: string | null
+	grade?: string | null
+	status: boolean
+	description?: string | null
+	category?: { name: string } | null
+	defaultSupplier?: { nama: string } | null
+	stock?: number
+	minimumStock?: number | null
 }
 
 interface InventoryStockItem {
@@ -75,6 +76,14 @@ const columns = [
 	    }
 	    return stockValue
 	  }
+	},
+	{
+	  title: 'Minimum Stok',
+	  dataIndex: 'minimumStock',
+	  key: 'minimumStock',
+	  width: 140,
+	  render: (value: number | null | undefined) =>
+	    typeof value === 'number' && value > 0 ? value : '-'
 	},
 	{ title: 'Action', key: 'action', width: 80, align: 'center' as const, render: (_: RawMaterialAttributes, r: RawMaterialAttributes) => <RowActions record={r} /> }
 ]

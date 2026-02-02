@@ -60,7 +60,8 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 			nama: args.nama,
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
-			kind: args.kind ?? null
+			kind: args.kind ?? null,
+			minimumStock: args.minimumStock ?? null
 		}
 		console.log('[item.create] payload', payload)
 		const res = await client.post('/api/item', payload)
@@ -81,7 +82,8 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 			nama: args.nama,
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
-			kind: args.kind ?? null
+			kind: args.kind ?? null,
+			minimumStock: args.minimumStock ?? null
 		}
 		console.log('[item.update] payload', { id: args.id, ...payload })
 		const res = await client.put(`/api/item/${args.id}`, payload)

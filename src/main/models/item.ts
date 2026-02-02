@@ -6,7 +6,8 @@ export const ItemSchema = z.object({
   nama: z.string().min(1),
   kode: z.string().min(1),
   kodeUnit: z.string().min(1),
-  kind: ItemKindSchema.nullable().optional()
+  kind: ItemKindSchema.nullable().optional(),
+  minimumStock: z.number().nullable().optional()
 })
 
 export const ItemWithIdSchema = ItemSchema.extend({
@@ -19,4 +20,3 @@ export const ItemWithIdSchema = ItemSchema.extend({
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional()
 })
-

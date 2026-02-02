@@ -17,6 +17,7 @@ interface ItemAttributes {
   kind?: ItemKind | null
   unit?: { nama?: string; kode?: string } | null
   stock?: number
+  minimumStock?: number | null
 }
 
 type ItemListResponse = {
@@ -184,6 +185,14 @@ export function ItemTable() {
               key: 'stock',
               width: 100,
               render: (v: ItemAttributes['stock']) => (typeof v === 'number' ? v : 0)
+            },
+            {
+              title: 'Minimum Stok',
+              dataIndex: 'minimumStock',
+              key: 'minimumStock',
+              width: 140,
+              render: (v: ItemAttributes['minimumStock']) =>
+                typeof v === 'number' && v > 0 ? v : '-'
             },
             {
               title: 'Unit',

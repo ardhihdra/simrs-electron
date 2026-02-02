@@ -48,7 +48,11 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     buyingPrice: args.buyingPrice,
     sellingPrice: args.sellingPrice,
     sideEffects: args.sideEffects ?? null,
-    description: args.description ?? null
+    description: args.description ?? null,
+    minimumStock:
+      typeof args.minimumStock === 'number' && args.minimumStock >= 0
+        ? args.minimumStock
+        : undefined
   }
   const res = await client.post('/api/medicine', payload)
   const result = await parseBackendResponse(res, BackendResponseSchema)
@@ -65,7 +69,11 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     buyingPrice: args.buyingPrice,
     sellingPrice: args.sellingPrice,
     sideEffects: args.sideEffects ?? null,
-    description: args.description ?? null
+    description: args.description ?? null,
+    minimumStock:
+      typeof args.minimumStock === 'number' && args.minimumStock >= 0
+        ? args.minimumStock
+        : undefined
   }
   const res = await client.put(`/api/medicine/${args.id}`, payload)
   const result = await parseBackendResponse(res, BackendResponseSchema)

@@ -15,6 +15,7 @@ interface MedicineAttributes {
   buyingPrice: number
   sellingPrice: number
   stock?: number
+  minimumStock?: number | null
   code?: string | null
   uom?: string | null
   category?: { name: string }
@@ -57,8 +58,14 @@ const columns = [
     dataIndex: 'stock',
     key: 'stock',
     width: 120,
-    render: (value: MedicineAttributes['stock']) => {
+    render: (value: MedicineAttributes['stock'], record: MedicineAttributes) => {
       const stockValue = typeof value === 'number' ? value : 0
+      const minimumStockValue =
+        typeof record.minimumStock === 'number' && record.minimumStock >= 0
+          ? record.minimumStock
+          : null
+      const lowStockThreshold = minimumStockValue ?? LOW_STOCK_THRESHOLD_MEDICINE
+
       if (stockValue === 0) {
         return (
           <Tooltip title="Stok habis">
@@ -66,7 +73,7 @@ const columns = [
           </Tooltip>
         )
       }
-      if (stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD_MEDICINE) {
+      if (stockValue > 0 && stockValue <= lowStockThreshold) {
         return (
           <Tooltip title="Stok hampir habis">
             <span className="text-orange-600 font-semibold">{stockValue}</span>
@@ -75,6 +82,14 @@ const columns = [
       }
       return stockValue
     }
+  },
+  {
+    title: 'Minimum Stok',
+    dataIndex: 'minimumStock',
+    key: 'minimumStock',
+    width: 140,
+    render: (value: MedicineAttributes['minimumStock']) =>
+      typeof value === 'number' && value > 0 ? value : '-'
   },
   {
     title: 'Harga Beli',
