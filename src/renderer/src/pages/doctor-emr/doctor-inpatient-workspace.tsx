@@ -90,7 +90,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       children: [
         { key: 'informed-consent', label: 'Informed Consent' },
         { key: 'rujukan', label: 'Rujukan' },
-        { key: 'resume', label: 'Resume Medis' }
+        { key: 'resume', label: 'Resume Medis Tubuh' }
       ]
     },
     {
@@ -154,7 +154,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
   }
 
   return (
-    <Layout className="bg-white rounded-lg overflow-hidden h-full border border-gray-200">
+    <Layout className=" rounded-lg overflow-hidden h-full border border-gray-200">
       <Sider
         width={260}
         collapsible
@@ -191,7 +191,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           </div>
         </div>
       </Sider>
-      <Layout className="bg-gray-50">
+      <Layout className="">
         <Content
           className="p-6 overflow-y-auto h-full"
           style={{

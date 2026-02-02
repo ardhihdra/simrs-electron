@@ -1,44 +1,16 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { App, Card, Tabs, Spin, Empty, Button, Row, Col, Tag, Modal, Select, Collapse } from 'antd'
-import {
-  ArrowLeftOutlined,
-  MedicineBoxOutlined,
-  FileTextOutlined,
-  SolutionOutlined,
-  FormOutlined,
-  ExperimentOutlined,
-  FileSearchOutlined,
-  EditOutlined,
-  ExportOutlined,
-  LockOutlined,
-  MonitorOutlined,
-  SafetyCertificateOutlined
-} from '@ant-design/icons'
-import { NurseAssessmentSummary } from '@renderer/components/organisms/NurseAssessmentSummary'
-import { ClinicalAnnotationForm } from '@renderer/components/organisms/ClinicalAnnotationForm'
-
-import { DiagnosisProceduresForm } from '@renderer/components/organisms/DiagnosisProceduresForm'
-import { PrescriptionForm } from '@renderer/components/organisms/PrescriptionForm'
-import { CPPTForm } from '@renderer/components/organisms/CPPTForm'
-import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
-import { DiagnosticResultViewer } from '@renderer/components/organisms/DiagnosticResultViewer'
-import { ClinicalNoteForm } from '@renderer/components/organisms/ClinicalNoteForm'
-import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
+import { App, Card, Spin, Empty, Button, Row, Col, Tag, Modal, Select } from 'antd'
+import { ArrowLeftOutlined, EditOutlined, LockOutlined } from '@ant-design/icons'
 import { getPatientMedicalRecord } from '@renderer/services/doctor.service'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 import dayjs from 'dayjs'
 import { Gender } from '../../types/nurse.types'
-
 import { useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
-import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
-import { useConditionByEncounter } from '@renderer/hooks/query/use-condition'
 import { useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
 import { EncounterStatus } from '@shared/encounter'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
-import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
-import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
-import { DentalAssessmentForm } from '../../components/organisms/Assessment/DentalAssessmentForm'
+import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
 
 const DoctorWorkspace = () => {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -50,17 +22,10 @@ const DoctorWorkspace = () => {
   const [isStatusModalVisible, setIsStatusModalVisible] = useState(false)
   const [selectedStatus, setSelectedStatus] = useState<EncounterStatus | null>(null)
 
-  const [activeTab, setActiveTab] = useState('1')
-
   const { data: encounterDetail } = useEncounterDetail(encounterId)
   const updateEncounter = useUpdateEncounter()
 
-  const { data: obsData } = useObservationByEncounter(encounterId || '')
-  const { data: condData } = useConditionByEncounter(encounterId || '')
   const { data: allergyData } = useAllergyByEncounter(encounterId || '')
-
-  const hasNurseAssessment =
-    (obsData?.result?.all?.length || 0) > 0 || (condData?.result?.length || 0) > 0
 
   const loadData = useCallback(async () => {
     if (!encounterId) return
@@ -281,215 +246,7 @@ const DoctorWorkspace = () => {
         {encounterDetail?.data?.class?.code === 'IMP' ? (
           <DoctorInpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
         ) : (
-          <Card
-            className="shadow-sm rounded-lg flex-1 flex flex-col min-h-0 overflow-hidden bg-white"
-            bordered={false}
-            bodyStyle={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              overflow: 'hidden',
-              padding: 0
-            }}
-          >
-            <Tabs
-              activeKey={activeTab}
-              onChange={setActiveTab}
-              type="card"
-              size="large"
-              className="h-full flex flex-col"
-              items={[
-                {
-                  key: '0',
-                  label: (
-                    <span className="px-4">
-                      <MonitorOutlined />
-                      Ringkasan & Timeline
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-380px)]">
-                      <EncounterTimeline encounterId={encounterId || ''} />
-                    </div>
-                  )
-                },
-                {
-                  key: '1',
-                  label: (
-                    <span className="px-4">
-                      <SolutionOutlined />
-                      Anamnesis & Pemeriksaan Fisik
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-380px)] space-y-4">
-                      {hasNurseAssessment && (
-                        <div className="mb-4">
-                          <Collapse
-                            ghost
-                            items={[
-                              {
-                                key: 'nurse-summary',
-                                label: (
-                                  <div className="flex items-center gap-2 text-blue-600 font-medium">
-                                    <SolutionOutlined />
-                                    <span>Lihat Hasil Pemeriksaan Awal Perawat</span>
-                                  </div>
-                                ),
-                                children: (
-                                  <NurseAssessmentSummary
-                                    encounterId={encounterId || ''}
-                                    patientId={patientData?.patient.id}
-                                    mode="outpatient"
-                                  />
-                                )
-                              }
-                            ]}
-                          />
-                        </div>
-                      )}
-
-                      <div className="mb-6">
-                        <InitialAssessmentForm
-                          encounterId={encounterId!}
-                          patientData={patientData}
-                          mode="outpatient"
-                          performer={{
-                            id: (patientData as any).doctorId || 'doc-default',
-                            name: (patientData as any).doctorName || 'Dokter',
-                            role: 'Doctor'
-                          }}
-                        />
-                      </div>
-                      <div />
-                    </div>
-                  )
-                },
-                {
-                  key: '1.5',
-                  label: (
-                    <span className="px-4">
-                      <SafetyCertificateOutlined />
-                      Pemeriksaan Gigi (Odontogram)
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-380px)]">
-                      <DentalAssessmentForm encounterId={encounterId!} patientData={patientData} />
-                    </div>
-                  )
-                },
-                {
-                  key: '2',
-                  label: (
-                    <span className="px-4">
-                      <FileTextOutlined />
-                      Diagnosis & Tindakan (CPPT)
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-280px)]">
-                      <DiagnosisProceduresForm
-                        encounterId={encounterId || ''}
-                        patientData={patientData}
-                      />
-                    </div>
-                  )
-                },
-                {
-                  key: '3',
-                  label: (
-                    <span className="px-4">
-                      <MedicineBoxOutlined />
-                      E-Resep
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-280px)]">
-                      <PrescriptionForm encounterId={encounterId || ''} patientData={patientData} />
-                    </div>
-                  )
-                },
-                {
-                  key: '4',
-                  label: (
-                    <span className="px-4">
-                      <FormOutlined />
-                      CPPT (SOAP)
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-280px)]">
-                      <CPPTForm encounterId={encounterId || ''} patientData={patientData} />
-                    </div>
-                  )
-                },
-                {
-                  key: '5',
-                  label: (
-                    <span className="px-4">
-                      <ExperimentOutlined />
-                      Lab & Radiologi
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-280px)]">
-                      <LabRadOrderForm encounterId={encounterId || ''} patientData={patientData} />
-                    </div>
-                  )
-                },
-                {
-                  key: '6',
-                  label: (
-                    <span className="px-4">
-                      <FileSearchOutlined />
-                      Hasil Penunjang
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-280px)]">
-                      <DiagnosticResultViewer
-                        encounterId={encounterId || ''}
-                        patientId={patientData.patient.id}
-                      />
-                    </div>
-                  )
-                },
-                {
-                  key: '8',
-                  label: (
-                    <span className="px-4">
-                      <ExportOutlined />
-                      Rujukan
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-280px)]">
-                      <ReferralForm
-                        encounterId={encounterId || ''}
-                        patientId={patientData.patient.id}
-                        patientData={patientData}
-                      />
-                    </div>
-                  )
-                },
-                {
-                  key: '9',
-                  label: (
-                    <span className="px-4">
-                      <FormOutlined />
-                      Catatan Tambahan
-                    </span>
-                  ),
-                  children: (
-                    <div className="p-4 overflow-y-auto h-[calc(100vh-280px)]">
-                      <ClinicalNoteForm encounterId={encounterId || ''} />
-                    </div>
-                  )
-                }
-              ]}
-            />
-          </Card>
+          <DoctorOutpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
         )}
       </div>
 

@@ -2,11 +2,16 @@ import { Button, DatePicker, Select, Popconfirm, message } from 'antd'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 import { ServiceRequestAttributes } from '@shared/service-request'
-import { DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  ReloadOutlined
+} from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import dayjs from 'dayjs'
 import { useState } from 'react'
-
 
 const { Option } = Select
 
@@ -18,7 +23,8 @@ const baseColumns = [
     title: 'Tanggal',
     dataIndex: 'authoredOn',
     key: 'authoredOn',
-    render: (v: ServiceRequestRow['authoredOn']) => v ? dayjs(v).format('DD MMM YYYY HH:mm:ss') : '-'
+    render: (v: ServiceRequestRow['authoredOn']) =>
+      v ? dayjs(v).format('DD MMM YYYY HH:mm:ss') : '-'
   },
   {
     title: 'No. Faktur',
@@ -117,12 +123,7 @@ function RowActions({ record }: { record: ServiceRequestRow }) {
         okText="Ya"
         cancelText="Tidak"
       >
-        <Button
-          icon={<DeleteOutlined />}
-          size="small"
-          danger
-          loading={deleteMutation.isPending}
-        />
+        <Button icon={<DeleteOutlined />} size="small" danger loading={deleteMutation.isPending} />
       </Popconfirm>
     </div>
   )
@@ -134,7 +135,11 @@ export default function ServiceRequestTable() {
   const [endDate, setEndDate] = useState<string | null>(dayjs().endOf('day').toISOString())
   const [currentPage, setCurrentPage] = useState<number>(1)
   const [pageSize, setPageSize] = useState<number>(10)
-  const { data: serviceRequests, isLoading, error } = useQuery({
+  const {
+    data: serviceRequests,
+    isLoading,
+    error
+  } = useQuery({
     queryKey: ['serviceRequest', 'list'],
     queryFn: async () => {
       // @ts-ignore - dynamic API
@@ -152,7 +157,7 @@ export default function ServiceRequestTable() {
       <div className="mb-6">
         <h2 className="text-xl font-bold mb-4">Pemeriksaan Laboratorium</h2>
 
-        <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded shadow-sm">
+        <div className="flex flex-wrap gap-4 items-end bg-white p-4 rounded ">
           <div>
             <div className="mb-1 text-sm font-semibold">Pilihan Periode</div>
             <Select defaultValue="tanggal" style={{ width: 200 }}>
@@ -162,15 +167,25 @@ export default function ServiceRequestTable() {
 
           <div>
             <div className="mb-1 text-sm opacity-0">Start Date</div>
-            <DatePicker value={startDate ? dayjs(startDate) : null} onChange={(d) => setStartDate(d ? d.startOf('day').toISOString() : null)} format="DD MMM YYYY" />
+            <DatePicker
+              value={startDate ? dayjs(startDate) : null}
+              onChange={(d) => setStartDate(d ? d.startOf('day').toISOString() : null)}
+              format="DD MMM YYYY"
+            />
           </div>
 
           <div>
             <div className="mb-1 text-sm opacity-0">End Date</div>
-            <DatePicker value={endDate ? dayjs(endDate) : null} onChange={(d) => setEndDate(d ? d.endOf('day').toISOString() : null)} format="DD MMM YYYY" />
+            <DatePicker
+              value={endDate ? dayjs(endDate) : null}
+              onChange={(d) => setEndDate(d ? d.endOf('day').toISOString() : null)}
+              format="DD MMM YYYY"
+            />
           </div>
 
-          <Button type="primary" icon={<SearchOutlined />} className="bg-blue-500">Cari</Button>
+          <Button type="primary" icon={<SearchOutlined />} className="bg-blue-500">
+            Cari
+          </Button>
           <Button icon={<ReloadOutlined />}>Refresh</Button>
           <Button
             icon={<SearchOutlined />}
@@ -182,9 +197,16 @@ export default function ServiceRequestTable() {
                   page: currentPage,
                   items: pageSize,
                   startDate: startDate ?? undefined,
-                  endDate: endDate ?? undefined,
+                  endDate: endDate ?? undefined
                 })
-                if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                if (
+                  res &&
+                  typeof res === 'object' &&
+                  'success' in res &&
+                  res.success &&
+                  'url' in res &&
+                  res.url
+                ) {
                   window.open(res.url as string, '_blank')
                 } else {
                   message.error('Gagal menyiapkan URL ekspor')
@@ -194,13 +216,24 @@ export default function ServiceRequestTable() {
                 message.error(msg || 'Gagal ekspor CSV')
               }
             }}
-          >Export</Button>
+          >
+            Export
+          </Button>
         </div>
       </div>
 
       <div className="flex justify-between items-center mb-2">
-        <div>Menampilkan {serviceRequests?.length || 0} data dari total {serviceRequests?.length || 0} data.</div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/service-request/create')}>Buat Baru</Button>
+        <div>
+          Menampilkan {serviceRequests?.length || 0} data dari total {serviceRequests?.length || 0}{' '}
+          data.
+        </div>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => navigate('/dashboard/service-request/create')}
+        >
+          Buat Baru
+        </Button>
       </div>
 
       <GenericTable<ServiceRequestRow>

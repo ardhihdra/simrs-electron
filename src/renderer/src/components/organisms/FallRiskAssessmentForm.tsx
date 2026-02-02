@@ -694,7 +694,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         <div
           className={`mt-8 p-6 rounded-xl border flex items-center justify-between transition-all duration-300 ${
             riskLevel.includes('Tinggi')
-              ? 'bg-red-50 border-red-200 shadow-sm shadow-red-100'
+              ? 'bg-red-50 border-red-200  shadow-red-100'
               : riskLevel.includes('Sedang')
                 ? 'bg-orange-50 border-orange-200'
                 : 'bg-green-50 border-green-200'
@@ -722,7 +722,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
               Tingkat Risiko
             </div>
             <div
-              className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${
+              className={`px-4 py-1.5 rounded-full text-sm font-bold  ${
                 riskLevel.includes('Tinggi')
                   ? 'bg-red-600 text-white'
                   : riskLevel.includes('Sedang')

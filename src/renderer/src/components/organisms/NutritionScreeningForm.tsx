@@ -290,7 +290,7 @@ export const NutritionScreeningForm = ({
         <div
           className={`p-6 rounded-xl border flex items-center justify-between transition-all duration-300 ${
             totalScore >= 2
-              ? 'bg-red-50 border-red-200 shadow-sm shadow-red-100'
+              ? 'bg-red-50 border-red-200  shadow-red-100'
               : 'bg-green-50 border-green-200'
           }`}
         >
@@ -312,7 +312,7 @@ export const NutritionScreeningForm = ({
               Tingkat Risiko
             </div>
             <div
-              className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${
+              className={`px-4 py-1.5 rounded-full text-sm font-bold  ${
                 totalScore >= 2 ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
               }`}
             >

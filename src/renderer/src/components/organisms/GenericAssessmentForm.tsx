@@ -18,7 +18,7 @@ export const GenericAssessmentForm = ({ title, fields = [] }: GenericAssessmentF
   return (
     <Card
       title={<span className="text-lg font-bold">{title}</span>}
-      className="shadow-sm rounded-lg border-gray-200"
+      className=" rounded-lg border-gray-200"
       extra={
         <Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()}>
           Simpan

@@ -31,7 +31,7 @@ export function GeneralConsentForm({ form, patientData }: GeneralConsentFormProp
   }, [signer, patientData, form])
 
   return (
-    <Card className="shadow-sm">
+    <Card className="">
       <div className="text-center mb-6">
         <Title level={3}>Persetujuan Umum (General Consent)</Title>
       </div>

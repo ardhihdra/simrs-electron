@@ -95,7 +95,7 @@ export function ExpenseTable() {
           fixedRight: true,
           render: (record) => <Action record={record} />
         }}
-        tableProps={{ className: 'mt-4 rounded-xl shadow-sm', scroll: { x: 'max-content' } }}
+        tableProps={{ className: 'mt-4 rounded-xl ', scroll: { x: 'max-content' } }}
       />
     </div>
   )

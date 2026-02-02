@@ -82,7 +82,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (isLoading)
     return (
-      <Card className="mb-4 shadow-sm border-gray-200" size="small">
+      <Card className="mb-4  border-gray-200" size="small">
         <div className="p-8 text-center">
           <Spin tip="Memuat riwayat harian..." />
         </div>
@@ -91,7 +91,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (!timelineData || timelineData.length === 0)
     return (
-      <Card className="mb-4 shadow-sm border-gray-200" size="small">
+      <Card className="mb-4  border-gray-200" size="small">
         <Empty description="Belum ada riwayat pemeriksaan" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </Card>
     )
