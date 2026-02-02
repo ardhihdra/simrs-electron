@@ -7,16 +7,33 @@ import { queryClient } from '@renderer/query-client'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/GenericTable'
 
-interface MedicineAttributes { 
-  id?: number; 
-  name: string; 
-  medicineCategoryId: number; 
-  medicineBrandId: number; 
-  buyingPrice: number; 
-  sellingPrice: number; 
-  stock?: number;
-  category?: { name: string }; 
-  brand?: { name: string }; 
+interface MedicineAttributes {
+  id?: number
+  name: string
+  medicineCategoryId: number
+  medicineBrandId: number
+  buyingPrice: number
+  sellingPrice: number
+  stock?: number
+  code?: string | null
+  uom?: string | null
+  category?: { name: string }
+  brand?: { name: string }
+}
+
+interface InventoryStockItem {
+  kodeItem: string
+  namaItem: string
+  unit: string
+  stockIn: number
+  stockOut: number
+  availableStock: number
+}
+
+interface InventoryStockResponse {
+  success: boolean
+  result?: InventoryStockItem[]
+  message?: string
 }
 
 const LOW_STOCK_THRESHOLD_MEDICINE = 20
@@ -131,12 +148,67 @@ export function MedicinesTable() {
     }
   })
 
+  const { data: inventoryStockData } = useQuery<InventoryStockResponse>({
+    queryKey: ['inventoryStock', 'list', 'medicine-master'],
+    queryFn: () => {
+      const api = window.api?.query as {
+        inventoryStock?: {
+          list: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+        }
+      }
+      const fn = api?.inventoryStock?.list
+      if (!fn) throw new Error('API stok inventory tidak tersedia.')
+      return fn({ itemType: 'medicine' })
+    }
+  })
+
+  const medicinesWithStock: MedicineAttributes[] = useMemo(() => {
+    const source: MedicineAttributes[] = Array.isArray(data?.result)
+      ? (data.result as MedicineAttributes[])
+      : []
+
+    const stockList: InventoryStockItem[] = Array.isArray(inventoryStockData?.result)
+      ? inventoryStockData.result ?? []
+      : []
+
+    const stockMap = new Map<string, InventoryStockItem>()
+    stockList.forEach((stockItem) => {
+      const kode = stockItem.kodeItem.trim().toUpperCase()
+      if (!kode) return
+      if (!stockMap.has(kode)) {
+        stockMap.set(kode, stockItem)
+      }
+    })
+
+    return source.map((medicine) => {
+      const rawCode = typeof medicine.code === 'string' ? medicine.code : ''
+      const kode = rawCode.trim().toUpperCase()
+      if (!kode) {
+        return medicine
+      }
+
+      const stockEntry = stockMap.get(kode)
+      if (!stockEntry) {
+        return medicine
+      }
+
+      const resolvedStock =
+        typeof stockEntry.availableStock === 'number'
+          ? stockEntry.availableStock
+          : typeof medicine.stock === 'number'
+          ? medicine.stock
+          : 0
+
+      return { ...medicine, stock: resolvedStock }
+    })
+  }, [data?.result, inventoryStockData?.result])
+
   const filtered = useMemo(() => {
-    const source: MedicineAttributes[] = (data?.result as MedicineAttributes[]) || []
+    const source: MedicineAttributes[] = medicinesWithStock
     const q = search.trim().toLowerCase()
     if (!q) return source
     return source.filter((p) => p.name.toLowerCase().includes(q))
-  }, [data?.result, search])
+  }, [medicinesWithStock, search])
 
   return (
     <div>
