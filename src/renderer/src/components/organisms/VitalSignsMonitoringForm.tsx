@@ -25,7 +25,6 @@ export const VitalSignsMonitoringForm = ({
 
   const { data: response, isLoading, refetch } = useObservationByEncounter(encounterId)
 
-  // Fetch Nurses
   const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
     queryKey: ['kepegawaian', 'list', 'perawat'],
     queryFn: async () => {
@@ -94,35 +93,6 @@ export const VitalSignsMonitoringForm = ({
             valueQuantity: { value: values.vitalSigns.oxygenSaturation, unit: '%' }
           },
           {
-            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
-            code: '29463-7',
-            display: 'Body weight',
-            valueQuantity: { value: values.vitalSigns.weight, unit: 'kg' }
-          },
-          {
-            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
-            code: '8302-2',
-            display: 'Body height',
-            valueQuantity: { value: values.vitalSigns.height, unit: 'cm' }
-          },
-          {
-            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
-            code: '39156-5',
-            display: 'Body mass index',
-            valueQuantity: { value: values.vitalSigns.bmi, unit: 'kg/m2' },
-            interpretations: [
-              {
-                code: values.vitalSigns.bmi < 18.5 ? 'L' : values.vitalSigns.bmi >= 25 ? 'H' : 'N',
-                display:
-                  values.vitalSigns.bmi < 18.5
-                    ? 'Gizi Kurang'
-                    : values.vitalSigns.bmi >= 25
-                      ? 'Gizi Lebih'
-                      : 'Normal'
-              }
-            ]
-          },
-          {
             category: OBSERVATION_CATEGORIES.EXAM,
             code: 'consciousness',
             display: 'Consciousness',
@@ -161,7 +131,6 @@ export const VitalSignsMonitoringForm = ({
 
   const historyData = response?.result?.all || []
 
-  // Group observations by issued/date to show in table
   const groupedHistory = historyData
     .filter((obs: any) => {
       const categoryCode = obs.category || obs.categories?.[0]?.code
@@ -218,18 +187,6 @@ export const VitalSignsMonitoringForm = ({
       title: 'SpO2',
       render: (_, record) =>
         record.vitals.oxygenSaturation ? `${record.vitals.oxygenSaturation}%` : '-'
-    },
-    {
-      title: 'BB',
-      render: (_, record) => (record.vitals.weight ? `${record.vitals.weight}kg` : '-')
-    },
-    {
-      title: 'TB',
-      render: (_, record) => (record.vitals.height ? `${record.vitals.height}cm` : '-')
-    },
-    {
-      title: 'Gizi',
-      render: (_, record) => record.bmiCategory || '-'
     }
   ]
 

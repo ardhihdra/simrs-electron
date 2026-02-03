@@ -26,6 +26,8 @@ import { NutritionScreeningForm } from '@renderer/components/organisms/Nutrition
 import { PrescriptionForm } from '@renderer/components/organisms/PrescriptionForm'
 import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
 import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
+import { PhysicalAssessmentForm } from '../../components/organisms/Assessment/PhysicalAssessmentForm'
+import { AnamnesisForm } from '../../components/organisms/Assessment/AnamnesisForm'
 import { Layout, Menu, theme } from 'antd'
 import { useState } from 'react'
 
@@ -54,7 +56,9 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       icon: <SolutionOutlined />,
       label: 'Asesmen Awal',
       children: [
-        { key: 'initial-assessment', label: 'Asesmen Awal Keperawatan' },
+        { key: 'initial-assessment', label: 'Skrining Perawat' },
+        { key: 'anamnesis', label: 'Anamnesis' },
+        { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
         { key: 'dental-assessment', label: 'Pemeriksaan Gigi' },
         { key: 'risiko-jatuh', label: 'Risiko Jatuh' },
         { key: 'skrining-gizi', label: 'Skrining Gizi' },
@@ -116,7 +120,17 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           </div>
         )
       case 'initial-assessment':
-        return <InitialAssessmentForm encounterId={encounterId!} patientData={patientData} />
+        return <InitialAssessmentForm encounterId={encounterId!} patientData={patientData} mode="inpatient" role="nurse" />
+      case 'anamnesis':
+        return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
+      case 'physical-assessment':
+        return (
+          <PhysicalAssessmentForm
+            encounterId={encounterId!}
+            patientId={patientData.patient.id}
+            patientData={patientData}
+          />
+        )
       case 'dental-assessment':
         return <DentalAssessmentForm encounterId={encounterId!} patientData={patientData} />
       case 'skrining-gizi':

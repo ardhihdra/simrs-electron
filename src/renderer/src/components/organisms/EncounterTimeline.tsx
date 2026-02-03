@@ -38,8 +38,9 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         { date: string; items: any[]; doctors: Set<string>; sessions: Record<string, any[]> }
       > = {}
       allObs.forEach((obs) => {
-        const dateKey = dayjs(obs.createdAt).format('YYYY-MM-DD')
-        const timeKey = dayjs(obs.createdAt).format('HH:mm')
+        const effectiveDate = obs.effectiveDateTime || obs.issued || obs.createdAt
+        const dateKey = dayjs(effectiveDate).format('YYYY-MM-DD')
+        const timeKey = dayjs(effectiveDate).format('HH:mm')
 
         if (!dateGroups[dateKey]) {
           dateGroups[dateKey] = {
