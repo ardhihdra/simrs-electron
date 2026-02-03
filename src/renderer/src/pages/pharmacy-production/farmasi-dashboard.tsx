@@ -10,7 +10,7 @@ interface RawMaterialAttributes {
 	id?: number
 	name: string
 	materialType: MaterialType
-	stock?: number
+	stock?: number | null
 	minimumStock?: number | null
 }
 
@@ -27,7 +27,7 @@ interface ItemAttributes {
 	nama: string
 	kode: string
 	kind?: ItemKind | null
-	stock?: number
+	stock?: number | null
 }
 
 interface ItemListResponse {
@@ -204,7 +204,14 @@ function FarmasiDashboard() {
 		return baseItems.map((item) => {
 			const key = item.kode.trim().toUpperCase()
 			const stockEntry = stockMap.get(key)
-			const stockValue = typeof stockEntry?.availableStock === 'number' ? stockEntry.availableStock : item.stock
+			const baseStock = typeof item.stock === 'number' ? item.stock : undefined
+			const stockFromInventory = typeof stockEntry?.availableStock === 'number' ? stockEntry.availableStock : undefined
+			const stockValue =
+				typeof baseStock === 'number'
+					? baseStock
+					: typeof stockFromInventory === 'number'
+					? stockFromInventory
+					: 0
 			return { ...item, stock: stockValue }
 		})
 	}, [itemData?.result, inventoryStockData?.result])

@@ -16,7 +16,7 @@ interface ItemAttributes {
   kodeUnit: string
   kind?: ItemKind | null
   unit?: { nama?: string; kode?: string } | null
-  stock?: number
+  stock?: number | null
   minimumStock?: number | null
 }
 
@@ -125,13 +125,23 @@ export function ItemTable() {
     for (const s of stockList) {
       const kodeItem = s.kodeItem.trim().toUpperCase()
       const value = typeof s.availableStock === 'number' ? s.availableStock : 0
-      stockMap.set(kodeItem, value)
+      if (!kodeItem) continue
+      if (!stockMap.has(kodeItem)) {
+        stockMap.set(kodeItem, value)
+      }
     }
 
     const withStock: ItemAttributes[] = source.map((item) => {
       const key = item.kode.trim().toUpperCase()
-      const stock = stockMap.get(key) ?? 0
-      return { ...item, stock }
+      const baseStock = typeof item.stock === 'number' ? item.stock : undefined
+      const stockFromInventory = key ? stockMap.get(key) : undefined
+      const stockValue =
+        typeof baseStock === 'number'
+          ? baseStock
+          : typeof stockFromInventory === 'number'
+          ? stockFromInventory
+          : 0
+      return { ...item, stock: stockValue }
     })
 
     const q = search.trim().toLowerCase()
