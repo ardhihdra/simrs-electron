@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Form, Input, Spin } from 'antd'
+import { App, Button, Form, Input, Spin } from 'antd'
 
 const { TextArea } = Input
 import dayjs from 'dayjs'
@@ -39,23 +39,20 @@ import { ScreeningSection } from './ScreeningSection'
 import { VitalSignsSection } from './VitalSignsSection'
 import { HeadToToeSection } from './HeadToToeSection'
 import { HEAD_TO_TOE_MAP } from '../../../config/observation-maps'
+import { useQuery } from '@tanstack/react-query'
 
 export interface InitialAssessmentFormProps {
   encounterId: string
   patientData?: any
   mode?: 'inpatient' | 'outpatient'
-  performer?: {
-    id: string | number
-    name: string
-    role?: string
-  }
+  role?: 'doctor' | 'nurse'
 }
 
 export const InitialAssessmentForm = ({
   encounterId,
   patientData,
   mode = 'inpatient',
-  performer
+  role = 'doctor'
 }: InitialAssessmentFormProps) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -72,6 +69,25 @@ export const InitialAssessmentForm = ({
 
   const { data: response } = useObservationByEncounter(encounterId)
   const { data: conditionResponse } = useConditionByEncounter(encounterId)
+
+  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'perawat'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      const res = await fn()
+      if (res.success && res.result) {
+        console.log('Nurses Response:', res.result)
+        return res.result
+          .filter((p: any) => p.hakAksesId === 'nurse')
+          .map((p: any) => ({
+            id: p.id,
+            name: p.namaLengkap
+          }))
+      }
+      return []
+    }
+  })
 
   useEffect(() => {
     const observations = response?.result?.all
@@ -93,8 +109,15 @@ export const InitialAssessmentForm = ({
         clinicalNote
       } = summary
 
-      // Vital Signs
+      const sampleObs = observations && observations.length > 0 ? observations[0] : null
+      const existingDate = sampleObs?.issued || sampleObs?.effectiveDateTime
+
       form.setFieldsValue({
+        assessment_date: existingDate ? dayjs(existingDate) : dayjs(),
+        performerId: sampleObs?.performers?.[0]?.reference
+          ? Number(sampleObs.performers[0].reference)
+          : undefined,
+
         vitalSigns: {
           systolicBloodPressure: vitalSigns.systolicBloodPressure,
           diastolicBloodPressure: vitalSigns.diastolicBloodPressure,
@@ -249,10 +272,24 @@ export const InitialAssessmentForm = ({
       return
     }
 
+    if (!patientId) {
+      message.error('Data pasien tidak ditemukan')
+      return
+    }
+
+    if (!values.performerId) {
+      message.error('Mohon pilih perawat pemeriksa')
+      return
+    }
+
     try {
       setIsSubmitting(true)
       const obsToCreate: Omit<ObservationBuilderOptions, 'effectiveDateTime'>[] = []
       const conditions: any[] = []
+
+      const performerName =
+        performersData?.find((p: any) => p.id === values.performerId)?.name || 'Unknown'
+      const assessmentDate = values.assessment_date || dayjs()
 
       // --- 1. Vital Signs ---
       const { vitalSigns } = values
@@ -367,7 +404,10 @@ export const InitialAssessmentForm = ({
         })
       }
 
-      // --- 2. Anamnesis ---
+      // --- 2. Anamnesis (Only if visible / doctor role) ---
+      // However, we process input if it exists in values. If hidden, values should remain empty/undefined
+      // unless prefilled. For nurse role, we might want to skip saving these even if present (unlikely).
+
       const { anamnesis } = values
       const conditionsToCreate: ConditionBuilderOptions[] = []
 
@@ -448,7 +488,8 @@ export const InitialAssessmentForm = ({
         )
       }
 
-      // --- 3. Physical Examination ---
+      // --- 3. Physical Examination (Doctor only usually, but some parts shared) ---
+      // We'll save whatever is in the form values.
       const { physicalExamination } = values
       if (physicalExamination?.generalCondition) {
         obsToCreate.push({
@@ -680,15 +721,16 @@ export const InitialAssessmentForm = ({
       const promises: Promise<any>[] = []
 
       if (obsToCreate.length > 0) {
-        const observations = createObservationBatch(obsToCreate, values.assessment_date)
+        const observations = createObservationBatch(obsToCreate, assessmentDate)
+        console.log('Sending Observations Payload:', observations)
 
         promises.push(
           bulkCreateObservation.mutateAsync({
             encounterId,
             patientId,
             observations,
-            performerId: String(performer?.id || 'nurse-001'),
-            performerName: values.performer || performer?.name || 'Perawat Jaga'
+            performerId: String(values.performerId),
+            performerName: performerName
           })
         )
       }
@@ -705,12 +747,17 @@ export const InitialAssessmentForm = ({
 
       await Promise.all(promises)
       message.success('Asesmen berhasil disimpan')
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving assessment:', error)
-      message.error('Gagal menyimpan asesmen')
+      message.error(`Gagal menyimpan asesmen: ${error?.message || 'Error tidak diketahui'}`)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const onFinishFailed = (errorInfo: any) => {
+    console.error('Validasi Gagal:', errorInfo)
+    message.error('Mohon lengkapi data yang wajib diisi (tanda vital, dll)')
   }
 
   return (
@@ -718,11 +765,11 @@ export const InitialAssessmentForm = ({
       form={form}
       layout="vertical"
       onFinish={handleFinish}
+      onFinishFailed={onFinishFailed}
       className="flex flex-col gap-4"
       autoComplete="off"
       initialValues={{
         assessment_date: dayjs(),
-        performer: performer?.name || 'Perawat Jaga',
         vitalSigns: {
           temperatureMethod: 'Axillary',
           bloodPressureBodySite: 'Left arm',
@@ -744,23 +791,17 @@ export const InitialAssessmentForm = ({
     >
       <Spin spinning={isSubmitting} tip="Menyimpan data asesmen..." size="large">
         <div className="flex flex-col gap-4">
-          <AssessmentHeader />
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <VitalSignsSection form={form} />
-          <AnamnesisSection form={form} />
-          <PhysicalExamSection />
-          {mode === 'outpatient' && (
+
+          {role === 'doctor' && (
             <>
-              <HeadToToeSection />
-              <Card title="Catatan Pemeriksaan Fisik Tambahan" className="py-4">
-                <Form.Item name="clinicalNote" className="mb-0">
-                  <TextArea
-                    rows={4}
-                    placeholder="Tuliskan catatan tambahan mengenai hasil pemeriksaan fisik di sini..."
-                  />
-                </Form.Item>
-              </Card>
+              <AnamnesisSection form={form} />
+              <PhysicalExamSection />
+              {mode === 'outpatient' && <HeadToToeSection />}
             </>
           )}
+
           {mode === 'inpatient' && (
             <>
               <FunctionalStatusSection />

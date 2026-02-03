@@ -8,7 +8,7 @@ import dayjs from 'dayjs'
 import { Gender } from '../../types/nurse.types'
 import { useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
-import { EncounterStatus } from '@shared/encounter'
+import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
 
@@ -60,7 +60,9 @@ const DoctorWorkspace = () => {
         status: selectedStatus,
         patientId: patientData?.patient.id || '',
         visitDate: new Date(),
-        serviceType: 'outpatient'
+        serviceType: 'outpatient',
+        encounterType: EncounterType.AMB,
+        arrivalType: ArrivalType.WALK_IN
       },
       {
         onSuccess: () => {
@@ -116,23 +118,17 @@ const DoctorWorkspace = () => {
           .join(', ')
       : '-'
 
-  const currentStatus = encounterDetail?.data?.status || EncounterStatus.Arrived
+  const currentStatus = encounterDetail?.data?.status || EncounterStatus.IN_PROGRESS
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case EncounterStatus.Planned:
+      case EncounterStatus.PLANNED:
         return 'default'
-      case EncounterStatus.Arrived:
-        return 'blue'
-      case EncounterStatus.Triaged:
-        return 'cyan'
-      case EncounterStatus.InProgress:
+      case EncounterStatus.IN_PROGRESS:
         return 'processing'
-      case EncounterStatus.OnHold:
-        return 'warning'
-      case EncounterStatus.Finished:
+      case EncounterStatus.FINISHED:
         return 'success'
-      case EncounterStatus.Cancelled:
+      case EncounterStatus.CANCELLED:
         return 'error'
       default:
         return 'default'
@@ -223,7 +219,7 @@ const DoctorWorkspace = () => {
       </div>
 
       <div className="flex-1 px-4 pb-4 overflow-hidden relative flex flex-col min-h-0">
-        {currentStatus === EncounterStatus.Finished && (
+        {currentStatus === EncounterStatus.FINISHED && (
           <div className="absolute inset-0 z-50 bg-black/60 flex items-center justify-center backdrop-blur-[2px] rounded-lg">
             <div className="bg-white p-8 rounded-xl shadow-2xl text-center max-w-md">
               <LockOutlined className="text-5xl text-red-500 mb-4" />
@@ -243,7 +239,7 @@ const DoctorWorkspace = () => {
           </div>
         )}
 
-        {encounterDetail?.data?.class?.code === 'IMP' ? (
+        {encounterDetail?.data?.encounterType === EncounterType.IMP ? (
           <DoctorInpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
         ) : (
           <DoctorOutpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
@@ -266,14 +262,8 @@ const DoctorWorkspace = () => {
             onChange={(val) => setSelectedStatus(val as EncounterStatus)}
             style={{ width: '100%' }}
             options={[
-              { label: 'Planned', value: EncounterStatus.Planned },
-              { label: 'Arrived', value: EncounterStatus.Arrived },
-              { label: 'Triaged', value: EncounterStatus.Triaged },
-              { label: 'In Progress', value: EncounterStatus.InProgress },
-              { label: 'On Hold', value: EncounterStatus.OnHold },
-              { label: 'Finished', value: EncounterStatus.Finished },
-              { label: 'Cancelled', value: EncounterStatus.Cancelled },
-              { label: 'Entered in Error', value: EncounterStatus.EnteredInError }
+              { label: 'Finished', value: EncounterStatus.FINISHED },
+              { label: 'Cancelled', value: EncounterStatus.CANCELLED }
             ]}
           />
         </div>

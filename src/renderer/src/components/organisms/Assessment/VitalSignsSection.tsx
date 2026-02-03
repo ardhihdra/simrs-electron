@@ -24,9 +24,9 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = ({ form }) =>
   }
 
   const getBMICategory = (bmiValue: number): { text: string; color: string } => {
-    if (bmiValue < 18.5) return { text: 'Kurus', color: 'blue' }
+    if (bmiValue < 18.5) return { text: 'Gizi Kurang', color: 'blue' }
     if (bmiValue < 25) return { text: 'Normal', color: 'green' }
-    if (bmiValue < 30) return { text: 'Gemuk', color: 'orange' }
+    if (bmiValue < 30) return { text: 'Gizi Lebih', color: 'orange' }
     return { text: 'Obesitas', color: 'red' }
   }
 

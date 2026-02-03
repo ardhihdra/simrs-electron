@@ -1,13 +1,8 @@
 export enum EncounterStatus {
-  Planned = 'planned',
-  Arrived = 'arrived',
-  Triaged = 'triaged',
-  InProgress = 'in-progress',
-  OnHold = 'onhold',
-  Finished = 'finished',
-  Cancelled = 'cancelled',
-  EnteredInError = 'entered-in-error',
-  Unknown = 'unknown'
+  PLANNED = "PLANNED",
+  IN_PROGRESS = "IN_PROGRESS",
+  FINISHED = "FINISHED",
+  CANCELLED = "CANCELLED",
 }
 
 export interface Coding {
@@ -34,14 +29,43 @@ export interface Reference {
   display?: string
 }
 
+export enum EncounterType {
+  AMB = "AMB",
+  EMER = "EMER",
+  IMP = "IMP",
+  LAB = "LAB",
+}
+
+export enum ArrivalType {
+  WALK_IN = "WALK_IN",
+  REFERRAL = "REFERRAL",
+  TRANSFER = "TRANSFER",
+}
+
 export interface EncounterAttributes {
   id?: string
+
+  // Backend Core Fields
+  episodeOfCareId?: string
   patientId: string
-  visitDate: Date
-  serviceType: string
+  encounterType: EncounterType
+  arrivalType: ArrivalType
+  status: EncounterStatus
+  serviceUnitId?: string
+  serviceUnitCodeId?: string
+  queueTicketId?: string | null
+
+  // Legacy/Frontend Compatibility
+  visitDate: Date | string
+  serviceType: string // often mapped to serviceUnit if string
+
+  startTime?: Date | string
+  endTime?: Date | string | null
+  partOfId?: string | null
+  dischargeDisposition?: string | null
   reason?: string | null
   note?: string | null
-  status: EncounterStatus
+
   resourceType?: 'Encounter'
   class?: Coding
   classHistory?: { class: Coding; period?: Period }[]
@@ -53,6 +77,8 @@ export interface EncounterAttributes {
   reasonReference?: Reference[]
   hospitalization?: Record<string, unknown>
   location?: Array<{ location: Reference; status?: 'planned' | 'active' | 'reserved' | 'completed'; physicalType?: CodeableConcept; period?: Period }>
+  encounterCode?: string | null
+
   createdBy?: number | null
   updatedBy?: number | null
   createdAt?: Date
@@ -60,6 +86,7 @@ export interface EncounterAttributes {
   deletedAt?: Date | null
   deletedBy?: number | null
 }
+
 
 export type EncounterListResult = {
   success: boolean

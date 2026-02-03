@@ -29,6 +29,9 @@ import { useConditionByEncounter } from '../../hooks/query/use-condition'
 import { formatObservationSummary } from '../../utils/observation-helpers'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 import { COMPOSITION_STATUS_MAP, COMPOSITION_STATUS_COLOR_MAP } from '../../config/composition-maps'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { useQuery } from '@tanstack/react-query'
+import { DiagnosisProceduresForm } from './DiagnosisProceduresForm' // We can reuse logic or components from here
 import dayjs from 'dayjs'
 
 const { TextArea } = Input
@@ -49,6 +52,29 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   const { data: condData } = useConditionByEncounter(encounterId)
   const upsertMutation = useUpsertComposition()
 
+  // Fetch Performers (Doctors and Nurses)
+  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'all'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      const res = await fn()
+      if (res.success && res.result) {
+        return res.result.map((p: any) => ({
+          id: p.id,
+          name: p.namaLengkap,
+          role: p.hakAksesId // 'nurse' or 'doctor'
+        }))
+      }
+      return []
+    }
+  })
+
+  // Determine current role based on form selection
+  const selectedPerformerId = Form.useWatch('performerId', form)
+  const selectedPerformer = performersData?.find((p: any) => p.id === selectedPerformerId)
+  const currentRole = selectedPerformer?.role
+
   const handleSubmit = async (values: any) => {
     try {
       const vitalsParts: string[] = []
@@ -68,13 +94,14 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       await upsertMutation.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
-        doctorId: 1, // TODO: Get from auth
+        doctorId: Number(values.performerId),
         title: 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
         soapSubjective: values.soapSubjective,
         soapObjective: objective,
         soapAssessment: values.soapAssessment,
         soapPlan: values.soapPlan,
-        status: values.status // Include status from form values
+        status: values.status,
+        issued: values.assessment_date ? values.assessment_date.toISOString() : undefined
       })
 
       const statusMsg = values.status === 'final' ? 'Final' : 'Draft'
@@ -421,49 +448,72 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         width={900}
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit} className="pt-4">
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
-            <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
-              <div className="font-bold text-gray-700">Tanda-Tanda Vital (TTV)</div>
-              <Button type="link" size="small" icon={<CopyOutlined />} onClick={handleFetchVitals}>
-                Ambil Data Asesmen
-              </Button>
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
+          {currentRole === 'nurse' && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 mt-4">
+              <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
+                <div className="font-bold text-blue-700 uppercase text-xs tracking-wider">
+                  Input Tanda-Tanda Vital (Perawat)
+                </div>
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<CopyOutlined />}
+                  onClick={handleFetchVitals}
+                >
+                  Ambil Data Terakhir
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+                <Form.Item label="Tekanan Darah" style={{ marginBottom: 0 }}>
+                  <Space align="start" className="w-full">
+                    <Form.Item name="systolic" noStyle>
+                      <InputNumber placeholder="120" className="w-[80px]" />
+                    </Form.Item>
+                    <span className="text-gray-400 font-light text-lg">/</span>
+                    <Form.Item name="diastolic" noStyle>
+                      <InputNumber placeholder="80" className="w-[80px]" />
+                    </Form.Item>
+                    <span className="text-gray-500 text-xs mt-1">mmHg</span>
+                  </Space>
+                </Form.Item>
+
+                <Form.Item label="Nadi" name="heartRate" className="mb-0">
+                  <InputNumber className="w-full" placeholder="80" addonAfter="x/mnt" />
+                </Form.Item>
+
+                <Form.Item label="Laju Pernafasan (RR)" name="respRate" className="mb-0">
+                  <InputNumber className="w-full" placeholder="20" addonAfter="x/mnt" />
+                </Form.Item>
+
+                <Form.Item label="Suhu Tubuh" name="temperature" className="mb-0">
+                  <InputNumber className="w-full" placeholder="36.5" addonAfter="°C" />
+                </Form.Item>
+
+                <Form.Item label="GCS (Terkumpul)" name="gcs" className="mb-0">
+                  <Input className="w-full" placeholder="E4 V5 M6" />
+                </Form.Item>
+
+                <Form.Item label="Kesadaran" name="consciousness" className="mb-0">
+                  <Input className="w-full" placeholder="Compos Mentis" />
+                </Form.Item>
+              </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-3 gap-x-6 gap-y-4">
-              <Form.Item label="Tekanan Darah" style={{ marginBottom: 0 }}>
-                <Space align="start" className="w-full">
-                  <Form.Item name="systolic" noStyle>
-                    <InputNumber placeholder="120" className="w-[80px]" />
-                  </Form.Item>
-                  <span className="text-gray-400 font-light text-lg">/</span>
-                  <Form.Item name="diastolic" noStyle>
-                    <InputNumber placeholder="80" className="w-[80px]" />
-                  </Form.Item>
-                  <span className="text-gray-500 text-xs mt-1">mmHg</span>
-                </Space>
-              </Form.Item>
-
-              <Form.Item label="Nadi" name="heartRate" className="mb-0">
-                <InputNumber className="w-full" placeholder="80" addonAfter="x/mnt" />
-              </Form.Item>
-
-              <Form.Item label="Laju Pernafasan (RR)" name="respRate" className="mb-0">
-                <InputNumber className="w-full" placeholder="20" addonAfter="x/mnt" />
-              </Form.Item>
-
-              <Form.Item label="Suhu Tubuh" name="temperature" className="mb-0">
-                <InputNumber className="w-full" placeholder="36.5" addonAfter="°C" />
-              </Form.Item>
-
-              <Form.Item label="GCS (E, V, M)" name="gcs" className="mb-0">
-                <Input className="w-full" placeholder="E4 V5 M6" />
-              </Form.Item>
-
-              <Form.Item label="Kesadaran" name="consciousness" className="mb-0">
-                <Input className="w-full" placeholder="Compos Mentis" />
-              </Form.Item>
+          {currentRole === 'doctor' && (
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200 mb-6 mt-4">
+              <div className="font-bold text-green-700 uppercase text-xs tracking-wider mb-4 border-b border-green-200 pb-2">
+                Update Diagnosis ICD-10 (Dokter)
+              </div>
+              <DiagnosisProceduresForm encounterId={encounterId} patientData={patientData} />
+              <div className="text-[10px] text-gray-500 mt-2 italic">
+                * Simpan diagnosis di atas sebelum memfinalisasi CPPT
+              </div>
             </div>
-          </div>
+          )}
 
           {/* SOAP Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

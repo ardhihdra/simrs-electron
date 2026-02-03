@@ -1,0 +1,289 @@
+import { SaveOutlined } from '@ant-design/icons'
+import { App, Button, Card, Form, Select, Table, notification } from 'antd'
+import dayjs from 'dayjs'
+import { useQuery } from '@tanstack/react-query'
+import {
+  useBulkCreateObservation,
+  useObservationByEncounter
+} from '../../hooks/query/use-observation'
+import { formatObservationSummary } from '../../utils/observation-helpers'
+import { createObservationBatch, OBSERVATION_CATEGORIES } from '../../utils/observation-builder'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { VitalSignsSection } from './Assessment/VitalSignsSection'
+
+interface VitalSignsMonitoringFormProps {
+  encounterId: string
+  patientData: any
+}
+
+export const VitalSignsMonitoringForm = ({
+  encounterId,
+  patientData
+}: VitalSignsMonitoringFormProps) => {
+  const [form] = Form.useForm()
+  const bulkCreateObservation = useBulkCreateObservation()
+
+  const { data: response, isLoading, refetch } = useObservationByEncounter(encounterId)
+
+  // Fetch Nurses
+  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'perawat'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      const res = await fn()
+      if (res.success && res.result) {
+        return res.result
+          .filter((p: any) => p.hakAksesId === 'nurse')
+          .map((p: any) => ({
+            id: p.id,
+            name: p.namaLengkap
+          }))
+      }
+      return []
+    }
+  })
+
+  const handleFinish = async (values: any) => {
+    try {
+      const observations = createObservationBatch(
+        [
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '85354-9',
+            display: 'Blood Pressure',
+            valueQuantity: {
+              value: values.vitalSigns.systolicBloodPressure,
+              unit: 'mmHg'
+            },
+            components: [
+              {
+                code: '8480-6',
+                display: 'Systolic',
+                valueQuantity: { value: values.vitalSigns.systolicBloodPressure, unit: 'mmHg' }
+              },
+              {
+                code: '8462-4',
+                display: 'Diastolic',
+                valueQuantity: { value: values.vitalSigns.diastolicBloodPressure, unit: 'mmHg' }
+              }
+            ]
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '8867-4',
+            display: 'Heart rate',
+            valueQuantity: { value: values.vitalSigns.pulseRate, unit: 'bpm' }
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '9279-1',
+            display: 'Respiratory rate',
+            valueQuantity: { value: values.vitalSigns.respiratoryRate, unit: '/min' }
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '8310-5',
+            display: 'Body temperature',
+            valueQuantity: { value: values.vitalSigns.temperature, unit: '°C' }
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '2708-6',
+            display: 'Oxygen saturation',
+            valueQuantity: { value: values.vitalSigns.oxygenSaturation, unit: '%' }
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '29463-7',
+            display: 'Body weight',
+            valueQuantity: { value: values.vitalSigns.weight, unit: 'kg' }
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '8302-2',
+            display: 'Body height',
+            valueQuantity: { value: values.vitalSigns.height, unit: 'cm' }
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '39156-5',
+            display: 'Body mass index',
+            valueQuantity: { value: values.vitalSigns.bmi, unit: 'kg/m2' },
+            interpretations: [
+              {
+                code: values.vitalSigns.bmi < 18.5 ? 'L' : values.vitalSigns.bmi >= 25 ? 'H' : 'N',
+                display:
+                  values.vitalSigns.bmi < 18.5
+                    ? 'Gizi Kurang'
+                    : values.vitalSigns.bmi >= 25
+                      ? 'Gizi Lebih'
+                      : 'Normal'
+              }
+            ]
+          },
+          {
+            category: OBSERVATION_CATEGORIES.EXAM,
+            code: 'consciousness',
+            display: 'Consciousness',
+            valueString: values.consciousness
+          }
+        ],
+        values.assessment_date
+      )
+
+      const performerName = performersData?.find((p: any) => p.id === values.performerId)?.name
+
+      await bulkCreateObservation.mutateAsync({
+        encounterId,
+        patientId: patientData?.patient?.id || patientData?.id,
+        observations,
+        performerId: String(values.performerId),
+        performerName
+      })
+
+      notification.success({
+        message: 'Berhasil',
+        description: 'Data monitoring TTV berhasil disimpan'
+      })
+
+      form.resetFields(['vitalSigns', 'consciousness'])
+      form.setFieldValue('assessment_date', dayjs())
+      refetch()
+    } catch (error: any) {
+      console.error(error)
+      notification.error({
+        message: 'Gagal Menyimpan',
+        description: error.message || 'Terjadi kesalahan saat menyimpan data'
+      })
+    }
+  }
+
+  const historyData = response?.result?.all || []
+
+  // Group observations by issued/date to show in table
+  const groupedHistory = historyData
+    .filter((obs: any) => {
+      const categoryCode = obs.category || obs.categories?.[0]?.code
+      return (
+        categoryCode === OBSERVATION_CATEGORIES.VITAL_SIGNS ||
+        categoryCode === OBSERVATION_CATEGORIES.EXAM
+      )
+    })
+    .reduce((acc: any[], obs: any) => {
+      const date = dayjs(obs.issued || obs.effectiveDateTime).format('YYYY-MM-DD HH:mm')
+      let existing = acc.find((item) => item.date === date)
+      if (!existing) {
+        existing = {
+          key: date,
+          date,
+          performer: obs.performers?.[0]?.display || 'Unknown',
+          items: []
+        }
+        acc.push(existing)
+      }
+      existing.items.push(obs)
+      return acc
+    }, [])
+    .map((group) => {
+      const summary = formatObservationSummary(group.items, [])
+      return {
+        ...group,
+        vitals: summary.vitalSigns,
+        consciousness: summary.physicalExamination?.consciousness,
+        bmiCategory: summary.vitalSigns.bmiCategory
+      }
+    })
+    .sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix())
+
+  const columns = [
+    { title: 'Waktu', dataIndex: 'date', key: 'date', width: 140 },
+    { title: 'Pemeriksa', dataIndex: 'performer', key: 'performer', width: 150 },
+    { title: 'Kesadaran', dataIndex: 'consciousness', key: 'consciousness', width: 120 },
+    {
+      title: 'TD (mmHg)',
+      key: 'td',
+      render: (_, record) =>
+        record.vitals.systolicBloodPressure
+          ? `${record.vitals.systolicBloodPressure}/${record.vitals.diastolicBloodPressure}`
+          : '-'
+    },
+    { title: 'Nadi', render: (_, record) => record.vitals.pulseRate || '-' },
+    { title: 'RR', render: (_, record) => record.vitals.respiratoryRate || '-' },
+    {
+      title: 'Suhu',
+      render: (_, record) => (record.vitals.temperature ? `${record.vitals.temperature}°C` : '-')
+    },
+    {
+      title: 'SpO2',
+      render: (_, record) =>
+        record.vitals.oxygenSaturation ? `${record.vitals.oxygenSaturation}%` : '-'
+    },
+    {
+      title: 'BB',
+      render: (_, record) => (record.vitals.weight ? `${record.vitals.weight}kg` : '-')
+    },
+    {
+      title: 'TB',
+      render: (_, record) => (record.vitals.height ? `${record.vitals.height}cm` : '-')
+    },
+    {
+      title: 'Gizi',
+      render: (_, record) => record.bmiCategory || '-'
+    }
+  ]
+
+  return (
+    <div className="flex flex-col gap-6">
+      <Card title="Riwayat Monitoring TTV">
+        <Table
+          dataSource={groupedHistory}
+          columns={columns}
+          loading={isLoading}
+          pagination={{ pageSize: 5 }}
+          size="small"
+        />
+      </Card>
+
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleFinish}
+        initialValues={{ assessment_date: dayjs() }}
+      >
+        <Card title="Input Monitoring TTV Harian">
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          <div className="mt-4">
+            <Form.Item label="Kesadaran" name="consciousness" rules={[{ required: true }]}>
+              <Select placeholder="Pilih Kesadaran">
+                <Select.Option value="Compos Mentis">Compos Mentis</Select.Option>
+                <Select.Option value="Apatis">Apatis</Select.Option>
+                <Select.Option value="Somnolen">Somnolen</Select.Option>
+                <Select.Option value="Sopor">Sopor</Select.Option>
+                <Select.Option value="Coma">Coma</Select.Option>
+              </Select>
+            </Form.Item>
+            <VitalSignsSection form={form} />
+          </div>
+        </Card>
+
+        <Form.Item className="mt-4">
+          <div className="flex justify-end gap-2">
+            <Button size="large" onClick={() => form.resetFields()}>
+              Reset
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              icon={<SaveOutlined />}
+              loading={bulkCreateObservation.isPending}
+              onClick={() => form.submit()}
+            >
+              Simpan Monitoring
+            </Button>
+          </div>
+        </Form.Item>
+      </Form>
+    </div>
+  )
+}

@@ -1,10 +1,10 @@
 import { useState, useMemo } from 'react'
 import { Tag, Input, Button } from 'antd'
 import { useNavigate } from 'react-router'
-import GenericTable from '@renderer/components/GenericTable'
 import { useEncounterList } from '@renderer/hooks/query/use-encounter'
 import dayjs from 'dayjs'
 import { EncounterRow } from '@shared/encounter'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 interface QueueListProps {
   title: string
@@ -25,24 +25,26 @@ export default function QueueList({ title, serviceType }: QueueListProps) {
       // Filter by date (today) - Antrian biasanya per hari ini
       const isToday = dayjs(item.visitDate).isSame(today, 'day')
       if (!isToday) return false
-      
+
       // Filter by service type if provided
       if (serviceType) {
-         // Flexible matching: contains or equals
-         const type = (item.serviceType || '').toLowerCase()
-         const target = serviceType.toLowerCase()
-         if (!type.includes(target)) return false
+        // Flexible matching: contains or equals
+        const type = (item.serviceType || '').toLowerCase()
+        const target = serviceType.toLowerCase()
+        if (!type.includes(target)) return false
       }
 
       // Search filter
       if (search) {
         const q = search.toLowerCase()
         return (
-           item.patient?.name?.toLowerCase().includes(q) ||
-           String(item.id ?? '').toLowerCase().includes(q)
+          item.patient?.name?.toLowerCase().includes(q) ||
+          String(item.id ?? '')
+            .toLowerCase()
+            .includes(q)
         )
       }
-      
+
       return true
     })
   }, [data, serviceType, search])
@@ -69,9 +71,9 @@ export default function QueueList({ title, serviceType }: QueueListProps) {
       key: 'serviceType',
       render: (v: EncounterRow['serviceType']) => <span className="capitalize">{v}</span>
     },
-    { 
-      title: 'Status', 
-      dataIndex: 'status', 
+    {
+      title: 'Status',
+      dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (status: EncounterRow['status']) => (
@@ -84,28 +86,28 @@ export default function QueueList({ title, serviceType }: QueueListProps) {
 
   return (
     <div className="p-4">
-       <div className="flex justify-between items-center mb-6">
-         <h2 className="text-2xl font-bold dark:text-white">{title}</h2>
-         <Input.Search 
-            placeholder="Cari pasien..." 
-            className="max-w-xs" 
-            onSearch={setSearch} 
-            onChange={e => setSearch(e.target.value)}
-            allowClear
-         />
-       </div>
-       
-       <div className="bg-white dark:bg-[#141414] rounded-lg shadow border border-gray-200 dark:border-gray-800">
-         <GenericTable<EncounterRow>
-           columns={columns} 
-           dataSource={filteredData} 
-           rowKey={(r) => String(r.id ?? `${r.patientId}-${r.visitDate}`)}
-           tableProps={{ loading: isLoading }}
-           action={{
-             title: 'Action',
-             width: 100,
-             align: 'center',
-             render: (record) => (
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold dark:text-white">{title}</h2>
+        <Input.Search
+          placeholder="Cari pasien..."
+          className="max-w-xs"
+          onSearch={setSearch}
+          onChange={(e) => setSearch(e.target.value)}
+          allowClear
+        />
+      </div>
+
+      <div className="bg-white dark:bg-[#141414] rounded-lg shadow border border-gray-200 dark:border-gray-800">
+        <GenericTable<EncounterRow>
+          columns={columns}
+          dataSource={filteredData}
+          rowKey={(r) => String(r.id ?? `${r.patientId}-${r.visitDate}`)}
+          tableProps={{ loading: isLoading }}
+          action={{
+            title: 'Action',
+            width: 100,
+            align: 'center',
+            render: (record) => (
               <Button
                 size="small"
                 onClick={() => {
@@ -114,10 +116,10 @@ export default function QueueList({ title, serviceType }: QueueListProps) {
               >
                 Detail
               </Button>
-             )
-           }}
-         />
-       </div>
+            )
+          }}
+        />
+      </div>
     </div>
   )
 }

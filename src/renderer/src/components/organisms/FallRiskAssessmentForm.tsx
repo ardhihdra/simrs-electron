@@ -10,6 +10,8 @@ import {
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
 } from '../../utils/observation-builder'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { useBulkCreateObservation } from '../../hooks/query/use-observation'
 
 const { TextArea } = Input
 const { Option } = Select
@@ -34,6 +36,27 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
       if (!fn) throw new Error('API Unavailable')
       const res = await fn({ encounterId })
       return res?.result?.all || []
+    }
+  })
+
+  const bulkCreateObservation = useBulkCreateObservation()
+
+  // Fetch Nurses
+  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'perawat'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      const res = await fn()
+      if (res.success && res.result) {
+        return res.result
+          .filter((p: any) => p.hakAksesId === 'nurse')
+          .map((p: any) => ({
+            id: p.id,
+            name: p.namaLengkap
+          }))
+      }
+      return []
     }
   })
 
@@ -132,6 +155,9 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         else setScaleType('Morse Fall Scale')
         if (relevantObs[0].effectiveDateTime) {
           initialValues['assessment_date'] = dayjs(relevantObs[0].effectiveDateTime)
+        }
+        if (relevantObs[0].performers?.[0]?.reference) {
+          initialValues['performerId'] = Number(relevantObs[0].performers[0].reference)
         }
 
         form.setFieldsValue(initialValues)
@@ -345,12 +371,17 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         )
       }
 
-      const observations = createObservationBatch(obsToCreate, data.assessment_date)
+      const assessmentDate = data.assessment_date || dayjs()
+      const observations = createObservationBatch(obsToCreate, assessmentDate)
+      const performerName =
+        performersData?.find((p: any) => p.id === data.performerId)?.name || 'Unknown'
 
-      return fn({
+      return bulkCreateObservation.mutateAsync({
         encounterId,
         patientId,
-        observations
+        observations,
+        performerId: String(data.performerId),
+        performerName: performerName
       })
     },
     onSuccess: () => {
@@ -441,32 +472,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         message.error('Mohon lengkapi semua field yang wajib diisi')
       }}
     >
-      <Card title="Data Asesmen & Pemeriksa">
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item
-              label="Tanggal Penilaian"
-              name="assessment_date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Perawat" name="nurse_name" rules={[{ required: true }]}>
-              <Select showSearch placeholder="Pilih Perawat">
-                <Option value="Perawat Jaga">Perawat Jaga</Option>
-                <Option value="Lainnya">Lainnya</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col span={24}>
-            <Form.Item label="Keterangan" name="remarks">
-              <TextArea rows={2} placeholder="Tambahkan keterangan jika perlu..." />
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
+      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title={`Parameter Risiko Jatuh (${scaleType})`}>
         {/* Scale Selector */}

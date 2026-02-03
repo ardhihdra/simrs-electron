@@ -3,10 +3,15 @@ import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import type { MenuProps } from 'antd'
 import { LogoutOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
-import SettingsModal from './SettingsModal'
+import SettingsModal from '../SettingsModal'
 
 type SessionUser = { id: number | string; username: string }
-type GetSessionResult = { success: boolean; session?: Record<string, never>; user?: SessionUser; error?: string }
+type GetSessionResult = {
+  success: boolean
+  session?: Record<string, never>
+  user?: SessionUser
+  error?: string
+}
 type LogoutResult = { success: boolean }
 
 function ProfileMenu() {

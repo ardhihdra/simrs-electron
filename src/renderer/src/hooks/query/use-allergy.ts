@@ -20,7 +20,14 @@ export const useCreateAllergy = () => {
         mutationFn: async (payload: AllergyInput) => {
             const fn = window.api?.query?.allergyIntolerance?.create
             if (!fn) throw new Error('API allergyIntolerance tidak tersedia')
-            return fn(payload)
+            const result = await fn(payload)
+
+            // Check if the backend returned an error response
+            if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+                throw new Error(result.message || 'Gagal menyimpan alergi')
+            }
+
+            return result
         }
     })
 }

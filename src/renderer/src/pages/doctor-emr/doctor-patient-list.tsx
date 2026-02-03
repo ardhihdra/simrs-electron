@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react'
-import { Table, Card, Tag, Button, Spin, App, Input, Select, DatePicker, Space, Row, Col, Tabs } from 'antd'
+import {
+  Table,
+  Card,
+  Tag,
+  Button,
+  Spin,
+  App,
+  Input,
+  Select,
+  DatePicker,
+  Space,
+  Row,
+  Col,
+  Tabs
+} from 'antd'
 import { EyeOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
@@ -53,20 +67,21 @@ const PatientList = () => {
 
       if (searchText) params.q = searchText
       if (selectedPoli) params.serviceType = selectedPoli
-      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+      if (activeStatus && activeStatus !== 'all') {
+        params.status = activeStatus.toUpperCase().replace(/-/g, '_')
+      }
 
       if (dateRange) {
         params.startDate = dateRange[0].startOf('day').toISOString()
         params.endDate = dateRange[1].endOf('day').toISOString()
       }
 
-      // Force ordering by visitDate desc
       params.sortBy = 'visitDate'
       params.sortOrder = 'DESC'
 
       const response = await fn(params)
 
-      if (response.success && response.result) {
+      if (response.success && Array.isArray(response.result)) {
         const encounters = response.result as any[]
 
         const tableData: PatientListTableData[] = encounters.map((enc: any) => {
@@ -91,8 +106,8 @@ const PatientList = () => {
               name: enc.serviceType || '-'
             },
             status: enc.status || 'unknown',
-            hasObservations: true, // Assuming true for doctor view if they are in the list
-            visitDate: enc.visitDate
+            hasObservations: true,
+            visitDate: enc.visitDate || new Date().toISOString()
           }
         })
 
@@ -175,7 +190,8 @@ const PatientList = () => {
         <div>
           <div className="font-medium text-base">{name}</div>
           <div className="text-xs text-gray-500">
-            {record.patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'}, {record.patient.age} tahun
+            {record.patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'}, {record.patient.age}{' '}
+            tahun
           </div>
         </div>
       )
@@ -216,7 +232,7 @@ const PatientList = () => {
     { key: 'all', label: 'Semua' },
     { key: 'triaged', label: 'Menunggu Dokter' },
     { key: 'in-progress', label: 'Sedang Diperiksa' },
-    { key: 'finished', label: 'Selesai' },
+    { key: 'finished', label: 'Selesai' }
   ]
 
   return (

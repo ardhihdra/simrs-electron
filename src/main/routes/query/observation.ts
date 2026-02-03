@@ -23,13 +23,7 @@ export const schemas = {
             encounterId: z.string(),
             patientId: z.string(),
             observations: z.array(z.any()),
-            performerId: z.union([z.number(), z.string(), z.null()])
-                .optional()
-                .transform(val => {
-                    if (val === '' || val === null || val === undefined) return undefined;
-                    const num = Number(val);
-                    return isNaN(num) ? undefined : num;
-                }),
+            performerId: z.union([z.number(), z.string(), z.null()]).optional(),
             performerName: z.string().optional()
         }),
         result: z.object({

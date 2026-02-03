@@ -115,6 +115,7 @@ const MedicalRecordForm = () => {
             encounterId={encounterId}
             patientData={patientData}
             mode="outpatient"
+            role="nurse"
           />
         </div>
       </Card>

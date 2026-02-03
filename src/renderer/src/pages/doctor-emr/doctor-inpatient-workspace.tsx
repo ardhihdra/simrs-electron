@@ -25,6 +25,7 @@ import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
 import { NutritionScreeningForm } from '@renderer/components/organisms/NutritionScreeningForm'
 import { PrescriptionForm } from '@renderer/components/organisms/PrescriptionForm'
 import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
+import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
 import { Layout, Menu, theme } from 'antd'
 import { useState } from 'react'
 
@@ -53,12 +54,18 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       icon: <SolutionOutlined />,
       label: 'Asesmen Awal',
       children: [
-        { key: 'nurse-assessment', label: '* Skrining Rawat Jalan' },
-        { key: 'dental-assessment', label: '* Pemeriksaan Gigi' },
-        { key: 'risiko-jatuh', label: '* Risiko Jatuh' },
-        { key: 'skrining-gizi', label: '* Skrining Gizi' },
-        { key: 'gcs', label: '* GCS (Glasgow Coma Scale)' }
+        { key: 'initial-assessment', label: 'Asesmen Awal Keperawatan' },
+        { key: 'dental-assessment', label: 'Pemeriksaan Gigi' },
+        { key: 'risiko-jatuh', label: 'Risiko Jatuh' },
+        { key: 'skrining-gizi', label: 'Skrining Gizi' },
+        { key: 'gcs', label: 'GCS (Glasgow Coma Scale)' }
       ]
+    },
+    {
+      key: 'monitoring',
+      icon: <MonitorOutlined />,
+      label: 'Monitoring Harian',
+      children: [{ key: 'monitoring-ttv', label: 'Monitoring TTV' }]
     },
     {
       key: 'cppt',
@@ -108,7 +115,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
             <EncounterTimeline encounterId={encounterId} />
           </div>
         )
-      case 'nurse-assessment':
+      case 'initial-assessment':
         return <InitialAssessmentForm encounterId={encounterId!} patientData={patientData} />
       case 'dental-assessment':
         return <DentalAssessmentForm encounterId={encounterId!} patientData={patientData} />
@@ -122,6 +129,8 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
         )
       case 'gcs':
         return <GCSAssessmentForm encounterId={encounterId} patientData={patientData} />
+      case 'monitoring-ttv':
+        return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
       case 'cppt':
         return <CPPTForm encounterId={encounterId} patientData={patientData} />
       case 'prescription':

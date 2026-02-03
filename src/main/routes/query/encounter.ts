@@ -60,7 +60,6 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
   try {
     const client = getClient(ctx)
 
-    // Convert args to query string
     const queryParams = new URLSearchParams()
     if (args) {
       Object.entries(args).forEach(([key, value]) => {
@@ -70,14 +69,15 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
       })
     }
 
-    // Set default items if not present
     if (!queryParams.has('items')) queryParams.set('items', '100')
     if (!queryParams.has('depth')) queryParams.set('depth', '1')
 
     const res = await client.get(`/api/encounter?${queryParams.toString()}`)
 
-    // Extend the base schema to include the joined 'patient' relation
     const EncounterWithPatientSchema = EncounterSchemaWithId.extend({
+      startTime: z.union([z.date(), z.string()]).optional(),
+      serviceUnitId: z.string().optional(),
+      status: z.string(),
       patient: z.object({
         id: z.union([z.string(), z.number()]),
         name: z.string().optional().nullable(),
@@ -90,8 +90,18 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 
     const ListSchema = BackendListSchema(EncounterWithPatientSchema)
 
-    const result = await parseBackendResponse(res, ListSchema)
-    return { success: true, result }
+    const parsedResult = await parseBackendResponse(res, ListSchema)
+
+    const transformedResult = Array.isArray(parsedResult)
+      ? parsedResult.map((encounter: any) => ({
+        ...encounter,
+        visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
+        serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
+        status: encounter.status ? String(encounter.status) : 'UNKNOWN'
+      }))
+      : parsedResult
+
+    return { success: true, result: transformedResult }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -106,6 +116,9 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
     const BackendReadSchema = z.object({
       success: z.boolean(),
       result: EncounterSchemaWithId.extend({
+        startTime: z.union([z.date(), z.string()]).optional(),
+        serviceUnitId: z.string().optional(),
+        status: z.string(),
         patient: z.object({
           id: z.union([z.string(), z.number()]),
           name: z.string().optional().nullable(),
@@ -121,8 +134,19 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
       error: z.any().optional()
     })
 
-    const result = await parseBackendResponse(res, BackendReadSchema) // result holds the Encounter object
-    return { success: true, data: result }
+    const parsedResult = await parseBackendResponse(res, BackendReadSchema) as any
+
+    if (parsedResult) {
+      const transformed = {
+        ...parsedResult,
+        visitDate: parsedResult.startTime || parsedResult.visitDate || new Date().toISOString(),
+        serviceType: parsedResult.serviceUnitId || parsedResult.serviceType || '-',
+        status: parsedResult.status ? String(parsedResult.status) : 'UNKNOWN'
+      }
+      return { success: true, data: transformed }
+    }
+
+    return { success: true, data: undefined }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -154,13 +178,31 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 
     const BackendCreateSchema = z.object({
       success: z.boolean(),
-      result: EncounterSchemaWithId.optional().nullable(),
+      result: EncounterSchemaWithId.extend({
+        // Backend fields
+        startTime: z.union([z.date(), z.string()]).optional(),
+        serviceUnitId: z.string().optional(),
+        // Make status accept any string
+        status: z.string(),
+      }).optional().nullable(),
       message: z.string().optional(),
       error: z.any().optional()
     })
 
-    const result = await parseBackendResponse(res, BackendCreateSchema)
-    return { success: true, data: result }
+    const parsedResult = await parseBackendResponse(res, BackendCreateSchema) as any
+
+    // Transform the result if it exists
+    if (parsedResult) {
+      const transformed = {
+        ...parsedResult,
+        visitDate: parsedResult.startTime || parsedResult.visitDate || new Date().toISOString(),
+        serviceType: parsedResult.serviceUnitId || parsedResult.serviceType || '-',
+        status: parsedResult.status ? String(parsedResult.status) : 'UNKNOWN'
+      }
+      return { success: true, data: transformed }
+    }
+
+    return { success: true, data: undefined }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -191,13 +233,28 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 
     const BackendUpdateSchema = z.object({
       success: z.boolean(),
-      result: EncounterSchemaWithId.optional().nullable(),
+      result: EncounterSchemaWithId.extend({
+        startTime: z.union([z.date(), z.string()]).optional(),
+        serviceUnitId: z.string().optional(),
+        status: z.string(),
+      }).optional().nullable(),
       message: z.string().optional(),
       error: z.any().optional()
     })
 
-    const result = await parseBackendResponse(res, BackendUpdateSchema)
-    return { success: true, data: result }
+    const parsedResult = await parseBackendResponse(res, BackendUpdateSchema) as any
+
+    if (parsedResult) {
+      const transformed = {
+        ...parsedResult,
+        visitDate: parsedResult.startTime || parsedResult.visitDate || new Date().toISOString(),
+        serviceType: parsedResult.serviceUnitId || parsedResult.serviceType || '-',
+        status: parsedResult.status ? String(parsedResult.status) : 'UNKNOWN'
+      }
+      return { success: true, data: transformed }
+    }
+
+    return { success: true, data: undefined }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

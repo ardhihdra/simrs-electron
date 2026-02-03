@@ -20,7 +20,9 @@ export interface ObservationBuilderOptions {
     code: string
     display: string
     system?: string
+    codeCoding?: Array<{ code: string; display: string; system?: string }>
     effectiveDateTime?: string | Date
+    issued?: string | Date
     valueQuantity?: { value: number; unit: string }
     valueString?: string
     valueBoolean?: boolean
@@ -28,6 +30,13 @@ export interface ObservationBuilderOptions {
         code: string
         display: string
         system?: string
+    }>
+    components?: Array<{
+        code: string
+        display: string
+        system?: string
+        valueQuantity?: { value: number; unit: string }
+        valueString?: string
     }>
 }
 
@@ -44,6 +53,12 @@ export const createObservation = (options: ObservationBuilderOptions): any => {
             : new Date().toISOString()
     }
 
+    if (options.codeCoding) {
+        obs.codeCoding = options.codeCoding
+    }
+    if (options.issued !== undefined) {
+        obs.issued = typeof options.issued === 'string' ? options.issued : options.issued.toISOString()
+    }
     if (options.valueQuantity !== undefined) {
         obs.valueQuantity = options.valueQuantity
     }
@@ -57,6 +72,12 @@ export const createObservation = (options: ObservationBuilderOptions): any => {
         obs.interpretations = options.interpretations.map((interp) => ({
             ...interp,
             system: interp.system || OBSERVATION_SYSTEMS.HL7_INTERPRETATION
+        }))
+    }
+    if (options.components && options.components.length > 0) {
+        obs.components = options.components.map((comp) => ({
+            ...comp,
+            system: comp.system || OBSERVATION_SYSTEMS.LOINC
         }))
     }
 
