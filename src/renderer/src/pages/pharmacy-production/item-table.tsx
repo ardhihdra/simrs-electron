@@ -1,11 +1,17 @@
 import { Button, Input, Dropdown } from 'antd'
 import type { MenuProps } from 'antd'
-import { DeleteOutlined, EditOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  MoreOutlined,
+  ReloadOutlined,
+  PlusOutlined
+} from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import GenericTable from '@renderer/components/GenericTable'
 import { queryClient } from '@renderer/query-client'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
@@ -105,9 +111,11 @@ export function ItemTable() {
   const { data: stockData } = useQuery<InventoryStockResponse>({
     queryKey: ['inventoryStock', 'list'],
     queryFn: () => {
-      const api = (window.api?.query as {
-        inventoryStock?: { list: () => Promise<InventoryStockResponse> }
-      }).inventoryStock
+      const api = (
+        window.api?.query as {
+          inventoryStock?: { list: () => Promise<InventoryStockResponse> }
+        }
+      ).inventoryStock
       const fn = api?.list
       if (!fn) throw new Error('API stok inventory tidak tersedia.')
       return fn()
@@ -116,9 +124,7 @@ export function ItemTable() {
 
   const filtered = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(data?.result) ? data.result : []
-    const stockList: InventoryStockItem[] = Array.isArray(stockData?.result)
-      ? stockData.result
-      : []
+    const stockList: InventoryStockItem[] = Array.isArray(stockData?.result) ? stockData.result : []
 
     const stockMap = new Map<string, number>()
     for (const s of stockList) {
@@ -138,10 +144,7 @@ export function ItemTable() {
     return withStock.filter((item) => {
       const unitName = item.unit?.nama ?? ''
       const stockText = typeof item.stock === 'number' ? String(item.stock) : ''
-      return [item.nama, item.kode, unitName, stockText]
-        .join(' ')
-        .toLowerCase()
-        .includes(q)
+      return [item.nama, item.kode, unitName, stockText].join(' ').toLowerCase().includes(q)
     })
   }, [data?.result, stockData?.result, search])
 
@@ -160,7 +163,11 @@ export function ItemTable() {
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Refresh
           </Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/farmasi/items/create')}>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/dashboard/farmasi/items/create')}
+          >
             Tambah
           </Button>
         </div>
@@ -195,7 +202,7 @@ export function ItemTable() {
               title: 'Kategori',
               dataIndex: 'kind',
               key: 'kind',
-              render: (v: ItemAttributes['kind']) => (v ? kindLabels[v] ?? v : '-')
+              render: (v: ItemAttributes['kind']) => (v ? (kindLabels[v] ?? v) : '-')
             }
           ]}
           dataSource={filtered}

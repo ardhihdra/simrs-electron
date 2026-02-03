@@ -2,7 +2,12 @@ import React, { useState } from 'react'
 import { Form, Card, Button, Radio, Row, Col, Input, App, Space, Typography } from 'antd'
 import { SaveOutlined, ClearOutlined } from '@ant-design/icons'
 import { Odontogram, ToothSurface, ToothStatus } from './Odontogram'
-import { useBulkCreateObservation } from '../../../hooks/query/use-observation'
+import {
+  useBulkCreateObservation,
+  useObservationByEncounter
+} from '../../../hooks/query/use-observation'
+import { SNOMED_TEETH, SNOMED_CONDITIONS, SURFACE_NAMES } from '../../../config/dental-maps'
+import { useEffect } from 'react'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -22,6 +27,7 @@ export const DentalAssessmentForm: React.FC<DentalAssessmentFormProps> = ({
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const { mutateAsync: bulkCreateObs, isPending } = useBulkCreateObservation()
+  const { data: observationData } = useObservationByEncounter(encounterId)
 
   const [odontogramData, setOdontogramData] = useState<Record<string, ToothSurface>>({})
   const [selectedStatus, setSelectedStatus] = useState<ToothStatus>('caries')
@@ -31,7 +37,6 @@ export const DentalAssessmentForm: React.FC<DentalAssessmentFormProps> = ({
       const currentTooth = prev[toothNumber] || {}
       const currentStatus = currentTooth[surface]
 
-      // If same status, toggle to healthy (undefined)
       const newStatus = currentStatus === selectedStatus ? undefined : selectedStatus
 
       return {
@@ -48,11 +53,72 @@ export const DentalAssessmentForm: React.FC<DentalAssessmentFormProps> = ({
     setOdontogramData({})
   }
 
+  // Auto-fill logic from existing observations
+  useEffect(() => {
+    if (observationData?.result?.all && Array.isArray(observationData.result.all)) {
+      const newOdontogramData: Record<string, ToothSurface> = {}
+      let hasDentalData = false
+
+      observationData.result.all.forEach((obs: any) => {
+        // 1. Fill Text Fields
+        if (obs.codeCoding?.[0]?.code === 'dental-anamnesis') {
+          form.setFieldValue('dentalNote', obs.valueString)
+        }
+        if (obs.codeCoding?.[0]?.code === 'dental-findings') {
+          // Check if it is the summary finding
+          if (obs.display === 'Temuan Klinis Gigi (Summary)') {
+            form.setFieldValue('clinicalFindings', obs.valueString)
+          }
+        }
+
+        // 2. Fill Odontogram
+        // Check if observation has bodySites (Teeth) and code (Condition)
+        const toothCode = obs.bodySites?.[0]?.code
+        const conditionCode = obs.codeCoding?.[0]?.code
+        const surfaceName = obs.components?.[0]?.display
+
+        if (toothCode && conditionCode) {
+          // Reverse Lookup Tooth Number
+          const toothNumber = Object.keys(SNOMED_TEETH).find(
+            (key) => SNOMED_TEETH[key].code === toothCode
+          )
+
+          // Reverse Lookup Condition (Status)
+          const status = Object.keys(SNOMED_CONDITIONS).find(
+            (key) => SNOMED_CONDITIONS[key].code === conditionCode
+          ) as ToothStatus | undefined
+
+          // Reverse Lookup Surface
+          let surface: keyof ToothSurface | undefined
+          if (surfaceName) {
+            surface = Object.keys(SURFACE_NAMES).find(
+              (key) => SURFACE_NAMES[key] === surfaceName
+            ) as keyof ToothSurface | undefined
+          } else {
+            // Fallback for whole tooth if no component
+            surface = 'whole'
+          }
+
+          if (toothNumber && status && surface) {
+            if (!newOdontogramData[toothNumber]) {
+              newOdontogramData[toothNumber] = {}
+            }
+            newOdontogramData[toothNumber][surface] = status
+            hasDentalData = true
+          }
+        }
+      })
+
+      if (hasDentalData) {
+        setOdontogramData(newOdontogramData)
+      }
+    }
+  }, [observationData, form])
+
   const onFinish = async (values: any) => {
     try {
       const observations: any[] = []
 
-      // 1. Dental Note / Anamnesis
       if (values.dentalNote) {
         observations.push({
           category: 'exam',
@@ -62,23 +128,47 @@ export const DentalAssessmentForm: React.FC<DentalAssessmentFormProps> = ({
         })
       }
 
-      // 2. Odontogram Data (Serialized flattened)
-      // We store it as a JSON string for now, or map to FHIR observations per tooth if needed
-      if (Object.keys(odontogramData).length > 0) {
-        observations.push({
-          category: 'exam',
-          code: 'odontogram-data',
-          display: 'Data Odontogram',
-          valueString: JSON.stringify(odontogramData)
-        })
-      }
+      // 2. Process Odontogram Data (Granular Observations)
+      Object.entries(odontogramData).forEach(([toothNumber, surfaces]) => {
+        Object.entries(surfaces).forEach(([surface, status]) => {
+          if (!status) return
 
-      // 3. Additional Clinical Findings
+          const toothMap = SNOMED_TEETH[toothNumber]
+          const conditionMap = SNOMED_CONDITIONS[status]
+          const surfaceName = SURFACE_NAMES[surface] || surface
+
+          if (toothMap && conditionMap) {
+            observations.push({
+              status: 'final',
+              category: 'exam',
+              code: conditionMap.code, // Condition Code (e.g. Caries)
+              display: conditionMap.display,
+              bodySites: [
+                {
+                  code: toothMap.code,
+                  display: toothMap.display,
+                  system: 'http://snomed.info/sct'
+                }
+              ],
+              components: [
+                {
+                  code: 'surface', // Internal code for surface
+                  display: surfaceName, // e.g. Occlusal surface
+                  valueString: conditionMap.display // Value (e.g. Caries)
+                }
+              ],
+              notes: [`Tooth ${toothNumber} - ${surfaceName}: ${conditionMap.display}`]
+            })
+          }
+        })
+      })
+
+      // 3. Clinical Findings (Summary)
       if (values.clinicalFindings) {
         observations.push({
           category: 'exam',
           code: 'dental-findings',
-          display: 'Temuan Klinis Gigi',
+          display: 'Temuan Klinis Gigi (Summary)',
           valueString: values.clinicalFindings
         })
       }
@@ -102,7 +192,7 @@ export const DentalAssessmentForm: React.FC<DentalAssessmentFormProps> = ({
   }
 
   return (
-    <Form form={form} layout="vertical" onFinish={onFinish} className="space-y-6">
+    <Form form={form} layout="vertical" onFinish={onFinish} className="space-y-4">
       <Row gutter={24}>
         <Col span={24}>
           <Card
@@ -167,7 +257,7 @@ export const DentalAssessmentForm: React.FC<DentalAssessmentFormProps> = ({
         </div>
       </Card>
 
-      <Row gutter={24}>
+      <Row gutter={24} style={{ marginTop: '1rem' }}>
         <Col span={24}>
           <Card
             title={
@@ -187,7 +277,7 @@ export const DentalAssessmentForm: React.FC<DentalAssessmentFormProps> = ({
         </Col>
       </Row>
 
-      <div className="flex justify-end gap-2 sticky bottom-0 bg-white p-4 border-t border-gray-100 z-10">
+      <div className="flex justify-end gap-2 ">
         <Button icon={<ClearOutlined />} onClick={() => form.resetFields()} disabled={isPending}>
           Reset Form
         </Button>

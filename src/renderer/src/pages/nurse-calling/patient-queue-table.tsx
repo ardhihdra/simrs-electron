@@ -21,6 +21,7 @@ import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { PatientQueue, PatientStatus, Poli, Gender } from '../../types/nurse.types'
 import { getPolis } from '../../services/nurse.service'
+import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
 
 const { Option } = Select
 const { RangePicker } = DatePicker
@@ -31,7 +32,7 @@ interface PatientQueueTableData extends PatientQueue {
 
 function mapEncounterStatusToPatientStatus(status: string): PatientStatus {
   const s = status?.toLowerCase()
-  if (s === 'arrived') return PatientStatus.WAITING
+  if (s === 'arrived' || s === 'planned') return PatientStatus.WAITING
   if (s === 'triaged') return PatientStatus.EXAMINING
   if (s === 'in-progress') return PatientStatus.EXAMINING
   if (s === 'finished') return PatientStatus.COMPLETED
@@ -139,10 +140,12 @@ const PatientQueueTable = () => {
 
       const response = await fn({
         id: record.encounterId!,
-        status: 'in-progress',
+        status: EncounterStatus.IN_PROGRESS,
         patientId: record.patient.id,
         visitDate: record.registrationDate,
-        serviceType: record.poli.name
+        serviceType: record.poli.name,
+        encounterType: EncounterType.AMB,
+        arrivalType: ArrivalType.WALK_IN
       })
 
       if (response.success) {

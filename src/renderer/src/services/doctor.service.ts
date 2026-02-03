@@ -369,23 +369,25 @@ export const searchMedicalProcedures = async (query: string): Promise<MedicalPro
 }
 
 export const saveDiagnosisAndProcedures = async (
-    request: SaveDiagnosisAndProceduresRequest
+    request: SaveDiagnosisAndProceduresRequest & { assessmentDate?: string; doctorId?: number }
 ): Promise<SaveDiagnosisAndProceduresResponse> => {
     try {
-        const { encounterId, patientId, diagnoses, procedures } = request
+        const { encounterId, patientId, diagnoses, procedures, assessmentDate, doctorId: requestDoctorId } = request
 
         if (!patientId) {
             throw new Error('Patient ID is required')
         }
 
-        const doctorId = 1 // TODO: Get from logged in user session
+        const doctorId = requestDoctorId || 1
+        const effectiveDate = assessmentDate || new Date().toISOString()
 
         if (diagnoses.length > 0) {
             const conditionsPayload = diagnoses.map((d) => ({
                 diagnosisCodeId: parseInt(d.diagnosisCode.id),
                 isPrimary: d.isPrimary,
                 category: d.diagnosisCode.category,
-                notes: d.notes
+                notes: d.notes,
+                recordedDate: effectiveDate
             }))
 
             const conditionRes = await window.api.query.condition.create({
@@ -405,7 +407,7 @@ export const saveDiagnosisAndProcedures = async (
             const proceduresPayload = procedures.map((p) => ({
                 procedureCodeId: parseInt(p.procedure.id),
                 notes: p.notes,
-                performedAt: p.performedAt
+                performedAt: effectiveDate
             }))
 
             const procedureRes = await window.api.query.procedure.bulkCreate({

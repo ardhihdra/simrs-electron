@@ -48,8 +48,22 @@ export function MedicinesForm() {
     }
   })
 
-  const catOptions = useMemo(() => ((catData?.result || []) as { id: number; name: string }[]).map((c) => ({ label: c.name, value: c.id })), [catData?.result])
-  const brandOptions = useMemo(() => ((brandData?.result || []) as { id: number; name: string }[]).map((b) => ({ label: b.name, value: b.id })), [brandData?.result])
+  const catOptions = useMemo(
+    () =>
+      ((catData?.result || []) as { id: number; name: string }[]).map((c) => ({
+        label: c.name,
+        value: c.id
+      })),
+    [catData?.result]
+  )
+  const brandOptions = useMemo(
+    () =>
+      ((brandData?.result || []) as { id: number; name: string }[]).map((b) => ({
+        label: b.name,
+        value: b.id
+      })),
+    [brandData?.result]
+  )
 
   useEffect(() => {
     if (isEdit && detailData?.success && detailData.result) {
@@ -109,31 +123,51 @@ export function MedicinesForm() {
     <div className="flex justify-center p-4">
       <div className="w-full max-w-5xl bg-white dark:bg-[#141414] rounded-xl shadow-sm p-6 border border-gray-100 dark:border-gray-800">
         <div className="flex justify-between items-center mb-6 border-b border-gray-100 dark:border-gray-800 pb-4">
-          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">{isEdit ? 'Edit Medicine' : 'New Medicine'}</h2>
+          <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
+            {isEdit ? 'Edit Medicine' : 'New Medicine'}
+          </h2>
           <Button onClick={() => navigate('/dashboard/pharmacy/medicines')}>Back</Button>
         </div>
-        
+
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
             {/* Left Column */}
             <div className="space-y-2">
-              <Form.Item label="Medicine" name="name" rules={[{ required: true, message: 'Nama obat harus diisi' }]}>
+              <Form.Item
+                label="Medicine"
+                name="name"
+                rules={[{ required: true, message: 'Nama obat harus diisi' }]}
+              >
                 <Input placeholder="Contoh: Promag" />
               </Form.Item>
-              
-              <Form.Item label="Brand" name="medicineBrandId" rules={[{ required: true, message: 'Brand harus dipilih' }]}>
-                <Select options={brandOptions} placeholder="Pilih brand" showSearch optionFilterProp="label" loading={brandLoading} />
+
+              <Form.Item
+                label="Brand"
+                name="medicineBrandId"
+                rules={[{ required: true, message: 'Brand harus dipilih' }]}
+              >
+                <Select
+                  options={brandOptions}
+                  placeholder="Pilih brand"
+                  showSearch
+                  optionFilterProp="label"
+                  loading={brandLoading}
+                />
               </Form.Item>
-              
-              <Form.Item label="Buying Price" name="buyingPrice" rules={[{ required: true, message: 'Harga beli harus diisi' }]}>
+
+              <Form.Item
+                label="Buying Price"
+                name="buyingPrice"
+                rules={[{ required: true, message: 'Harga beli harus diisi' }]}
+              >
                 <InputNumber<number>
-                  min={0} 
-                  className="w-full" 
+                  min={0}
+                  className="w-full"
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={(value) => value?.replace(/\$\s?|(,*)/g, '') as unknown as number}
                 />
               </Form.Item>
-              
+
               <Form.Item label="Side Effects" name="sideEffects">
                 <Input.TextArea rows={4} placeholder="Efek samping obat..." />
               </Form.Item>
@@ -141,23 +175,41 @@ export function MedicinesForm() {
 
             {/* Right Column */}
             <div className="space-y-2">
-              <Form.Item label="Category" name="medicineCategoryId" rules={[{ required: true, message: 'Kategori harus dipilih' }]}>
-                <Select options={catOptions} placeholder="Pilih kategori" showSearch optionFilterProp="label" loading={catLoading} />
+              <Form.Item
+                label="Category"
+                name="medicineCategoryId"
+                rules={[{ required: true, message: 'Kategori harus dipilih' }]}
+              >
+                <Select
+                  options={catOptions}
+                  placeholder="Pilih kategori"
+                  showSearch
+                  optionFilterProp="label"
+                  loading={catLoading}
+                />
               </Form.Item>
-              
-              <Form.Item label="Salt Composition" name="saltComposition" rules={[{ required: true, message: 'Komposisi harus diisi' }]}>
+
+              <Form.Item
+                label="Salt Composition"
+                name="saltComposition"
+                rules={[{ required: true, message: 'Komposisi harus diisi' }]}
+              >
                 <Input placeholder="Contoh: MgCl2" />
               </Form.Item>
-              
-              <Form.Item label="Selling Price" name="sellingPrice" rules={[{ required: true, message: 'Harga jual harus diisi' }]}>
+
+              <Form.Item
+                label="Selling Price"
+                name="sellingPrice"
+                rules={[{ required: true, message: 'Harga jual harus diisi' }]}
+              >
                 <InputNumber<number>
-                  min={0} 
+                  min={0}
                   className="w-full"
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={(value) => value?.replace(/\$\s?|(,*)/g, '') as unknown as number}
                 />
               </Form.Item>
-              
+
               <Form.Item label="Description" name="description">
                 <Input.TextArea rows={4} placeholder="Deskripsi obat..." />
               </Form.Item>
@@ -165,7 +217,12 @@ export function MedicinesForm() {
           </div>
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
-            <Button type="primary" htmlType="submit" loading={createMutation.isPending || updateMutation.isPending} className="px-6 bg-orange-600 hover:bg-orange-500 border-none">
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={createMutation.isPending || updateMutation.isPending}
+              className="px-6 bg-orange-600 hover:bg-orange-500 border-none"
+            >
               Save
             </Button>
             <Button onClick={() => navigate('/dashboard/pharmacy/medicines')} className="px-6">
@@ -179,4 +236,3 @@ export function MedicinesForm() {
 }
 
 export default MedicinesForm
-

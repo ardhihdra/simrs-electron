@@ -73,7 +73,7 @@ import NurseCalling from './pages/nurse-calling/NurseCalling'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
 import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
-import PatientList from './pages/doctor-emr/patient-list'
+import PatientList from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 
 function MainRoute() {

@@ -21,6 +21,14 @@ export interface ObservationData {
     methods?: Array<{ code: string; display: string; system?: string }>
     interpretations?: Array<{ code: string; display: string; system?: string }>
     notes?: Array<{ text: string; time?: Date | string }>
+    components?: Array<{
+        code?: string
+        display?: string
+        codeSystem?: string
+        valueQuantity?: { value: number; unit: string }
+        valueString?: string
+        valueBoolean?: boolean
+    }>
 }
 
 export interface FormattedVitalSigns {
@@ -195,10 +203,28 @@ export interface FormattedObservationSummary {
 export const getObservationByCode = (
     observations: ObservationData[],
     code: string
-): ObservationData | undefined => {
-    return observations.find((obs) =>
-        obs.codeCoding?.some((coding) => coding.code === code)
-    )
+): ObservationData | any | undefined => {
+    for (const obs of observations) {
+        // Check top level codeCoding
+        if (obs.codeCoding?.some((coding) => coding.code === code)) {
+            return obs
+        }
+        // Check components
+        if (obs.components) {
+            const comp = obs.components.find((c) => c.code === code)
+            if (comp) {
+                // Return a synthetic observation combining parent metadata and component value
+                return {
+                    ...obs,
+                    codeCoding: [{ code: comp.code, display: comp.display, system: comp.codeSystem }],
+                    valueQuantity: comp.valueQuantity,
+                    valueString: comp.valueString,
+                    valueBoolean: comp.valueBoolean
+                }
+            }
+        }
+    }
+    return undefined
 }
 
 export const extractQuantityValue = (observation?: ObservationData): number | undefined => {

@@ -45,9 +45,22 @@ function RowActions({ record }: { record: MedicineCategoryAttributes }) {
     }
   })
   const items: MenuProps['items'] = [
-    { key: 'edit', label: 'Edit', icon: <EditOutlined />, onClick: () => typeof record.id === 'number' && navigate(`/dashboard/medicine/medicine-categories/edit/${record.id}`) },
+    {
+      key: 'edit',
+      label: 'Edit',
+      icon: <EditOutlined />,
+      onClick: () =>
+        typeof record.id === 'number' &&
+        navigate(`/dashboard/medicine/medicine-categories/edit/${record.id}`)
+    },
     { type: 'divider' },
-    { key: 'delete', danger: true, label: 'Delete', icon: <DeleteOutlined />, onClick: () => typeof record.id === 'number' && deleteMutation.mutate(record.id) }
+    {
+      key: 'delete',
+      danger: true,
+      label: 'Delete',
+      icon: <DeleteOutlined />,
+      onClick: () => typeof record.id === 'number' && deleteMutation.mutate(record.id)
+    }
   ]
   return (
     <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
@@ -74,7 +87,8 @@ export function MedicineCategoryTable() {
   })
 
   const filtered = useMemo(() => {
-    const source: MedicineCategoryAttributes[] = (data?.result as MedicineCategoryAttributes[]) || []
+    const source: MedicineCategoryAttributes[] =
+      (data?.result as MedicineCategoryAttributes[]) || []
     const q = search.trim().toLowerCase()
     if (!q) return source
     return source.filter((p) => p.name.toLowerCase().includes(q))
@@ -84,17 +98,34 @@ export function MedicineCategoryTable() {
     <div>
       <h2 className="text-4xl font-bold mb-4 justify-center flex">Kategori Obat</h2>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <Input type="text" placeholder="Cari" className="w-full md:max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+        <Input
+          type="text"
+          placeholder="Cari"
+          className="w-full md:max-w-sm"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
         <div className="flex gap-2 flex-wrap md:justify-end">
           <Button onClick={() => refetch()}>Refresh</Button>
-          <Button type="primary" onClick={() => navigate('/dashboard/medicine/medicine-categories/create')}>Tambah</Button>
+          <Button
+            type="primary"
+            onClick={() => navigate('/dashboard/medicine/medicine-categories/create')}
+          >
+            Tambah
+          </Button>
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.message}</div>)}
-      <Table dataSource={filtered} columns={columns} size="small" className="mt-4 rounded-xl shadow-sm" rowKey="id" scroll={{ x: 'max-content' }} />
+      <Table
+        dataSource={filtered}
+        columns={columns}
+        size="small"
+        className="mt-4 rounded-xl "
+        rowKey="id"
+        scroll={{ x: 'max-content' }}
+      />
     </div>
   )
 }
 
 export default MedicineCategoryTable
-

@@ -12,6 +12,8 @@ import {
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
 } from '../../utils/observation-builder'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { useQuery } from '@tanstack/react-query'
 
 const { Option } = Select
 
@@ -32,6 +34,25 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
   const { data: response } = useObservationByEncounter(encounterId)
 
+  // Fetch Nurses
+  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'perawat'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      const res = await fn()
+      if (res.success && res.result) {
+        return res.result
+          .filter((p: any) => p.hakAksesId === 'nurse')
+          .map((p: any) => ({
+            id: p.id,
+            name: p.namaLengkap
+          }))
+      }
+      return []
+    }
+  })
+
   useEffect(() => {
     const observations = response?.result?.all
     if (response?.success && observations && Array.isArray(observations)) {
@@ -41,8 +62,15 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
       if (gcsEye) setGcsEye(gcsEye)
       if (gcsVerbal) setGcsVerbal(gcsVerbal)
       if (gcsMotor) setGcsMotor(gcsMotor)
+
+      if (observations[0]?.effectiveDateTime) {
+        form.setFieldValue('assessment_date', dayjs(observations[0].effectiveDateTime))
+      }
+      if (observations[0]?.performers?.[0]?.reference) {
+        form.setFieldValue('performerId', Number(observations[0].performers[0].reference))
+      }
     }
-  }, [response])
+  }, [response, form])
 
   const bulkCreateObservation = useBulkCreateObservation()
 
@@ -146,14 +174,17 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
       }
 
       if (obsToCreate.length > 0) {
-        const observations = createObservationBatch(obsToCreate, values.assessment_date)
+        const assessmentDate = values.assessment_date || dayjs()
+        const observations = createObservationBatch(obsToCreate, assessmentDate)
+        const performerName =
+          performersData?.find((p: any) => p.id === values.performerId)?.name || 'Unknown'
 
         await bulkCreateObservation.mutateAsync({
           encounterId,
           patientId: patientData?.patient?.id || patientData?.id,
           observations,
-          performerId: 'nurse-001',
-          performerName: values.nurse_name || 'Perawat Jaga'
+          performerId: String(values.performerId),
+          performerName: performerName
         })
         message.success('Data Skrining Nyeri & GCS berhasil disimpan')
       } else {
@@ -177,27 +208,7 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
         pain_scale_score: 0
       }}
     >
-      <Card title="Data Asesmen & Pemeriksa" className="py-4">
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item
-              label="Tanggal Pemeriksaan"
-              name="assessment_date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Perawat" name="nurse_name" rules={[{ required: true }]}>
-              <Select showSearch placeholder="Pilih Perawat">
-                <Option value="Perawat Jaga">Perawat Jaga</Option>
-                <Option value="Perawat Senior">Perawat Senior</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
+      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title="Pemeriksaan GCS (Glasgow Coma Scale)" className="py-4">
         {/* Eye Response */}

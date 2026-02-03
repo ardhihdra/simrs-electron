@@ -12,6 +12,9 @@ import { useConditionByEncounter } from '../../hooks/query/use-condition'
 import { useProcedureByEncounter } from '../../hooks/query/use-procedure'
 import { ANAMNESIS_MAP, DIAGNOSIS_MAP } from '../../config/condition-maps'
 import { PROCEDURE_MAP } from '../../config/procedure-maps'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import dayjs from 'dayjs'
+import { useQuery } from '@tanstack/react-query'
 
 interface DiagnosisCode {
   id: string
@@ -69,6 +72,24 @@ export const DiagnosisProceduresForm = ({
   const [selectedProcedures, setSelectedProcedures] = useState<ProcedureTableData[]>([])
   const [procedureSearch, setProcedureSearch] = useState('')
   const [searchingProcedure, setSearchingProcedure] = useState(false)
+
+  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'doctor'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      const res = await fn()
+      if (res.success && res.result) {
+        return res.result
+          .filter((p: any) => p.hakAksesId === 'doctor')
+          .map((p: any) => ({
+            id: p.id,
+            name: p.namaLengkap
+          }))
+      }
+      return []
+    }
+  })
 
   useEffect(() => {
     if (conditionsData?.result && Array.isArray(conditionsData.result)) {
@@ -316,7 +337,7 @@ export const DiagnosisProceduresForm = ({
     setSelectedProcedures(updated)
   }
 
-  const onFinish = async () => {
+  const onFinish = async (values: any) => {
     if (selectedDiagnoses.length === 0) {
       message.error('Minimal harus ada 1 diagnosis')
       return
@@ -330,7 +351,9 @@ export const DiagnosisProceduresForm = ({
         encounterId,
         patientId: patientData?.patient.id,
         diagnoses: selectedDiagnoses,
-        procedures: selectedProcedures
+        procedures: selectedProcedures,
+        assessmentDate: values.assessment_date ? values.assessment_date.toISOString() : undefined,
+        doctorId: values.performerId
       })
 
       if (response.success) {
@@ -455,6 +478,8 @@ export const DiagnosisProceduresForm = ({
   return (
     <div className="flex flex-col gap-4">
       <Form form={form} layout="vertical" onFinish={onFinish} className="flex flex-col gap-4">
+        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
         <Card title="Diagnosis (ICD-10)">
           <Space direction="vertical" className="w-full" size="large">
             <div>
@@ -512,8 +537,8 @@ export const DiagnosisProceduresForm = ({
           </Space>
         </Card>
 
-        <Form.Item>
-          <Space>
+        <Form.Item className="mb-0">
+          <div className="flex justify-end pt-4 border-t border-gray-200">
             <Button
               type="primary"
               htmlType="submit"
@@ -523,7 +548,7 @@ export const DiagnosisProceduresForm = ({
             >
               Simpan Tindakan
             </Button>
-          </Space>
+          </div>
         </Form.Item>
       </Form>
     </div>

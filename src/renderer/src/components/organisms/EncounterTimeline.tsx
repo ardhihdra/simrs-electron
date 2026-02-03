@@ -38,8 +38,9 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         { date: string; items: any[]; doctors: Set<string>; sessions: Record<string, any[]> }
       > = {}
       allObs.forEach((obs) => {
-        const dateKey = dayjs(obs.createdAt).format('YYYY-MM-DD')
-        const timeKey = dayjs(obs.createdAt).format('HH:mm')
+        const effectiveDate = obs.effectiveDateTime || obs.issued || obs.createdAt
+        const dateKey = dayjs(effectiveDate).format('YYYY-MM-DD')
+        const timeKey = dayjs(effectiveDate).format('HH:mm')
 
         if (!dateGroups[dateKey]) {
           dateGroups[dateKey] = {
@@ -82,7 +83,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (isLoading)
     return (
-      <Card className="mb-4 shadow-sm border-gray-200" size="small">
+      <Card className="mb-4  border-gray-200" size="small">
         <div className="p-8 text-center">
           <Spin tip="Memuat riwayat harian..." />
         </div>
@@ -91,7 +92,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (!timelineData || timelineData.length === 0)
     return (
-      <Card className="mb-4 shadow-sm border-gray-200" size="small">
+      <Card className="mb-4  border-gray-200" size="small">
         <Empty description="Belum ada riwayat pemeriksaan" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </Card>
     )
