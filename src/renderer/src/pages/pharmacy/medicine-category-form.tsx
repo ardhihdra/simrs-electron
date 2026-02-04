@@ -16,7 +16,7 @@ export function MedicineCategoryForm() {
     queryKey: ['medicineCategory', 'detail', id],
     queryFn: () => {
       const fn = window.api?.query?.medicineCategory?.getById
-      if (!fn) throw new Error('API kategori obat tidak tersedia.')
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
       return fn({ id: Number(id) })
     },
     enabled: isEdit
@@ -33,7 +33,7 @@ export function MedicineCategoryForm() {
     mutationKey: ['medicineCategory', 'create'],
     mutationFn: (data: FormData) => {
       const fn = window.api?.query?.medicineCategory?.create
-      if (!fn) throw new Error('API kategori obat tidak tersedia.')
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
       return fn(data)
     },
     onSuccess: () => {
@@ -46,7 +46,7 @@ export function MedicineCategoryForm() {
     mutationKey: ['medicineCategory', 'update'],
     mutationFn: (data: FormData & { id: number }) => {
       const fn = window.api?.query?.medicineCategory?.update
-      if (!fn) throw new Error('API kategori obat tidak tersedia.')
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
       return fn(data)
     },
     onSuccess: () => {
@@ -64,9 +64,9 @@ export function MedicineCategoryForm() {
   return (
     <div className="flex justify-center">
       <div className="w-full max-w-xl">
-        <h2 className="text-2xl font-bold mb-6 text-center">{isEdit ? 'Edit Category' : 'New Category'}</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center">{isEdit ? 'Edit Kategori Item' : 'Kategori Item Baru'}</h2>
         <Form form={form} layout="vertical" onFinish={onFinish} initialValues={{ status: true }}>
-          <Form.Item label="Category" name="name" rules={[{ required: true, message: 'Nama kategori harus diisi' }]}>
+          <Form.Item label="Kategori" name="name" rules={[{ required: true, message: 'Nama kategori harus diisi' }]}> 
             <Input placeholder="Contoh: Obat bebas" />
           </Form.Item>
           <Form.Item label="Status" name="status" valuePropName="checked">

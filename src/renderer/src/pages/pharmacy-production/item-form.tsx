@@ -6,18 +6,25 @@ import { queryClient } from '@renderer/query-client'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
-interface FormData {
-  nama: string
-  kode: string
-  kodeUnit: string
-  kind?: ItemKind | null
-  minimumStock?: number | null
+type ItemFormValues = {
+	  nama: string
+	  kode: string
+	  kodeUnit: string
+	  kind?: ItemKind | null
+	  minimumStock?: number | null
+	  itemCategoryId?: number | null
+}
+
+interface ItemCategoryAttributes {
+	  id?: number
+	  name: string
+	  status?: boolean
 }
 
 type ItemApi = {
-  read: (args: { id: number }) => Promise<{ success: boolean; result?: FormData & { id?: number }; message?: string; error?: string }>
-  create: (data: FormData) => Promise<{ success: boolean; result?: FormData & { id?: number }; message?: string; error?: string }>
-  update: (data: FormData & { id: number }) => Promise<{ success: boolean; result?: FormData & { id?: number }; message?: string; error?: string }>
+	  read: (args: { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
+	  create: (data: ItemFormValues) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
+	  update: (data: ItemFormValues & { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
 }
 
 interface UnitListEntry {
@@ -32,23 +39,23 @@ type UnitListResponse = {
   message?: string
 }
 
-const kindOptions = [
-  { label: 'Alat Kesehatan', value: 'DEVICE' },
-  { label: 'BMHP / Habis Pakai', value: 'CONSUMABLE' },
-  { label: 'Makanan / Minuman', value: 'NUTRITION' },
-  { label: 'Barang Umum', value: 'GENERAL' }
-] as const
+type ItemCategoryListResponse = {
+	  success: boolean
+	  result?: ItemCategoryAttributes[]
+	  message?: string
+}
 
 export function ItemForm() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const [form] = Form.useForm<FormData>()
+	  const [form] = Form.useForm<ItemFormValues>()
   const isEdit = Boolean(id)
 
-  const api = (window.api?.query as { item?: ItemApi }).item
+	  const api = window.api?.query?.item as ItemApi | undefined
   const unitApi = (window.api?.query as { unit?: { list: () => Promise<UnitListResponse> } }).unit
+  const medicineCategoryApi = (window.api?.query as { medicineCategory?: { list: () => Promise<ItemCategoryListResponse> } }).medicineCategory
 
-  const { data: detailData } = useQuery({
+	  const { data: detailData } = useQuery({
     queryKey: ['item', 'detail', id],
     queryFn: () => {
       const fn = api?.read
@@ -58,7 +65,7 @@ export function ItemForm() {
     enabled: isEdit
   })
 
-  const { data: unitSource } = useQuery<UnitListResponse>({
+	  const { data: unitSource } = useQuery<UnitListResponse>({
     queryKey: ['unit', 'list', 'for-item-form'],
     queryFn: () => {
       const fn = unitApi?.list
@@ -67,46 +74,61 @@ export function ItemForm() {
     }
   })
 
-  const unitOptions = useMemo(
-    () => {
-      console.log('[ItemForm] unitSource', unitSource)
-      const entries: UnitListEntry[] = Array.isArray(unitSource?.result) ? unitSource.result : []
-      const map = new Map<string, string>()
+	  const { data: categorySource } = useQuery<ItemCategoryListResponse>({
+	   queryKey: ['itemCategory', 'list', 'for-item-form'],
+	   queryFn: () => {
+	     const fn = medicineCategoryApi?.list
+	     if (!fn) throw new Error('API kategori item tidak tersedia.')
+	     return fn()
+	   }
+	 })
 
-      for (const item of entries) {
-        const rawCode = typeof item.kode === 'string' && item.kode.length > 0 ? item.kode : ''
-        const code = rawCode.trim().toUpperCase()
-        if (!code) continue
-        if (map.has(code)) continue
-        const unitName = item.nama ?? code
-        map.set(code, `${code} - ${unitName}`)
-      }
+	  const unitOptions = useMemo(() => {
+	    const entries: UnitListEntry[] = Array.isArray(unitSource?.result) ? unitSource.result : []
+	    const map = new Map<string, string>()
 
-      const options = Array.from(map.entries()).map(([value, label]) => ({ value, label }))
-      console.log('[ItemForm] unitOptions', options)
-      return options
-    },
-    [unitSource?.result]
-  )
+	    for (const item of entries) {
+	      const rawCode = typeof item.kode === 'string' && item.kode.length > 0 ? item.kode : ''
+	      const code = rawCode.trim().toUpperCase()
+	      if (!code) continue
+	      if (map.has(code)) continue
+	      const unitName = item.nama ?? code
+	      map.set(code, `${code} - ${unitName}`)
+	    }
 
-  useEffect(() => {
-    if (isEdit && detailData?.success && detailData.result) {
-      const d = detailData.result
-      form.setFieldsValue({
-        nama: d.nama,
-        kode: d.kode,
-        kodeUnit:
-          typeof d.kodeUnit === 'string' && d.kodeUnit.length > 0
-            ? d.kodeUnit.trim().toUpperCase()
-            : d.kodeUnit,
-        kind: d.kind ?? null
-      })
-    }
-  }, [isEdit, detailData, form])
+	    const options = Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+	    return options
+	  }, [unitSource?.result])
 
-  const createMutation = useMutation({
+	  const itemCategoryOptions = useMemo(() => {
+	    const entries: ItemCategoryAttributes[] = Array.isArray(categorySource?.result)
+	      ? categorySource.result
+	      : []
+
+	    return entries
+	      .filter((cat) => typeof cat.id === 'number' && Boolean(cat.name))
+	      .map((cat) => ({ value: cat.id as number, label: cat.name }))
+	  }, [categorySource?.result])
+
+	  useEffect(() => {
+	    if (isEdit && detailData?.success && detailData.result) {
+	      const d = detailData.result as ItemFormValues & { id?: number }
+	      form.setFieldsValue({
+	        nama: d.nama,
+	        kode: d.kode,
+	        kodeUnit:
+	          typeof d.kodeUnit === 'string' && d.kodeUnit.length > 0
+	            ? d.kodeUnit.trim().toUpperCase()
+	            : d.kodeUnit,
+	        kind: d.kind ?? null,
+	        itemCategoryId: d.itemCategoryId ?? null
+	      })
+	    }
+	  }, [isEdit, detailData, form])
+
+	  const createMutation = useMutation({
     mutationKey: ['item', 'create'],
-    mutationFn: (data: FormData) => {
+	    mutationFn: (data: ItemFormValues) => {
       const fn = api?.create
       if (!fn) throw new Error('API item tidak tersedia.')
       console.log('[ItemForm] create payload', data)
@@ -131,9 +153,9 @@ export function ItemForm() {
     }
   })
 
-  const updateMutation = useMutation({
+	  const updateMutation = useMutation({
     mutationKey: ['item', 'update'],
-    mutationFn: (data: FormData & { id: number }) => {
+	    mutationFn: (data: ItemFormValues & { id: number }) => {
       const fn = api?.update
       if (!fn) throw new Error('API item tidak tersedia.')
       console.log('[ItemForm] update payload', data)
@@ -159,13 +181,14 @@ export function ItemForm() {
     }
   })
 
-  const onFinish = (values: FormData) => {
-    const payload: FormData = {
+	  const onFinish = (values: ItemFormValues) => {
+	    const payload: ItemFormValues = {
       ...values,
       nama: values.nama.trim(),
       kode: values.kode.trim().toUpperCase(),
       kodeUnit: values.kodeUnit.trim().toUpperCase(),
-      kind: values.kind ?? null
+      kind: values.kind ?? null,
+		    itemCategoryId: typeof values.itemCategoryId === 'number' ? values.itemCategoryId : null
     }
 
     console.log('[ItemForm] submit', { isEdit, payload })
@@ -217,13 +240,15 @@ export function ItemForm() {
             />
           </Form.Item>
 
-          <Form.Item label="Kategori" name="kind">
-            <Select
-              allowClear
-              placeholder="Pilih kategori item"
-              options={kindOptions.map((k) => ({ label: k.label, value: k.value }))}
-            />
-          </Form.Item>
+          <Form.Item label="Kategori" name="itemCategoryId">
+	        <Select
+	          allowClear
+	          showSearch
+	          placeholder="Pilih kategori item"
+	          options={itemCategoryOptions}
+	          optionFilterProp="label"
+	        />
+	      </Form.Item>
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
             <Button
