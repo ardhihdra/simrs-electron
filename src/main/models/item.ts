@@ -18,7 +18,27 @@ export const ItemSchema = z.object({
 	kind: ItemKindSchema.nullable().optional(),
 	minimumStock: z.number().nullable().optional(),
 	stock: z.number().nullable().optional(),
-	itemCategoryId: z.number().nullable().optional()
+	itemCategoryId: z.number().nullable().optional(),
+	buyingPrice: z.number().nullable().optional(),
+	sellingPrice: z.number().nullable().optional(),
+	buyPriceRules: z
+		.object({
+			unitCode: z.string().min(1),
+			qty: z.number().positive(),
+			price: z.number().nonnegative()
+		})
+		.array()
+		.nullable()
+		.optional(),
+	sellPriceRules: z
+		.object({
+			unitCode: z.string().min(1),
+			qty: z.number().positive(),
+			price: z.number().nonnegative()
+		})
+		.array()
+		.nullable()
+		.optional()
 })
 
 export const ItemWithIdSchema = ItemSchema.extend({

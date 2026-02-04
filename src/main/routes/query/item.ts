@@ -61,7 +61,11 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
 			kind: args.kind ?? null,
-			itemCategoryId: args.itemCategoryId ?? null
+			itemCategoryId: args.itemCategoryId ?? null,
+			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
+			sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
+			buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
+			sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
 		}
 		const payload =
 			typeof args.minimumStock === 'number'
@@ -87,7 +91,11 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
 			kind: args.kind ?? null,
-			itemCategoryId: args.itemCategoryId ?? null
+			itemCategoryId: args.itemCategoryId ?? null,
+			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
+			sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
+			buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
+			sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
 		}
 		const payload =
 			typeof args.minimumStock === 'number'

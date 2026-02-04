@@ -9,6 +9,12 @@ import { queryClient } from '@renderer/query-client'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
+interface PriceRule {
+	unitCode: string
+	qty: number
+	price: number
+}
+
 interface ItemAttributes {
   id?: number
   nama: string
@@ -18,6 +24,10 @@ interface ItemAttributes {
   unit?: { nama?: string; kode?: string } | null
   stock?: number | null
   minimumStock?: number | null
+  buyingPrice?: number | null
+  sellingPrice?: number | null
+	buyPriceRules?: PriceRule[] | null
+	sellPriceRules?: PriceRule[] | null
 }
 
 type ItemListResponse = {
@@ -46,6 +56,87 @@ const kindLabels: Record<ItemKind, string> = {
   CONSUMABLE: 'BMHP / Habis Pakai',
   NUTRITION: 'Makanan / Minuman',
   GENERAL: 'Barang Umum'
+}
+
+const formatRupiah = (value: number | string | null | undefined): string => {
+	if (value === null || value === undefined) return '-'
+	const raw =
+		typeof value === 'number' ? value : Number(String(value).replace(/[^0-9-]/g, ''))
+	if (!Number.isFinite(raw)) return '-'
+	const formatted = new Intl.NumberFormat('id-ID', {
+		minimumFractionDigits: 0,
+		maximumFractionDigits: 0
+	}).format(raw)
+	return `Rp ${formatted}`
+}
+
+interface UnitPriceDisplay {
+	unitCode: string
+	value: number
+}
+
+const getBaseUnitCodeForItem = (item: ItemAttributes): string | null => {
+	const all: { unitCode: string; qty: number }[] = []
+
+	const collect = (rules: PriceRule[] | null | undefined) => {
+		if (!Array.isArray(rules)) return
+		for (const rule of rules) {
+			const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
+			const unitCode = unitCodeRaw.trim().toUpperCase()
+			const qtyRaw = rule.qty
+			const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
+			if (!unitCode) continue
+			if (!Number.isFinite(qty) || qty <= 0) continue
+			all.push({ unitCode, qty })
+		}
+	}
+
+	collect(item.buyPriceRules ?? null)
+	collect(item.sellPriceRules ?? null)
+
+	if (all.length === 0) {
+		const kodeUnitRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : ''
+		const kodeUnit = kodeUnitRaw.trim().toUpperCase()
+		return kodeUnit || null
+	}
+
+	const sorted = [...all].sort((a, b) => a.qty - b.qty)
+	return sorted[0]?.unitCode ?? null
+}
+
+const buildUnitPrices = (
+	rules: PriceRule[] | null | undefined,
+	baseUnitCodeRaw: string | null
+): UnitPriceDisplay[] => {
+	if (!Array.isArray(rules)) return []
+	const baseUnitCode = baseUnitCodeRaw ? baseUnitCodeRaw.trim().toUpperCase() : ''
+	const result: UnitPriceDisplay[] = []
+
+	for (const rule of rules) {
+		const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
+		const unitCode = unitCodeRaw.trim().toUpperCase()
+		const qtyRaw = rule.qty
+		const priceRaw = rule.price
+		const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
+		const price = typeof priceRaw === 'number' ? priceRaw : Number(priceRaw)
+
+		if (!unitCode) continue
+		if (!Number.isFinite(price)) continue
+
+		const isBaseUnit = baseUnitCode !== '' && unitCode === baseUnitCode
+
+		if (isBaseUnit) {
+			result.push({ unitCode, value: price })
+			continue
+		}
+
+		if (!Number.isFinite(qty) || qty <= 0) continue
+		const unitPrice = price / qty
+		if (!Number.isFinite(unitPrice)) continue
+		result.push({ unitCode, value: unitPrice })
+	}
+
+	return result
 }
 
 interface ItemUpdatePayload {
@@ -427,6 +518,70 @@ export function ItemTable() {
               key: 'unit',
               render: (v: ItemAttributes['unit']) => v?.nama || v?.kode || '-'
             },
+	          {
+	            title: 'Harga Beli Satuan',
+	            key: 'buyUnitPrice',
+	            render: (_: unknown, record: ItemAttributes) => {
+	              const baseUnitCode = getBaseUnitCodeForItem(record)
+	              const unitPrices = buildUnitPrices(record.buyPriceRules ?? null, baseUnitCode)
+
+	              if (unitPrices.length > 0) {
+	                return (
+	                  <div className="flex flex-col">
+	                    {unitPrices.map((p) => (
+	                      <span key={`${p.unitCode}-${p.value}`}>
+	                        {formatRupiah(p.value)} / {p.unitCode}
+	                      </span>
+	                    ))}
+	                  </div>
+	                )
+	              }
+
+	              const price = record.buyingPrice
+	              if (typeof price === 'number' && Number.isFinite(price)) {
+	                const unitLabel = record.kodeUnit || 'PCS'
+	                return (
+	                  <span>
+	                    {formatRupiah(price)} / {unitLabel}
+	                  </span>
+	                )
+	              }
+
+	              return '-' as const
+	            }
+	          },
+	          {
+	            title: 'Harga Jual Satuan',
+	            key: 'sellUnitPrice',
+	            render: (_: unknown, record: ItemAttributes) => {
+	              const baseUnitCode = getBaseUnitCodeForItem(record)
+	              const unitPrices = buildUnitPrices(record.sellPriceRules ?? null, baseUnitCode)
+
+	              if (unitPrices.length > 0) {
+	                return (
+	                  <div className="flex flex-col">
+	                    {unitPrices.map((p) => (
+	                      <span key={`${p.unitCode}-${p.value}`}>
+	                        {formatRupiah(p.value)} / {p.unitCode}
+	                      </span>
+	                    ))}
+	                  </div>
+	                )
+	              }
+
+	              const price = record.sellingPrice
+	              if (typeof price === 'number' && Number.isFinite(price)) {
+	                const unitLabel = record.kodeUnit || 'PCS'
+	                return (
+	                  <span>
+	                    {formatRupiah(price)} / {unitLabel}
+	                  </span>
+	                )
+	              }
+
+	              return '-' as const
+	            }
+	          },
             {
               title: 'Kategori',
               dataIndex: 'kind',
