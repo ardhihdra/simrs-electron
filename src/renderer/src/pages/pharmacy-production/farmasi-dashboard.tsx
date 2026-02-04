@@ -204,14 +204,9 @@ function FarmasiDashboard() {
 		return baseItems.map((item) => {
 			const key = item.kode.trim().toUpperCase()
 			const stockEntry = stockMap.get(key)
-			const baseStock = typeof item.stock === 'number' ? item.stock : undefined
-			const stockFromInventory = typeof stockEntry?.availableStock === 'number' ? stockEntry.availableStock : undefined
-			const stockValue =
-				typeof baseStock === 'number'
-					? baseStock
-					: typeof stockFromInventory === 'number'
-					? stockFromInventory
-					: 0
+			const stockFromInventory =
+				typeof stockEntry?.availableStock === 'number' ? stockEntry.availableStock : undefined
+			const stockValue = typeof stockFromInventory === 'number' ? stockFromInventory : 0
 			return { ...item, stock: stockValue }
 		})
 	}, [itemData?.result, inventoryStockData?.result])

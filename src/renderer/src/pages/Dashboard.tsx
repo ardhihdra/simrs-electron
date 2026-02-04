@@ -166,25 +166,9 @@ const items = [
     icon: <WalletOutlined />,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <DashboardOutlined /> },
-      { label: 'Master Obat - Kategori', key: '/dashboard/medicine/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Master Obat - Merek', key: '/dashboard/medicine/medicine-brands', icon: <DashboardOutlined /> },
-      { label: 'Master Obat', key: '/dashboard/medicine/medicines', icon: <DashboardOutlined /> },
       { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <DashboardOutlined /> },
-      { label: 'Penyerahan Obat (Dispensing)', key: '/dashboard/medicine/medication-dispenses', icon: <DashboardOutlined /> }
-    ]
-  },
-  {
-    label: 'Farmasi',
-    key: '/dashboard/farmasi',
-    icon: <WalletOutlined />,
-    children: [
-      { label: 'Dashboard Farmasi', key: '/dashboard/farmasi', icon: <DashboardOutlined /> },
-      { label: 'Bahan Baku', key: '/dashboard/farmasi/raw-materials', icon: <DashboardOutlined /> },
-      { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
-      { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
-      { label: 'Formula Produksi', key: '/dashboard/farmasi/formulas', icon: <DashboardOutlined /> },
-      { label: 'Permintaan Produksi', key: '/dashboard/farmasi/production-requests', icon: <DashboardOutlined /> },
-      { label: 'Item', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> }
+      { label: 'Penyerahan Obat (Dispensing)', key: '/dashboard/medicine/medication-dispenses', icon: <DashboardOutlined /> },
+      { label: 'Obat dan Barang', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> }
     ]
   },
   {

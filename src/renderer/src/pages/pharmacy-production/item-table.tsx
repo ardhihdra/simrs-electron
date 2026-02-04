@@ -1,4 +1,4 @@
-import { Button, Input, Dropdown } from 'antd'
+import { Button, Dropdown, Form, Input, InputNumber, Modal, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { DeleteOutlined, EditOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -48,8 +48,126 @@ const kindLabels: Record<ItemKind, string> = {
   GENERAL: 'Barang Umum'
 }
 
+interface ItemUpdatePayload {
+  id: number
+  nama: string
+  kode: string
+  kodeUnit: string
+  kind?: ItemKind | null
+  minimumStock?: number | null
+}
+
+type ItemApi = {
+  update: (data: ItemUpdatePayload) => Promise<{
+    success: boolean
+    result?: ItemAttributes
+    message?: string
+    error?: string
+  }>
+}
+
+interface AdjustItemStockResult {
+  id?: number
+  kode?: string
+  stock?: number
+}
+
+type InventoryStockApi = {
+  adjustItemStock: (args: { itemId: number; newStock: number }) => Promise<{
+    success: boolean
+    result?: AdjustItemStockResult
+    message?: string
+    error?: string
+  }>
+}
+
 function RowActions({ record }: { record: ItemAttributes }) {
   const navigate = useNavigate()
+  const [isEditStockOpen, setIsEditStockOpen] = useState(false)
+  const [stockForm] = Form.useForm<{ stock?: number; minimumStock?: number | null }>()
+
+  const api = (window.api?.query as { item?: ItemApi }).item
+  const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
+    .inventoryStock
+
+  const updateStockAndMinimumStockMutation = useMutation({
+    mutationKey: ['item', 'update', 'stock-and-minimumStock', record.id],
+    mutationFn: async (values: { stock?: number; minimumStock?: number | null }) => {
+      if (typeof record.id !== 'number') {
+        throw new Error('ID item tidak valid.')
+      }
+
+      const adjustFn = inventoryApi?.adjustItemStock
+      const updateFn = api?.update
+
+      if (!adjustFn) {
+        throw new Error('API penyesuaian stok item tidak tersedia.')
+      }
+
+      if (!updateFn) {
+        throw new Error('API item tidak tersedia.')
+      }
+
+      const rawStock = values.stock
+      if (rawStock === undefined || rawStock === null || Number.isNaN(rawStock)) {
+        throw new Error('Stok baru harus diisi dengan angka yang valid.')
+      }
+
+      if (rawStock < 0) {
+        throw new Error('Stok baru tidak boleh negatif.')
+      }
+
+      const roundedStock = Math.floor(rawStock)
+
+      const rawMinimumStock = values.minimumStock
+      let normalizedMinimumStock: number | null = null
+
+      if (rawMinimumStock !== undefined && rawMinimumStock !== null) {
+        if (typeof rawMinimumStock !== 'number' || Number.isNaN(rawMinimumStock)) {
+          throw new Error('Minimum stok harus berupa angka yang valid.')
+        }
+        if (rawMinimumStock < 0) {
+          throw new Error('Minimum stok tidak boleh bernilai negatif.')
+        }
+        normalizedMinimumStock = rawMinimumStock
+      }
+
+      const adjustResult = await adjustFn({ itemId: record.id, newStock: roundedStock })
+
+      if (!adjustResult?.success) {
+        const msg = adjustResult?.message ?? adjustResult?.error ?? 'Gagal memperbarui stok item'
+        throw new Error(msg)
+      }
+
+      const payload: ItemUpdatePayload = {
+        id: record.id,
+        nama: record.nama,
+        kode: record.kode,
+        kodeUnit: record.kodeUnit,
+        kind: record.kind ?? null,
+        minimumStock: normalizedMinimumStock
+      }
+
+      const updateResult = await updateFn(payload)
+
+      if (!updateResult?.success) {
+        const msg = updateResult?.message ?? updateResult?.error ?? 'Gagal memperbarui minimum stok'
+        throw new Error(msg)
+      }
+
+      return { adjustResult, updateResult }
+    },
+    onSuccess: () => {
+      message.success('Stok dan minimum stok berhasil diperbarui')
+      queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['inventoryStock', 'list'] })
+      setIsEditStockOpen(false)
+    },
+    onError: (error) => {
+      const msg = error instanceof Error ? error.message : 'Gagal memperbarui stok dan minimum stok'
+      message.error(msg)
+    }
+  })
   const deleteMutation = useMutation({
     mutationKey: ['item', 'delete'],
     mutationFn: (id: number) => {
@@ -71,6 +189,24 @@ function RowActions({ record }: { record: ItemAttributes }) {
         if (typeof record.id === 'number') navigate(`/dashboard/farmasi/items/edit/${record.id}`)
       }
     },
+    {
+      key: 'edit-stock',
+      label: 'Edit Stok',
+      icon: <EditOutlined />,
+      onClick: () => {
+        const currentStock =
+          typeof record.stock === 'number' && Number.isFinite(record.stock)
+            ? record.stock
+            : 0
+        const currentMinimumStock =
+          typeof record.minimumStock === 'number' && record.minimumStock >= 0
+            ? record.minimumStock
+            : undefined
+
+        stockForm.setFieldsValue({ stock: currentStock, minimumStock: currentMinimumStock })
+        setIsEditStockOpen(true)
+      }
+    },
     { type: 'divider' },
     {
       key: 'delete',
@@ -84,9 +220,96 @@ function RowActions({ record }: { record: ItemAttributes }) {
   ]
 
   return (
-    <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-      <Button type="text" icon={<MoreOutlined />} />
-    </Dropdown>
+    <>
+      <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+        <Button type="text" icon={<MoreOutlined />} />
+      </Dropdown>
+      <Modal
+        title="Edit Stok Item"
+        open={isEditStockOpen}
+        onCancel={() => {
+          if (!updateStockAndMinimumStockMutation.isPending) {
+            setIsEditStockOpen(false)
+          }
+        }}
+        onOk={() => {
+          stockForm
+            .validateFields()
+            .then((values) => {
+              updateStockAndMinimumStockMutation.mutate(values)
+            })
+            .catch(() => undefined)
+        }}
+        confirmLoading={updateStockAndMinimumStockMutation.isPending}
+        okText="Simpan"
+        cancelText="Batal"
+        destroyOnClose
+      >
+        <Form
+          form={stockForm}
+          layout="vertical"
+          initialValues={{
+            stock:
+              typeof record.stock === 'number' && Number.isFinite(record.stock)
+                ? record.stock
+                : 0,
+            minimumStock:
+              typeof record.minimumStock === 'number' && record.minimumStock >= 0
+                ? record.minimumStock
+                : undefined
+          }}
+        >
+          <Form.Item
+            label="Stok"
+            name="stock"
+            rules={[
+              {
+                validator: (_rule, value) => {
+                  if (value === undefined || value === null || value === '') {
+                    return Promise.reject(new Error('Stok baru harus diisi'))
+                  }
+                  if (typeof value !== 'number' || Number.isNaN(value)) {
+                    return Promise.reject(new Error('Nilai stok harus berupa angka'))
+                  }
+                  if (value < 0) {
+                    return Promise.reject(
+                      new Error('Stok baru tidak boleh bernilai negatif')
+                    )
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
+          >
+            <InputNumber<number> min={0} className="w-full" />
+          </Form.Item>
+          <Form.Item
+            label="Minimum Stok"
+            name="minimumStock"
+            rules={[
+              {
+                validator: (_rule, value) => {
+                  if (value === undefined || value === null || value === '') {
+                    return Promise.resolve()
+                  }
+                  if (typeof value !== 'number' || Number.isNaN(value)) {
+                    return Promise.reject(new Error('Nilai harus berupa angka'))
+                  }
+                  if (value < 0) {
+                    return Promise.reject(
+                      new Error('Minimum stok tidak boleh bernilai negatif')
+                    )
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
+          >
+            <InputNumber<number> min={0} className="w-full" />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
   )
 }
 
@@ -133,14 +356,8 @@ export function ItemTable() {
 
     const withStock: ItemAttributes[] = source.map((item) => {
       const key = item.kode.trim().toUpperCase()
-      const baseStock = typeof item.stock === 'number' ? item.stock : undefined
       const stockFromInventory = key ? stockMap.get(key) : undefined
-      const stockValue =
-        typeof baseStock === 'number'
-          ? baseStock
-          : typeof stockFromInventory === 'number'
-          ? stockFromInventory
-          : 0
+      const stockValue = typeof stockFromInventory === 'number' ? stockFromInventory : 0
       return { ...item, stock: stockValue }
     })
 
