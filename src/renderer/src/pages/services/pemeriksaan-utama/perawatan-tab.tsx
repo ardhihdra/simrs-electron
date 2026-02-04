@@ -1,7 +1,7 @@
 import { Button } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { PlayCircleOutlined } from '@ant-design/icons'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 interface DataType {
   key: string

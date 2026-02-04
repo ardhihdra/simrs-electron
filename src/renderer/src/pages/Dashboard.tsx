@@ -7,6 +7,7 @@ import {
   FileTextOutlined,
   LeftCircleFilled,
   MedicineBoxOutlined,
+  PhoneOutlined,
   RightCircleFilled,
   UnorderedListOutlined,
   UserAddOutlined,
@@ -14,8 +15,9 @@ import {
   WalletOutlined
 } from '@ant-design/icons'
 import logoUrl from '@renderer/assets/logo.png'
-import NotificationBell from '@renderer/components/NotificationBell'
-import ProfileMenu from '@renderer/components/ProfileMenu'
+import NotificationBell from '@renderer/components/molecules/NotificationBell'
+import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+
 import type { MenuProps } from 'antd'
 import { Menu } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
@@ -178,21 +180,58 @@ const items = [
     ]
   },
   {
-    label: 'Farmasi',
-    key: '/dashboard/pharmacy',
+    label: 'Obat',
+    key: '/dashboard/medicine',
     icon: <WalletOutlined />,
     children: [
+      { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <DashboardOutlined /> },
       {
-        label: 'Medicine Categories',
-        key: '/dashboard/pharmacy/medicine-categories',
+        label: 'Master Obat - Kategori',
+        key: '/dashboard/medicine/medicine-categories',
         icon: <DashboardOutlined />
       },
       {
-        label: 'Medicine Brands',
-        key: '/dashboard/pharmacy/medicine-brands',
+        label: 'Master Obat - Merek',
+        key: '/dashboard/medicine/medicine-brands',
         icon: <DashboardOutlined />
       },
-      { label: 'Medicines', key: '/dashboard/pharmacy/medicines', icon: <DashboardOutlined /> }
+      { label: 'Master Obat', key: '/dashboard/medicine/medicines', icon: <DashboardOutlined /> },
+      {
+        label: 'Permintaan Obat (Resep)',
+        key: '/dashboard/medicine/medication-requests',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Penyerahan Obat (Dispensing)',
+        key: '/dashboard/medicine/medication-dispenses',
+        icon: <DashboardOutlined />
+      }
+    ]
+  },
+  {
+    label: 'Farmasi',
+    key: '/dashboard/farmasi',
+    icon: <WalletOutlined />,
+    children: [
+      { label: 'Dashboard Farmasi', key: '/dashboard/farmasi', icon: <DashboardOutlined /> },
+      { label: 'Bahan Baku', key: '/dashboard/farmasi/raw-materials', icon: <DashboardOutlined /> },
+      {
+        label: 'Kategori Bahan Baku',
+        key: '/dashboard/farmasi/raw-material-categories',
+        icon: <DashboardOutlined />
+      },
+      { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
+      {
+        label: 'Formula Produksi',
+        key: '/dashboard/farmasi/formulas',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Permintaan Produksi',
+        key: '/dashboard/farmasi/production-requests',
+        icon: <DashboardOutlined />
+      },
+      { label: 'Item', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> }
     ]
   },
   {
@@ -229,6 +268,30 @@ const items = [
         label: 'Diagnostic Report',
         key: '/dashboard/laboratory/diagnostic-report',
         icon: <FileSearchOutlined />
+      }
+    ]
+  },
+  {
+    label: 'Perawat',
+    key: '/dashboard/nurse-calling',
+    icon: <UserOutlined />,
+    children: [
+      {
+        label: 'Pemanggilan Pasien',
+        key: '/dashboard/nurse-calling',
+        icon: <PhoneOutlined />
+      }
+    ]
+  },
+  {
+    label: 'Dokter',
+    key: '/dashboard/doctor',
+    icon: <UserOutlined />,
+    children: [
+      {
+        label: 'Rekam Medis',
+        key: '/dashboard/doctor',
+        icon: <FileTextOutlined />
       }
     ]
   },
@@ -281,7 +344,12 @@ function Dashboard() {
     '/dashboard/pendaftaran',
     '/dashboard/registration/doctor-leave',
     '/dashboard/pharmacy',
-    '/dashboard/laboratory'
+    '/dashboard/laboratory',
+    '/dashboard/medicine',
+    '/dashboard/farmasi',
+    '/dashboard/registration/doctor-leave',
+    '/dashboard/nurse-calling',
+    '/dashboard/doctor'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -297,6 +365,7 @@ function Dashboard() {
     return top ? top.label : path
   }
   const getTopKeyFromPath = (path: string): string => {
+    if (path.startsWith('/dashboard/doctor')) return '/dashboard/doctor'
     for (const top of items) {
       const children = Array.isArray(top.children) ? top.children : []
       const match = children.find((c) => path.startsWith(c.key))

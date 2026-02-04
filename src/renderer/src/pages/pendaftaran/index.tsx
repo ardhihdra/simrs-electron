@@ -1,5 +1,5 @@
 import { PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { useDebounce } from '@renderer/hooks/useDebounce'
 import { PatientAttributes } from '@shared/patient'
 import { useQuery } from '@tanstack/react-query'

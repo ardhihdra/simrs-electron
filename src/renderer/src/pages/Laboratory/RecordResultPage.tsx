@@ -89,15 +89,7 @@ export default function RecordResultPage() {
   if (isLoading || !encounter) {
     return <Spin />
   }
-
-  // const requests defined above but depends on encounter which is loaded after isLoading check
-  // Moving requests definition down or handle undefined safely.
-  // Actually requests need to be defined before return.
-  // I will redefine it after loading check to be safe, or just use the one above if safe.
-  // The 'requests' used in return is the one defined above?
-  // Wait, I defined 'requests' above but 'encounter' is potentially null/undefined there.
-  // Just rely on empty array fallback.
-
+  console.log('REQ:', encounter)
   return (
     <div className="p-4">
       <Card title={`Record Result for ${encounter.patient?.name || 'Patient'}`}>

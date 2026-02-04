@@ -2,7 +2,7 @@ import { Button } from 'antd'
 import { EditOutlined, LockOutlined, HistoryOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 interface DataType {
   key: string

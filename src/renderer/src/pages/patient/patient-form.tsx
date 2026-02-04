@@ -1,4 +1,4 @@
-import { GeneralConsentForm } from '@renderer/components/GeneralConsentForm'
+import { GeneralConsentForm } from '@renderer/components/organisms/GeneralConsentForm'
 import { client } from '@renderer/utils/client'
 
 import { Button, DatePicker, Form, Input, message, Select, Steps } from 'antd'

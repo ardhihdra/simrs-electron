@@ -1,4 +1,5 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
+import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import {
   Button,
   Card,
@@ -14,7 +15,6 @@ import {
 } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { SelectAsync } from '../../components/dynamic/SelectAsync'
 
 const { TextArea } = Input
 

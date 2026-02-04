@@ -46,7 +46,7 @@ export default function CollectSpecimenPage() {
   }
 
   const requests = encounter?.labServiceRequests || []
-
+  console.log('Specimen Encounter', encounter)
   return (
     <div className="p-4">
       <Card title={`Collect Specimen for ${encounter.patient?.name || 'Patient'}`}>
@@ -58,7 +58,7 @@ export default function CollectSpecimenPage() {
           >
             <Select
               options={requests.map((r: any) => ({
-                label: `${r.testCode?.display || r.testCode?.name || r.testCodeId} (${r.priority})`,
+                label: `${r.serviceCode?.display || r.serviceCode?.name || r.serviceCodeId} (${r.priority})`,
                 value: r.id
               }))}
               placeholder={requests.length === 0 ? 'No orders found' : 'Select order'}

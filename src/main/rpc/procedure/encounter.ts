@@ -2,9 +2,7 @@ import {
   ApiResponseSchema,
   EncounterDischargeInputSchema,
   EncounterFinishInputSchema,
-  EncounterListInputSchema,
-  EncounterSchema,
-  PatientSchema
+  EncounterListInputSchema
 } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
@@ -13,9 +11,10 @@ export const encounterRpc = {
   // list: GET /module/encounter?depth=1 (Active encounters usually)
   list: t
     .input(EncounterListInputSchema)
-    .output(
-      ApiResponseSchema(z.array(EncounterSchema.extend({ patient: PatientSchema }).partial()))
-    )
+    // .output(
+    //   ApiResponseSchema(z.array(EncounterSchema.extend({ patient: PatientSchema }).partial()))
+    // )
+    .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
       // Assuming a general list endpoint exists or we use one that fits
       // Based on reference, maybe just /api/module/encounter with query params
@@ -26,6 +25,7 @@ export const encounterRpc = {
 
       const data = await client.get(`/api/encounter?${params.toString()}`)
       const res = await data.json()
+      console.log('res', res)
       return res
     }),
 

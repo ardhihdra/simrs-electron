@@ -1,4 +1,4 @@
-import { SelectAsync } from '@renderer/components/dynamic/SelectAsync'
+import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { Form, Modal, Select } from 'antd'
 import { useLaboratoryActions } from '../useLaboratoryActions'
 

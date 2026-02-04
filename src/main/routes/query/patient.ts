@@ -6,45 +6,29 @@ export const requireSession = true
 
 export const schemas = {
   list: {
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchema.array().optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   getById: {
     args: z.object({ id: z.number() }),
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchema.optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   create: {
     args: PatientSchema.partial(),
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchema.optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   update: {
     args: PatientSchema,
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchema.optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   deleteById: {
     args: z.object({ id: z.number() }),
-    result: z.object({ success: z.boolean(), error: z.string().optional() })
+    result: z.any()
   }
 } as const
 
 const routes = createCrudRoutes({
   entity: 'patient',
-  schema: PatientSchema
+  schema: z.any()
 })
 
 export const { list, read: getById, create, update, delete: deleteById, listAll } = routes

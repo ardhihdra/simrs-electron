@@ -1,4 +1,4 @@
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
 import { Card, Col, Form, Image, Input, Tag } from 'antd'
@@ -69,7 +69,7 @@ export const ListDiagnosticReport = () => {
     }
   ]
 
-  const filteredData = (data.data?.result || []).filter((item:any) => {
+  const filteredData = (data.data?.result || []).filter((item: any) => {
     const patientName = item.patient?.name || ''
     const patientMrn = item.patient?.medicalRecordNumber || ''
     const filterName = filter.name || ''

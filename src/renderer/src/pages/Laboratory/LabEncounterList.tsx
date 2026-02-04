@@ -1,4 +1,4 @@
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { Tag } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate } from 'react-router'

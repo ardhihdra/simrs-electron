@@ -24,6 +24,7 @@ export const patientRpc = {
 
       const data = await client.get(`/api/patient?${params.toString()}`)
       const res = await data.json()
+      console.log('RES PATIENT:', res)
       return res
     }),
   getById: t

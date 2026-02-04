@@ -1,5 +1,17 @@
 import { sequelize } from '@main/database'
 import { DataTypes } from 'sequelize'
+import z from 'zod'
+
+const FhirPatientIdentifierSchema = z.object({
+  system: z.string().optional(),
+  value: z.string().optional()
+})
+
+const FhirPatientNameEntrySchema = z.object({
+  text: z.string().optional(),
+  given: z.array(z.string()).optional(),
+  family: z.string().optional()
+})
 
 export const Patient = sequelize.define(
   'Patient',
@@ -35,4 +47,37 @@ export const Patient = sequelize.define(
   }
 )
 
-export { PatientSchema } from 'simrs-types'
+export const PatientSchema = z.object({
+  active: z.boolean().optional(),
+  identifier: z
+    .union([z.string().nullable(), z.array(FhirPatientIdentifierSchema).nullable()])
+    .optional(),
+  kode: z.string().min(1).optional(),
+  name: z.union([z.string().min(1), z.array(FhirPatientNameEntrySchema)]),
+  gender: z.enum(['male', 'female']),
+  birthDate: z.union([z.date(), z.string()]),
+  placeOfBirth: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().email().nullable().optional(),
+  addressLine: z.string().nullable().optional(),
+  province: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  district: z.string().nullable().optional(),
+  village: z.string().nullable().optional(),
+  postalCode: z.string().nullable().optional(),
+  country: z.string().nullable().optional(),
+  maritalStatus: z.enum(['single', 'married', 'divorced']).nullable().optional(),
+  createdBy: z.number().nullable().optional(),
+  updatedBy: z.number().nullable().optional(),
+  deletedBy: z.number().nullable().optional()
+})
+
+export const PatientSchemaWithId = PatientSchema.extend({
+  id: z.string().optional()
+  // createdBy: z.number().nullable().optional(),
+  // updatedBy: z.number().nullable().optional(),
+  // deletedBy: z.number().nullable().optional(),
+  // createdAt: z.date().optional().nullable(),
+  // updatedAt: z.date().optional().nullable(),
+  // deletedAt: z.date().optional().nullable()
+})

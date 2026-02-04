@@ -1,4 +1,4 @@
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { Col, Form, Input, Tag } from 'antd'
 import { ColumnsType } from 'antd/es/table'

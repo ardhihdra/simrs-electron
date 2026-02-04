@@ -1,4 +1,4 @@
-import { SelectAsync } from '@renderer/components/dynamic/SelectAsync'
+import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { Button, Input, Modal, Select } from 'antd'
 import { useState } from 'react'
 

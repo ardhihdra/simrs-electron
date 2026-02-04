@@ -81,7 +81,7 @@ function createWindow(): void {
       const u = details.url
       const isCsvExport = /\/api\/[^/]+\/export\?/.test(u) && u.includes('export=csv')
       if (isCsvExport) {
-        ;(async () => {
+        ; (async () => {
           try {
             const res = await fetch(u)
             const buf = Buffer.from(await res.arrayBuffer())

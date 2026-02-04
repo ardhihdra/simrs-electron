@@ -1,8 +1,8 @@
-import Action from '@renderer/components/Action'
+import Action from '@renderer/components/molecules/Action'
 import { useQuery } from '@tanstack/react-query'
 import { Button, Input } from 'antd'
 import { useNavigate } from 'react-router'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 type ExpenseRow = {
   id: string | number

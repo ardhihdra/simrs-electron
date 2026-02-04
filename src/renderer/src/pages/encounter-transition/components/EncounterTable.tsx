@@ -2,7 +2,7 @@
  * EncounterTable Component
  */
 
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 import { Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { ENCOUNTER_TYPE_LABELS, Encounter, STATUS_COLORS } from '../types'

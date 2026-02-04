@@ -3,7 +3,7 @@ import type { MenuProps } from 'antd'
 import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import SettingsModal from './SettingsModal'
+import SettingsModal from '../SettingsModal'
 
 type SessionUser = { id: number | string; username: string }
 type GetSessionResult = {

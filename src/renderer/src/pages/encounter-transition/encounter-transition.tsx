@@ -102,7 +102,7 @@ export default function EncounterTransitionPage() {
   }
 
   const encounterList = (encounters as Encounter[]) || []
-
+  console.log('encounterList', encounterList)
   return (
     <div className="p-6">
       <Title level={2}>Transisi Encounter</Title>

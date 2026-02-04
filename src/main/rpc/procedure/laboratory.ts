@@ -5,8 +5,7 @@ import {
   ListDiagnosticReportInputSchema,
   ListEncountersInputSchema,
   PatientSchema,
-  RecordResultInputSchema,
-  ReportResultSchema
+  RecordResultInputSchema
 } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
@@ -100,7 +99,8 @@ export const laboratoryRpc = {
   // getReport: GET /api/module/laboratory/report/{id}
   getReport: t
     .input(z.string())
-    .output(ApiResponseSchema(ReportResultSchema.optional()))
+    // .output(ApiResponseSchema(ReportResultSchema.optional()))
+    .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, id) => {
       const data = await client.get(`/api/module/laboratory/report/${id}`)
       return await data.json()
