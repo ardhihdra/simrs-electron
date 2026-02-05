@@ -169,7 +169,8 @@ const items = [
       { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <DashboardOutlined /> },
       { label: 'Penyerahan Obat (Dispensing)', key: '/dashboard/medicine/medication-dispenses', icon: <DashboardOutlined /> },
       { label: 'Kategori Item', key: '/dashboard/medicine/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Obat dan Barang', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> }
+      { label: 'Obat dan Barang', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> },
+      { label: 'Transaksi Penjualan Barang', key: '/dashboard/medicine/item-purchase', icon: <DashboardOutlined /> }
     ]
   },
   {

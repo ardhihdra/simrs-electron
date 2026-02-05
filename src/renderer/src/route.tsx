@@ -40,6 +40,7 @@ import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
+import ItemPurchasePage from './pages/pharmacy/item-purchase'
 import PharmacyProduction from './pages/pharmacy-production/PharmacyProduction'
 import FarmasiDashboard from './pages/pharmacy-production/farmasi-dashboard'
 import RawMaterialCategoryTable from './pages/pharmacy-production/raw-material-category-table'
@@ -159,6 +160,7 @@ function MainRoute() {
             <Route path="medication-requests/dispense/:id" element={<MedicationDispenseFromRequest />} />
             <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
+            <Route path="item-purchase" element={<ItemPurchasePage />} />
           </Route>
 			<Route path="farmasi" element={<PharmacyProduction />}>
 				<Route index element={<FarmasiDashboard />} />
