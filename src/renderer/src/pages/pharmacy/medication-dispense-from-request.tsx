@@ -60,7 +60,7 @@ interface MedicationRequestDetail {
 	authoredOn?: string
 	patient?: PatientInfo
 	medication?: MedicationInfo
-	item?: { nama?: string; kode?: string } | null
+	item?: { nama?: string; kode?: string; itemCategoryId?: number | null } | null
 	itemId?: number | null
 	groupIdentifier?: GroupIdentifierInfo | null
 	category?: CategoryInfo[] | null
@@ -130,6 +130,32 @@ interface InventoryStockItem {
 interface InventoryStockResponse {
 	success: boolean
 	result?: InventoryStockItem[]
+	message?: string
+}
+
+interface ItemCategoryAttributes {
+	id?: number
+	name?: string | null
+}
+
+interface ItemCategoryListResponse {
+	success: boolean
+	result?: ItemCategoryAttributes[]
+	message?: string
+}
+
+interface ItemAttributes {
+	id?: number
+	itemCategoryId?: number | null
+	category?: {
+		id?: number
+		name?: string | null
+	} | null
+}
+
+interface ItemListResponse {
+	success: boolean
+	result?: ItemAttributes[]
 	message?: string
 }
 
@@ -244,6 +270,64 @@ export default function MedicationDispenseFromRequest() {
 			return fn()
 		}
 	})
+
+	const itemApi = (window.api?.query as {
+		item?: { list: () => Promise<ItemListResponse> }
+	}).item
+
+	const { data: itemSource } = useQuery<ItemListResponse>({
+		queryKey: ['item', 'list', 'for-medication-dispense-from-request'],
+		queryFn: () => {
+			const fn = itemApi?.list
+			if (!fn) throw new Error('API item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
+		queryKey: ['itemCategory', 'list', 'for-medication-dispense-from-request'],
+		queryFn: () => {
+			const api = window.api?.query as {
+				medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
+			}
+			const fn = api?.medicineCategory?.list
+			if (!fn) throw new Error('API kategori item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const itemCategoryNameById = useMemo(() => {
+		const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+			? itemCategorySource.result
+			: []
+		const map = new Map<number, string>()
+		for (const cat of entries) {
+			if (typeof cat.id === 'number' && typeof cat.name === 'string' && cat.name.length > 0) {
+				map.set(cat.id, cat.name)
+			}
+		}
+		return map
+	}, [itemCategorySource?.result])
+
+	const itemCategoryIdByItemId = useMemo(() => {
+		const source: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
+			: []
+		const map = new Map<number, number>()
+		for (const item of source) {
+			if (typeof item.id !== 'number') continue
+			const directId =
+				typeof item.itemCategoryId === 'number'
+					? item.itemCategoryId
+					: typeof item.category?.id === 'number'
+					? item.category.id
+					: undefined
+			if (typeof directId === 'number') {
+				map.set(item.id, directId)
+			}
+		}
+		return map
+	}, [itemSource?.result])
 
 	const stockMapFromInventory = useMemo(() => {
 		const map = new Map<string, { availableStock: number; unit: string }>()
@@ -397,11 +481,11 @@ export default function MedicationDispenseFromRequest() {
 
 		const rows: TableRow[] = []
 
-		records.forEach((record) => {
+			records.forEach((record) => {
 			const quantityValue = record.dispenseRequest?.quantity?.value
 			const quantityUnit = record.dispenseRequest?.quantity?.unit
-			const instruksi = getInstructionText(record.dosageInstruction)
-			const isItem = typeof record.itemId === 'number' && record.itemId > 0
+				const instruksi = getInstructionText(record.dosageInstruction)
+				const isItem = typeof record.itemId === 'number' && record.itemId > 0
 			let stokSaatIni: number | undefined
 			let unitStok: string | null = null
 			if (isItem) {
@@ -415,14 +499,47 @@ export default function MedicationDispenseFromRequest() {
 					}
 				}
 			} else {
-				stokSaatIni =
-					typeof record.medication?.stock === 'number' ? record.medication.stock : undefined
-				unitStok = record.medication?.uom ?? null
-			}
-			const jenis = isItem ? 'Item' : 'Obat Biasa'
-			const namaObat = isItem
-				? record.item?.nama ?? '-'
-				: record.medication?.name ?? '-'
+					stokSaatIni =
+						typeof record.medication?.stock === 'number' ? record.medication.stock : undefined
+					unitStok = record.medication?.uom ?? null
+				}
+
+				let jenis: string
+				if (isItem) {
+					const itemIdForRow =
+						typeof record.itemId === 'number' && record.itemId > 0
+							? record.itemId
+							: undefined
+					let resolvedCategoryName: string | undefined
+					if (typeof itemIdForRow === 'number') {
+						const mappedCategoryId = itemCategoryIdByItemId.get(itemIdForRow)
+						if (typeof mappedCategoryId === 'number') {
+							const mappedName = itemCategoryNameById.get(mappedCategoryId)
+							if (mappedName && mappedName.length > 0) {
+								resolvedCategoryName = mappedName
+							}
+						}
+					}
+					if (!resolvedCategoryName) {
+						const rawCategoryId =
+							typeof record.item?.itemCategoryId === 'number'
+								? record.item.itemCategoryId
+								: undefined
+						if (typeof rawCategoryId === 'number') {
+							const fallbackName = itemCategoryNameById.get(rawCategoryId)
+							if (fallbackName && fallbackName.length > 0) {
+								resolvedCategoryName = fallbackName
+							}
+						}
+					}
+					jenis = resolvedCategoryName && resolvedCategoryName.length > 0 ? resolvedCategoryName : 'Item'
+				} else {
+					jenis = 'Obat Biasa'
+				}
+
+				const namaObat = isItem
+					? record.item?.nama ?? '-'
+					: record.medication?.name ?? '-'
 
 			const medicationRequestId =
 				typeof record.id === 'number' && Number.isFinite(record.id) ? record.id : undefined
@@ -517,8 +634,8 @@ export default function MedicationDispenseFromRequest() {
 	})()
 
 	const columns = [
-		{ title: 'Jenis Obat', dataIndex: 'jenis', key: 'jenis' },
-		{ title: 'Nama Obat', dataIndex: 'namaObat', key: 'namaObat' },
+		{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
+		{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
 		{ title: 'Qty Diminta', dataIndex: 'quantityDiminta', key: 'quantityDiminta' },
 		{ title: 'Satuan', dataIndex: 'unitDiminta', key: 'unitDiminta' },
 		{ title: 'Stok Saat Ini', dataIndex: 'stokSaatIni', key: 'stokSaatIni' },

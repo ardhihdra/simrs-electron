@@ -70,10 +70,11 @@ interface FormData {
     }>
   }>
   otherItems?: Array<{
-    unitCode: string
+	    itemCategoryId?: number | null
     itemId: number
     quantity?: number
     instruction?: string
+    note?: string
   }>
 }
 
@@ -197,28 +198,33 @@ export function MedicationRequestForm() {
     list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
   }
 
-  interface UnitListEntry {
-    id?: number
-    nama?: string
-    kode?: string
-  }
+  interface ItemCategoryAttributes {
+	    id?: number
+	    name: string
+	    status?: boolean
+	  }
 
-  type UnitListResponse = {
-    success: boolean
-    result?: UnitListEntry[]
-    message?: string
-  }
+  type ItemCategoryListResponse = {
+	    success: boolean
+	    result?: ItemCategoryAttributes[]
+	    message?: string
+	  }
 
   interface ItemAttributes {
     id?: number
     nama?: string
     kode?: string
-    kodeUnit?: string
-    unit?: {
+	    kodeUnit?: string
+	    unit?: {
       id?: number
       kode?: string
       nama?: string
     } | null
+    itemCategoryId?: number | null
+	    category?: {
+	      id?: number
+	      name?: string | null
+	    } | null
   }
 
   type ItemListResponse = {
@@ -237,17 +243,6 @@ export function MedicationRequestForm() {
     }
   })
 
-  const unitApi = (window.api?.query as { unit?: { list: () => Promise<UnitListResponse> } }).unit
-
-  const { data: unitSource, isLoading: unitLoading } = useQuery<UnitListResponse>({
-    queryKey: ['unit', 'list', 'for-medication-request'],
-    queryFn: () => {
-      const fn = unitApi?.list
-      if (!fn) throw new Error('API unit tidak tersedia.')
-      return fn()
-    }
-  })
-
   const itemApi = (window.api?.query as { item?: { list: () => Promise<ItemListResponse> } }).item
 
   const { data: itemSource, isLoading: itemLoading } = useQuery<ItemListResponse>({
@@ -258,6 +253,19 @@ export function MedicationRequestForm() {
       return fn()
     }
   })
+
+  const medicineCategoryApi = (window.api?.query as {
+	    medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
+	  }).medicineCategory
+
+	  const { data: categorySource } = useQuery<ItemCategoryListResponse>({
+	    queryKey: ['itemCategory', 'list', 'for-medication-request'],
+	    queryFn: () => {
+	      const fn = medicineCategoryApi?.list
+	      if (!fn) throw new Error('API kategori item tidak tersedia.')
+	      return fn()
+	    }
+	  })
 
   const { data: encounterData, isLoading: encounterLoading } = useQuery({
     queryKey: ['encounter', 'list', selectedPatientId],
@@ -322,24 +330,18 @@ export function MedicationRequestForm() {
     [rawMaterialData]
   )
 
-  const unitOptions = useMemo(
-    () => {
-      const entries: UnitListEntry[] = Array.isArray(unitSource?.result) ? unitSource.result : []
-      const map = new Map<string, string>()
+  const itemCategoryOptions = useMemo(
+	    () => {
+	      const entries: ItemCategoryAttributes[] = Array.isArray(categorySource?.result)
+	        ? categorySource.result
+	        : []
 
-      for (const item of entries) {
-        const rawCode = typeof item.kode === 'string' && item.kode.length > 0 ? item.kode : ''
-        const code = rawCode.trim().toUpperCase()
-        if (!code) continue
-        if (map.has(code)) continue
-        const unitName = item.nama ?? code
-        map.set(code, `${code} - ${unitName}`)
-      }
-
-      return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
-    },
-    [unitSource?.result]
-  )
+	      return entries
+	        .filter((cat) => typeof cat.id === 'number' && Boolean(cat.name))
+	        .map((cat) => ({ value: cat.id as number, label: cat.name }))
+	    },
+	    [categorySource?.result]
+	  )
 
   const itemOptions = useMemo(
     () => {
@@ -347,24 +349,31 @@ export function MedicationRequestForm() {
         ? itemSource.result
         : []
 
-      return source
-        .filter((item) => typeof item.id === 'number')
-        .map((item) => {
-          const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
-          const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
-          const unitName = item.unit?.nama ?? unitCode
-          const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
-          const name = item.nama ?? code
-          const displayName = name || code || String(item.id)
-          const label = unitName ? `${displayName} (${unitName})` : displayName
-
-          return {
-            value: item.id as number,
-            label,
-            unitCode
-          }
-        })
-        .filter((entry) => entry.unitCode.length > 0)
+	      return source
+	        .filter((item) => typeof item.id === 'number')
+	        .map((item) => {
+	          const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
+	          const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
+	          const unitName = item.unit?.nama ?? unitCode
+	          const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+	          const name = item.nama ?? code
+	          const displayName = name || code || String(item.id)
+	          const label = unitName ? `${displayName} (${unitName})` : displayName
+	          const categoryId =
+	            typeof item.itemCategoryId === 'number'
+	              ? item.itemCategoryId
+	              : typeof item.category?.id === 'number'
+	              ? item.category.id
+	              : null
+	
+	          return {
+	            value: item.id as number,
+	            label,
+	            unitCode,
+	            categoryId
+	          }
+	        })
+	        .filter((entry) => entry.unitCode.length > 0)
     },
     [itemSource?.result]
   )
@@ -490,13 +499,18 @@ export function MedicationRequestForm() {
 
 				const otherItemsForm: NonNullable<FormData['otherItems']> = itemRecords.map((r) => {
 					const info = (r.supportingInformation ?? [])[0]
+					const rawItemId = r.itemId
+					const itemId = typeof rawItemId === 'number' ? rawItemId : 0
+					let itemCategoryId: number | null = null
+					if (itemId > 0) {
+						const matchedOption = itemOptions.find((option) => option.value === itemId)
+						if (matchedOption && typeof matchedOption.categoryId === 'number') {
+							itemCategoryId = matchedOption.categoryId
+						}
+					}
 					return {
-					unitCode:
-						info?.unitCode ??
-						(r.dispenseRequest?.quantity?.unit
-							? r.dispenseRequest.quantity.unit
-							: ''),
-						itemId: r.itemId ?? 0,
+						itemCategoryId,
+						itemId,
 						quantity: info?.quantity ?? r.dispenseRequest?.quantity?.value,
 						instruction: info?.instruction ?? r.note ?? ''
 					}
@@ -827,9 +841,16 @@ export function MedicationRequestForm() {
 					const groupIdentifier =
 						groupIdentifierForEdit ?? record.groupIdentifier ?? detail?.groupIdentifier ?? null
 					const existingDispense = record.dispenseRequest ?? null
+					const selectedOption = itemOptions.find(
+						(option) => option.value === input.itemId
+					)
+					const unitCodeFromOption =
+						selectedOption && typeof selectedOption.unitCode === 'string'
+							? selectedOption.unitCode
+							: undefined
 					const newDispense =
-						typeof input.quantity === 'number'
-							? buildDispenseRequest(input.quantity, input.unitCode)
+						typeof input.quantity === 'number' && unitCodeFromOption
+							? buildDispenseRequest(input.quantity, unitCodeFromOption)
 							: existingDispense
 					updates.push({
 						id: record.id,
@@ -961,6 +982,13 @@ export function MedicationRequestForm() {
 					}
 				}
 
+				const itemUnitCodeMapForEdit = new Map<number, string>()
+				for (const entry of itemOptions) {
+					if (typeof entry.value === 'number' && entry.unitCode) {
+						itemUnitCodeMapForEdit.set(entry.value, entry.unitCode)
+					}
+				}
+
 				const extraItemPayloads: UpdatePayload[] = []
 				if (otherItemInputs.length > itemRecords.length) {
 					const groupIdentifier = groupIdentifierForEdit
@@ -970,16 +998,25 @@ export function MedicationRequestForm() {
 						indexItemNew += 1
 					) {
 						const input = otherItemInputs[indexItemNew]
+						const instructionText =
+							typeof input.instruction === 'string' ? input.instruction.trim() : ''
+						const noteText = typeof input.note === 'string' ? input.note.trim() : ''
+						const combinedNote = [instructionText, noteText]
+							.filter((x) => x.length > 0)
+							.join(' | ')
+
+						const unitCode = itemUnitCodeMapForEdit.get(input.itemId)
+
 						extraItemPayloads.push({
 							...baseCommonPayload,
 							medicationId: null,
 							itemId: input.itemId,
-							note: input.instruction ?? null,
+							note: combinedNote.length > 0 ? combinedNote : null,
 							groupIdentifier,
 							dosageInstruction: null,
 							dispenseRequest:
-								typeof input.quantity === 'number'
-									? buildDispenseRequest(input.quantity, input.unitCode)
+								typeof input.quantity === 'number' && unitCode
+									? buildDispenseRequest(input.quantity, unitCode)
 									: null,
 							category: null,
 							identifier: null,
@@ -1076,24 +1113,39 @@ export function MedicationRequestForm() {
           }))
       })
 
+      const itemUnitCodeMap = new Map<number, string>()
+      for (const entry of itemOptions) {
+        if (typeof entry.value === 'number' && entry.unitCode) {
+          itemUnitCodeMap.set(entry.value, entry.unitCode)
+        }
+      }
+
       const itemPayloads = otherItems
         .filter((it) => typeof it.itemId === 'number' && it.itemId > 0)
-        .map((it) => ({
-          ...baseCommonPayload,
-          groupIdentifier,
-          itemId: it.itemId,
-          medicationId: null,
-          note: it.instruction ?? null,
-          dispenseRequest:
-            typeof it.quantity === 'number'
-              ? buildDispenseRequest(it.quantity, it.unitCode)
-              : null
-        }))
+        .map((it) => {
+          const instructionText = typeof it.instruction === 'string' ? it.instruction.trim() : ''
+          const noteText = typeof it.note === 'string' ? it.note.trim() : ''
+          const combinedNote = [instructionText, noteText].filter((x) => x.length > 0).join(' | ')
+
+          const unitCode = itemUnitCodeMap.get(it.itemId)
+
+          return {
+            ...baseCommonPayload,
+            groupIdentifier,
+            itemId: it.itemId,
+            medicationId: null,
+            note: combinedNote.length > 0 ? combinedNote : null,
+            dispenseRequest:
+              typeof it.quantity === 'number' && unitCode
+                ? buildDispenseRequest(it.quantity, unitCode)
+                : null
+          }
+        })
 
 			const payload = [...simplePayloads, ...compoundPayloads, ...itemPayloads]
 
 			if (payload.length === 0) {
-				message.error('Minimal isi salah satu: Obat, Racikan, atau Item.')
+				message.error('Minimal isi minimal 1 Item.')
 				return
 			}
 
@@ -1156,8 +1208,9 @@ export function MedicationRequestForm() {
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <h3 className="font-semibold text-lg mb-4">Daftar Obat</h3>
+		  <div className="border-t pt-4">
+				<h3 className="hidden font-semibold text-lg mb-4">Daftar Obat</h3>
+			<div className="hidden">
 			<Form.List name="items">
 			  {(fields, { add, remove }) => (
 				<div className="space-y-4">
@@ -1253,12 +1306,13 @@ export function MedicationRequestForm() {
                     <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
                       Tambah Obat
                     </Button>
-                  </Form.Item>
-                </div>
-              )}
-            </Form.List>
+					</Form.Item>
+					</div>
+				  )}
+				</Form.List>
+			</div>
 
-            <div className="mt-8">
+				<div className="mt-8 hidden">
               <h3 className="font-semibold text-lg mb-4">Daftar Obat Racikan</h3>
               <Form.List name="compounds">
                 {(fields, { add, remove }) => (
@@ -1416,9 +1470,9 @@ export function MedicationRequestForm() {
               </Form.List>
             </div>
 
-            <div className="mt-8">
-              <h3 className="font-semibold text-lg mb-4">Daftar Item</h3>
-				  <Form.List name="otherItems">
+			<div className="mt-8">
+				  <h3 className="font-semibold text-lg mb-4">Obat dan Barang</h3>
+					  <Form.List name="otherItems">
 					        {(fields, { add, remove }) => (
 					          <div className="space-y-4">
 						            {fields.map(({ key, name, ...restField }) => (
@@ -1428,53 +1482,53 @@ export function MedicationRequestForm() {
                       >
                         <div className="flex-1 space-y-2">
                           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'unitCode']}
-                              label="Unit"
-                              rules={[{ required: true, message: 'Wajib diisi' }]}
-                              className="mb-0"
-                            >
-                              <Select
-                                options={unitOptions}
-                                placeholder="Pilih Unit"
-                                showSearch
-                                optionFilterProp="label"
-                                loading={unitLoading}
-                              />
-                            </Form.Item>
+									<Form.Item
+									  {...restField}
+										name={[name, 'itemCategoryId']}
+										label="Kategori Item"
+									  rules={[{ required: true, message: 'Wajib diisi' }]}
+									  className="mb-0"
+									>
+									  <Select
+									    options={itemCategoryOptions}
+									    placeholder="Pilih Kategori Item"
+									    showSearch
+									    optionFilterProp="label"
+									  />
+									</Form.Item>
                             <Form.Item shouldUpdate noStyle>
                               {() => {
-                                const otherItems = form.getFieldValue('otherItems') as FormData['otherItems']
-                                const currentItem = Array.isArray(otherItems) ? otherItems[name] : undefined
-                                const unitCodeRaw =
-                                  currentItem && typeof currentItem.unitCode === 'string'
-                                    ? currentItem.unitCode
-                                    : ''
-                                const unitCode = unitCodeRaw.trim().toUpperCase()
+								    const otherItems = form.getFieldValue('otherItems') as FormData['otherItems']
+								    const currentItem = Array.isArray(otherItems) ? otherItems[name] : undefined
+								    const categoryId =
+								      currentItem && typeof currentItem.itemCategoryId === 'number'
+								        ? currentItem.itemCategoryId
+								        : null
+									
+									    const filteredItemOptions = itemOptions
+									      .filter((option) => (categoryId ? option.categoryId === categoryId : true))
+									      .map((option) => ({ value: option.value, label: option.label }))
 
-                                const filteredItemOptions = itemOptions
-                                  .filter((option) => option.unitCode === unitCode)
-                                  .map((option) => ({ value: option.value, label: option.label }))
-
-                                return (
-                                  <Form.Item
-                                    {...restField}
-                                    name={[name, 'itemId']}
-                                    label="Item"
-                                    rules={[{ required: true, message: 'Pilih item' }]}
-                                    className="mb-0"
-                                  >
-                                    <Select
-                                      options={filteredItemOptions}
-                                      placeholder={unitCode ? 'Pilih Item' : 'Pilih unit terlebih dahulu'}
-                                      showSearch
-                                      optionFilterProp="label"
-                                      loading={itemLoading}
-                                      disabled={!unitCode}
-                                    />
-                                  </Form.Item>
-                                )
+									    const hasCategory = typeof categoryId === 'number'
+									
+									    return (
+									      <Form.Item
+									        {...restField}
+										    name={[name, 'itemId']}
+										    label="Nama Item"
+									        rules={[{ required: true, message: 'Pilih item' }]}
+									        className="mb-0"
+									      >
+									        <Select
+									          options={filteredItemOptions}
+									          placeholder={hasCategory ? 'Pilih Item' : 'Pilih kategori terlebih dahulu'}
+									          showSearch
+									          optionFilterProp="label"
+									          loading={itemLoading}
+									          disabled={!hasCategory}
+									        />
+									      </Form.Item>
+									    )
                               }}
                             </Form.Item>
                             <Form.Item
@@ -1494,6 +1548,14 @@ export function MedicationRequestForm() {
                               <Input placeholder="Instruksi penggunaan" />
                             </Form.Item>
                           </div>
+                          <Form.Item
+                            {...restField}
+                            name={[name, 'note']}
+                            label="Catatan"
+                            className="mb-0"
+                          >
+                            <Input placeholder="Catatan tambahan" />
+                          </Form.Item>
                         </div>
                         {fields.length > 0 && (
                           <Button
