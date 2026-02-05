@@ -1,4 +1,4 @@
-import { Button, Dropdown, Form, Input, InputNumber, Modal, message } from 'antd'
+import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { DeleteOutlined, EditOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
@@ -158,32 +158,46 @@ type ItemApi = {
 }
 
 interface AdjustItemStockResult {
-  id?: number
-  kode?: string
-  stock?: number
+	id?: number
+	kode?: string
+	stock?: number
+}
+
+interface AdjustItemStockArgs {
+	itemId: number
+	newStock: number
+	adjustReason?: string
+	note?: string
 }
 
 type InventoryStockApi = {
-  adjustItemStock: (args: { itemId: number; newStock: number }) => Promise<{
-    success: boolean
-    result?: AdjustItemStockResult
-    message?: string
-    error?: string
-  }>
+	adjustItemStock: (args: AdjustItemStockArgs) => Promise<{
+		success: boolean
+		result?: AdjustItemStockResult
+		message?: string
+		error?: string
+	}>
+}
+
+interface StockAdjustmentFormValues {
+	currentStock?: number
+	physicalStock?: number
+	reason?: string
+	note?: string
 }
 
 function RowActions({ record }: { record: ItemAttributes }) {
   const navigate = useNavigate()
   const [isEditStockOpen, setIsEditStockOpen] = useState(false)
-  const [stockForm] = Form.useForm<{ stock?: number; minimumStock?: number | null }>()
+	const [stockForm] = Form.useForm<StockAdjustmentFormValues>()
 
   const api = (window.api?.query as { item?: ItemApi }).item
   const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
     .inventoryStock
 
-  const updateStockAndMinimumStockMutation = useMutation({
+	const updateStockAndMinimumStockMutation = useMutation({
     mutationKey: ['item', 'update', 'stock-and-minimumStock', record.id],
-    mutationFn: async (values: { stock?: number; minimumStock?: number | null }) => {
+		mutationFn: async (values: StockAdjustmentFormValues) => {
       if (typeof record.id !== 'number') {
         throw new Error('ID item tidak valid.')
       }
@@ -199,7 +213,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
         throw new Error('API item tidak tersedia.')
       }
 
-      const rawStock = values.stock
+			const rawStock = values.physicalStock
       if (rawStock === undefined || rawStock === null || Number.isNaN(rawStock)) {
         throw new Error('Stok baru harus diisi dengan angka yang valid.')
       }
@@ -210,20 +224,17 @@ function RowActions({ record }: { record: ItemAttributes }) {
 
       const roundedStock = Math.floor(rawStock)
 
-      const rawMinimumStock = values.minimumStock
-      let normalizedMinimumStock: number | null = null
+			const normalizedMinimumStock =
+				typeof record.minimumStock === 'number' && record.minimumStock >= 0
+					? record.minimumStock
+					: null
 
-      if (rawMinimumStock !== undefined && rawMinimumStock !== null) {
-        if (typeof rawMinimumStock !== 'number' || Number.isNaN(rawMinimumStock)) {
-          throw new Error('Minimum stok harus berupa angka yang valid.')
-        }
-        if (rawMinimumStock < 0) {
-          throw new Error('Minimum stok tidak boleh bernilai negatif.')
-        }
-        normalizedMinimumStock = rawMinimumStock
-      }
-
-      const adjustResult = await adjustFn({ itemId: record.id, newStock: roundedStock })
+			const adjustResult = await adjustFn({
+				itemId: record.id,
+				newStock: roundedStock,
+				adjustReason: values.reason,
+				note: values.note
+			})
 
       if (!adjustResult?.success) {
         const msg = adjustResult?.message ?? adjustResult?.error ?? 'Gagal memperbarui stok item'
@@ -282,19 +293,19 @@ function RowActions({ record }: { record: ItemAttributes }) {
     },
     {
       key: 'edit-stock',
-      label: 'Edit Stok',
+      label: 'Penyesuaian Stok',
       icon: <EditOutlined />,
       onClick: () => {
         const currentStock =
           typeof record.stock === 'number' && Number.isFinite(record.stock)
             ? record.stock
             : 0
-        const currentMinimumStock =
-          typeof record.minimumStock === 'number' && record.minimumStock >= 0
-            ? record.minimumStock
-            : undefined
-
-        stockForm.setFieldsValue({ stock: currentStock, minimumStock: currentMinimumStock })
+			stockForm.setFieldsValue({
+				currentStock,
+				physicalStock: currentStock,
+				reason: '',
+				note: ''
+			})
         setIsEditStockOpen(true)
       }
     },
@@ -316,7 +327,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
         <Button type="text" icon={<MoreOutlined />} />
       </Dropdown>
       <Modal
-        title="Edit Stok Item"
+        title="Penyesuaian Stok Fisik Item"
         open={isEditStockOpen}
         onCancel={() => {
           if (!updateStockAndMinimumStockMutation.isPending) {
@@ -336,69 +347,65 @@ function RowActions({ record }: { record: ItemAttributes }) {
         cancelText="Batal"
         destroyOnClose
       >
-        <Form
-          form={stockForm}
-          layout="vertical"
-          initialValues={{
-            stock:
-              typeof record.stock === 'number' && Number.isFinite(record.stock)
-                ? record.stock
-                : 0,
-            minimumStock:
-              typeof record.minimumStock === 'number' && record.minimumStock >= 0
-                ? record.minimumStock
-                : undefined
-          }}
-        >
-          <Form.Item
-            label="Stok"
-            name="stock"
-            rules={[
-              {
-                validator: (_rule, value) => {
-                  if (value === undefined || value === null || value === '') {
-                    return Promise.reject(new Error('Stok baru harus diisi'))
-                  }
-                  if (typeof value !== 'number' || Number.isNaN(value)) {
-                    return Promise.reject(new Error('Nilai stok harus berupa angka'))
-                  }
-                  if (value < 0) {
-                    return Promise.reject(
-                      new Error('Stok baru tidak boleh bernilai negatif')
-                    )
-                  }
-                  return Promise.resolve()
-                }
-              }
-            ]}
-          >
-            <InputNumber<number> min={0} className="w-full" />
-          </Form.Item>
-          <Form.Item
-            label="Minimum Stok"
-            name="minimumStock"
-            rules={[
-              {
-                validator: (_rule, value) => {
-                  if (value === undefined || value === null || value === '') {
-                    return Promise.resolve()
-                  }
-                  if (typeof value !== 'number' || Number.isNaN(value)) {
-                    return Promise.reject(new Error('Nilai harus berupa angka'))
-                  }
-                  if (value < 0) {
-                    return Promise.reject(
-                      new Error('Minimum stok tidak boleh bernilai negatif')
-                    )
-                  }
-                  return Promise.resolve()
-                }
-              }
-            ]}
-          >
-            <InputNumber<number> min={0} className="w-full" />
-          </Form.Item>
-        </Form>
+		<Form
+		  form={stockForm}
+		  layout="vertical"
+		  initialValues={{
+			currentStock:
+			  typeof record.stock === 'number' && Number.isFinite(record.stock)
+				? record.stock
+				: 0,
+			physicalStock:
+			  typeof record.stock === 'number' && Number.isFinite(record.stock)
+				? record.stock
+				: 0,
+			reason: '',
+			note: ''
+		  }}
+		>
+		  <Form.Item label="Stok Sekarang" name="currentStock">
+			<InputNumber<number> disabled className="w-full" />
+		  </Form.Item>
+		  <Form.Item
+			label="Stok Fisik"
+			name="physicalStock"
+			rules={[
+			  {
+				validator: (_rule, value) => {
+				  if (value === undefined || value === null || value === '') {
+					return Promise.reject(new Error('Stok fisik harus diisi'))
+				  }
+				  if (typeof value !== 'number' || Number.isNaN(value)) {
+					return Promise.reject(new Error('Nilai stok fisik harus berupa angka'))
+				  }
+				  if (value < 0) {
+					return Promise.reject(
+					  new Error('Stok fisik tidak boleh bernilai negatif')
+					)
+				  }
+				  return Promise.resolve()
+				}
+			  }
+			]}
+		  >
+			<InputNumber<number> min={0} className="w-full" />
+		  </Form.Item>
+		  
+		  <Form.Item label="Alasan Penyesuaian" name="reason">
+			<Select
+			  placeholder="Pilih alasan"
+			  options={[
+				{ value: 'hilang', label: 'Hilang' },
+				{ value: 'rusak', label: 'Rusak' },
+				{ value: 'dipakai', label: 'Dipakai' },
+				{ value: 'lebih', label: 'Lebih' }
+			  ]}
+			/>
+		  </Form.Item>
+		  <Form.Item label="Catatan" name="note">
+			<Input.TextArea rows={2} />
+		  </Form.Item>
+		</Form>
       </Modal>
     </>
   )

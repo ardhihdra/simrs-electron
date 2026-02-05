@@ -56,7 +56,9 @@ export const schemas = {
 		adjustItemStock: {
 			args: z.object({
 				itemId: z.number(),
-				newStock: z.number()
+				newStock: z.number(),
+				adjustReason: z.string().optional(),
+				note: z.string().optional()
 			}),
 			result: z.object({
 				success: z.boolean(),
