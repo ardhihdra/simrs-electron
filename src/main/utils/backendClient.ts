@@ -54,6 +54,26 @@ export function createBackendClient(ctx: IpcContext) {
       fetch(`${root}${path}`, {
         method: 'DELETE',
         headers
+      }),
+
+    upload: (path: string, formData: any) =>
+      fetch(`${root}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-access-token': token
+        },
+        body: formData
+      }),
+
+    createWithUpload: (path: string, formData: any) =>
+      fetch(`${root}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'x-access-token': token
+        },
+        body: formData
       })
   }
 }
@@ -129,7 +149,13 @@ export const BackendListSchema = <T extends z.ZodTypeAny>(itemSchema: T) =>
     }),
     z.object({
       success: z.literal(false),
-      error: z.string(),
+      error: z.any().transform((val) => {
+        // Handle error that could be string, array, object, etc.
+        if (typeof val === 'string') return val
+        if (Array.isArray(val)) return JSON.stringify(val)
+        if (typeof val === 'object') return JSON.stringify(val)
+        return String(val)
+      }),
       message: z.string().optional()
     })
   ])

@@ -1,8 +1,9 @@
-import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import { buildApiFromTree } from './api'
+import { exposeRpc } from '@mavolostudio/electron-rpc'
+import { contextBridge } from 'electron'
 import fs from 'fs'
 import path from 'path'
+import { buildApiFromTree } from './api'
 
 let tree: any = {}
 
@@ -43,6 +44,7 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
+    exposeRpc({ name: 'rpc', whitelist: ['rpc'] })
   } catch (error) {
     console.error(error)
   }

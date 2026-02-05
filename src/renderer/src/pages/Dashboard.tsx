@@ -1,46 +1,51 @@
-import { Menu, Button, App as AntdApp } from 'antd'
-import type { MenuProps } from 'antd'
-import { ItemType } from 'antd/es/menu/interface'
-import { useEffect, useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
-import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
-import NotificationBell from '@renderer/components/molecules/NotificationBell'
-import logoUrl from '@renderer/assets/logo.png'
 import {
   CalendarOutlined,
   DashboardOutlined,
-  LeftCircleFilled,
-  RightCircleFilled,
-  UserOutlined,
-  WalletOutlined,
-  PhoneOutlined,
+  ExperimentOutlined,
+  FileAddOutlined,
+  FileSearchOutlined,
   FileTextOutlined,
+  LeftCircleFilled,
   MedicineBoxOutlined,
-  PlusCircleOutlined
+  PhoneOutlined,
+  RightCircleFilled,
+  UnorderedListOutlined,
+  UserAddOutlined,
+  UserOutlined,
+  WalletOutlined
 } from '@ant-design/icons'
+import logoUrl from '@renderer/assets/logo.png'
+import NotificationBell from '@renderer/components/molecules/NotificationBell'
+import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 
-const SendNotificationButton = () => {
-  const { message } = AntdApp.useApp()
-  return (
-    <Button
-      size="small"
-      onClick={async () => {
-        try {
-          await window.api.notification.send({
-            title: 'Test Notification',
-            content: 'This is a test notification sent from the renderer.'
-          })
-          message.success('Notification sent!')
-        } catch (error) {
-          console.error(error)
-          message.error('Failed to send notification')
-        }
-      }}
-    >
-      Send Notification
-    </Button>
-  )
-}
+import type { MenuProps } from 'antd'
+import { Menu } from 'antd'
+import { ItemType } from 'antd/es/menu/interface'
+import { useEffect, useState } from 'react'
+import { Outlet, useLocation, useNavigate } from 'react-router'
+
+// const SendNotificationButton = () => {
+//   const { message } = AntdApp.useApp()
+//   return (
+//     <Button
+//       size="small"
+//       onClick={async () => {
+//         try {
+//           await window.api.notification.send({
+//             title: 'Test Notification',
+//             content: 'This is a test notification sent from the renderer.'
+//           })
+//           message.success('Notification sent!')
+//         } catch (error) {
+//           console.error(error)
+//           message.error('Failed to send notification')
+//         }
+//       }}
+//     >
+//       Send Notification
+//     </Button>
+//   )
+// }
 
 const items = [
   {
@@ -76,9 +81,19 @@ const items = [
         icon: <UserOutlined />
       },
       {
-        label: 'Kunjungan Pasien',
+        label: 'Daftar Antrian',
         key: '/dashboard/encounter',
+        icon: <UserAddOutlined />
+      },
+      {
+        label: 'Kunjungan Pasien',
+        key: '/dashboard/encounter/transition',
         icon: <CalendarOutlined />
+      },
+      {
+        label: 'Triage',
+        key: '/dashboard/encounter/triage',
+        icon: <MedicineBoxOutlined />
       },
       {
         label: 'Data Jaminan',
@@ -170,11 +185,27 @@ const items = [
     icon: <WalletOutlined />,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <DashboardOutlined /> },
-      { label: 'Master Obat - Kategori', key: '/dashboard/medicine/medicine-categories', icon: <DashboardOutlined /> },
-      { label: 'Master Obat - Merek', key: '/dashboard/medicine/medicine-brands', icon: <DashboardOutlined /> },
+      {
+        label: 'Master Obat - Kategori',
+        key: '/dashboard/medicine/medicine-categories',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Master Obat - Merek',
+        key: '/dashboard/medicine/medicine-brands',
+        icon: <DashboardOutlined />
+      },
       { label: 'Master Obat', key: '/dashboard/medicine/medicines', icon: <DashboardOutlined /> },
-      { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <DashboardOutlined /> },
-      { label: 'Penyerahan Obat (Dispensing)', key: '/dashboard/medicine/medication-dispenses', icon: <DashboardOutlined /> }
+      {
+        label: 'Permintaan Obat (Resep)',
+        key: '/dashboard/medicine/medication-requests',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Penyerahan Obat (Dispensing)',
+        key: '/dashboard/medicine/medication-dispenses',
+        icon: <DashboardOutlined />
+      }
     ]
   },
   {
@@ -184,10 +215,22 @@ const items = [
     children: [
       { label: 'Dashboard Farmasi', key: '/dashboard/farmasi', icon: <DashboardOutlined /> },
       { label: 'Bahan Baku', key: '/dashboard/farmasi/raw-materials', icon: <DashboardOutlined /> },
-      { label: 'Kategori Bahan Baku', key: '/dashboard/farmasi/raw-material-categories', icon: <DashboardOutlined /> },
+      {
+        label: 'Kategori Bahan Baku',
+        key: '/dashboard/farmasi/raw-material-categories',
+        icon: <DashboardOutlined />
+      },
       { label: 'Pemasok', key: '/dashboard/farmasi/suppliers', icon: <DashboardOutlined /> },
-      { label: 'Formula Produksi', key: '/dashboard/farmasi/formulas', icon: <DashboardOutlined /> },
-      { label: 'Permintaan Produksi', key: '/dashboard/farmasi/production-requests', icon: <DashboardOutlined /> },
+      {
+        label: 'Formula Produksi',
+        key: '/dashboard/farmasi/formulas',
+        icon: <DashboardOutlined />
+      },
+      {
+        label: 'Permintaan Produksi',
+        key: '/dashboard/farmasi/production-requests',
+        icon: <DashboardOutlined />
+      },
       { label: 'Item', key: '/dashboard/farmasi/items', icon: <DashboardOutlined /> }
     ]
   },
@@ -197,24 +240,34 @@ const items = [
     icon: <DashboardOutlined />,
     children: [
       {
+        label: 'List Lab',
+        key: '/dashboard/laboratory/list',
+        icon: <UnorderedListOutlined />
+      },
+      {
         label: 'Permintaan Lab',
-        key: '/dashboard/service-request',
-        icon: <DashboardOutlined />
+        key: '/dashboard/laboratory/permintaan',
+        icon: <FileAddOutlined />
       },
       {
         label: 'Pemeriksaan Lab',
-        key: '/dashboard/laboratory/exam',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Hasil Lab',
         key: '/dashboard/laboratory/result',
-        icon: <DashboardOutlined />
+        icon: <ExperimentOutlined />
       },
       {
         label: 'Laporan Lab',
         key: '/dashboard/laboratory/report',
-        icon: <DashboardOutlined />
+        icon: <FileTextOutlined />
+      },
+      {
+        label: 'Pengambilan Spesimen',
+        key: '/dashboard/laboratory/specimen',
+        icon: <MedicineBoxOutlined />
+      },
+      {
+        label: 'Diagnostic Report',
+        key: '/dashboard/laboratory/diagnostic-report',
+        icon: <FileSearchOutlined />
       }
     ]
   },
@@ -288,6 +341,10 @@ function Dashboard() {
     '/dashboard/services',
     '/dashboard/service-request',
     '/dashboard/pharmacy',
+    '/dashboard/pendaftaran',
+    '/dashboard/registration/doctor-leave',
+    '/dashboard/pharmacy',
+    '/dashboard/laboratory',
     '/dashboard/medicine',
     '/dashboard/farmasi',
     '/dashboard/registration/doctor-leave',
@@ -372,12 +429,16 @@ function Dashboard() {
     setActiveSide(match || (children[0]?.key as string))
   }, [location.pathname])
   return (
-    <div className="min-h-screen flex">
-      <aside className={`${collapsed ? 'w-20' : 'w-64'} bg-white dark:bg-[#141414] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300`}>
+    <div className="min-h-screen flex overflow-hidden">
+      <aside
+        className={`${collapsed ? 'w-20' : 'w-64'} bg-white dark:bg-[#141414] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300`}
+      >
         <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-center gap-2">
             <img src={logoUrl} alt="Logo" className="w-8 h-8" />
-            <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg dark:text-white'}`}>SIMRS</span>
+            <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg dark:text-white'}`}>
+              SIMRS
+            </span>
           </div>
         </div>
         <Menu
@@ -399,16 +460,19 @@ function Dashboard() {
           </button>
         </div>
       </aside>
-      <div className="flex-1 flex flex-col">
+      <div
+        className={`flex-1 transition-all duration-300 flex flex-col ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
+      >
         <header className="sticky top-0 z-50 bg-white dark:bg-[#141414] border-b border-gray-200 dark:border-gray-800 h-14 px-4 flex items-center justify-between gap-4 transition-colors">
           <Menu
             mode="horizontal"
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            className="flex-1 dark:bg-[#141414] border-none"
+            className="dark:bg-[#141414] border-none"
+            style={{ minWidth: 0, flex: 'auto' }}
           />
-          <SendNotificationButton />
+          {/* <SendNotificationButton /> */}
           <NotificationBell />
           <ProfileMenu />
         </header>

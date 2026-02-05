@@ -1,14 +1,41 @@
-import { Form, Input, Button, DatePicker, Select, message, Steps } from 'antd'
+import { GeneralConsentForm } from '@renderer/components/organisms/GeneralConsentForm'
+import { client } from '@renderer/utils/client'
+
+import { Button, DatePicker, Form, Input, message, Select, Steps } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type { PatientAttributes } from '@shared/patient'
-import dayjs, { type Dayjs } from 'dayjs'
-import { GeneralConsentForm } from '@renderer/components/organisms/GeneralConsentForm'
+import type { PatientAttributes } from 'simrs-types'
 
 type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & { birthDate: Dayjs }
 
-type PatientUpdatePayload = Omit<PatientAttributes, 'id'> & { id: string }
+// Wrapper component to isolate re-renders caused by useWatch
+const GeneralConsentWrapper = ({
+  form,
+  visible
+}: {
+  form: import('antd').FormInstance
+  visible: boolean
+}) => {
+  const patientName = Form.useWatch('name', form)
+  const patientBirthDate = Form.useWatch('birthDate', form)
+  const patientAddress = Form.useWatch('address', form)
+  const patientPhone = Form.useWatch('phone', form)
+
+  return (
+    <div style={{ display: visible ? 'block' : 'none' }}>
+      <GeneralConsentForm
+        form={form}
+        patientData={{
+          name: patientName,
+          birthDate: patientBirthDate,
+          addressLine: patientAddress,
+          phone: patientPhone
+        }}
+      />
+    </div>
+  )
+}
 
 function PatientForm() {
   const [form] = Form.useForm<PatientFormValues>()
@@ -16,35 +43,30 @@ function PatientForm() {
   const [submitting, setSubmitting] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const params = useParams<{ id: string }>()
+  const id = params.id || ''
   const isEdit = !!params.id
 
-  const detail = useQuery({
-    queryKey: ['patient', 'detail', params.id],
-    queryFn: () => {
-      const fn = window.api?.query?.patient?.getById
-      if (!fn || !params.id) throw new Error('API patient tidak tersedia')
-      return fn({ id: Number(params.id) })
-    },
-    enabled: isEdit
-  })
+  const detail = client.patient.getById.useQuery(
+    { id },
+    {
+      enabled: isEdit,
+      queryKey: ['patient', { id }]
+    }
+  )
 
   useEffect(() => {
-    const item = detail.data?.data as Partial<PatientAttributes> | undefined
+    const item = detail.data?.result as Partial<PatientAttributes> | undefined
     if (item) {
       form.setFieldsValue({
-        kode: item.kode,
-        identifier: item.identifier ?? undefined,
+        nik: item.nik,
         name: item.name,
         gender: item.gender,
         birthDate: item.birthDate ? dayjs(item.birthDate as unknown as string) : undefined,
-        placeOfBirth: item.placeOfBirth ?? undefined,
         phone: item.phone ?? undefined,
         email: item.email ?? undefined,
-        addressLine: item.addressLine ?? undefined,
+        address: item.address ?? undefined,
         province: item.province ?? undefined,
         city: item.city ?? undefined,
-        district: item.district ?? undefined,
-        village: item.village ?? undefined,
         postalCode: item.postalCode ?? undefined,
         country: item.country ?? undefined,
         maritalStatus: item.maritalStatus ?? undefined
@@ -52,60 +74,53 @@ function PatientForm() {
     }
   }, [detail.data, form])
 
-  const createMutation = useMutation({
-    mutationKey: ['patient', 'create'],
-    mutationFn: async (payload: PatientAttributes) => {
-      const createFn = window.api?.query?.patient?.create
-      if (!createFn) {
-        throw new Error('API patient tidak tersedia. Silakan restart aplikasi/dev server.')
-      }
-      const result = await createFn(payload)
-      if (!result.success) throw new Error(result.error || 'Failed to create patient')
-      return result
-    },
+  const createMutation = client.patient.create.useMutation({
     onSuccess: () => {
       message.success('Pasien berhasil disimpan')
       form.resetFields()
       navigate('/dashboard/patient')
+    },
+    onError: (error) => {
+      message.error(error.message || 'Failed to create patient')
     }
   })
 
-  const updateMutation = useMutation({
-    mutationKey: ['patient', 'update'],
-    mutationFn: async (payload: PatientUpdatePayload) => {
-      const updateFn = window.api?.query?.patient?.update
-      if (!updateFn) throw new Error('API patient tidak tersedia')
-      const result = await updateFn(payload)
-      if (!result.success) throw new Error(result.error || 'Failed to update patient')
-      return result
-    },
+  const updateMutation = client.patient.update.useMutation({
     onSuccess: () => {
       message.success('Pasien berhasil diperbarui')
       navigate('/dashboard/patient')
+    },
+    onError: (error) => {
+      message.error(error.message || 'Failed to update patient')
     }
   })
 
   const onFinish = async (values: PatientFormValues) => {
     try {
       setSubmitting(true)
-      const payload: PatientAttributes = {
+      const payload: any = {
         active: values.active ?? true,
-        identifier: values.identifier ?? null,
-        kode: values.kode,
+        nik: values.nik,
+        medicalRecordNumber: '', // Placeholder as per schema requirement if strictly validated
         name: values.name,
         gender: values.gender,
-        birthDate: values.birthDate.toDate(),
-        placeOfBirth: values.placeOfBirth ?? null,
-        phone: values.phone ?? null,
-        email: values.email ?? null,
-        addressLine: values.addressLine ?? null,
-        province: values.province ?? null,
-        city: values.city ?? null,
-        district: values.district ?? null,
-        village: values.village ?? null,
-        postalCode: values.postalCode ?? null,
-        country: values.country ?? null,
-        maritalStatus: values.maritalStatus ?? null
+        birthDate: values.birthDate.format('YYYY-MM-DD'),
+        phone: values.phone ?? '',
+        email: values.email ?? '',
+        address: values.address ?? '',
+        province: values.province ?? '',
+        city: values.city ?? '',
+        postalCode: values.postalCode ?? '',
+        country: values.country ?? '',
+        maritalStatus: values.maritalStatus ?? '',
+        relatedPerson: [],
+        insuranceProvider: null,
+        insuranceNumber: null,
+        fhirId: null,
+        fhirServer: null,
+        fhirVersion: null,
+        lastFhirUpdated: null,
+        lastSyncedAt: null
       }
       if (isEdit && params.id) {
         await updateMutation.mutateAsync({ ...payload, id: params.id })
@@ -121,17 +136,13 @@ function PatientForm() {
     try {
       // Validate explicit fields for the first step
       await form.validateFields([
-        'kode',
-        'identifier',
+        'nik',
         'name',
         'gender',
         'birthDate',
-        'placeOfBirth',
         'phone',
         'email',
-        'addressLine',
-        'village',
-        'district',
+        'address',
         'city',
         'province',
         'postalCode',
@@ -147,11 +158,6 @@ function PatientForm() {
   const prev = () => {
     setCurrentStep(currentStep - 1)
   }
-
-  const patientName = Form.useWatch('name', form)
-  const patientBirthDate = Form.useWatch('birthDate', form)
-  const patientAddress = Form.useWatch('addressLine', form)
-  const patientPhone = Form.useWatch('phone', form)
 
   return (
     <div className="my-4 space-y-6">
@@ -172,14 +178,7 @@ function PatientForm() {
       <Form form={form} layout="vertical" onFinish={onFinish} className="w-full mt-6">
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
           <div className="grid grid-cols-2 gap-4">
-            <Form.Item label="Kode" name="kode" rules={[{ required: true, message: 'Kode wajib' }]}>
-              <Input placeholder="Kode pasien" />
-            </Form.Item>
-            <Form.Item
-              label="NIK"
-              name="identifier"
-              rules={[{ required: true, message: 'NIK wajib' }]}
-            >
+            <Form.Item label="NIK" name="nik" rules={[{ required: true, message: 'NIK wajib' }]}>
               <Input placeholder="Nomor Induk Kependudukan" />
             </Form.Item>
             <Form.Item label="Nama" name="name" rules={[{ required: true, message: 'Nama wajib' }]}>
@@ -193,6 +192,7 @@ function PatientForm() {
               <Select placeholder="Pilih gender">
                 <Select.Option value="male">Laki-laki</Select.Option>
                 <Select.Option value="female">Perempuan</Select.Option>
+                <Select.Option value="other">Lainnya</Select.Option>
               </Select>
             </Form.Item>
             <Form.Item
@@ -203,23 +203,14 @@ function PatientForm() {
               <DatePicker className="w-full" />
             </Form.Item>
 
-            <Form.Item label="Tempat Lahir" name="placeOfBirth">
-              <Input placeholder="Tempat lahir" />
-            </Form.Item>
             <Form.Item label="Nomor Telepon" name="phone">
               <Input placeholder="Nomor telepon" />
             </Form.Item>
             <Form.Item label="Email" name="email">
               <Input placeholder="Email" />
             </Form.Item>
-            <Form.Item label="Alamat" name="addressLine">
+            <Form.Item label="Alamat" name="address">
               <Input placeholder="Alamat" />
-            </Form.Item>
-            <Form.Item label="Desa" name="village">
-              <Input placeholder="Desa" />
-            </Form.Item>
-            <Form.Item label="Kecamatan" name="district">
-              <Input placeholder="Kecamatan" />
             </Form.Item>
             <Form.Item label="Kota" name="city">
               <Input placeholder="Kota" />
@@ -247,17 +238,7 @@ function PatientForm() {
           </div>
         </div>
 
-        <div style={{ display: currentStep === 1 ? 'block' : 'none' }}>
-          <GeneralConsentForm
-            form={form}
-            patientData={{
-              name: patientName,
-              birthDate: patientBirthDate,
-              addressLine: patientAddress,
-              phone: patientPhone
-            }}
-          />
-        </div>
+        <GeneralConsentWrapper form={form} visible={currentStep === 1} />
 
         <div className="mt-6 flex justify-end gap-2">
           {currentStep > 0 && <Button onClick={prev}>Kembali</Button>}

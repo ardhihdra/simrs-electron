@@ -13,5 +13,6 @@ declare global {
         }) => Promise<any>
       }
     }
+    rpc: any
   }
 }

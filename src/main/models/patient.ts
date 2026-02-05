@@ -1,5 +1,5 @@
-import { DataTypes } from 'sequelize'
 import { sequelize } from '@main/database'
+import { DataTypes } from 'sequelize'
 import z from 'zod'
 
 const FhirPatientIdentifierSchema = z.object({
@@ -50,16 +50,10 @@ export const Patient = sequelize.define(
 export const PatientSchema = z.object({
   active: z.boolean().optional(),
   identifier: z
-    .union([
-      z.string().nullable(),
-      z.array(FhirPatientIdentifierSchema).nullable()
-    ])
+    .union([z.string().nullable(), z.array(FhirPatientIdentifierSchema).nullable()])
     .optional(),
   kode: z.string().min(1).optional(),
-  name: z.union([
-    z.string().min(1),
-    z.array(FhirPatientNameEntrySchema)
-  ]),
+  name: z.union([z.string().min(1), z.array(FhirPatientNameEntrySchema)]),
   gender: z.enum(['male', 'female']),
   birthDate: z.union([z.date(), z.string()]),
   placeOfBirth: z.string().nullable().optional(),
@@ -79,7 +73,7 @@ export const PatientSchema = z.object({
 })
 
 export const PatientSchemaWithId = PatientSchema.extend({
-  id: z.string().optional(),
+  id: z.string().optional()
   // createdBy: z.number().nullable().optional(),
   // updatedBy: z.number().nullable().optional(),
   // deletedBy: z.number().nullable().optional(),
