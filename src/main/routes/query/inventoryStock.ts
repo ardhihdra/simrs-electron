@@ -27,6 +27,24 @@ const AdjustItemStockResultSchema = z.object({
 	stock: z.number().optional()
 })
 
+const ItemAdjustmentSchema = z.object({
+	id: z.number(),
+	kodeItem: z.string(),
+	type: z.number(),
+	qty: z.number(),
+	batchNumber: z.string().nullable(),
+	expiryDate: z.string().nullable(),
+	adjustReason: z.string().nullable(),
+	note: z.string().nullable(),
+	previousStock: z.number(),
+	newStock: z.number(),
+	createdAt: z.string(),
+	createdBy: z.string().nullable(),
+	createdByName: z.string().nullable().optional(),
+	updatedAt: z.string().nullable(),
+	updatedBy: z.string().nullable()
+})
+
 export const schemas = {
 	list: {
 		args: z
@@ -65,6 +83,18 @@ export const schemas = {
 				result: AdjustItemStockResultSchema.optional(),
 				message: z.string().optional()
 			})
+		},
+		itemAdjustments: {
+			args: z
+				.object({
+					itemId: z.number().optional()
+				})
+				.optional(),
+			result: z.object({
+				success: z.boolean(),
+				result: ItemAdjustmentSchema.array().nullable().optional(),
+				message: z.string().optional()
+			})
 		}
 } as const
 
@@ -72,6 +102,7 @@ type ListArgs = z.infer<typeof schemas.list.args>
 
 type ExpirySummaryArgs = z.infer<typeof schemas.expirySummary.args>
 type AdjustItemStockArgs = z.infer<typeof schemas.adjustItemStock.args>
+type ItemAdjustmentsArgs = z.infer<typeof schemas.itemAdjustments.args>
 
 export const list = async (ctx: IpcContext, args?: ListArgs) => {
 	const client = createBackendClient(ctx)
@@ -126,4 +157,26 @@ export const adjustItemStock = async (ctx: IpcContext, args: AdjustItemStockArgs
 		const msg = err instanceof Error ? err.message : String(err)
 		return { success: false as const, error: msg }
 	}
+}
+
+export const itemAdjustments = async (ctx: IpcContext, args?: ItemAdjustmentsArgs) => {
+	const client = createBackendClient(ctx)
+	const params = new URLSearchParams()
+	const rawItemId = args && typeof args.itemId === 'number' ? args.itemId : undefined
+	if (typeof rawItemId === 'number' && Number.isFinite(rawItemId) && rawItemId > 0) {
+		params.append('itemId', String(rawItemId))
+	}
+
+	const queryString = params.toString()
+	const url = queryString.length > 0
+		? `/api/inventorystock/item-adjustments?${queryString}`
+		: '/api/inventorystock/item-adjustments'
+	const res = await client.get(url)
+	const BackendSchema = z.object({
+		success: z.boolean(),
+		result: ItemAdjustmentSchema.array().nullable().optional(),
+		message: z.string().optional()
+	})
+	const result = await parseBackendResponse(res, BackendSchema)
+	return { success: true, result }
 }

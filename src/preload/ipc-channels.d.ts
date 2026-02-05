@@ -141,6 +141,8 @@ type Args_Mod_query_inventoryStock_adjustItemStock = InferArgs<typeof Mod_query_
 type Result_Mod_query_inventoryStock_adjustItemStock = InferResult<typeof Mod_query_inventoryStock, 'adjustItemStock'>
 type Args_Mod_query_inventoryStock_expirySummary = InferArgs<typeof Mod_query_inventoryStock, 'expirySummary'>
 type Result_Mod_query_inventoryStock_expirySummary = InferResult<typeof Mod_query_inventoryStock, 'expirySummary'>
+type Args_Mod_query_inventoryStock_itemAdjustments = InferArgs<typeof Mod_query_inventoryStock, 'itemAdjustments'>
+type Result_Mod_query_inventoryStock_itemAdjustments = InferResult<typeof Mod_query_inventoryStock, 'itemAdjustments'>
 type Args_Mod_query_inventoryStock_list = InferArgs<typeof Mod_query_inventoryStock, 'list'>
 type Result_Mod_query_inventoryStock_list = InferResult<typeof Mod_query_inventoryStock, 'list'>
 type Args_Mod_query_item_create = InferArgs<typeof Mod_query_item, 'create'>
@@ -396,6 +398,7 @@ declare global {
         inventoryStock: {
           adjustItemStock: Invoke<Args_Mod_query_inventoryStock_adjustItemStock, Result_Mod_query_inventoryStock_adjustItemStock>
           expirySummary: Invoke<Args_Mod_query_inventoryStock_expirySummary, Result_Mod_query_inventoryStock_expirySummary>
+          itemAdjustments: Invoke<Args_Mod_query_inventoryStock_itemAdjustments, Result_Mod_query_inventoryStock_itemAdjustments>
           list: Invoke<Args_Mod_query_inventoryStock_list, Result_Mod_query_inventoryStock_list>
         }
         item: {

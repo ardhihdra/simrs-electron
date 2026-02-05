@@ -1,6 +1,6 @@
-import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, message } from 'antd'
+import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
 import type { MenuProps } from 'antd'
-import { DeleteOutlined, EditOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, HistoryOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -177,6 +177,29 @@ type InventoryStockApi = {
 		message?: string
 		error?: string
 	}>
+	itemAdjustments: (args?: { itemId?: number }) => Promise<{
+		success: boolean
+		result?: ItemAdjustmentRow[]
+		message?: string
+	}>
+}
+
+interface ItemAdjustmentRow {
+	id: number
+	kodeItem: string
+	type: number
+	qty: number
+	batchNumber: string | null
+	expiryDate: string | null
+	adjustReason: string | null
+	note: string | null
+	previousStock: number
+	newStock: number
+	createdAt: string
+	createdBy: string | null
+	createdByName?: string | null
+	updatedAt: string | null
+	updatedBy: string | null
 }
 
 interface StockAdjustmentFormValues {
@@ -308,7 +331,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
 			})
         setIsEditStockOpen(true)
       }
-    },
+		},
     { type: 'divider' },
     {
       key: 'delete',
@@ -406,7 +429,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
 			<Input.TextArea rows={2} />
 		  </Form.Item>
 		</Form>
-      </Modal>
+			</Modal>
     </>
   )
 }
@@ -414,6 +437,9 @@ function RowActions({ record }: { record: ItemAttributes }) {
 export function ItemTable() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+	const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+	const [historyLoading, setHistoryLoading] = useState(false)
+	const [historyRows, setHistoryRows] = useState<ItemAdjustmentRow[]>([])
 
   const { data, refetch, isError } = useQuery<ItemListResponse>({
     queryKey: ['item', 'list'],
@@ -471,6 +497,33 @@ export function ItemTable() {
     })
   }, [data?.result, stockData?.result, search])
 
+	const handleOpenHistory = async () => {
+		const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
+			.inventoryStock
+		const fn = inventoryApi?.itemAdjustments
+		if (!fn) {
+			message.error('API history penyesuaian stok tidak tersedia.')
+			return
+		}
+		try {
+			setHistoryLoading(true)
+			const res = await fn()
+			if (!res.success) {
+				const msg = res.message ?? 'Gagal mengambil history penyesuaian stok'
+				message.error(msg)
+				setHistoryRows([])
+			} else {
+				setHistoryRows(Array.isArray(res.result) ? res.result : [])
+				setIsHistoryOpen(true)
+			}
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : 'Gagal mengambil history penyesuaian stok'
+			message.error(msg)
+		} finally {
+			setHistoryLoading(false)
+		}
+	}
+
   return (
     <div>
       <h2 className="text-3xl md:text-4xl font-bold mb-4 justify-center flex">Data Master Item</h2>
@@ -486,6 +539,9 @@ export function ItemTable() {
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Refresh
           </Button>
+				<Button icon={<HistoryOutlined />} onClick={handleOpenHistory}>
+					History Penyesuaian
+				</Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/farmasi/items/create')}>
             Tambah
           </Button>
@@ -500,6 +556,89 @@ export function ItemTable() {
       )}
 
       <div className="mt-4 bg-white dark:bg-[#141414] rounded-lg shadow border border-gray-200 dark:border-gray-800">
+			<Modal
+				title="History Penyesuaian Stok"
+				open={isHistoryOpen}
+				onCancel={() => setIsHistoryOpen(false)}
+				footer={null}
+				width={800}
+			>
+				<Table
+					dataSource={historyRows}
+					loading={historyLoading}
+					rowKey={(row) => row.id}
+					size="small"
+					pagination={{ pageSize: 10 }}
+							columns={[
+								{
+									title: 'Tanggal',
+									dataIndex: 'createdAt',
+									key: 'createdAt',
+									render: (value: string) => {
+										const date = new Date(value)
+										if (Number.isNaN(date.getTime())) return value
+										return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
+									}
+								},
+								{
+									title: 'Jenis',
+									dataIndex: 'type',
+									key: 'type',
+									render: (value: number) => (value === 1 ? 'Masuk' : 'Keluar')
+								},
+								{
+									title: 'Stok Sebelum',
+									dataIndex: 'previousStock',
+									key: 'previousStock'
+								},
+								{
+									title: 'Stok Adjustment',
+									dataIndex: 'qty',
+									key: 'stockAdjustment',
+								render: (_: number, row: ItemAdjustmentRow) => {
+									const base = typeof row.qty === 'number' ? row.qty : 0
+									const signed = row.type === 1 ? base : -base
+									const colorClass =
+										signed > 0 ? 'text-green-600' : signed < 0 ? 'text-red-600' : ''
+									const label =
+										signed > 0 ? `+${signed}` : signed < 0 ? String(signed) : '0'
+									return <span className={colorClass}>{label}</span>
+								}
+								},
+								{
+									title: 'Stok Sesudah',
+									dataIndex: 'newStock',
+									key: 'newStock'
+								},
+						{
+							title: 'Alasan',
+							dataIndex: 'adjustReason',
+							key: 'adjustReason',
+							render: (value: string | null) => value ?? '-'
+						},
+						{
+							title: 'Catatan',
+							dataIndex: 'note',
+							key: 'note',
+							render: (value: string | null) => value ?? '-'
+						},
+						{
+							title: 'User',
+								dataIndex: 'createdByName',
+								key: 'createdByName',
+								render: (_: string | null, row: ItemAdjustmentRow) => {
+									if (row.createdByName && row.createdByName.length > 0) {
+										return row.createdByName
+									}
+									if (row.createdBy && row.createdBy.length > 0) {
+										return row.createdBy
+									}
+									return '-'
+								}
+						}
+					]}
+				/>
+			</Modal>
         <GenericTable<ItemAttributes>
           columns={[
             { title: 'Nama', dataIndex: 'nama', key: 'nama' },
