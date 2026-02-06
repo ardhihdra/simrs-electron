@@ -166,6 +166,105 @@ function ItemPurchasePage() {
 		}
 	}, [total, compoundingFee, otherFee, discountPercent, taxPercent, paidAmount])
 
+	const handlePrintReceipt = (
+		transaction: PharmacyTransactionRecord,
+		items: PurchaseItemRow[]
+	) => {
+		if (!transaction || items.length === 0) {
+			message.info('Belum ada transaksi yang bisa dicetak')
+			return
+		}
+
+		const lines: string[] = []
+		lines.push('APOTEK / FARMASI')
+		lines.push('')
+		lines.push(`No. Faktur : ${transaction.fakturNumber}`)
+		const txDate = new Date(transaction.transactionDate)
+		lines.push(`Tanggal    : ${txDate.toLocaleString('id-ID')}`)
+		if (transaction.cashierName && transaction.cashierName.trim().length > 0) {
+			lines.push(`Kasir     : ${transaction.cashierName}`)
+		}
+		lines.push('----------------------------------------')
+		for (const item of items) {
+			const name = item.nama
+			const qtyPart = `${item.qty} ${item.satuan}`
+			const pricePart = formatRupiah(item.harga)
+			const subTotalPart = formatRupiah(item.subTotal)
+			lines.push(name)
+			lines.push(`${qtyPart} x ${pricePart} = ${subTotalPart}`)
+		}
+		lines.push('----------------------------------------')
+		lines.push(`Subtotal   : ${formatRupiah(transaction.totalAmount)}`)
+		if (transaction.compoundingFee && transaction.compoundingFee > 0) {
+			lines.push(`Racikan    : ${formatRupiah(transaction.compoundingFee)}`)
+		}
+		if (transaction.otherFee && transaction.otherFee > 0) {
+			lines.push(`Biaya lain : ${formatRupiah(transaction.otherFee)}`)
+		}
+		if (transaction.discountPercent && transaction.discountPercent > 0) {
+			lines.push(`Diskon     : ${transaction.discountPercent}%`)
+		}
+		if (transaction.taxPercent && transaction.taxPercent > 0) {
+			lines.push(`Pajak      : ${transaction.taxPercent}%`)
+		}
+		lines.push(`Grand total: ${formatRupiah(transaction.grandTotal)}`)
+		lines.push(`Bayar      : ${formatRupiah(transaction.paidAmount)}`)
+		lines.push(`Kembali    : ${formatRupiah(transaction.changeAmount)}`)
+		if (transaction.notes && transaction.notes.trim().length > 0) {
+			lines.push('')
+			lines.push(transaction.notes)
+		}
+		lines.push('')
+		lines.push('Terima kasih')
+
+		const htmlLines = lines.map((line) => `<div class="line">${line}</div>`).join('')
+		const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Struk Transaksi</title>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; margin: 8px; }
+    .receipt { max-width: 320px; }
+    .line { margin-bottom: 2px; }
+  </style>
+</head>
+<body>
+  <div class="receipt">
+    ${htmlLines}
+  </div>
+</body>
+</html>`
+
+		const iframe = document.createElement('iframe')
+		iframe.style.position = 'fixed'
+		iframe.style.right = '0'
+		iframe.style.bottom = '0'
+		iframe.style.width = '0'
+		iframe.style.height = '0'
+		iframe.style.border = '0'
+		document.body.appendChild(iframe)
+
+		const iframeWindow = iframe.contentWindow
+		if (!iframeWindow) {
+			message.info('Gagal menyiapkan tampilan cetak struk')
+			iframe.remove()
+			return
+		}
+
+		const doc = iframeWindow.document
+		doc.open()
+		doc.write(html)
+		doc.close()
+
+		iframeWindow.focus()
+		iframeWindow.print()
+
+		setTimeout(() => {
+			iframe.remove()
+		}, 1000)
+	}
+
 	const handleOpenSearch = async () => {
 		try {
 			setIsLoadingItems(true)
@@ -935,10 +1034,29 @@ function ItemPurchasePage() {
 									const res = await fn(payload)
 									console.log('[ItemPurchase] Result from pharmacyTransaction.create', res)
 									if (!res.success) {
-										message.error(res.message || 'Gagal menyimpan transaksi farmasi')
-									} else {
-										message.success('Transaksi farmasi berhasil disimpan')
-									}
+								message.error(res.message || 'Gagal menyimpan transaksi farmasi')
+							} else {
+								message.success('Transaksi farmasi berhasil disimpan')
+								const createdId = res.result && typeof res.result.id === 'number' ? res.result.id : undefined
+								const savedTransaction: PharmacyTransactionRecord = {
+									id: createdId ?? 0,
+									fakturNumber: payload.fakturNumber,
+									transactionDate: payload.transactionDate,
+									cashierName: payload.cashierName,
+									patientId: payload.patientId,
+									paymentMethod: payload.paymentMethod,
+									compoundingFee: payload.compoundingFee ?? null,
+									otherFee: payload.otherFee ?? null,
+									discountPercent: payload.discountPercent ?? null,
+									taxPercent: payload.taxPercent ?? null,
+									totalAmount: payload.totalAmount,
+									grandTotal: payload.grandTotal,
+									paidAmount: payload.paidAmount,
+									changeAmount: payload.changeAmount,
+									notes: payload.notes ?? null
+								}
+								handlePrintReceipt(savedTransaction, rows)
+							}
 									setIsPaymentOpen(false)
 									setRows([])
 									setPaidAmount(0)
