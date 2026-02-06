@@ -17,6 +17,7 @@ interface ItemLookup {
 	sellingPrice: number | null
 	sellPriceRules?: PriceRule[] | null
 	categoryName?: string | null
+	currentStock?: number | null
 }
 
 interface ItemListResponse {
@@ -34,6 +35,21 @@ interface ItemCategoryAttributes {
 interface ItemCategoryListResponse {
 	success: boolean
 	result?: ItemCategoryAttributes[]
+	message?: string
+}
+
+interface InventoryStockItem {
+	kodeItem: string
+	namaItem: string
+	unit: string
+	stockIn: number
+	stockOut: number
+	availableStock: number
+}
+
+interface InventoryStockResponse {
+	success: boolean
+	result?: InventoryStockItem[]
 	message?: string
 }
 
@@ -93,6 +109,8 @@ function ItemPurchasePage() {
 	const [taxPercent, setTaxPercent] = useState<number>(0)
 	const [paidAmount, setPaidAmount] = useState<number>(0)
 
+	const paymentMethodForBackend: 'CASH' | 'NONCASH' | 'CREDIT' = paymentMethod === 'cash' ? 'CASH' : 'NONCASH'
+
 	const total = useMemo(() => {
 		return rows.reduce((sum, row) => sum + row.subTotal, 0)
 	}, [rows])
@@ -125,6 +143,11 @@ function ItemPurchasePage() {
 					list: () => Promise<ItemCategoryListResponse>
 				}
 			}).medicineCategory
+			const inventoryApi = window.api?.query as {
+				inventoryStock?: {
+					list: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+				}
+			}
 			if (!api || typeof api.list !== 'function') {
 				message.error('API master item tidak tersedia.')
 				return
@@ -154,6 +177,29 @@ function ItemPurchasePage() {
 				}
 			}
 
+			let stockMap = new Map<string, number>()
+			if (inventoryApi && inventoryApi.inventoryStock && typeof inventoryApi.inventoryStock.list === 'function') {
+				try {
+					const stockRes = await inventoryApi.inventoryStock.list({ itemType: 'item' })
+					const stockList: InventoryStockItem[] = Array.isArray(stockRes.result)
+						? stockRes.result ?? []
+						: []
+					stockMap = new Map<string, number>()
+					for (const stockItem of stockList) {
+						const kodeItem = stockItem.kodeItem.trim().toUpperCase()
+						if (!kodeItem) continue
+						if (!stockMap.has(kodeItem)) {
+							const value = typeof stockItem.availableStock === 'number' && Number.isFinite(stockItem.availableStock)
+								? stockItem.availableStock
+								: 0
+							stockMap.set(kodeItem, value)
+						}
+					}
+				} catch {
+					stockMap = new Map<string, number>()
+				}
+			}
+
 			const rawList: ItemLookup[] = Array.isArray(res.result) ? (res.result as ItemLookup[]) : []
 			const safeList: ItemLookup[] = rawList.map((item) => {
 				const rawCategoryId = (item as { itemCategoryId?: number | null }).itemCategoryId
@@ -172,9 +218,12 @@ function ItemPurchasePage() {
 						? categoryNameFromMap
 						: directCategoryName
 
+				const kodeText = String(item.kode ?? '')
+				const kodeUpper = kodeText.trim().toUpperCase()
+				const stockValue = kodeUpper && stockMap.size > 0 ? stockMap.get(kodeUpper) ?? null : null
 				return {
 					id: Number(item.id),
-					kode: String(item.kode ?? ''),
+					kode: kodeText,
 					nama: String(item.nama ?? ''),
 					kodeUnit: String(item.kodeUnit ?? ''),
 					itemCategoryId,
@@ -185,7 +234,11 @@ function ItemPurchasePage() {
 					sellPriceRules: Array.isArray((item as ItemLookup).sellPriceRules)
 						? (item as ItemLookup).sellPriceRules
 						: undefined,
-					categoryName: finalCategoryName
+					categoryName: finalCategoryName,
+					currentStock:
+						typeof stockValue === 'number' && Number.isFinite(stockValue) && stockValue >= 0
+							? stockValue
+							: null
 				}
 			})
 			setItemList(safeList)
@@ -238,10 +291,15 @@ function ItemPurchasePage() {
 		const subTotal = harga * safeQty
 		const kode = selectedItem.kode.trim().toUpperCase()
 		const nama = selectedItem.nama
-		const satuan = selectedItem.kodeUnit || 'PCS'
+		const baseUnitCode =
+			effectivePriceRule && typeof effectivePriceRule.unitCode === 'string'
+				? effectivePriceRule.unitCode.trim().toUpperCase()
+				: selectedItem.kodeUnit || 'PCS'
+		const satuan = baseUnitCode
+		const rowKey = `${kode}__${satuan}`
 
 		setRows((prev) => {
-			const existingIndex = prev.findIndex((row) => row.kode === kode)
+			const existingIndex = prev.findIndex((row) => row.kode === kode && row.satuan === satuan)
 			if (existingIndex >= 0) {
 				const updated = [...prev]
 				const existing = updated[existingIndex]
@@ -256,7 +314,7 @@ function ItemPurchasePage() {
 			return [
 				...prev,
 				{
-					key: `${kode}-${prev.length + 1}`,
+					key: rowKey,
 					kode,
 					nama,
 					harga,
@@ -326,6 +384,16 @@ function ItemPurchasePage() {
 		},
 		{ title: 'Kode Item', dataIndex: 'kode', key: 'kode', width: 120 },
 		{ title: 'Nama Item', dataIndex: 'nama', key: 'nama' },
+		{
+			title: 'Stok Saat Ini',
+			dataIndex: 'currentStock',
+			key: 'currentStock',
+			align: 'right',
+			render: (value: number | null | undefined) => {
+				const numeric = typeof value === 'number' && Number.isFinite(value) ? value : 0
+				return numeric
+			}
+		},
 		{
 			title: 'Action',
 			key: 'action',
@@ -652,16 +720,108 @@ function ItemPurchasePage() {
 							</div>
 						</div>
 						<div className="flex justify-end gap-2 mt-4">
-							<Button onClick={() => setIsPaymentOpen(false)}>Batal</Button>
-							<Button
-									type="primary"
-									onClick={() => {
-										message.success('Transaksi tersimpan (mock)')
+						<Button onClick={() => setIsPaymentOpen(false)}>Batal</Button>
+						<Button
+								type="primary"
+								onClick={async () => {
+								console.log('[ItemPurchase] Simpan clicked', {
+									total,
+									paymentSummary,
+									paidAmount,
+									rowsCount: rows.length,
+									fakturNumber
+								})
+									try {
+										if (paymentSummary.grandTotal <= 0) {
+											message.error('Grand total harus lebih dari 0.')
+											return
+										}
+										if (paidAmount < paymentSummary.grandTotal) {
+											message.error('Nominal dibayar kurang dari grand total.')
+											return
+										}
+
+										const api = window.api?.query as {
+											pharmacyTransaction?: {
+												create: (args: {
+													fakturNumber: string
+													transactionDate: string
+													cashierName?: string | null
+													patientId?: string | null
+													paymentMethod: 'CASH' | 'NONCASH' | 'CREDIT'
+													compoundingFee?: number | null
+													otherFee?: number | null
+													discountPercent?: number | null
+													taxPercent?: number | null
+													totalAmount: number
+													grandTotal: number
+													paidAmount: number
+													changeAmount: number
+													notes?: string | null
+												}) => Promise<{
+													success: boolean
+													result?: {
+														id: number
+														fakturNumber: string
+													} | null
+													message?: string
+												}>
+											}
+										}
+									const fn = api?.pharmacyTransaction?.create
+									if (!fn) {
+										message.error('API transaksi farmasi tidak tersedia.')
 										setIsPaymentOpen(false)
-								}}
-							>
-								Simpan
-							</Button>
+										setRows([])
+										setPaidAmount(0)
+										setCompoundingFee(0)
+										setOtherFee(0)
+										setDiscountPercent(0)
+										setTaxPercent(0)
+										return
+									}
+
+										const now = new Date()
+										const isoDate = now.toISOString()
+										const payload = {
+											fakturNumber,
+											transactionDate: isoDate,
+											cashierName: 'Kasir',
+											patientId: null,
+											paymentMethod: paymentMethodForBackend,
+											compoundingFee,
+											otherFee,
+											discountPercent,
+											taxPercent,
+											totalAmount: total,
+											grandTotal: paymentSummary.grandTotal,
+											paidAmount,
+											changeAmount: paymentSummary.change,
+											notes: null
+										}
+									console.log('[ItemPurchase] Calling pharmacyTransaction.create', payload)
+									const res = await fn(payload)
+									console.log('[ItemPurchase] Result from pharmacyTransaction.create', res)
+									if (!res.success) {
+										message.error(res.message || 'Gagal menyimpan transaksi farmasi')
+									} else {
+										message.success('Transaksi farmasi berhasil disimpan')
+									}
+									setIsPaymentOpen(false)
+									setRows([])
+									setPaidAmount(0)
+									setCompoundingFee(0)
+									setOtherFee(0)
+									setDiscountPercent(0)
+									setTaxPercent(0)
+									} catch (error) {
+										const text = error instanceof Error ? error.message : String(error)
+										message.error(text || 'Terjadi kesalahan saat menyimpan transaksi')
+									}
+							}}
+						>
+							Simpan
+						</Button>
 						</div>
 					</div>
 				</div>

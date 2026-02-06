@@ -25,6 +25,7 @@ import type * as Mod_query_medicineBrand from '@main/routes/query/medicineBrand'
 import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCategory'
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
+import type * as Mod_query_pharmacyTransaction from '@main/routes/query/pharmacyTransaction'
 import type * as Mod_query_poli from '@main/routes/query/poli'
 import type * as Mod_query_productionFormula from '@main/routes/query/productionFormula'
 import type * as Mod_query_productionRequest from '@main/routes/query/productionRequest'
@@ -251,6 +252,8 @@ type Args_Mod_query_pegawai_list = InferArgs<typeof Mod_query_pegawai, 'list'>
 type Result_Mod_query_pegawai_list = InferResult<typeof Mod_query_pegawai, 'list'>
 type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update'>
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
+type Args_Mod_query_pharmacyTransaction_create = InferArgs<typeof Mod_query_pharmacyTransaction, 'create'>
+type Result_Mod_query_pharmacyTransaction_create = InferResult<typeof Mod_query_pharmacyTransaction, 'create'>
 type Args_Mod_query_poli_create = InferArgs<typeof Mod_query_poli, 'create'>
 type Result_Mod_query_poli_create = InferResult<typeof Mod_query_poli, 'create'>
 type Args_Mod_query_poli_deleteById = InferArgs<typeof Mod_query_poli, 'deleteById'>
@@ -475,6 +478,9 @@ declare global {
           getById: Invoke<Args_Mod_query_pegawai_getById, Result_Mod_query_pegawai_getById>
           list: Invoke<Args_Mod_query_pegawai_list, Result_Mod_query_pegawai_list>
           update: Invoke<Args_Mod_query_pegawai_update, Result_Mod_query_pegawai_update>
+        }
+        pharmacyTransaction: {
+          create: Invoke<Args_Mod_query_pharmacyTransaction_create, Result_Mod_query_pharmacyTransaction_create>
         }
         poli: {
           create: Invoke<Args_Mod_query_poli_create, Result_Mod_query_poli_create>
