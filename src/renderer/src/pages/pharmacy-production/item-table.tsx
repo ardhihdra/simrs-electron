@@ -15,19 +15,29 @@ interface PriceRule {
 	price: number
 }
 
+interface ItemCategoryAttributes {
+	id?: number
+	name?: string | null
+}
+
 interface ItemAttributes {
-  id?: number
-  nama: string
-  kode: string
-  kodeUnit: string
-  kind?: ItemKind | null
-  unit?: { nama?: string; kode?: string } | null
-  stock?: number | null
-  minimumStock?: number | null
-  buyingPrice?: number | null
-  sellingPrice?: number | null
+	id?: number
+	nama: string
+	kode: string
+	kodeUnit: string
+	kind?: ItemKind | null
+	unit?: { nama?: string; kode?: string } | null
+	stock?: number | null
+	minimumStock?: number | null
+	buyingPrice?: number | null
+	sellingPrice?: number | null
 	buyPriceRules?: PriceRule[] | null
 	sellPriceRules?: PriceRule[] | null
+	itemCategoryId?: number | null
+	category?: {
+		id?: number
+		name?: string | null
+	} | null
 }
 
 type ItemListResponse = {
@@ -49,6 +59,12 @@ type InventoryStockResponse = {
   success: boolean
   result?: InventoryStockItem[]
   message?: string
+}
+
+type ItemCategoryListResponse = {
+	success: boolean
+	result?: ItemCategoryAttributes[]
+	message?: string
 }
 
 const kindLabels: Record<ItemKind, string> = {
@@ -450,6 +466,33 @@ export function ItemTable() {
     }
   })
 
+	const { data: categorySource } = useQuery<ItemCategoryListResponse>({
+		queryKey: ['itemCategory', 'list', 'for-item-table'],
+		queryFn: () => {
+			const api = window.api?.query as {
+				medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
+			}
+			const fn = api.medicineCategory?.list
+			if (!fn) throw new Error('API kategori item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const itemCategoryNameById = useMemo(() => {
+		const entries: ItemCategoryAttributes[] = Array.isArray(categorySource?.result)
+			? categorySource.result
+			: []
+		const map = new Map<number, string>()
+		for (const cat of entries) {
+			if (typeof cat.id !== 'number') continue
+			const rawName = typeof cat.name === 'string' ? cat.name : ''
+			const name = rawName.trim()
+			if (!name) continue
+			map.set(cat.id, name)
+		}
+		return map
+	}, [categorySource?.result])
+
   const { data: stockData } = useQuery<InventoryStockResponse>({
     queryKey: ['inventoryStock', 'list'],
     queryFn: () => {
@@ -639,9 +682,9 @@ export function ItemTable() {
 					]}
 				/>
 			</Modal>
-        <GenericTable<ItemAttributes>
-          columns={[
-            { title: 'Nama', dataIndex: 'nama', key: 'nama' },
+	       <GenericTable<ItemAttributes>
+	         columns={[
+	           { title: 'Nama', dataIndex: 'nama', key: 'nama' },
             { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 120 },
             {
               title: 'Stok',
@@ -725,15 +768,35 @@ export function ItemTable() {
 	                )
 	              }
 
-	              return '-' as const
-	            }
-	          },
-            {
-              title: 'Kategori',
-              dataIndex: 'kind',
-              key: 'kind',
-              render: (v: ItemAttributes['kind']) => (v ? kindLabels[v] ?? v : '-')
-            }
+		              return '-' as const
+		            }
+		          },
+	           {
+	             title: 'Kategori',
+	             dataIndex: 'itemCategoryId',
+	             key: 'itemCategoryId',
+	             render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
+	               const directName =
+	                 typeof record.category?.name === 'string'
+	                   ? record.category.name.trim()
+	                   : ''
+
+	               if (directName.length > 0) {
+	                 return directName
+	               }
+
+	               const idFromRecord =
+	                 typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
+	               if (typeof idFromRecord === 'number') {
+	                 const mapped = itemCategoryNameById.get(idFromRecord)
+	                 if (typeof mapped === 'string' && mapped.length > 0) {
+	                   return mapped
+	                 }
+	               }
+
+	               return '-'
+	             }
+	           }
           ]}
           dataSource={filtered}
           rowKey={(r) => String(r.id ?? r.kode)}

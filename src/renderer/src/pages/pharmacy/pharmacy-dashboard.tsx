@@ -4,6 +4,22 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 
+interface ItemCategoryAttributes {
+	id?: number
+	name?: string | null
+}
+
+interface ItemAttributes {
+	id?: number
+	nama?: string
+	kode?: string
+	itemCategoryId?: number | null
+	category?: {
+		id?: number
+		name?: string | null
+	} | null
+}
+
 interface QuantityInfo {
 	value?: number
 	unit?: string
@@ -30,12 +46,27 @@ interface MedicationDispenseQuantityInfo {
 	unit?: string
 }
 
+interface MedicationInfo {
+	id?: number
+	name?: string
+}
+
+interface AuthorizingPrescriptionSummary {
+	id?: number
+	itemId?: number | null
+	item?: ItemAttributes | null
+	medication?: MedicationInfo | null
+}
+
 interface MedicationDispenseForSummary {
 	id?: number
 	authorizingPrescriptionId?: number | null
 	status?: string
 	quantity?: MedicationDispenseQuantityInfo | null
-  medication?: { name?: string } | null
+	medicationId?: number | null
+	itemId?: number | null
+	medication?: MedicationInfo | null
+	authorizingPrescription?: AuthorizingPrescriptionSummary | null
 }
 
 interface MedicationDispenseListResultForSummary {
@@ -61,7 +92,7 @@ interface StatusSummaryRow {
 interface ItemStatusRow {
 	key: string
 	statusLabel: string
-	medicineName: string
+	itemName: string
 	unit?: string
 	totalQuantity: number
 }
@@ -82,7 +113,7 @@ interface InventoryExpiryResponse {
 
 interface MedicineSalesRow {
 	key: string
-	medicineName: string
+	itemName: string
 	unit?: string
 	totalQuantity: number
 	transactionCount: number
@@ -95,6 +126,7 @@ interface MedicineExpiryRow {
 	unit: string
 	availableStock: number
 	earliestExpiryDate: string
+	itemCategoryName?: string
 }
 
 function mapStatusForSummary(rawStatus?: string): string {
@@ -125,6 +157,43 @@ function getStatusColor(statusKey: string): string {
 	if (statusKey === 'pending') return '#3b82f6'
 	if (statusKey === 'hold') return '#eab308'
 	return '#6b7280'
+}
+
+function resolveItemName(
+	record: MedicationDispenseForSummary,
+	itemNameById: Map<number, string>
+): string {
+	const fromAuthorizingItem = record.authorizingPrescription?.item?.nama
+	if (typeof fromAuthorizingItem === 'string' && fromAuthorizingItem.trim().length > 0) {
+		return fromAuthorizingItem
+	}
+
+	const fromAuthorizingMedication = record.authorizingPrescription?.medication?.name
+	if (
+		typeof fromAuthorizingMedication === 'string' &&
+		fromAuthorizingMedication.trim().length > 0
+	) {
+		return fromAuthorizingMedication
+	}
+
+	const fromMedication = record.medication?.name
+	if (typeof fromMedication === 'string' && fromMedication.trim().length > 0) {
+		return fromMedication
+	}
+
+	const itemIdFromRecord =
+		typeof record.itemId === 'number'
+			? record.itemId
+			: record.authorizingPrescription?.itemId
+
+	if (typeof itemIdFromRecord === 'number') {
+		const mapped = itemNameById.get(itemIdFromRecord)
+		if (typeof mapped === 'string' && mapped.length > 0) {
+			return mapped
+		}
+	}
+
+	return 'Tidak diketahui'
 }
 
 function StatusPie({ slices }: { slices: StatusPieSlice[] }) {
@@ -176,6 +245,31 @@ function StatusPie({ slices }: { slices: StatusPieSlice[] }) {
 function PharmacyDashboard() {
 	const navigate = useNavigate()
 
+	const itemApi = (window.api?.query as {
+		item?: { list?: () => Promise<{ success: boolean; result?: ItemAttributes[]; message?: string }> }
+	}).item
+
+	const { data: itemSource } = useQuery({
+		queryKey: ['item', 'list', 'for-pharmacy-dashboard'],
+		queryFn: () => {
+			const fn = itemApi?.list
+			if (!fn) throw new Error('API item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const { data: itemCategorySource } = useQuery<{ success: boolean; result?: ItemCategoryAttributes[]; message?: string }>({
+		queryKey: ['itemCategory', 'list', 'for-pharmacy-dashboard'],
+		queryFn: () => {
+			const api = window.api?.query as {
+				medicineCategory?: { list?: () => Promise<{ success: boolean; result?: ItemCategoryAttributes[]; message?: string }> }
+			}
+			const fn = api?.medicineCategory?.list
+			if (!fn) throw new Error('API kategori item tidak tersedia.')
+			return fn()
+		}
+	})
+
 	const { data: requestListData } = useQuery<MedicationRequestListResult>({
 		queryKey: ['medicationRequest', 'list', 'dashboard'],
 		queryFn: async () => {
@@ -218,9 +312,22 @@ function PharmacyDashboard() {
 			if (!fn) {
 				throw new Error('API ringkasan expired stok obat tidak tersedia.')
 			}
-			return fn({ itemType: 'medicine', limit: 10 })
+			return fn({ itemType: 'item', limit: 10 })
 		}
 	})
+
+	const itemNameById = useMemo(() => {
+		const items: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
+			: []
+		const map = new Map<number, string>()
+		for (const item of items) {
+			if (typeof item.id === 'number' && typeof item.nama === 'string' && item.nama.length > 0) {
+				map.set(item.id, item.nama)
+			}
+		}
+		return map
+	}, [itemSource?.result])
 
 	const dispensedSummaryByRequestId = useMemo(() => {
 		const source: MedicationDispenseForSummary[] = Array.isArray(dispenseListData?.data)
@@ -332,11 +439,11 @@ function PharmacyDashboard() {
 		source.forEach((item) => {
 			const statusKey = mapStatusForSummary(item.status)
 			const statusLabel = getStatusLabel(statusKey)
-			const medicineName = item.medication?.name ?? 'Tidak diketahui'
+			const itemName = resolveItemName(item, itemNameById)
 			const unit = item.quantity?.unit
 			const qty = item.quantity?.value
 			if (typeof qty !== 'number') return
-			const mapKey = `${statusKey}|${medicineName}|${unit ?? ''}`
+			const mapKey = `${statusKey}|${itemName}|${unit ?? ''}`
 			const prev = map.get(mapKey)
 			if (prev) {
 				prev.totalQuantity += qty
@@ -344,30 +451,79 @@ function PharmacyDashboard() {
 				map.set(mapKey, {
 					key: mapKey,
 					statusLabel,
-					medicineName,
+					itemName,
 					unit,
 					totalQuantity: qty
 				})
 			}
 		})
 
-		return Array.from(map.values()).sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 10)
-	}, [dispenseListData?.data])
+		return Array.from(map.values())
+			.sort((a, b) => b.totalQuantity - a.totalQuantity)
+			.slice(0, 10)
+	}, [dispenseListData?.data, itemNameById])
 
 	const medicineExpiryRows = useMemo<MedicineExpiryRow[]>(() => {
 		const list: InventoryExpiryItem[] = Array.isArray(medicineExpiryData?.result)
 			? medicineExpiryData.result ?? []
 			: []
 
-		return list.map((item) => ({
-			key: item.kodeItem,
-			kodeItem: item.kodeItem,
-			namaItem: item.namaItem,
-			unit: item.unit,
-			availableStock: item.availableStock,
-			earliestExpiryDate: item.earliestExpiryDate
-		}))
-	}, [medicineExpiryData?.result])
+		const categories: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+			? itemCategorySource.result
+			: []
+		const items = Array.isArray(itemSource?.result) ? itemSource.result : []
+
+		const kodeToCategoryId = new Map<string, number>()
+		for (const item of items) {
+			if (typeof item.kode !== 'string') continue
+			const kode = item.kode.trim().toUpperCase()
+			if (!kode) continue
+			const directId =
+				typeof item.itemCategoryId === 'number'
+					? item.itemCategoryId
+					: typeof item.category?.id === 'number'
+						? item.category.id
+						: undefined
+			if (typeof directId === 'number') {
+				kodeToCategoryId.set(kode, directId)
+			}
+		}
+
+		const categoryNameById = new Map<number, string>()
+		for (const cat of categories) {
+			if (typeof cat.id === 'number' && typeof cat.name === 'string' && cat.name.length > 0) {
+				categoryNameById.set(cat.id, cat.name)
+			}
+		}
+
+		return list.map((entry) => {
+			const kode = entry.kodeItem.trim().toUpperCase()
+			let itemCategoryName: string | undefined
+			if (kode) {
+				const catId = kodeToCategoryId.get(kode)
+				if (typeof catId === 'number') {
+					const resolved = categoryNameById.get(catId)
+					if (resolved && resolved.length > 0) {
+						itemCategoryName = resolved
+					}
+				}
+			}
+
+			return {
+				key: entry.kodeItem,
+				kodeItem: entry.kodeItem,
+				namaItem: entry.namaItem,
+				unit: entry.unit,
+				availableStock: entry.availableStock,
+				earliestExpiryDate: entry.earliestExpiryDate,
+				itemCategoryName
+			}
+		})
+	}, [
+		medicineExpiryData?.result,
+		itemCategorySource?.result,
+		itemSource?.result
+	])
 
 	const { bestSellingRows, leastSellingRows } = useMemo(() => {
 		const source: MedicationDispenseForSummary[] = Array.isArray(dispenseListData?.data)
@@ -376,26 +532,26 @@ function PharmacyDashboard() {
 
 		const salesMap = new Map<string, MedicineSalesRow>()
 
-		source.forEach((item) => {
-			if (item.status !== 'completed') return
-			const qty = item.quantity?.value
-			if (typeof qty !== 'number') return
-			const medicineName = item.medication?.name ?? 'Tidak diketahui'
-			const unit = item.quantity?.unit
-			const mapKey = `${medicineName}|${unit ?? ''}`
+			source.forEach((item) => {
+				if (item.status !== 'completed') return
+				const qty = item.quantity?.value
+				if (typeof qty !== 'number') return
+				const itemName = resolveItemName(item, itemNameById)
+				const unit = item.quantity?.unit
+				const mapKey = `${itemName}|${unit ?? ''}`
 			const previous = salesMap.get(mapKey)
 			if (previous) {
 				previous.totalQuantity += qty
 				previous.transactionCount += 1
-			} else {
-				salesMap.set(mapKey, {
-					key: mapKey,
-					medicineName,
-					unit,
-					totalQuantity: qty,
-					transactionCount: 1
-				})
-			}
+				} else {
+					salesMap.set(mapKey, {
+						key: mapKey,
+						itemName,
+						unit,
+						totalQuantity: qty,
+						transactionCount: 1
+					})
+				}
 		})
 
 		const allRows = Array.from(salesMap.values())
@@ -406,7 +562,7 @@ function PharmacyDashboard() {
 			bestSellingRows: sortedDesc.slice(0, 10),
 			leastSellingRows: sortedAsc.slice(0, 10)
 		}
-	}, [dispenseListData?.data])
+	}, [dispenseListData?.data, itemNameById])
 
 	return (
 		<div className="space-y-6">
@@ -463,7 +619,7 @@ function PharmacyDashboard() {
 					dataSource={itemStatusRows}
 					columns={[
 						{ title: 'Status', dataIndex: 'statusLabel', key: 'statusLabel' },
-						{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
+					{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
 						{ title: 'Qty', dataIndex: 'totalQuantity', key: 'totalQuantity' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }
 					] as ColumnsType<ItemStatusRow>}
@@ -472,12 +628,13 @@ function PharmacyDashboard() {
 					size="small"
 				/>
 			</Card>
-			<Card title="Top 10 Obat Expired Terdekat">
+		<Card title="Top 10 Barang Expired Terdekat">
 				<Table<MedicineExpiryRow>
 					dataSource={medicineExpiryRows}
 					columns={[
 						{ title: 'Kode', dataIndex: 'kodeItem', key: 'kodeItem' },
-						{ title: 'Nama Obat', dataIndex: 'namaItem', key: 'namaItem' },
+					{ title: 'Nama Barang', dataIndex: 'namaItem', key: 'namaItem' },
+					{ title: 'Kategori Item', dataIndex: 'itemCategoryName', key: 'itemCategoryName' },
 						{ title: 'Qty Tersedia', dataIndex: 'availableStock', key: 'availableStock' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
 						{
@@ -491,11 +648,11 @@ function PharmacyDashboard() {
 					size="small"
 				/>
 			</Card>
-			<Card title="Obat Paling Laku">
+		<Card title="Barang Paling Laku">
 				<Table<MedicineSalesRow>
 					dataSource={bestSellingRows}
 					columns={[
-						{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
+					{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
 						{ title: 'Qty Terjual', dataIndex: 'totalQuantity', key: 'totalQuantity' },
 						{ title: 'Jumlah Transaksi', dataIndex: 'transactionCount', key: 'transactionCount' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }
@@ -505,11 +662,11 @@ function PharmacyDashboard() {
 					size="small"
 				/>
 			</Card>
-			<Card title="Obat Paling Tidak Laku">
+		<Card title="Barang Paling Tidak Laku">
 				<Table<MedicineSalesRow>
 					dataSource={leastSellingRows}
 					columns={[
-						{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
+					{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
 						{ title: 'Qty Terjual', dataIndex: 'totalQuantity', key: 'totalQuantity' },
 						{ title: 'Jumlah Transaksi', dataIndex: 'transactionCount', key: 'transactionCount' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }

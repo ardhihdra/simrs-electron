@@ -173,7 +173,7 @@ export function MedicinesTable() {
       }
       const fn = api?.inventoryStock?.list
       if (!fn) throw new Error('API stok inventory tidak tersedia.')
-      return fn({ itemType: 'medicine' })
+      return fn({ itemType: 'item' })
     }
   })
 
