@@ -52,6 +52,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     casCode: args.casCode ?? null,
     rawMaterialCategoryId: args.rawMaterialCategoryId ?? null,
     supplierId: args.supplierId ?? null,
+    minimumStock: args.minimumStock ?? null,
     status: args.status ?? true,
     description: args.description ?? null
   }
@@ -69,6 +70,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     casCode: args.casCode ?? null,
     rawMaterialCategoryId: args.rawMaterialCategoryId ?? null,
     supplierId: args.supplierId ?? null,
+    minimumStock: args.minimumStock ?? null,
     status: args.status ?? true,
     description: args.description ?? null
   }

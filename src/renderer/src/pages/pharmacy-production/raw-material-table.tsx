@@ -9,19 +9,35 @@ import { DeleteOutlined, EditOutlined, MoreOutlined, ReloadOutlined, PlusOutline
 type MaterialType = 'active' | 'excipient' | 'solvent'
 
 interface RawMaterialAttributes {
-  id?: number
-  name: string
-  rawMaterialCategoryId?: number | null
-  internalCode?: string | null
-  casCode?: string | null
-  materialType: MaterialType
-  defaultUom?: string | null
-  grade?: string | null
-  status: boolean
-  description?: string | null
-  category?: { name: string } | null
-  defaultSupplier?: { nama: string } | null
-  stock?: number
+	id?: number
+	name: string
+	rawMaterialCategoryId?: number | null
+	internalCode?: string | null
+	casCode?: string | null
+	materialType: MaterialType
+	defaultUom?: string | null
+	grade?: string | null
+	status: boolean
+	description?: string | null
+	category?: { name: string } | null
+	defaultSupplier?: { nama: string } | null
+	stock?: number
+	minimumStock?: number | null
+}
+
+interface InventoryStockItem {
+  kodeItem: string
+  namaItem: string
+  unit: string
+  stockIn: number
+  stockOut: number
+  availableStock: number
+}
+
+interface InventoryStockResponse {
+  success: boolean
+  result?: InventoryStockItem[]
+  message?: string
 }
 
 const LOW_STOCK_THRESHOLD_RAW_MATERIAL = 50
@@ -60,6 +76,14 @@ const columns = [
 	    }
 	    return stockValue
 	  }
+	},
+	{
+	  title: 'Minimum Stok',
+	  dataIndex: 'minimumStock',
+	  key: 'minimumStock',
+	  width: 140,
+	  render: (value: number | null | undefined) =>
+	    typeof value === 'number' && value > 0 ? value : '-'
 	},
 	{ title: 'Action', key: 'action', width: 80, align: 'center' as const, render: (_: RawMaterialAttributes, r: RawMaterialAttributes) => <RowActions record={r} /> }
 ]
@@ -105,12 +129,67 @@ export function RawMaterialTable() {
     }
   })
 
+  const { data: inventoryStockData } = useQuery<InventoryStockResponse>({
+    queryKey: ['inventoryStock', 'list', 'raw-material'],
+    queryFn: () => {
+      const apiQuery = window.api?.query as {
+        inventoryStock?: {
+          list: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+        }
+      }
+      const fn = apiQuery?.inventoryStock?.list
+      if (!fn) throw new Error('API stok inventory tidak tersedia.')
+      return fn({ itemType: 'substance' })
+    }
+  })
+
+  const rawMaterialsWithStock: RawMaterialAttributes[] = useMemo(() => {
+    const source: RawMaterialAttributes[] = Array.isArray(data?.result)
+      ? (data.result as RawMaterialAttributes[])
+      : []
+
+    const stockList: InventoryStockItem[] = Array.isArray(inventoryStockData?.result)
+      ? inventoryStockData.result ?? []
+      : []
+
+    const stockMap = new Map<string, InventoryStockItem>()
+    stockList.forEach((stockItem) => {
+      const kode = stockItem.kodeItem.trim().toUpperCase()
+      if (!kode) return
+      if (!stockMap.has(kode)) {
+        stockMap.set(kode, stockItem)
+      }
+    })
+
+    return source.map((material) => {
+      const rawInternalCode = typeof material.internalCode === 'string' ? material.internalCode : ''
+      const kode = rawInternalCode.trim().toUpperCase()
+      if (!kode) {
+        return material
+      }
+
+      const stockEntry = stockMap.get(kode)
+      if (!stockEntry) {
+        return material
+      }
+
+      const resolvedStock =
+        typeof stockEntry.availableStock === 'number'
+          ? stockEntry.availableStock
+          : typeof material.stock === 'number'
+          ? material.stock
+          : 0
+
+      return { ...material, stock: resolvedStock }
+    })
+  }, [data?.result, inventoryStockData?.result])
+
   const filtered = useMemo(() => {
-    const source: RawMaterialAttributes[] = (data?.result as RawMaterialAttributes[]) || []
+    const source: RawMaterialAttributes[] = rawMaterialsWithStock
     const q = search.trim().toLowerCase()
     if (!q) return source
     return source.filter((p) => [p.name, p.internalCode || '', p.casCode || '', p.category?.name || '', p.defaultSupplier?.nama || ''].join(' ').toLowerCase().includes(q))
-  }, [data?.result, search])
+  }, [rawMaterialsWithStock, search])
 
   const onExport = async () => {
     try {

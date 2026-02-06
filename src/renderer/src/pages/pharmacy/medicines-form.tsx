@@ -13,6 +13,7 @@ interface FormData {
   sellingPrice: number
   sideEffects?: string | null
   description?: string | null
+  minimumStock?: number | null
 }
 
 export function MedicinesForm() {
@@ -62,7 +63,11 @@ export function MedicinesForm() {
         buyingPrice: d.buyingPrice,
         sellingPrice: d.sellingPrice,
         sideEffects: d.sideEffects ?? '',
-        description: d.description ?? ''
+        description: d.description ?? '',
+        minimumStock:
+          typeof (d as FormData & { minimumStock?: number | null }).minimumStock === 'number'
+            ? (d as FormData & { minimumStock?: number | null }).minimumStock
+            : null
       })
     }
   }, [isEdit, detailData, form])
@@ -99,7 +104,11 @@ export function MedicinesForm() {
       ...values,
       saltComposition: values.saltComposition?.trim() || null,
       sideEffects: values.sideEffects?.trim() || null,
-      description: values.description?.trim() || null
+      description: values.description?.trim() || null,
+      minimumStock:
+        typeof values.minimumStock === 'number' && values.minimumStock >= 0
+          ? values.minimumStock
+          : null
     }
     if (isEdit) updateMutation.mutate({ ...payload, id: Number(id) })
     else createMutation.mutate(payload)
@@ -156,6 +165,10 @@ export function MedicinesForm() {
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                   parser={(value) => value?.replace(/\$\s?|(,*)/g, '') as unknown as number}
                 />
+              </Form.Item>
+              
+              <Form.Item label="Minimum Stok" name="minimumStock">
+                <InputNumber<number> min={0} className="w-full" />
               </Form.Item>
               
               <Form.Item label="Description" name="description">

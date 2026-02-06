@@ -53,6 +53,7 @@ interface AuthorizingPrescriptionInfo {
 	medication?: MedicationInfo
 	item?: {
 		nama?: string
+		itemCategoryId?: number | null
 	} | null
 	dosageInstruction?: DosageInstructionEntry[] | null
 }
@@ -110,6 +111,34 @@ interface MedicationRequestDetailResult {
 	success: boolean
 	data?: MedicationRequestDetailForSummary
 	error?: string
+}
+
+interface ItemCategoryAttributes {
+	id?: number
+	name?: string | null
+}
+
+interface ItemCategoryListResponse {
+	success: boolean
+	result?: ItemCategoryAttributes[]
+	message?: string
+}
+
+interface ItemAttributes {
+	id?: number
+	nama?: string
+	kode?: string
+	itemCategoryId?: number | null
+	category?: {
+		id?: number
+		name?: string | null
+	} | null
+}
+
+interface ItemListResponse {
+	success: boolean
+	result?: ItemAttributes[]
+	message?: string
 }
 
 interface DispenseItemRow {
@@ -438,6 +467,64 @@ export function MedicationDispenseTable() {
 		}
 	})
 
+	const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
+		queryKey: ['itemCategory', 'list', 'for-medication-dispense-table'],
+		queryFn: () => {
+			const api = window.api?.query as {
+				medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
+			}
+			const fn = api?.medicineCategory?.list
+			if (!fn) throw new Error('API kategori item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const itemApi = (window.api?.query as {
+		item?: { list: () => Promise<ItemListResponse> }
+	}).item
+
+	const { data: itemSource } = useQuery<ItemListResponse>({
+		queryKey: ['item', 'list', 'for-medication-dispense'],
+		queryFn: () => {
+			const fn = itemApi?.list
+			if (!fn) throw new Error('API item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const itemCategoryNameById = useMemo(() => {
+		const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+			? itemCategorySource.result
+			: []
+		const map = new Map<number, string>()
+		for (const cat of entries) {
+			if (typeof cat.id === 'number' && typeof cat.name === 'string' && cat.name.length > 0) {
+				map.set(cat.id, cat.name)
+			}
+		}
+		return map
+	}, [itemCategorySource?.result])
+
+	const itemCategoryIdByItemId = useMemo(() => {
+		const source: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
+			: []
+		const map = new Map<number, number>()
+		for (const item of source) {
+			if (typeof item.id !== 'number') continue
+			const directId =
+				typeof item.itemCategoryId === 'number'
+					? item.itemCategoryId
+					: typeof item.category?.id === 'number'
+					? item.category.id
+					: undefined
+			if (typeof directId === 'number') {
+				map.set(item.id, directId)
+			}
+		}
+		return map
+	}, [itemSource?.result])
+
 	const { data: prescriptionDetailData } = useQuery({
 		queryKey: ['medicationRequest', 'detailForDispenseSummary', prescriptionIdParam],
 		enabled: typeof prescriptionIdParam === 'number',
@@ -551,7 +638,33 @@ export function MedicationDispenseTable() {
 
 			let jenis: string
 			if (isItem) {
-				jenis = 'Item'
+				const itemIdForRow =
+					typeof item.itemId === 'number' && item.itemId > 0
+						? item.itemId
+						: undefined
+				let resolvedCategoryName: string | undefined
+				if (typeof itemIdForRow === 'number') {
+					const mappedCategoryId = itemCategoryIdByItemId.get(itemIdForRow)
+					if (typeof mappedCategoryId === 'number') {
+						const mappedName = itemCategoryNameById.get(mappedCategoryId)
+						if (mappedName && mappedName.length > 0) {
+							resolvedCategoryName = mappedName
+						}
+					}
+				}
+				if (!resolvedCategoryName) {
+					const rawCategoryId =
+						typeof prescription?.item?.itemCategoryId === 'number'
+							? prescription.item.itemCategoryId
+							: undefined
+					if (typeof rawCategoryId === 'number') {
+						const fallbackName = itemCategoryNameById.get(rawCategoryId)
+						if (fallbackName && fallbackName.length > 0) {
+							resolvedCategoryName = fallbackName
+						}
+					}
+				}
+				jenis = resolvedCategoryName && resolvedCategoryName.length > 0 ? resolvedCategoryName : 'Item'
 			} else if (isRacikan) {
 				jenis = 'Obat Racikan'
 			} else {
@@ -778,12 +891,12 @@ export function MedicationDispenseTable() {
 								iframe.remove()
 							}, 1000)
 						}
-						const detailColumns = [
-							{ title: 'Jenis Obat', dataIndex: 'jenis', key: 'jenis' },
-							{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
-							{ title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
-							{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
-							{ title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
+					const detailColumns = [
+						{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
+						{ title: 'Item', dataIndex: 'medicineName', key: 'medicineName' },
+						{ title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
+						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
+						{ title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
 						{
 							title: 'Status',
 							dataIndex: 'status',

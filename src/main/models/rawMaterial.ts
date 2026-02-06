@@ -22,6 +22,7 @@ export const RawMaterialSchema = z.object({
   msdsUrl: z.string().nullable().optional(),
   status: z.boolean().optional(),
   description: z.string().nullable().optional(),
+  minimumStock: z.number().nullable().optional(),
   stock: z.number().optional()
 })
 

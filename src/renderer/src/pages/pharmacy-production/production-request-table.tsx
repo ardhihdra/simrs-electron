@@ -56,7 +56,7 @@ type ProductionFormulaDetailResponseForCheck = {
 interface RawMaterialForStockCheck {
   id?: number
   name?: string
-  stock?: number
+  internalCode?: string | null
 }
 
 type RawMaterialListResponseForCheck = {
@@ -72,6 +72,15 @@ type ProductionSupportApiForCheck = {
   rawMaterial?: {
     list: () => Promise<RawMaterialListResponseForCheck>
   }
+}
+
+interface InventoryStockItemForCheck {
+  kodeItem: string
+  namaItem: string
+  unit: string
+  stockIn: number
+  stockOut: number
+  availableStock: number
 }
 
 const statusLabel: Record<ProductionRequestStatus, string> = {
@@ -192,19 +201,65 @@ function RowActions({ record }: { record: ProductionRequestAttributes }) {
     try {
       const rawRes = await rawMaterialApi.list()
       if (!rawRes.success || !Array.isArray(rawRes.result)) {
-        message.error(rawRes.message || 'Gagal mengambil data stok bahan baku.')
+        message.error(rawRes.message || 'Gagal mengambil data bahan baku.')
         return
       }
       rawMaterials = rawRes.result
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : String(e)
-      message.error(errorMessage || 'Gagal mengambil data stok bahan baku.')
+      message.error(errorMessage || 'Gagal mengambil data bahan baku.')
+      return
+    }
+
+    let inventoryStockMap = new Map<string, number>()
+
+    try {
+      const inventoryApi = window.api?.query as {
+        inventoryStock?: {
+          list: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<{
+            success: boolean
+            result?: InventoryStockItemForCheck[]
+            message?: string
+          }>
+        }
+      }
+      const inventoryFn = inventoryApi?.inventoryStock?.list
+      if (!inventoryFn) {
+        message.error('API stok inventory tidak tersedia.')
+        return
+      }
+
+      const inventoryRes = await inventoryFn({ itemType: 'substance' })
+      const stockList: InventoryStockItemForCheck[] = Array.isArray(inventoryRes.result)
+        ? inventoryRes.result
+        : []
+
+      inventoryStockMap = new Map<string, number>()
+      stockList.forEach((stockItem) => {
+        const kode = stockItem.kodeItem.trim().toUpperCase()
+        if (!kode) return
+        if (!inventoryStockMap.has(kode)) {
+          const availableStock =
+            typeof stockItem.availableStock === 'number' ? stockItem.availableStock : 0
+          inventoryStockMap.set(kode, availableStock)
+        }
+      })
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : String(e)
+      message.error(errorMessage || 'Gagal mengambil data stok inventory bahan baku.')
       return
     }
 
     for (const item of items) {
       const material = rawMaterials.find((rm) => rm.id === item.rawMaterialId)
-      const stockValue = typeof material?.stock === 'number' ? material.stock : 0
+      const rawInternalCode = typeof material?.internalCode === 'string' ? material.internalCode : ''
+      const kode = rawInternalCode.trim().toUpperCase()
+
+      const stockFromInventory = kode ? inventoryStockMap.get(kode) : undefined
+      const stockValue =
+        typeof stockFromInventory === 'number'
+          ? stockFromInventory
+          : 0
       const requiredQty = item.qty * qtyPlanned
 
       if (stockValue < requiredQty) {

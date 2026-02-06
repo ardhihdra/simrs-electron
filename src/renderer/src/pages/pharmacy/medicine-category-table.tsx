@@ -37,7 +37,7 @@ function RowActions({ record }: { record: MedicineCategoryAttributes }) {
     mutationKey: ['medicineCategory', 'delete'],
     mutationFn: (id: number) => {
       const fn = window.api?.query?.medicineCategory?.deleteById
-      if (!fn) throw new Error('API kategori obat tidak tersedia.')
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
       return fn({ id })
     },
     onSuccess: () => {
@@ -68,7 +68,7 @@ export function MedicineCategoryTable() {
     queryKey: ['medicineCategory', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.medicineCategory?.list
-      if (!fn) throw new Error('API kategori obat tidak tersedia.')
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
       return fn()
     }
   })
@@ -82,7 +82,7 @@ export function MedicineCategoryTable() {
 
   return (
     <div>
-      <h2 className="text-4xl font-bold mb-4 justify-center flex">Kategori Obat</h2>
+      <h2 className="text-4xl font-bold mb-4 justify-center flex">Kategori Item</h2>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <Input type="text" placeholder="Cari" className="w-full md:max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="flex gap-2 flex-wrap md:justify-end">

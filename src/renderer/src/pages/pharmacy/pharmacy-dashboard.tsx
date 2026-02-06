@@ -66,6 +66,37 @@ interface ItemStatusRow {
 	totalQuantity: number
 }
 
+interface InventoryExpiryItem {
+	kodeItem: string
+	namaItem: string
+	unit: string
+	availableStock: number
+	earliestExpiryDate: string
+}
+
+interface InventoryExpiryResponse {
+	success: boolean
+	result?: InventoryExpiryItem[]
+	message?: string
+}
+
+interface MedicineSalesRow {
+	key: string
+	medicineName: string
+	unit?: string
+	totalQuantity: number
+	transactionCount: number
+}
+
+interface MedicineExpiryRow {
+	key: string
+	kodeItem: string
+	namaItem: string
+	unit: string
+	availableStock: number
+	earliestExpiryDate: string
+}
+
 function mapStatusForSummary(rawStatus?: string): string {
 	if (!rawStatus) return 'other'
 	if (rawStatus === 'completed') return 'completed'
@@ -169,6 +200,25 @@ function PharmacyDashboard() {
 				throw new Error('API MedicationDispense tidak tersedia.')
 			}
 			return fn({ limit: 1000 })
+		}
+	})
+
+	const { data: medicineExpiryData } = useQuery<InventoryExpiryResponse>({
+		queryKey: ['inventoryStock', 'expiry', 'medicine', 'dashboard-pharmacy'],
+		queryFn: async () => {
+			const inventoryApi = window.api?.query?.inventoryStock as
+				| {
+						expirySummary?: (args?: {
+							itemType?: 'item' | 'substance' | 'medicine'
+							limit?: number
+						}) => Promise<InventoryExpiryResponse>
+				  }
+				| undefined
+			const fn = inventoryApi?.expirySummary
+			if (!fn) {
+				throw new Error('API ringkasan expired stok obat tidak tersedia.')
+			}
+			return fn({ itemType: 'medicine', limit: 10 })
 		}
 	})
 
@@ -304,6 +354,60 @@ function PharmacyDashboard() {
 		return Array.from(map.values()).sort((a, b) => b.totalQuantity - a.totalQuantity).slice(0, 10)
 	}, [dispenseListData?.data])
 
+	const medicineExpiryRows = useMemo<MedicineExpiryRow[]>(() => {
+		const list: InventoryExpiryItem[] = Array.isArray(medicineExpiryData?.result)
+			? medicineExpiryData.result ?? []
+			: []
+
+		return list.map((item) => ({
+			key: item.kodeItem,
+			kodeItem: item.kodeItem,
+			namaItem: item.namaItem,
+			unit: item.unit,
+			availableStock: item.availableStock,
+			earliestExpiryDate: item.earliestExpiryDate
+		}))
+	}, [medicineExpiryData?.result])
+
+	const { bestSellingRows, leastSellingRows } = useMemo(() => {
+		const source: MedicationDispenseForSummary[] = Array.isArray(dispenseListData?.data)
+			? dispenseListData.data ?? []
+			: []
+
+		const salesMap = new Map<string, MedicineSalesRow>()
+
+		source.forEach((item) => {
+			if (item.status !== 'completed') return
+			const qty = item.quantity?.value
+			if (typeof qty !== 'number') return
+			const medicineName = item.medication?.name ?? 'Tidak diketahui'
+			const unit = item.quantity?.unit
+			const mapKey = `${medicineName}|${unit ?? ''}`
+			const previous = salesMap.get(mapKey)
+			if (previous) {
+				previous.totalQuantity += qty
+				previous.transactionCount += 1
+			} else {
+				salesMap.set(mapKey, {
+					key: mapKey,
+					medicineName,
+					unit,
+					totalQuantity: qty,
+					transactionCount: 1
+				})
+			}
+		})
+
+		const allRows = Array.from(salesMap.values())
+		const sortedDesc = [...allRows].sort((a, b) => b.totalQuantity - a.totalQuantity)
+		const sortedAsc = [...allRows].sort((a, b) => a.totalQuantity - b.totalQuantity)
+
+		return {
+			bestSellingRows: sortedDesc.slice(0, 10),
+			leastSellingRows: sortedAsc.slice(0, 10)
+		}
+	}, [dispenseListData?.data])
+
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between flex-wrap gap-3">
@@ -363,6 +467,53 @@ function PharmacyDashboard() {
 						{ title: 'Qty', dataIndex: 'totalQuantity', key: 'totalQuantity' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }
 					] as ColumnsType<ItemStatusRow>}
+					pagination={false}
+					rowKey="key"
+					size="small"
+				/>
+			</Card>
+			<Card title="Top 10 Obat Expired Terdekat">
+				<Table<MedicineExpiryRow>
+					dataSource={medicineExpiryRows}
+					columns={[
+						{ title: 'Kode', dataIndex: 'kodeItem', key: 'kodeItem' },
+						{ title: 'Nama Obat', dataIndex: 'namaItem', key: 'namaItem' },
+						{ title: 'Qty Tersedia', dataIndex: 'availableStock', key: 'availableStock' },
+						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
+						{
+							title: 'Tgl Expired Terdekat',
+							dataIndex: 'earliestExpiryDate',
+							key: 'earliestExpiryDate'
+						}
+					] as ColumnsType<MedicineExpiryRow>}
+					pagination={false}
+					rowKey="key"
+					size="small"
+				/>
+			</Card>
+			<Card title="Obat Paling Laku">
+				<Table<MedicineSalesRow>
+					dataSource={bestSellingRows}
+					columns={[
+						{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
+						{ title: 'Qty Terjual', dataIndex: 'totalQuantity', key: 'totalQuantity' },
+						{ title: 'Jumlah Transaksi', dataIndex: 'transactionCount', key: 'transactionCount' },
+						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }
+					] as ColumnsType<MedicineSalesRow>}
+					pagination={false}
+					rowKey="key"
+					size="small"
+				/>
+			</Card>
+			<Card title="Obat Paling Tidak Laku">
+				<Table<MedicineSalesRow>
+					dataSource={leastSellingRows}
+					columns={[
+						{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
+						{ title: 'Qty Terjual', dataIndex: 'totalQuantity', key: 'totalQuantity' },
+						{ title: 'Jumlah Transaksi', dataIndex: 'transactionCount', key: 'transactionCount' },
+						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }
+					] as ColumnsType<MedicineSalesRow>}
 					pagination={false}
 					rowKey="key"
 					size="small"

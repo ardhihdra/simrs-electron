@@ -10,7 +10,8 @@ interface RawMaterialAttributes {
 	id?: number
 	name: string
 	materialType: MaterialType
-	stock?: number
+	stock?: number | null
+	minimumStock?: number | null
 }
 
 interface RawMaterialListResponse {
@@ -26,7 +27,7 @@ interface ItemAttributes {
 	nama: string
 	kode: string
 	kind?: ItemKind | null
-	stock?: number
+	stock?: number | null
 }
 
 interface ItemListResponse {
@@ -50,10 +51,25 @@ interface InventoryStockResponse {
 	message?: string
 }
 
+interface InventoryExpiryItem {
+	kodeItem: string
+	namaItem: string
+	unit: string
+	availableStock: number
+	earliestExpiryDate: string
+}
+
+interface InventoryExpiryResponse {
+	success: boolean
+	result?: InventoryExpiryItem[]
+	message?: string
+}
+
 interface StockSummaryRow {
 	key: string
 	name: string
 	stock: number
+	expiryDate?: string
 }
 
 interface MaterialTypeSummaryRow {
@@ -127,6 +143,46 @@ function FarmasiDashboard() {
 		}
 	})
 
+	const { data: rawMaterialExpiryData } = useQuery<InventoryExpiryResponse>({
+		queryKey: ['inventoryStock', 'expiry', 'raw-material'],
+		queryFn: async () => {
+			const inventoryApi = window.api?.query?.inventoryStock as
+				| {
+						list?: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+						expirySummary?: (args?: {
+							itemType?: 'item' | 'substance' | 'medicine'
+							limit?: number
+						}) => Promise<InventoryExpiryResponse>
+				  }
+				| undefined
+			const fn = inventoryApi?.expirySummary
+			if (!fn) {
+				throw new Error('API ringkasan expired stok bahan baku tidak tersedia.')
+			}
+			return fn({ itemType: 'substance', limit: 20 })
+		}
+	})
+
+	const { data: itemExpiryData } = useQuery<InventoryExpiryResponse>({
+		queryKey: ['inventoryStock', 'expiry', 'item'],
+		queryFn: async () => {
+			const inventoryApi = window.api?.query?.inventoryStock as
+				| {
+						list?: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+						expirySummary?: (args?: {
+							itemType?: 'item' | 'substance' | 'medicine'
+							limit?: number
+						}) => Promise<InventoryExpiryResponse>
+				  }
+				| undefined
+			const fn = inventoryApi?.expirySummary
+			if (!fn) {
+				throw new Error('API ringkasan expired stok item tidak tersedia.')
+			}
+			return fn({ itemType: 'item', limit: 20 })
+		}
+	})
+
 	const rawMaterials: RawMaterialAttributes[] = useMemo(() => {
 		return Array.isArray(rawMaterialData?.result) ? rawMaterialData.result ?? [] : []
 	}, [rawMaterialData?.result])
@@ -148,7 +204,9 @@ function FarmasiDashboard() {
 		return baseItems.map((item) => {
 			const key = item.kode.trim().toUpperCase()
 			const stockEntry = stockMap.get(key)
-			const stockValue = typeof stockEntry?.availableStock === 'number' ? stockEntry.availableStock : item.stock
+			const stockFromInventory =
+				typeof stockEntry?.availableStock === 'number' ? stockEntry.availableStock : undefined
+			const stockValue = typeof stockFromInventory === 'number' ? stockFromInventory : 0
 			return { ...item, stock: stockValue }
 		})
 	}, [itemData?.result, inventoryStockData?.result])
@@ -161,10 +219,14 @@ function FarmasiDashboard() {
 
 		rawMaterials.forEach((rm) => {
 			const stockValue = typeof rm.stock === 'number' ? rm.stock : 0
+			const minimumStockValue =
+				typeof rm.minimumStock === 'number' && rm.minimumStock > 0
+					? rm.minimumStock
+					: 50
 			total += 1
 			totalStock += stockValue
 			if (stockValue === 0) zeroStock += 1
-			else if (stockValue > 0 && stockValue <= 50) lowStock += 1
+			else if (stockValue > 0 && stockValue <= minimumStockValue) lowStock += 1
 		})
 
 		return { total, totalStock, lowStock, zeroStock }
@@ -251,15 +313,26 @@ function FarmasiDashboard() {
 	}, [items])
 
 	const lowStockMaterials = useMemo<StockSummaryRow[]>(() => {
-		return rawMaterials
-			.map((rm) => ({
+		const withThreshold = rawMaterials.map((rm) => {
+			const stockValue = typeof rm.stock === 'number' ? rm.stock : 0
+			const minimumStockValue =
+				typeof rm.minimumStock === 'number' && rm.minimumStock > 0
+					? rm.minimumStock
+					: 50
+			return {
 				key: String(rm.id ?? rm.name),
 				name: rm.name,
-				stock: typeof rm.stock === 'number' ? rm.stock : 0
-			}))
-			.filter((row) => row.stock > 0 && row.stock <= 50)
+				stock: stockValue,
+				threshold: minimumStockValue
+			}
+		})
+
+		const filtered = withThreshold
+			.filter((row) => row.stock > 0 && row.stock <= row.threshold)
 			.sort((a, b) => a.stock - b.stock)
 			.slice(0, 10)
+
+		return filtered.map((row) => ({ key: row.key, name: row.name, stock: row.stock }))
 	}, [rawMaterials])
 
 	const itemStockRows = useMemo<StockSummaryRow[]>(() => {
@@ -273,8 +346,40 @@ function FarmasiDashboard() {
 			.slice(0, 10)
 	}, [items])
 
+	const rawMaterialExpiryRows = useMemo(() => {
+		const list: InventoryExpiryItem[] = Array.isArray(rawMaterialExpiryData?.result)
+			? rawMaterialExpiryData.result ?? []
+			: []
+
+		return list.map((item): StockSummaryRow => ({
+			key: item.kodeItem,
+			name: `${item.namaItem} (${item.unit})`,
+			stock: item.availableStock,
+			expiryDate: item.earliestExpiryDate
+		}))
+	}, [rawMaterialExpiryData?.result])
+
+	const itemExpiryRows = useMemo(() => {
+		const list: InventoryExpiryItem[] = Array.isArray(itemExpiryData?.result)
+			? itemExpiryData.result ?? []
+			: []
+
+		return list.map((item): StockSummaryRow => ({
+			key: item.kodeItem,
+			name: `${item.namaItem} (${item.unit})`,
+			stock: item.availableStock,
+			expiryDate: item.earliestExpiryDate
+		}))
+	}, [itemExpiryData?.result])
+
 	const stockColumns: ColumnsType<StockSummaryRow> = [
 		{ title: 'Nama', dataIndex: 'name', key: 'name' },
+		{ title: 'Stok', dataIndex: 'stock', key: 'stock' }
+	]
+
+	const expiryColumns: ColumnsType<StockSummaryRow> = [
+		{ title: 'Nama', dataIndex: 'name', key: 'name' },
+		{ title: 'Expired', dataIndex: 'expiryDate', key: 'expiryDate' },
 		{ title: 'Stok', dataIndex: 'stock', key: 'stock' }
 	]
 
@@ -375,6 +480,26 @@ function FarmasiDashboard() {
 					<Table<StockSummaryRow>
 						dataSource={itemStockRows}
 						columns={stockColumns}
+						pagination={false}
+						rowKey="key"
+						size="small"
+					/>
+				</Card>
+			</div>
+			<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+				<Card title="Top Expired Terdekat - Bahan Baku">
+					<Table<StockSummaryRow>
+						dataSource={rawMaterialExpiryRows}
+						columns={expiryColumns}
+						pagination={false}
+						rowKey="key"
+						size="small"
+					/>
+				</Card>
+				<Card title="Top Expired Terdekat - Item">
+					<Table<StockSummaryRow>
+						dataSource={itemExpiryRows}
+						columns={expiryColumns}
 						pagination={false}
 						rowKey="key"
 						size="small"

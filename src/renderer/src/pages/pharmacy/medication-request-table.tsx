@@ -48,24 +48,24 @@ interface PatientInfo {
 }
 
 interface MedicationRequestAttributes {
-  id?: number
-  status: string
-  intent: string
-  priority?: string
-  medicationId?: number | null
+	id?: number
+	status: string
+	intent: string
+	priority?: string
+	medicationId?: number | null
 	itemId?: number | null
-  patientId: string
-  authoredOn?: string
-  patient?: PatientInfo
-  medication?: { name?: string }
-	item?: { nama?: string }
+	patientId: string
+	authoredOn?: string
+	patient?: PatientInfo
+	medication?: { name?: string }
+	item?: { nama?: string; itemCategoryId?: number | null }
 	note?: string | null
-  encounter?: { id: string }
-  requester?: { name: string }
-  groupIdentifier?: GroupIdentifier | null
-  category?: CategoryEntry[] | null
-  dosageInstruction?: DosageInstructionEntry[] | null
-  dispenseRequest?: DispenseRequestInfo | null
+	encounter?: { id: string }
+	requester?: { name: string }
+	groupIdentifier?: GroupIdentifier | null
+	category?: CategoryEntry[] | null
+	dosageInstruction?: DosageInstructionEntry[] | null
+	dispenseRequest?: DispenseRequestInfo | null
 }
 
 interface MedicationItemRow {
@@ -113,6 +113,17 @@ interface MedicationDispenseListResultForFilter {
 	error?: string
 }
 
+
+interface ItemCategoryAttributes {
+	id?: number
+	name?: string | null
+}
+
+interface ItemCategoryListResponse {
+	success: boolean
+	result?: ItemCategoryAttributes[]
+	message?: string
+}
 function getPatientDisplayName(patient?: PatientInfo): string {
   if (!patient) return ''
 
@@ -295,6 +306,31 @@ export function MedicationRequestTable() {
 		}
 	})
 
+	const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
+		queryKey: ['itemCategory', 'list', 'for-medication-request-table'],
+		queryFn: async () => {
+			const api = window.api?.query as {
+				medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
+			}
+			const fn = api?.medicineCategory?.list
+			if (!fn) throw new Error('API kategori item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const itemCategoryNameById = useMemo(() => {
+		const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+			? itemCategorySource.result
+			: []
+		const map = new Map<number, string>()
+		for (const cat of entries) {
+			if (typeof cat.id === 'number' && typeof cat.name === 'string' && cat.name.length > 0) {
+				map.set(cat.id, cat.name)
+			}
+		}
+		return map
+	}, [itemCategorySource?.result])
+
 	const { data: dispenseListData } = useQuery({
 		queryKey: ['medicationDispense', 'forStatus'],
 		queryFn: async () => {
@@ -351,7 +387,7 @@ export function MedicationRequestTable() {
 		})
 	}, [data?.data, search])
 
-  const groupedData = useMemo<ParentRow[]>(() => {
+	const groupedData = useMemo<ParentRow[]>(() => {
 		const groups = new Map<string, ParentRow>()
 
 		filtered.forEach((record) => {
@@ -375,9 +411,26 @@ export function MedicationRequestTable() {
 				remainingQuantity = diff > 0 ? diff : 0
 			}
 
+			let jenisLabel: string
+			if (isItem) {
+				const rawCategoryId =
+					typeof record.item?.itemCategoryId === 'number'
+						? record.item.itemCategoryId
+						: undefined
+				const categoryName =
+					typeof rawCategoryId === 'number'
+						? itemCategoryNameById.get(rawCategoryId) ?? undefined
+						: undefined
+				jenisLabel = categoryName && categoryName.length > 0 ? categoryName : 'Item'
+			} else if (compound) {
+				jenisLabel = 'Racikan'
+			} else {
+				jenisLabel = 'Obat Biasa'
+			}
+
 			const item: MedicationItemRow = {
 				key: `${key}-${record.id ?? ''}`,
-				jenis: isItem ? 'Item' : compound ? 'Racikan' : 'Obat Biasa',
+				jenis: jenisLabel,
 				namaObat: isItem
 					? record.item?.nama ?? '-'
 					: compound
@@ -421,7 +474,7 @@ export function MedicationRequestTable() {
 		return Array.from(groups.values())
 	}, [filtered, dispensedSummaryByRequestId])
 
-  return (
+	  return (
     <div>
       <h2 className="text-4xl font-bold mb-4 justify-center flex">Permintaan Obat (Resep)</h2>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -432,22 +485,22 @@ export function MedicationRequestTable() {
         </div>
       </div>
       {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
-      <Table
+			<Table
         dataSource={groupedData}
         columns={columns}
         size="small"
         className="mt-4 rounded-xl shadow-sm"
         rowKey="key"
         scroll={{ x: 'max-content' }}
-        expandable={{
-          expandedRowRender: (record: ParentRow) => {
-            const detailColumns = [
-              { title: 'Jenis', dataIndex: 'jenis', key: 'jenis' },
-              { title: 'Nama Obat', dataIndex: 'namaObat', key: 'namaObat' },
-              { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
-              { title: 'Satuan', dataIndex: 'unit', key: 'unit' },
-              { title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' }
-            ]
+					expandable={{
+						expandedRowRender: (record: ParentRow) => {
+							const detailColumns = [
+								{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
+								{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
+								{ title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
+								{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
+								{ title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' }
+							]
 
             return (
               <Table
