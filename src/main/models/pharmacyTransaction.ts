@@ -8,14 +8,14 @@ export const PharmacyTransactionSchema = z.object({
 	cashierName: z.string().nullable().optional(),
 	patientId: z.string().nullable().optional(),
 	paymentMethod: PharmacyPaymentMethodSchema,
-	compoundingFee: z.number().nullable().optional(),
-	otherFee: z.number().nullable().optional(),
-	discountPercent: z.number().nullable().optional(),
-	taxPercent: z.number().nullable().optional(),
-	totalAmount: z.number(),
-	grandTotal: z.number(),
-	paidAmount: z.number(),
-	changeAmount: z.number(),
+	compoundingFee: z.coerce.number().nullable().optional(),
+	otherFee: z.coerce.number().nullable().optional(),
+	discountPercent: z.coerce.number().nullable().optional(),
+	taxPercent: z.coerce.number().nullable().optional(),
+	totalAmount: z.coerce.number(),
+	grandTotal: z.coerce.number(),
+	paidAmount: z.coerce.number(),
+	changeAmount: z.coerce.number(),
 	notes: z.string().nullable().optional()
 })
 
@@ -25,4 +25,3 @@ export const PharmacyTransactionWithIdSchema = PharmacyTransactionSchema.extend(
 	updatedAt: z.string().nullable().optional(),
 	deletedAt: z.string().nullable().optional()
 })
-

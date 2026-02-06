@@ -1,6 +1,6 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
-import { createBackendClient, parseBackendResponse } from '@main/utils/backendClient'
+import { createBackendClient, parseBackendResponse, BackendListSchema } from '@main/utils/backendClient'
 import { PharmacyTransactionSchema, PharmacyTransactionWithIdSchema } from '@main/models/pharmacyTransaction'
 
 export const requireSession = true
@@ -13,10 +13,24 @@ export const schemas = {
 			result: PharmacyTransactionWithIdSchema.optional(),
 			message: z.string().optional()
 		})
+	},
+	list: {
+		args: z
+			.object({
+				items: z.number().optional()
+			})
+			.optional(),
+		result: z.object({
+			success: z.boolean(),
+			data: PharmacyTransactionWithIdSchema.array().optional(),
+			message: z.string().optional(),
+			error: z.string().optional()
+		})
 	}
 } as const
 
 type CreateArgs = z.infer<typeof schemas.create.args>
+type ListArgs = z.infer<NonNullable<typeof schemas.list.args>>
 
 export const create = async (ctx: IpcContext, args: CreateArgs) => {
 	try {
@@ -52,3 +66,16 @@ export const create = async (ctx: IpcContext, args: CreateArgs) => {
 	}
 }
 
+export const list = async (ctx: IpcContext, args?: ListArgs) => {
+	try {
+		const client = createBackendClient(ctx)
+		const items = args?.items && Number.isFinite(args.items) && args.items > 0 ? args.items : 50
+		const res = await client.get(`/api/pharmacytransaction?items=${items}`)
+		const ListSchema = BackendListSchema(PharmacyTransactionWithIdSchema)
+		const result = await parseBackendResponse(res, ListSchema)
+		return { success: true, data: result }
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err)
+		return { success: false, error: message }
+	}
+}

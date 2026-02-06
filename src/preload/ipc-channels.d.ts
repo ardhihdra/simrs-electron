@@ -254,6 +254,8 @@ type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
 type Args_Mod_query_pharmacyTransaction_create = InferArgs<typeof Mod_query_pharmacyTransaction, 'create'>
 type Result_Mod_query_pharmacyTransaction_create = InferResult<typeof Mod_query_pharmacyTransaction, 'create'>
+type Args_Mod_query_pharmacyTransaction_list = InferArgs<typeof Mod_query_pharmacyTransaction, 'list'>
+type Result_Mod_query_pharmacyTransaction_list = InferResult<typeof Mod_query_pharmacyTransaction, 'list'>
 type Args_Mod_query_poli_create = InferArgs<typeof Mod_query_poli, 'create'>
 type Result_Mod_query_poli_create = InferResult<typeof Mod_query_poli, 'create'>
 type Args_Mod_query_poli_deleteById = InferArgs<typeof Mod_query_poli, 'deleteById'>
@@ -481,6 +483,7 @@ declare global {
         }
         pharmacyTransaction: {
           create: Invoke<Args_Mod_query_pharmacyTransaction_create, Result_Mod_query_pharmacyTransaction_create>
+          list: Invoke<Args_Mod_query_pharmacyTransaction_list, Result_Mod_query_pharmacyTransaction_list>
         }
         poli: {
           create: Invoke<Args_Mod_query_poli_create, Result_Mod_query_poli_create>

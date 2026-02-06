@@ -53,6 +53,31 @@ interface InventoryStockResponse {
 	message?: string
 }
 
+interface PharmacyTransactionRecord {
+	id: number
+	fakturNumber: string
+	transactionDate: string
+	cashierName?: string | null
+	patientId?: string | null
+	paymentMethod: 'CASH' | 'NONCASH' | 'CREDIT'
+	compoundingFee?: number | null
+	otherFee?: number | null
+	discountPercent?: number | null
+	taxPercent?: number | null
+	totalAmount: number
+	grandTotal: number
+	paidAmount: number
+	changeAmount: number
+	notes?: string | null
+}
+
+interface PharmacyTransactionListResponse {
+	success: boolean
+	data?: PharmacyTransactionRecord[]
+	error?: string
+	message?: string
+}
+
 interface PurchaseItemRow {
 	key: string
 	kode: string
@@ -65,6 +90,10 @@ interface PurchaseItemRow {
 
 interface ItemApi {
 	list: () => Promise<ItemListResponse>
+}
+
+interface PharmacyTransactionApi {
+	list: (args?: { items?: number }) => Promise<PharmacyTransactionListResponse>
 }
 
 const formatRupiah = (value: number | null | undefined): string => {
@@ -108,6 +137,9 @@ function ItemPurchasePage() {
 	const [discountPercent, setDiscountPercent] = useState<number>(0)
 	const [taxPercent, setTaxPercent] = useState<number>(0)
 	const [paidAmount, setPaidAmount] = useState<number>(0)
+	const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+	const [isLoadingHistory, setIsLoadingHistory] = useState(false)
+	const [historyRows, setHistoryRows] = useState<PharmacyTransactionRecord[]>([])
 
 	const paymentMethodForBackend: 'CASH' | 'NONCASH' | 'CREDIT' = paymentMethod === 'cash' ? 'CASH' : 'NONCASH'
 
@@ -248,6 +280,38 @@ function ItemPurchasePage() {
 			message.error(msg || 'Terjadi kesalahan saat mengambil data item')
 		} finally {
 			setIsLoadingItems(false)
+		}
+	}
+
+	const handleOpenHistory = async () => {
+		try {
+			setIsHistoryOpen(true)
+			setHistoryRows([])
+			setIsLoadingHistory(true)
+			const api = window.api?.query as { pharmacyTransaction?: PharmacyTransactionApi }
+			const fn = api?.pharmacyTransaction?.list
+			if (!fn) {
+				message.error('API riwayat transaksi farmasi tidak tersedia.')
+				return
+			}
+			const res = await fn({ items: 50 })
+			if (!res.success) {
+				const msg = res.message || res.error || 'Gagal mengambil riwayat transaksi farmasi'
+				message.error(msg)
+				return
+			}
+			const source: PharmacyTransactionRecord[] = Array.isArray(res.data) ? res.data : []
+			const sorted = [...source].sort((a, b) => {
+				const da = new Date(a.transactionDate).getTime()
+				const db = new Date(b.transactionDate).getTime()
+				return db - da
+			})
+			setHistoryRows(sorted)
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err)
+			message.error(msg || 'Terjadi kesalahan saat mengambil riwayat transaksi')
+		} finally {
+			setIsLoadingHistory(false)
 		}
 	}
 
@@ -407,6 +471,56 @@ function ItemPurchasePage() {
 		}
 	]
 
+	const historyColumns: ColumnsType<PharmacyTransactionRecord> = [
+		{ title: 'Faktur', dataIndex: 'fakturNumber', key: 'fakturNumber', width: 140 },
+		{
+			title: 'Tanggal',
+			dataIndex: 'transactionDate',
+			key: 'transactionDate',
+			width: 180,
+			render: (value: string) => {
+				const date = new Date(value)
+				if (Number.isNaN(date.getTime())) return value
+				return `${date.toLocaleDateString('id-ID')} ${date.toLocaleTimeString('id-ID', {
+					hour: '2-digit',
+					minute: '2-digit'
+				})}`
+			}
+		},
+		{
+			title: 'Metode',
+			dataIndex: 'paymentMethod',
+			key: 'paymentMethod',
+			render: (value: PharmacyTransactionRecord['paymentMethod']) => {
+				if (value === 'CASH') return 'Tunai'
+				if (value === 'NONCASH') return 'Non Tunai'
+				if (value === 'CREDIT') return 'Kredit'
+				return value
+			}
+		},
+		{
+			title: 'Grand Total',
+			dataIndex: 'grandTotal',
+			key: 'grandTotal',
+			align: 'right',
+			render: (value: number) => formatRupiah(value)
+		},
+		{
+			title: 'Dibayar',
+			dataIndex: 'paidAmount',
+			key: 'paidAmount',
+			align: 'right',
+			render: (value: number) => formatRupiah(value)
+		},
+		{
+			title: 'Kembali',
+			dataIndex: 'changeAmount',
+			key: 'changeAmount',
+			align: 'right',
+			render: (value: number) => formatRupiah(value)
+		}
+	]
+
 	return (
 		<div className="flex flex-col md:flex-row gap-4">
 			<div className="w-full md:w-1/3">
@@ -478,11 +592,14 @@ function ItemPurchasePage() {
 								{fakturNumber}
 							</div>
 						</div>
-						<div className="pt-3">
-							<Button type="primary" block onClick={handleSelesai}>
-								Selesai
-							</Button>
-						</div>
+					<div className="pt-3 space-y-2">
+						<Button type="primary" block onClick={handleSelesai}>
+							Selesai
+						</Button>
+						<Button block onClick={handleOpenHistory}>
+							Riwayat Transaksi
+						</Button>
+					</div>
 					</div>
 				</Card>
 			</div>
@@ -554,6 +671,21 @@ function ItemPurchasePage() {
 							onDoubleClick: () => handleSelectItem(record)
 						})}
 				/>
+			</Modal>
+			<Modal
+					open={isHistoryOpen}
+					title="Riwayat Transaksi"
+					width={900}
+					onCancel={() => setIsHistoryOpen(false)}
+					footer={null}
+			>
+					<Table<PharmacyTransactionRecord>
+							rowKey={(record) => String(record.id)}
+							columns={historyColumns}
+							dataSource={historyRows}
+							loading={isLoadingHistory}
+							pagination={{ pageSize: 10 }}
+						/>
 			</Modal>
 			<Modal
 					open={isPaymentOpen}
