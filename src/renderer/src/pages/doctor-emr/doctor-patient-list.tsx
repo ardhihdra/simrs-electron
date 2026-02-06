@@ -36,6 +36,22 @@ interface PatientListTableData {
     birthDate: string
     nik?: string
   }
+  queueTicket?: {
+    id: string
+    queueNumber: number
+    queueDate: string
+    status: string
+    poli?: {
+      id: number
+      name: string
+      location: string
+    }
+    practitioner?: {
+      id: number
+      namaLengkap: string
+      nik: string
+    }
+  }
   poli: {
     name: string
   }
@@ -92,7 +108,7 @@ const PatientList = () => {
             key: enc.id,
             id: enc.id,
             encounterId: enc.id,
-            queueNumber: parseInt(enc.encounterCode?.split('-')?.[1] || '0'),
+            queueNumber: enc.queueTicket?.queueNumber || 0,
             patient: {
               id: enc.patient?.id || '',
               name: enc.patient?.name || 'Unknown',
@@ -102,12 +118,22 @@ const PatientList = () => {
               birthDate: enc.patient?.birthDate || '',
               nik: enc.patient?.nik || ''
             },
+            queueTicket: enc.queueTicket
+              ? {
+                  id: enc.queueTicket.id,
+                  queueNumber: enc.queueTicket.queueNumber,
+                  queueDate: enc.queueTicket.queueDate,
+                  status: enc.queueTicket.status,
+                  poli: enc.queueTicket.poli,
+                  practitioner: enc.queueTicket.practitioner
+                }
+              : undefined,
             poli: {
-              name: enc.serviceType || '-'
+              name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
             },
-            status: enc.status || 'unknown',
+            status: enc.status?.toLowerCase().replace(/_/g, '-') || 'unknown',
             hasObservations: true,
-            visitDate: enc.visitDate || new Date().toISOString()
+            visitDate: enc.startTime || enc.createdAt || new Date().toISOString()
           }
         })
 
@@ -142,6 +168,8 @@ const PatientList = () => {
 
   const getStatusTag = (status: string) => {
     switch (status) {
+      case 'planned':
+        return <Tag color="default">Terjadwal</Tag>
       case 'arrived':
         return <Tag color="blue">Tiba</Tag>
       case 'triaged':

@@ -239,7 +239,9 @@ const DoctorWorkspace = () => {
           </div>
         )}
 
-        {encounterDetail?.data?.encounterType === EncounterType.IMP ? (
+        {encounterDetail?.data?.encounterType === EncounterType.IMP ||
+        encounterDetail?.data?.serviceUnitId === 'RAWAT_INAP' ||
+        encounterDetail?.data?.serviceUnitCodeId === 'RAWAT_INAP' ? (
           <DoctorInpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
         ) : (
           <DoctorOutpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />

@@ -37,7 +37,7 @@ const MedicalRecordForm = () => {
         const mappedData: PatientQueue = {
           id: enc.id,
           encounterId: enc.id,
-          queueNumber: parseInt(enc.encounterCode?.split('-')?.[1] || '0'),
+          queueNumber: enc.queueTicket?.queueNumber || 0,
           patient: {
             id: enc.patient?.id || '',
             name: enc.patient?.name || 'Unknown',
@@ -50,21 +50,19 @@ const MedicalRecordForm = () => {
             identityNumber: enc.patient?.nik || ''
           },
           poli: {
-            id: '1',
+            id: enc.queueTicket?.poli?.id?.toString() || '1',
             code: 'POL',
-            name: enc.serviceType ? String(enc.serviceType) : '-'
+            name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
           },
           doctor: {
-            id: 'doc1',
-            name: 'Dr. Umum',
+            id: enc.queueTicket?.practitioner?.id?.toString() || 'doc1',
+            name: enc.queueTicket?.practitioner?.namaLengkap || 'Dr. Umum',
             specialization: 'General',
-            sipNumber: '-'
+            sipNumber: enc.queueTicket?.practitioner?.nik || '-'
           },
           status: PatientStatus.EXAMINING,
           registrationDate:
-            typeof enc.visitDate === 'object'
-              ? enc.visitDate.toISOString()
-              : String(enc.visitDate || new Date().toISOString())
+            enc.startTime || enc.createdAt || enc.visitDate || new Date().toISOString()
         }
 
         setPatientData(mappedData)

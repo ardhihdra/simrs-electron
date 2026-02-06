@@ -32,6 +32,7 @@ interface PatientQueueTableData extends PatientQueue {
 
 function mapEncounterStatusToPatientStatus(status: string): PatientStatus {
   const s = status?.toLowerCase()
+  if (s === 'planned') return PatientStatus.WAITING
   if (s === 'arrived' || s === 'planned') return PatientStatus.WAITING
   if (s === 'triaged') return PatientStatus.EXAMINING
   if (s === 'in-progress') return PatientStatus.EXAMINING
@@ -90,7 +91,7 @@ const PatientQueueTable = () => {
         key: enc.id,
         id: enc.id,
         encounterId: enc.id,
-        queueNumber: parseInt(enc.encounterCode?.split('-')?.[1] || (index + 1).toString()),
+        queueNumber: enc.queueTicket?.queueNumber || index + 1,
         patient: {
           id: enc.patient?.id || '',
           name: enc.patient?.name || 'Unknown',
@@ -103,18 +104,18 @@ const PatientQueueTable = () => {
           identityNumber: enc.patient?.nik || ''
         },
         poli: {
-          id: '1',
+          id: enc.queueTicket?.poli?.id?.toString() || '1',
           code: 'POL',
-          name: enc.serviceType || '-'
+          name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
         },
         doctor: {
-          id: 'doc1',
-          name: 'Dr. Umum',
+          id: enc.queueTicket?.practitioner?.id?.toString() || 'doc1',
+          name: enc.queueTicket?.practitioner?.namaLengkap || 'Dr. Umum',
           specialization: 'General',
-          sipNumber: '123'
+          sipNumber: enc.queueTicket?.practitioner?.nik || '123'
         },
         status: mapEncounterStatusToPatientStatus(enc.status),
-        registrationDate: enc.visitDate
+        registrationDate: enc.startTime || enc.createdAt || enc.visitDate
       }
     }
   )

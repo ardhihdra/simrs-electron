@@ -19,6 +19,17 @@ export const schemas = {
     result: z.object({
       success: z.boolean(),
       data: EncounterSchemaWithId.extend({
+        startTime: z.union([z.date(), z.string()]).optional().nullable(),
+        endTime: z.union([z.date(), z.string()]).optional().nullable(),
+        serviceUnitId: z.string().optional().nullable(),
+        serviceUnitCodeId: z.string().optional().nullable(),
+        episodeOfCareId: z.string().optional().nullable(),
+        encounterType: z.string().optional().nullable(),
+        arrivalType: z.string().optional().nullable(),
+        queueTicketId: z.string().optional().nullable(),
+        partOfId: z.string().optional().nullable(),
+        dischargeDisposition: z.string().optional().nullable(),
+        status: z.string().optional().nullable(),
         patient: z
           .object({
             id: z.string(),
@@ -38,7 +49,12 @@ export const schemas = {
     args: EncounterSchema,
     result: z.object({
       success: z.boolean(),
-      data: EncounterSchemaWithId.optional(),
+      data: EncounterSchemaWithId.extend({
+        startTime: z.union([z.date(), z.string()]).optional().nullable(),
+        endTime: z.union([z.date(), z.string()]).optional().nullable(),
+        serviceUnitId: z.string().optional().nullable(),
+        status: z.string().optional().nullable()
+      }).optional(),
       error: z.string().optional()
     })
   },
@@ -46,7 +62,12 @@ export const schemas = {
     args: EncounterSchemaWithId,
     result: z.object({
       success: z.boolean(),
-      data: EncounterSchemaWithId.optional(),
+      data: EncounterSchemaWithId.extend({
+        startTime: z.union([z.date(), z.string()]).optional().nullable(),
+        endTime: z.union([z.date(), z.string()]).optional().nullable(),
+        serviceUnitId: z.string().optional().nullable(),
+        status: z.string().optional().nullable()
+      }).optional(),
       error: z.string().optional()
     })
   },
@@ -75,8 +96,16 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
     const res = await client.get(`/api/encounter?${queryParams.toString()}`)
 
     const EncounterWithPatientSchema = EncounterSchemaWithId.extend({
-      startTime: z.union([z.date(), z.string()]).optional(),
-      serviceUnitId: z.string().optional(),
+      startTime: z.union([z.date(), z.string()]).optional().nullable(),
+      endTime: z.union([z.date(), z.string()]).optional().nullable(),
+      serviceUnitId: z.string().optional().nullable(),
+      serviceUnitCodeId: z.string().optional().nullable(),
+      episodeOfCareId: z.string().optional().nullable(),
+      encounterType: z.string().optional().nullable(),
+      arrivalType: z.string().optional().nullable(),
+      queueTicketId: z.string().optional().nullable(),
+      partOfId: z.string().optional().nullable(),
+      dischargeDisposition: z.string().optional().nullable(),
       status: z.string(),
       patient: z.object({
         id: z.union([z.string(), z.number()]),
@@ -85,25 +114,47 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         gender: z.string().optional().nullable(),
         birthDate: z.union([z.string(), z.date()]).optional().nullable(),
         nik: z.string().optional().nullable()
-      }).optional().nullable()
+      }).optional().nullable(),
+      queueTicket: z.object({
+        id: z.string(),
+        queueNumber: z.number(),
+        queueDate: z.string(),
+        status: z.string(),
+        serviceUnitCodeId: z.string().optional().nullable(),
+        poliCodeId: z.number().optional().nullable(),
+        registrationChannelCodeId: z.string().optional().nullable(),
+        assuranceCodeId: z.string().optional().nullable(),
+        practitionerId: z.number().optional().nullable(),
+        poli: z.object({
+          id: z.number(),
+          name: z.string(),
+          location: z.string().optional().nullable()
+        }).optional().nullable(),
+        practitioner: z.object({
+          id: z.number(),
+          namaLengkap: z.string(),
+          nik: z.string()
+        }).optional().nullable()
+      }).optional().nullable(),
+      labServiceRequests: z.array(z.any()).optional().nullable()
     })
 
     const ListSchema = BackendListSchema(EncounterWithPatientSchema)
+    const Result = await parseBackendResponse(res, ListSchema)
 
-    const parsedResult = await parseBackendResponse(res, ListSchema)
-
-    const transformedResult = Array.isArray(parsedResult)
-      ? parsedResult.map((encounter: any) => ({
+    const transformedResult = Array.isArray(Result)
+      ? Result.map((encounter: any) => ({
         ...encounter,
         visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
         serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
         status: encounter.status ? String(encounter.status) : 'UNKNOWN'
       }))
-      : parsedResult
+      : Result
 
     return { success: true, result: transformedResult }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ENCOUNTER LIST] Error:', msg)
     return { success: false, error: msg }
   }
 }
@@ -116,8 +167,16 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
     const BackendReadSchema = z.object({
       success: z.boolean(),
       result: EncounterSchemaWithId.extend({
-        startTime: z.union([z.date(), z.string()]).optional(),
-        serviceUnitId: z.string().optional(),
+        startTime: z.union([z.date(), z.string()]).optional().nullable(),
+        endTime: z.union([z.date(), z.string()]).optional().nullable(),
+        serviceUnitId: z.string().optional().nullable(),
+        serviceUnitCodeId: z.string().optional().nullable(),
+        episodeOfCareId: z.string().optional().nullable(),
+        encounterType: z.string().optional().nullable(),
+        arrivalType: z.string().optional().nullable(),
+        queueTicketId: z.string().optional().nullable(),
+        partOfId: z.string().optional().nullable(),
+        dischargeDisposition: z.string().optional().nullable(),
         status: z.string(),
         patient: z.object({
           id: z.union([z.string(), z.number()]),
@@ -126,7 +185,29 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
           gender: z.string().optional().nullable(),
           birthDate: z.union([z.string(), z.date()]).optional().nullable(),
           nik: z.string().optional().nullable()
-        }).optional().nullable()
+        }).optional().nullable(),
+        queueTicket: z.object({
+          id: z.string(),
+          queueNumber: z.number(),
+          queueDate: z.string(),
+          status: z.string(),
+          serviceUnitCodeId: z.string().optional().nullable(),
+          poliCodeId: z.number().optional().nullable(),
+          registrationChannelCodeId: z.string().optional().nullable(),
+          assuranceCodeId: z.string().optional().nullable(),
+          practitionerId: z.number().optional().nullable(),
+          poli: z.object({
+            id: z.number(),
+            name: z.string(),
+            location: z.string().optional().nullable()
+          }).optional().nullable(),
+          practitioner: z.object({
+            id: z.number(),
+            namaLengkap: z.string(),
+            nik: z.string()
+          }).optional().nullable()
+        }).optional().nullable(),
+        labServiceRequests: z.array(z.any()).optional().nullable()
       })
         .optional()
         .nullable(),
@@ -180,8 +261,8 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
       success: z.boolean(),
       result: EncounterSchemaWithId.extend({
         // Backend fields
-        startTime: z.union([z.date(), z.string()]).optional(),
-        serviceUnitId: z.string().optional(),
+        startTime: z.union([z.date(), z.string()]).optional().nullable(),
+        serviceUnitId: z.string().optional().nullable(),
         // Make status accept any string
         status: z.string(),
       }).optional().nullable(),
@@ -234,8 +315,8 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     const BackendUpdateSchema = z.object({
       success: z.boolean(),
       result: EncounterSchemaWithId.extend({
-        startTime: z.union([z.date(), z.string()]).optional(),
-        serviceUnitId: z.string().optional(),
+        startTime: z.union([z.date(), z.string()]).optional().nullable(),
+        serviceUnitId: z.string().optional().nullable(),
         status: z.string(),
       }).optional().nullable(),
       message: z.string().optional(),

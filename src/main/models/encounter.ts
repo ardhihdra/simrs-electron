@@ -96,5 +96,27 @@ export const EncounterSchemaWithId = EncounterSchema.extend({
   id: z.string(),
   createdAt: z.union([z.date(), z.string()]).optional().nullable(),
   updatedAt: z.union([z.date(), z.string()]).optional().nullable(),
-  deletedAt: z.union([z.date(), z.string()]).optional().nullable()
+  deletedAt: z.union([z.date(), z.string()]).optional().nullable(),
+  queueTicket: z.object({
+    id: z.string(),
+    queueNumber: z.number(),
+    queueDate: z.string(),
+    status: z.string(),
+    serviceUnitCodeId: z.string().optional().nullable(),
+    poliCodeId: z.number().optional().nullable(),
+    registrationChannelCodeId: z.string().optional().nullable(),
+    assuranceCodeId: z.string().optional().nullable(),
+    practitionerId: z.number().optional().nullable(),
+    poli: z.object({
+      id: z.number(),
+      name: z.string(),
+      location: z.string().optional().nullable()
+    }).optional().nullable(),
+    practitioner: z.object({
+      id: z.number(),
+      namaLengkap: z.string(),
+      nik: z.string()
+    }).optional().nullable()
+  }).optional().nullable()
 })
+
