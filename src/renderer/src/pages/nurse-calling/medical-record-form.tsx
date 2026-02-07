@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react'
-import { Button, App, Spin, Card } from 'antd'
-import { ArrowLeftOutlined } from '@ant-design/icons'
+import { Button, App, Spin, Layout, Menu, theme } from 'antd'
+import {
+  ArrowLeftOutlined,
+  MonitorOutlined,
+  SolutionOutlined,
+  FormOutlined,
+  MenuUnfoldOutlined,
+  MenuFoldOutlined,
+  MedicineBoxOutlined
+} from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
 import { PatientQueue } from '../../types/nurse.types'
 import { PatientStatus } from '../../types/nurse.types'
 import { PatientInfoCard } from '../../components/molecules/PatientInfoCard'
 import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
+import { GeneralSOAPForm } from '@renderer/components/organisms/GeneralSOAPForm'
+import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
 
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
@@ -13,6 +23,11 @@ const MedicalRecordForm = () => {
   const { message } = App.useApp()
   const [loading, setLoading] = useState(false)
   const [patientData, setPatientData] = useState<PatientQueue | null>(null)
+  const [collapsed, setCollapsed] = useState(false)
+  const [selectedKey, setSelectedKey] = useState('overview')
+  const {
+    token: { colorBgContainer }
+  } = theme.useToken()
 
   useEffect(() => {
     loadPatientData()
@@ -78,6 +93,44 @@ const MedicalRecordForm = () => {
     }
   }
 
+  const renderContent = () => {
+    if (!patientData || !encounterId) return null
+
+    switch (selectedKey) {
+      case 'overview':
+        return (
+          <div className="p-6">
+            <h2 className="text-xl font-bold mb-4">Ringkasan Pasien</h2>
+            <p className="text-gray-600">
+              Informasi ringkasan dan timeline pasien akan ditampilkan di sini.
+            </p>
+          </div>
+        )
+      case 'initial-assessment':
+        return (
+          <InitialAssessmentForm
+            encounterId={encounterId}
+            patientData={patientData}
+            mode="outpatient"
+            role="nurse"
+          />
+        )
+      case 'monitoring-ttv':
+        return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
+      case 'general-soap':
+        return (
+          <GeneralSOAPForm
+            encounterId={encounterId}
+            patientData={patientData}
+            showTTVSection={false}
+            allowedRoles={['nurse']}
+          />
+        )
+      default:
+        return null
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -99,24 +152,85 @@ const MedicalRecordForm = () => {
       >
         Kembali ke Antrian
       </Button>
-      <Card>
-        <div className="flex flex-col gap-4">
-          <PatientInfoCard
-            patientData={{
-              ...patientData,
-              visitDate: patientData.registrationDate,
-              status: String(patientData.status)
-            }}
-          />
 
-          <InitialAssessmentForm
-            encounterId={encounterId}
-            patientData={patientData}
-            mode="outpatient"
-            role="nurse"
-          />
-        </div>
-      </Card>
+      <div className="mb-4">
+        <PatientInfoCard
+          patientData={{
+            ...patientData,
+            visitDate: patientData.registrationDate,
+            status: String(patientData.status)
+          }}
+        />
+      </div>
+
+      <Layout className="rounded-lg overflow-hidden h-full border border-gray-200">
+        <Layout.Sider
+          width={260}
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(value) => setCollapsed(value)}
+          theme="light"
+          className="border-r border-gray-200"
+          trigger={
+            <div className="bg-white border-t border-gray-200">
+              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            </div>
+          }
+        >
+          <div className="h-full flex flex-col">
+            <div className="p-4 border-b border-gray-200">
+              {collapsed ? (
+                <MedicineBoxOutlined className="text-blue-600 text-xl" />
+              ) : (
+                <div className="font-bold text-gray-700 flex items-center gap-2">
+                  <MedicineBoxOutlined className="text-blue-600" />
+                  Perawat
+                </div>
+              )}
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <Menu
+                mode="inline"
+                selectedKeys={[selectedKey]}
+                onClick={({ key }) => setSelectedKey(key)}
+                style={{ borderRight: 0 }}
+                items={[
+                  {
+                    key: 'overview',
+                    icon: <MonitorOutlined />,
+                    label: 'Ringkasan Pasien'
+                  },
+                  {
+                    key: 'initial-assessment',
+                    icon: <SolutionOutlined />,
+                    label: 'Asesmen Awal'
+                  },
+                  {
+                    key: 'monitoring-ttv',
+                    icon: <MonitorOutlined />,
+                    label: 'Monitoring TTV'
+                  },
+                  {
+                    key: 'general-soap',
+                    icon: <FormOutlined />,
+                    label: 'SOAP Umum'
+                  }
+                ]}
+              />
+            </div>
+          </div>
+        </Layout.Sider>
+
+        <Layout.Content
+          style={{
+            background: colorBgContainer,
+            minHeight: '600px'
+          }}
+          className="overflow-y-auto"
+        >
+          {renderContent()}
+        </Layout.Content>
+      </Layout>
     </div>
   )
 }
