@@ -91,4 +91,146 @@ export const NUTRITION_MAP: Record<string, string> = {
     'nutrition-risk': 'mst_risk_level'
 }
 
+import dayjs from 'dayjs'
+import { TOOTH_SNOMED_CODES, CONDITION_SNOMED_CODES } from '@renderer/components/organisms/Dental/dental-constants'
+import type { ToothDetail } from '@renderer/components/organisms/Dental/type'
 
+interface ObservationFromDB {
+    id: string
+    effectiveDateTime: string
+    valueString?: string
+    status: string
+    bodySites: Array<{
+        code: string
+        display: string
+        system: string
+    }>
+    codeCoding: Array<{
+        code: string
+        display: string
+        system: string
+    }>
+    notes: Array<{
+        text: string
+    }>
+    performers: Array<{
+        name: string
+        role?: string
+    }>
+}
+
+interface TimelineContentProps {
+    date: string
+    treatment: string
+    condition: string
+    dentist: string
+    tooth: ToothDetail[]
+    status: 'done' | 'pending'
+    notes?: string
+}
+
+
+export function transformObservationsToTimeline(
+    observations: ObservationFromDB[]
+): TimelineContentProps[] {
+    if (!observations || observations.length === 0) return []
+
+    const groupedByDate = new Map<string, Map<string, ObservationFromDB[]>>()
+
+    observations.forEach((obs) => {
+        const date = dayjs(obs.effectiveDateTime).format('DD-MM-YYYY')
+        const treatment = obs.valueString || 'Unknown Treatment'
+
+        if (!groupedByDate.has(date)) {
+            groupedByDate.set(date, new Map())
+        }
+
+        const dateGroup = groupedByDate.get(date)!
+        if (!dateGroup.has(treatment)) {
+            dateGroup.set(treatment, [])
+        }
+
+        dateGroup.get(treatment)!.push(obs)
+    })
+
+    const timeline: TimelineContentProps[] = []
+
+    groupedByDate.forEach((treatmentMap, date) => {
+        treatmentMap.forEach((observations, treatment) => {
+            const firstObs = observations[0]
+
+            // Get condition from codeCoding
+            const conditionCode = firstObs.codeCoding?.[0]?.code || ''
+            const conditionDisplay = firstObs.codeCoding?.[0]?.display || 'Unknown Condition'
+
+            // Find condition name from SNOMED codes
+            let conditionName = conditionDisplay
+            for (const [key, value] of Object.entries(CONDITION_SNOMED_CODES)) {
+                if (value.code === conditionCode) {
+                    conditionName = key
+                    break
+                }
+            }
+
+            // Get dentist name from performers
+            const dentist = firstObs.performers?.[0]?.name || 'Unknown Dentist'
+
+            // Get all teeth from observations
+            const teeth: ToothDetail[] = observations
+                .map((obs) => {
+                    const bodySite = obs.bodySites?.[0]
+                    if (!bodySite) return null
+
+                    // Find tooth ID from SNOMED code
+                    for (const [toothId, toothData] of Object.entries(TOOTH_SNOMED_CODES)) {
+                        if (toothData.code === bodySite.code) {
+                            const fdi = toothId.replace('teeth-', '')
+                            return {
+                                id: toothId,
+                                notations: {
+                                    fdi,
+                                    universal: fdi,
+                                    palmer: fdi
+                                },
+                                type: 'permanent'
+                            } as ToothDetail
+                        }
+                    }
+                    return null
+                })
+                .filter((tooth): tooth is ToothDetail => tooth !== null)
+
+            // Get notes
+            const notes = firstObs.notes?.[0]?.text || undefined
+
+            // Determine status
+            const status: 'done' | 'pending' = firstObs.status === 'final' ? 'done' : 'pending'
+
+            timeline.push({
+                date,
+                treatment,
+                condition: conditionName,
+                dentist,
+                tooth: teeth,
+                status,
+                notes
+            })
+        })
+    })
+
+    // Sort by date (newest first)
+    return timeline.sort((a, b) => {
+        const dateA = dayjs(a.date, 'DD-MM-YYYY')
+        const dateB = dayjs(b.date, 'DD-MM-YYYY')
+        return dateB.diff(dateA)
+    })
+}
+
+export function getToothIdFromSNOMED(snomedCode: string): string | null {
+    for (const [toothId, toothData] of Object.entries(TOOTH_SNOMED_CODES)) {
+        if (toothData.code === snomedCode) {
+            return toothId
+        }
+    }
+    return null
+}
