@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Layout, Menu, theme, Collapse } from 'antd'
+import { Layout, Menu, theme } from 'antd'
 import {
   MonitorOutlined,
   SolutionOutlined,
@@ -11,19 +11,17 @@ import {
   MenuUnfoldOutlined,
   MenuFoldOutlined
 } from '@ant-design/icons'
-import { NurseAssessmentSummary } from '@renderer/components/organisms/NurseAssessmentSummary'
 import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
-import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
-import { DentalAssessmentForm } from '../../components/organisms/Assessment/DentalAssessmentForm'
-import { CPPTForm } from '@renderer/components/organisms/CPPTForm'
+import { AnamnesisForm } from '../../components/organisms/Assessment/AnamnesisForm'
+import { PhysicalAssessmentForm } from '../../components/organisms/Assessment/PhysicalAssessmentForm'
+import DentalPage from '../../components/organisms/Dental'
+import { GeneralSOAPForm } from '@renderer/components/organisms/GeneralSOAPForm'
 import { DiagnosisProceduresForm } from '@renderer/components/organisms/DiagnosisProceduresForm'
 import { PrescriptionForm } from '@renderer/components/organisms/PrescriptionForm'
 import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
 import { DiagnosticResultViewer } from '@renderer/components/organisms/DiagnosticResultViewer'
 import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
 import { ClinicalNoteForm } from '@renderer/components/organisms/ClinicalNoteForm'
-import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
-import { useConditionByEncounter } from '@renderer/hooks/query/use-condition'
 
 interface DoctorOutpatientWorkspaceProps {
   encounterId: string
@@ -39,12 +37,6 @@ export const DoctorOutpatientWorkspace = ({
   const {
     token: { colorBgContainer }
   } = theme.useToken()
-
-  const { data: obsData } = useObservationByEncounter(encounterId || '')
-  const { data: condData } = useConditionByEncounter(encounterId || '')
-
-  const hasNurseAssessment =
-    (obsData?.result?.all?.length || 0) > 0 || (condData?.result?.length || 0) > 0
 
   return (
     <Layout className="rounded-lg overflow-hidden h-full border border-gray-200">
@@ -89,14 +81,15 @@ export const DoctorOutpatientWorkspace = ({
                   icon: <SolutionOutlined />,
                   label: 'Asesmen Pasien',
                   children: [
-                    { key: 'initial-assessment', label: '* Anamnesis & Fisik' },
-                    { key: 'dental-assessment', label: '* Pemeriksaan Gigi' }
+                    { key: 'anamnesis', label: 'Anamnesis' },
+                    { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
+                    { key: 'dental-assessment', label: 'Pemeriksaan Gigi' }
                   ]
                 },
                 {
-                  key: 'cppt',
+                  key: 'general-soap',
                   icon: <FileTextOutlined />,
-                  label: 'CPPT (SOAP)'
+                  label: 'SOAP Umum'
                 },
                 {
                   key: 'orders',
@@ -145,50 +138,27 @@ export const DoctorOutpatientWorkspace = ({
             switch (selectedKey) {
               case 'overview':
                 return <EncounterTimeline encounterId={encounterId || ''} />
-              case 'initial-assessment':
+              case 'anamnesis':
+                return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
+              case 'physical-assessment':
                 return (
-                  <div className="space-y-4">
-                    {hasNurseAssessment && (
-                      <div className="mb-4">
-                        <Collapse
-                          ghost
-                          items={[
-                            {
-                              key: 'nurse-summary',
-                              label: (
-                                <div className="flex items-center gap-2 text-blue-600 font-medium">
-                                  <SolutionOutlined />
-                                  <span>Lihat Hasil Pemeriksaan Awal Perawat</span>
-                                </div>
-                              ),
-                              children: (
-                                <NurseAssessmentSummary
-                                  encounterId={encounterId || ''}
-                                  patientId={patientData?.patient.id}
-                                  mode="outpatient"
-                                />
-                              )
-                            }
-                          ]}
-                        />
-                      </div>
-                    )}
-                    <InitialAssessmentForm
-                      encounterId={encounterId!}
-                      patientData={patientData}
-                      mode="outpatient"
-                      performer={{
-                        id: (patientData as any).doctorId || 'doc-default',
-                        name: (patientData as any).doctorName || 'Dokter',
-                        role: 'Doctor'
-                      }}
-                    />
-                  </div>
+                  <PhysicalAssessmentForm
+                    encounterId={encounterId!}
+                    patientId={patientData.patient.id}
+                    patientData={patientData}
+                  />
                 )
               case 'dental-assessment':
-                return <DentalAssessmentForm encounterId={encounterId!} patientData={patientData} />
-              case 'cppt':
-                return <CPPTForm encounterId={encounterId || ''} patientData={patientData} />
+                return (
+                  <DentalPage
+                    encounterId={encounterId!}
+                    patientId={patientData.patient.id}
+                    performerId={(patientData as any).doctorId}
+                    performerName={(patientData as any).doctorName}
+                  />
+                )
+              case 'general-soap':
+                return <GeneralSOAPForm encounterId={encounterId || ''} patientData={patientData} />
               case 'diagnosis-procedure':
                 return (
                   <DiagnosisProceduresForm
