@@ -11,12 +11,13 @@ import {
   SolutionOutlined
 } from '@ant-design/icons'
 import { CPPTForm } from '@renderer/components/organisms/CPPTForm'
+import { GeneralSOAPForm } from '@renderer/components/organisms/GeneralSOAPForm'
 import { ClinicalNoteForm } from '@renderer/components/organisms/ClinicalNoteForm'
 import { DiagnosisProceduresForm } from '@renderer/components/organisms/DiagnosisProceduresForm'
 import { DiagnosticResultViewer } from '@renderer/components/organisms/DiagnosticResultViewer'
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
 import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
-import { DentalAssessmentForm } from '../../components/organisms/Assessment/DentalAssessmentForm'
+import DentalPage from '../../components/organisms/Dental'
 import { FallRiskAssessmentForm } from '@renderer/components/organisms/FallRiskAssessmentForm'
 import { GCSAssessmentForm } from '@renderer/components/organisms/GCSAssessmentForm'
 import { InformedConsentForm } from '@renderer/components/organisms/InformedConsentForm'
@@ -70,6 +71,11 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       icon: <MonitorOutlined />,
       label: 'Monitoring Harian',
       children: [{ key: 'monitoring-ttv', label: 'Monitoring TTV' }]
+    },
+    {
+      key: 'general-soap',
+      icon: <FormOutlined />,
+      label: 'SOAP Umum'
     },
     {
       key: 'cppt',
@@ -132,7 +138,14 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           />
         )
       case 'dental-assessment':
-        return <DentalAssessmentForm encounterId={encounterId!} patientData={patientData} />
+        return (
+          <DentalPage
+            encounterId={encounterId!}
+            patientId={patientData.patient.id}
+            performerId={(patientData as any).doctorId}
+            performerName={(patientData as any).doctorName}
+          />
+        )
       case 'skrining-gizi':
         return (
           <NutritionScreeningForm encounterId={encounterId} patientId={patientData.patient.id} />
@@ -145,6 +158,8 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
         return <GCSAssessmentForm encounterId={encounterId} patientData={patientData} />
       case 'monitoring-ttv':
         return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
+      case 'general-soap':
+        return <GeneralSOAPForm encounterId={encounterId} patientData={patientData} />
       case 'cppt':
         return <CPPTForm encounterId={encounterId} patientData={patientData} />
       case 'prescription':
