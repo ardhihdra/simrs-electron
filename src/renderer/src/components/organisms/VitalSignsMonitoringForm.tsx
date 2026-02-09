@@ -1,6 +1,7 @@
-import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Form, Select, Table, notification } from 'antd'
+import { SaveOutlined, HistoryOutlined } from '@ant-design/icons'
+import { App, Button, Card, Form, Select, Table, notification, Modal } from 'antd'
 import dayjs from 'dayjs'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   useBulkCreateObservation,
@@ -21,6 +22,7 @@ export const VitalSignsMonitoringForm = ({
   patientData
 }: VitalSignsMonitoringFormProps) => {
   const [form] = Form.useForm()
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const bulkCreateObservation = useBulkCreateObservation()
 
   const { data: response, isLoading, refetch } = useObservationByEncounter(encounterId)
@@ -192,23 +194,24 @@ export const VitalSignsMonitoringForm = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card title="Riwayat Monitoring TTV">
-        <Table
-          dataSource={groupedHistory}
-          columns={columns}
-          loading={isLoading}
-          pagination={{ pageSize: 5 }}
-          size="small"
-        />
-      </Card>
-
       <Form
         form={form}
         layout="vertical"
         onFinish={handleFinish}
         initialValues={{ assessment_date: dayjs() }}
       >
-        <Card title="Input Monitoring TTV Harian">
+        <Card
+          title="Input Monitoring TTV Harian"
+          extra={
+            <Button
+              icon={<HistoryOutlined />}
+              onClick={() => setIsHistoryModalOpen(true)}
+            >
+              Lihat Riwayat ({groupedHistory.length})
+            </Button>
+          }
+          className='rounded-none!'
+        >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <div className="mt-4">
             <Form.Item label="Kesadaran" name="consciousness" rules={[{ required: true }]}>
@@ -224,7 +227,7 @@ export const VitalSignsMonitoringForm = ({
           </div>
         </Card>
 
-        <Form.Item className="mt-4">
+        <Form.Item className='mt-4!'>
           <div className="flex justify-end gap-2">
             <Button size="large" onClick={() => form.resetFields()}>
               Reset
@@ -241,6 +244,27 @@ export const VitalSignsMonitoringForm = ({
           </div>
         </Form.Item>
       </Form>
+
+      <Modal
+        title="Riwayat Monitoring TTV"
+        open={isHistoryModalOpen}
+        onCancel={() => setIsHistoryModalOpen(false)}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setIsHistoryModalOpen(false)}>
+            Tutup
+          </Button>
+        ]}
+        width={900}
+      >
+        <Table
+          dataSource={groupedHistory}
+          columns={columns}
+          loading={isLoading}
+          pagination={{ pageSize: 10 }}
+          size="small"
+          scroll={{ x: 800 }}
+        />
+      </Modal>
     </div>
   )
 }

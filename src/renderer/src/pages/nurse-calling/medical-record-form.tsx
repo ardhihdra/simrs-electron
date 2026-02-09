@@ -24,14 +24,13 @@ const MedicalRecordForm = () => {
   const [loading, setLoading] = useState(false)
   const [patientData, setPatientData] = useState<PatientQueue | null>(null)
   const [collapsed, setCollapsed] = useState(false)
-  const [selectedKey, setSelectedKey] = useState('overview')
+  const [selectedKey, setSelectedKey] = useState('initial-assessment')
   const {
     token: { colorBgContainer }
   } = theme.useToken()
 
   useEffect(() => {
     loadPatientData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [encounterId])
 
   const loadPatientData = async () => {
@@ -97,15 +96,6 @@ const MedicalRecordForm = () => {
     if (!patientData || !encounterId) return null
 
     switch (selectedKey) {
-      case 'overview':
-        return (
-          <div className="p-6">
-            <h2 className="text-xl font-bold mb-4">Ringkasan Pasien</h2>
-            <p className="text-gray-600">
-              Informasi ringkasan dan timeline pasien akan ditampilkan di sini.
-            </p>
-          </div>
-        )
       case 'initial-assessment':
         return (
           <InitialAssessmentForm
@@ -122,7 +112,7 @@ const MedicalRecordForm = () => {
           <GeneralSOAPForm
             encounterId={encounterId}
             patientData={patientData}
-            showTTVSection={false}
+            showTTVSection={true}
             allowedRoles={['nurse']}
           />
         )
@@ -144,16 +134,14 @@ const MedicalRecordForm = () => {
   }
 
   return (
-    <div className="p-4">
-      <Button
-        icon={<ArrowLeftOutlined />}
-        onClick={() => navigate('/dashboard/nurse-calling')}
-        className="mb-4"
-      >
-        Kembali ke Antrian
-      </Button>
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      <div className="px-4 pt-4 flex justify-between items-center">
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard/nurse-calling')} className="mb-4">
+          Kembali ke Daftar Pasien
+        </Button>
+      </div>
 
-      <div className="mb-4">
+      <div className="px-4 py-4">
         <PatientInfoCard
           patientData={{
             ...patientData,
@@ -163,74 +151,72 @@ const MedicalRecordForm = () => {
         />
       </div>
 
-      <Layout className="rounded-lg overflow-hidden h-full border border-gray-200">
-        <Layout.Sider
-          width={260}
-          collapsible
-          collapsed={collapsed}
-          onCollapse={(value) => setCollapsed(value)}
-          theme="light"
-          className="border-r border-gray-200"
-          trigger={
-            <div className="bg-white border-t border-gray-200">
-              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+      <div className="flex-1 px-4 pb-4 overflow-hidden relative flex flex-col min-h-0">
+        <Layout className="rounded-lg overflow-hidden h-full border border-gray-200">
+          <Layout.Sider
+            width={260}
+            collapsible
+            collapsed={collapsed}
+            onCollapse={(value) => setCollapsed(value)}
+            theme="light"
+            className="border-r border-gray-200"
+            trigger={
+              <div className="flex items-center justify-center h-12 border-t border-gray-200 text-gray-500 hover:text-blue-600 transition-colors">
+                {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              </div>
+            }
+          >
+            <div className="h-full flex flex-col">
+              <div className={`p-4 ${collapsed ? 'text-center' : ''}`}>
+                {collapsed ? (
+                  <MedicineBoxOutlined className="text-xl text-blue-600" />
+                ) : (
+                  <div className="font-bold text-gray-700 flex items-center gap-2">
+                    <MedicineBoxOutlined className="text-blue-600" />
+                    Perawat
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                <Menu
+                  mode="inline"
+                  defaultSelectedKeys={['initial-assessment']}
+                  style={{ borderRight: 0 }}
+                  items={[
+                    {
+                      key: 'initial-assessment',
+                      icon: <SolutionOutlined />,
+                      label: 'Asesmen Awal'
+                    },
+                    {
+                      key: 'monitoring-ttv',
+                      icon: <MonitorOutlined />,
+                      label: 'Monitoring TTV'
+                    },
+                    {
+                      key: 'general-soap',
+                      icon: <FormOutlined />,
+                      label: 'SOAP Umum'
+                    }
+                  ]}
+                  onSelect={({ key }) => setSelectedKey(key)}
+                />
+              </div>
             </div>
-          }
-        >
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              {collapsed ? (
-                <MedicineBoxOutlined className="text-blue-600 text-xl" />
-              ) : (
-                <div className="font-bold text-gray-700 flex items-center gap-2">
-                  <MedicineBoxOutlined className="text-blue-600" />
-                  Perawat
-                </div>
-              )}
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <Menu
-                mode="inline"
-                selectedKeys={[selectedKey]}
-                onClick={({ key }) => setSelectedKey(key)}
-                style={{ borderRight: 0 }}
-                items={[
-                  {
-                    key: 'overview',
-                    icon: <MonitorOutlined />,
-                    label: 'Ringkasan Pasien'
-                  },
-                  {
-                    key: 'initial-assessment',
-                    icon: <SolutionOutlined />,
-                    label: 'Asesmen Awal'
-                  },
-                  {
-                    key: 'monitoring-ttv',
-                    icon: <MonitorOutlined />,
-                    label: 'Monitoring TTV'
-                  },
-                  {
-                    key: 'general-soap',
-                    icon: <FormOutlined />,
-                    label: 'SOAP Umum'
-                  }
-                ]}
-              />
-            </div>
-          </div>
-        </Layout.Sider>
-
-        <Layout.Content
-          style={{
-            background: colorBgContainer,
-            minHeight: '600px'
-          }}
-          className="overflow-y-auto"
-        >
-          {renderContent()}
-        </Layout.Content>
-      </Layout>
+          </Layout.Sider>
+          <Layout>
+            <Layout.Content
+              className="p-6 overflow-y-auto h-full"
+              style={{
+                background: colorBgContainer,
+                minHeight: 280
+              }}
+            >
+              {renderContent()}
+            </Layout.Content>
+          </Layout>
+        </Layout>
+      </div>
     </div>
   )
 }

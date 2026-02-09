@@ -30,16 +30,7 @@ interface PatientQueueTableData extends PatientQueue {
   key: string
 }
 
-function mapEncounterStatusToPatientStatus(status: string): PatientStatus {
-  const s = status?.toLowerCase()
-  if (s === 'planned') return PatientStatus.WAITING
-  if (s === 'arrived' || s === 'planned') return PatientStatus.WAITING
-  if (s === 'triaged') return PatientStatus.EXAMINING
-  if (s === 'in-progress') return PatientStatus.EXAMINING
-  if (s === 'finished') return PatientStatus.COMPLETED
-  if (s === 'cancelled') return PatientStatus.CANCELLED
-  return PatientStatus.WAITING
-}
+
 
 const PatientQueueTable = () => {
   const navigate = useNavigate()
@@ -64,34 +55,41 @@ const PatientQueueTable = () => {
       if (!fn) throw new Error('API encounter tidak tersedia')
 
       const params: any = {}
+
       if (searchText) params.q = searchText
-      if (selectedPoli) params.serviceType = selectedPoli
+
       if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+
+      if (selectedPoli) {
+        const selectedPoliData = polis.find(p => p.id === selectedPoli)
+        if (selectedPoliData) {
+          params.serviceType = selectedPoliData.name
+        }
+      }
 
       if (dateRange) {
         params.startDate = dateRange[0].startOf('day').toISOString()
         params.endDate = dateRange[1].endOf('day').toISOString()
       }
 
-      // Default sort for queue
-      params.sortBy = 'visitDate'
-      params.sortOrder = 'ASC'
+      params.sortBy = 'updatedAt'
+      params.sortOrder = 'DESC'
 
       return fn(params)
-    }
+    },
+    enabled: polis.length > 0
   })
 
-  // Derive patientQueue from encounterData
   const patientQueue: PatientQueueTableData[] = (encounterData?.result || []).map(
     (enc: any, index: number) => {
       const birthDate = enc.patient?.birthDate ? dayjs(enc.patient.birthDate) : null
       const age = birthDate ? dayjs().diff(birthDate, 'year') : 0
 
       return {
+        no: index + 1,
         key: enc.id,
         id: enc.id,
         encounterId: enc.id,
-        queueNumber: enc.queueTicket?.queueNumber || index + 1,
         patient: {
           id: enc.patient?.id || '',
           name: enc.patient?.name || 'Unknown',
@@ -114,7 +112,7 @@ const PatientQueueTable = () => {
           specialization: 'General',
           sipNumber: enc.queueTicket?.practitioner?.nik || '123'
         },
-        status: mapEncounterStatusToPatientStatus(enc.status),
+        status: enc.status || 'unknown',
         registrationDate: enc.startTime || enc.createdAt || enc.visitDate
       }
     }
@@ -168,17 +166,15 @@ const PatientQueueTable = () => {
     refetch()
   }
 
-  const getStatusTag = (status: PatientStatus) => {
+  const getStatusTag = (status: string) => {
     switch (status) {
-      case PatientStatus.WAITING:
+      case 'PLANNED':
         return <Tag color="blue">Menunggu</Tag>
-      case PatientStatus.CALLED:
-        return <Tag color="orange">Dipanggil</Tag>
-      case PatientStatus.EXAMINING:
-        return <Tag color="processing">Sedang Diperiksa</Tag>
-      case PatientStatus.COMPLETED:
+      case 'IN_PROGRESS':
+        return <Tag color="orange">Sedang Diperiksa</Tag>
+      case 'FINISHED':
         return <Tag color="success">Selesai</Tag>
-      case PatientStatus.CANCELLED:
+      case 'CANCELLED':
         return <Tag color="error">Dibatalkan</Tag>
       default:
         return <Tag>{status}</Tag>
@@ -187,9 +183,9 @@ const PatientQueueTable = () => {
 
   const columns: ColumnsType<PatientQueueTableData> = [
     {
-      title: 'No. Antrian',
-      dataIndex: 'queueNumber',
-      key: 'queueNumber',
+      title: 'No',
+      dataIndex: 'no',
+      key: 'no',
       width: 120,
       align: 'center',
       render: (num: number) => <div className="text-2xl font-bold text-blue-600">{num}</div>
@@ -222,17 +218,11 @@ const PatientQueueTable = () => {
       width: 150
     },
     {
-      title: 'Dokter',
-      dataIndex: ['doctor', 'name'],
-      key: 'doctor',
-      width: 200
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       width: 150,
-      render: (status: PatientStatus) => getStatusTag(status)
+      render: (status: string) => getStatusTag(status)
     },
     {
       title: 'Aksi',
@@ -260,9 +250,10 @@ const PatientQueueTable = () => {
 
   const statusTabs = [
     { key: 'all', label: 'Semua' },
-    { key: 'arrived', label: 'Menunggu' },
-    { key: 'in-progress', label: 'Sedang Diperiksa' },
-    { key: 'finished', label: 'Selesai' }
+    { key: 'PLANNED', label: 'Menunggu' },
+    { key: 'IN_PROGRESS', label: 'Sedang Diperiksa' },
+    { key: 'FINISHED', label: 'Selesai' },
+    { key: 'CANCELLED', label: 'Dibatalkan' }
   ]
 
   return (

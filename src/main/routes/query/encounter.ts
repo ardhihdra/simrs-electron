@@ -74,6 +74,15 @@ export const schemas = {
   deleteById: {
     args: z.object({ id: z.string() }),
     result: z.object({ success: z.boolean(), error: z.string().optional().nullable() })
+  },
+  getTimeline: {
+    args: z.object({ encounterId: z.string() }),
+    result: z.object({
+      success: z.boolean(),
+      result: z.array(z.any()).optional(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
   }
 } as const
 
@@ -359,5 +368,29 @@ export const deleteById = async (
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
+  }
+}
+
+export const getTimeline = async (
+  ctx: IpcContext,
+  args: z.infer<typeof schemas.getTimeline.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.get(`/api/encounter/${args.encounterId}/timeline`)
+
+    const TimelineSchema = z.object({
+      success: z.boolean(),
+      result: z.array(z.any()).optional(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
+
+    const parsedResult = await parseBackendResponse(res, TimelineSchema)
+    return parsedResult
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ENCOUNTER TIMELINE] Error:', msg)
+    return { success: false, error: msg, result: [] }
   }
 }

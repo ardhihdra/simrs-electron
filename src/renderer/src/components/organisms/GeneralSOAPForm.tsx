@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
     Form,
     Input,
@@ -46,6 +46,9 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
     const { message } = App.useApp()
     const [form] = Form.useForm()
     const [isAddingNew, setIsAddingNew] = useState(false)
+    const [hasFinalEntry, setHasFinalEntry] = useState(false)
+    const [draftEntry, setDraftEntry] = useState<any>(null)
+    const [editingId, setEditingId] = useState<number | null>(null)
 
     const { data: compositionData, isLoading, refetch } = useCompositionByEncounter(encounterId)
     const { data: obsData } = useObservationByEncounter(encounterId)
@@ -60,7 +63,6 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
             if (res.success && res.result) {
                 let filtered = res.result.filter((p: any) => p.hakAksesId === 'doctor' || p.hakAksesId === 'nurse')
 
-                // Filter by allowedRoles if specified
                 if (allowedRoles && allowedRoles.length > 0) {
                     filtered = filtered.filter((p: any) => allowedRoles.includes(p.hakAksesId))
                 }
@@ -88,7 +90,7 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
                 }
             }
 
-            await upsertMutation.mutateAsync({
+            const payload: any = {
                 encounterId,
                 patientId: patientData.patient.id,
                 doctorId: Number(values.performerId),
@@ -99,13 +101,21 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
                 soapPlan: values.soapPlan,
                 status: values.status,
                 issued: values.assessment_date ? values.assessment_date.toISOString() : undefined
-            })
+            }
+
+            if (editingId) {
+                payload.id = editingId
+            }
+
+            await upsertMutation.mutateAsync(payload)
 
             const statusMsg = values.status === 'final' ? 'Final' : 'Draft'
             const roleMsg = currentRole === 'nurse' ? 'Perawat' : 'Dokter'
-            message.success(`SOAP Umum berhasil disimpan oleh ${roleMsg} (${statusMsg})`)
+            const actionMsg = editingId ? 'diupdate' : 'disimpan'
+            message.success(`SOAP Umum berhasil ${actionMsg} oleh ${roleMsg} (${statusMsg})`)
             form.resetFields()
             setIsAddingNew(false)
+            setEditingId(null)
             refetch()
             onSaveSuccess?.()
         } catch (error) {
@@ -215,6 +225,7 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
     const handleEdit = (record: any) => {
         const { remainingText } = parseVitals(record.soapObjective || '')
         form.setFieldsValue({
+            performerId: record.authorId?.[0] || undefined,
             soapSubjective: record.soapSubjective,
             soapObjective: remainingText,
             soapAssessment: record.soapAssessment,
@@ -224,6 +235,7 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
 
         form.setFieldValue('soapObjective', record.soapObjective)
 
+        setEditingId(record.id)
         setIsAddingNew(true)
     }
 
@@ -360,6 +372,17 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
         }
     ]
 
+    useEffect(() => {
+        const soapEntries = (compositionData?.result || []).filter(
+            (comp: any) => comp.title === 'SOAP Umum'
+        )
+        const finalEntry = soapEntries.find((entry: any) => entry.status === 'final')
+        setHasFinalEntry(!!finalEntry)
+
+        const draft = soapEntries.find((entry: any) => entry.status === 'preliminary')
+        setDraftEntry(draft || null)
+    }, [compositionData])
+
     if (isLoading) {
         return (
             <div className="flex justify-center items-center py-8">
@@ -382,11 +405,35 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
                     </Space>
                 }
                 extra={
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsAddingNew(true)}>
-                        Tambah SOAP
-                    </Button>
+                    <>
+                        {/* {hasFinalEntry && (
+                            <Alert
+                                message="SOAP Umum Sudah Final"
+                                description="SOAP Umum untuk encounter ini sudah difinalisasi. Untuk catatan berkelanjutan, gunakan CPPT."
+                                type="info"
+                                showIcon
+                                className="mb-0"
+                                style={{ maxWidth: 400 }}
+                            />
+                        )} */}
+                        {!hasFinalEntry && !draftEntry && (
+                            <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsAddingNew(true)}>
+                                Tambah SOAP
+                            </Button>
+                        )}
+                        {/* {draftEntry && !hasFinalEntry && (
+                            <Alert
+                                message="Ada Draft SOAP"
+                                description="Silakan edit atau finalisasi draft yang ada di tabel di bawah."
+                                type="warning"
+                                showIcon
+                                className="mb-0"
+                                style={{ maxWidth: 400 }}
+                            />
+                        )} */}
+                    </>
                 }
-                bodyStyle={{ padding: 0 }}
+                className='rounded-none!'
             >
                 <Table
                     columns={columns}
@@ -401,11 +448,19 @@ export const GeneralSOAPForm = ({ encounterId, patientData, onSaveSuccess, showT
             </Card>
 
             <Modal
-                title="Input SOAP Umum"
+                title={editingId ? "Edit SOAP Umum" : "Input SOAP Umum"}
                 open={isAddingNew}
-                onCancel={() => setIsAddingNew(false)}
+                onCancel={() => {
+                    setIsAddingNew(false)
+                    setEditingId(null)
+                    form.resetFields()
+                }}
                 footer={[
-                    <Button key="back" onClick={() => setIsAddingNew(false)}>
+                    <Button key="back" onClick={() => {
+                        setIsAddingNew(false)
+                        setEditingId(null)
+                        form.resetFields()
+                    }}>
                         Batal
                     </Button>,
                     <Button

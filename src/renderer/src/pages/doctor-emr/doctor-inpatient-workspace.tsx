@@ -55,7 +55,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
     {
       key: 'assessment',
       icon: <SolutionOutlined />,
-      label: 'Asesmen Awal',
+      label: 'Asesmen',
       children: [
         { key: 'initial-assessment', label: 'Skrining Perawat' },
         { key: 'anamnesis', label: 'Anamnesis' },

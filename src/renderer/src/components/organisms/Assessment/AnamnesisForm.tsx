@@ -12,7 +12,6 @@ import {
     useFamilyHistoryByPatient
 } from '../../../hooks/query/use-family-history'
 import {
-    useBulkCreateObservation,
     useObservationByEncounter
 } from '../../../hooks/query/use-observation'
 import { formatObservationSummary } from '../../../utils/observation-helpers'

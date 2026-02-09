@@ -20,55 +20,17 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
   const [detailItems, setDetailItems] = useState<any[]>([])
 
   const { data: timelineData, isLoading } = useQuery({
-    queryKey: ['observations', encounterId, 'timeline'],
+    queryKey: ['encounter', encounterId, 'timeline'],
     queryFn: async () => {
-      const fn = window.api?.query?.observation?.getByEncounter
-      if (!fn) throw new Error('API observation tidak tersedia')
+      const fn = window.api?.query?.encounter?.getTimeline
+      if (!fn) throw new Error('API timeline tidak tersedia')
       const res = await fn({ encounterId })
 
-      let allObs: any[] = []
-      if (res.result && !Array.isArray(res.result) && Array.isArray(res.result.all)) {
-        allObs = res.result.all
-      } else {
-        allObs = Array.isArray(res.result) ? res.result : []
+      if (!res.success || !res.result) {
+        return []
       }
 
-      const dateGroups: Record<
-        string,
-        { date: string; items: any[]; doctors: Set<string>; sessions: Record<string, any[]> }
-      > = {}
-      allObs.forEach((obs) => {
-        const effectiveDate = obs.effectiveDateTime || obs.issued || obs.createdAt
-        const dateKey = dayjs(effectiveDate).format('YYYY-MM-DD')
-        const timeKey = dayjs(effectiveDate).format('HH:mm')
-
-        if (!dateGroups[dateKey]) {
-          dateGroups[dateKey] = {
-            date: dateKey,
-            items: [],
-            doctors: new Set(),
-            sessions: {}
-          }
-        }
-
-        if (!dateGroups[dateKey].sessions[timeKey]) {
-          dateGroups[dateKey].sessions[timeKey] = []
-        }
-
-        dateGroups[dateKey].items.push(obs)
-        dateGroups[dateKey].sessions[timeKey].push(obs)
-        const doc = obs.performers?.[0]?.display || 'Petugas Medis'
-        dateGroups[dateKey].doctors.add(doc)
-      })
-
-      return Object.values(dateGroups)
-        .map((day) => ({
-          ...day,
-          sessionList: Object.entries(day.sessions)
-            .map(([time, items]) => ({ time, items }))
-            .sort((a, b) => b.time.localeCompare(a.time))
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date))
+      return res.result
     }
   })
 
@@ -112,17 +74,22 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
     },
     {
       title: 'Pemberi Layanan',
-      dataIndex: 'doctors',
-      key: 'doctors',
-      render: (doctors: Set<string>) => (
-        <Space wrap size={4}>
-          {Array.from(doctors).map((doc, i) => (
-            <Tag key={i} className="m-0 bg-gray-50 border-gray-200 text-gray-600 rounded-full px-3">
-              {doc}
-            </Tag>
-          ))}
-        </Space>
-      )
+      key: 'performers',
+      render: (record: any) => {
+        const performers = new Set<string>()
+        record.sessions?.forEach((session: any) => {
+          if (session.performer) performers.add(session.performer)
+        })
+        return (
+          <Space wrap size={4}>
+            {Array.from(performers).map((doc, i) => (
+              <Tag key={i} className="m-0 bg-gray-50 border-gray-200 text-gray-600 rounded-full px-3">
+                {doc}
+              </Tag>
+            ))}
+          </Space>
+        )
+      }
     },
     {
       title: 'Ringkasan',
@@ -130,7 +97,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       width: 200,
       render: (record: any) => (
         <Tag color="cyan" className="rounded-full px-3 border-0">
-          {record.sessionList.length} Sesi Pemeriksaan
+          {record.sessions?.length || 0} Sesi Pemeriksaan
         </Tag>
       )
     }
@@ -152,8 +119,8 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       {
         title: 'Pemeriksa',
         key: 'performer',
-        render: (item: any) => {
-          const name = item.items[0]?.performers?.[0]?.display || 'Petugas Medis'
+        render: (session: any) => {
+          const name = session.performer || 'Petugas Medis'
           return (
             <Space>
               <Avatar size="small" icon={<UserOutlined />} className="bg-slate-300" />
@@ -167,13 +134,13 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         key: 'action',
         width: 120,
         align: 'right' as const,
-        render: (item: any) => (
+        render: (session: any) => (
           <Button
             type="link"
             size="small"
             className="text-blue-600 hover:text-blue-800"
             icon={<EyeOutlined />}
-            onClick={() => handleOpenDetail(`${record.date} ${item.time}`, item.items)}
+            onClick={() => handleOpenDetail(`${record.date} ${session.time}`, [...session.observations, ...session.compositions])}
           >
             Lihat Detail
           </Button>
@@ -185,7 +152,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       <div className="">
         <Table
           columns={sessionColumns}
-          dataSource={record.sessionList}
+          dataSource={record.sessions}
           pagination={false}
           size="small"
           rowKey="time"

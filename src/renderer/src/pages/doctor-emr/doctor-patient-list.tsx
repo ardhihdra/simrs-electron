@@ -17,6 +17,7 @@ import {
 import { EyeOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 
 const { RangePicker } = DatePicker
@@ -57,34 +58,37 @@ interface PatientListTableData {
   }
   status: string
   hasObservations: boolean
-  visitDate: string
 }
 
 const PatientList = () => {
   const navigate = useNavigate()
-  const { message } = App.useApp()
-  const [loading, setLoading] = useState(false)
-  const [patients, setPatients] = useState<PatientListTableData[]>([])
-
-  // Filter States
+  const [polis, setPolis] = useState<any[]>([])
   const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null) // Default to All Time
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
   const [activeStatus, setActiveStatus] = useState<string>('all')
 
-  const loadPatients = async () => {
-    setLoading(true)
-    try {
+  const {
+    data: encounterData,
+    isLoading,
+    refetch
+  } = useQuery({
+    queryKey: ['encounter', 'list', selectedPoli, searchText, activeStatus, dateRange],
+    queryFn: async () => {
       const fn = window.api?.query?.encounter?.list
       if (!fn) throw new Error('API encounter tidak tersedia')
 
-      // Prepare query params
       const params: any = {}
 
       if (searchText) params.q = searchText
-      if (selectedPoli) params.serviceType = selectedPoli
-      if (activeStatus && activeStatus !== 'all') {
-        params.status = activeStatus.toUpperCase().replace(/-/g, '_')
+
+      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+
+      if (selectedPoli) {
+        const selectedPoliData = polis.find(p => p.id === selectedPoli || p.name === selectedPoli)
+        if (selectedPoliData) {
+          params.serviceType = selectedPoliData.name
+        }
       }
 
       if (dateRange) {
@@ -92,75 +96,69 @@ const PatientList = () => {
         params.endDate = dateRange[1].endOf('day').toISOString()
       }
 
-      params.sortBy = 'visitDate'
+      params.sortBy = 'updatedAt'
       params.sortOrder = 'DESC'
 
-      const response = await fn(params)
+      return fn(params)
+    },
+    enabled: polis.length > 0
+  })
 
-      if (response.success && Array.isArray(response.result)) {
-        const encounters = response.result as any[]
+  const patients: PatientListTableData[] = (encounterData?.result || []).map((enc: any, index: number) => {
+    const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
+    const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
 
-        const tableData: PatientListTableData[] = encounters.map((enc: any) => {
-          const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
-          const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
+    return {
+      no: index + 1,
+      key: enc.id,
+      id: enc.id,
+      encounterId: enc.id,
+      queueNumber: enc.queueTicket?.queueNumber || 0,
+      patient: {
+        id: enc.patient?.id || '',
+        name: enc.patient?.name || 'Unknown',
+        medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
+        gender: enc.patient?.gender || 'male',
+        age: age,
+        birthDate: enc.patient?.birthDate || '',
+        nik: enc.patient?.nik || ''
+      },
+      queueTicket: enc.queueTicket
+        ? {
+          id: enc.queueTicket.id,
+          queueNumber: enc.queueTicket.queueNumber,
+          queueDate: enc.queueTicket.queueDate,
+          status: enc.queueTicket.status,
+          poli: enc.queueTicket.poli,
+          practitioner: enc.queueTicket.practitioner
+        }
+        : undefined,
+      poli: {
+        name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
+      },
+      status: enc.status || 'unknown',
+      hasObservations: true,
+      visitDate: enc.startTime || enc.createdAt || new Date().toISOString()
+    }
+  })
 
-          return {
-            key: enc.id,
-            id: enc.id,
-            encounterId: enc.id,
-            queueNumber: enc.queueTicket?.queueNumber || 0,
-            patient: {
-              id: enc.patient?.id || '',
-              name: enc.patient?.name || 'Unknown',
-              medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
-              gender: enc.patient?.gender || 'male',
-              age: age,
-              birthDate: enc.patient?.birthDate || '',
-              nik: enc.patient?.nik || ''
-            },
-            queueTicket: enc.queueTicket
-              ? {
-                  id: enc.queueTicket.id,
-                  queueNumber: enc.queueTicket.queueNumber,
-                  queueDate: enc.queueTicket.queueDate,
-                  status: enc.queueTicket.status,
-                  poli: enc.queueTicket.poli,
-                  practitioner: enc.queueTicket.practitioner
-                }
-              : undefined,
-            poli: {
-              name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
-            },
-            status: enc.status?.toLowerCase().replace(/_/g, '-') || 'unknown',
-            hasObservations: true,
-            visitDate: enc.startTime || enc.createdAt || new Date().toISOString()
-          }
-        })
-
-        setPatients(tableData)
-      } else {
-        message.error('Gagal memuat data pasien')
+  const loadPolis = async () => {
+    try {
+      const fn = window.api?.query?.poli?.list
+      if (fn) {
+        const response = await fn()
+        if (response.success && response.result) {
+          setPolis(response.result)
+        }
       }
     } catch (error) {
-      console.error('Error loading patients:', error)
-      message.error('Gagal memuat data pasien')
-    } finally {
-      setLoading(false)
+      console.error('Error loading polis:', error)
     }
   }
 
   useEffect(() => {
-    loadPatients()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Initial load only, manual refresh for filters to avoid too many requests or add debounce later
-
-  // Refresh when filters change (optional: can be manual trigger)
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      loadPatients()
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [searchText, selectedPoli, activeStatus, dateRange])
+    loadPolis()
+  }, [])
 
   const handleViewRecord = (record: PatientListTableData) => {
     navigate(`/dashboard/doctor/${record.encounterId}`)
@@ -168,20 +166,14 @@ const PatientList = () => {
 
   const getStatusTag = (status: string) => {
     switch (status) {
-      case 'planned':
-        return <Tag color="default">Terjadwal</Tag>
-      case 'arrived':
-        return <Tag color="blue">Tiba</Tag>
-      case 'triaged':
-        return <Tag color="processing">Di Perawat</Tag>
-      case 'in-progress':
+      case 'PLANNED':
+        return <Tag color="blue">Menunggu</Tag>
+      case 'IN_PROGRESS':
         return <Tag color="orange">Sedang Diperiksa</Tag>
-      case 'finished':
+      case 'FINISHED':
         return <Tag color="success">Selesai</Tag>
-      case 'cancelled':
-        return <Tag color="error">Batal</Tag>
-      case 'on-hold':
-        return <Tag color="default">Ditunda</Tag>
+      case 'CANCELLED':
+        return <Tag color="error">Dibatalkan</Tag>
       default:
         return <Tag>{status}</Tag>
     }
@@ -189,19 +181,12 @@ const PatientList = () => {
 
   const columns: ColumnsType<PatientListTableData> = [
     {
-      title: 'No. Antrian',
-      dataIndex: 'queueNumber',
-      key: 'queueNumber',
+      title: 'No',
+      dataIndex: 'no',
+      key: 'no',
       width: 100,
       align: 'center',
       render: (num: number) => <div className="text-xl font-bold text-blue-600">{num}</div>
-    },
-    {
-      title: 'Waktu',
-      dataIndex: 'visitDate',
-      key: 'visitDate',
-      width: 120,
-      render: (date: string) => dayjs(date).format('HH:mm')
     },
     {
       title: 'No. Rekam Medis',
@@ -258,9 +243,10 @@ const PatientList = () => {
 
   const statusTabs = [
     { key: 'all', label: 'Semua' },
-    { key: 'triaged', label: 'Menunggu Dokter' },
-    { key: 'in-progress', label: 'Sedang Diperiksa' },
-    { key: 'finished', label: 'Selesai' }
+    { key: 'PLANNED', label: 'Menunggu' },
+    { key: 'IN_PROGRESS', label: 'Sedang Diperiksa' },
+    { key: 'FINISHED', label: 'Selesai' },
+    { key: 'CANCELLED', label: 'Dibatalkan' }
   ]
 
   return (
@@ -277,8 +263,8 @@ const PatientList = () => {
             <Button
               type="text"
               icon={<ReloadOutlined />}
-              onClick={() => loadPatients()}
-              loading={loading}
+              onClick={() => refetch()}
+              loading={isLoading}
             />
           </Space>
         }
@@ -332,7 +318,7 @@ const PatientList = () => {
 
       {/* Main Table */}
       <Card bodyStyle={{ padding: '0' }} className="flex-1 overflow-hidden flex flex-col">
-        <Spin spinning={loading}>
+        <Spin spinning={isLoading}>
           <Table
             columns={columns}
             dataSource={patients}
