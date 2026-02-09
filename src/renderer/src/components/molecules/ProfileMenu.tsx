@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
+import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
-import { LogoutOutlined, UserOutlined, SettingOutlined } from '@ant-design/icons'
+import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import SettingsModal from './SettingsModal'
+import SettingsModal from '../SettingsModal'
 
 type SessionUser = { id: number | string; username: string }
-type GetSessionResult = { success: boolean; session?: Record<string, never>; user?: SessionUser; error?: string }
+type GetSessionResult = {
+  success: boolean
+  session?: Record<string, never>
+  user?: SessionUser
+  error?: string
+}
 type LogoutResult = { success: boolean }
 
 function ProfileMenu() {
@@ -71,12 +76,12 @@ function ProfileMenu() {
 
   return (
     <>
-      <Dropdown menu={{ items }} placement="bottomRight" trigger={['click']}>
+      <Dropdown menu={{ items }} placement="bottomLeft" trigger={['click']}>
         <Space className="cursor-pointer select-none items-center">
           <Avatar size={32} className="bg-[#EDF2FF] text-[#1E3A8A] font-medium">
             {initials}
           </Avatar>
-          <div className="hidden md:block text-sm">
+          <div className="hidden xl:block text-sm">
             <div className="font-medium leading-none">{profile?.username || 'User'}</div>
           </div>
         </Space>
