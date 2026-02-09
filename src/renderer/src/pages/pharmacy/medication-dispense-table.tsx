@@ -113,17 +113,6 @@ interface MedicationRequestDetailResult {
 	error?: string
 }
 
-interface ItemCategoryAttributes {
-	id?: number
-	name?: string | null
-}
-
-interface ItemCategoryListResponse {
-	success: boolean
-	result?: ItemCategoryAttributes[]
-	message?: string
-}
-
 interface ItemAttributes {
 	id?: number
 	nama?: string
@@ -467,18 +456,6 @@ export function MedicationDispenseTable() {
 		}
 	})
 
-	const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
-		queryKey: ['itemCategory', 'list', 'for-medication-dispense-table'],
-		queryFn: () => {
-			const api = window.api?.query as {
-				medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
-			}
-			const fn = api?.medicineCategory?.list
-			if (!fn) throw new Error('API kategori item tidak tersedia.')
-			return fn()
-		}
-	})
-
 	const itemApi = (window.api?.query as {
 		item?: { list: () => Promise<ItemListResponse> }
 	}).item
@@ -493,17 +470,30 @@ export function MedicationDispenseTable() {
 	})
 
 	const itemCategoryNameById = useMemo(() => {
-		const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
-			? itemCategorySource.result
+		const items: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
 			: []
 		const map = new Map<number, string>()
-		for (const cat of entries) {
-			if (typeof cat.id === 'number' && typeof cat.name === 'string' && cat.name.length > 0) {
-				map.set(cat.id, cat.name)
+		for (const item of items) {
+			const id =
+				typeof item.itemCategoryId === 'number'
+					? item.itemCategoryId
+					: typeof item.category?.id === 'number'
+						? item.category.id
+						: undefined
+			if (typeof id !== 'number') continue
+			const rawName =
+				typeof item.category?.name === 'string'
+					? item.category.name
+					: undefined
+			const name = rawName ? rawName.trim() : ''
+			if (!name) continue
+			if (!map.has(id)) {
+				map.set(id, name)
 			}
 		}
 		return map
-	}, [itemCategorySource?.result])
+	}, [itemSource?.result])
 
 	const itemCategoryIdByItemId = useMemo(() => {
 		const source: ItemAttributes[] = Array.isArray(itemSource?.result)
@@ -735,7 +725,7 @@ export function MedicationDispenseTable() {
 
 		return (
 			<div>
-				<h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat (Dispensing)</h2>
+				<h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat</h2>
 				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 					<Input
 						type="text"

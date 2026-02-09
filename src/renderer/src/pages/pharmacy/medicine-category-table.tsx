@@ -10,10 +10,12 @@ interface MedicineCategoryAttributes {
   id?: number
   name: string
   status?: boolean
+  categoryType?: string | null
 }
 
 const columns = [
   { title: 'Nama', dataIndex: 'name', key: 'name' },
+  { title: 'Tipe Kategori', dataIndex: 'categoryType', key: 'categoryType' },
   {
     title: 'Status',
     dataIndex: 'status',
@@ -97,4 +99,3 @@ export function MedicineCategoryTable() {
 }
 
 export default MedicineCategoryTable
-

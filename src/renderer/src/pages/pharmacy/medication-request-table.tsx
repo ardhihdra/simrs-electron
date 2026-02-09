@@ -112,18 +112,6 @@ interface MedicationDispenseListResultForFilter {
 	}
 	error?: string
 }
-
-
-interface ItemCategoryAttributes {
-	id?: number
-	name?: string | null
-}
-
-interface ItemCategoryListResponse {
-	success: boolean
-	result?: ItemCategoryAttributes[]
-	message?: string
-}
 function getPatientDisplayName(patient?: PatientInfo): string {
   if (!patient) return ''
 
@@ -248,7 +236,7 @@ function RowActions({ record }: { record: ParentRow }) {
   const items: MenuProps['items'] = [
     {
       key: 'process-dispense',
-      label: 'Proses Dispense',
+      label: 'Proses Pengambilan Obat',
       onClick: () => {
         if (typeof record.baseId === 'number') {
           navigate(`/dashboard/medicine/medication-requests/dispense/${record.baseId}`)
@@ -306,30 +294,31 @@ export function MedicationRequestTable() {
 		}
 	})
 
-	const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
-		queryKey: ['itemCategory', 'list', 'for-medication-request-table'],
-		queryFn: async () => {
-			const api = window.api?.query as {
-				medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
-			}
-			const fn = api?.medicineCategory?.list
-			if (!fn) throw new Error('API kategori item tidak tersedia.')
-			return fn()
-		}
-	})
-
 	const itemCategoryNameById = useMemo(() => {
-		const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
-			? itemCategorySource.result
+		const source: MedicationRequestAttributes[] = Array.isArray(data?.data)
+			? (data.data as MedicationRequestAttributes[])
 			: []
 		const map = new Map<number, string>()
-		for (const cat of entries) {
-			if (typeof cat.id === 'number' && typeof cat.name === 'string' && cat.name.length > 0) {
-				map.set(cat.id, cat.name)
+		for (const req of source) {
+			const categoryEntries = Array.isArray(req.category) ? req.category : []
+			for (const cat of categoryEntries) {
+				const code = typeof cat.code === 'string' ? cat.code : ''
+				const name = typeof cat.text === 'string' ? cat.text : ''
+				const trimmedName = name.trim()
+				if (!code || !trimmedName) {
+					continue
+				}
+				const id = Number.parseInt(code, 10)
+				if (!Number.isFinite(id)) {
+					continue
+				}
+				if (!map.has(id)) {
+					map.set(id, trimmedName)
+				}
 			}
 		}
 		return map
-	}, [itemCategorySource?.result])
+	}, [data?.data])
 
 	const { data: dispenseListData } = useQuery({
 		queryKey: ['medicationDispense', 'forStatus'],

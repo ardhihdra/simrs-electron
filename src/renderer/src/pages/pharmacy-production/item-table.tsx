@@ -15,11 +15,6 @@ interface PriceRule {
 	price: number
 }
 
-interface ItemCategoryAttributes {
-	id?: number
-	name?: string | null
-}
-
 interface ItemAttributes {
 	id?: number
 	nama: string
@@ -61,18 +56,7 @@ type InventoryStockResponse = {
   message?: string
 }
 
-type ItemCategoryListResponse = {
-	success: boolean
-	result?: ItemCategoryAttributes[]
-	message?: string
-}
-
-const kindLabels: Record<ItemKind, string> = {
-  DEVICE: 'Alat Kesehatan',
-  CONSUMABLE: 'BMHP / Habis Pakai',
-  NUTRITION: 'Makanan / Minuman',
-  GENERAL: 'Barang Umum'
-}
+ 
 
 const formatRupiah = (value: number | string | null | undefined): string => {
 	if (value === null || value === undefined) return '-'
@@ -466,32 +450,31 @@ export function ItemTable() {
     }
   })
 
-	const { data: categorySource } = useQuery<ItemCategoryListResponse>({
-		queryKey: ['itemCategory', 'list', 'for-item-table'],
-		queryFn: () => {
-			const api = window.api?.query as {
-				medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
-			}
-			const fn = api.medicineCategory?.list
-			if (!fn) throw new Error('API kategori item tidak tersedia.')
-			return fn()
-		}
-	})
-
 	const itemCategoryNameById = useMemo(() => {
-		const entries: ItemCategoryAttributes[] = Array.isArray(categorySource?.result)
-			? categorySource.result
+		const items: ItemAttributes[] = Array.isArray(data?.result)
+			? data.result
 			: []
 		const map = new Map<number, string>()
-		for (const cat of entries) {
-			if (typeof cat.id !== 'number') continue
-			const rawName = typeof cat.name === 'string' ? cat.name : ''
-			const name = rawName.trim()
+		for (const item of items) {
+			const id =
+				typeof item.itemCategoryId === 'number'
+					? item.itemCategoryId
+					: typeof item.category?.id === 'number'
+						? item.category.id
+						: undefined
+			if (typeof id !== 'number') continue
+			const rawName =
+				typeof item.category?.name === 'string'
+					? item.category.name
+					: undefined
+			const name = rawName ? rawName.trim() : ''
 			if (!name) continue
-			map.set(cat.id, name)
+			if (!map.has(id)) {
+				map.set(id, name)
+			}
 		}
 		return map
-	}, [categorySource?.result])
+	}, [data?.result])
 
   const { data: stockData } = useQuery<InventoryStockResponse>({
     queryKey: ['inventoryStock', 'list'],

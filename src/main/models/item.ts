@@ -5,6 +5,7 @@ export const ItemKindSchema = z.enum(['DEVICE', 'CONSUMABLE', 'NUTRITION', 'GENE
 const ItemCategorySchema = z.object({
 	id: z.number(),
 	name: z.string(),
+	categoryType: z.string().nullable().optional(),
 	status: z.boolean().optional(),
 	createdAt: z.string().nullable().optional(),
 	updatedAt: z.string().nullable().optional(),

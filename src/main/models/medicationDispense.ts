@@ -19,10 +19,13 @@ const PatientNameEntrySchema = z.object({
 })
 
 const PatientSchema = z.object({
-  id: z.string().optional(),
-  name: z.array(PatientNameEntrySchema).optional(),
-  identifier: z.array(PatientIdentifierSchema).optional(),
-  mrNo: z.string().optional()
+	id: z.string().optional(),
+	name: z.union([
+		z.string(),
+		z.array(PatientNameEntrySchema)
+	]).optional(),
+	identifier: z.array(PatientIdentifierSchema).optional(),
+	mrNo: z.string().optional()
 })
 
 const MedicationSchema = z.object({

@@ -4,11 +4,6 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 
-interface ItemCategoryAttributes {
-	id?: number
-	name?: string | null
-}
-
 interface ItemAttributes {
 	id?: number
 	nama?: string
@@ -258,18 +253,6 @@ function PharmacyDashboard() {
 		}
 	})
 
-	const { data: itemCategorySource } = useQuery<{ success: boolean; result?: ItemCategoryAttributes[]; message?: string }>({
-		queryKey: ['itemCategory', 'list', 'for-pharmacy-dashboard'],
-		queryFn: () => {
-			const api = window.api?.query as {
-				medicineCategory?: { list?: () => Promise<{ success: boolean; result?: ItemCategoryAttributes[]; message?: string }> }
-			}
-			const fn = api?.medicineCategory?.list
-			if (!fn) throw new Error('API kategori item tidak tersedia.')
-			return fn()
-		}
-	})
-
 	const { data: requestListData } = useQuery<MedicationRequestListResult>({
 		queryKey: ['medicationRequest', 'list', 'dashboard'],
 		queryFn: async () => {
@@ -310,7 +293,7 @@ function PharmacyDashboard() {
 				| undefined
 			const fn = inventoryApi?.expirySummary
 			if (!fn) {
-				throw new Error('API ringkasan expired stok obat tidak tersedia.')
+				throw new Error('API ringkasan expired stok barang tidak tersedia.')
 			}
 			return fn({ itemType: 'item', limit: 10 })
 		}
@@ -467,13 +450,11 @@ function PharmacyDashboard() {
 		const list: InventoryExpiryItem[] = Array.isArray(medicineExpiryData?.result)
 			? medicineExpiryData.result ?? []
 			: []
-
-		const categories: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
-			? itemCategorySource.result
-			: []
 		const items = Array.isArray(itemSource?.result) ? itemSource.result : []
-
+		
 		const kodeToCategoryId = new Map<string, number>()
+		const categoryNameById = new Map<number, string>()
+		
 		for (const item of items) {
 			if (typeof item.kode !== 'string') continue
 			const kode = item.kode.trim().toUpperCase()
@@ -486,16 +467,19 @@ function PharmacyDashboard() {
 						: undefined
 			if (typeof directId === 'number') {
 				kodeToCategoryId.set(kode, directId)
+				if (!categoryNameById.has(directId)) {
+					const rawName =
+						typeof item.category?.name === 'string'
+							? item.category.name
+							: undefined
+					const name = rawName ? rawName.trim() : ''
+					if (name) {
+						categoryNameById.set(directId, name)
+					}
+				}
 			}
 		}
-
-		const categoryNameById = new Map<number, string>()
-		for (const cat of categories) {
-			if (typeof cat.id === 'number' && typeof cat.name === 'string' && cat.name.length > 0) {
-				categoryNameById.set(cat.id, cat.name)
-			}
-		}
-
+		
 		return list.map((entry) => {
 			const kode = entry.kodeItem.trim().toUpperCase()
 			let itemCategoryName: string | undefined
@@ -508,7 +492,7 @@ function PharmacyDashboard() {
 					}
 				}
 			}
-
+			
 			return {
 				key: entry.kodeItem,
 				kodeItem: entry.kodeItem,
@@ -521,7 +505,6 @@ function PharmacyDashboard() {
 		})
 	}, [
 		medicineExpiryData?.result,
-		itemCategorySource?.result,
 		itemSource?.result
 	])
 
@@ -570,13 +553,13 @@ function PharmacyDashboard() {
 				<h2 className="text-3xl font-bold">Dashboard Farmasi</h2>
 				<div className="flex gap-2 flex-wrap">
 					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
-						Ke Permintaan Obat
+						Ke Permintaan Barang
 					</Button>
 					<Button onClick={() => navigate('/dashboard/medicine/medication-dispenses')}>
-						Ke Penyerahan Obat
+						Ke Penyerahan Barang
 					</Button>
 					<Button onClick={() => navigate('/dashboard/medicine/medication-dispenses/report')}>
-						Laporan Penyerahan Obat
+						Laporan Penyerahan Barang
 					</Button>
 				</div>
 			</div>
@@ -594,7 +577,7 @@ function PharmacyDashboard() {
 					<div className="text-3xl font-bold">{stats.totalActiveFulfilled}</div>
 				</Card>
 			</div>
-			<Card title="Distribusi Penyerahan Obat per Status">
+			<Card title="Distribusi Penyerahan Barang per Status">
 				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
 					<div className="flex justify-center">
 						<StatusPie slices={statusSummary.slices} />
@@ -614,7 +597,7 @@ function PharmacyDashboard() {
 					</div>
 				</div>
 			</Card>
-			<Card title="Top 10 Obat per Status (berdasarkan Qty)">
+			<Card title="Top 10 Barang per Status (berdasarkan Qty)">
 				<Table<ItemStatusRow>
 					dataSource={itemStatusRows}
 					columns={[

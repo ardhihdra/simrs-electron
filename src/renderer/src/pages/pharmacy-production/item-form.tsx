@@ -74,16 +74,15 @@ type ItemCategoryListResponse = {
 }
 
 export function ItemForm() {
-  const navigate = useNavigate()
-  const { id } = useParams()
-	  const [form] = Form.useForm<ItemFormValues>()
-  const isEdit = Boolean(id)
+	  const navigate = useNavigate()
+	  const { id } = useParams()
+		  const [form] = Form.useForm<ItemFormValues>()
+	  const isEdit = Boolean(id)
 
-	  const api = window.api?.query?.item as ItemApi | undefined
-  const unitApi = (window.api?.query as { unit?: { list: () => Promise<UnitListResponse> } }).unit
-  const medicineCategoryApi = (window.api?.query as { medicineCategory?: { list: () => Promise<ItemCategoryListResponse> } }).medicineCategory
+		  const api = window.api?.query?.item as ItemApi | undefined
+	  const unitApi = (window.api?.query as { unit?: { list: () => Promise<UnitListResponse> } }).unit
 
-	  const { data: detailData } = useQuery({
+		  const { data: detailData } = useQuery({
     queryKey: ['item', 'detail', id],
     queryFn: () => {
       const fn = api?.read
@@ -93,25 +92,29 @@ export function ItemForm() {
     enabled: isEdit
   })
 
-	  const { data: unitSource } = useQuery<UnitListResponse>({
+		  const { data: unitSource } = useQuery<UnitListResponse>({
     queryKey: ['unit', 'list', 'for-item-form'],
     queryFn: () => {
       const fn = unitApi?.list
       if (!fn) throw new Error('API unit tidak tersedia.')
       return fn()
     }
-  })
+		  })
 
-	  const { data: categorySource } = useQuery<ItemCategoryListResponse>({
-	   queryKey: ['itemCategory', 'list', 'for-item-form'],
-	   queryFn: () => {
-	     const fn = medicineCategoryApi?.list
-	     if (!fn) throw new Error('API kategori item tidak tersedia.')
-	     return fn()
-	   }
-	 })
+		  const itemCategoryApi = window.api?.query as {
+			  medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
+		  } | undefined
 
-	  const unitOptions = useMemo(() => {
+		  const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
+		    queryKey: ['itemCategory', 'list', 'for-item-form'],
+		    queryFn: () => {
+		      const fn = itemCategoryApi?.medicineCategory?.list
+		      if (!fn) throw new Error('API kategori item tidak tersedia.')
+		      return fn()
+		    }
+		  })
+
+		  const unitOptions = useMemo(() => {
 	    const entries: UnitListEntry[] = Array.isArray(unitSource?.result) ? unitSource.result : []
 	    const map = new Map<string, string>()
 
@@ -125,18 +128,27 @@ export function ItemForm() {
 	    }
 
 	    const options = Array.from(map.entries()).map(([value, label]) => ({ value, label }))
-	    return options
-	  }, [unitSource?.result])
+		    return options
+		  }, [unitSource?.result])
 
-	  const itemCategoryOptions = useMemo(() => {
-	    const entries: ItemCategoryAttributes[] = Array.isArray(categorySource?.result)
-	      ? categorySource.result
-	      : []
-
-	    return entries
-	      .filter((cat) => typeof cat.id === 'number' && Boolean(cat.name))
-	      .map((cat) => ({ value: cat.id as number, label: cat.name }))
-	  }, [categorySource?.result])
+		const itemCategoryOptions = useMemo(() => {
+		    const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+		      ? itemCategorySource.result
+		      : []
+		
+		    const map = new Map<number, string>()
+		    for (const cat of entries) {
+		      const id = typeof cat.id === 'number' ? cat.id : undefined
+		      const rawName = typeof cat.name === 'string' ? cat.name : ''
+		      const name = rawName.trim()
+		      if (id === undefined || !name) continue
+		      if (!map.has(id)) {
+		        map.set(id, name)
+		      }
+		    }
+		
+		    return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+		  }, [itemCategorySource?.result])
 
 	  useEffect(() => {
 	    if (isEdit && detailData?.success && detailData.result) {
@@ -379,79 +391,84 @@ export function ItemForm() {
 	                  </div>
 	                  <Form.Item shouldUpdate noStyle>
 	                    {() => {
-	                      const buyRules = form.getFieldValue('buyPriceRules') as
-	                        | PriceRuleFormValue[]
-	                        | undefined
-	                      const sellRules = form.getFieldValue('sellPriceRules') as
-	                        | PriceRuleFormValue[]
-	                        | undefined
-	
-	                      const allRules: { unitCode: string; qty: number }[] = []
-	
-	                      const collect = (source?: PriceRuleFormValue[]) => {
-	                        if (!Array.isArray(source)) return
-	                        for (const rule of source) {
-	                          const unitCodeRaw =
-	                            typeof rule.unitCode === 'string' ? rule.unitCode : ''
-	                          const unitCode = unitCodeRaw.trim().toUpperCase()
-	                          const qtyValue = Number(rule.qty)
-	                          if (!unitCode) continue
-	                          if (!Number.isFinite(qtyValue) || qtyValue <= 0) continue
-	                          allRules.push({ unitCode, qty: qtyValue })
+	                      try {
+	                        const buyRules = form.getFieldValue('buyPriceRules') as
+	                          | PriceRuleFormValue[]
+	                          | undefined
+	                        const sellRules = form.getFieldValue('sellPriceRules') as
+	                          | PriceRuleFormValue[]
+	                          | undefined
+
+	                        const allRules: { unitCode: string; qty: number }[] = []
+
+	                        const collect = (source?: PriceRuleFormValue[]) => {
+	                          if (!Array.isArray(source)) return
+	                          for (const rule of source) {
+	                            const unitCodeRaw =
+	                              typeof rule.unitCode === 'string' ? rule.unitCode : ''
+	                            const unitCode = unitCodeRaw.trim().toUpperCase()
+	                            const qtyValue = Number(rule.qty)
+	                            if (!unitCode) continue
+	                            if (!Number.isFinite(qtyValue) || qtyValue <= 0) continue
+	                            allRules.push({ unitCode, qty: qtyValue })
+	                          }
 	                        }
-	                      }
-	
-	                      collect(buyRules)
-	                      collect(sellRules)
-	
-	                      const baseUnitCode =
-	                        allRules.length > 0
-	                          ? [...allRules].sort((a, b) => a.qty - b.qty)[0]?.unitCode
-	                          : ''
-	
-	                      const rules = buyRules
-	                      const current = Array.isArray(rules) ? rules[field.name] : undefined
-	                      const rawPrice = current?.price
-	                      const rawQty = current?.qty
-	                      const price =
-	                        typeof rawPrice === 'number' ? rawPrice : Number(rawPrice)
-	                      const qty = typeof rawQty === 'number' ? rawQty : Number(rawQty)
-	
-	                      if (!Number.isFinite(price)) {
-	                        return null
-	                      }
-	
-	                      const displayUnitCode =
-	                        typeof current?.unitCode === 'string' && current.unitCode.length > 0
-	                          ? current.unitCode
-	                          : 'PCS'
-	
-	                      const normalizedUnitCode = displayUnitCode.trim().toUpperCase()
-	                      const isBaseUnitRow =
-	                        baseUnitCode && normalizedUnitCode === baseUnitCode
-	
-	                      if (isBaseUnitRow) {
+
+	                        collect(buyRules)
+	                        collect(sellRules)
+
+	                        const baseUnitCode =
+	                          allRules.length > 0
+	                            ? [...allRules].sort((a, b) => a.qty - b.qty)[0]?.unitCode
+	                            : ''
+
+	                        const rules = buyRules
+	                        const current = Array.isArray(rules) ? rules[field.name] : undefined
+	                        const rawPrice = current?.price
+	                        const rawQty = current?.qty
+	                        const price =
+	                          typeof rawPrice === 'number' ? rawPrice : Number(rawPrice)
+	                        const qty = typeof rawQty === 'number' ? rawQty : Number(rawQty)
+
+	                        if (!Number.isFinite(price)) {
+	                          return null
+	                        }
+
+	                        const displayUnitCode =
+	                          typeof current?.unitCode === 'string' && current.unitCode.length > 0
+	                            ? current.unitCode
+	                            : 'PCS'
+
+	                        const normalizedUnitCode = displayUnitCode.trim().toUpperCase()
+	                        const isBaseUnitRow =
+	                          baseUnitCode && normalizedUnitCode === baseUnitCode
+
+	                        if (isBaseUnitRow) {
+	                          return (
+	                            <div className="w-full text-xs text-gray-500">
+	                              Harga satuan: {formatRupiah(price)} / {displayUnitCode}
+	                            </div>
+	                          )
+	                        }
+
+	                        if (!Number.isFinite(qty) || qty <= 0) {
+	                          return null
+	                        }
+
+	                        const unitPrice = price / qty
+	                        if (!Number.isFinite(unitPrice)) {
+	                          return null
+	                        }
+
 	                        return (
 	                          <div className="w-full text-xs text-gray-500">
-	                            Harga satuan: {formatRupiah(price)} / {displayUnitCode}
+	                            Harga satuan: {formatRupiah(unitPrice)} / {displayUnitCode}
 	                          </div>
 	                        )
-	                      }
-	
-	                      if (!Number.isFinite(qty) || qty <= 0) {
+	                      } catch (error) {
+	                        console.error('[ItemForm] gagal menghitung ringkasan harga beli', error)
 	                        return null
 	                      }
-	
-	                      const unitPrice = price / qty
-	                      if (!Number.isFinite(unitPrice)) {
-	                        return null
-	                      }
-	
-	                      return (
-	                        <div className="w-full text-xs text-gray-500">
-	                          Harga satuan: {formatRupiah(unitPrice)} / {displayUnitCode}
-	                        </div>
-	                      )
 	                    }}
 	                  </Form.Item>
 	                </Fragment>
@@ -520,79 +537,84 @@ export function ItemForm() {
 	                  </div>
 	                  <Form.Item shouldUpdate noStyle>
 	                    {() => {
-	                      const sellRules = form.getFieldValue('sellPriceRules') as
-	                        | PriceRuleFormValue[]
-	                        | undefined
-	                      const buyRules = form.getFieldValue('buyPriceRules') as
-	                        | PriceRuleFormValue[]
-	                        | undefined
-	
-	                      const allRules: { unitCode: string; qty: number }[] = []
-	
-	                      const collect = (source?: PriceRuleFormValue[]) => {
-	                        if (!Array.isArray(source)) return
-	                        for (const rule of source) {
-	                          const unitCodeRaw =
-	                            typeof rule.unitCode === 'string' ? rule.unitCode : ''
-	                          const unitCode = unitCodeRaw.trim().toUpperCase()
-	                          const qtyValue = Number(rule.qty)
-	                          if (!unitCode) continue
-	                          if (!Number.isFinite(qtyValue) || qtyValue <= 0) continue
-	                          allRules.push({ unitCode, qty: qtyValue })
+	                      try {
+	                        const sellRules = form.getFieldValue('sellPriceRules') as
+	                          | PriceRuleFormValue[]
+	                          | undefined
+	                        const buyRules = form.getFieldValue('buyPriceRules') as
+	                          | PriceRuleFormValue[]
+	                          | undefined
+
+	                        const allRules: { unitCode: string; qty: number }[] = []
+
+	                        const collect = (source?: PriceRuleFormValue[]) => {
+	                          if (!Array.isArray(source)) return
+	                          for (const rule of source) {
+	                            const unitCodeRaw =
+	                              typeof rule.unitCode === 'string' ? rule.unitCode : ''
+	                            const unitCode = unitCodeRaw.trim().toUpperCase()
+	                            const qtyValue = Number(rule.qty)
+	                            if (!unitCode) continue
+	                            if (!Number.isFinite(qtyValue) || qtyValue <= 0) continue
+	                            allRules.push({ unitCode, qty: qtyValue })
+	                          }
 	                        }
-	                      }
-	
-	                      collect(sellRules)
-	                      collect(buyRules)
-	
-	                      const baseUnitCode =
-	                        allRules.length > 0
-	                          ? [...allRules].sort((a, b) => a.qty - b.qty)[0]?.unitCode
-	                          : ''
-	
-	                      const rules = sellRules
-	                      const current = Array.isArray(rules) ? rules[field.name] : undefined
-	                      const rawPrice = current?.price
-	                      const rawQty = current?.qty
-	                      const price =
-	                        typeof rawPrice === 'number' ? rawPrice : Number(rawPrice)
-	                      const qty = typeof rawQty === 'number' ? rawQty : Number(rawQty)
-	
-	                      if (!Number.isFinite(price)) {
-	                        return null
-	                      }
-	
-	                      const displayUnitCode =
-	                        typeof current?.unitCode === 'string' && current.unitCode.length > 0
-	                          ? current.unitCode
-	                          : 'PCS'
-	
-	                      const normalizedUnitCode = displayUnitCode.trim().toUpperCase()
-	                      const isBaseUnitRow =
-	                        baseUnitCode && normalizedUnitCode === baseUnitCode
-	
-	                      if (isBaseUnitRow) {
+
+	                        collect(sellRules)
+	                        collect(buyRules)
+
+	                        const baseUnitCode =
+	                          allRules.length > 0
+	                            ? [...allRules].sort((a, b) => a.qty - b.qty)[0]?.unitCode
+	                            : ''
+
+	                        const rules = sellRules
+	                        const current = Array.isArray(rules) ? rules[field.name] : undefined
+	                        const rawPrice = current?.price
+	                        const rawQty = current?.qty
+	                        const price =
+	                          typeof rawPrice === 'number' ? rawPrice : Number(rawPrice)
+	                        const qty = typeof rawQty === 'number' ? rawQty : Number(rawQty)
+
+	                        if (!Number.isFinite(price)) {
+	                          return null
+	                        }
+
+	                        const displayUnitCode =
+	                          typeof current?.unitCode === 'string' && current.unitCode.length > 0
+	                            ? current.unitCode
+	                            : 'PCS'
+
+	                        const normalizedUnitCode = displayUnitCode.trim().toUpperCase()
+	                        const isBaseUnitRow =
+	                          baseUnitCode && normalizedUnitCode === baseUnitCode
+
+	                        if (isBaseUnitRow) {
+	                          return (
+	                            <div className="w-full text-xs text-gray-500">
+	                              Harga satuan: {formatRupiah(price)} / {displayUnitCode}
+	                            </div>
+	                          )
+	                        }
+
+	                        if (!Number.isFinite(qty) || qty <= 0) {
+	                          return null
+	                        }
+
+	                        const unitPrice = price / qty
+	                        if (!Number.isFinite(unitPrice)) {
+	                          return null
+	                        }
+
 	                        return (
 	                          <div className="w-full text-xs text-gray-500">
-	                            Harga satuan: {formatRupiah(price)} / {displayUnitCode}
+	                            Harga satuan: {formatRupiah(unitPrice)} / {displayUnitCode}
 	                          </div>
 	                        )
-	                      }
-	
-	                      if (!Number.isFinite(qty) || qty <= 0) {
+	                      } catch (error) {
+	                        console.error('[ItemForm] gagal menghitung ringkasan harga jual', error)
 	                        return null
 	                      }
-	
-	                      const unitPrice = price / qty
-	                      if (!Number.isFinite(unitPrice)) {
-	                        return null
-	                      }
-	
-	                      return (
-	                        <div className="w-full text-xs text-gray-500">
-	                          Harga satuan: {formatRupiah(unitPrice)} / {displayUnitCode}
-	                        </div>
-	                      )
 	                    }}
 	                  </Form.Item>
 	                </Fragment>

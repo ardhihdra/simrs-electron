@@ -26,18 +26,6 @@ interface ItemListResponse {
 	message?: string
 }
 
-interface ItemCategoryAttributes {
-	id?: number
-	name: string
-	status?: boolean
-}
-
-interface ItemCategoryListResponse {
-	success: boolean
-	result?: ItemCategoryAttributes[]
-	message?: string
-}
-
 interface InventoryStockItem {
 	kodeItem: string
 	namaItem: string
@@ -269,11 +257,6 @@ function ItemPurchasePage() {
 		try {
 			setIsLoadingItems(true)
 			const api = (window.api?.query as { item?: ItemApi })?.item
-			const categoryApi = (window.api?.query as {
-				medicineCategory?: {
-					list: () => Promise<ItemCategoryListResponse>
-				}
-			}).medicineCategory
 			const inventoryApi = window.api?.query as {
 				inventoryStock?: {
 					list: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
@@ -289,24 +272,7 @@ function ItemPurchasePage() {
 				return
 			}
 
-			let categoryMap = new Map<number, string>()
-			if (categoryApi && typeof categoryApi.list === 'function') {
-				try {
-					const categoryRes = await categoryApi.list()
-					const categoryList: ItemCategoryAttributes[] = Array.isArray(categoryRes.result)
-						? categoryRes.result
-						: []
-					for (const cat of categoryList) {
-						const id = typeof cat.id === 'number' ? cat.id : undefined
-						const name = cat.name
-						if (id === undefined) continue
-						if (!name || name.trim().length === 0) continue
-						categoryMap.set(id, name)
-					}
-				} catch {
-					categoryMap = new Map<number, string>()
-				}
-			}
+			const categoryMap = new Map<number, string>()
 
 			let stockMap = new Map<string, number>()
 			if (inventoryApi && inventoryApi.inventoryStock && typeof inventoryApi.inventoryStock.list === 'function') {
