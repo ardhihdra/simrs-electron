@@ -387,7 +387,7 @@ export const getTimeline = async (
     })
 
     const parsedResult = await parseBackendResponse(res, TimelineSchema)
-    return parsedResult
+    return { success: true, result: parsedResult }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ENCOUNTER TIMELINE] Error:', msg)

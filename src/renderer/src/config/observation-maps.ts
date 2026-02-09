@@ -115,6 +115,7 @@ interface ObservationFromDB {
     }>
     performers: Array<{
         name: string
+        display?: string
         role?: string
     }>
 }
@@ -139,7 +140,7 @@ export function transformObservationsToTimeline(
 
     observations.forEach((obs) => {
         const date = dayjs(obs.effectiveDateTime).format('DD-MM-YYYY')
-        const treatment = obs.valueString || 'Unknown Treatment'
+        const treatment = obs.valueString || 'Tindakan Tidak Diketahui'
 
         if (!groupedByDate.has(date)) {
             groupedByDate.set(date, new Map())
@@ -158,12 +159,8 @@ export function transformObservationsToTimeline(
     groupedByDate.forEach((treatmentMap, date) => {
         treatmentMap.forEach((observations, treatment) => {
             const firstObs = observations[0]
-
-            // Get condition from codeCoding
             const conditionCode = firstObs.codeCoding?.[0]?.code || ''
             const conditionDisplay = firstObs.codeCoding?.[0]?.display || 'Unknown Condition'
-
-            // Find condition name from SNOMED codes
             let conditionName = conditionDisplay
             for (const [key, value] of Object.entries(CONDITION_SNOMED_CODES)) {
                 if (value.code === conditionCode) {
@@ -171,22 +168,17 @@ export function transformObservationsToTimeline(
                     break
                 }
             }
-
-            // Get dentist name from performers
-            const dentist = firstObs.performers?.[0]?.name || 'Unknown Dentist'
-
-            // Get all teeth from observations
+            const dentist = firstObs.performers?.[0]?.display || firstObs.performers?.[0]?.name || 'Dokter Tidak Diketahui'
             const teeth: ToothDetail[] = observations
                 .map((obs) => {
                     const bodySite = obs.bodySites?.[0]
                     if (!bodySite) return null
-
-                    // Find tooth ID from SNOMED code
                     for (const [toothId, toothData] of Object.entries(TOOTH_SNOMED_CODES)) {
                         if (toothData.code === bodySite.code) {
                             const fdi = toothId.replace('teeth-', '')
                             return {
                                 id: toothId,
+                                observationId: obs.id,
                                 notations: {
                                     fdi,
                                     universal: fdi,
@@ -199,13 +191,9 @@ export function transformObservationsToTimeline(
                     return null
                 })
                 .filter((tooth): tooth is ToothDetail => tooth !== null)
-
-            // Get notes
             const notes = firstObs.notes?.[0]?.text || undefined
-
-            // Determine status
             const status: 'done' | 'pending' = firstObs.status === 'final' ? 'done' : 'pending'
-
+            if (teeth.length === 0) return
             timeline.push({
                 date,
                 treatment,

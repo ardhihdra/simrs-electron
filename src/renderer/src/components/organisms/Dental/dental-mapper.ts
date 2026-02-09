@@ -3,13 +3,12 @@ import {
     TOOTH_SNOMED_CODES,
     CONDITION_SNOMED_CODES,
     DEFAULT_DENTAL_CONDITION,
-    SNOMED_SYSTEM,
-    OBSERVATION_CATEGORY_SYSTEM
+    SNOMED_SYSTEM
 } from './dental-constants'
 
 interface DentalFormData {
     date: any
-    treatment: string
+    treatment: { code: string; name: string } | string // Support both object and string (legacy)
     condition: string
     dentist: string
     tooth: ToothDetail[]
@@ -34,12 +33,15 @@ export interface DentalObservationPayload {
         display: string
         system: string
     }>
+    components?: Array<{
+        code: string
+        display: string
+        system: string
+        valueString?: string
+    }>
     notes?: string[]
 }
 
-/**
- * Map dental form data to Observation API payload
- */
 export function mapDentalDataToObservationPayload(
     dentalData: DentalFormData,
     encounterId: string,
@@ -48,12 +50,17 @@ export function mapDentalDataToObservationPayload(
 ) {
     const observations: DentalObservationPayload[] = []
 
-    // Get condition SNOMED code
     const conditionKey = dentalData.condition.toLowerCase().trim()
     const conditionCode =
         CONDITION_SNOMED_CODES[conditionKey] || DEFAULT_DENTAL_CONDITION
+    const treatmentName = typeof dentalData.treatment === 'string'
+        ? dentalData.treatment
+        : dentalData.treatment.name
 
-    // Create one observation per tooth
+    const treatmentCode = typeof dentalData.treatment === 'object'
+        ? dentalData.treatment.code
+        : null
+
     dentalData.tooth.forEach((tooth) => {
         const toothCode = TOOTH_SNOMED_CODES[tooth.id]
 
@@ -63,14 +70,14 @@ export function mapDentalDataToObservationPayload(
         }
 
         const toothNumber = tooth.id.replace('teeth-', '')
-        const noteText = `Tooth ${toothNumber}: ${dentalData.condition} - ${dentalData.treatment}`
+        const noteText = `Tooth ${toothNumber}: ${dentalData.condition} - ${treatmentName}`
 
-        observations.push({
+        const payload: DentalObservationPayload = {
             category: 'exam',
             code: conditionCode.code,
             display: conditionCode.display,
             system: SNOMED_SYSTEM,
-            valueString: dentalData.treatment,
+            valueString: treatmentName,
             bodySites: [
                 {
                     code: toothCode.code,
@@ -79,7 +86,18 @@ export function mapDentalDataToObservationPayload(
                 }
             ],
             notes: [noteText, dentalData.notes].filter(Boolean) as string[]
-        })
+        }
+
+        if (treatmentCode) {
+            payload.components = [{
+                code: treatmentCode,
+                display: treatmentName,
+                system: "http://hl7.org/fhir/sid/icd-9-cm",
+                valueString: treatmentName
+            }]
+        }
+
+        observations.push(payload)
     })
 
     return {
@@ -91,9 +109,6 @@ export function mapDentalDataToObservationPayload(
     }
 }
 
-/**
- * Get tooth number from tooth ID (e.g., "teeth-11" -> "11")
- */
 export function getToothNumber(toothId: string): string {
     return toothId.replace('teeth-', '')
 }

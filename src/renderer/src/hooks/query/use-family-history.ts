@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { queryClient } from "@renderer/query-client"
 
 interface FamilyHistoryInput {
     patientId: string
@@ -33,6 +34,9 @@ export const useCreateFamilyHistory = () => {
             }
 
             return result
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['family-history', 'list', variables.patientId] })
         }
     })
 }

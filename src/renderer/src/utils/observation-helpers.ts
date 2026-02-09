@@ -1,3 +1,4 @@
+import dayjs from 'dayjs'
 import {
     ConditionData,
     FormattedAnamnesis,
@@ -11,6 +12,7 @@ export interface ObservationData {
     subjectId: string
     encounterId?: string
     effectiveDateTime?: string | Date
+    issued?: string | Date
     valueQuantity?: { value: number; unit: string }
     valueString?: string
     valueBoolean?: boolean
@@ -204,6 +206,7 @@ export const getObservationByCode = (
     observations: ObservationData[],
     code: string
 ): ObservationData | any | undefined => {
+    // Search for the FIRST match (assuming LATEST first if sorted DESC)
     for (const obs of observations) {
         // Check top level codeCoding
         if (obs.codeCoding?.some((coding) => coding.code === code)) {
@@ -451,20 +454,33 @@ export const formatObservationSummary = (
     allObservations: ObservationData[],
     allConditions: ConditionData[] = []
 ): FormattedObservationSummary => {
-    const vitalSigns = formatVitalSigns(allObservations)
-    const anamnesisFromObs = formatAnamnesis(allObservations)
-    const anamnesisFromCond = formatAnamnesisFromConditions(allConditions)
-    const physicalExamination = formatPhysicalExamination(allObservations)
-    const painAssessment = formatPainAssessment(allObservations)
-    const fallRisk = formatFallRisk(allObservations)
-    const functionalStatus = formatFunctionalStatus(allObservations)
-    const psychosocialHistory = formatPsychosocialHistory(allObservations)
-    const screening = formatScreening(allObservations)
-    const nutrition = formatNutritionScreening(allObservations)
-    const conclusion = formatConclusion(allObservations)
-    const headToToe = formatHeadToToe(allObservations)
-    const clinicalNoteObs = getObservationByCode(allObservations, '8410-0')
-    const metadata = getObservationMetadata(allObservations)
+    // SORT DESC: Latest records first for clinical templates
+    const sortedObs = [...allObservations].sort((a, b) => {
+        const dateA = dayjs(a.effectiveDateTime || a.issued || 0).valueOf()
+        const dateB = dayjs(b.effectiveDateTime || b.issued || 0).valueOf()
+        return dateB - dateA
+    })
+
+    const sortedCond = [...allConditions].sort((a, b) => {
+        const dateA = dayjs(a.recordedDate || a.onsetDateTime || 0).valueOf()
+        const dateB = dayjs(b.recordedDate || b.onsetDateTime || 0).valueOf()
+        return dateB - dateA
+    })
+
+    const vitalSigns = formatVitalSigns(sortedObs)
+    const anamnesisFromObs = formatAnamnesis(sortedObs)
+    const anamnesisFromCond = formatAnamnesisFromConditions(sortedCond)
+    const physicalExamination = formatPhysicalExamination(sortedObs)
+    const painAssessment = formatPainAssessment(sortedObs)
+    const fallRisk = formatFallRisk(sortedObs)
+    const functionalStatus = formatFunctionalStatus(sortedObs)
+    const psychosocialHistory = formatPsychosocialHistory(sortedObs)
+    const screening = formatScreening(sortedObs)
+    const nutrition = formatNutritionScreening(sortedObs)
+    const conclusion = formatConclusion(sortedObs)
+    const headToToe = formatHeadToToe(sortedObs)
+    const clinicalNoteObs = getObservationByCode(sortedObs, '8410-0')
+    const metadata = getObservationMetadata(sortedObs)
 
     const anamnesis = {
         ...anamnesisFromObs,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Button, App, Spin, Layout, Menu, theme } from 'antd'
 import {
   ArrowLeftOutlined,
@@ -29,11 +29,7 @@ const MedicalRecordForm = () => {
     token: { colorBgContainer }
   } = theme.useToken()
 
-  useEffect(() => {
-    loadPatientData()
-  }, [encounterId])
-
-  const loadPatientData = async () => {
+  const loadPatientData = useCallback(async () => {
     if (!encounterId) return
 
     setLoading(true)
@@ -90,7 +86,11 @@ const MedicalRecordForm = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [encounterId, message, navigate])
+
+  useEffect(() => {
+    loadPatientData()
+  }, [encounterId, loadPatientData])
 
   const renderContent = () => {
     if (!patientData || !encounterId) return null
@@ -136,7 +136,11 @@ const MedicalRecordForm = () => {
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
       <div className="px-4 pt-4 flex justify-between items-center">
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/dashboard/nurse-calling')} className="mb-4">
+        <Button
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate('/dashboard/nurse-calling')}
+          className="mb-4"
+        >
           Kembali ke Daftar Pasien
         </Button>
       </div>

@@ -104,13 +104,14 @@ export const useUpdateObservation = () => {
 export const useDeleteObservation = () => {
     return useMutation({
         mutationKey: ['observation', 'delete'],
-        mutationFn: (id: number) => {
+        mutationFn: (id: number | string) => {
             const fn = window.api?.query?.observation?.deleteById
             if (!fn) throw new Error('API observation tidak tersedia')
-            return fn({ id })
+            return fn({ id: id as any })
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['observation', 'list'] })
+            queryClient.invalidateQueries({ queryKey: ['observation', 'by-encounter'] })
         }
     })
 }

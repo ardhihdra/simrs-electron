@@ -19,7 +19,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { PatientQueue, PatientStatus, Poli, Gender } from '../../types/nurse.types'
+import { PatientQueue, Poli, Gender } from '../../types/nurse.types'
 import { getPolis } from '../../services/nurse.service'
 import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
 
@@ -29,8 +29,6 @@ const { RangePicker } = DatePicker
 interface PatientQueueTableData extends PatientQueue {
   key: string
 }
-
-
 
 const PatientQueueTable = () => {
   const navigate = useNavigate()
@@ -61,7 +59,7 @@ const PatientQueueTable = () => {
       if (activeStatus && activeStatus !== 'all') params.status = activeStatus
 
       if (selectedPoli) {
-        const selectedPoliData = polis.find(p => p.id === selectedPoli)
+        const selectedPoliData = polis.find((p) => p.id === selectedPoli)
         if (selectedPoliData) {
           params.serviceType = selectedPoliData.name
         }
@@ -230,18 +228,14 @@ const PatientQueueTable = () => {
       width: 150,
       align: 'center',
       render: (_, record) => {
-        const isWaiting = record.status === PatientStatus.WAITING
-        const isCalling = calling === record.id
-
         return (
           <Button
             type="primary"
             icon={<PhoneOutlined />}
             onClick={() => handleCallPatient(record)}
-            disabled={!isWaiting || isCalling}
-            loading={isCalling}
+            loading={calling === record.id}
           >
-            {isCalling ? 'Memanggil...' : 'Panggil'}
+            Panggil
           </Button>
         )
       }

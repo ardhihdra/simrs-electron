@@ -72,7 +72,9 @@ export const ClinicalNoteForm = ({ encounterId, doctorId = 1 }: ClinicalNoteForm
     }
   }
 
-  const notes = notesQuery.data || []
+  const notes = (notesQuery.data || []).sort(
+    (a: any, b: any) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
+  )
 
   return (
     <div className="flex flex-col gap-4 h-full">

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { App, Card, Spin, Empty, Button, Row, Col, Tag, Modal, Select } from 'antd'
-import { ArrowLeftOutlined, EditOutlined, LockOutlined } from '@ant-design/icons'
+import { App, Spin, Empty, Button, Modal, Select } from 'antd'
+import { ArrowLeftOutlined, LockOutlined } from '@ant-design/icons'
 import { getPatientMedicalRecord } from '@renderer/services/doctor.service'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 import dayjs from 'dayjs'
@@ -11,6 +11,7 @@ import { useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
 import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
+import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 
 const DoctorWorkspace = () => {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -102,7 +103,6 @@ const DoctorWorkspace = () => {
   const patient = patientData.patient
   const age = patient.birthDate ? dayjs().diff(dayjs(patient.birthDate), 'year') : 0
 
-  const queueNumber = (patientData as any).queueNumber || Math.floor(Math.random() * 50) + 1
   const poliName = (patientData as any).serviceType || 'Poli Umum'
   const doctorName = (patientData as any).doctorName || 'Dr. Dokter'
   const visitDate = (patientData as any).visitDate
@@ -113,27 +113,12 @@ const DoctorWorkspace = () => {
   const allergies =
     allergyData?.result && Array.isArray(allergyData.result) && allergyData.result.length > 0
       ? allergyData.result
-        .map((a: any) => a.note)
-        .filter(Boolean)
-        .join(', ')
+          .map((a: any) => a.note)
+          .filter(Boolean)
+          .join(', ')
       : '-'
 
   const currentStatus = encounterDetail?.data?.status || EncounterStatus.IN_PROGRESS
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case EncounterStatus.PLANNED:
-        return 'default'
-      case EncounterStatus.IN_PROGRESS:
-        return 'processing'
-      case EncounterStatus.FINISHED:
-        return 'success'
-      case EncounterStatus.CANCELLED:
-        return 'error'
-      default:
-        return 'default'
-    }
-  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
@@ -144,78 +129,28 @@ const DoctorWorkspace = () => {
       </div>
 
       <div className="px-4 py-4">
-        <Card className="mb-4">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-lg font-semibold m-0">Informasi Pasien</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500">Status:</span>
-              <Tag color={getStatusColor(currentStatus)} className="mr-0">
-                {currentStatus.toUpperCase()}
-              </Tag>
-              <Button
-                type="text"
-                icon={<EditOutlined />}
-                onClick={openStatusModal}
-                size="small"
-                title="Ubah Status"
-              />
-            </div>
-          </div>
-          <Row gutter={[16, 16]}>
-            <Col span={4}>
-              <div className="text-gray-500 text-sm">No. Antrian</div>
-              <div className="text-3xl font-bold text-blue-600">{queueNumber}</div>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">No. Rekam Medis</div>
-              <div className="text-lg font-semibold">{patient.medicalRecordNumber || '-'}</div>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">Nama Pasien</div>
-              <div className="text-lg font-semibold">{patient.name || 'Unknown'}</div>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">Jenis Kelamin / Umur</div>
-              <div className="text-lg">
-                {patient.gender === Gender.MALE ? 'Laki-laki' : 'Perempuan'} / {age} tahun
-              </div>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">Tanggal Kunjungan</div>
-              <div className="text-lg">{visitDate}</div>
-            </Col>
-          </Row>
-          <Row gutter={[16, 16]} className="mt-4">
-            <Col span={4}>
-              <div className="text-gray-500 text-sm">Poli</div>
-              <div className="text-lg">{poliName}</div>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">Dokter</div>
-              <div className="text-lg">{doctorName}</div>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">Penjamin</div>
-              <Tag color="green" className="mt-1">
-                {paymentMethod}
-              </Tag>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">Alergi</div>
-              <div className="text-lg">
-                {allergies !== '-' ? (
-                  <Tag color="red">{allergies}</Tag>
-                ) : (
-                  <span className="text-gray-400">Tidak ada</span>
-                )}
-              </div>
-            </Col>
-            <Col span={5}>
-              <div className="text-gray-500 text-sm">NIK</div>
-              <div className="text-lg">{patient.identityNumber || '-'}</div>
-            </Col>
-          </Row>
-        </Card>
+        <PatientInfoCard
+          patientData={{
+            patient: {
+              medicalRecordNumber: patient.medicalRecordNumber || '-',
+              name: patient.name || 'Unknown',
+              gender: patient.gender === Gender.MALE ? 'MALE' : 'FEMALE',
+              age: age,
+              identityNumber: patient.identityNumber || '-'
+            },
+            poli: {
+              name: poliName
+            },
+            doctor: {
+              name: doctorName
+            },
+            visitDate: visitDate,
+            paymentMethod: paymentMethod,
+            status: currentStatus,
+            allergies: allergies
+          }}
+          onEditStatus={openStatusModal}
+        />
       </div>
 
       <div className="flex-1 px-4 pb-4 overflow-hidden relative flex flex-col min-h-0">

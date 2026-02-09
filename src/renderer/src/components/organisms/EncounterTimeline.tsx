@@ -83,7 +83,10 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         return (
           <Space wrap size={4}>
             {Array.from(performers).map((doc, i) => (
-              <Tag key={i} className="m-0 bg-gray-50 border-gray-200 text-gray-600 rounded-full px-3">
+              <Tag
+                key={i}
+                className="m-0 bg-gray-50 border-gray-200 text-gray-600 rounded-full px-3"
+              >
                 {doc}
               </Tag>
             ))}
@@ -140,7 +143,14 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
             size="small"
             className="text-blue-600 hover:text-blue-800"
             icon={<EyeOutlined />}
-            onClick={() => handleOpenDetail(`${record.date} ${session.time}`, [...session.observations, ...session.compositions])}
+            onClick={() =>
+              handleOpenDetail(`${record.date} ${session.time}`, [
+                ...(session.observations || []),
+                ...(session.conditions || []),
+                ...(session.procedures || []),
+                ...(session.compositions || [])
+              ])
+            }
           >
             Lihat Detail
           </Button>
@@ -165,15 +175,92 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   const detailColumns = [
     {
-      title: 'Pemeriksaan',
+      title: 'Aspek / Pemeriksaan',
       dataIndex: 'display',
       key: 'display',
-      render: (text: string, record: any) => text || record.codeCoding?.[0]?.display || '-'
+      render: (text: string, record: any) => {
+        if (record.title) return <Text strong>{record.title}</Text>
+        return text || record.codeCoding?.[0]?.display || '-'
+      }
     },
     {
-      title: 'Hasil',
+      title: 'Hasil / Keterangan',
       key: 'value',
       render: (record: any) => {
+        if (record.clinicalStatus || record.verificationStatus) {
+          return (
+            <Space direction="vertical" size={0}>
+              <Space>
+                <Tag color="volcano">{record.clinicalStatus}</Tag>
+                <Tag color="orange">{record.verificationStatus}</Tag>
+              </Space>
+              {record.note && <Text type="secondary">{record.note}</Text>}
+            </Space>
+          )
+        }
+
+        if (record.status && record.display && !record.title) {
+          return (
+            <Space direction="vertical" size={0}>
+              <Tag color="blue">{record.status.toUpperCase()}</Tag>
+              {record.note && <Text type="secondary">{record.note}</Text>}
+            </Space>
+          )
+        }
+
+        if (
+          record.title &&
+          (record.soapSubjective ||
+            record.soapObjective ||
+            record.soapAssessment ||
+            record.soapPlan)
+        ) {
+          return (
+            <div className="bg-gray-50 p-2 rounded border border-gray-100 mt-1">
+              {record.soapSubjective && (
+                <div className="mb-2">
+                  <Text strong className="text-xs text-blue-600 block">
+                    S (SUBJECTIVE)
+                  </Text>
+                  <Text>{record.soapSubjective}</Text>
+                </div>
+              )}
+              {record.soapObjective && (
+                <div className="mb-2">
+                  <Text strong className="text-xs text-blue-600 block">
+                    O (OBJECTIVE)
+                  </Text>
+                  <Text>{record.soapObjective}</Text>
+                </div>
+              )}
+              {record.soapAssessment && (
+                <div className="mb-2">
+                  <Text strong className="text-xs text-blue-600 block">
+                    A (ASSESSMENT)
+                  </Text>
+                  <Text>{record.soapAssessment}</Text>
+                </div>
+              )}
+              {record.soapPlan && (
+                <div className="">
+                  <Text strong className="text-xs text-blue-600 block">
+                    P (PLAN)
+                  </Text>
+                  <Text>{record.soapPlan}</Text>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        if (record.value !== undefined) return record.value
+        if (record.status && record.title)
+          return (
+            <Tag color="cyan" className="rounded-full">
+              {record.status.toUpperCase()}
+            </Tag>
+          )
+
         if (record.valueQuantity) {
           return `${record.valueQuantity.value} ${record.valueQuantity.unit || ''}`
         }

@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { queryClient } from "@renderer/query-client"
 
 interface AllergyInput {
     patientId: string
@@ -21,13 +22,17 @@ export const useCreateAllergy = () => {
             const fn = window.api?.query?.allergyIntolerance?.create
             if (!fn) throw new Error('API allergyIntolerance tidak tersedia')
             const result = await fn(payload)
-
-            // Check if the backend returned an error response
             if (result && typeof result === 'object' && 'success' in result && result.success === false) {
                 throw new Error(result.message || 'Gagal menyimpan alergi')
             }
 
             return result
+        },
+        onSuccess: (_data, variables) => {
+            if (variables.encounterId) {
+                queryClient.invalidateQueries({ queryKey: ['allergy', 'byEncounter', variables.encounterId] })
+            }
+            queryClient.invalidateQueries({ queryKey: ['allergy', 'byPatient', variables.patientId] })
         }
     })
 }

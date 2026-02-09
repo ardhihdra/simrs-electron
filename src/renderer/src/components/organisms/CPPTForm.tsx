@@ -10,7 +10,8 @@ import {
   Space,
   Avatar,
   Modal,
-  Table, Tooltip,
+  Table,
+  Tooltip,
   InputNumber
 } from 'antd'
 import {
@@ -75,6 +76,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
   const handleSubmit = async (values: any) => {
     try {
+      const assessmentDate = values.assessment_date ? dayjs(values.assessment_date) : dayjs()
 
       await upsertMutation.mutateAsync({
         encounterId,
@@ -86,7 +88,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         soapAssessment: values.soapAssessment,
         soapPlan: values.soapPlan,
         status: values.status,
-        issued: values.assessment_date ? values.assessment_date.toISOString() : undefined
+        date: assessmentDate.toISOString()
       })
 
       const statusMsg = values.status === 'final' ? 'Final' : 'Draft'
@@ -129,14 +131,16 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       gcs_m: summary.vitalSigns?.gcsMotor,
       gcs:
         (summary.vitalSigns?.gcsEye || 0) +
-        (summary.vitalSigns?.gcsVerbal || 0) +
-        (summary.vitalSigns?.gcsMotor || 0) || undefined
+          (summary.vitalSigns?.gcsVerbal || 0) +
+          (summary.vitalSigns?.gcsMotor || 0) || undefined
     })
 
     const vitalsParts: string[] = []
 
     if (vitalSigns.systolicBloodPressure && vitalSigns.diastolicBloodPressure) {
-      vitalsParts.push(`TD: ${vitalSigns.systolicBloodPressure}/${vitalSigns.diastolicBloodPressure} mmHg`)
+      vitalsParts.push(
+        `TD: ${vitalSigns.systolicBloodPressure}/${vitalSigns.diastolicBloodPressure} mmHg`
+      )
     }
     if (vitalSigns.pulseRate) vitalsParts.push(`N: ${vitalSigns.pulseRate} x/m`)
     if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
@@ -218,10 +222,12 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     try {
       if (record.status === 'final') return
 
+      const verifierId = selectedPerformerId || record.authorId?.[0] || 1
+
       await upsertMutation.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
-        doctorId: 1,
+        doctorId: Number(verifierId),
         ...record,
         status: 'final',
         title: record.title || 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
@@ -271,9 +277,11 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
           />
           <div className="flex flex-col">
             <span className="font-bold text-gray-800 text-sm">
-              {record.authorName || 'PPA Jaga'}
+              {record.author?.namaLengkap || record.authorName || 'PPA Jaga'}
             </span>
-            <span className="text-gray-500 text-xs">{record.role || 'Dokter/Perawat'}</span>
+            <span className="text-gray-500 text-xs">
+              {record.author?.hakAkses?.nama || record.role || 'Dokter/Perawat'}
+            </span>
           </div>
         </div>
       )
@@ -318,39 +326,60 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     {
       title: 'Verifikasi',
       key: 'verification',
-      width: 100,
-      render: (_: any, record: any) => (
-        <div className="flex flex-col gap-2 items-center">
-          {record.status !== 'final' && (
-            <Space>
-              <Tooltip title="Edit CPPT">
-                <Button
-                  type="text"
-                  shape="circle"
-                  onClick={() => handleEdit(record)}
-                  icon={<FormOutlined className="text-blue-500 text-lg" />}
-                />
-              </Tooltip>
-              <Tooltip title="Verifikasi">
-                <Button
-                  type="text"
-                  shape="circle"
-                  onClick={() => handleVerify(record)}
-                  icon={
-                    <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
-                  }
-                />
-              </Tooltip>
-            </Space>
-          )}
+      width: 150,
+      render: (_: any, record: any) => {
+        const legalAttester = record.attesters?.find((a: any) => a.mode === 'legal')
 
-          {record.status === 'final' && <CheckCircleOutlined className="text-green-500 text-lg" />}
+        return (
+          <div className="flex flex-col gap-2 items-center">
+            {record.status !== 'final' && (
+              <Space>
+                <Tooltip title="Edit CPPT">
+                  <Button
+                    type="text"
+                    shape="circle"
+                    onClick={() => handleEdit(record)}
+                    icon={<FormOutlined className="text-blue-500 text-lg" />}
+                  />
+                </Tooltip>
+                <Tooltip title="Verifikasi">
+                  <Button
+                    type="text"
+                    shape="circle"
+                    onClick={() => handleVerify(record)}
+                    icon={
+                      <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
+                    }
+                  />
+                </Tooltip>
+              </Space>
+            )}
 
-          <Tag color={COMPOSITION_STATUS_COLOR_MAP[record.status || 'preliminary']}>
-            {COMPOSITION_STATUS_MAP[record.status?.toLowerCase() || 'preliminary']}
-          </Tag>
-        </div>
-      )
+            {record.status === 'final' && (
+              <div className="flex flex-col items-center">
+                <CheckCircleOutlined className="text-green-500 text-lg" />
+                {legalAttester && (
+                  <span className="text-[10px] text-gray-500 text-center mt-1 leading-tight">
+                    Verified by <br />
+                    <span className="font-semibold text-gray-700">
+                      {legalAttester.partyDisplay}
+                    </span>
+                    <br />
+                    {dayjs(legalAttester.time).format('DD/MM/YY HH:mm')}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <Tag
+              color={COMPOSITION_STATUS_COLOR_MAP[record.status || 'preliminary']}
+              className="mt-1"
+            >
+              {COMPOSITION_STATUS_MAP[record.status?.toLowerCase() || 'preliminary']}
+            </Tag>
+          </div>
+        )
+      }
     }
   ]
 
@@ -362,7 +391,9 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     )
   }
 
-  const cpptHistory = compositionData?.result || []
+  const cpptHistory = (compositionData?.result || []).filter(
+    (comp: any) => comp.title !== 'SOAP Umum'
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -422,7 +453,16 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         ]}
         width={900}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit} className="pt-4">
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          className="pt-4"
+          initialValues={{
+            assessment_date: dayjs(),
+            status: 'preliminary'
+          }}
+        >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
           {currentRole === 'nurse' && (
@@ -457,15 +497,33 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                 </Form.Item>
 
                 <Form.Item label="Nadi" name="heartRate" className="mb-0">
-                  <InputNumber className="w-full" placeholder="-" addonAfter="x/mnt" readOnly disabled />
+                  <InputNumber
+                    className="w-full"
+                    placeholder="-"
+                    addonAfter="x/mnt"
+                    readOnly
+                    disabled
+                  />
                 </Form.Item>
 
                 <Form.Item label="Laju Pernafasan (RR)" name="respRate" className="mb-0">
-                  <InputNumber className="w-full" placeholder="-" addonAfter="x/mnt" readOnly disabled />
+                  <InputNumber
+                    className="w-full"
+                    placeholder="-"
+                    addonAfter="x/mnt"
+                    readOnly
+                    disabled
+                  />
                 </Form.Item>
 
                 <Form.Item label="Suhu Tubuh" name="temperature" className="mb-0">
-                  <InputNumber className="w-full" placeholder="-" addonAfter="°C" readOnly disabled />
+                  <InputNumber
+                    className="w-full"
+                    placeholder="-"
+                    addonAfter="°C"
+                    readOnly
+                    disabled
+                  />
                 </Form.Item>
 
                 <Form.Item label="GCS (Terkumpul)" name="gcs" className="mb-0">

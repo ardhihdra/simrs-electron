@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Col, DatePicker, Form, Input, Radio, Row, Select, Spin } from 'antd'
+import { App, Button, Card, Form, Input, Radio, Select, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
 import { EDMONSON_MAP, FALL_RISK_MAP, HUMPTY_DUMPTY_MAP } from '../../config/observation-maps'
@@ -12,9 +12,6 @@ import {
 } from '../../utils/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { useBulkCreateObservation } from '../../hooks/query/use-observation'
-
-const { TextArea } = Input
-const { Option } = Select
 
 interface FallRiskAssessmentFormProps {
   encounterId: string
@@ -41,7 +38,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
 
   const bulkCreateObservation = useBulkCreateObservation()
 
-  // Fetch Nurses
   const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
     queryKey: ['kepegawaian', 'list', 'perawat'],
     queryFn: async () => {
@@ -91,18 +87,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         if (score >= 12) level = 'Risiko Tinggi'
         else level = 'Risiko Rendah'
       } else if (type === 'Edmonson Scale') {
-        // Edmonson logic (usually < 90 is high risk, but let's implement standard summing)
-        // Let's assume standard points where > 90 is Low Risk (safe) and < 90 is High.
-        // OR alternative version: Sum of risk factors.
-        // *Wait, Edmonson usually: Score > 90 = Low Risk. Score < 90 = High Risk.*
-        // However, often implementations invert it. Let's stick to common sum-based if available or implement the subtraction one.
-        // Use standard: Age (8), Mental (13-14), etc.
-        // Let's implement Sum.
-        // If sum >= 90 (Safe). < 90 (Risk).
-        // Actually most implementations in Indonesia use:
-        // < 90 : Risiko Tinggi
-        // >= 90 : Tidak Berisiko
-
         score =
           (values.ed_age || 0) +
           (values.ed_mental || 0) +
@@ -112,9 +96,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
           (values.ed_ambulation || 0) +
           (values.ed_nutrition || 0) +
           (values.ed_sleep || 0)
-
-        // NOTE: Edmonson usually starts from 100 or similar? No, usually it's summing items.
-        // Let's follow a content-based approach where items have scores.
 
         if (score >= 90) level = 'Tidak Berisiko'
         else level = 'Risiko Tinggi'
@@ -128,7 +109,13 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
 
   useEffect(() => {
     if (observationData && observationData.length > 0) {
-      const relevantObs = observationData.filter((obs: any) =>
+      const sortedObs = [...observationData].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const relevantObs = sortedObs.filter((obs: any) =>
         obs.categories?.some((cat: any) => cat.code === 'fall-risk')
       )
 
@@ -153,12 +140,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         if (initialValues.hd_age !== undefined) setScaleType('Humpty Dumpty Scale')
         else if (initialValues.ed_age !== undefined) setScaleType('Edmonson Scale')
         else setScaleType('Morse Fall Scale')
-        if (relevantObs[0].effectiveDateTime) {
-          initialValues['assessment_date'] = dayjs(relevantObs[0].effectiveDateTime)
-        }
-        if (relevantObs[0].performers?.[0]?.reference) {
-          initialValues['performerId'] = Number(relevantObs[0].performers[0].reference)
-        }
 
         form.setFieldsValue(initialValues)
         setTimeout(() => {
@@ -179,7 +160,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
     }
   }, [observationData, form, calculateRisk])
 
-  // Watch for changes to calculate score
   const handleValuesChange = () => {
     calculateRisk()
   }
@@ -387,6 +367,8 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
     onSuccess: () => {
       message.success('Data Risiko Jatuh berhasil disimpan')
       queryClient.invalidateQueries({ queryKey: ['observations', encounterId] })
+      form.resetFields(['performerId'])
+      form.setFieldValue('assessment_date', dayjs())
     },
     onError: (err) => {
       console.error('Failed to save fall risk assessment:', err)

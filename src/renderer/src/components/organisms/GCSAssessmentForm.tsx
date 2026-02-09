@@ -34,7 +34,6 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
   const { data: response } = useObservationByEncounter(encounterId)
 
-  // Fetch Nurses
   const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
     queryKey: ['kepegawaian', 'list', 'perawat'],
     queryFn: async () => {
@@ -56,19 +55,18 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
   useEffect(() => {
     const observations = response?.result?.all
     if (response?.success && observations && Array.isArray(observations)) {
-      const vitalSigns = formatVitalSigns(observations)
+      const sortedObs = [...observations].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const vitalSigns = formatVitalSigns(sortedObs)
       const { gcsEye, gcsVerbal, gcsMotor } = vitalSigns
 
       if (gcsEye) setGcsEye(gcsEye)
       if (gcsVerbal) setGcsVerbal(gcsVerbal)
       if (gcsMotor) setGcsMotor(gcsMotor)
-
-      if (observations[0]?.effectiveDateTime) {
-        form.setFieldValue('assessment_date', dayjs(observations[0].effectiveDateTime))
-      }
-      if (observations[0]?.performers?.[0]?.reference) {
-        form.setFieldValue('performerId', Number(observations[0].performers[0].reference))
-      }
     }
   }, [response, form])
 
@@ -187,6 +185,7 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
           performerName: performerName
         })
         message.success('Data Skrining Nyeri & GCS berhasil disimpan')
+        form.setFieldValue('assessment_date', dayjs())
       } else {
         message.warning('Tidak ada data yang disimpan')
       }
@@ -211,7 +210,6 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
       <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title="Pemeriksaan GCS (Glasgow Coma Scale)" className="py-4">
-        {/* Eye Response */}
         <div className="mb-6">
           <h4 className="font-semibold text-gray-700 mb-2">Respon Mata (Eye)</h4>
           <table className="w-full text-sm border border-gray-200 rounded overflow-hidden">
@@ -247,7 +245,6 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
           </table>
         </div>
 
-        {/* Verbal Response */}
         <div className="mb-6">
           <h4 className="font-semibold text-gray-700 mb-2">Respon Verbal (Verbal)</h4>
           <table className="w-full text-sm border border-gray-200 rounded overflow-hidden">

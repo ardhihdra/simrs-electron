@@ -82,7 +82,13 @@ export const NutritionScreeningForm = ({
   // Auto-fill Logic
   useEffect(() => {
     if (observationData && observationData.length > 0) {
-      const relevantObs = observationData.filter((obs: any) =>
+      const sortedObs = [...observationData].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const relevantObs = sortedObs.filter((obs: any) =>
         obs.codeCoding?.some((coding: any) => Object.keys(NUTRITION_MAP).includes(coding.code))
       )
 
@@ -109,14 +115,6 @@ export const NutritionScreeningForm = ({
             }
           }
         })
-
-        if (relevantObs[0].effectiveDateTime) {
-          initialValues['screening_date'] = dayjs(relevantObs[0].effectiveDateTime)
-          initialValues['assessment_date'] = dayjs(relevantObs[0].effectiveDateTime)
-        }
-        if (relevantObs[0].performers?.[0]?.reference) {
-          initialValues['performerId'] = Number(relevantObs[0].performers[0].reference)
-        }
 
         form.setFieldsValue(initialValues)
         setTimeout(calculateScore, 0)
@@ -191,6 +189,9 @@ export const NutritionScreeningForm = ({
     onSuccess: () => {
       message.success('Skrining Gizi berhasil disimpan')
       queryClient.invalidateQueries({ queryKey: ['observations', encounterId] })
+      form.resetFields(['performerId'])
+      form.setFieldValue('assessment_date', dayjs())
+      form.setFieldValue('screening_date', dayjs())
     },
     onError: () => {
       message.error('Gagal menyimpan data')

@@ -149,14 +149,7 @@ export const DoctorOutpatientWorkspace = ({
                   />
                 )
               case 'dental-assessment':
-                return (
-                  <DentalPage
-                    encounterId={encounterId!}
-                    patientId={patientData.patient.id}
-                    performerId={(patientData as any).doctorId}
-                    performerName={(patientData as any).doctorName}
-                  />
-                )
+                return <DentalPage encounterId={encounterId!} patientId={patientData.patient.id} />
               case 'general-soap':
                 return <GeneralSOAPForm encounterId={encounterId || ''} patientData={patientData} />
               case 'diagnosis-procedure':

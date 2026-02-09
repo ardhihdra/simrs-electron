@@ -82,32 +82,6 @@ interface BackendEncounterPatient {
     address?: string
 }
 
-interface BackendCoding {
-    code?: string
-    display?: string
-}
-
-interface BackendObservation {
-    codeCoding?: BackendCoding[]
-    valueString?: string
-    valueQuantity?: { value: number; unit?: string }
-    valueBoolean?: boolean
-    valueInteger?: number
-}
-
-interface BackendConditionCategory {
-    coding?: BackendCoding[]
-    code?: string
-}
-
-interface BackendCondition {
-    id: string
-    category?: string
-    categories?: BackendConditionCategory[]
-    note?: string
-    notes?: string
-}
-
 interface BackendMedicine {
     id: string | number
     code?: string

@@ -79,7 +79,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <TextArea rows={2} placeholder="Masukkan catatan tambahan keluhan utama pasien..." />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Keluhan Penyerta" className="mb-0">
         <Form.Item name={['anamnesis', 'associatedSymptoms_codeId']} style={{ marginBottom: 16 }}>
           <Select
@@ -109,7 +108,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Riwayat Penyakit" className="mb-0">
         <Form.Item
           name={['anamnesis', 'historyOfPresentIllness_codeId']}
@@ -145,7 +143,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <TextArea rows={3} placeholder="Masukkan catatan tambahan atau riwayat penyakit..." />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Riwayat Penyakit Keluarga">
         <Form.List name={['anamnesis', 'familyHistoryList']}>
           {(fields, { add, remove }) => (
@@ -233,7 +230,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           )}
         </Form.List>
       </Form.Item>
-
       <Form.Item label="Riwayat Alergi" className="gap-4 flex flex-col">
         <Form.Item name={['anamnesis', 'allergyHistory_codeId']} style={{ marginBottom: 16 }}>
           <Select
@@ -260,7 +256,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <TextArea rows={2} placeholder="Masukkan catatan tambahan riwayat alergi (jika ada)..." />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Riwayat Pengobatan" name={['anamnesis', 'medicationHistory']}>
         <TextArea rows={2} placeholder="Masukkan riwayat pengobatan sebelumnya (jika ada)..." />
       </Form.Item>

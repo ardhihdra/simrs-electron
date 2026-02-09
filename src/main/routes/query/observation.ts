@@ -50,7 +50,7 @@ export const schemas = {
     },
     deleteById: {
         args: z.object({
-            id: z.number()
+            id: z.union([z.number(), z.string()])
         }),
         result: z.object({
             success: z.boolean(),

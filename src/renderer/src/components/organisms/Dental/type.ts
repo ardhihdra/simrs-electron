@@ -16,6 +16,7 @@ export type Placement =
 
 export interface ToothDetail {
     id: string;
+    observationId?: string;
     notations: {
         fdi: string;
         universal: string;

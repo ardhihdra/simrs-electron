@@ -32,7 +32,7 @@ export interface InitialAssessmentFormProps {
 export const InitialAssessmentForm = ({
   encounterId,
   patientData,
-  mode = 'inpatient',
+  mode = 'inpatient'
 }: InitialAssessmentFormProps) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -78,18 +78,13 @@ export const InitialAssessmentForm = ({
         psychosocialHistory,
         screening,
         conclusion,
-        clinicalNote
+        clinicalNote,
+        examinationDate
       } = summary
 
-      const sampleObs = observations && observations.length > 0 ? observations[0] : null
-      const existingDate = sampleObs?.issued || sampleObs?.effectiveDateTime
-      const existingPerformerId = sampleObs?.performers?.[0]?.reference
-        ? Number(sampleObs.performers[0].reference)
-        : undefined
-
       setLoadedMeta({
-        date: existingDate ? dayjs(existingDate).toISOString() : '',
-        performerId: existingPerformerId || 0
+        date: examinationDate ? dayjs(examinationDate).toISOString() : '',
+        performerId: 0
       })
 
       const loadedVitalSigns = {
@@ -113,9 +108,6 @@ export const InitialAssessmentForm = ({
       setLoadedVitals(loadedVitalSigns)
 
       form.setFieldsValue({
-        assessment_date: existingDate ? dayjs(existingDate) : dayjs(),
-        performerId: existingPerformerId,
-
         vitalSigns: loadedVitalSigns
       })
 
@@ -129,10 +121,6 @@ export const InitialAssessmentForm = ({
           get_up_go_b: fallRisk.gugB
         })
       }
-
-
-
-
 
       if (mode === 'inpatient') {
         // Functional Status
@@ -165,18 +153,12 @@ export const InitialAssessmentForm = ({
         })
       }
 
-
-
       // Clinical Note
       if (clinicalNote) {
         form.setFieldValue('clinicalNote', clinicalNote)
       }
     }
-  }, [
-    response,
-    form,
-    mode
-  ])
+  }, [response, form, mode])
 
   const getBMICategory = (bmi: number): { text: string; code: string } => {
     if (bmi < 18.5) return { text: 'Underweight', code: 'L' }
@@ -218,7 +200,6 @@ export const InitialAssessmentForm = ({
 
       const { vitalSigns } = values
 
-
       // Only skip if EVERYTHING matches perfectly. If user changed anything, we save new version.
       // But typically we only want to skip if it's strictly a "re-save" of fetched data.
       let skipVitals = false
@@ -246,19 +227,19 @@ export const InitialAssessmentForm = ({
             bodySites: [
               ...(vitalSigns.bloodPressureBodySite
                 ? [
-                  {
-                    code: vitalSigns.bloodPressureBodySite,
-                    display: vitalSigns.bloodPressureBodySite
-                  }
-                ]
+                    {
+                      code: vitalSigns.bloodPressureBodySite,
+                      display: vitalSigns.bloodPressureBodySite
+                    }
+                  ]
                 : []),
               ...(vitalSigns.bloodPressurePosition
                 ? [
-                  {
-                    code: vitalSigns.bloodPressurePosition,
-                    display: vitalSigns.bloodPressurePosition
-                  }
-                ]
+                    {
+                      code: vitalSigns.bloodPressurePosition,
+                      display: vitalSigns.bloodPressurePosition
+                    }
+                  ]
                 : [])
             ]
           } as any)
@@ -348,10 +329,6 @@ export const InitialAssessmentForm = ({
           })
         }
       } // End skipVitals check
-
-
-
-
 
       if (mode === 'inpatient') {
         // --- 4. Functional Status ---
@@ -518,8 +495,6 @@ export const InitialAssessmentForm = ({
         }
       }
 
-
-
       // --- Clinical Note (LOINC 8410-0) ---
       if (values.clinicalNote?.trim()) {
         obsToCreate.push({
@@ -549,9 +524,14 @@ export const InitialAssessmentForm = ({
         )
       }
 
-
       await Promise.all(promises)
       message.success('Asesmen berhasil disimpan')
+      // Reset form to default (fresh date/performer) for next append
+      form.resetFields(['assessment_date', 'performerId'])
+      form.setFieldValue('assessment_date', dayjs())
+      // Optional: refetch is handled by React Query in the hook usually,
+      // but if we need a refresh on this component:
+      // response.refetch() or similar if available.
     } catch (error: any) {
       console.error('Error saving assessment:', error)
       message.error(`Gagal menyimpan asesmen: ${error?.message || 'Error tidak diketahui'}`)
@@ -598,8 +578,6 @@ export const InitialAssessmentForm = ({
         <div className="flex flex-col gap-4">
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <VitalSignsSection form={form} />
-
-
 
           {mode === 'inpatient' && (
             <>
