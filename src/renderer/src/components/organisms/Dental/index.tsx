@@ -1,4 +1,4 @@
-import { Button, DatePicker, Form, Input, Modal, Select, Timeline, Typography, App } from 'antd'
+import { Button, DatePicker, Form, Input, Modal, Select, Timeline, Typography, App, AutoComplete, Spin } from 'antd'
 import { Content } from 'antd/es/layout/layout'
 import dayjs from 'dayjs'
 import { useMemo, useState, useEffect } from 'react'
@@ -59,6 +59,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [odontoKey, setOdontoKey] = useState<number>(0)
   const [hoveredTeeth, setHoveredTeeth] = useState<ToothDetail[]>([])
+  const [selectedTreatmentData, setSelectedTreatmentData] = useState<{ code: string; name: string } | null>(null);
 
   const [procedureSearch, setProcedureSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -112,6 +113,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
     }
 
     setIsModalOpen(true)
+    setProcedureSearch('') // Reset search on new entry 
   }
 
   const pendingToothIds = useMemo(() => pendingTeeth.map((t) => t.id).join(', '), [pendingTeeth])
@@ -119,28 +121,35 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   const onSubmit = async () => {
     try {
       const values = await form.validateFields()
-      const dateStr = dayjs(values.date).isValid()
-        ? dayjs(values.date).format('DD-MM-YYYY')
-        : String(values.date ?? '01-01-2023')
 
       if (encounterId && patientId && pendingTeeth.length > 0) {
         if (editingIndex !== null && selected[editingIndex]) {
           const originalEntry = selected[editingIndex]
-          const oldObservationIds = originalEntry.tooth
-            .map((t) => t.observationId)
-            .filter((id): id is string => !!id)
 
-          if (oldObservationIds.length > 0) {
-            await Promise.all(oldObservationIds.map((id) => deleteObs(id)))
+          const currentObservationIds = pendingTeeth
+            .map(t => t.observationId)
+            .filter((id): id is string => !!id);
+
+          const idsToDelete = originalEntry.tooth
+            .map(t => t.observationId)
+            .filter((id): id is string => !!id && !currentObservationIds.includes(id));
+
+          if (idsToDelete.length > 0) {
+            await Promise.all(idsToDelete.map((id) => deleteObs(id)))
           }
         }
 
         const selectedDoctor = doctorsData?.find((d: any) => d.id === values.dentist)
         const doctorName = selectedDoctor?.name || 'Dokter Tidak Diketahui'
 
+        const treatmentValue = values.treatment;
+        const finalTreatment = (selectedTreatmentData && `${selectedTreatmentData.code} - ${selectedTreatmentData.name}` === treatmentValue)
+          ? selectedTreatmentData
+          : treatmentValue;
+
         const dentalData = {
           date: values.date,
-          treatment: values.treatment,
+          treatment: finalTreatment,
           condition: values.condition,
           dentist: doctorName,
           tooth: pendingTeeth,
@@ -161,7 +170,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
 
       setLastFormValues({
         date: values.date,
-        treatment: values.treatment,
+        treatment: (selectedTreatmentData && `${selectedTreatmentData.code} - ${selectedTreatmentData.name}` === values.treatment) ? selectedTreatmentData : values.treatment,
         condition: values.condition,
         dentist: values.dentist,
         status: values.status,
@@ -184,6 +193,8 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
     form.resetFields()
     setEditingIndex(null)
     setPendingTeeth([])
+    setProcedureSearch('')
+    setSelectedTreatmentData(null);
     setOdontoKey((k) => k + 1)
   }
 
@@ -196,8 +207,6 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
       if (observationIds.length > 0) {
         await Promise.all(observationIds.map((id) => deleteObs(id)))
         message.success('Data dental berhasil dihapus')
-
-        // Query invalidation handles UI update
       } else {
         message.warning('Tidak ada data ID yang ditemukan untuk dihapus')
       }
@@ -255,6 +264,23 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
                         setPendingTeeth(item.tooth)
                         setEditingIndex(idx)
                         setIsModalOpen(true)
+                        if (item.treatment) {
+                          let tName = '';
+                          if (typeof item.treatment === 'string') {
+                            tName = item.treatment;
+                            setSelectedTreatmentData(null);
+                          } else if (typeof item.treatment === 'object' && 'code' in item.treatment && 'name' in item.treatment) {
+                            // @ts-ignore
+                            tName = `${item.treatment.code} - ${item.treatment.name}`;
+                            // @ts-ignore
+                            setSelectedTreatmentData(item.treatment);
+                          }
+                          setProcedureSearch(tName)
+                          form.setFieldValue('treatment', tName);
+                        } else {
+                          setProcedureSearch('')
+                          setSelectedTreatmentData(null);
+                        }
                       }}
                       onDelete={() => handleDelete(item)}
                     />
@@ -293,27 +319,30 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
             name="treatment"
             rules={[{ required: true, message: 'Tindakan wajib diisi' }]}
           >
-            <Select
-              showSearch
-              placeholder="Cari Tindakan (Contoh: Tambal)"
-              loading={isLoadingProcedures}
-              filterOption={false}
-              onSearch={(val) => setProcedureSearch(val)}
-              // Handle object value selection
-              labelInValue
+            <AutoComplete
               options={proceduresData?.map((p: any) => ({
+                value: p.code,
                 label: `${p.code} - ${p.name}`,
-                value: JSON.stringify({ code: p.code, name: p.name }) // Store as stringified JSON to workaround Antd Select limits with objects as keys
               }))}
-              onChange={(value: any) => {
-                // Parse if it's our JSON string
-                try {
-                  const parsed = JSON.parse(value.value)
-                  form.setFieldValue('treatment', parsed)
-                } catch (e) {
-                  form.setFieldValue('treatment', value) // Fallback
+              onSearch={(val) => setProcedureSearch(val)}
+              onSelect={(value, option) => {
+                const selectedProc = proceduresData?.find((p: any) => p.code === value);
+
+                if (selectedProc) {
+                  console.log('Selected Procedure:', selectedProc);
+                  const displayText = `${selectedProc.code} - ${selectedProc.name}`;
+
+                  setProcedureSearch(displayText);
+                  setSelectedTreatmentData({ code: selectedProc.code, name: selectedProc.name });
+                  form.setFieldValue('treatment', displayText);
                 }
               }}
+              onChange={(val) => setProcedureSearch(val)}
+              placeholder="Ketik kode atau nama tindakan (min 2 karakter)"
+              className="w-full"
+              value={procedureSearch}
+              defaultActiveFirstOption={false}
+              notFoundContent={isLoadingProcedures ? <Spin size="small" /> : null}
             />
           </Form.Item>
           <Form.Item

@@ -40,6 +40,7 @@ export interface DentalObservationPayload {
         valueString?: string
     }>
     notes?: string[]
+    status?: 'preliminary' | 'final'
 }
 
 export function mapDentalDataToObservationPayload(
@@ -72,7 +73,8 @@ export function mapDentalDataToObservationPayload(
         const toothNumber = tooth.id.replace('teeth-', '')
         const noteText = `Tooth ${toothNumber}: ${dentalData.condition} - ${treatmentName}`
 
-        const payload: DentalObservationPayload = {
+        const payload: DentalObservationPayload & { id?: string } = {
+            id: tooth.observationId, // Include ID for update
             category: 'exam',
             code: conditionCode.code,
             display: conditionCode.display,
@@ -85,7 +87,8 @@ export function mapDentalDataToObservationPayload(
                     system: SNOMED_SYSTEM
                 }
             ],
-            notes: [noteText, dentalData.notes].filter(Boolean) as string[]
+            notes: [noteText, dentalData.notes].filter(Boolean) as string[],
+            status: dentalData.status === 'pending' ? 'preliminary' : 'final'
         }
 
         if (treatmentCode) {

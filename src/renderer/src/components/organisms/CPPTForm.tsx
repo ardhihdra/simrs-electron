@@ -79,6 +79,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       const assessmentDate = values.assessment_date ? dayjs(values.assessment_date) : dayjs()
 
       await upsertMutation.mutateAsync({
+        id: values.id,
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(values.performerId),
@@ -131,8 +132,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       gcs_m: summary.vitalSigns?.gcsMotor,
       gcs:
         (summary.vitalSigns?.gcsEye || 0) +
-          (summary.vitalSigns?.gcsVerbal || 0) +
-          (summary.vitalSigns?.gcsMotor || 0) || undefined
+        (summary.vitalSigns?.gcsVerbal || 0) +
+        (summary.vitalSigns?.gcsMotor || 0) || undefined
     })
 
     const vitalsParts: string[] = []
@@ -206,6 +207,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   const handleEdit = (record: any) => {
     const { remainingText } = parseVitals(record.soapObjective || '')
     form.setFieldsValue({
+      id: record.id,
       soapSubjective: record.soapSubjective,
       soapObjective: remainingText,
       soapAssessment: record.soapAssessment,
@@ -221,6 +223,11 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   const handleVerify = async (record: any) => {
     try {
       if (record.status === 'final') return
+
+      if (currentRole !== 'doctor') {
+        message.error('Hanya dokter yang dapat melakukan verifikasi')
+        return
+      }
 
       const verifierId = selectedPerformerId || record.authorId?.[0] || 1
 
@@ -342,16 +349,19 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                     icon={<FormOutlined className="text-blue-500 text-lg" />}
                   />
                 </Tooltip>
-                <Tooltip title="Verifikasi">
-                  <Button
-                    type="text"
-                    shape="circle"
-                    onClick={() => handleVerify(record)}
-                    icon={
-                      <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
-                    }
-                  />
-                </Tooltip>
+
+                {currentRole === 'doctor' && (
+                  <Tooltip title="Verifikasi">
+                    <Button
+                      type="text"
+                      shape="circle"
+                      onClick={() => handleVerify(record)}
+                      icon={
+                        <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
+                      }
+                    />
+                  </Tooltip>
+                )}
               </Space>
             )}
 
@@ -465,7 +475,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
-          {currentRole === 'nurse' && (
+          {(currentRole === 'nurse' || currentRole === 'doctor') && (
             <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 mt-4">
               <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
                 <div className="font-bold text-blue-700 uppercase text-xs tracking-wider">
@@ -585,6 +595,9 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
             </div>
           </div>
           <Form.Item name="status" hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item name="id" hidden>
             <Input />
           </Form.Item>
         </Form>

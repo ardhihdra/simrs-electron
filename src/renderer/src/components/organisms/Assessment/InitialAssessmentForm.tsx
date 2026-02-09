@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Form, Spin } from 'antd'
+import { App, Button, Form, Spin, Select } from 'antd'
 
 import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
@@ -108,7 +108,8 @@ export const InitialAssessmentForm = ({
       setLoadedVitals(loadedVitalSigns)
 
       form.setFieldsValue({
-        vitalSigns: loadedVitalSigns
+        vitalSigns: loadedVitalSigns,
+        consciousness: screening.consciousness_level || 'Compos Mentis' // Load saved consciousness if available
       })
 
       if (mode === 'inpatient') {
@@ -227,19 +228,19 @@ export const InitialAssessmentForm = ({
             bodySites: [
               ...(vitalSigns.bloodPressureBodySite
                 ? [
-                    {
-                      code: vitalSigns.bloodPressureBodySite,
-                      display: vitalSigns.bloodPressureBodySite
-                    }
-                  ]
+                  {
+                    code: vitalSigns.bloodPressureBodySite,
+                    display: vitalSigns.bloodPressureBodySite
+                  }
+                ]
                 : []),
               ...(vitalSigns.bloodPressurePosition
                 ? [
-                    {
-                      code: vitalSigns.bloodPressurePosition,
-                      display: vitalSigns.bloodPressurePosition
-                    }
-                  ]
+                  {
+                    code: vitalSigns.bloodPressurePosition,
+                    display: vitalSigns.bloodPressurePosition
+                  }
+                ]
                 : [])
             ]
           } as any)
@@ -329,6 +330,15 @@ export const InitialAssessmentForm = ({
           })
         }
       } // End skipVitals check
+
+      if (values.consciousness) {
+        obsToCreate.push({
+          category: OBSERVATION_CATEGORIES.EXAM,
+          code: 'consciousness',
+          display: 'Consciousness',
+          valueString: values.consciousness
+        })
+      }
 
       if (mode === 'inpatient') {
         // --- 4. Functional Status ---
@@ -577,6 +587,24 @@ export const InitialAssessmentForm = ({
       <Spin spinning={isSubmitting} tip="Menyimpan data asesmen..." size="large">
         <div className="flex flex-col gap-4">
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
+          <div className="px-4">
+            <Form.Item
+              label={<span className="font-semibold">Kesadaran</span>}
+              name="consciousness"
+              rules={[{ required: true, message: 'Wajib diisi' }]}
+              initialValue="Compos Mentis"
+            >
+              <Select placeholder="Pilih Kesadaran" className="w-full md:w-1/2">
+                <Select.Option value="Compos Mentis">Compos Mentis</Select.Option>
+                <Select.Option value="Apatis">Apatis</Select.Option>
+                <Select.Option value="Somnolen">Somnolen</Select.Option>
+                <Select.Option value="Sopor">Sopor</Select.Option>
+                <Select.Option value="Coma">Coma</Select.Option>
+              </Select>
+            </Form.Item>
+          </div>
+
           <VitalSignsSection form={form} />
 
           {mode === 'inpatient' && (
