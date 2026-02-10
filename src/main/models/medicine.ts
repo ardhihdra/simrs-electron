@@ -11,6 +11,7 @@ export const MedicineSchema = z.object({
   sellingPrice: z.coerce.number(),
   sideEffects: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
+  minimumStock: z.number().nullable().optional(),
   stock: z.number().optional()
 })
 

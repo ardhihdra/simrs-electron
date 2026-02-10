@@ -53,8 +53,10 @@ interface AuthorizingPrescriptionInfo {
 	medication?: MedicationInfo
 	item?: {
 		nama?: string
+		itemCategoryId?: number | null
 	} | null
 	dosageInstruction?: DosageInstructionEntry[] | null
+	supportingInformation?: any[] | null
 }
 
 interface MedicationDispenseAttributes {
@@ -112,6 +114,23 @@ interface MedicationRequestDetailResult {
 	error?: string
 }
 
+interface ItemAttributes {
+	id?: number
+	nama?: string
+	kode?: string
+	itemCategoryId?: number | null
+	category?: {
+		id?: number
+		name?: string | null
+	} | null
+}
+
+interface ItemListResponse {
+	success: boolean
+	result?: ItemAttributes[]
+	message?: string
+}
+
 interface DispenseItemRow {
 	key: string
 	id?: number
@@ -123,6 +142,7 @@ interface DispenseItemRow {
 	performerName?: string
 	instruksi?: string
 	availableStock?: number
+	children?: DispenseItemRow[]
 }
 
 interface ParentRow {
@@ -215,6 +235,7 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
 	const canComplete =
 		!isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient
 	const canVoid = isCompleted && typeof record.id === 'number'
+	const isKomposisi = record.jenis === 'Komposisi'
 
 	const handlePrintLabel = () => {
 		const patientLabel = getPatientDisplayName(patient)
@@ -324,9 +345,11 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
 							Return / Void
 						</Button>
 					)}
-					<Button type="default" size="small" onClick={handlePrintLabel}>
-						Cetak Label
-					</Button>
+					{!isKomposisi && (
+						<Button type="default" size="small" onClick={handlePrintLabel}>
+							Cetak Label
+						</Button>
+					)}
 				</div>
 				{isStockInsufficient && (
 					<div className="text-xs text-red-500">
@@ -437,6 +460,78 @@ export function MedicationDispenseTable() {
 			return res
 		}
 	})
+
+	const itemApi = (window.api?.query as {
+		item?: { list: () => Promise<ItemListResponse> }
+	}).item
+
+	const { data: itemSource } = useQuery<ItemListResponse>({
+		queryKey: ['item', 'list', 'for-medication-dispense'],
+		queryFn: () => {
+			const fn = itemApi?.list
+			if (!fn) throw new Error('API item tidak tersedia.')
+			return fn()
+		}
+	})
+
+	const itemCategoryNameById = useMemo(() => {
+		const items: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
+			: []
+		const map = new Map<number, string>()
+		for (const item of items) {
+			const id =
+				typeof item.itemCategoryId === 'number'
+					? item.itemCategoryId
+					: typeof item.category?.id === 'number'
+						? item.category.id
+						: undefined
+			if (typeof id !== 'number') continue
+			const rawName =
+				typeof item.category?.name === 'string'
+					? item.category.name
+					: undefined
+			const name = rawName ? rawName.trim() : ''
+			if (!name) continue
+			if (!map.has(id)) {
+				map.set(id, name)
+			}
+		}
+		return map
+	}, [itemSource?.result])
+
+	const itemCategoryIdByItemId = useMemo(() => {
+		const source: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
+			: []
+		const map = new Map<number, number>()
+		for (const item of source) {
+			if (typeof item.id !== 'number') continue
+			const directId =
+				typeof item.itemCategoryId === 'number'
+					? item.itemCategoryId
+					: typeof item.category?.id === 'number'
+					? item.category.id
+					: undefined
+			if (typeof directId === 'number') {
+				map.set(item.id, directId)
+			}
+		}
+		return map
+	}, [itemSource?.result])
+
+	const itemNameById = useMemo(() => {
+		const source: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
+			: []
+		const map = new Map<number, string>()
+		for (const item of source) {
+			if (typeof item.id === 'number' && typeof item.nama === 'string') {
+				map.set(item.id, item.nama)
+			}
+		}
+		return map
+	}, [itemSource?.result])
 
 	const { data: prescriptionDetailData } = useQuery({
 		queryKey: ['medicationRequest', 'detailForDispenseSummary', prescriptionIdParam],
@@ -551,7 +646,33 @@ export function MedicationDispenseTable() {
 
 			let jenis: string
 			if (isItem) {
-				jenis = 'Item'
+				const itemIdForRow =
+					typeof item.itemId === 'number' && item.itemId > 0
+						? item.itemId
+						: undefined
+				let resolvedCategoryName: string | undefined
+				if (typeof itemIdForRow === 'number') {
+					const mappedCategoryId = itemCategoryIdByItemId.get(itemIdForRow)
+					if (typeof mappedCategoryId === 'number') {
+						const mappedName = itemCategoryNameById.get(mappedCategoryId)
+						if (mappedName && mappedName.length > 0) {
+							resolvedCategoryName = mappedName
+						}
+					}
+				}
+				if (!resolvedCategoryName) {
+					const rawCategoryId =
+						typeof prescription?.item?.itemCategoryId === 'number'
+							? prescription.item.itemCategoryId
+							: undefined
+					if (typeof rawCategoryId === 'number') {
+						const fallbackName = itemCategoryNameById.get(rawCategoryId)
+						if (fallbackName && fallbackName.length > 0) {
+							resolvedCategoryName = fallbackName
+						}
+					}
+				}
+				jenis = resolvedCategoryName && resolvedCategoryName.length > 0 ? resolvedCategoryName : 'Item'
 			} else if (isRacikan) {
 				jenis = 'Obat Racikan'
 			} else {
@@ -583,6 +704,40 @@ export function MedicationDispenseTable() {
 				? dayjs(item.whenHandedOver).format('DD/MM/YYYY HH:mm')
 				: '-'
 
+			let children: DispenseItemRow[] | undefined
+			if (isRacikan && Array.isArray(prescription?.supportingInformation)) {
+				const ingredients = prescription.supportingInformation.filter(
+					(info: any) =>
+						info.resourceType === 'Ingredient' ||
+						info.itemId ||
+						info.item_id ||
+						info.medicationId ||
+						info.medication_id
+				)
+
+				if (ingredients.length > 0) {
+					children = ingredients.map((ing: any, idx: number) => {
+						const ingItemId = ing.itemId ?? ing.item_id
+						const ingNameRaw = ing.name ?? ing.text
+						let ingName = ingNameRaw
+
+						if (!ingName && typeof ingItemId === 'number') {
+							ingName = itemNameById.get(ingItemId)
+						}
+
+						return {
+							key: `${key}-${item.id}-ing-${idx}`,
+							jenis: 'Komposisi',
+							medicineName: ingName ?? 'Komposisi',
+							quantity: typeof ing.quantity === 'number' ? ing.quantity : undefined,
+							unit: ing.unitCode ?? ing.unit,
+							status: '',
+							instruksi: ing.note ?? ing.instruction
+						}
+					})
+				}
+			}
+
 			const rowItem: DispenseItemRow = {
 				key: `${key}-${item.id ?? item.medicationId ?? item.itemId ?? ''}`,
 				id: item.id,
@@ -593,7 +748,8 @@ export function MedicationDispenseTable() {
 				status: item.status,
 				performerName: item.performer?.name,
 				instruksi,
-				availableStock: typeof item.medication?.stock === 'number' ? item.medication.stock : undefined
+				availableStock: typeof item.medication?.stock === 'number' ? item.medication.stock : undefined,
+				children
 			}
 
 			const existing = groups.get(key)
@@ -611,7 +767,7 @@ export function MedicationDispenseTable() {
 		})
 
 		return Array.from(groups.values())
-	}, [filtered])
+	}, [filtered, itemNameById])
 
 	const groupedDataForTable = useMemo<ParentRow[]>(() => {
 		if (!showOnlyPending) return groupedData
@@ -622,7 +778,7 @@ export function MedicationDispenseTable() {
 
 		return (
 			<div>
-				<h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat (Dispensing)</h2>
+				<h2 className="text-4xl font-bold mb-4 justify-center flex">Penyerahan Obat</h2>
 				<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
 					<Input
 						type="text"
@@ -778,12 +934,12 @@ export function MedicationDispenseTable() {
 								iframe.remove()
 							}, 1000)
 						}
-						const detailColumns = [
-							{ title: 'Jenis Obat', dataIndex: 'jenis', key: 'jenis' },
-							{ title: 'Nama Obat', dataIndex: 'medicineName', key: 'medicineName' },
-							{ title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
-							{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
-							{ title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
+					const detailColumns = [
+						{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
+						{ title: 'Item', dataIndex: 'medicineName', key: 'medicineName' },
+						{ title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
+						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
+						{ title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
 						{
 							title: 'Status',
 							dataIndex: 'status',

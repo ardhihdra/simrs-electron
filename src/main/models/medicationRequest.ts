@@ -39,7 +39,6 @@ export const MedicationRequestSchema = z.object({
 	status: z.nativeEnum(MedicationRequestStatus),
 	intent: z.nativeEnum(MedicationRequestIntent),
 	priority: z.nativeEnum(MedicationRequestPriority).optional(),
-	medicationId: z.number().nullable().optional(),
 	itemId: z.number().nullable().optional(),
 	patientId: z.string(),
 	encounterId: z.string().nullable().optional(),
@@ -61,6 +60,5 @@ export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({
 	patient: z.any().optional(),
 	requester: z.any().optional(),
 	encounter: z.any().optional(),
-	medication: z.any().optional(),
 	item: z.any().optional()
 })

@@ -19,17 +19,13 @@ const PatientNameEntrySchema = z.object({
 })
 
 const PatientSchema = z.object({
-  id: z.string().optional(),
-  name: z.array(PatientNameEntrySchema).optional(),
-  identifier: z.array(PatientIdentifierSchema).optional(),
-  mrNo: z.string().optional()
-})
-
-const MedicationSchema = z.object({
-	id: z.number().optional(),
-	name: z.string().optional(),
-	stock: z.number().optional(),
-	uom: z.string().nullable().optional()
+	id: z.string().optional(),
+	name: z.union([
+		z.string(),
+		z.array(PatientNameEntrySchema)
+	]).optional(),
+	identifier: z.array(PatientIdentifierSchema).optional(),
+	mrNo: z.string().optional()
 })
 
 const PerformerSchema = z.object({
@@ -43,7 +39,6 @@ const DosageInstructionEntrySchema = z.object({
 
 export const MedicationDispenseSchema = z.object({
 	status: z.nativeEnum(MedicationDispenseStatus),
-  medicationId: z.number().nullable().optional(),
   itemId: z.number().nullable().optional(),
 	patientId: z.string(),
 	encounterId: z.string().nullable().optional(),
@@ -61,7 +56,6 @@ export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional(),
 	patient: PatientSchema.optional(),
-	medication: MedicationSchema.nullable().optional(),
   performer: PerformerSchema.nullable().optional(),
-	authorizingPrescription: MedicationRequestWithIdSchema.optional()
+  authorizingPrescription: MedicationRequestWithIdSchema.nullable().optional()
 })

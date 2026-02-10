@@ -35,6 +35,7 @@ import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCat
 import type * as Mod_query_observation from '@main/routes/query/observation'
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
+import type * as Mod_query_pharmacyTransaction from '@main/routes/query/pharmacyTransaction'
 import type * as Mod_query_poli from '@main/routes/query/poli'
 import type * as Mod_query_procedure from '@main/routes/query/procedure'
 import type * as Mod_query_productionFormula from '@main/routes/query/productionFormula'
@@ -193,6 +194,12 @@ type Args_Mod_query_familyMemberHistory_update = InferArgs<typeof Mod_query_fami
 type Result_Mod_query_familyMemberHistory_update = InferResult<typeof Mod_query_familyMemberHistory, 'update'>
 type Args_Mod_query_hakAkses_getByCode = InferArgs<typeof Mod_query_hakAkses, 'getByCode'>
 type Result_Mod_query_hakAkses_getByCode = InferResult<typeof Mod_query_hakAkses, 'getByCode'>
+type Args_Mod_query_inventoryStock_adjustItemStock = InferArgs<typeof Mod_query_inventoryStock, 'adjustItemStock'>
+type Result_Mod_query_inventoryStock_adjustItemStock = InferResult<typeof Mod_query_inventoryStock, 'adjustItemStock'>
+type Args_Mod_query_inventoryStock_expirySummary = InferArgs<typeof Mod_query_inventoryStock, 'expirySummary'>
+type Result_Mod_query_inventoryStock_expirySummary = InferResult<typeof Mod_query_inventoryStock, 'expirySummary'>
+type Args_Mod_query_inventoryStock_itemAdjustments = InferArgs<typeof Mod_query_inventoryStock, 'itemAdjustments'>
+type Result_Mod_query_inventoryStock_itemAdjustments = InferResult<typeof Mod_query_inventoryStock, 'itemAdjustments'>
 type Args_Mod_query_inventoryStock_list = InferArgs<typeof Mod_query_inventoryStock, 'list'>
 type Result_Mod_query_inventoryStock_list = InferResult<typeof Mod_query_inventoryStock, 'list'>
 type Args_Mod_query_item_create = InferArgs<typeof Mod_query_item, 'create'>
@@ -319,6 +326,10 @@ type Args_Mod_query_pegawai_list = InferArgs<typeof Mod_query_pegawai, 'list'>
 type Result_Mod_query_pegawai_list = InferResult<typeof Mod_query_pegawai, 'list'>
 type Args_Mod_query_pegawai_update = InferArgs<typeof Mod_query_pegawai, 'update'>
 type Result_Mod_query_pegawai_update = InferResult<typeof Mod_query_pegawai, 'update'>
+type Args_Mod_query_pharmacyTransaction_create = InferArgs<typeof Mod_query_pharmacyTransaction, 'create'>
+type Result_Mod_query_pharmacyTransaction_create = InferResult<typeof Mod_query_pharmacyTransaction, 'create'>
+type Args_Mod_query_pharmacyTransaction_list = InferArgs<typeof Mod_query_pharmacyTransaction, 'list'>
+type Result_Mod_query_pharmacyTransaction_list = InferResult<typeof Mod_query_pharmacyTransaction, 'list'>
 type Args_Mod_query_poli_create = InferArgs<typeof Mod_query_poli, 'create'>
 type Result_Mod_query_poli_create = InferResult<typeof Mod_query_poli, 'create'>
 type Args_Mod_query_poli_deleteById = InferArgs<typeof Mod_query_poli, 'deleteById'>
@@ -546,6 +557,9 @@ declare global {
           getByCode: Invoke<Args_Mod_query_hakAkses_getByCode, Result_Mod_query_hakAkses_getByCode>
         }
         inventoryStock: {
+          adjustItemStock: Invoke<Args_Mod_query_inventoryStock_adjustItemStock, Result_Mod_query_inventoryStock_adjustItemStock>
+          expirySummary: Invoke<Args_Mod_query_inventoryStock_expirySummary, Result_Mod_query_inventoryStock_expirySummary>
+          itemAdjustments: Invoke<Args_Mod_query_inventoryStock_itemAdjustments, Result_Mod_query_inventoryStock_itemAdjustments>
           list: Invoke<Args_Mod_query_inventoryStock_list, Result_Mod_query_inventoryStock_list>
         }
         item: {
@@ -635,6 +649,10 @@ declare global {
           getById: Invoke<Args_Mod_query_pegawai_getById, Result_Mod_query_pegawai_getById>
           list: Invoke<Args_Mod_query_pegawai_list, Result_Mod_query_pegawai_list>
           update: Invoke<Args_Mod_query_pegawai_update, Result_Mod_query_pegawai_update>
+        }
+        pharmacyTransaction: {
+          create: Invoke<Args_Mod_query_pharmacyTransaction_create, Result_Mod_query_pharmacyTransaction_create>
+          list: Invoke<Args_Mod_query_pharmacyTransaction_list, Result_Mod_query_pharmacyTransaction_list>
         }
         poli: {
           create: Invoke<Args_Mod_query_poli_create, Result_Mod_query_poli_create>

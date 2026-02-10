@@ -56,12 +56,21 @@ export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.ar
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
 	try {
 		const client = createBackendClient(ctx)
-		const payload = {
+		const basePayload = {
 			nama: args.nama,
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
-			kind: args.kind ?? null
+			kind: args.kind ?? null,
+			itemCategoryId: args.itemCategoryId ?? null,
+			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
+			sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
+			buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
+			sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
 		}
+		const payload =
+			typeof args.minimumStock === 'number'
+				? { ...basePayload, minimumStock: args.minimumStock }
+				: basePayload
 		console.log('[item.create] payload', payload)
 		const res = await client.post('/api/item', payload)
 		const result = await parseBackendResponse(res, BackendDetailSchema)
@@ -77,12 +86,21 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
 	try {
 		const client = createBackendClient(ctx)
-		const payload = {
+		const basePayload = {
 			nama: args.nama,
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
-			kind: args.kind ?? null
+			kind: args.kind ?? null,
+			itemCategoryId: args.itemCategoryId ?? null,
+			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
+			sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
+			buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
+			sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
 		}
+		const payload =
+			typeof args.minimumStock === 'number'
+				? { ...basePayload, minimumStock: args.minimumStock }
+				: basePayload
 		console.log('[item.update] payload', { id: args.id, ...payload })
 		const res = await client.put(`/api/item/${args.id}`, payload)
 		const result = await parseBackendResponse(res, BackendDetailSchema)
