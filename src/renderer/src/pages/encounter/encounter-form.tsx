@@ -4,8 +4,8 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import dayjs, { type Dayjs } from 'dayjs'
 import type { EncounterAttributes } from '@shared/encounter'
 
-import { SelectPoli } from '@renderer/components/dynamic/SelectPoli'
-import { SelectKepegawaian } from '@renderer/components/dynamic/SelectKepegawaian'
+import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
+import { SelectKepegawaian } from '@renderer/components/molecules/SelectKepegawaian'
 import { useCreateEncounter, useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { usePatientOptions } from '@renderer/hooks/query/use-patient'
 

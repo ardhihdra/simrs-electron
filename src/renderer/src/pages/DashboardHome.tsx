@@ -8,13 +8,13 @@ function DashboardHome() {
   // const navigate = useNavigate()
   useEffect(() => {
     window.api.auth.getSession().then((res) => {
-      console.log('Get Session', res)
+      // console.log('Get Session', res)
       if (res.success) {
         setSession(res)
       }
     })
   }, [])
-  console.log('Session', session)
+  // console.log('Session', session)
   return (
     <div>
       <div className="flex justify-center items-center gap-4">

@@ -1,13 +1,14 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { initDatabase } from '@main/database'
-import { IpcRouter } from '@main/ipc/router'
 import { SessionStore } from '@main/ipc/protected/session-store'
+import { IpcRouter } from '@main/ipc/router'
 import { autoRegisterRoutes } from '@main/routes/loader'
+import '@main/rpc/rpc-entry'
 import { notificationService } from '@main/services/notification-service'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as fs from 'fs'
+import { join } from 'path'
+import icon from '../../resources/icon.png?asset'
 
 // Simple file logger
 const logFile = join(app.getPath('userData'), 'app.log')
@@ -46,7 +47,7 @@ console.warn = (...args) => {
   writeToLogFile('WARN', ...args)
 }
 
-const sessionStore = new SessionStore()
+export const sessionStore = new SessionStore()
 export const router = new IpcRouter({ sessionStore })
 
 function createWindow(): void {
@@ -57,6 +58,8 @@ function createWindow(): void {
       width: 1280,
       height: 800,
       show: false,
+      minWidth: 850,
+      minHeight: 400,
       autoHideMenuBar: true,
       ...(process.platform === 'linux' ? { icon } : {}),
       webPreferences: {
@@ -78,7 +81,7 @@ function createWindow(): void {
       const u = details.url
       const isCsvExport = /\/api\/[^/]+\/export\?/.test(u) && u.includes('export=csv')
       if (isCsvExport) {
-        ;(async () => {
+        ; (async () => {
           try {
             const res = await fetch(u)
             const buf = Buffer.from(await res.arrayBuffer())

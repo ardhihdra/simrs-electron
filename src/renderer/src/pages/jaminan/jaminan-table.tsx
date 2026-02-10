@@ -4,8 +4,8 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
-import  { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
-import GenericTable from '@renderer/components/GenericTable'
+import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 interface JaminanAttributes {
   id?: number

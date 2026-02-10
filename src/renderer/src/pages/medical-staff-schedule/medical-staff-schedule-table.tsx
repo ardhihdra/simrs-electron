@@ -5,7 +5,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
-import GenericTable from '@renderer/components/GenericTable'
+import GenericTable from '@renderer/components/organisms/GenericTable'
 
 interface DaySchedule {
   enabled: boolean
@@ -111,7 +111,7 @@ const baseColumns = [
       </Tag>
     )
   },
-  
+
 ]
 
 function RowActions({ record }: { record: MedicalStaffScheduleAttributes }) {

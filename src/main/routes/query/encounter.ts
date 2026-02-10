@@ -1,32 +1,46 @@
-import z from 'zod'
-import { EncounterSchema, EncounterSchemaWithId } from '@main/models/encounter'
 import { IpcContext } from '@main/ipc/router'
-import {
-  parseBackendResponse,
-  BackendListSchema,
-  getClient
-} from '@main/utils/backendClient'
-
-export const requireSession = true
+import { EncounterSchemaWithId } from '@main/models/encounter'
+import { BackendListSchema, getClient, parseBackendResponse } from '@main/utils/backendClient'
+import { EncounterSchema } from 'simrs-types'
+import z from 'zod'
 
 export const schemas = {
   list: {
-    args: z.any(),
-    result: z.any()
+    result: z.object({
+      success: z.boolean(),
+      data: z
+        .array(
+          EncounterSchemaWithId.extend({
+            patient: z
+              .object({
+                id: z.string(),
+                kode: z.string().optional(),
+                name: z.string(),
+                medicalRecordNumber: z.string().optional(),
+                gender: z.string().optional(),
+                birthDate: z.union([z.string(), z.date()]).optional(),
+                nik: z.string().optional()
+              })
+              .optional(),
+            queueTicket: z.any().optional()
+          })
+        )
+        .optional(),
+      error: z.string().optional()
+    }),
+    args: z.object({
+      filter: z.string().optional(),
+      equal: z.string().optional(),
+      startDate: z.coerce.date().optional(),
+      endDate: z.coerce.date().optional(),
+      depth: z.number().optional()
+    })
   },
-  getById: {
+  read: {
     args: z.object({ id: z.string() }),
     result: z.object({
       success: z.boolean(),
-      data: EncounterSchemaWithId.extend({
-        patient: z
-          .object({
-            id: z.string(),
-            kode: z.string().optional(),
-            name: z.string()
-          })
-          .optional()
-      }).optional(),
+      data: EncounterSchemaWithId.optional(),
       error: z.string().optional()
     })
   },
@@ -52,32 +66,57 @@ export const schemas = {
   }
 } as const
 
-export const list = async (ctx: IpcContext, _args?: z.infer<typeof schemas.list.args>) => {
+export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get('/api/encounter?items=100&depth=1')
 
-    const ListSchema = BackendListSchema(EncounterSchemaWithId)
+    // Convert args to query string
+    const queryParams = new URLSearchParams()
+    if (args) {
+      Object.entries(args).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+
+    // Set default items if not present
+    if (!queryParams.has('items')) queryParams.set('items', '100')
+    if (!queryParams.has('depth')) queryParams.set('depth', '1')
+
+    const res = await client.get(`/api/encounter?${queryParams.toString()}`)
+
+    // Extend the base schema to include the joined 'patient' relation
+    const EncounterWithPatientSchema = z.any()
+    const ListSchema = BackendListSchema(EncounterWithPatientSchema)
 
     const result = await parseBackendResponse(res, ListSchema)
-    return { success: true, data: result }
+    return { success: true, result }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
   }
 }
 
-export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
+export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get(`/api/encounter/read/${args.id}?depth=1`)
+    const res = await client.get(`/api/encounter/${args.id}`)
 
     const BackendReadSchema = z.object({
       success: z.boolean(),
       result: EncounterSchemaWithId.extend({
         patient: z
-          .object({ id: z.union([z.string(), z.number()]), kode: z.string().optional(), name: z.string() })
+          .object({
+            id: z.union([z.string(), z.number()]),
+            name: z.string().optional().nullable(),
+            medicalRecordNumber: z.string().optional().nullable(),
+            gender: z.string().optional().nullable(),
+            birthDate: z.union([z.string(), z.date()]).optional().nullable(),
+            nik: z.string().optional().nullable()
+          })
           .optional()
+          .nullable()
       })
         .optional()
         .nullable(),
@@ -85,7 +124,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
       error: z.any().optional()
     })
 
-    const result = await parseBackendResponse(res, BackendReadSchema)
+    const result = await parseBackendResponse(res, BackendReadSchema) // result holds the Encounter object
     return { success: true, data: result }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -93,7 +132,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
   }
 }
 
-export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
+export const create = async (ctx: IpcContext, args: any) => {
   try {
     const client = getClient(ctx)
     const payload = {
@@ -118,7 +157,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 
     const BackendCreateSchema = z.object({
       success: z.boolean(),
-      result: EncounterSchemaWithId.optional().nullable(),
+      result: z.any(),
       message: z.string().optional(),
       error: z.any().optional()
     })
@@ -177,7 +216,7 @@ export const deleteById = async (
     const res = await client.delete(`/api/encounter/${args.id}`)
 
     const BackendDeleteSchema = z.object({
-      success: z.boolean(),
+      success: z.boolean()
     })
 
     await parseBackendResponse(res, BackendDeleteSchema)

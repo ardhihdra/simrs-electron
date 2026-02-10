@@ -1,11 +1,18 @@
-import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
-import type { MenuProps } from 'antd'
-import { DeleteOutlined, EditOutlined, HistoryOutlined, MoreOutlined, ReloadOutlined, PlusOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  HistoryOutlined,
+  MoreOutlined,
+  PlusOutlined,
+  ReloadOutlined
+} from '@ant-design/icons'
+import GenericTable from '@renderer/components/organisms/GenericTable'
+import { queryClient } from '@renderer/query-client'
 import { useMutation, useQuery } from '@tanstack/react-query'
+import type { MenuProps } from 'antd'
+import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import GenericTable from '@renderer/components/GenericTable'
-import { queryClient } from '@renderer/query-client'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
@@ -479,9 +486,11 @@ export function ItemTable() {
   const { data: stockData } = useQuery<InventoryStockResponse>({
     queryKey: ['inventoryStock', 'list'],
     queryFn: () => {
-      const api = (window.api?.query as {
-        inventoryStock?: { list: () => Promise<InventoryStockResponse> }
-      }).inventoryStock
+      const api = (
+        window.api?.query as {
+          inventoryStock?: { list: () => Promise<InventoryStockResponse> }
+        }
+      ).inventoryStock
       const fn = api?.list
       if (!fn) throw new Error('API stok inventory tidak tersedia.')
       return fn()
@@ -490,9 +499,7 @@ export function ItemTable() {
 
   const filtered = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(data?.result) ? data.result : []
-    const stockList: InventoryStockItem[] = Array.isArray(stockData?.result)
-      ? stockData.result
-      : []
+    const stockList: InventoryStockItem[] = Array.isArray(stockData?.result) ? stockData.result : []
 
     const stockMap = new Map<string, number>()
     for (const s of stockList) {
@@ -516,10 +523,7 @@ export function ItemTable() {
     return withStock.filter((item) => {
       const unitName = item.unit?.nama ?? ''
       const stockText = typeof item.stock === 'number' ? String(item.stock) : ''
-      return [item.nama, item.kode, unitName, stockText]
-        .join(' ')
-        .toLowerCase()
-        .includes(q)
+      return [item.nama, item.kode, unitName, stockText].join(' ').toLowerCase().includes(q)
     })
   }, [data?.result, stockData?.result, search])
 
@@ -565,10 +569,14 @@ export function ItemTable() {
           <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
             Refresh
           </Button>
-				<Button icon={<HistoryOutlined />} onClick={handleOpenHistory}>
-					History Penyesuaian
-				</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/dashboard/farmasi/items/create')}>
+          <Button icon={<HistoryOutlined />} onClick={handleOpenHistory}>
+            History Penyesuaian
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => navigate('/dashboard/farmasi/items/create')}
+          >
             Tambah
           </Button>
         </div>
@@ -690,96 +698,96 @@ export function ItemTable() {
               key: 'unit',
               render: (v: ItemAttributes['unit']) => v?.nama || v?.kode || '-'
             },
-	          {
-	            title: 'Harga Beli Satuan',
-	            key: 'buyUnitPrice',
-	            render: (_: unknown, record: ItemAttributes) => {
-	              const baseUnitCode = getBaseUnitCodeForItem(record)
-	              const unitPrices = buildUnitPrices(record.buyPriceRules ?? null, baseUnitCode)
+          {
+            title: 'Harga Beli Satuan',
+            key: 'buyUnitPrice',
+            render: (_: unknown, record: ItemAttributes) => {
+              const baseUnitCode = getBaseUnitCodeForItem(record)
+              const unitPrices = buildUnitPrices(record.buyPriceRules ?? null, baseUnitCode)
 
-	              if (unitPrices.length > 0) {
-	                return (
-	                  <div className="flex flex-col">
-	                    {unitPrices.map((p) => (
-	                      <span key={`${p.unitCode}-${p.value}`}>
-	                        {formatRupiah(p.value)} / {p.unitCode}
-	                      </span>
-	                    ))}
-	                  </div>
-	                )
-	              }
+              if (unitPrices.length > 0) {
+                return (
+                  <div className="flex flex-col">
+                    {unitPrices.map((p) => (
+                      <span key={`${p.unitCode}-${p.value}`}>
+                        {formatRupiah(p.value)} / {p.unitCode}
+                      </span>
+                    ))}
+                  </div>
+                )
+              }
 
-	              const price = record.buyingPrice
-	              if (typeof price === 'number' && Number.isFinite(price)) {
-	                const unitLabel = record.kodeUnit || 'PCS'
-	                return (
-	                  <span>
-	                    {formatRupiah(price)} / {unitLabel}
-	                  </span>
-	                )
-	              }
+              const price = record.buyingPrice
+              if (typeof price === 'number' && Number.isFinite(price)) {
+                const unitLabel = record.kodeUnit || 'PCS'
+                return (
+                  <span>
+                    {formatRupiah(price)} / {unitLabel}
+                  </span>
+                )
+              }
 
-	              return '-' as const
-	            }
-	          },
-	          {
-	            title: 'Harga Jual Satuan',
-	            key: 'sellUnitPrice',
-	            render: (_: unknown, record: ItemAttributes) => {
-	              const baseUnitCode = getBaseUnitCodeForItem(record)
-	              const unitPrices = buildUnitPrices(record.sellPriceRules ?? null, baseUnitCode)
+              return '-' as const
+            }
+          },
+          {
+            title: 'Harga Jual Satuan',
+            key: 'sellUnitPrice',
+            render: (_: unknown, record: ItemAttributes) => {
+              const baseUnitCode = getBaseUnitCodeForItem(record)
+              const unitPrices = buildUnitPrices(record.sellPriceRules ?? null, baseUnitCode)
 
-	              if (unitPrices.length > 0) {
-	                return (
-	                  <div className="flex flex-col">
-	                    {unitPrices.map((p) => (
-	                      <span key={`${p.unitCode}-${p.value}`}>
-	                        {formatRupiah(p.value)} / {p.unitCode}
-	                      </span>
-	                    ))}
-	                  </div>
-	                )
-	              }
+              if (unitPrices.length > 0) {
+                return (
+                  <div className="flex flex-col">
+                    {unitPrices.map((p) => (
+                      <span key={`${p.unitCode}-${p.value}`}>
+                        {formatRupiah(p.value)} / {p.unitCode}
+                      </span>
+                    ))}
+                  </div>
+                )
+              }
 
-	              const price = record.sellingPrice
-	              if (typeof price === 'number' && Number.isFinite(price)) {
-	                const unitLabel = record.kodeUnit || 'PCS'
-	                return (
-	                  <span>
-	                    {formatRupiah(price)} / {unitLabel}
-	                  </span>
-	                )
-	              }
+              const price = record.sellingPrice
+              if (typeof price === 'number' && Number.isFinite(price)) {
+                const unitLabel = record.kodeUnit || 'PCS'
+                return (
+                  <span>
+                    {formatRupiah(price)} / {unitLabel}
+                  </span>
+                )
+              }
 
-		              return '-' as const
-		            }
-		          },
-	           {
-	             title: 'Kategori',
-	             dataIndex: 'itemCategoryId',
-	             key: 'itemCategoryId',
-	             render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
-	               const directName =
-	                 typeof record.category?.name === 'string'
-	                   ? record.category.name.trim()
-	                   : ''
+              return '-' as const
+            }
+          },
+          {
+            title: 'Kategori',
+            dataIndex: 'itemCategoryId',
+            key: 'itemCategoryId',
+            render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
+              const directName =
+                typeof record.category?.name === 'string'
+                  ? record.category.name.trim()
+                  : ''
 
-	               if (directName.length > 0) {
-	                 return directName
-	               }
+              if (directName.length > 0) {
+                return directName
+              }
 
-	               const idFromRecord =
-	                 typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
-	               if (typeof idFromRecord === 'number') {
-	                 const mapped = itemCategoryNameById.get(idFromRecord)
-	                 if (typeof mapped === 'string' && mapped.length > 0) {
-	                   return mapped
-	                 }
-	               }
+              const idFromRecord =
+                typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
+              if (typeof idFromRecord === 'number') {
+                const mapped = itemCategoryNameById.get(idFromRecord)
+                if (typeof mapped === 'string' && mapped.length > 0) {
+                  return mapped
+                }
+              }
 
-	               return '-'
-	             }
-	           }
+              return '-'
+            }
+          }
           ]}
           dataSource={filtered}
           rowKey={(r) => String(r.id ?? r.kode)}

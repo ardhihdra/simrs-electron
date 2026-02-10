@@ -1,246 +1,34 @@
+import { PatientSchema } from '@main/models/patient'
+import { createCrudRoutes } from '@main/utils/crud'
 import z from 'zod'
-import { PatientSchema, PatientSchemaWithId } from '@main/models/patient'
-import { IpcContext } from '@main/ipc/router'
-import {
-  parseBackendResponse,
-  BackendListSchema,
-  getClient
-} from '@main/utils/backendClient'
-
-type FhirIdentifier = {
-  system?: string
-  value?: string
-}
-
-type FhirName = {
-  text?: string
-  given?: string[]
-  family?: string
-}
-
-type RawPatient = {
-  id?: number | string
-  identifier?: string | null | FhirIdentifier[] | null
-  name?: string | FhirName[] | null
-}
-
-const normalizePatient = (raw: RawPatient) => {
-  let identifier: string | null | undefined =
-    typeof raw.identifier === 'string' || raw.identifier === null
-      ? raw.identifier
-      : null
-
-  if (Array.isArray(raw.identifier) && raw.identifier.length > 0) {
-    const first = raw.identifier[0]
-    if (first && typeof first.value === 'string') {
-      identifier = first.value
-    }
-  }
-
-  let name: string | undefined = typeof raw.name === 'string' ? raw.name : undefined
-  if (Array.isArray(raw.name) && raw.name.length > 0) {
-    const first = raw.name[0]
-    const text = typeof first.text === 'string' ? first.text.trim() : ''
-    const given0 =
-      Array.isArray(first.given) && typeof first.given[0] === 'string'
-        ? first.given[0].trim()
-        : ''
-    const family = typeof first.family === 'string' ? first.family.trim() : ''
-    const combined = [given0, family].filter(Boolean).join(' ')
-    name = text || combined || undefined
-  }
-
-  return {
-    ...(raw as Record<string, unknown>),
-    identifier,
-    name
-  }
-}
 
 export const requireSession = true
 
 export const schemas = {
   list: {
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchemaWithId.array().optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   getById: {
     args: z.object({ id: z.number() }),
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchemaWithId.optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   create: {
     args: PatientSchema.partial(),
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchemaWithId.optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   update: {
-    args: PatientSchemaWithId,
-    result: z.object({
-      success: z.boolean(),
-      data: PatientSchemaWithId.optional(),
-      error: z.string().optional()
-    })
+    args: PatientSchema,
+    result: z.any()
   },
   deleteById: {
     args: z.object({ id: z.number() }),
-    result: z.object({ success: z.boolean(), error: z.string().optional() })
+    result: z.any()
   }
 } as const
 
-export const list = async (ctx: IpcContext) => {
-  try {
-    const client = getClient(ctx)
-    console.log('[ipc:patient.list] GET /api/patient?items=100')
-    const res = await client.get('/api/patient?items=100')
+const routes = createCrudRoutes({
+  entity: 'patient',
+  schema: z.any()
+})
 
-    const ListSchema = BackendListSchema(PatientSchemaWithId)
-    const raw = await parseBackendResponse(res, ListSchema)
-    const normalized = Array.isArray(raw) ? raw.map((p) => normalizePatient(p as RawPatient)) : []
-
-    console.log('[ipc:patient.list] received=', normalized.length)
-    return { success: true, data: normalized }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    console.error('[ipc:patient.list] exception=', msg)
-    return { success: false, error: msg }
-  }
-}
-
-export const getById = async (_ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
-  try {
-    const client = getClient(_ctx)
-    const res = await client.get(`/api/patient/read/${args.id}`)
-
-    const BackendReadSchema = z.object({
-      success: z.boolean(),
-      result: PatientSchemaWithId.optional(),
-      message: z.string().optional(),
-      error: z.any().optional()
-    })
-
-    const raw = await parseBackendResponse(res, BackendReadSchema)
-    const normalized = raw ? normalizePatient(raw as RawPatient) : undefined
-    return { success: true, data: normalized }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { success: false, error: msg }
-  }
-}
-
-export const create = async (_ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
-  try {
-    const client = getClient(_ctx)
-    console.log('args :', args)
-
-    const payload = {
-      active: args.active ?? true,
-      identifier: args.identifier ?? null,
-      kode: String(args.kode),
-      name: String(args.name),
-      gender: String(args.gender),
-      birthDate: args.birthDate instanceof Date ? args.birthDate : new Date(args.birthDate || ''),
-      placeOfBirth: args.placeOfBirth ?? null,
-      phone: args.phone ?? null,
-      email: args.email ?? null,
-      addressLine: args.addressLine ?? null,
-      province: args.province ?? null,
-      city: args.city ?? null,
-      district: args.district ?? null,
-      village: args.village ?? null,
-      postalCode: args.postalCode ?? null,
-      country: args.country ?? null,
-      maritalStatus: args.maritalStatus ?? null,
-      createdBy: args.createdBy ?? null
-    }
-
-    const res = await client.post('/api/patient', payload)
-
-    const BackendCreateSchema = z.object({
-      success: z.boolean(),
-      result: PatientSchemaWithId.optional().nullable(),
-      message: z.string().optional(),
-      error: z.any().optional()
-    })
-
-    const result = await parseBackendResponse(res, BackendCreateSchema)
-    return { success: true, data: result }
-  } catch (err) {
-    console.log(err)
-    const msg = err instanceof Error ? err.message : String(err)
-    return { success: false, error: msg }
-  }
-}
-
-export const update = async (_ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
-  try {
-    const client = getClient(_ctx)
-    const payload = {
-      id: crypto.randomUUID(), // Preserving original behavior
-      active: args.active,
-      identifier: args.identifier,
-      kode: args.kode,
-      name: args.name,
-      gender: args.gender,
-      birthDate: args.birthDate instanceof Date ? args.birthDate : new Date(args.birthDate || ''),
-      placeOfBirth: args.placeOfBirth,
-      phone: args.phone,
-      email: args.email,
-      addressLine: args.addressLine,
-      province: args.province,
-      city: args.city,
-      district: args.district,
-      village: args.village,
-      postalCode: args.postalCode,
-      country: args.country,
-      maritalStatus: args.maritalStatus,
-      updatedBy: args.updatedBy ?? null
-    }
-
-    const res = await client.put(`/api/patient/${args.id}`, payload)
-
-    const BackendUpdateSchema = z.object({
-      success: z.boolean(),
-      result: PatientSchemaWithId.optional(),
-      message: z.string().optional(),
-      error: z.any().optional()
-    })
-
-    const result = await parseBackendResponse(res, BackendUpdateSchema)
-    return { success: true, data: result }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { success: false, error: msg }
-  }
-}
-
-export const deleteById = async (
-  _ctx: IpcContext,
-  args: z.infer<typeof schemas.deleteById.args>
-) => {
-  try {
-    const client = getClient(_ctx)
-    const res = await client.delete(`/api/patient/${args.id}`)
-
-    const BackendDeleteSchema = z.object({
-      success: z.boolean(),
-      message: z.string().optional(),
-      error: z.any().optional()
-    })
-
-    await parseBackendResponse(res, BackendDeleteSchema)
-    return { success: true }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { success: false, error: msg }
-  }
-}
+export const { list, read: getById, create, update, delete: deleteById, listAll } = routes

@@ -1,6 +1,6 @@
-import { ipcMain, IpcMainInvokeEvent, WebContents } from 'electron'
 import { applyMiddlewares, IpcMiddleware } from '@main/ipc/middleware'
 import { SessionStore } from '@main/ipc/protected/session-store'
+import { ipcMain, IpcMainInvokeEvent, WebContents } from 'electron'
 import fs from 'fs'
 import path from 'path'
 
