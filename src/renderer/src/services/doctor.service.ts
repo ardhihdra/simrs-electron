@@ -113,14 +113,14 @@ export const getPatientMedicalRecord = async (
     encounterId: string
 ): Promise<PatientWithMedicalRecord | null> => {
     try {
-        const encounterRes = await window.api.query.encounter.getById({ id: encounterId })
+        const encounterRes = await window.api.query.encounter.read({ id: encounterId })
 
-        if (!encounterRes.success || !encounterRes.data) {
+        if (!encounterRes.success || !encounterRes.result) {
             console.error('Encounter not found or error:', encounterRes.error)
             return null
         }
 
-        const encounter = encounterRes.data
+        const encounter = encounterRes.result
         const patient = encounter.patient as unknown as BackendEncounterPatient
 
         if (!patient) {

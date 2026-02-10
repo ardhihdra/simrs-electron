@@ -1,7 +1,6 @@
 import { IpcContext } from '@main/ipc/router'
 import { EncounterSchemaWithId } from '@main/models/encounter'
 import { BackendListSchema, getClient, parseBackendResponse } from '@main/utils/backendClient'
-import { error } from 'console'
 import { EncounterSchema } from 'simrs-types'
 import z from 'zod'
 
@@ -9,7 +8,7 @@ export const schemas = {
   list: {
     result: z.object({
       success: z.boolean(),
-      data: z.array(EncounterSchemaWithId.extend({
+      result: z.array(EncounterSchemaWithId.extend({
         startTime: z.union([z.date(), z.string()]).optional().nullable(),
         endTime: z.union([z.date(), z.string()]).optional().nullable(),
         serviceUnitId: z.string().optional().nullable(),
@@ -31,9 +30,52 @@ export const schemas = {
             birthDate: z.union([z.string(), z.date()]).optional(),
             nik: z.string().optional()
           })
-          .optional()
-      }).optional(),
-        error: z.string().optional())
+          .optional(),
+        queueTicket: z
+          .object({
+            id: z.string(),
+            queueNumber: z.number(),
+            queueDate: z.string(),
+            status: z.string(),
+            serviceUnitCodeId: z.string(),
+            poliCodeId: z.number(),
+            registrationChannelCodeId: z.string(),
+            assuranceCodeId: z.string(),
+            practitionerId: z.string().nullable(),
+            poli: z
+              .object({
+                id: z.number(),
+                name: z.string(),
+                location: z.string()
+              })
+              .nullable(),
+            practitioner: z.any().nullable()
+          })
+          .nullable(),
+        labServiceRequests: z.array(z.any()).optional()
+      })),
+      error: z.string().optional()
+    })
+  },
+  read: {
+    args: z.object({ id: z.string() }),
+    result: z.object({
+      success: z.boolean(),
+      result: EncounterSchemaWithId.extend({
+        startTime: z.union([z.date(), z.string()]).optional().nullable(),
+        endTime: z.union([z.date(), z.string()]).optional().nullable(),
+        serviceUnitId: z.string().optional().nullable(),
+        status: z.string().optional().nullable(),
+        patient: z.object({
+          id: z.union([z.string(), z.number()]),
+          name: z.string().optional().nullable(),
+          medicalRecordNumber: z.string().optional().nullable(),
+          gender: z.string().optional().nullable(),
+          birthDate: z.union([z.string(), z.date()]).optional().nullable(),
+          nik: z.string().optional().nullable()
+        }).optional().nullable()
+      }).optional().nullable(),
+      error: z.string().optional()
     })
   },
   create: {
@@ -115,7 +157,29 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         gender: z.string().optional().nullable(),
         birthDate: z.union([z.string(), z.date()]).optional().nullable(),
         nik: z.string().optional().nullable()
-      }).optional().nullable()
+      }).optional().nullable(),
+      queueTicket: z
+        .object({
+          id: z.string(),
+          queueNumber: z.number(),
+          queueDate: z.string(),
+          status: z.string(),
+          serviceUnitCodeId: z.string(),
+          poliCodeId: z.number(),
+          registrationChannelCodeId: z.string(),
+          assuranceCodeId: z.string(),
+          practitionerId: z.string().nullable(),
+          poli: z
+            .object({
+              id: z.number(),
+              name: z.string(),
+              location: z.string()
+            })
+            .nullable(),
+          practitioner: z.any().nullable()
+        })
+        .nullable(),
+      labServiceRequests: z.array(z.any()).optional()
     })
 
     const ListSchema = BackendListSchema(EncounterWithPatientSchema)
@@ -141,7 +205,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get(`/api/encounter/${args.id}`)
+    const res = await client.get(`/api/encounter/${args.id}/read`)
 
     const BackendReadSchema = z.object({
       success: z.boolean(),
@@ -156,7 +220,7 @@ export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.ar
         queueTicketId: z.string().optional().nullable(),
         partOfId: z.string().optional().nullable(),
         dischargeDisposition: z.string().optional().nullable(),
-        status: z.string(),
+        status: z.string().optional().nullable(),
         patient: z.object({
           id: z.union([z.string(), z.number()]),
           name: z.string().optional().nullable(),
@@ -164,7 +228,31 @@ export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.ar
           gender: z.string().optional().nullable(),
           birthDate: z.union([z.string(), z.date()]).optional().nullable(),
           nik: z.string().optional().nullable()
-        }).optional().nullable()
+        }).optional().nullable(),
+        queueTicket: z
+          .object({
+            id: z.string().optional(),
+            queueNumber: z.number().optional(),
+            queueDate: z.string().optional(),
+            status: z.string().optional(),
+            serviceUnitCodeId: z.string().optional(),
+            poliCodeId: z.number().optional(),
+            registrationChannelCodeId: z.string().optional(),
+            assuranceCodeId: z.string().optional(),
+            practitionerId: z.string().nullable().optional(),
+            poli: z
+              .object({
+                id: z.number().optional(),
+                name: z.string().optional(),
+                location: z.string().optional()
+              })
+              .nullable()
+              .optional(),
+            practitioner: z.any().nullable().optional()
+          })
+          .nullable()
+          .optional(),
+        labServiceRequests: z.array(z.any()).optional()
       })
         .optional()
         .nullable(),
@@ -173,7 +261,6 @@ export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.ar
     })
 
     const parsedResult = await parseBackendResponse(res, BackendReadSchema) as any
-
     if (parsedResult) {
       const transformed = {
         ...parsedResult,
@@ -181,10 +268,11 @@ export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.ar
         serviceType: parsedResult.serviceUnitId || parsedResult.serviceType || '-',
         status: parsedResult.status ? String(parsedResult.status) : 'UNKNOWN'
       }
-      return { success: true, data: transformed }
+
+      return { success: true, result: transformed }
     }
 
-    return { success: true, data: undefined }
+    return { success: true, result: undefined }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

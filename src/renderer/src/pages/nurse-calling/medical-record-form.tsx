@@ -35,13 +35,13 @@ const MedicalRecordForm = () => {
 
     setLoading(true)
     try {
-      const fn = window.api?.query?.encounter?.getById
+      const fn = window.api?.query?.encounter?.read
       if (!fn) throw new Error('API encounter tidak tersedia')
 
       const response = await fn({ id: encounterId })
 
-      if (response.success && response.data) {
-        const enc = response.data as any
+      if (response.success && response.result) {
+        const enc = response.result as any
         const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
         const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
 
@@ -73,12 +73,7 @@ const MedicalRecordForm = () => {
           },
           status: PatientStatus.EXAMINING,
           registrationDate:
-            enc.startTime || enc.createdAt || enc.visitDate || new Date().toISOString(),
-          poli: {
-            id: enc.queueTicket?.poli?.id?.toString() || '1',
-            code: enc.serviceUnitCodeId || 'POL',
-            name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || enc.serviceUnitId || '-'
-          }
+            enc.startTime || enc.createdAt || enc.visitDate || new Date().toISOString()
         }
 
         setPatientData(mappedData)
