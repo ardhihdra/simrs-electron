@@ -3,40 +3,42 @@ export enum Gender {
   Female = 'female'
 }
 
-
-
 export enum MaritalStatus {
   Single = 'single',
   Married = 'married',
-  Divorced = 'divorced',
+  Divorced = 'divorced'
 }
 
-
+export interface RelatedPerson {
+  name: string
+  phone: string
+  email?: string
+  relationship: string
+}
 
 export interface PatientAttributes {
-  id?: number
-  active?: boolean
-  identifier?: string | null
-  kode: string
+  id: string
+  medicalRecordNumber: string
+  nik: string
   name: string
-  gender: Gender
-  birthDate: Date
-  placeOfBirth?: string | null
-  phone?: string | null
-  email?: string | null
-  addressLine?: string | null
-  province?: string | null
-  city?: string | null
-  district?: string | null
-  village?: string | null
-  postalCode?: string | null
-  country?: string | null
-  maritalStatus?: MaritalStatus | null
-  createdBy?: number | null
-  updatedBy?: number | null
-  deletedBy?: number | null
-  createdAt?: Date
-  updatedAt?: Date
-  deletedAt?: Date | null
+  gender: string // Schema says enum, but string is safer for interface unless enum is shared
+  birthDate: string | Date
+  maritalStatus: string
+  phone: string
+  email: string
+  address: string
+  city: string
+  province: string
+  postalCode: string
+  country: string
+  relatedPerson: RelatedPerson[]
+  insuranceProvider?: string | null
+  insuranceNumber?: string | null
+  active?: boolean
+  fhirId?: string | null
+  fhirServer?: string | null
+  fhirVersion?: string | null
+  lastFhirUpdated?: Date | null
+  lastSyncedAt?: Date | null
+  // Deprecated/Removed fields but keeping optional just in case? No, clean break is better for "alignment".
 }
-

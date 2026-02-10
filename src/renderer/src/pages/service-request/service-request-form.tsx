@@ -1,26 +1,26 @@
-import { Form, Input, Button, DatePicker, Select, message, Table, Card } from 'antd'
-import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import dayjs, { type Dayjs } from 'dayjs'
+import {
+  ArrowLeftOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SaveOutlined
+} from '@ant-design/icons'
+import type { PatientAttributes } from '@shared/patient'
 import type {
   ServiceRequestAttributes,
-  ServiceRequestStatus,
   ServiceRequestIntent,
-  ServiceRequestPriority
+  ServiceRequestPriority,
+  ServiceRequestStatus
 } from '@shared/service-request'
-import type { PatientAttributes } from '@shared/patient'
-import {
-  SaveOutlined,
-  ReloadOutlined,
-  ArrowLeftOutlined,
-  PlusOutlined,
-  DeleteOutlined
-} from '@ant-design/icons'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, Card, DatePicker, Form, Input, message, Select, Table } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
 
 // Form values might differ slightly from attributes (e.g. Dayjs instead of Date)
 type ServiceRequestFormValues = {
-  patientId: number
+  patientId: string
   authoredOn: Dayjs
   serviceText: string
   status: ServiceRequestStatus
@@ -73,20 +73,20 @@ function ServiceRequestForm() {
 
   // Watch patientId to display details
   const selectedPatientId = Form.useWatch('patientId', form)
-  const selectedPatient = (patients.data?.data as PatientAttributes[] | undefined)?.find(
-    (p) => p.id === selectedPatientId
+  const selectedPatient = patients.data?.data?.find(
+    (p) => p.id === (selectedPatientId as unknown as string)
   )
 
   useEffect(() => {
     const item = detail.data?.data as Partial<ServiceRequestAttributes> | undefined
     if (item) {
       // Extract patient ID from subject.reference "Patient/123"
-      let pId: number | undefined
+      let pId: string | undefined
       const subjectRef = item.subject?.reference
       if (subjectRef) {
         const parts = subjectRef.split('/')
         if (parts.length === 2 && parts[0] === 'Patient') {
-          pId = Number(parts[1])
+          pId = parts[1]
         }
       }
 
@@ -337,7 +337,7 @@ function ServiceRequestForm() {
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <Card className="">
+      <Card className="shadow-sm">
         <div className="text-center text-2xl font-bold mb-6 text-gray-700">
           Pemeriksaan Laboratorium
         </div>
@@ -353,7 +353,11 @@ function ServiceRequestForm() {
             {/* Left Column - Patient Info */}
             <div>
               <Form.Item label="No. RM">
-                <Input readOnly value={selectedPatient?.identifier || '-'} className="bg-gray-50" />
+                <Input
+                  readOnly
+                  value={(selectedPatient as any)?.identifier || '-'}
+                  className="bg-gray-50"
+                />
               </Form.Item>
               <Form.Item label="Pasien" name="patientId" rules={[{ required: true }]}>
                 <Select
@@ -386,7 +390,7 @@ function ServiceRequestForm() {
               <Form.Item label="Alamat">
                 <Input.TextArea
                   readOnly
-                  value={selectedPatient?.addressLine || '-'}
+                  value={selectedPatient?.address || '-'}
                   rows={2}
                   className="bg-gray-50"
                 />

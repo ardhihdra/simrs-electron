@@ -1,17 +1,15 @@
-import { Button, Input, Dropdown } from 'antd'
-import type { MenuProps } from 'antd'
 import {
   DeleteOutlined,
   EditOutlined,
   MoreOutlined,
-  ReloadOutlined,
-  PlusOutlined
+  PlusOutlined,
+  ReloadOutlined
 } from '@ant-design/icons'
+import GenericTable from '@renderer/components/organisms/GenericTable'
+import { queryClient } from '@renderer/query-client'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { queryClient } from '@renderer/query-client'
-import GenericTable from '@renderer/components/organisms/GenericTable'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 

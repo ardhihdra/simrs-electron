@@ -1,11 +1,11 @@
-import { Button, Dropdown, Input, Tooltip } from 'antd'
-import type { MenuProps } from 'antd'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { queryClient } from '@renderer/query-client'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
+import { queryClient } from '@renderer/query-client'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import type { MenuProps } from 'antd'
+import { Button, Dropdown, Input, Tooltip } from 'antd'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 
 interface MedicineAttributes {
   id?: number
