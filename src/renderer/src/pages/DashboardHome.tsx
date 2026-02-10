@@ -4,7 +4,9 @@ import { Link } from 'react-router'
 // import { useNavigate } from 'react-router'
 
 function DashboardHome() {
-  const [session, setSession] = useState<any>()
+  const [session, setSession] = useState<
+    { success: boolean; user?: { username: string } } | undefined
+  >()
   // const navigate = useNavigate()
   useEffect(() => {
     window.api.auth.getSession().then((res) => {
@@ -27,6 +29,9 @@ function DashboardHome() {
         >
           List Protected Users
         </Button>
+        <Link to="/dashboard/registration/pre-reserved">
+          <Button type="primary">Konfirmasi Antrian (Pre-Reserved)</Button>
+        </Link>
       </div>
       {session ? <div>Welcome, {session?.user?.username}</div> : <div>Not Authenticated</div>}
       <Link to="/">Login </Link>

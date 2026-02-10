@@ -8,14 +8,14 @@ import { useEffect } from 'react'
 export type RegistrationSheetProps = {
   open: boolean
   onClose: () => void
-  patient?: PatientAttributes
-  onFinish?: (values: any) => Promise<void>
+  patient?: PatientAttributes | null
+  onFinish?: (values: Record<string, unknown>) => Promise<void>
 }
 
 const RegistrationSheet = ({ open, onClose, patient, onFinish }: RegistrationSheetProps) => {
   const [form] = Form.useForm()
   const mutate = useMutation({
-    mutationFn: async (values: any) => {
+    mutationFn: async (values: Record<string, unknown>) => {
       // @ts-ignore: IPC API type definition is generated at build time
       const fn = window.api.visitManagement?.register
       if (!fn) {
@@ -24,13 +24,13 @@ const RegistrationSheet = ({ open, onClose, patient, onFinish }: RegistrationShe
       return fn({
         ...values,
         visitType: 'OUTPATIENT',
-        isOnline: false
+        isOnline: true // Set to true to create PRE_RESERVED queue
       })
     },
     onSuccess: () => {
       console.log('success')
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error(error)
     }
   })
@@ -45,20 +45,23 @@ const RegistrationSheet = ({ open, onClose, patient, onFinish }: RegistrationShe
     }
   }, [open, form])
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: Record<string, unknown>) => {
     const formattedValues = {
       ...values,
-      queueDate: values.queueDate ? dayjs(values.queueDate).format('YYYY-MM-DD') : undefined
+      queueDate: values.queueDate
+        ? dayjs(values.queueDate as string).format('YYYY-MM-DD')
+        : undefined
     }
-    mutate.mutate({ ...formattedValues, patientId: patient?.id })
+    await mutate.mutateAsync({ ...formattedValues, patientId: patient?.id })
     if (onFinish) {
       await onFinish({ ...formattedValues, patientId: patient?.id })
     }
+    onClose()
   }
 
   return (
     <Drawer
-      title={`Pendaftaran Pasien: ${patient?.name || ''}`}
+      title={patient ? `Pendaftaran Pasien: ${patient.name}` : 'Ambil Antrian (Tanpa Pasien)'}
       width={600}
       open={open}
       onClose={onClose}
@@ -67,8 +70,8 @@ const RegistrationSheet = ({ open, onClose, patient, onFinish }: RegistrationShe
       footer={
         <Space>
           <Button onClick={onClose}>Cancel</Button>
-          <Button type="primary" onClick={() => form.submit()}>
-            Daftar
+          <Button type="primary" onClick={() => form.submit()} loading={mutate.isPending}>
+            Daftar (Pre-Reserved)
           </Button>
         </Space>
       }

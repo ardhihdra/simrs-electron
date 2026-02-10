@@ -81,8 +81,18 @@ const items = [
         icon: <UserOutlined />
       },
       {
+        label: 'Pendaftaran',
+        key: '/dashboard/registration',
+        icon: <UserAddOutlined />
+      },
+      {
         label: 'Daftar Antrian',
         key: '/dashboard/encounter',
+        icon: <UserAddOutlined />
+      },
+      {
+        label: 'Confirm Antrian (Pre-Reserved)',
+        key: '/dashboard/registration/pre-reserved',
         icon: <UserAddOutlined />
       },
       {

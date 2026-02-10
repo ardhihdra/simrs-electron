@@ -87,6 +87,8 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
+import PreReservedQueuePage from './pages/visit-management/pre-reserved-queue'
+import RegistrationPage from './pages/visit-management/registration'
 
 function MainRoute() {
   const location = useLocation()
@@ -106,8 +108,10 @@ function MainRoute() {
             <Route path="edit/:id" element={<PatientForm />} />
           </Route>
           <Route path="pendaftaran" element={<Pendaftaran />}>
-            <Route index element={<div>Daftar</div>} />
+            <Route index element={<RegistrationPage />} />
           </Route>
+          <Route path="registration" element={<RegistrationPage />} />
+          <Route path="registration/pre-reserved" element={<PreReservedQueuePage />} />
           <Route path="encounter" element={<Encounter />}>
             <Route index element={<EncounterTable />} />
             <Route path="create" element={<EncounterForm />} />

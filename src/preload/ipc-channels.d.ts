@@ -50,6 +50,7 @@ import type * as Mod_query_serviceRequest from '@main/routes/query/serviceReques
 import type * as Mod_query_suplier from '@main/routes/query/suplier'
 import type * as Mod_query_unit from '@main/routes/query/unit'
 import type * as Mod_user from '@main/routes/user'
+import type * as Mod_visitManagement from '@main/routes/visitManagement'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
@@ -445,6 +446,16 @@ type Args_Mod_user_get = InferArgs<typeof Mod_user, 'get'>
 type Result_Mod_user_get = InferResult<typeof Mod_user, 'get'>
 type Args_Mod_user_list = InferArgs<typeof Mod_user, 'list'>
 type Result_Mod_user_list = InferResult<typeof Mod_user, 'list'>
+type Args_Mod_visitManagement_callPatient = InferArgs<typeof Mod_visitManagement, 'callPatient'>
+type Result_Mod_visitManagement_callPatient = InferResult<typeof Mod_visitManagement, 'callPatient'>
+type Args_Mod_visitManagement_confirmAttendance = InferArgs<typeof Mod_visitManagement, 'confirmAttendance'>
+type Result_Mod_visitManagement_confirmAttendance = InferResult<typeof Mod_visitManagement, 'confirmAttendance'>
+type Args_Mod_visitManagement_getActiveQueues = InferArgs<typeof Mod_visitManagement, 'getActiveQueues'>
+type Result_Mod_visitManagement_getActiveQueues = InferResult<typeof Mod_visitManagement, 'getActiveQueues'>
+type Args_Mod_visitManagement_register = InferArgs<typeof Mod_visitManagement, 'register'>
+type Result_Mod_visitManagement_register = InferResult<typeof Mod_visitManagement, 'register'>
+type Args_Mod_visitManagement_startEncounter = InferArgs<typeof Mod_visitManagement, 'startEncounter'>
+type Result_Mod_visitManagement_startEncounter = InferResult<typeof Mod_visitManagement, 'startEncounter'>
 declare global {
   interface Window {
     api: {
@@ -729,6 +740,13 @@ declare global {
         create: Invoke<Args_Mod_user_create, Result_Mod_user_create>
         get: Invoke<Args_Mod_user_get, Result_Mod_user_get>
         list: Invoke<Args_Mod_user_list, Result_Mod_user_list>
+      }
+      visitManagement: {
+        callPatient: Invoke<Args_Mod_visitManagement_callPatient, Result_Mod_visitManagement_callPatient>
+        confirmAttendance: Invoke<Args_Mod_visitManagement_confirmAttendance, Result_Mod_visitManagement_confirmAttendance>
+        getActiveQueues: Invoke<Args_Mod_visitManagement_getActiveQueues, Result_Mod_visitManagement_getActiveQueues>
+        register: Invoke<Args_Mod_visitManagement_register, Result_Mod_visitManagement_register>
+        startEncounter: Invoke<Args_Mod_visitManagement_startEncounter, Result_Mod_visitManagement_startEncounter>
       }
     }
   }
