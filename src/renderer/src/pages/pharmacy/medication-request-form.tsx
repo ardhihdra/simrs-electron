@@ -788,8 +788,8 @@ export function MedicationRequestForm() {
 						id: record.id,
 						payload: {
 							...baseCommonPayload,
-							medicationId: item.medicationId,
-							itemId: null,
+							medicationId: null,
+							itemId: item.medicationId,
 							note: item.note ?? null,
 							groupIdentifier,
 							dosageInstruction: item.dosageInstruction
@@ -998,8 +998,8 @@ export function MedicationRequestForm() {
 						const item = items[indexSimpleNew]
 						extraSimplePayloads.push({
 							...baseCommonPayload,
-							medicationId: item.medicationId,
-							itemId: null,
+							medicationId: null,
+							itemId: item.medicationId,
 							note: item.note ?? null,
 							groupIdentifier,
 							dosageInstruction: item.dosageInstruction
@@ -1096,7 +1096,7 @@ export function MedicationRequestForm() {
 					const firstItem = items.length > 0 ? items[0] : undefined
 					await updateMutation.mutateAsync({
 						...baseCommonPayload,
-						medicationId: firstItem?.medicationId,
+						itemId: firstItem?.medicationId,
 						note: firstItem?.note ?? null,
 						dosageInstruction: firstItem?.dosageInstruction
 							? [{ text: firstItem.dosageInstruction }]
@@ -1156,7 +1156,7 @@ export function MedicationRequestForm() {
       const simplePayloads = items.map((item) => ({
         ...baseCommonPayload,
         groupIdentifier,
-        medicationId: item.medicationId,
+        itemId: item.medicationId,
         dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
         note: item.note,
         dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)

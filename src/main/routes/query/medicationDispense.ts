@@ -142,7 +142,6 @@ export const createFromRequest = async (
       throw new Error('MedicationRequest tidak ditemukan.')
     }
 
-    const hasMedicationId = typeof request.medicationId === 'number'
     const hasItemId = typeof request.itemId === 'number'
     const hasPatientId = typeof request.patientId === 'string'
 
@@ -153,7 +152,7 @@ export const createFromRequest = async (
     // Check for compound (racikan)
     const supportingInfo = request.supportingInformation
     const isCompound =
-      (!hasItemId && !hasMedicationId) &&
+      !hasItemId &&
       Array.isArray(supportingInfo) &&
       supportingInfo.length > 0
 
@@ -220,35 +219,7 @@ export const createFromRequest = async (
           }
         }
 
-    if (hasMedicationId) {
-      const payload: {
-        medicationId: number
-        patientId: string
-        authorizingPrescriptionId: number
-        status: MedicationDispenseStatus
-        quantity?: QuantityInfo
-      } = {
-        medicationId: request.medicationId as number,
-        patientId: request.patientId,
-        authorizingPrescriptionId: request.id,
-        status: MedicationDispenseStatus.PREPARATION
-      }
 
-      if (quantity) {
-        payload.quantity = quantity
-      }
-
-      const createRes = await client.post('/api/medicationdispense', payload)
-      const CreateSchema = z.object({
-        success: z.boolean(),
-        result: MedicationDispenseWithIdSchema.optional(),
-        error: z.string().optional(),
-        message: z.string().optional()
-      })
-      const created = await parseBackendResponse(createRes, CreateSchema)
-
-      return { success: true, data: created }
-    }
 
     if (hasItemId) {
       const value = quantity?.value

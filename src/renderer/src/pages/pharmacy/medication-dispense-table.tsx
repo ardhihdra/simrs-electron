@@ -56,6 +56,7 @@ interface AuthorizingPrescriptionInfo {
 		itemCategoryId?: number | null
 	} | null
 	dosageInstruction?: DosageInstructionEntry[] | null
+	supportingInformation?: any[] | null
 }
 
 interface MedicationDispenseAttributes {
@@ -141,6 +142,7 @@ interface DispenseItemRow {
 	performerName?: string
 	instruksi?: string
 	availableStock?: number
+	children?: DispenseItemRow[]
 }
 
 interface ParentRow {
@@ -233,6 +235,7 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
 	const canComplete =
 		!isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient
 	const canVoid = isCompleted && typeof record.id === 'number'
+	const isKomposisi = record.jenis === 'Komposisi'
 
 	const handlePrintLabel = () => {
 		const patientLabel = getPatientDisplayName(patient)
@@ -342,9 +345,11 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
 							Return / Void
 						</Button>
 					)}
-					<Button type="default" size="small" onClick={handlePrintLabel}>
-						Cetak Label
-					</Button>
+					{!isKomposisi && (
+						<Button type="default" size="small" onClick={handlePrintLabel}>
+							Cetak Label
+						</Button>
+					)}
 				</div>
 				{isStockInsufficient && (
 					<div className="text-xs text-red-500">
@@ -510,6 +515,19 @@ export function MedicationDispenseTable() {
 					: undefined
 			if (typeof directId === 'number') {
 				map.set(item.id, directId)
+			}
+		}
+		return map
+	}, [itemSource?.result])
+
+	const itemNameById = useMemo(() => {
+		const source: ItemAttributes[] = Array.isArray(itemSource?.result)
+			? itemSource.result
+			: []
+		const map = new Map<number, string>()
+		for (const item of source) {
+			if (typeof item.id === 'number' && typeof item.nama === 'string') {
+				map.set(item.id, item.nama)
 			}
 		}
 		return map
@@ -686,6 +704,40 @@ export function MedicationDispenseTable() {
 				? dayjs(item.whenHandedOver).format('DD/MM/YYYY HH:mm')
 				: '-'
 
+			let children: DispenseItemRow[] | undefined
+			if (isRacikan && Array.isArray(prescription?.supportingInformation)) {
+				const ingredients = prescription.supportingInformation.filter(
+					(info: any) =>
+						info.resourceType === 'Ingredient' ||
+						info.itemId ||
+						info.item_id ||
+						info.medicationId ||
+						info.medication_id
+				)
+
+				if (ingredients.length > 0) {
+					children = ingredients.map((ing: any, idx: number) => {
+						const ingItemId = ing.itemId ?? ing.item_id
+						const ingNameRaw = ing.name ?? ing.text
+						let ingName = ingNameRaw
+
+						if (!ingName && typeof ingItemId === 'number') {
+							ingName = itemNameById.get(ingItemId)
+						}
+
+						return {
+							key: `${key}-${item.id}-ing-${idx}`,
+							jenis: 'Komposisi',
+							medicineName: ingName ?? 'Komposisi',
+							quantity: typeof ing.quantity === 'number' ? ing.quantity : undefined,
+							unit: ing.unitCode ?? ing.unit,
+							status: '',
+							instruksi: ing.note ?? ing.instruction
+						}
+					})
+				}
+			}
+
 			const rowItem: DispenseItemRow = {
 				key: `${key}-${item.id ?? item.medicationId ?? item.itemId ?? ''}`,
 				id: item.id,
@@ -696,7 +748,8 @@ export function MedicationDispenseTable() {
 				status: item.status,
 				performerName: item.performer?.name,
 				instruksi,
-				availableStock: typeof item.medication?.stock === 'number' ? item.medication.stock : undefined
+				availableStock: typeof item.medication?.stock === 'number' ? item.medication.stock : undefined,
+				children
 			}
 
 			const existing = groups.get(key)
@@ -714,7 +767,7 @@ export function MedicationDispenseTable() {
 		})
 
 		return Array.from(groups.values())
-	}, [filtered])
+	}, [filtered, itemNameById])
 
 	const groupedDataForTable = useMemo<ParentRow[]>(() => {
 		if (!showOnlyPending) return groupedData
