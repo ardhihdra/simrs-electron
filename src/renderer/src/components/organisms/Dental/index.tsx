@@ -1,4 +1,16 @@
-import { Button, DatePicker, Form, Input, Modal, Select, Timeline, Typography, App, AutoComplete, Spin } from 'antd'
+import {
+  Button,
+  DatePicker,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Timeline,
+  Typography,
+  App,
+  AutoComplete,
+  Spin
+} from 'antd'
 import { Content } from 'antd/es/layout/layout'
 import dayjs from 'dayjs'
 import { useMemo, useState, useEffect } from 'react'
@@ -8,12 +20,12 @@ import {
   useDeleteObservation
 } from '@renderer/hooks/query/use-observation'
 import { useMasterProcedureList } from '@renderer/hooks/query/use-master-procedure'
-import { useQuery } from '@tanstack/react-query'
 import { mapDentalDataToObservationPayload } from './dental-mapper'
 import { transformObservationsToTimeline } from '@renderer/config/observation-maps'
 import { ToothDetail } from './type'
 import Odontogram from './Odontogram'
 import { TimelineContent } from './TimelineContent'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 export interface TimelineContentProps {
   date: string
@@ -33,10 +45,6 @@ interface DentalPageProps {
 
 const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps = {}) => {
   const { message } = App.useApp()
-  const { mutateAsync: saveToDB, isPending: isSaving } = useBulkCreateObservation()
-  const { mutateAsync: deleteObs, isPending: isDeleting } = useDeleteObservation()
-  const { data: observationData } = useObservationByEncounter(encounterId)
-
   const [selected, setSelected] = useState<TimelineContentProps[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [pendingTeeth, setPendingTeeth] = useState<ToothDetail[]>([])
@@ -50,7 +58,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   } | null>(null)
   const [form] = Form.useForm<{
     date: any
-    treatment: { code: string; name: string } | string // Allow object
+    treatment: { code: string; name: string } | string
     condition: string
     dentist: string
     status: 'done' | 'pending'
@@ -59,62 +67,20 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [odontoKey, setOdontoKey] = useState<number>(0)
   const [hoveredTeeth, setHoveredTeeth] = useState<ToothDetail[]>([])
-  const [selectedTreatmentData, setSelectedTreatmentData] = useState<{ code: string; name: string } | null>(null);
-
+  const [selectedTreatmentData, setSelectedTreatmentData] = useState<{
+    code: string
+    name: string
+  } | null>(null)
   const [procedureSearch, setProcedureSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-
   const { data: proceduresData, isLoading: isLoadingProcedures } = useMasterProcedureList({
     q: debouncedSearch,
     items: 20
   })
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(procedureSearch)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [procedureSearch])
-
-  const { data: doctorsData, isLoading: isLoadingDoctors } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'dokter'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return (
-          res.result
-            // .filter((p: any) => p.hakAksesId === 'dokter')
-            .map((p: any) => ({
-              id: String(p.id),
-              name: p.namaLengkap
-            }))
-        )
-      }
-      return []
-    }
-  })
-
-  useEffect(() => {
-    if (observationData?.result?.all && observationData.result.all.length > 0) {
-      const timelineData = transformObservationsToTimeline(observationData.result.all)
-      setSelected(timelineData)
-    } else {
-      setSelected([])
-    }
-  }, [observationData])
-
-  const handleChange = (props: ToothDetail[]) => {
-    setPendingTeeth(props)
-    if (props.length === 0) return
-    if (lastFormValues) {
-      form.setFieldsValue(lastFormValues)
-    }
-
-    setIsModalOpen(true)
-    setProcedureSearch('') // Reset search on new entry 
-  }
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
+  const { mutateAsync: saveToDB, isPending: isSaving } = useBulkCreateObservation()
+  const { mutateAsync: deleteObs } = useDeleteObservation()
+  const { data: observationData } = useObservationByEncounter(encounterId)
 
   const pendingToothIds = useMemo(() => pendingTeeth.map((t) => t.id).join(', '), [pendingTeeth])
 
@@ -127,25 +93,27 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
           const originalEntry = selected[editingIndex]
 
           const currentObservationIds = pendingTeeth
-            .map(t => t.observationId)
-            .filter((id): id is string => !!id);
+            .map((t) => t.observationId)
+            .filter((id): id is string => !!id)
 
           const idsToDelete = originalEntry.tooth
-            .map(t => t.observationId)
-            .filter((id): id is string => !!id && !currentObservationIds.includes(id));
+            .map((t) => t.observationId)
+            .filter((id): id is string => !!id && !currentObservationIds.includes(id))
 
           if (idsToDelete.length > 0) {
             await Promise.all(idsToDelete.map((id) => deleteObs(id)))
           }
         }
 
-        const selectedDoctor = doctorsData?.find((d: any) => d.id === values.dentist)
+        const selectedDoctor = performersData?.find((d: any) => d.id === values.dentist)
         const doctorName = selectedDoctor?.name || 'Dokter Tidak Diketahui'
 
-        const treatmentValue = values.treatment;
-        const finalTreatment = (selectedTreatmentData && `${selectedTreatmentData.code} - ${selectedTreatmentData.name}` === treatmentValue)
-          ? selectedTreatmentData
-          : treatmentValue;
+        const treatmentValue = values.treatment
+        const finalTreatment =
+          selectedTreatmentData &&
+          `${selectedTreatmentData.code} - ${selectedTreatmentData.name}` === treatmentValue
+            ? selectedTreatmentData
+            : treatmentValue
 
         const dentalData = {
           date: values.date,
@@ -170,7 +138,11 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
 
       setLastFormValues({
         date: values.date,
-        treatment: (selectedTreatmentData && `${selectedTreatmentData.code} - ${selectedTreatmentData.name}` === values.treatment) ? selectedTreatmentData : values.treatment,
+        treatment:
+          selectedTreatmentData &&
+          `${selectedTreatmentData.code} - ${selectedTreatmentData.name}` === values.treatment
+            ? selectedTreatmentData
+            : values.treatment,
         condition: values.condition,
         dentist: values.dentist,
         status: values.status,
@@ -194,7 +166,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
     setEditingIndex(null)
     setPendingTeeth([])
     setProcedureSearch('')
-    setSelectedTreatmentData(null);
+    setSelectedTreatmentData(null)
     setOdontoKey((k) => k + 1)
   }
 
@@ -215,6 +187,33 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
       message.error(error?.message || 'Gagal menghapus data pemeriksaan gigi')
     }
   }
+
+  const handleChange = (props: ToothDetail[]) => {
+    setPendingTeeth(props)
+    if (props.length === 0) return
+    if (lastFormValues) {
+      form.setFieldsValue(lastFormValues)
+    }
+
+    setIsModalOpen(true)
+    setProcedureSearch('')
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(procedureSearch)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [procedureSearch])
+
+  useEffect(() => {
+    if (observationData?.result?.all && observationData.result.all.length > 0) {
+      const timelineData = transformObservationsToTimeline(observationData.result.all)
+      setSelected(timelineData)
+    } else {
+      setSelected([])
+    }
+  }, [observationData])
 
   return (
     <Content className="md:ml-[40px] md:mr-[14px] my-4 rounded-md shadow bg-white">
@@ -255,7 +254,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
                           status: item.status,
                           notes: item.notes
                         }
-                        const foundDoc = doctorsData?.find((d: any) => d.name === item.dentist)
+                        const foundDoc = performersData?.find((d: any) => d.name === item.dentist)
                         if (foundDoc) {
                           values.dentist = foundDoc.id
                         }
@@ -265,21 +264,23 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
                         setEditingIndex(idx)
                         setIsModalOpen(true)
                         if (item.treatment) {
-                          let tName = '';
+                          let tName = ''
                           if (typeof item.treatment === 'string') {
-                            tName = item.treatment;
-                            setSelectedTreatmentData(null);
-                          } else if (typeof item.treatment === 'object' && 'code' in item.treatment && 'name' in item.treatment) {
-                            // @ts-ignore
-                            tName = `${item.treatment.code} - ${item.treatment.name}`;
-                            // @ts-ignore
-                            setSelectedTreatmentData(item.treatment);
+                            tName = item.treatment
+                            setSelectedTreatmentData(null)
+                          } else if (
+                            typeof item.treatment === 'object' &&
+                            'code' in item.treatment &&
+                            'name' in item.treatment
+                          ) {
+                            tName = `${item.treatment.code} - ${item.treatment.name}`
+                            setSelectedTreatmentData(item.treatment)
                           }
                           setProcedureSearch(tName)
-                          form.setFieldValue('treatment', tName);
+                          form.setFieldValue('treatment', tName)
                         } else {
                           setProcedureSearch('')
-                          setSelectedTreatmentData(null);
+                          setSelectedTreatmentData(null)
                         }
                       }}
                       onDelete={() => handleDelete(item)}
@@ -322,19 +323,19 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
             <AutoComplete
               options={proceduresData?.map((p: any) => ({
                 value: p.code,
-                label: `${p.code} - ${p.name}`,
+                label: `${p.code} - ${p.name}`
               }))}
               onSearch={(val) => setProcedureSearch(val)}
               onSelect={(value, option) => {
-                const selectedProc = proceduresData?.find((p: any) => p.code === value);
+                const selectedProc = proceduresData?.find((p: any) => p.code === value)
 
                 if (selectedProc) {
-                  console.log('Selected Procedure:', selectedProc);
-                  const displayText = `${selectedProc.code} - ${selectedProc.name}`;
+                  console.log('Selected Procedure:', selectedProc)
+                  const displayText = `${selectedProc.code} - ${selectedProc.name}`
 
-                  setProcedureSearch(displayText);
-                  setSelectedTreatmentData({ code: selectedProc.code, name: selectedProc.name });
-                  form.setFieldValue('treatment', displayText);
+                  setProcedureSearch(displayText)
+                  setSelectedTreatmentData({ code: selectedProc.code, name: selectedProc.name })
+                  form.setFieldValue('treatment', displayText)
                 }
               }}
               onChange={(val) => setProcedureSearch(val)}
@@ -373,13 +374,13 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
             <Select
               showSearch
               placeholder="Pilih Dokter"
-              loading={isLoadingDoctors}
+              loading={isLoadingPerformers}
               optionFilterProp="children"
               filterOption={(input, option) =>
                 (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())
               }
             >
-              {doctorsData?.map((d: any) => (
+              {performersData?.map((d: any) => (
                 <Select.Option key={d.id} value={d.id}>
                   {d.name}
                 </Select.Option>

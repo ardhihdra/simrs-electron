@@ -8,7 +8,6 @@ import {
   Spin,
   Tag,
   Space,
-  Avatar,
   Modal,
   Table,
   Tooltip,
@@ -17,19 +16,24 @@ import {
 import {
   SaveOutlined,
   PlusOutlined,
-  UserOutlined,
   HistoryOutlined,
   CheckCircleOutlined,
   CopyOutlined,
   FormOutlined
 } from '@ant-design/icons'
-import { useCompositionByEncounter, useUpsertComposition } from '../../hooks/query/use-composition'
-import { useObservationByEncounter } from '../../hooks/query/use-observation'
-import { formatObservationSummary } from '../../utils/observation-helpers'
-import { PatientWithMedicalRecord } from '../../types/doctor.types'
-import { COMPOSITION_STATUS_MAP, COMPOSITION_STATUS_COLOR_MAP } from '../../config/composition-maps'
+import {
+  useCompositionByEncounter,
+  useUpsertComposition
+} from '@renderer/hooks/query/use-composition'
+import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
+import { formatObservationSummary } from '@renderer/utils/observation-helpers'
+import { PatientWithMedicalRecord } from '@renderer/types/doctor.types'
+import {
+  COMPOSITION_STATUS_MAP,
+  COMPOSITION_STATUS_COLOR_MAP
+} from '@renderer/config/composition-maps'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
-import { useQuery } from '@tanstack/react-query'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 import dayjs from 'dayjs'
 
 const { TextArea } = Input
@@ -60,30 +64,9 @@ export const GeneralSOAPForm = ({
   const { data: obsData } = useObservationByEncounter(encounterId)
   const upsertMutation = useUpsertComposition()
 
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'all'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        let filtered = res.result.filter(
-          (p: any) => p.hakAksesId === 'doctor' || p.hakAksesId === 'nurse'
-        )
-
-        if (allowedRoles && allowedRoles.length > 0) {
-          filtered = filtered.filter((p: any) => allowedRoles.includes(p.hakAksesId))
-        }
-
-        return filtered.map((p: any) => ({
-          id: p.id,
-          name: p.namaLengkap,
-          role: p.hakAksesId
-        }))
-      }
-      return []
-    }
-  })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(
+    allowedRoles || ['doctor', 'nurse']
+  )
 
   const selectedPerformerId = Form.useWatch('performerId', form)
   const selectedPerformer = performersData?.find((p: any) => p.id === selectedPerformerId)
@@ -301,11 +284,6 @@ export const GeneralSOAPForm = ({
       width: 180,
       render: (_: any, record: any) => (
         <div className="flex items-center gap-3">
-          <Avatar
-            icon={<UserOutlined />}
-            src={record.authorAvatar}
-            className="bg-blue-100 text-blue-600"
-          />
           <div className="flex flex-col">
             <span className="font-bold text-gray-800 text-sm">
               {record.author?.namaLengkap || record.authorName || 'PPA'}

@@ -11,6 +11,7 @@ import {
 } from '../../utils/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { useBulkCreateObservation } from '../../hooks/query/use-observation'
+import { usePerformers } from '../../hooks/query/use-performers'
 
 const WEIGHT_LOSS_OPTIONS = [
   { score: 0, criteria: 'Tidak ada penurunan berat badan', label: 'no' },
@@ -50,23 +51,7 @@ export const NutritionScreeningForm = ({
 
   const bulkCreateObservation = useBulkCreateObservation()
 
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'perawat'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'nurse')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap
-          }))
-      }
-      return []
-    }
-  })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['nurse'])
 
   const calculateScore = useCallback(() => {
     const values = form.getFieldsValue()

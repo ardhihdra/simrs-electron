@@ -5,7 +5,6 @@ import {
   Tag,
   Button,
   Spin,
-  App,
   Input,
   Select,
   DatePicker,
@@ -58,6 +57,8 @@ interface PatientListTableData {
   }
   status: string
   hasObservations: boolean
+  encounterType?: string
+  visitDate: string
 }
 
 const PatientList = () => {
@@ -85,7 +86,7 @@ const PatientList = () => {
       if (activeStatus && activeStatus !== 'all') params.status = activeStatus
 
       if (selectedPoli) {
-        const selectedPoliData = polis.find(p => p.id === selectedPoli || p.name === selectedPoli)
+        const selectedPoliData = polis.find((p) => p.id === selectedPoli || p.name === selectedPoli)
         if (selectedPoliData) {
           params.serviceType = selectedPoliData.name
         }
@@ -104,43 +105,46 @@ const PatientList = () => {
     enabled: polis.length > 0
   })
 
-  const patients: PatientListTableData[] = (encounterData?.result || []).map((enc: any, index: number) => {
-    const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
-    const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
+  const patients: PatientListTableData[] = (encounterData?.result || []).map(
+    (enc: any, index: number) => {
+      const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
+      const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
 
-    return {
-      no: index + 1,
-      key: enc.id,
-      id: enc.id,
-      encounterId: enc.id,
-      queueNumber: enc.queueTicket?.queueNumber || 0,
-      patient: {
-        id: enc.patient?.id || '',
-        name: enc.patient?.name || 'Unknown',
-        medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
-        gender: enc.patient?.gender || 'male',
-        age: age,
-        birthDate: enc.patient?.birthDate || '',
-        nik: enc.patient?.nik || ''
-      },
-      queueTicket: enc.queueTicket
-        ? {
-          id: enc.queueTicket.id,
-          queueNumber: enc.queueTicket.queueNumber,
-          queueDate: enc.queueTicket.queueDate,
-          status: enc.queueTicket.status,
-          poli: enc.queueTicket.poli,
-          practitioner: enc.queueTicket.practitioner
-        }
-        : undefined,
-      poli: {
-        name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
-      },
-      status: enc.status || 'unknown',
-      hasObservations: true,
-      visitDate: enc.startTime || enc.createdAt || new Date().toISOString()
+      return {
+        no: index + 1,
+        key: enc.id,
+        id: enc.id,
+        encounterId: enc.id,
+        queueNumber: enc.queueTicket?.queueNumber || 0,
+        patient: {
+          id: enc.patient?.id || '',
+          name: enc.patient?.name || 'Unknown',
+          medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
+          gender: enc.patient?.gender || 'male',
+          age: age,
+          birthDate: enc.patient?.birthDate || '',
+          nik: enc.patient?.nik || ''
+        },
+        queueTicket: enc.queueTicket
+          ? {
+              id: enc.queueTicket.id,
+              queueNumber: enc.queueTicket.queueNumber,
+              queueDate: enc.queueTicket.queueDate,
+              status: enc.queueTicket.status,
+              poli: enc.queueTicket.poli,
+              practitioner: enc.queueTicket.practitioner
+            }
+          : undefined,
+        poli: {
+          name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
+        },
+        status: enc.status || 'unknown',
+        hasObservations: true,
+        visitDate: enc.startTime || enc.createdAt || new Date().toISOString(),
+        encounterType: enc.encounterType
+      }
     }
-  })
+  )
 
   const loadPolis = async () => {
     try {
@@ -216,6 +220,33 @@ const PatientList = () => {
       width: 150
     },
     {
+      title: 'Jenis',
+      dataIndex: 'encounterType',
+      key: 'encounterType',
+      width: 120,
+      render: (type: string) => {
+        let label = type || '-'
+        let color = 'default'
+
+        switch (type) {
+          case 'EMER':
+            label = 'IGD'
+            color = 'red'
+            break
+          case 'AMB':
+            label = 'Rawat Jalan'
+            color = 'blue'
+            break
+          case 'IMP':
+            label = 'Rawat Inap'
+            color = 'green'
+            break
+        }
+
+        return <Tag color={color}>{label}</Tag>
+      }
+    },
+    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -251,57 +282,83 @@ const PatientList = () => {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* Filters Card */}
-      <Card
-        bodyStyle={{ padding: '16px' }}
-        title="Daftar Pasien Rawat Jalan"
-        extra={
-          <Space>
-            <span className="text-gray-400 text-xs italic mr-2">
-              Updated: {dayjs().format('HH:mm')}
-            </span>
-            <Button
-              type="text"
-              icon={<ReloadOutlined />}
-              onClick={() => refetch()}
-              loading={isLoading}
-            />
-          </Space>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <Row gutter={[16, 16]}>
+      <Card bodyStyle={{ padding: '24px' }} className="border-none">
+        <div className="flex flex-col gap-6">
+          <div className="flex justify-between items-start mb-2">
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold text-gray-800 mb-0">
+                Daftar Antrian & Kunjungan Pasien
+              </h1>
+              <p className="text-sm text-gray-500 m-0">
+                Manajemen pelayanan pasien Rawat Jalan, Inap, dan IGD
+              </p>
+            </div>
+            <Space size="large" align="center">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">
+                  Terakhir Sinkron
+                </span>
+                <span className="text-xs font-mono text-gray-600">
+                  {dayjs().format('HH:mm:ss')}
+                </span>
+              </div>
+              <Button
+                type="primary"
+                ghost
+                icon={<ReloadOutlined />}
+                onClick={() => refetch()}
+                loading={isLoading}
+                className="h-10 rounded-lg px-6 font-medium border-blue-200 hover:bg-blue-50 transition-all"
+              >
+                Refresh Data
+              </Button>
+            </Space>
+          </div>
+
+          <Row gutter={[24, 16]} align="bottom">
             <Col xs={24} md={8}>
+              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+                Cari Pasien
+              </div>
               <Input
-                placeholder="Cari Nama / No RM..."
-                prefix={<SearchOutlined />}
+                placeholder="Nama Pasien / No. Rekam Medis"
+                prefix={<SearchOutlined className="text-gray-400" />}
+                size="large"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
+                className="rounded-lg"
               />
             </Col>
-            <Col xs={24} md={6}>
+            <Col xs={24} md={8}>
+              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+                Unit Pelayanan (Poli)
+              </div>
               <Select
-                placeholder="Pilih Poli"
-                className="w-full"
+                placeholder="-- Semua Unit Pelayanan --"
+                className="w-full rounded-lg"
+                size="large"
                 allowClear
                 value={selectedPoli}
                 onChange={setSelectedPoli}
               >
-                <Option value="Poli Umum">Poli Umum</Option>
-                <Option value="Poli Gigi">Poli Gigi</Option>
-                <Option value="Poli Anak">Poli Anak</Option>
-                <Option value="Poli Kandungan">Poli Kandungan</Option>
-                <Option value="Poli Penyakit Dalam">Poli Penyakit Dalam</Option>
-                <Option value="IGD">IGD</Option>
+                {polis.map((p) => (
+                  <Option key={p.id} value={p.name}>
+                    {p.name}
+                  </Option>
+                ))}
               </Select>
             </Col>
-            <Col xs={24} md={6}>
+            <Col xs={24} md={8}>
+              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+                Periode Kunjungan
+              </div>
               <RangePicker
-                className="w-full"
+                className="w-full rounded-lg"
+                size="large"
                 value={dateRange}
                 onChange={(dates) => setDateRange(dates as any)}
-                format="DD/MM/YYYY"
+                format="DD MMM YYYY"
               />
             </Col>
           </Row>
@@ -311,12 +368,10 @@ const PatientList = () => {
             onChange={setActiveStatus}
             items={statusTabs}
             type="card"
-            className="mb-[-17px]" // pull tabs closer to table if needed
+            className="mb-[-17px]"
           />
         </div>
       </Card>
-
-      {/* Main Table */}
       <Card bodyStyle={{ padding: '0' }} className="flex-1 overflow-hidden flex flex-col">
         <Spin spinning={isLoading}>
           <Table

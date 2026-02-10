@@ -1,8 +1,7 @@
 import { SaveOutlined, HistoryOutlined } from '@ant-design/icons'
-import { App, Button, Card, Form, Select, Table, notification, Modal } from 'antd'
+import { Button, Card, Form, Select, Table, notification, Modal } from 'antd'
 import dayjs from 'dayjs'
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import {
   useBulkCreateObservation,
   useObservationByEncounter
@@ -11,6 +10,7 @@ import { formatObservationSummary } from '../../utils/observation-helpers'
 import { createObservationBatch, OBSERVATION_CATEGORIES } from '../../utils/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { VitalSignsSection } from './Assessment/VitalSignsSection'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 interface VitalSignsMonitoringFormProps {
   encounterId: string
@@ -26,24 +26,10 @@ export const VitalSignsMonitoringForm = ({
   const bulkCreateObservation = useBulkCreateObservation()
 
   const { data: response, isLoading, refetch } = useObservationByEncounter(encounterId)
-
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'perawat'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'nurse')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap
-          }))
-      }
-      return []
-    }
-  })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'nurse',
+    'doctor'
+  ])
 
   const handleFinish = async (values: any) => {
     try {
@@ -203,14 +189,11 @@ export const VitalSignsMonitoringForm = ({
         <Card
           title="Input Monitoring TTV Harian"
           extra={
-            <Button
-              icon={<HistoryOutlined />}
-              onClick={() => setIsHistoryModalOpen(true)}
-            >
+            <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalOpen(true)}>
               Lihat Riwayat ({groupedHistory.length})
             </Button>
           }
-          className='rounded-none!'
+          className="rounded-none!"
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <div className="mt-4">
@@ -227,7 +210,7 @@ export const VitalSignsMonitoringForm = ({
           </div>
         </Card>
 
-        <Form.Item className='mt-4!'>
+        <Form.Item className="mt-4!">
           <div className="flex justify-end gap-2">
             <Button size="large" onClick={() => form.resetFields()}>
               Reset

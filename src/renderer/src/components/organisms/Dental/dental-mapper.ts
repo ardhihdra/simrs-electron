@@ -8,7 +8,7 @@ import {
 
 interface DentalFormData {
     date: any
-    treatment: { code: string; name: string } | string // Support both object and string (legacy)
+    treatment: { code: string; name: string } | string
     condition: string
     dentist: string
     tooth: ToothDetail[]
@@ -74,7 +74,7 @@ export function mapDentalDataToObservationPayload(
         const noteText = `Tooth ${toothNumber}: ${dentalData.condition} - ${treatmentName}`
 
         const payload: DentalObservationPayload & { id?: string } = {
-            id: tooth.observationId, // Include ID for update
+            id: tooth.observationId,
             category: 'exam',
             code: conditionCode.code,
             display: conditionCode.display,
@@ -116,23 +116,14 @@ export function getToothNumber(toothId: string): string {
     return toothId.replace('teeth-', '')
 }
 
-/**
- * Validate if tooth ID exists in SNOMED codes
- */
 export function isValidToothId(toothId: string): boolean {
     return toothId in TOOTH_SNOMED_CODES
 }
 
-/**
- * Get SNOMED code for a tooth
- */
 export function getToothSNOMEDCode(toothId: string) {
     return TOOTH_SNOMED_CODES[toothId]
 }
 
-/**
- * Get SNOMED code for a condition
- */
 export function getConditionSNOMEDCode(condition: string) {
     const key = condition.toLowerCase().trim()
     return CONDITION_SNOMED_CODES[key] || DEFAULT_DENTAL_CONDITION

@@ -16,7 +16,7 @@ import { useDiagnosisCodeList } from '../../hooks/query/use-diagnosis-code'
 import { ANAMNESIS_MAP, DIAGNOSIS_MAP } from '../../config/condition-maps'
 import { PROCEDURE_MAP } from '../../config/procedure-maps'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
-import { useQuery } from '@tanstack/react-query'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 interface DiagnosisCode {
   id: string
@@ -74,6 +74,7 @@ export const DiagnosisProceduresForm = ({
     q: debouncedDiagnosisSearch,
     items: 20
   })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
   useEffect(() => {
     if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
@@ -100,24 +101,6 @@ export const DiagnosisProceduresForm = ({
       setProcedureOptions([])
     }
   }, [masterProcedures, debouncedProcedureSearch])
-
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'doctor'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'doctor')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap
-          }))
-      }
-      return []
-    }
-  })
 
   useEffect(() => {
     if (conditionsData?.result && Array.isArray(conditionsData.result)) {
@@ -178,6 +161,7 @@ export const DiagnosisProceduresForm = ({
       }
     }
   }, [proceduresData])
+
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedDiagnosisSearch(diagnosisSearch)

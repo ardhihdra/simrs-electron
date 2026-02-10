@@ -1,4 +1,3 @@
-// SNOMED CT Codes for Teeth (FDI Notation)
 export const TOOTH_SNOMED_CODES: Record<string, { code: string; display: string }> = {
     // Permanent Upper Right (Quadrant 1)
     'teeth-11': { code: '245652005', display: 'Permanent maxillary right central incisor tooth' },
@@ -41,7 +40,6 @@ export const TOOTH_SNOMED_CODES: Record<string, { code: string; display: string 
     'teeth-48': { code: '245683009', display: 'Permanent mandibular right third molar tooth' }
 }
 
-// SNOMED CT Codes for Dental Conditions
 export const CONDITION_SNOMED_CODES: Record<string, { code: string; display: string }> = {
     'caries': { code: '80967001', display: 'Dental caries' },
     'karies': { code: '80967001', display: 'Dental caries' },
@@ -61,7 +59,6 @@ export const CONDITION_SNOMED_CODES: Record<string, { code: string; display: str
     'cabut': { code: '128477000', display: 'Tooth extraction' }
 }
 
-// Default condition if not found in mapping
 export const DEFAULT_DENTAL_CONDITION = {
     code: '363116006',
     display: 'Dental finding'

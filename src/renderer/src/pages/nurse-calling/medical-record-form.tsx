@@ -16,6 +16,7 @@ import { PatientInfoCard } from '../../components/molecules/PatientInfoCard'
 import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
 import { GeneralSOAPForm } from '@renderer/components/organisms/GeneralSOAPForm'
 import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
+import { CPPTForm } from '../../components/organisms/CPPTForm'
 
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
@@ -72,7 +73,12 @@ const MedicalRecordForm = () => {
           },
           status: PatientStatus.EXAMINING,
           registrationDate:
-            enc.startTime || enc.createdAt || enc.visitDate || new Date().toISOString()
+            enc.startTime || enc.createdAt || enc.visitDate || new Date().toISOString(),
+          poli: {
+            id: enc.queueTicket?.poli?.id?.toString() || '1',
+            code: enc.serviceUnitCodeId || 'POL',
+            name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || enc.serviceUnitId || '-'
+          }
         }
 
         setPatientData(mappedData)
@@ -116,6 +122,8 @@ const MedicalRecordForm = () => {
             allowedRoles={['nurse']}
           />
         )
+      case 'cppt':
+        return <CPPTForm encounterId={encounterId} patientData={patientData} />
       default:
         return null
     }
@@ -201,7 +209,17 @@ const MedicalRecordForm = () => {
                       key: 'general-soap',
                       icon: <FormOutlined />,
                       label: 'SOAP Umum'
-                    }
+                    },
+                    ...(patientData?.poli?.name?.includes('RAWAT_INAP') ||
+                    patientData?.poli?.code === 'RAWAT_INAP'
+                      ? [
+                          {
+                            key: 'cppt',
+                            icon: <SolutionOutlined />,
+                            label: 'Catatan Perkembangan (CPPT)'
+                          }
+                        ]
+                      : [])
                   ]}
                   onSelect={({ key }) => setSelectedKey(key)}
                 />

@@ -13,7 +13,7 @@ import {
   type ObservationBuilderOptions
 } from '../../utils/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
-import { useQuery } from '@tanstack/react-query'
+import { usePerformers } from '../../hooks/query/use-performers'
 
 const { Option } = Select
 
@@ -34,23 +34,7 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
   const { data: response } = useObservationByEncounter(encounterId)
 
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'perawat'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'nurse')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap
-          }))
-      }
-      return []
-    }
-  })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['nurse'])
 
   useEffect(() => {
     const observations = response?.result?.all

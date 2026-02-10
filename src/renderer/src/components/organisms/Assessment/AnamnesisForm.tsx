@@ -1,27 +1,28 @@
 import { SaveOutlined } from '@ant-design/icons'
 import { App, Button, Form, Spin } from 'antd'
-
 import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-
-import { useCreateAllergy, useAllergyByEncounter } from '../../../hooks/query/use-allergy'
-import { useBulkCreateCondition, useConditionByEncounter } from '../../../hooks/query/use-condition'
+import { useCreateAllergy, useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
+import {
+  useBulkCreateCondition,
+  useConditionByEncounter
+} from '@renderer/hooks/query/use-condition'
 import {
   useCreateFamilyHistory,
   useFamilyHistoryByPatient
-} from '../../../hooks/query/use-family-history'
-import { useObservationByEncounter } from '../../../hooks/query/use-observation'
-import { formatObservationSummary } from '../../../utils/observation-helpers'
+} from '@renderer/hooks/query/use-family-history'
+import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
+import { formatObservationSummary } from '@renderer/utils/observation-helpers'
 import {
   createAllergy as buildAllergy,
   createFamilyHistory as buildFamilyHistory,
   CONDITION_CATEGORIES,
   type ConditionBuilderOptions,
   createConditionBatch
-} from '../../../utils/clinical-data-builder'
+} from '@renderer/utils/clinical-data-builder'
 import { AnamnesisSection } from './AnamnesisSection'
 import { AssessmentHeader } from './AssessmentHeader'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 export interface AnamnesisFormProps {
   encounterId: string
@@ -43,24 +44,10 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
   const { data: allergyResponse } = useAllergyByEncounter(encounterId)
   const { data: response } = useObservationByEncounter(encounterId)
   const { data: conditionResponse } = useConditionByEncounter(encounterId)
-
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'perawat'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'nurse' || p.hakAksesId === 'doctor')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap
-          }))
-      }
-      return []
-    }
-  })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'nurse',
+    'doctor'
+  ])
 
   useEffect(() => {
     const observations = response?.result?.all

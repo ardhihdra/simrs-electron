@@ -1,16 +1,16 @@
 import { App, Button, Card, Col, Form, Input, Modal, Row, Select, Spin, Switch } from 'antd'
 import dayjs from 'dayjs'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { DeleteOutlined, SaveOutlined } from '@ant-design/icons'
-import bodyMapImage from '../../../assets/images/body_map.png'
-import { HEAD_TO_TOE_MAP } from '../../../config/observation-maps'
-import { useQuery } from '@tanstack/react-query'
+import bodyMapImage from '@renderer/assets/images/body_map.png'
+import { HEAD_TO_TOE_MAP } from '@renderer/config/observation-maps'
 import {
   useBulkCreateObservation,
   useObservationByEncounter
-} from '../../../hooks/query/use-observation'
-import { AssessmentHeader } from './AssessmentHeader'
-import { createObservationBatch, OBSERVATION_CATEGORIES } from '../../../utils/observation-builder'
+} from '@renderer/hooks/query/use-observation'
+import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssessmentHeader'
+import { createObservationBatch, OBSERVATION_CATEGORIES } from '@renderer/utils/observation-builder'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -46,67 +46,12 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
 
   const bulkCreateObservation = useBulkCreateObservation()
   const { data: response, isLoading } = useObservationByEncounter(encounterId)
-  const observationData = response?.result?.all || []
+  const observationData = useMemo(() => response?.result?.all || [], [response])
 
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'pemeriksa-fisik'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'nurse' || p.hakAksesId === 'doctor')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap
-          }))
-      }
-      return []
-    }
-  })
-
-  useEffect(() => {
-    if (observationData && Array.isArray(observationData) && observationData.length > 0) {
-      const sortedObs = [...observationData].sort(
-        (a: any, b: any) =>
-          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
-          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
-      )
-
-      const initialValues: any = {
-        physicalExamination: {}
-      }
-
-      // 1. General Condition & Notes
-      const generalCond = sortedObs.find((obs: any) =>
-        obs.codeCoding?.some((c: any) => c.code === 'general-condition')
-      )
-      if (generalCond) initialValues.physicalExamination.generalCondition = generalCond.valueString
-
-      const notesObs = sortedObs.find((obs: any) =>
-        obs.codeCoding?.some((c: any) => c.code === 'physical-exam-notes')
-      )
-      if (notesObs) initialValues.physicalExamination.additionalNotes = notesObs.valueString
-
-      // 2. Head to Toe
-      Object.keys(HEAD_TO_TOE_MAP).forEach((key) => {
-        const found = sortedObs.find((obs: any) =>
-          obs.codeCoding?.some((coding: any) => coding.code === key)
-        )
-        if (found) {
-          initialValues[key] = found.valueString
-          const isAbnormal =
-            found.valueBoolean === false || found.interpretations?.some((i: any) => i.code === 'A')
-          initialValues[`${key}_NORMAL`] = !isAbnormal
-        } else {
-          initialValues[`${key}_NORMAL`] = true
-        }
-      })
-
-      form.setFieldsValue(initialValues)
-    }
-  }, [observationData, form])
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'nurse',
+    'doctor'
+  ])
 
   const handleImageClick = (e: React.MouseEvent<HTMLImageElement>) => {
     if (!imgRef.current) return
@@ -236,6 +181,48 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       setIsSubmitting(false)
     }
   }
+
+  useEffect(() => {
+    if (observationData && Array.isArray(observationData) && observationData.length > 0) {
+      const sortedObs = [...observationData].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const initialValues: any = {
+        physicalExamination: {}
+      }
+
+      // 1. General Condition & Notes
+      const generalCond = sortedObs.find((obs: any) =>
+        obs.codeCoding?.some((c: any) => c.code === 'general-condition')
+      )
+      if (generalCond) initialValues.physicalExamination.generalCondition = generalCond.valueString
+
+      const notesObs = sortedObs.find((obs: any) =>
+        obs.codeCoding?.some((c: any) => c.code === 'physical-exam-notes')
+      )
+      if (notesObs) initialValues.physicalExamination.additionalNotes = notesObs.valueString
+
+      // 2. Head to Toe
+      Object.keys(HEAD_TO_TOE_MAP).forEach((key) => {
+        const found = sortedObs.find((obs: any) =>
+          obs.codeCoding?.some((coding: any) => coding.code === key)
+        )
+        if (found) {
+          initialValues[key] = found.valueString
+          const isAbnormal =
+            found.valueBoolean === false || found.interpretations?.some((i: any) => i.code === 'A')
+          initialValues[`${key}_NORMAL`] = !isAbnormal
+        } else {
+          initialValues[`${key}_NORMAL`] = true
+        }
+      })
+
+      form.setFieldsValue(initialValues)
+    }
+  }, [observationData, form])
 
   if (isLoading)
     return (

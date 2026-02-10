@@ -8,7 +8,6 @@ import {
   Spin,
   Tag,
   Space,
-  Avatar,
   Modal,
   Table,
   Tooltip,
@@ -17,7 +16,6 @@ import {
 import {
   SaveOutlined,
   PlusOutlined,
-  UserOutlined,
   HistoryOutlined,
   CheckCircleOutlined,
   CopyOutlined,
@@ -30,8 +28,8 @@ import { formatObservationSummary } from '../../utils/observation-helpers'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 import { COMPOSITION_STATUS_MAP, COMPOSITION_STATUS_COLOR_MAP } from '../../config/composition-maps'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
-import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { TextArea } = Input
 
@@ -50,25 +48,10 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   const { data: obsData } = useObservationByEncounter(encounterId)
   const { data: condData } = useConditionByEncounter(encounterId)
   const upsertMutation = useUpsertComposition()
-
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'all'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'doctor' || p.hakAksesId === 'nurse')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap,
-            role: p.hakAksesId
-          }))
-      }
-      return []
-    }
-  })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'nurse',
+    'doctor'
+  ])
 
   const selectedPerformerId = Form.useWatch('performerId', form)
   const selectedPerformer = performersData?.find((p: any) => p.id === selectedPerformerId)
@@ -132,8 +115,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       gcs_m: summary.vitalSigns?.gcsMotor,
       gcs:
         (summary.vitalSigns?.gcsEye || 0) +
-        (summary.vitalSigns?.gcsVerbal || 0) +
-        (summary.vitalSigns?.gcsMotor || 0) || undefined
+          (summary.vitalSigns?.gcsVerbal || 0) +
+          (summary.vitalSigns?.gcsMotor || 0) || undefined
     })
 
     const vitalsParts: string[] = []
@@ -277,11 +260,6 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       width: 180,
       render: (_: any, record: any) => (
         <div className="flex items-center gap-3">
-          <Avatar
-            icon={<UserOutlined />}
-            src={record.authorAvatar}
-            className="bg-blue-100 text-blue-600"
-          />
           <div className="flex flex-col">
             <span className="font-bold text-gray-800 text-sm">
               {record.author?.namaLengkap || record.authorName || 'PPA Jaga'}
@@ -448,18 +426,20 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
           >
             Simpan Draft
           </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            loading={upsertMutation.isPending}
-            onClick={() => {
-              form.setFieldValue('status', 'final')
-              form.submit()
-            }}
-          >
-            Simpan & Finalisasi
-          </Button>
+          currentRole === 'doctor' && (
+            <Button
+              key="submit"
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              loading={upsertMutation.isPending}
+              onClick={() => {
+                form.setFieldValue('status', 'final')
+                form.submit()
+              }}
+            >
+              Simpan & Finalisasi
+            </Button>
+          )
         ]}
         width={900}
       >
@@ -578,19 +558,53 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
               <Form.Item
                 name="soapAssessment"
                 label={<span className="font-bold text-gray-700">Assessment (A)</span>}
-                rules={[{ required: true, message: 'Wajib diisi' }]}
-                extra="Diagnosis kerja dan diagnosis banding."
+                rules={[
+                  {
+                    required: currentRole === 'doctor',
+                    message: 'Wajib diisi oleh dokter'
+                  }
+                ]}
+                extra={
+                  currentRole === 'nurse'
+                    ? 'Diisi oleh dokter'
+                    : 'Diagnosis kerja dan diagnosis banding.'
+                }
               >
-                <TextArea rows={5} placeholder="Contoh: NSTEMI, Hipertensi Grade II..." />
+                <TextArea
+                  rows={5}
+                  placeholder={
+                    currentRole === 'nurse'
+                      ? '(Akan diisi oleh dokter)'
+                      : 'Contoh: NSTEMI, Hipertensi Grade II...'
+                  }
+                  disabled={currentRole === 'nurse'}
+                />
               </Form.Item>
 
               <Form.Item
                 name="soapPlan"
                 label={<span className="font-bold text-gray-700">Plan (P) / Instruksi</span>}
-                rules={[{ required: true, message: 'Wajib diisi' }]}
-                extra="Rencana asuhan, pengobatan, dan edukasi."
+                rules={[
+                  {
+                    required: currentRole === 'doctor',
+                    message: 'Wajib diisi oleh dokter'
+                  }
+                ]}
+                extra={
+                  currentRole === 'nurse'
+                    ? 'Diisi oleh dokter'
+                    : 'Rencana asuhan, pengobatan, dan edukasi.'
+                }
               >
-                <TextArea rows={5} placeholder="Contoh: IVFD RL 20 tpm, Inj. Cuan 1x1..." />
+                <TextArea
+                  rows={5}
+                  placeholder={
+                    currentRole === 'nurse'
+                      ? '(Akan diisi oleh dokter)'
+                      : 'Contoh: IVFD RL 20 tpm, Inj. Cuan 1x1...'
+                  }
+                  disabled={currentRole === 'nurse'}
+                />
               </Form.Item>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { Card, Col, Form, InputNumber, Row, Select, Tag, FormInstance } from 'antd'
+import { Card, Col, Form, InputNumber, Row, Select, FormInstance } from 'antd'
 
 const { Option } = Select
 
@@ -6,8 +6,7 @@ interface VitalSignsSectionProps {
   form: FormInstance
 }
 
-export const VitalSignsSection: React.FC<VitalSignsSectionProps> = ({ form }) => {
-
+export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
   return (
     <Card title="Vital Signs / Tanda Vital" className="py-4">
       <Row gutter={16}>
@@ -115,7 +114,6 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = ({ form }) =>
           </Form.Item>
         </Col>
       </Row>
-
-    </Card >
+    </Card>
   )
 }

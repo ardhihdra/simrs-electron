@@ -28,6 +28,7 @@ const { RangePicker } = DatePicker
 
 interface PatientQueueTableData extends PatientQueue {
   key: string
+  encounterType?: string
 }
 
 const PatientQueueTable = () => {
@@ -111,7 +112,8 @@ const PatientQueueTable = () => {
           sipNumber: enc.queueTicket?.practitioner?.nik || '123'
         },
         status: enc.status || 'unknown',
-        registrationDate: enc.startTime || enc.createdAt || enc.visitDate
+        registrationDate: enc.startTime || enc.createdAt || enc.visitDate,
+        encounterType: enc.encounterType
       }
     }
   )
@@ -216,6 +218,33 @@ const PatientQueueTable = () => {
       width: 150
     },
     {
+      title: 'Jenis',
+      dataIndex: 'encounterType',
+      key: 'encounterType',
+      width: 120,
+      render: (type: string) => {
+        let label = type || '-'
+        let color = 'default'
+
+        switch (type) {
+          case 'EMER':
+            label = 'IGD'
+            color = 'red'
+            break
+          case 'AMB':
+            label = 'Rawat Jalan'
+            color = 'blue'
+            break
+          case 'IMP':
+            label = 'Rawat Inap'
+            color = 'green'
+            break
+        }
+
+        return <Tag color={color}>{label}</Tag>
+      }
+    },
+    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -252,38 +281,64 @@ const PatientQueueTable = () => {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <Card
-        bodyStyle={{ padding: '16px' }}
-        title="Pemanggilan Pasien"
-        extra={
-          <Space>
-            <span className="text-gray-400 text-xs italic mr-2">
-              Last Updated: {dayjs().format('HH:mm')}
-            </span>
-            <Button
-              type="text"
-              icon={<ReloadOutlined />}
-              onClick={handleRefresh}
-              loading={isLoading}
-            />
-          </Space>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <Row gutter={[16, 16]}>
+      <Card bodyStyle={{ padding: '24px' }} className="border-none">
+        <div className="flex flex-col gap-6">
+          {/* Header Manual */}
+          <div className="flex justify-between items-start mb-2">
+            <div className="flex flex-col">
+              <h1 className="text-2xl font-bold text-gray-800 mb-0">
+                Antrian & Pemanggilan Pasien
+              </h1>
+              <p className="text-sm text-gray-500 m-0">
+                Manajemen antrian dan proses pemanggilan pasien ke ruang periksa
+              </p>
+            </div>
+
+            <Space size="large" align="center">
+              <div className="flex flex-col items-end">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">
+                  Terakhir Sinkron
+                </span>
+                <span className="text-xs font-mono text-gray-600">
+                  {dayjs().format('HH:mm:ss')}
+                </span>
+              </div>
+              <Button
+                type="primary"
+                ghost
+                icon={<ReloadOutlined />}
+                onClick={handleRefresh}
+                loading={isLoading}
+                className="h-10 rounded-lg px-6 font-medium border-blue-200 hover:bg-blue-50 transition-all"
+              >
+                Refresh Antrian
+              </Button>
+            </Space>
+          </div>
+
+          <Row gutter={[24, 16]} align="bottom">
             <Col xs={24} md={8}>
+              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+                Cari Pasien
+              </div>
               <Input
-                placeholder="Cari Nama / No RM..."
-                prefix={<SearchOutlined />}
+                placeholder="Nama Pasien / No. Rekam Medis"
+                prefix={<SearchOutlined className="text-gray-400" />}
+                size="large"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
+                className="rounded-lg"
               />
             </Col>
-            <Col xs={24} md={6}>
+            <Col xs={24} md={8}>
+              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+                Unit Pelayanan (Poli)
+              </div>
               <Select
-                placeholder="Pilih Poli"
-                className="w-full"
+                placeholder="-- Semua Unit Pelayanan --"
+                className="w-full rounded-lg"
+                size="large"
                 allowClear
                 value={selectedPoli}
                 onChange={setSelectedPoli}
@@ -295,12 +350,16 @@ const PatientQueueTable = () => {
                 ))}
               </Select>
             </Col>
-            <Col xs={24} md={6}>
+            <Col xs={24} md={8}>
+              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+                Periode Kunjungan
+              </div>
               <RangePicker
-                className="w-full"
+                className="w-full rounded-lg"
+                size="large"
                 value={dateRange}
                 onChange={(dates) => setDateRange(dates as any)}
-                format="DD/MM/YYYY"
+                format="DD MMM YYYY"
               />
             </Col>
           </Row>

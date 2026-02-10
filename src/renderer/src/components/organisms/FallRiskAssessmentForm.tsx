@@ -12,6 +12,7 @@ import {
 } from '../../utils/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { useBulkCreateObservation } from '../../hooks/query/use-observation'
+import { usePerformers } from '../../hooks/query/use-performers'
 
 interface FallRiskAssessmentFormProps {
   encounterId: string

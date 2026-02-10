@@ -7,20 +7,20 @@ import { useEffect, useState } from 'react'
 import {
   useBulkCreateObservation,
   useObservationByEncounter
-} from '../../../hooks/query/use-observation'
-import { formatObservationSummary } from '../../../utils/observation-helpers'
+} from '@renderer/hooks/query/use-observation'
+import { formatObservationSummary } from '@renderer/utils/observation-helpers'
 import {
   createObservationBatch,
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
-} from '../../../utils/observation-builder'
+} from '@renderer/utils/observation-builder'
 import { AssessmentHeader } from './AssessmentHeader'
 import { ConclusionSection } from './ConclusionSection'
 import { FunctionalStatusSection } from './FunctionalStatusSection'
 import { PsychosocialSection } from './PsychosocialSection'
 import { ScreeningSection } from './ScreeningSection'
 import { VitalSignsSection } from './VitalSignsSection'
-import { useQuery } from '@tanstack/react-query'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 export interface InitialAssessmentFormProps {
   encounterId: string
@@ -45,121 +45,10 @@ export const InitialAssessmentForm = ({
   const patientId = patientData?.patient?.id || patientData?.id
 
   const { data: response } = useObservationByEncounter(encounterId)
-
-  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
-    queryKey: ['kepegawaian', 'list', 'perawat'],
-    queryFn: async () => {
-      const fn = window.api?.query?.kepegawaian?.list
-      if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      const res = await fn()
-      if (res.success && res.result) {
-        return res.result
-          .filter((p: any) => p.hakAksesId === 'nurse')
-          .map((p: any) => ({
-            id: p.id,
-            name: p.namaLengkap
-          }))
-      }
-      return []
-    }
-  })
-
-  useEffect(() => {
-    const observations = response?.result?.all
-    // const conditions = conditionResponse?.result
-
-    if (response?.success && observations) {
-      const summary = formatObservationSummary(observations || [], [])
-      const {
-        vitalSigns,
-        painAssessment,
-        fallRisk,
-        functionalStatus,
-        psychosocialHistory,
-        screening,
-        conclusion,
-        clinicalNote,
-        examinationDate
-      } = summary
-
-      setLoadedMeta({
-        date: examinationDate ? dayjs(examinationDate).toISOString() : '',
-        performerId: 0
-      })
-
-      const loadedVitalSigns = {
-        systolicBloodPressure: vitalSigns.systolicBloodPressure,
-        diastolicBloodPressure: vitalSigns.diastolicBloodPressure,
-        heartRate: vitalSigns.heartRate,
-        pulseRate: vitalSigns.pulseRate,
-        respiratoryRate: vitalSigns.respiratoryRate,
-        temperature: vitalSigns.temperature,
-        oxygenSaturation: vitalSigns.oxygenSaturation,
-        height: vitalSigns.height,
-        weight: vitalSigns.weight,
-        bmi: vitalSigns.bmi,
-        temperatureMethod: vitalSigns.temperatureMethod || 'Axillary',
-        bloodPressureBodySite: vitalSigns.bloodPressureBodySite || 'Left arm',
-        bloodPressurePosition:
-          vitalSigns.bloodPressurePosition ||
-          (mode === 'inpatient' ? 'Supine position' : 'Sitting position'),
-        pulseRateBodySite: vitalSigns.pulseRateBodySite || 'Radial'
-      }
-      setLoadedVitals(loadedVitalSigns)
-
-      form.setFieldsValue({
-        vitalSigns: loadedVitalSigns,
-        consciousness: screening.consciousness_level || 'Compos Mentis' // Load saved consciousness if available
-      })
-
-      if (mode === 'inpatient') {
-        // Pain & Fall Risk
-        form.setFieldsValue({
-          pain_scale_score: painAssessment.painScore,
-          chest_pain_check: painAssessment.chestPain,
-          pain_notes: painAssessment.painNotes,
-          get_up_go_a: fallRisk.gugA,
-          get_up_go_b: fallRisk.gugB
-        })
-      }
-
-      if (mode === 'inpatient') {
-        // Functional Status
-        form.setFieldsValue({
-          aids_check: functionalStatus.aids_check,
-          disability_check: functionalStatus.disability_check,
-          adl_check: functionalStatus.adl_check
-        })
-
-        // Psychosocial
-        form.setFieldsValue({
-          psychological_status: psychosocialHistory.psychological_status?.split(', '),
-          family_relation_note: psychosocialHistory.family_relation_note,
-          living_with_note: psychosocialHistory.living_with_note,
-          religion: psychosocialHistory.religion,
-          culture_values: psychosocialHistory.culture_values,
-          daily_language: psychosocialHistory.daily_language
-        })
-
-        // Screening
-        form.setFieldsValue({
-          consciousness_level: screening.consciousness_level,
-          breathing_status: screening.breathing_status,
-          cough_screening_status: screening.cough_screening_status
-        })
-
-        // Conclusion
-        form.setFieldsValue({
-          decision: conclusion.decision
-        })
-      }
-
-      // Clinical Note
-      if (clinicalNote) {
-        form.setFieldValue('clinicalNote', clinicalNote)
-      }
-    }
-  }, [response, form, mode])
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'nurse',
+    'doctor'
+  ])
 
   const getBMICategory = (bmi: number): { text: string; code: string } => {
     if (bmi < 18.5) return { text: 'Underweight', code: 'L' }
@@ -193,7 +82,6 @@ export const InitialAssessmentForm = ({
       const assessmentDate = values.assessment_date || dayjs()
 
       // --- 1. Vital Signs ---
-      // CHECK FOR DUPLICATES: If Date, Performer, and Measurements are same as loaded, skip saving Vitals.
       const isDateSame = loadedMeta?.date
         ? dayjs(loadedMeta.date).isSame(assessmentDate, 'minute') // minute precision
         : false
@@ -201,11 +89,8 @@ export const InitialAssessmentForm = ({
 
       const { vitalSigns } = values
 
-      // Only skip if EVERYTHING matches perfectly. If user changed anything, we save new version.
-      // But typically we only want to skip if it's strictly a "re-save" of fetched data.
       let skipVitals = false
       if (isDateSame && isPerformerSame) {
-        // Simple check on key metrics
         if (
           vitalSigns?.systolicBloodPressure === loadedVitals?.systolicBloodPressure &&
           vitalSigns?.diastolicBloodPressure === loadedVitals?.diastolicBloodPressure &&
@@ -214,7 +99,6 @@ export const InitialAssessmentForm = ({
           vitalSigns?.temperature === loadedVitals?.temperature
         ) {
           skipVitals = true
-          console.log('Skipping duplicate vital signs (data unchanged)')
         }
       }
 
@@ -228,19 +112,19 @@ export const InitialAssessmentForm = ({
             bodySites: [
               ...(vitalSigns.bloodPressureBodySite
                 ? [
-                  {
-                    code: vitalSigns.bloodPressureBodySite,
-                    display: vitalSigns.bloodPressureBodySite
-                  }
-                ]
+                    {
+                      code: vitalSigns.bloodPressureBodySite,
+                      display: vitalSigns.bloodPressureBodySite
+                    }
+                  ]
                 : []),
               ...(vitalSigns.bloodPressurePosition
                 ? [
-                  {
-                    code: vitalSigns.bloodPressurePosition,
-                    display: vitalSigns.bloodPressurePosition
-                  }
-                ]
+                    {
+                      code: vitalSigns.bloodPressurePosition,
+                      display: vitalSigns.bloodPressurePosition
+                    }
+                  ]
                 : [])
             ]
           } as any)
@@ -329,7 +213,7 @@ export const InitialAssessmentForm = ({
             ]
           })
         }
-      } // End skipVitals check
+      }
 
       if (values.consciousness) {
         obsToCreate.push({
@@ -536,12 +420,8 @@ export const InitialAssessmentForm = ({
 
       await Promise.all(promises)
       message.success('Asesmen berhasil disimpan')
-      // Reset form to default (fresh date/performer) for next append
       form.resetFields(['assessment_date', 'performerId'])
       form.setFieldValue('assessment_date', dayjs())
-      // Optional: refetch is handled by React Query in the hook usually,
-      // but if we need a refresh on this component:
-      // response.refetch() or similar if available.
     } catch (error: any) {
       console.error('Error saving assessment:', error)
       message.error(`Gagal menyimpan asesmen: ${error?.message || 'Error tidak diketahui'}`)
@@ -554,6 +434,102 @@ export const InitialAssessmentForm = ({
     console.error('Validasi Gagal:', errorInfo)
     message.error('Mohon lengkapi data yang wajib diisi (tanda vital, dll)')
   }
+
+  useEffect(() => {
+    const observations = response?.result?.all
+
+    if (response?.success && observations) {
+      const summary = formatObservationSummary(observations || [], [])
+      const {
+        vitalSigns,
+        painAssessment,
+        fallRisk,
+        functionalStatus,
+        psychosocialHistory,
+        screening,
+        conclusion,
+        clinicalNote,
+        examinationDate
+      } = summary
+
+      setLoadedMeta({
+        date: examinationDate ? dayjs(examinationDate).toISOString() : '',
+        performerId: 0
+      })
+
+      const loadedVitalSigns = {
+        systolicBloodPressure: vitalSigns.systolicBloodPressure,
+        diastolicBloodPressure: vitalSigns.diastolicBloodPressure,
+        heartRate: vitalSigns.heartRate,
+        pulseRate: vitalSigns.pulseRate,
+        respiratoryRate: vitalSigns.respiratoryRate,
+        temperature: vitalSigns.temperature,
+        oxygenSaturation: vitalSigns.oxygenSaturation,
+        height: vitalSigns.height,
+        weight: vitalSigns.weight,
+        bmi: vitalSigns.bmi,
+        temperatureMethod: vitalSigns.temperatureMethod || 'Axillary',
+        bloodPressureBodySite: vitalSigns.bloodPressureBodySite || 'Left arm',
+        bloodPressurePosition:
+          vitalSigns.bloodPressurePosition ||
+          (mode === 'inpatient' ? 'Supine position' : 'Sitting position'),
+        pulseRateBodySite: vitalSigns.pulseRateBodySite || 'Radial'
+      }
+      setLoadedVitals(loadedVitalSigns)
+
+      form.setFieldsValue({
+        vitalSigns: loadedVitalSigns,
+        consciousness: screening.consciousness_level || 'Compos Mentis' // Load saved consciousness if available
+      })
+
+      if (mode === 'inpatient') {
+        // Pain & Fall Risk
+        form.setFieldsValue({
+          pain_scale_score: painAssessment.painScore,
+          chest_pain_check: painAssessment.chestPain,
+          pain_notes: painAssessment.painNotes,
+          get_up_go_a: fallRisk.gugA,
+          get_up_go_b: fallRisk.gugB
+        })
+      }
+
+      if (mode === 'inpatient') {
+        // Functional Status
+        form.setFieldsValue({
+          aids_check: functionalStatus.aids_check,
+          disability_check: functionalStatus.disability_check,
+          adl_check: functionalStatus.adl_check
+        })
+
+        // Psychosocial
+        form.setFieldsValue({
+          psychological_status: psychosocialHistory.psychological_status?.split(', '),
+          family_relation_note: psychosocialHistory.family_relation_note,
+          living_with_note: psychosocialHistory.living_with_note,
+          religion: psychosocialHistory.religion,
+          culture_values: psychosocialHistory.culture_values,
+          daily_language: psychosocialHistory.daily_language
+        })
+
+        // Screening
+        form.setFieldsValue({
+          consciousness_level: screening.consciousness_level,
+          breathing_status: screening.breathing_status,
+          cough_screening_status: screening.cough_screening_status
+        })
+
+        // Conclusion
+        form.setFieldsValue({
+          decision: conclusion.decision
+        })
+      }
+
+      // Clinical Note
+      if (clinicalNote) {
+        form.setFieldValue('clinicalNote', clinicalNote)
+      }
+    }
+  }, [response, form, mode])
 
   return (
     <Form

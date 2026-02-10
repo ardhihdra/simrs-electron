@@ -126,7 +126,14 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           </div>
         )
       case 'initial-assessment':
-        return <InitialAssessmentForm encounterId={encounterId!} patientData={patientData} mode="inpatient" role="nurse" />
+        return (
+          <InitialAssessmentForm
+            encounterId={encounterId!}
+            patientData={patientData}
+            mode="inpatient"
+            role="nurse"
+          />
+        )
       case 'anamnesis':
         return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
       case 'physical-assessment':
@@ -138,14 +145,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           />
         )
       case 'dental-assessment':
-        return (
-          <DentalPage
-            encounterId={encounterId!}
-            patientId={patientData.patient.id}
-            performerId={(patientData as any).doctorId}
-            performerName={(patientData as any).doctorName}
-          />
-        )
+        return <DentalPage encounterId={encounterId!} patientId={patientData.patient.id} />
       case 'skrining-gizi':
         return (
           <NutritionScreeningForm encounterId={encounterId} patientId={patientData.patient.id} />

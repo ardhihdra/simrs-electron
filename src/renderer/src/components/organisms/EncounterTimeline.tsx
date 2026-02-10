@@ -1,5 +1,14 @@
 import { Card, Button, Tag, Typography, Empty, Spin, Table, Space, Avatar, Modal } from 'antd'
-import { EyeOutlined, UserOutlined, CalendarOutlined, CaretRightOutlined } from '@ant-design/icons'
+import {
+  EyeOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  CaretRightOutlined,
+  AlertOutlined,
+  FileTextOutlined,
+  ToolOutlined,
+  MedicineBoxOutlined
+} from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import 'dayjs/locale/id'
@@ -112,7 +121,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         title: 'Jam',
         dataIndex: 'time',
         key: 'time',
-        width: 100,
+        width: 80,
         render: (text: string) => (
           <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
             {text}
@@ -122,6 +131,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       {
         title: 'Pemeriksa',
         key: 'performer',
+        width: 250,
         render: (session: any) => {
           const name = session.performer || 'Petugas Medis'
           return (
@@ -133,15 +143,43 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         }
       },
       {
+        title: 'Data Klinis',
+        key: 'content',
+        render: (session: any) => (
+          <Space wrap size={[4, 4]}>
+            {session.conditions?.length > 0 && (
+              <Tag icon={<AlertOutlined />} color="orange" className="rounded-full">
+                Diagnosis ({session.conditions.length})
+              </Tag>
+            )}
+            {session.compositions?.length > 0 && (
+              <Tag icon={<FileTextOutlined />} color="blue" className="rounded-full">
+                CPPT/SOAP ({session.compositions.length})
+              </Tag>
+            )}
+            {session.procedures?.length > 0 && (
+              <Tag icon={<ToolOutlined />} color="purple" className="rounded-full">
+                Tindakan ({session.procedures.length})
+              </Tag>
+            )}
+            {session.observations?.length > 0 && (
+              <Tag icon={<MedicineBoxOutlined />} color="cyan" className="rounded-full">
+                Observasi ({session.observations.length})
+              </Tag>
+            )}
+          </Space>
+        )
+      },
+      {
         title: '',
         key: 'action',
-        width: 120,
+        width: 100,
         align: 'right' as const,
         render: (session: any) => (
           <Button
-            type="link"
+            type="text"
             size="small"
-            className="text-blue-600 hover:text-blue-800"
+            className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100"
             icon={<EyeOutlined />}
             onClick={() =>
               handleOpenDetail(`${record.date} ${session.time}`, [
@@ -152,7 +190,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
               ])
             }
           >
-            Lihat Detail
+            Detail
           </Button>
         )
       }
