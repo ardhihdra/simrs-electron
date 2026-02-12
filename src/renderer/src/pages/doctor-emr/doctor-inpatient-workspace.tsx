@@ -26,6 +26,7 @@ import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
 import { NutritionScreeningForm } from '@renderer/components/organisms/NutritionScreeningForm'
 import { PrescriptionForm } from '@renderer/components/organisms/PrescriptionForm'
 import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
+import { NutritionOrderForm } from '@renderer/components/organisms/NutritionOrderForm'
 import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
 import { PhysicalAssessmentForm } from '../../components/organisms/Assessment/PhysicalAssessmentForm'
 import { AnamnesisForm } from '../../components/organisms/Assessment/AnamnesisForm'
@@ -88,7 +89,8 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       label: 'Tindakan & Terapi',
       children: [
         { key: 'procedures', label: 'Diagnosis & Tindakan' },
-        { key: 'prescription', label: 'E-Resep' }
+        { key: 'prescription', label: 'E-Resep' },
+        { key: 'nutrition-order', label: 'Order Diet (Gizi)' }
       ]
     },
     {
@@ -164,6 +166,8 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
         return <CPPTForm encounterId={encounterId} patientData={patientData} />
       case 'prescription':
         return <PrescriptionForm encounterId={encounterId} patientData={patientData} />
+      case 'nutrition-order':
+        return <NutritionOrderForm encounterId={encounterId} patientData={patientData} />
       case 'procedures':
         return <DiagnosisProceduresForm encounterId={encounterId} patientData={patientData} />
       case 'lab-rad-order':

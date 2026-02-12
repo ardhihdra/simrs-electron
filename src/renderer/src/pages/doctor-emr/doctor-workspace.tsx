@@ -113,9 +113,9 @@ const DoctorWorkspace = () => {
   const allergies =
     allergyData?.result && Array.isArray(allergyData.result) && allergyData.result.length > 0
       ? allergyData.result
-          .map((a: any) => a.note)
-          .filter(Boolean)
-          .join(', ')
+        .map((a: any) => a.note)
+        .filter(Boolean)
+        .join(', ')
       : '-'
 
   const currentStatus = encounterDetail?.data?.status || EncounterStatus.IN_PROGRESS
@@ -174,7 +174,8 @@ const DoctorWorkspace = () => {
           </div>
         )}
 
-        {encounterDetail?.data?.encounterType === EncounterType.IMP ? (
+
+        {encounterDetail?.result?.encounterType === EncounterType.IMP ? (
           <DoctorInpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
         ) : (
           <DoctorOutpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
