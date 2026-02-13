@@ -25,8 +25,6 @@ export const ScreeningSection: React.FC = () => {
           </Col>
         </Row>
       </div>
-
-      {/* Risiko Jatuh */}
       <div className="py-6 border-t border-gray-100">
         <Row gutter={24}>
           <Col span={6}>
@@ -61,8 +59,6 @@ export const ScreeningSection: React.FC = () => {
           </Col>
         </Row>
       </div>
-
-      {/* Skrining Nyeri */}
       <div className="py-6 border-t border-gray-100">
         <Row gutter={24}>
           <Col span={6}>

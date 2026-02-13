@@ -8,16 +8,14 @@ import {
   Spin,
   Tag,
   Space,
-  Avatar,
   Modal,
   Table,
-  InputNumber,
-  Tooltip
+  Tooltip,
+  InputNumber
 } from 'antd'
 import {
   SaveOutlined,
   PlusOutlined,
-  UserOutlined,
   HistoryOutlined,
   CheckCircleOutlined,
   CopyOutlined,
@@ -29,7 +27,9 @@ import { useConditionByEncounter } from '../../hooks/query/use-condition'
 import { formatObservationSummary } from '../../utils/observation-helpers'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 import { COMPOSITION_STATUS_MAP, COMPOSITION_STATUS_COLOR_MAP } from '../../config/composition-maps'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import dayjs from 'dayjs'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { TextArea } = Input
 
@@ -48,33 +48,31 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   const { data: obsData } = useObservationByEncounter(encounterId)
   const { data: condData } = useConditionByEncounter(encounterId)
   const upsertMutation = useUpsertComposition()
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'nurse',
+    'doctor'
+  ])
+
+  const selectedPerformerId = Form.useWatch('performerId', form)
+  const selectedPerformer = performersData?.find((p: any) => p.id === selectedPerformerId)
+  const currentRole = selectedPerformer?.role
 
   const handleSubmit = async (values: any) => {
     try {
-      const vitalsParts: string[] = []
-      if (values.systolic && values.diastolic)
-        vitalsParts.push(`TD: ${values.systolic}/${values.diastolic} mmHg`)
-      if (values.heartRate) vitalsParts.push(`N: ${values.heartRate} x/m`)
-      if (values.respRate) vitalsParts.push(`RR: ${values.respRate} x/m`)
-      if (values.temperature) vitalsParts.push(`S: ${values.temperature} °C`)
-      if (values.gcs) vitalsParts.push(`GCS: ${values.gcs}`)
-      if (values.consciousness) vitalsParts.push(`Kesadaran: ${values.consciousness}`)
-
-      let objective = values.soapObjective || ''
-      if (vitalsParts.length > 0) {
-        objective = `[TTV] ${vitalsParts.join(' | ')} [/TTV]\n\n${objective}`
-      }
+      const assessmentDate = values.assessment_date ? dayjs(values.assessment_date) : dayjs()
 
       await upsertMutation.mutateAsync({
+        id: values.id,
         encounterId,
         patientId: patientData.patient.id,
-        doctorId: 1, // TODO: Get from auth
+        doctorId: Number(values.performerId),
         title: 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
         soapSubjective: values.soapSubjective,
-        soapObjective: objective,
+        soapObjective: values.soapObjective,
         soapAssessment: values.soapAssessment,
         soapPlan: values.soapPlan,
-        status: values.status // Include status from form values
+        status: values.status,
+        date: assessmentDate.toISOString()
       })
 
       const statusMsg = values.status === 'final' ? 'Final' : 'Draft'
@@ -95,7 +93,14 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       return
     }
 
-    const summary = formatObservationSummary(obsData?.result?.all || [], condData?.result || [])
+    const rawObs = obsData?.result?.all || []
+    const sortedObs = [...rawObs].sort(
+      (a: any, b: any) =>
+        dayjs(b.effectiveDateTime || b.issued).valueOf() -
+        dayjs(a.effectiveDateTime || a.issued).valueOf()
+    )
+
+    const summary = formatObservationSummary(sortedObs, condData?.result || [])
     const { vitalSigns, physicalExamination } = summary
 
     form.setFieldsValue({
@@ -114,36 +119,43 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
           (summary.vitalSigns?.gcsMotor || 0) || undefined
     })
 
+    const vitalsParts: string[] = []
+
+    if (vitalSigns.systolicBloodPressure && vitalSigns.diastolicBloodPressure) {
+      vitalsParts.push(
+        `TD: ${vitalSigns.systolicBloodPressure}/${vitalSigns.diastolicBloodPressure} mmHg`
+      )
+    }
+    if (vitalSigns.pulseRate) vitalsParts.push(`N: ${vitalSigns.pulseRate} x/m`)
+    if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
+    if (vitalSigns.temperature) vitalsParts.push(`S: ${vitalSigns.temperature} °C`)
+
     const observations = obsData?.result?.all || []
     const findObs = (code: string) => observations.find((o: any) => o.code === code)
-
     const gcsEye = findObs('9267-5')?.valueQuantity?.value
     const gcsVerbal = findObs('9270-9')?.valueQuantity?.value
     const gcsMotor = findObs('9268-3')?.valueQuantity?.value
 
     if (gcsEye || gcsVerbal || gcsMotor) {
       const total = (gcsEye || 0) + (gcsVerbal || 0) + (gcsMotor || 0)
-      let consciousness = physicalExamination.consciousness
-      if (!consciousness && total > 0) {
-        if (total >= 14) consciousness = 'Compos Mentis'
-        else if (total >= 12) consciousness = 'Apatis'
-        else if (total >= 10) consciousness = 'Delirium'
-        else if (total >= 7) consciousness = 'Somnolen'
-        else if (total >= 5) consciousness = 'Sopor'
-        else if (total >= 3) consciousness = 'Semi-Coma / Coma'
-        else consciousness = 'Coma'
-      }
-
-      form.setFieldsValue({
-        gcs_e: gcsEye,
-        gcs_v: gcsVerbal,
-        gcs_m: gcsMotor,
-        gcs: total,
-        consciousness: consciousness
-      })
+      vitalsParts.push(`GCS: E${gcsEye || '-'}V${gcsVerbal || '-'}M${gcsMotor || '-'} (${total})`)
     }
 
-    message.success('Data TTV & GCS berhasil diambil dari Asesmen')
+    if (physicalExamination.consciousness) {
+      vitalsParts.push(`Kesadaran: ${physicalExamination.consciousness}`)
+    }
+
+    if (vitalsParts.length === 0) {
+      message.warning('Data TTV kosong')
+      return
+    }
+
+    const ttvString = `[TTV] ${vitalsParts.join(' | ')} [/TTV]`
+    const currentObjective = form.getFieldValue('soapObjective') || ''
+    const cleanObjective = currentObjective.replace(/\[TTV\].*?\[\/TTV\]/s, '').trim()
+
+    form.setFieldValue('soapObjective', `${ttvString}\n\n${cleanObjective}`.trim())
+    message.success('Data TTV berhasil diambil ke kolom Objective')
   }
 
   const parseVitals = (text: string) => {
@@ -175,47 +187,37 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     return { tags: null, remainingText: text }
   }
 
-  /* New: Handle Edit */
   const handleEdit = (record: any) => {
-    // Parse vitals from Objective if stored there
     const { remainingText } = parseVitals(record.soapObjective || '')
-
-    // Set form values
     form.setFieldsValue({
+      id: record.id,
       soapSubjective: record.soapSubjective,
-      soapObjective: remainingText, // Put the text part back to textarea
+      soapObjective: remainingText,
       soapAssessment: record.soapAssessment,
       soapPlan: record.soapPlan,
       status: record.status
-      // Note: Parsing Vitals back into individual fields (systolic, etc) is complex because
-      // they are aggregated into a string. For simple draft editing, we might just let user append.
-      // Or if we want full fidelity, we'd need to regex parse the [TTV] block.
-      // For now, let's keep it simple: Vitals are in the [TTV] string which isn't fully reversible easily
-      // without strict format. But the user can re-enter vitals if needed or we leave them as part of Objective text.
-      // Actually, parseVitals uses [TTV] block. If we want to edit, we should extract it?
-      // Let's just set the Objective text minus tags to the textarea, so tags are preserved in backend?
-      // No, upsert overwrites. We should ideally keep the original objective full text if we don't want to lose vitals
-      // OR better: Assume the user might want to re-fetch/edit vitals.
-      // Let's set soapObjective to the RAW value for now so they don't lose the TTV block if they save again.
     })
 
-    // Better approach for editing: Load the FULL objective into the textarea so they see the [TTV] block and can edit it if they want.
     form.setFieldValue('soapObjective', record.soapObjective)
 
     setIsAddingNew(true)
   }
 
-  /* New: Handle Verification */
   const handleVerify = async (record: any) => {
     try {
-      if (record.status === 'final') return // Already final
+      if (record.status === 'final') return
+
+      if (currentRole !== 'doctor') {
+        message.error('Hanya dokter yang dapat melakukan verifikasi')
+        return
+      }
+
+      const verifierId = selectedPerformerId || record.authorId?.[0] || 1
 
       await upsertMutation.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
-        doctorId: 1, // TODO: Get from auth
-        // Pass existing data to avoid overwriting with nulls if backend logic requires full payload
-        // Ideally backend update should support partials, but reusing upsert with current data is safer strictly for status update here
+        doctorId: Number(verifierId),
         ...record,
         status: 'final',
         title: record.title || 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
@@ -258,16 +260,13 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       width: 180,
       render: (_: any, record: any) => (
         <div className="flex items-center gap-3">
-          <Avatar
-            icon={<UserOutlined />}
-            src={record.authorAvatar}
-            className="bg-blue-100 text-blue-600"
-          />
           <div className="flex flex-col">
             <span className="font-bold text-gray-800 text-sm">
-              {record.authorName || 'PPA Jaga'}
+              {record.author?.namaLengkap || record.authorName || 'PPA Jaga'}
             </span>
-            <span className="text-gray-500 text-xs">{record.role || 'Dokter/Perawat'}</span>
+            <span className="text-gray-500 text-xs">
+              {record.author?.hakAkses?.nama || record.role || 'Dokter/Perawat'}
+            </span>
           </div>
         </div>
       )
@@ -279,12 +278,10 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         const { tags, remainingText } = parseVitals(record.soapObjective || '')
         return (
           <div className="flex flex-col gap-3 text-sm">
-            {/* Subjective */}
             <div className="flex gap-2">
               <span className="font-bold text-gray-400 w-4">S:</span>
               <div className="flex-1 whitespace-pre-wrap">{record.soapSubjective}</div>
             </div>
-            {/* Objective */}
             <div className="flex gap-2">
               <span className="font-bold text-gray-400 w-4">O:</span>
               <div className="flex-1">
@@ -292,7 +289,6 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                 <div className="whitespace-pre-wrap">{remainingText || '-'}</div>
               </div>
             </div>
-            {/* Assessment */}
             <div className="flex gap-2">
               <span className="font-bold text-gray-400 w-4">A:</span>
               <div className="flex-1 whitespace-pre-wrap">{record.soapAssessment}</div>
@@ -315,40 +311,63 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     {
       title: 'Verifikasi',
       key: 'verification',
-      width: 100,
-      render: (_: any, record: any) => (
-        <div className="flex flex-col gap-2 items-center">
-          {/* Edit Button for Drafts */}
-          {record.status !== 'final' && (
-            <Space>
-              <Tooltip title="Edit CPPT">
-                <Button
-                  type="text"
-                  shape="circle"
-                  onClick={() => handleEdit(record)}
-                  icon={<FormOutlined className="text-blue-500 text-lg" />}
-                />
-              </Tooltip>
-              <Tooltip title="Verifikasi">
-                <Button
-                  type="text"
-                  shape="circle"
-                  onClick={() => handleVerify(record)}
-                  icon={
-                    <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
-                  }
-                />
-              </Tooltip>
-            </Space>
-          )}
+      width: 150,
+      render: (_: any, record: any) => {
+        const legalAttester = record.attesters?.find((a: any) => a.mode === 'legal')
 
-          {record.status === 'final' && <CheckCircleOutlined className="text-green-500 text-lg" />}
+        return (
+          <div className="flex flex-col gap-2 items-center">
+            {record.status !== 'final' && (
+              <Space>
+                <Tooltip title="Edit CPPT">
+                  <Button
+                    type="text"
+                    shape="circle"
+                    onClick={() => handleEdit(record)}
+                    icon={<FormOutlined className="text-blue-500 text-lg" />}
+                  />
+                </Tooltip>
 
-          <Tag color={COMPOSITION_STATUS_COLOR_MAP[record.status || 'preliminary']}>
-            {COMPOSITION_STATUS_MAP[record.status?.toLowerCase() || 'preliminary']}
-          </Tag>
-        </div>
-      )
+                {currentRole === 'doctor' && (
+                  <Tooltip title="Verifikasi">
+                    <Button
+                      type="text"
+                      shape="circle"
+                      onClick={() => handleVerify(record)}
+                      icon={
+                        <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
+                      }
+                    />
+                  </Tooltip>
+                )}
+              </Space>
+            )}
+
+            {record.status === 'final' && (
+              <div className="flex flex-col items-center">
+                <CheckCircleOutlined className="text-green-500 text-lg" />
+                {legalAttester && (
+                  <span className="text-[10px] text-gray-500 text-center mt-1 leading-tight">
+                    Verified by <br />
+                    <span className="font-semibold text-gray-700">
+                      {legalAttester.partyDisplay}
+                    </span>
+                    <br />
+                    {dayjs(legalAttester.time).format('DD/MM/YY HH:mm')}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <Tag
+              color={COMPOSITION_STATUS_COLOR_MAP[record.status || 'preliminary']}
+              className="mt-1"
+            >
+              {COMPOSITION_STATUS_MAP[record.status?.toLowerCase() || 'preliminary']}
+            </Tag>
+          </div>
+        )
+      }
     }
   ]
 
@@ -360,7 +379,9 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     )
   }
 
-  const cpptHistory = compositionData?.result || []
+  const cpptHistory = (compositionData?.result || []).filter(
+    (comp: any) => comp.title !== 'SOAP Umum'
+  )
 
   return (
     <div className="flex flex-col gap-6">
@@ -405,67 +426,107 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
           >
             Simpan Draft
           </Button>,
-          <Button
-            key="submit"
-            type="primary"
-            icon={<CheckCircleOutlined />}
-            loading={upsertMutation.isPending}
-            onClick={() => {
-              form.setFieldValue('status', 'final')
-              form.submit()
-            }}
-          >
-            Simpan & Finalisasi
-          </Button>
+          currentRole === 'doctor' && (
+            <Button
+              key="submit"
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              loading={upsertMutation.isPending}
+              onClick={() => {
+                form.setFieldValue('status', 'final')
+                form.submit()
+              }}
+            >
+              Simpan & Finalisasi
+            </Button>
+          )
         ]}
         width={900}
       >
-        <Form form={form} layout="vertical" onFinish={handleSubmit} className="pt-4">
-          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
-            <div className="flex justify-between items-center mb-4 border-b border-gray-200 pb-2">
-              <div className="font-bold text-gray-700">Tanda-Tanda Vital (TTV)</div>
-              <Button type="link" size="small" icon={<CopyOutlined />} onClick={handleFetchVitals}>
-                Ambil Data Asesmen
-              </Button>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          className="pt-4"
+          initialValues={{
+            assessment_date: dayjs(),
+            status: 'preliminary'
+          }}
+        >
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
+          {(currentRole === 'nurse' || currentRole === 'doctor') && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 mt-4">
+              <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
+                <div className="font-bold text-blue-700 uppercase text-xs tracking-wider">
+                  Data Tanda-Tanda Vital (Dari Monitoring)
+                </div>
+                <Button
+                  type="primary"
+                  ghost
+                  size="small"
+                  icon={<CopyOutlined />}
+                  onClick={handleFetchVitals}
+                >
+                  Ambil Data Terakhir
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+                <Form.Item label="Tekanan Darah" style={{ marginBottom: 0 }}>
+                  <Space align="start" className="w-full">
+                    <Form.Item name="systolic" noStyle>
+                      <InputNumber placeholder="-" className="w-[80px]" readOnly disabled />
+                    </Form.Item>
+                    <span className="text-gray-400 font-light text-lg">/</span>
+                    <Form.Item name="diastolic" noStyle>
+                      <InputNumber placeholder="-" className="w-[80px]" readOnly disabled />
+                    </Form.Item>
+                    <span className="text-gray-500 text-xs mt-1">mmHg</span>
+                  </Space>
+                </Form.Item>
+
+                <Form.Item label="Nadi" name="heartRate" className="mb-0">
+                  <InputNumber
+                    className="w-full"
+                    placeholder="-"
+                    addonAfter="x/mnt"
+                    readOnly
+                    disabled
+                  />
+                </Form.Item>
+
+                <Form.Item label="Laju Pernafasan (RR)" name="respRate" className="mb-0">
+                  <InputNumber
+                    className="w-full"
+                    placeholder="-"
+                    addonAfter="x/mnt"
+                    readOnly
+                    disabled
+                  />
+                </Form.Item>
+
+                <Form.Item label="Suhu Tubuh" name="temperature" className="mb-0">
+                  <InputNumber
+                    className="w-full"
+                    placeholder="-"
+                    addonAfter="°C"
+                    readOnly
+                    disabled
+                  />
+                </Form.Item>
+
+                <Form.Item label="GCS (Terkumpul)" name="gcs" className="mb-0">
+                  <Input className="w-full" placeholder="-" readOnly disabled />
+                </Form.Item>
+
+                <Form.Item label="Kesadaran" name="consciousness" className="mb-0">
+                  <Input className="w-full" placeholder="-" readOnly disabled />
+                </Form.Item>
+              </div>
             </div>
+          )}
 
-            <div className="grid grid-cols-3 gap-x-6 gap-y-4">
-              <Form.Item label="Tekanan Darah" style={{ marginBottom: 0 }}>
-                <Space align="start" className="w-full">
-                  <Form.Item name="systolic" noStyle>
-                    <InputNumber placeholder="120" className="w-[80px]" />
-                  </Form.Item>
-                  <span className="text-gray-400 font-light text-lg">/</span>
-                  <Form.Item name="diastolic" noStyle>
-                    <InputNumber placeholder="80" className="w-[80px]" />
-                  </Form.Item>
-                  <span className="text-gray-500 text-xs mt-1">mmHg</span>
-                </Space>
-              </Form.Item>
-
-              <Form.Item label="Nadi" name="heartRate" className="mb-0">
-                <InputNumber className="w-full" placeholder="80" addonAfter="x/mnt" />
-              </Form.Item>
-
-              <Form.Item label="Laju Pernafasan (RR)" name="respRate" className="mb-0">
-                <InputNumber className="w-full" placeholder="20" addonAfter="x/mnt" />
-              </Form.Item>
-
-              <Form.Item label="Suhu Tubuh" name="temperature" className="mb-0">
-                <InputNumber className="w-full" placeholder="36.5" addonAfter="°C" />
-              </Form.Item>
-
-              <Form.Item label="GCS (E, V, M)" name="gcs" className="mb-0">
-                <Input className="w-full" placeholder="E4 V5 M6" />
-              </Form.Item>
-
-              <Form.Item label="Kesadaran" name="consciousness" className="mb-0">
-                <Input className="w-full" placeholder="Compos Mentis" />
-              </Form.Item>
-            </div>
-          </div>
-
-          {/* SOAP Section */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <Form.Item
@@ -497,23 +558,60 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
               <Form.Item
                 name="soapAssessment"
                 label={<span className="font-bold text-gray-700">Assessment (A)</span>}
-                rules={[{ required: true, message: 'Wajib diisi' }]}
-                extra="Diagnosis kerja dan diagnosis banding."
+                rules={[
+                  {
+                    required: currentRole === 'doctor',
+                    message: 'Wajib diisi oleh dokter'
+                  }
+                ]}
+                extra={
+                  currentRole === 'nurse'
+                    ? 'Diisi oleh dokter'
+                    : 'Diagnosis kerja dan diagnosis banding.'
+                }
               >
-                <TextArea rows={5} placeholder="Contoh: NSTEMI, Hipertensi Grade II..." />
+                <TextArea
+                  rows={5}
+                  placeholder={
+                    currentRole === 'nurse'
+                      ? '(Akan diisi oleh dokter)'
+                      : 'Contoh: NSTEMI, Hipertensi Grade II...'
+                  }
+                  disabled={currentRole === 'nurse'}
+                />
               </Form.Item>
 
               <Form.Item
                 name="soapPlan"
                 label={<span className="font-bold text-gray-700">Plan (P) / Instruksi</span>}
-                rules={[{ required: true, message: 'Wajib diisi' }]}
-                extra="Rencana asuhan, pengobatan, dan edukasi."
+                rules={[
+                  {
+                    required: currentRole === 'doctor',
+                    message: 'Wajib diisi oleh dokter'
+                  }
+                ]}
+                extra={
+                  currentRole === 'nurse'
+                    ? 'Diisi oleh dokter'
+                    : 'Rencana asuhan, pengobatan, dan edukasi.'
+                }
               >
-                <TextArea rows={5} placeholder="Contoh: IVFD RL 20 tpm, Inj. Cuan 1x1..." />
+                <TextArea
+                  rows={5}
+                  placeholder={
+                    currentRole === 'nurse'
+                      ? '(Akan diisi oleh dokter)'
+                      : 'Contoh: IVFD RL 20 tpm, Inj. Cuan 1x1...'
+                  }
+                  disabled={currentRole === 'nurse'}
+                />
               </Form.Item>
             </div>
           </div>
           <Form.Item name="status" hidden>
+            <Input />
+          </Form.Item>
+          <Form.Item name="id" hidden>
             <Input />
           </Form.Item>
         </Form>

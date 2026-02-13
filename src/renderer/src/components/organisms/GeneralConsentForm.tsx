@@ -7,7 +7,7 @@ const { Text, Title, Paragraph } = Typography
 const { TextArea } = Input
 
 export interface GeneralConsentFormProps {
-  form: FormInstance // Antd form instance
+  form: FormInstance
   patientData?: {
     name?: string | null
     birthDate?: Dayjs
@@ -31,7 +31,7 @@ export function GeneralConsentForm({ form, patientData }: GeneralConsentFormProp
   }, [signer, patientData, form])
 
   return (
-    <Card className="shadow-sm">
+    <Card className="">
       <div className="text-center mb-6">
         <Title level={3}>Persetujuan Umum (General Consent)</Title>
       </div>

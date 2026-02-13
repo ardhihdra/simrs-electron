@@ -43,7 +43,7 @@ export const OutpatientScreeningForm = ({ encounterId }: OutpatientScreeningForm
         conclusion: 'Sesuai'
       }}
     >
-      <Card title="Asesmen Awal Keperawatan Rawat Jalan" className="shadow-sm rounded-lg mb-4">
+      <Card title="Asesmen Awal Keperawatan Rawat Jalan" className=" rounded-lg mb-4">
         {/* === 1. Status Fungsional === */}
         <div className="mb-6">
           <h3 className="text-blue-800 font-semibold mb-4 border-b pb-2">I. Status Fungsional</h3>

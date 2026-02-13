@@ -1,5 +1,4 @@
-import { Card, Col, Form, InputNumber, Row, Select, Tag, FormInstance } from 'antd'
-import React, { useState } from 'react'
+import { Card, Col, Form, InputNumber, Row, Select, FormInstance } from 'antd'
 
 const { Option } = Select
 
@@ -7,29 +6,7 @@ interface VitalSignsSectionProps {
   form: FormInstance
 }
 
-export const VitalSignsSection: React.FC<VitalSignsSectionProps> = ({ form }) => {
-  const [bmi, setBmi] = useState<number | null>(null)
-
-  const calculateBMI = () => {
-    const height = form.getFieldValue(['vitalSigns', 'height'])
-    const weight = form.getFieldValue(['vitalSigns', 'weight'])
-
-    if (height && weight && height > 0) {
-      const heightInMeters = height / 100
-      const calculatedBMI = weight / (heightInMeters * heightInMeters)
-      const roundedBMI = Math.round(calculatedBMI * 100) / 100
-      setBmi(roundedBMI)
-      form.setFieldValue(['vitalSigns', 'bmi'], roundedBMI)
-    }
-  }
-
-  const getBMICategory = (bmiValue: number): { text: string; color: string } => {
-    if (bmiValue < 18.5) return { text: 'Kurus', color: 'blue' }
-    if (bmiValue < 25) return { text: 'Normal', color: 'green' }
-    if (bmiValue < 30) return { text: 'Gemuk', color: 'orange' }
-    return { text: 'Obesitas', color: 'red' }
-  }
-
+export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
   return (
     <Card title="Vital Signs / Tanda Vital" className="py-4">
       <Row gutter={16}>
@@ -134,50 +111,6 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = ({ form }) =>
             rules={[{ required: true, message: 'Wajib diisi' }]}
           >
             <InputNumber min={0} max={100} placeholder="98" className="w-full" addonAfter="%" />
-          </Form.Item>
-        </Col>
-      </Row>
-
-      <Row gutter={16}>
-        <Col span={8}>
-          <Form.Item
-            label="Tinggi Badan (cm)"
-            name={['vitalSigns', 'height']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
-          >
-            <InputNumber
-              min={0}
-              max={250}
-              placeholder="170"
-              className="w-full"
-              onChange={calculateBMI}
-              addonAfter="cm"
-            />
-          </Form.Item>
-        </Col>
-        <Col span={8}>
-          <Form.Item
-            label="Berat Badan (kg)"
-            name={['vitalSigns', 'weight']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
-          >
-            <InputNumber
-              min={0}
-              max={300}
-              step={0.1}
-              placeholder="70"
-              className="w-full"
-              onChange={calculateBMI}
-              addonAfter="kg"
-            />
-          </Form.Item>
-        </Col>
-        <Col span={8}>
-          <Form.Item label="BMI (Body Mass Index)" name={['vitalSigns', 'bmi']}>
-            <div className="flex items-center gap-2">
-              <InputNumber disabled className="w-full" value={bmi || undefined} />
-              {bmi && <Tag color={getBMICategory(bmi).color}>{getBMICategory(bmi).text}</Tag>}
-            </div>
           </Form.Item>
         </Col>
       </Row>

@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { Form, Input, Button, Card, Table, Space, App, Spin, AutoComplete, Checkbox } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import {
   PatientDiagnosis,
@@ -10,8 +11,12 @@ import {
 import { saveDiagnosisAndProcedures } from '../../services/doctor.service'
 import { useConditionByEncounter } from '../../hooks/query/use-condition'
 import { useProcedureByEncounter } from '../../hooks/query/use-procedure'
+import { useMasterProcedureList } from '../../hooks/query/use-master-procedure'
+import { useDiagnosisCodeList } from '../../hooks/query/use-diagnosis-code'
 import { ANAMNESIS_MAP, DIAGNOSIS_MAP } from '../../config/condition-maps'
 import { PROCEDURE_MAP } from '../../config/procedure-maps'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 interface DiagnosisCode {
   id: string
@@ -63,12 +68,39 @@ export const DiagnosisProceduresForm = ({
   const [diagnosisOptions, setDiagnosisOptions] = useState<DiagnosisCode[]>([])
   const [selectedDiagnoses, setSelectedDiagnoses] = useState<DiagnosisTableData[]>([])
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
-  const [searchingDiagnosis, setSearchingDiagnosis] = useState(false)
+  const [debouncedDiagnosisSearch, setDebouncedDiagnosisSearch] = useState('')
+
+  const { data: masterDiagnosis, isLoading: isLoadingMasterDiagnosis } = useDiagnosisCodeList({
+    q: debouncedDiagnosisSearch,
+    items: 20
+  })
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
+
+  useEffect(() => {
+    if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
+      setDiagnosisOptions(masterDiagnosis as unknown as DiagnosisCode[])
+    } else {
+      setDiagnosisOptions([])
+    }
+  }, [masterDiagnosis, debouncedDiagnosisSearch])
 
   const [procedureOptions, setProcedureOptions] = useState<MedicalProcedure[]>([])
   const [selectedProcedures, setSelectedProcedures] = useState<ProcedureTableData[]>([])
   const [procedureSearch, setProcedureSearch] = useState('')
-  const [searchingProcedure, setSearchingProcedure] = useState(false)
+  const [debouncedProcedureSearch, setDebouncedProcedureSearch] = useState('')
+
+  const { data: masterProcedures, isLoading: isLoadingMasterProcedures } = useMasterProcedureList({
+    q: debouncedProcedureSearch,
+    items: 20
+  })
+
+  useEffect(() => {
+    if (debouncedProcedureSearch.length >= 2 && masterProcedures) {
+      setProcedureOptions(masterProcedures as unknown as MedicalProcedure[])
+    } else {
+      setProcedureOptions([])
+    }
+  }, [masterProcedures, debouncedProcedureSearch])
 
   useEffect(() => {
     if (conditionsData?.result && Array.isArray(conditionsData.result)) {
@@ -130,113 +162,26 @@ export const DiagnosisProceduresForm = ({
     }
   }, [proceduresData])
 
-  const searchProcedures = useCallback(async (value: string) => {
-    if (value.length >= 2) {
-      setSearchingProcedure(true)
-      try {
-        const fn = window.api?.query?.masterProcedure?.list
-        if (!fn) {
-          console.error('masterProcedure API not available')
-          throw new Error('API master procedure tidak tersedia')
-        }
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedDiagnosisSearch(diagnosisSearch)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [diagnosisSearch])
 
-        const response = await fn({
-          q: value,
-          items: 20
-        } as any)
-
-        if (response.success) {
-          const resultArray = Object.entries(response)
-            .filter(([key]) => !isNaN(Number(key)))
-            .map(([, value]) => value)
-            .filter((item) => typeof item === 'object' && item !== null)
-
-          const procedures: MedicalProcedure[] = resultArray.map((proc: any) => ({
-            id: String(proc.id),
-            code: proc.code,
-            name: proc.id_display || proc.display || proc.name,
-            display: proc.display,
-            id_display: proc.id_display,
-            system: proc.system,
-            url: proc.url,
-            status: proc.status
-          }))
-          setProcedureOptions(procedures)
-        }
-      } catch (error) {
-        console.error('Error searching procedures:', error)
-      } finally {
-        setSearchingProcedure(false)
-      }
-    } else {
-      setProcedureOptions([])
-    }
-  }, [])
-
-  const searchDiagnosis = useCallback(async (value: string) => {
-    if (value.length >= 2) {
-      setSearchingDiagnosis(true)
-      try {
-        const fn = window.api?.query?.diagnosisCode?.list
-        if (!fn) {
-          console.error('diagnosisCode API not available')
-          throw new Error('API diagnosis code tidak tersedia')
-        }
-
-        const response = await fn({
-          q: value,
-          items: 20
-        } as any)
-
-        if (response.success) {
-          const resultArray = Object.entries(response)
-            .filter(([key]) => !isNaN(Number(key)))
-            .map(([, value]) => value)
-            .filter((item) => typeof item === 'object' && item !== null)
-
-          const codes: DiagnosisCode[] = resultArray.map((dx: any) => ({
-            id: String(dx.id),
-            code: dx.code,
-            display: dx.display,
-            id_display: dx.idDisplay || dx.id_display, // Handle camelCase from backend
-            system: dx.system,
-            url: dx.url
-          }))
-          setDiagnosisOptions(codes)
-        }
-      } catch (error) {
-        console.error('Error searching diagnosis:', error)
-      } finally {
-        setSearchingDiagnosis(false)
-      }
-    } else {
-      setDiagnosisOptions([])
-    }
-  }, [])
-
-  // Debounce utility defined outside or useMemo ensures stability
-  const debounce = (func: Function, delay: number) => {
-    let timeoutId: NodeJS.Timeout
-    return (...args: any[]) => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => func(...args), delay)
-    }
-  }
-
-  const debouncedSearchDiagnosis = useMemo(() => debounce(searchDiagnosis, 500), [searchDiagnosis])
-  const debouncedSearchProcedures = useMemo(
-    () => debounce(searchProcedures, 500),
-    [searchProcedures]
-  )
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedProcedureSearch(procedureSearch)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [procedureSearch])
 
   const handleDiagnosisSearch = (value: string) => {
     setDiagnosisSearch(value)
-    debouncedSearchDiagnosis(value)
   }
 
   const handleProcedureSearch = (value: string) => {
     setProcedureSearch(value)
-    debouncedSearchProcedures(value)
   }
 
   const handleAddDiagnosis = (value: string) => {
@@ -316,7 +261,7 @@ export const DiagnosisProceduresForm = ({
     setSelectedProcedures(updated)
   }
 
-  const onFinish = async () => {
+  const onFinish = async (values: any) => {
     if (selectedDiagnoses.length === 0) {
       message.error('Minimal harus ada 1 diagnosis')
       return
@@ -330,11 +275,20 @@ export const DiagnosisProceduresForm = ({
         encounterId,
         patientId: patientData?.patient.id,
         diagnoses: selectedDiagnoses,
-        procedures: selectedProcedures
+        procedures: selectedProcedures,
+        assessmentDate: values.assessment_date ? values.assessment_date.toISOString() : undefined,
+        doctorId: values.performerId
       })
 
       if (response.success) {
         message.success('Data diagnosis dan tindakan berhasil disimpan')
+
+        const { queryClient } = await import('@renderer/query-client')
+        queryClient.invalidateQueries({ queryKey: ['condition', 'by-encounter', encounterId] })
+        queryClient.invalidateQueries({ queryKey: ['procedure', 'by-encounter', encounterId] })
+        queryClient.invalidateQueries({ queryKey: ['encounter', 'detail', encounterId] })
+
+        form.setFieldValue('assessment_date', dayjs())
       } else {
         message.error(response.message)
       }
@@ -454,7 +408,15 @@ export const DiagnosisProceduresForm = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <Form form={form} layout="vertical" onFinish={onFinish} className="flex flex-col gap-4">
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        className="flex flex-col gap-4"
+        initialValues={{ assessment_date: dayjs() }}
+      >
+        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
         <Card title="Diagnosis (ICD-10)">
           <Space direction="vertical" className="w-full" size="large">
             <div>
@@ -469,7 +431,7 @@ export const DiagnosisProceduresForm = ({
                   placeholder="Ketik kode ICD-10 atau nama diagnosis (min 2 karakter)"
                   className="w-full"
                   value={diagnosisSearch}
-                  notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
+                  notFoundContent={isLoadingMasterDiagnosis ? <Spin size="small" /> : null}
                 />
               </Form.Item>
             </div>
@@ -499,7 +461,7 @@ export const DiagnosisProceduresForm = ({
                 placeholder="Ketik kode ICD-9 atau nama tindakan (min 2 karakter)"
                 className="w-full"
                 value={procedureSearch}
-                notFoundContent={searchingProcedure ? <Spin size="small" /> : null}
+                notFoundContent={isLoadingMasterProcedures ? <Spin size="small" /> : null}
               />
             </Form.Item>
 
@@ -512,8 +474,8 @@ export const DiagnosisProceduresForm = ({
           </Space>
         </Card>
 
-        <Form.Item>
-          <Space>
+        <Form.Item className="mb-0">
+          <div className="flex justify-end pt-4 border-t border-gray-200">
             <Button
               type="primary"
               htmlType="submit"
@@ -523,7 +485,7 @@ export const DiagnosisProceduresForm = ({
             >
               Simpan Tindakan
             </Button>
-          </Space>
+          </div>
         </Form.Item>
       </Form>
     </div>

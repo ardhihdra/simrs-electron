@@ -32,7 +32,14 @@ export const useBulkCreateObservation = () => {
         mutationFn: async (payload: BulkCreateObservationPayload) => {
             const fn = window.api?.query?.observation?.create
             if (!fn) throw new Error('API observation tidak tersedia')
-            return fn(payload)
+            const result = await fn(payload)
+
+            // Check if the backend returned an error response
+            if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+                throw new Error(result.message || 'Gagal menyimpan observasi')
+            }
+
+            return result
         },
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['observation', 'list'] })
@@ -97,13 +104,14 @@ export const useUpdateObservation = () => {
 export const useDeleteObservation = () => {
     return useMutation({
         mutationKey: ['observation', 'delete'],
-        mutationFn: (id: number) => {
+        mutationFn: (id: number | string) => {
             const fn = window.api?.query?.observation?.deleteById
             if (!fn) throw new Error('API observation tidak tersedia')
-            return fn({ id })
+            return fn({ id: id as any })
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['observation', 'list'] })
+            queryClient.invalidateQueries({ queryKey: ['observation', 'by-encounter'] })
         }
     })
 }

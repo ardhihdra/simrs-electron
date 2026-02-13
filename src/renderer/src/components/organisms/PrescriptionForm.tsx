@@ -1,736 +1,464 @@
-import { useState, useEffect } from 'react'
-import {
-    Form,
-    Input,
-    Button,
-    Card,
-    Table,
-    Space,
-    App,
-    Tabs,
-    Select,
-    InputNumber,
-    Row,
-    Col,
-    Tag,
-    Modal,
-    Divider
-} from 'antd'
-import { SaveOutlined, DeleteOutlined, PlusOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { useState, useEffect, useMemo } from 'react'
+import { Form, Button, App, Tabs, Space, Card } from 'antd'
+import { SaveOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
-import type { ColumnsType } from 'antd/es/table'
-import {
-    Medicine,
-    MedicineCategory,
-    Supply,
-    SupplyCategory,
-    CompoundFormulation,
-    CompoundIngredient,
-    PrescriptionItem,
-    PrescriptionItemType,
-    PatientWithMedicalRecord
-} from '../../types/doctor.types'
-import {
-    getMedicines,
-    searchMedicines,
-    getSupplies,
-    searchSupplies,
-    saveCompoundFormulation,
-    getCompoundFormulations,
-    createPrescription
-} from '../../services/doctor.service'
+import dayjs from 'dayjs'
+import { CompoundPrescriptionForm } from './CompoundPrescriptionForm'
+import { ItemPrescriptionForm } from './ItemPrescriptionForm'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { PatientWithMedicalRecord } from '@renderer/types/doctor.types'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { HistoryOutlined } from '@ant-design/icons'
+import { Table, Modal, Tag, Typography } from 'antd'
+import { useMedicationRequestByEncounter } from '@renderer/hooks/query/use-medication-request'
 
-const { TextArea } = Input
-const { Option } = Select
-const { TabPane } = Tabs
+const { Text } = Typography
 
-interface CartItem extends PrescriptionItem {
-    key: string
-    itemName: string
+enum MedicationRequestStatus {
+  ACTIVE = 'active',
+  ON_HOLD = 'on-hold',
+  CANCELLED = 'cancelled',
+  COMPLETED = 'completed',
+  ENTERED_IN_ERROR = 'entered-in-error',
+  STOPPED = 'stopped',
+  DRAFT = 'draft',
+  UNKNOWN = 'unknown'
 }
 
+enum MedicationRequestIntent {
+  PROPOSAL = 'proposal',
+  PLAN = 'plan',
+  ORDER = 'order',
+  ORIGINAL_ORDER = 'original-order',
+  REFLEX_ORDER = 'reflex-order',
+  FILLER_ORDER = 'filler-order',
+  INSTANCE_ORDER = 'instance-order',
+  OPTION = 'option'
+}
+
+enum MedicationRequestPriority {
+  ROUTINE = 'routine',
+  URGENT = 'urgent',
+  ASAP = 'asap',
+  STAT = 'stat'
+}
+
+const { TabPane } = Tabs
+
 interface PrescriptionFormProps {
-    encounterId: string
-    patientData: PatientWithMedicalRecord
+  encounterId: string
+  patientData: PatientWithMedicalRecord
+}
+
+interface RawMaterialAttributes {
+  id?: number
+  name: string
+}
+
+interface RawMaterialApi {
+  list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
+}
+
+interface ItemAttributes {
+  id?: number
+  nama?: string
+  kode?: string
+  kodeUnit?: string
+  unit?: {
+    id?: number
+    kode?: string
+    nama?: string
+  } | null
+  itemCategoryId?: number | null
+  category?: {
+    id?: number
+    name?: string | null
+    categoryType?: string | null
+  } | null
+  stock?: number
+}
+
+type ItemListResponse = {
+  success: boolean
+  result?: ItemAttributes[]
+  message?: string
 }
 
 export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormProps) => {
-    const navigate = useNavigate()
-    const { message, modal } = App.useApp()
-    const [compoundForm] = Form.useForm()
+  const navigate = useNavigate()
+  const { message, modal } = App.useApp()
 
-    const [submitting, setSubmitting] = useState(false)
+  const [form] = Form.useForm()
+  const [submitting, setSubmitting] = useState(false)
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
-    const [medicines, setMedicines] = useState<Medicine[]>([])
-    const [medicineCategory, setMedicineCategory] = useState<MedicineCategory | undefined>(undefined)
+  const {
+    data: medicationHistory,
+    isLoading: isLoadingHistory,
+    refetch: refetchHistory
+  } = useMedicationRequestByEncounter(encounterId)
 
-    const [supplies, setSupplies] = useState<Supply[]>([])
-    const [supplyCategory, setSupplyCategory] = useState<SupplyCategory | undefined>(undefined)
+  const [items, setItems] = useState<ItemAttributes[]>([])
+  const [itemCategories, setItemCategories] = useState<any[]>([])
+  const [rawMaterials, setRawMaterials] = useState<RawMaterialAttributes[]>([])
+  const [rawMaterialLoading, setRawMaterialLoading] = useState(false)
 
-    const [compounds, setCompounds] = useState<CompoundFormulation[]>([])
-    const [compoundIngredients, setCompoundIngredients] = useState<CompoundIngredient[]>([])
-    const [allItems, setAllItems] = useState<(Medicine | Supply)[]>([])
-    const [cartItems, setCartItems] = useState<CartItem[]>([])
-    const [compoundModalVisible, setCompoundModalVisible] = useState(false)
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
-    useEffect(() => {
-        loadMedicines()
-        loadSupplies()
-        loadCompounds()
-    }, [encounterId])
+  useEffect(() => {
+    loadRawMaterials()
+    loadItems()
+    loadItemCategories()
+  }, [encounterId])
 
-    const loadMedicines = async (category?: MedicineCategory, search?: string) => {
-        try {
-            let data: Medicine[]
-            if (search) {
-                data = await searchMedicines(search)
-            } else {
-                data = await getMedicines(category)
-            }
-            setMedicines(data)
-        } catch (error) {
-            console.error('Error loading medicines:', error)
+  const loadItems = async () => {
+    try {
+      const api = (window.api?.query as { item?: { list: () => Promise<ItemListResponse> } }).item
+      if (api?.list) {
+        const response = await api.list()
+        if (response.success && response.result) {
+          setItems(response.result)
         }
+      }
+    } catch (error) {
+      console.error('Error loading items:', error)
     }
+  }
 
-    const loadSupplies = async (category?: SupplyCategory, search?: string) => {
-        try {
-            let data: Supply[]
-            if (search) {
-                data = await searchSupplies(search)
-            } else {
-                data = await getSupplies(category)
-            }
-            setSupplies(data)
-        } catch (error) {
-            console.error('Error loading supplies:', error)
+  const loadItemCategories = async () => {
+    try {
+      const fn = (window.api?.query as any)?.medicineCategory?.list
+      if (fn) {
+        const response = await fn()
+        if (response.success && response.result) {
+          setItemCategories(response.result)
         }
+      }
+    } catch (error) {
+      console.error('Error loading item categories:', error)
     }
+  }
 
-    const loadCompounds = async () => {
-        try {
-            const data = await getCompoundFormulations()
-            setCompounds(data)
-        } catch (error) {
-            console.error('Error loading compounds:', error)
+  const loadRawMaterials = async () => {
+    setRawMaterialLoading(true)
+    try {
+      const api = (window.api?.query as { rawMaterial?: RawMaterialApi }).rawMaterial
+      if (api?.list) {
+        const response = await api.list()
+        if (response.success && response.result) {
+          setRawMaterials(response.result)
         }
+      }
+    } catch (error) {
+      console.error('Error loading raw materials:', error)
+    } finally {
+      setRawMaterialLoading(false)
     }
+  }
 
-    useEffect(() => {
-        const combined = [
-            ...medicines.map((m) => ({ ...m, type: 'medicine' as const })),
-            ...supplies.map((s) => ({ ...s, type: 'supply' as const }))
-        ]
-        setAllItems(combined as any)
-    }, [medicines, supplies])
+  const itemCategoryMap = useMemo(() => {
+    const categories = (itemCategories || []) as any[]
+    const map = new Map<number, string>()
+    categories.forEach((c) => {
+      if (typeof c.id === 'number' && typeof c.categoryType === 'string') {
+        map.set(c.id, c.categoryType.toLowerCase())
+      }
+    })
+    return map
+  }, [itemCategories])
 
-    const handleMedicineCategoryChange = (value: MedicineCategory) => {
-        setMedicineCategory(value)
-        loadMedicines(value)
-    }
+  const itemOptions = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(items) ? items : []
 
-    const handleMedicineSearch = (value: string) => {
-        if (value.length >= 2) {
-            loadMedicines(undefined, value)
-        } else if (value.length === 0) {
-            loadMedicines(medicineCategory)
-        }
-    }
+    return source
+      .filter((item) => typeof item.id === 'number')
+      .map((item) => {
+        const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
+        const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
+        const unitName = item.unit?.nama ?? unitCode
+        const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+        const name = item.nama ?? code
+        const displayName = name || code || String(item.id)
+        const label = unitName ? `${displayName} (${unitName})` : displayName
+        const categoryId =
+          typeof item.itemCategoryId === 'number'
+            ? item.itemCategoryId
+            : typeof item.category?.id === 'number'
+              ? item.category.id
+              : null
 
-    const handleSupplyCategoryChange = (value: SupplyCategory) => {
-        setSupplyCategory(value)
-        loadSupplies(value)
-    }
-
-    const handleSupplySearch = (value: string) => {
-        if (value.length >= 2) {
-            loadSupplies(undefined, value)
-        } else if (value.length === 0) {
-            loadSupplies(supplyCategory)
-        }
-    }
-
-    const handleAddToCart = (
-        type: PrescriptionItemType,
-        item: Medicine | Supply | CompoundFormulation
-    ) => {
-        const itemNameKey = 'name' in item ? item.name : ''
-        if (cartItems.find((c) => c.itemName === itemNameKey && c.type === type)) {
-            message.warning('Item ini sudah ada di keranjang')
-            return
-        }
-
-        const cartItem: CartItem = {
-            key: `cart-${Date.now()}`,
-            type,
-            item,
-            itemName: itemNameKey,
-            quantity: 1,
-            dosageInstructions: ''
-        }
-
-        setCartItems([...cartItems, cartItem])
-        message.success('Ditambahkan ke keranjang resep')
-    }
-
-    const handleRemoveFromCart = (key: string) => {
-        setCartItems(cartItems.filter((item) => item.key !== key))
-    }
-
-    const handleCartItemChange = (key: string, field: string, value: any) => {
-        const updated = cartItems.map((item) => (item.key === key ? { ...item, [field]: value } : item))
-        setCartItems(updated)
-    }
-
-    const handleAddCompoundIngredient = () => {
-        setCompoundIngredients([
-            ...compoundIngredients,
-            {
-                item: null as any,
-                itemType: 'medicine',
-                quantity: 1,
-                dosage: ''
-            }
-        ])
-    }
-
-    const handleRemoveCompoundIngredient = (index: number) => {
-        setCompoundIngredients(compoundIngredients.filter((_, i) => i !== index))
-    }
-
-    const handleCompoundIngredientChange = (
-        index: number,
-        field: 'item' | 'quantity' | 'dosage',
-        value: any
-    ) => {
-        const updated = [...compoundIngredients]
-        if (field === 'item') {
-            const foundItem = allItems.find((item) => item.id === value)
-            if (foundItem) {
-                updated[index].item = foundItem
-                updated[index].itemType =
-                    'type' in foundItem && foundItem.type === 'supply' ? 'supply' : 'medicine'
-            }
+        let categoryType = ''
+        if (categoryId && itemCategoryMap.has(categoryId)) {
+          categoryType = itemCategoryMap.get(categoryId) || ''
         } else {
-            updated[index][field] = value
+          const rawCategoryType =
+            typeof item.category?.categoryType === 'string' ? item.category.categoryType : undefined
+          categoryType = rawCategoryType ? rawCategoryType.trim().toLowerCase() : ''
         }
-        setCompoundIngredients(updated)
+
+        return {
+          value: item.id as number,
+          label,
+          unitCode,
+          categoryId,
+          categoryType
+        }
+      })
+      .filter((entry) => entry.unitCode.length > 0)
+  }, [items, itemCategoryMap])
+
+  const rawMaterialOptions = useMemo(() => {
+    return rawMaterials
+      .filter((rm) => typeof rm.id === 'number')
+      .map((rm) => ({
+        label: rm.name,
+        value: rm.id as number
+      }))
+  }, [rawMaterials])
+
+  const handleSubmitPrescription = async () => {
+    const values = form.getFieldsValue()
+    const compoundList = values.compounds || []
+    const itemList = values.items || []
+
+    if (itemList.length === 0 && compoundList.length === 0) {
+      message.error('Resep kosong. Tambahkan minimal 1 item atau racikan.')
+      return
     }
 
-    const handleSaveCompound = async () => {
-        try {
-            const values = await compoundForm.validateFields()
+    if (!encounterId || !patientData) return
 
-            if (compoundIngredients.length === 0) {
-                message.error('Minimal harus ada 1 bahan untuk racikan')
-                return
-            }
+    setSubmitting(true)
+    try {
+      const api = (window.api?.query as any)?.medicationRequest
+      if (!api?.create) {
+        throw new Error('API MedicationRequest tidak tersedia.')
+      }
 
-            if (compoundIngredients.some((ing) => !ing.item)) {
-                message.error('Semua bahan harus dipilih')
-                return
-            }
-
-            const compound: CompoundFormulation = {
-                name: values.compoundName,
-                ingredients: compoundIngredients,
-                instructions: values.compoundInstructions
-            }
-
-            const response = await saveCompoundFormulation({ compound })
-
-            if (response.success) {
-                message.success(response.message)
-                setCompoundModalVisible(false)
-                compoundForm.resetFields()
-                setCompoundIngredients([])
-                await loadCompounds()
-            } else {
-                message.error(response.message)
-            }
-        } catch (error) {
-            console.error('Error saving compound:', error)
+      const promises: Promise<any>[] = []
+      const commonPayload = {
+        status: MedicationRequestStatus.ACTIVE,
+        intent: MedicationRequestIntent.ORDER,
+        priority: MedicationRequestPriority.ROUTINE,
+        patientId: patientData.patient.id,
+        encounterId: encounterId,
+        requesterId: values.performerId || 1,
+        authoredOn: values.assessment_date ? values.assessment_date.toDate() : new Date(),
+        groupIdentifier: {
+          system: 'http://sys-ids/prescription-group',
+          value: `RX-${Date.now()}`
         }
+      }
+
+      for (const item of itemList) {
+        const selectedOption = itemOptions.find((opt) => opt.value === item.itemId)
+        const unit = selectedOption?.unitCode || undefined
+
+        const payload = {
+          ...commonPayload,
+          itemId: item.itemId,
+          note: item.note,
+          dosageInstruction: item.instruction ? [{ text: item.instruction }] : [],
+          dispenseRequest: {
+            quantity: {
+              value: item.quantity,
+              unit: unit
+            }
+          }
+        }
+        promises.push(api.create(payload))
+      }
+
+      for (const comp of compoundList) {
+        if (!comp.name) continue
+
+        const ingredients = (comp.items || []).map((ing: any) => {
+          let name = ''
+          if (ing.sourceType === 'substance') {
+            const foundPool = rawMaterials.find((r) => r.id === ing.rawMaterialId)
+            if (foundPool) name = foundPool.name
+          } else {
+            const foundPool = items.find((i) => i.id === ing.itemId)
+            if (foundPool) name = foundPool.nama || ''
+          }
+
+          return {
+            resourceType: 'Ingredient',
+            itemId: ing.sourceType !== 'substance' ? ing.itemId : null,
+            quantity: ing.quantity,
+            unit: ing.unit,
+            note: ing.note,
+            name: name
+          }
+        })
+
+        const payload = {
+          ...commonPayload,
+          note: `[Racikan: ${comp.name}]`,
+          category: [{ text: 'racikan', code: 'compound' }],
+          dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : [],
+          dispenseRequest: {
+            quantity: {
+              value: comp.quantity,
+              unit: comp.quantityUnit
+            }
+          },
+          supportingInformation: ingredients
+        }
+        promises.push(api.create(payload))
+      }
+
+      await Promise.all(promises)
+      await refetchHistory()
+
+      modal.success({
+        title: 'Resep Berhasil Dibuat!',
+        content: 'Resep telah berhasil disimpan ke database.'
+      })
+      form.resetFields()
+    } catch (error: any) {
+      message.error(error.message || 'Gagal membuat resep')
+      console.error(error)
+    } finally {
+      setSubmitting(false)
     }
+  }
 
-    const handleSubmitPrescription = async () => {
-        if (cartItems.length === 0) {
-            message.error('Keranjang resep kosong. Tambahkan minimal 1 item.')
-            return
-        }
-
-        for (const item of cartItems) {
-            if (!item.dosageInstructions || item.dosageInstructions.trim() === '') {
-                message.error(`Instruksi dosis untuk "${item.itemName}" belum diisi`)
-                return
-            }
-            if (item.quantity <= 0) {
-                message.error(`Jumlah untuk "${item.itemName}" tidak valid`)
-                return
-            }
-        }
-
-        if (!encounterId || !patientData) return
-
-        setSubmitting(true)
-        try {
-            const response = await createPrescription({
-                prescription: {
-                    encounterId,
-                    patientId: patientData.patient.id,
-                    doctorId: 'doctor-001', // TODO: from logged in user
-                    doctorName: patientData.doctor.name,
-                    items: cartItems,
-                    prescriptionDate: new Date().toISOString()
-                }
-            })
-
-            if (response.success) {
-                modal.success({
-                    title: 'Resep Berhasil Dibuat!',
-                    content: 'Resep telah berhasil disimpan. Pasien dapat mengambil obat di apotek.',
-                    onOk: () => {
-                        navigate('/dashboard/doctor')
-                    }
-                })
-            } else {
-                message.error(response.message)
-            }
-        } catch (error) {
-            message.error('Gagal membuat resep')
-            console.error(error)
-        } finally {
-            setSubmitting(false)
-        }
-    }
-
-    const medicineColumns: ColumnsType<Medicine> = [
-        { title: 'Kode', dataIndex: 'code', key: 'code', width: 100 },
-        { title: 'Nama Obat', dataIndex: 'name', key: 'name' },
-        {
-            title: 'Kategori',
-            dataIndex: 'category',
-            key: 'category',
-            width: 150,
-            render: (cat: string) => cat.replace(/_/g, ' ')
-        },
-        {
-            title: 'Bentuk',
-            dataIndex: 'dosageForm',
-            key: 'dosageForm',
-            width: 100,
-            render: (form: string) => form.replace(/_/g, ' ')
-        },
-        {
-            title: 'Stok',
-            dataIndex: 'stock',
-            key: 'stock',
-            width: 80,
-            render: (stock: number) => (
-                <Tag color={stock < 10 ? 'red' : stock < 50 ? 'orange' : 'green'}>{stock}</Tag>
-            )
-        },
-        { title: 'Satuan', dataIndex: 'unit', key: 'unit', width: 80 },
-        {
-            title: 'Harga',
-            dataIndex: 'price',
-            key: 'price',
-            width: 100,
-            render: (price: number) => `Rp ${price.toLocaleString()}`
-        },
-        {
-            title: 'Aksi',
-            key: 'action',
-            width: 100,
-            render: (_, record) => (
-                <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => handleAddToCart(PrescriptionItemType.MEDICINE, record)}
-                    disabled={record.stock === 0}
-                >
-                    Tambah
-                </Button>
-            )
-        }
-    ]
-
-    const supplyColumns: ColumnsType<Supply> = [
-        { title: 'Kode', dataIndex: 'code', key: 'code', width: 100 },
-        { title: 'Nama Barang', dataIndex: 'name', key: 'name' },
-        {
-            title: 'Kategori',
-            dataIndex: 'category',
-            key: 'category',
-            width: 150,
-            render: (cat: string) => cat.replace(/_/g, ' ')
-        },
-        {
-            title: 'Stok',
-            dataIndex: 'stock',
-            key: 'stock',
-            width: 80,
-            render: (stock: number) => (
-                <Tag color={stock < 10 ? 'red' : stock < 50 ? 'orange' : 'green'}>{stock}</Tag>
-            )
-        },
-        { title: 'Satuan', dataIndex: 'unit', key: 'unit', width: 80 },
-        {
-            title: 'Harga',
-            dataIndex: 'price',
-            key: 'price',
-            width: 100,
-            render: (price: number) => `Rp ${price.toLocaleString()}`
-        },
-        {
-            title: 'Aksi',
-            key: 'action',
-            width: 100,
-            render: (_, record) => (
-                <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={() => handleAddToCart(PrescriptionItemType.SUPPLY, record)}
-                    disabled={record.stock === 0}
-                >
-                    Tambah
-                </Button>
-            )
-        }
-    ]
-
-    const cartColumns: ColumnsType<CartItem> = [
-        {
-            title: 'Tipe',
-            dataIndex: 'type',
-            key: 'type',
-            width: 100,
-            render: (type: PrescriptionItemType) => {
-                const colors = {
-                    [PrescriptionItemType.MEDICINE]: 'blue',
-                    [PrescriptionItemType.SUPPLY]: 'orange',
-                    [PrescriptionItemType.COMPOUND]: 'purple'
-                }
-                return <Tag color={colors[type]}>{type}</Tag>
-            }
-        },
-        { title: 'Nama', dataIndex: 'itemName', key: 'itemName' },
-        {
-            title: 'Jumlah',
-            key: 'quantity',
-            width: 120,
-            render: (_, record) => (
-                <InputNumber
-                    min={1}
-                    value={record.quantity}
-                    onChange={(val) => handleCartItemChange(record.key, 'quantity', val || 1)}
-                    className="w-full"
-                />
-            )
-        },
-        {
-            title: 'Instruksi Dosis',
-            key: 'dosageInstructions',
-            width: 250,
-            render: (_, record) => (
-                <Input
-                    placeholder="e.g., 3x1 sehari sesudah makan"
-                    value={record.dosageInstructions}
-                    onChange={(e) => handleCartItemChange(record.key, 'dosageInstructions', e.target.value)}
-                />
-            )
-        },
-        {
-            title: 'Catatan',
-            key: 'notes',
-            width: 200,
-            render: (_, record) => (
-                <Input
-                    placeholder="Catatan tambahan"
-                    value={record.notes}
-                    onChange={(e) => handleCartItemChange(record.key, 'notes', e.target.value)}
-                />
-            )
-        },
-        {
-            title: 'Aksi',
-            key: 'action',
-            width: 80,
-            render: (_, record) => (
-                <Button
-                    type="link"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => handleRemoveFromCart(record.key)}
-                />
-            )
-        }
-    ]
-
-    return (
-        <div className="flex flex-col gap-4">
-            <Card>
-                <Tabs defaultActiveKey="1">
-                    <TabPane tab="Obat" key="1">
-                        <Space direction="vertical" className="w-full" size="middle">
-                            <Row gutter={16}>
-                                <Col span={8}>
-                                    <Select
-                                        placeholder="Filter Kategori Obat"
-                                        allowClear
-                                        onChange={handleMedicineCategoryChange}
-                                        className="w-full"
-                                    >
-                                        {Object.values(MedicineCategory).map((cat) => (
-                                            <Option key={cat} value={cat}>
-                                                {cat.replace(/_/g, ' ')}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Col>
-                                <Col span={16}>
-                                    <Input.Search
-                                        placeholder="Cari obat..."
-                                        allowClear
-                                        onSearch={handleMedicineSearch}
-                                        onChange={(e) => handleMedicineSearch(e.target.value)}
-                                    />
-                                </Col>
-                            </Row>
-
-                            <Table
-                                columns={medicineColumns}
-                                dataSource={medicines}
-                                rowKey="id"
-                                pagination={{ pageSize: 10 }}
-                                scroll={{ x: 1000 }}
-                            />
-                        </Space>
-                    </TabPane>
-
-                    <TabPane tab="Barang" key="2">
-                        <Space direction="vertical" className="w-full" size="middle">
-                            <Row gutter={16}>
-                                <Col span={8}>
-                                    <Select
-                                        placeholder="Filter Kategori Barang"
-                                        allowClear
-                                        onChange={handleSupplyCategoryChange}
-                                        className="w-full"
-                                    >
-                                        {Object.values(SupplyCategory).map((cat) => (
-                                            <Option key={cat} value={cat}>
-                                                {cat.replace(/_/g, ' ')}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Col>
-                                <Col span={16}>
-                                    <Input.Search
-                                        placeholder="Cari barang..."
-                                        allowClear
-                                        onSearch={handleSupplySearch}
-                                        onChange={(e) => handleSupplySearch(e.target.value)}
-                                    />
-                                </Col>
-                            </Row>
-
-                            <Table
-                                columns={supplyColumns}
-                                dataSource={supplies}
-                                rowKey="id"
-                                pagination={{ pageSize: 10 }}
-                                scroll={{ x: 1000 }}
-                            />
-                        </Space>
-                    </TabPane>
-
-                    <TabPane tab="Racikan" key="3">
-                        <Space direction="vertical" className="w-full" size="large">
-                            <Button
-                                type="dashed"
-                                icon={<PlusOutlined />}
-                                onClick={() => setCompoundModalVisible(true)}
-                                size="large"
-                                block
-                            >
-                                Buat Racikan Baru
-                            </Button>
-
-                            <Divider>Racikan yang Tersimpan</Divider>
-
-                            {compounds.length === 0 ? (
-                                <div className="text-center text-gray-400 py-8">Belum ada racikan tersimpan</div>
-                            ) : (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {compounds.map((compound) => (
-                                        <Card
-                                            key={compound.id}
-                                            size="small"
-                                            title={compound.name}
-                                            extra={
-                                                <Button
-                                                    type="primary"
-                                                    size="small"
-                                                    onClick={() => handleAddToCart(PrescriptionItemType.COMPOUND, compound)}
-                                                >
-                                                    Tambah ke Resep
-                                                </Button>
-                                            }
-                                        >
-                                            <div className="text-sm">
-                                                <div className="font-semibold mb-2">Bahan:</div>
-                                                <ul className="list-disc list-inside mb-2">
-                                                    {compound.ingredients.map((ing, idx) => (
-                                                        <li key={idx}>
-                                                            {ing.item.name} - {ing.quantity} {ing.dosage}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                                <div className="font-semibold mb-1">Instruksi:</div>
-                                                <div>{compound.instructions}</div>
-                                            </div>
-                                        </Card>
-                                    ))}
-                                </div>
-                            )}
-                        </Space>
-                    </TabPane>
-                </Tabs>
-            </Card>
-
-            <Card
-                title={
-                    <Space>
-                        <ShoppingCartOutlined />
-                        <span>Keranjang Resep ({cartItems.length} item)</span>
-                    </Space>
-                }
-            >
-                <Table
-                    columns={cartColumns}
-                    dataSource={cartItems}
-                    pagination={false}
-                    locale={{
-                        emptyText: 'Keranjang kosong. Tambahkan obat, barang, atau racikan dari tab di atas.'
-                    }}
-                    scroll={{ x: 1000 }}
-                />
-            </Card>
-
-            <Space>
-                <Button
-                    type="primary"
-                    size="large"
-                    icon={<SaveOutlined />}
-                    onClick={handleSubmitPrescription}
-                    loading={submitting}
-                    disabled={cartItems.length === 0}
-                >
-                    Buat Resep
-                </Button>
-                <Button size="large" onClick={() => navigate('/dashboard/doctor')}>
-                    Batal
-                </Button>
+  const historyColumns = [
+    {
+      title: 'Waktu',
+      dataIndex: 'authoredOn',
+      key: 'authoredOn',
+      width: 140,
+      render: (v) => dayjs(v).format('DD MMM YYYY HH:mm')
+    },
+    {
+      title: 'Item / Racikan',
+      key: 'item',
+      render: (_, record: any) => {
+        const isCompound = record.category?.some((c: any) => c.code === 'compound')
+        if (isCompound) {
+          return (
+            <Space direction="vertical" size={0}>
+              <Text strong>
+                {record.note?.replace('[Racikan: ', '').replace(']', '') || 'Racikan'}
+              </Text>
+              <div className="flex flex-wrap gap-1">
+                {record.supportingInformation?.map((ing: any, idx: number) => (
+                  <Tag key={idx} color="orange" className="text-[10px]">
+                    {ing.name || `Item ${ing.itemId}`} ({ing.quantity} {ing.unit})
+                  </Tag>
+                ))}
+              </div>
             </Space>
+          )
+        }
+        return <Text>{record.item?.nama || `Item ${record.itemId}`}</Text>
+      }
+    },
+    {
+      title: 'Dosis',
+      key: 'dosage',
+      render: (_, record: any) => record.dosageInstruction?.[0]?.text || '-'
+    },
+    {
+      title: 'Jumlah',
+      key: 'qty',
+      width: 100,
+      render: (_, record: any) =>
+        `${record.dispenseRequest?.quantity?.value || 0} ${record.dispenseRequest?.quantity?.unit || ''}`
+    },
+    {
+      title: 'Dokter',
+      dataIndex: ['requester', 'namaLengkap'],
+      key: 'doctor'
+    },
+    {
+      title: 'Catatan',
+      dataIndex: 'note',
+      key: 'nonCompoundNote',
+      render: (v, record: any) => {
+        const isCompound = record.category?.some((c: any) => c.code === 'compound')
+        return isCompound ? '-' : v
+      }
+    }
+  ]
 
-            <Modal
-                title="Buat Racikan Baru"
-                open={compoundModalVisible}
-                onOk={handleSaveCompound}
-                onCancel={() => {
-                    setCompoundModalVisible(false)
-                    compoundForm.resetFields()
-                    setCompoundIngredients([])
-                }}
-                width={800}
-                okText="Simpan Racikan"
-                cancelText="Batal"
-            >
-                <Form form={compoundForm} layout="vertical">
-                    <Form.Item
-                        label="Nama Racikan"
-                        name="compoundName"
-                        rules={[{ required: true, message: 'Nama racikan wajib diisi' }]}
-                    >
-                        <Input placeholder="e.g., Racikan Batuk Anak" />
-                    </Form.Item>
+  return (
+    <div className="flex justify-center p-4">
+      <Card
+        className="w-full max-w-6xl rounded-xl"
+        title="Buat Resep Obat"
+        extra={
+          <Space>
+            <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalOpen(true)}>
+              Riwayat ({medicationHistory?.result?.length || 0})
+            </Button>
+            <Button onClick={() => navigate('/dashboard/doctor')}>Kembali</Button>
+          </Space>
+        }
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmitPrescription}
+          initialValues={{ assessment_date: dayjs() }}
+        >
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
-                    <Form.Item label="Bahan-bahan">
-                        <Space direction="vertical" className="w-full">
-                            {compoundIngredients.map((ing, index) => (
-                                <Card key={index} size="small">
-                                    <Row gutter={8}>
-                                        <Col span={10}>
-                                            <Select
-                                                placeholder="Pilih obat/barang"
-                                                showSearch
-                                                optionFilterProp="children"
-                                                value={ing.item?.id}
-                                                onChange={(val) => handleCompoundIngredientChange(index, 'item', val)}
-                                                className="w-full"
-                                            >
-                                                {allItems.map((item) => (
-                                                    <Option key={item.id} value={item.id}>
-                                                        {item.name}
-                                                    </Option>
-                                                ))}
-                                            </Select>
-                                        </Col>
-                                        <Col span={4}>
-                                            <InputNumber
-                                                placeholder="Jumlah"
-                                                min={1}
-                                                value={ing.quantity}
-                                                onChange={(val) =>
-                                                    handleCompoundIngredientChange(index, 'quantity', val || 1)
-                                                }
-                                                className="w-full"
-                                            />
-                                        </Col>
-                                        <Col span={8}>
-                                            <Input
-                                                placeholder="Takaran (e.g., sendok teh)"
-                                                value={ing.dosage}
-                                                onChange={(e) =>
-                                                    handleCompoundIngredientChange(index, 'dosage', e.target.value)
-                                                }
-                                            />
-                                        </Col>
-                                        <Col span={2}>
-                                            <Button
-                                                danger
-                                                icon={<DeleteOutlined />}
-                                                onClick={() => handleRemoveCompoundIngredient(index)}
-                                            />
-                                        </Col>
-                                    </Row>
-                                </Card>
-                            ))}
-                            <Button
-                                type="dashed"
-                                icon={<PlusOutlined />}
-                                onClick={handleAddCompoundIngredient}
-                                block
-                            >
-                                Tambah Bahan
-                            </Button>
-                        </Space>
-                    </Form.Item>
+          <Tabs defaultActiveKey="1" type="card" className="mt-4">
+            <TabPane tab="Obat & Barang" key="1">
+              <ItemPrescriptionForm itemOptions={itemOptions} loading={rawMaterialLoading} />
+            </TabPane>
+            <TabPane tab="Racikan" key="2">
+              <CompoundPrescriptionForm
+                form={form}
+                itemOptions={itemOptions}
+                rawMaterialOptions={rawMaterialOptions}
+                loading={rawMaterialLoading}
+              />
+            </TabPane>
+          </Tabs>
 
-                    <Form.Item
-                        label="Keterangan / Instruksi"
-                        name="compoundInstructions"
-                        rules={[{ required: true, message: 'Instruksi wajib diisi' }]}
-                    >
-                        <TextArea rows={3} placeholder="Cara penggunaan racikan..." />
-                    </Form.Item>
-                </Form>
-            </Modal>
-        </div>
-    )
+          <div className="flex justify-end mt-6 pt-4">
+            <Space>
+              <Button onClick={() => navigate('/dashboard/doctor')}>Batal</Button>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={submitting}
+                onClick={handleSubmitPrescription}
+                size="large"
+              >
+                Buat Resep
+              </Button>
+            </Space>
+          </div>
+        </Form>
+      </Card>
+      <Modal
+        title="Riwayat Resep Pasien"
+        open={isHistoryModalOpen}
+        onCancel={() => setIsHistoryModalOpen(false)}
+        width={1000}
+        footer={[
+          <Button key="close" type="primary" onClick={() => setIsHistoryModalOpen(false)}>
+            Tutup
+          </Button>
+        ]}
+      >
+        <Table
+          dataSource={medicationHistory?.result || []}
+          columns={historyColumns}
+          rowKey="id"
+          loading={isLoadingHistory}
+          pagination={{ pageSize: 10 }}
+          scroll={{ x: 1000 }}
+          size="small"
+        />
+      </Modal>
+    </div>
+  )
 }
 
 export default PrescriptionForm
