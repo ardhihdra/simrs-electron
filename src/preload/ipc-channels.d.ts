@@ -214,6 +214,8 @@ type Args_Mod_query_item_list = InferArgs<typeof Mod_query_item, 'list'>
 type Result_Mod_query_item_list = InferResult<typeof Mod_query_item, 'list'>
 type Args_Mod_query_item_read = InferArgs<typeof Mod_query_item, 'read'>
 type Result_Mod_query_item_read = InferResult<typeof Mod_query_item, 'read'>
+type Args_Mod_query_item_searchKfa = InferArgs<typeof Mod_query_item, 'searchKfa'>
+type Result_Mod_query_item_searchKfa = InferResult<typeof Mod_query_item, 'searchKfa'>
 type Args_Mod_query_item_update = InferArgs<typeof Mod_query_item, 'update'>
 type Result_Mod_query_item_update = InferResult<typeof Mod_query_item, 'update'>
 type Args_Mod_query_jaminan_create = InferArgs<typeof Mod_query_jaminan, 'create'>
@@ -576,6 +578,7 @@ declare global {
           deleteById: Invoke<Args_Mod_query_item_deleteById, Result_Mod_query_item_deleteById>
           list: Invoke<Args_Mod_query_item_list, Result_Mod_query_item_list>
           read: Invoke<Args_Mod_query_item_read, Result_Mod_query_item_read>
+          searchKfa: Invoke<Args_Mod_query_item_searchKfa, Result_Mod_query_item_searchKfa>
           update: Invoke<Args_Mod_query_item_update, Result_Mod_query_item_update>
         }
         jaminan: {

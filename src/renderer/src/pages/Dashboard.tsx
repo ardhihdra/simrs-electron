@@ -305,7 +305,6 @@ function Dashboard() {
     '/dashboard/pharmacy',
     '/dashboard/laboratory',
     '/dashboard/medicine',
-    '/dashboard/farmasi',
     '/dashboard/registration/doctor-leave',
     '/dashboard/nurse-calling',
     '/dashboard/doctor'
