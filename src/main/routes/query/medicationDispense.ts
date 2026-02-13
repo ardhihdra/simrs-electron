@@ -205,7 +205,7 @@ export const createFromRequest = async (
         error: z.string().optional()
       })
       
-      const response = await parseBackendResponse(createRes, ResponseSchema)
+      await parseBackendResponse(createRes, ResponseSchema)
       
       // Since the backend creates a MedicationDispense internally, we might not get the full object back
           // But the UI expects success.

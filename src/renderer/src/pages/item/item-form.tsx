@@ -1,6 +1,6 @@
 import { Button, Form, Input, Select, message, InputNumber } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, Fragment } from 'react'
+import { useEffect, useMemo, Fragment, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 
@@ -34,6 +34,7 @@ type ItemFormValues = {
 	  nama: string
 	  kode: string
 	  kodeUnit: string
+	  kfaCode?: string | null
 	  kind?: ItemKind | null
 	  minimumStock?: number | null
 	  itemCategoryId?: number | null
@@ -49,10 +50,17 @@ interface ItemCategoryAttributes {
 	  status?: boolean
 }
 
+type KfaEntry = {
+	kode: string
+	nama: string
+	kategori?: string
+}
+
 type ItemApi = {
 	  read: (args: { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
 	  create: (data: ItemFormValues) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
 	  update: (data: ItemFormValues & { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
+	  searchKfa: (args: { query: string }) => Promise<{ success: boolean; result?: KfaEntry[]; message?: string }>
 }
 
 interface UnitListEntry {
@@ -78,6 +86,8 @@ export function ItemForm() {
 	  const { id } = useParams()
 		  const [form] = Form.useForm<ItemFormValues>()
 	  const isEdit = Boolean(id)
+	  const [kfaOptions, setKfaOptions] = useState<{ label: string; value: string; nama: string }[]>([])
+	  const [loadingKfa, setLoadingKfa] = useState(false)
 
 		  const api = window.api?.query?.item as ItemApi | undefined
 	  const unitApi = (window.api?.query as { unit?: { list: () => Promise<UnitListResponse> } }).unit
@@ -156,6 +166,7 @@ export function ItemForm() {
 	      form.setFieldsValue({
 	        nama: d.nama,
 	        kode: d.kode,
+	        kfaCode: d.kfaCode ?? null,
 	        kodeUnit:
 	          typeof d.kodeUnit === 'string' && d.kodeUnit.length > 0
 	            ? d.kodeUnit.trim().toUpperCase()
@@ -189,7 +200,7 @@ export function ItemForm() {
 
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
-      navigate('/dashboard/farmasi/items', { replace: true })
+      navigate('/dashboard/medicine/items', { replace: true })
     },
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
@@ -217,7 +228,7 @@ export function ItemForm() {
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['item', 'detail', id] })
-      navigate('/dashboard/farmasi/items', { replace: true })
+      navigate('/dashboard/medicine/items', { replace: true })
     },
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
@@ -269,6 +280,7 @@ export function ItemForm() {
 	      nama: values.nama.trim(),
 	      kode: values.kode.trim().toUpperCase(),
 	      kodeUnit: baseUnitCode.trim().toUpperCase(),
+	      kfaCode: values.kfaCode || null,
 	      kind: values.kind ?? null,
 		    itemCategoryId: typeof values.itemCategoryId === 'number' ? values.itemCategoryId : null,
 		    buyingPrice: typeof values.buyingPrice === 'number' ? values.buyingPrice : null,
@@ -293,7 +305,7 @@ export function ItemForm() {
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
             {isEdit ? 'Edit Item' : 'Item Baru'}
           </h2>
-          <Button onClick={() => navigate('/dashboard/farmasi/items')}>Kembali</Button>
+          <Button onClick={() => navigate('/dashboard/medicine/items')}>Kembali</Button>
         </div>
 
         <Form form={form} layout="vertical" onFinish={onFinish}>
@@ -303,6 +315,55 @@ export function ItemForm() {
             rules={[{ required: true, message: 'Nama item harus diisi' }]}
           >
             <Input placeholder="Contoh: Infus Set" />
+          </Form.Item>
+
+          <Form.Item
+            label="Integrasi SATUSEHAT (KFA)"
+            name="kfaCode"
+            help="Cari nama obat untuk mendapatkan kode KFA SATUSEHAT"
+          >
+            <Select
+              showSearch
+              allowClear
+              placeholder="Ketik nama obat untuk mencari kode KFA..."
+              filterOption={false}
+              loading={loadingKfa}
+              onSearch={async (val) => {
+                if (val.length < 3) return
+                setLoadingKfa(true)
+                try {
+                  const res = await api?.searchKfa({ query: val })
+                  if (res?.success && res.result) {
+                    const options = res.result.map((k, index) => ({
+                      label: `${k.kode} - ${k.nama} (${k.kategori || 'N/A'})`,
+                      value: `${k.kode}-${index}`, // Make value unique to avoid key warning
+                      realKode: k.kode, // Keep real kode
+                      nama: k.nama
+                    }))
+                    setKfaOptions(options)
+                  } else {
+                    setKfaOptions([])
+                  }
+                } catch (err) {
+                  console.error('[item-form] Gagal mencari KFA', err)
+                } finally {
+                  setLoadingKfa(false)
+                }
+              }}
+              options={kfaOptions}
+              onChange={(val, option) => {
+                if (val && !Array.isArray(option) && 'realKode' in option) {
+                  const realValue = (option as any).realKode
+                  form.setFieldValue('kfaCode', realValue)
+                  
+                  // Otomatis isi nama item jika masih kosong
+                  const currentNama = form.getFieldValue('nama')
+                  if (!currentNama) {
+                    form.setFieldValue('nama', (option as any).nama)
+                  }
+                }
+              }}
+            />
           </Form.Item>
 
           <Form.Item

@@ -56,6 +56,7 @@ import Pendaftaran from './pages/pendaftaran'
 import ItemForm from './pages/item/item-form'
 import ItemTable from './pages/item/item-table'
 import Pharmacy from './pages/pharmacy/Pharmacy'
+import ReportPage from './pages/pharmacy/ReportPage'
 import MedicationDispenseFromRequest from './pages/medication-dispense/medication-dispense-from-request'
 import MedicationDispenseReport from './pages/medication-dispense/medication-dispense-report'
 import MedicationDispenseTable from './pages/medication-dispense/medication-dispense-table'
@@ -160,12 +161,16 @@ function MainRoute() {
           </Route>
           <Route path="medicine" element={<Pharmacy />}>
             <Route index element={<PharmacyDashboard />} />
+            <Route path="report" element={<ReportPage />} />
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
             <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
             <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
             <Route path="medication-requests" element={<MedicationRequestTable />} />
             <Route path="medication-requests/create" element={<MedicationRequestForm />} />
             <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
+            <Route path="items" element={<ItemTable />} />
+            <Route path="items/create" element={<ItemForm />} />
+            <Route path="items/edit/:id" element={<ItemForm />} />
             <Route
               path="medication-requests/dispense/:id"
               element={<MedicationDispenseFromRequest />}
@@ -174,9 +179,7 @@ function MainRoute() {
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
             <Route path="item-purchase" element={<ItemPurchasePage />} />
           </Route>
-            <Route path="items" element={<ItemTable />} />
-            <Route path="items/create" element={<ItemForm />} />
-            <Route path="items/edit/:id" element={<ItemForm />} />
+            
           <Route path="nurse-calling" element={<NurseCalling />}>
             <Route index element={<PatientQueueTable />} />
             <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />

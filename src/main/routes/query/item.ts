@@ -24,6 +24,18 @@ export const schemas = {
   deleteById: {
     args: z.object({ id: z.number() }),
     result: z.object({ success: z.boolean(), message: z.string().optional() })
+  },
+  searchKfa: {
+    args: z.object({ query: z.string() }),
+    result: z.object({ 
+      success: z.boolean(), 
+      result: z.array(z.object({
+        kode: z.string(),
+        nama: z.string(),
+        kategori: z.string().optional()
+      })).optional(),
+      message: z.string().optional() 
+    })
   }
 } as const
 
@@ -60,6 +72,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 			nama: args.nama,
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
+			kfaCode: args.kfaCode ?? null,
 			kind: args.kind ?? null,
 			itemCategoryId: args.itemCategoryId ?? null,
 			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
@@ -90,6 +103,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 			nama: args.nama,
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
+			kfaCode: args.kfaCode ?? null,
 			kind: args.kind ?? null,
 			itemCategoryId: args.itemCategoryId ?? null,
 			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
@@ -124,4 +138,60 @@ export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.d
 		const msg = err instanceof Error ? err.message : String(err)
 		return { success: false, error: msg }
 	}
+}
+
+export const searchKfa = async (ctx: IpcContext, args: z.infer<typeof schemas.searchKfa.args>) => {
+  try {
+    const client = createBackendClient(ctx)
+    // Mencoba memanggil backend proxy terlebih dahulu
+    try {
+      const res = await client.get(`/api/satusehat/kfa/search?q=${encodeURIComponent(args.query)}`)
+      if (res.ok) {
+        const KfaResponseSchema = z.object({
+          success: z.boolean(),
+          result: z.array(z.object({
+            kode: z.string(),
+            nama: z.string(),
+            kategori: z.string().optional()
+          })).optional()
+        })
+        const result = await parseBackendResponse(res, KfaResponseSchema)
+        return { success: true, result }
+      }
+    } catch (e) {
+      console.warn('[item.searchKfa] Backend proxy failed, falling back to public KFA search', e)
+    }
+
+    // Fallback: Panggil API publik KFA jika backend belum mengimplementasikannya
+    const publicUrl = `https://kfa.kemkes.go.id/api/v1/products/all?product_type=obat&name=${encodeURIComponent(args.query)}`
+    const publicRes = await fetch(publicUrl)
+    
+    if (!publicRes.ok) {
+      throw new Error(`KFA API returned ${publicRes.status}`)
+    }
+
+    const data = await publicRes.json()
+    
+    // Transformasi data dari API publik KFA ke format yang kita inginkan
+    const rawData = data.result?.data || data.data || data.result || []
+    const results = (Array.isArray(rawData) ? rawData : [rawData]).map((item: any) => ({
+      kode: item.kfa_code || item.code || item.identifier || '',
+      nama: item.item_name || item.name || item.display_name || item.display || '',
+      kategori: item.product_type || item.farmalkes_type?.name || 'Obat'
+    })).filter((i: any) => i.kode && i.nama)
+
+    return { 
+      success: true, 
+      result: results 
+    }
+
+    return { 
+      success: true, 
+      result: results 
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[item.searchKfa] error', msg)
+    return { success: false, message: msg }
+  }
 }

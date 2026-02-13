@@ -27,6 +27,7 @@ interface ItemAttributes {
 	nama: string
 	kode: string
 	kodeUnit: string
+	kfaCode?: string | null
 	kind?: ItemKind | null
 	unit?: { nama?: string; kode?: string } | null
 	stock?: number | null
@@ -318,7 +319,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
       label: 'Edit',
       icon: <EditOutlined />,
       onClick: () => {
-        if (typeof record.id === 'number') navigate(`/dashboard/farmasi/items/edit/${record.id}`)
+        if (typeof record.id === 'number') navigate(`/dashboard/medicine/items/edit/${record.id}`)
       }
     },
     {
@@ -575,7 +576,7 @@ export function ItemTable() {
           <Button
             type="primary"
             icon={<PlusOutlined />}
-            onClick={() => navigate('/dashboard/farmasi/items/create')}
+            onClick={() => navigate('/dashboard/medicine/items/create')}
           >
             Tambah
           </Button>
@@ -677,6 +678,13 @@ export function ItemTable() {
 	         columns={[
 	           { title: 'Nama', dataIndex: 'nama', key: 'nama' },
             { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 120 },
+            { 
+              title: 'Kode KFA', 
+              dataIndex: 'kfaCode', 
+              key: 'kfaCode', 
+              width: 120,
+              render: (v: string | null) => v || '-'
+            },
             {
               title: 'Stok',
               dataIndex: 'stock',
