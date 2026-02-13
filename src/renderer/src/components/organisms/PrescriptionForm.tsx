@@ -12,11 +12,15 @@ import {
   InputNumber,
   Row,
   Col,
-  Tag,
-  Modal,
-  Divider
+  Tag
 } from 'antd'
-import { SaveOutlined, DeleteOutlined, PlusOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import {
+  SaveOutlined,
+  DeleteOutlined,
+  PlusOutlined,
+  ShoppingCartOutlined,
+  MinusCircleOutlined
+} from '@ant-design/icons'
 import { useNavigate } from 'react-router'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -35,12 +39,9 @@ import {
   searchMedicines,
   getSupplies,
   searchSupplies,
-  saveCompoundFormulation,
-  getCompoundFormulations,
   createPrescription
 } from '../../services/doctor.service'
 
-const { TextArea } = Input
 const { Option } = Select
 const { TabPane } = Tabs
 
@@ -54,10 +55,21 @@ interface PrescriptionFormProps {
   patientData: PatientWithMedicalRecord
 }
 
+interface RawMaterialAttributes {
+  id?: number
+  name: string
+}
+
+interface RawMaterialApi {
+  list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
+}
+
 export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormProps) => {
   const navigate = useNavigate()
   const { message, modal } = App.useApp()
-  const [compoundForm] = Form.useForm()
+
+  const [racikanForm] = Form.useForm()
+  const compoundsValue = Form.useWatch('compounds', racikanForm)
 
   const [submitting, setSubmitting] = useState(false)
 
@@ -67,17 +79,28 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
   const [supplies, setSupplies] = useState<Supply[]>([])
   const [supplyCategory, setSupplyCategory] = useState<SupplyCategory | undefined>(undefined)
 
-  const [compounds, setCompounds] = useState<CompoundFormulation[]>([])
-  const [compoundIngredients, setCompoundIngredients] = useState<CompoundIngredient[]>([])
-  const [allItems, setAllItems] = useState<(Medicine | Supply)[]>([])
   const [cartItems, setCartItems] = useState<CartItem[]>([])
-  const [compoundModalVisible, setCompoundModalVisible] = useState(false)
+  const [rawMaterials, setRawMaterials] = useState<RawMaterialAttributes[]>([])
 
   useEffect(() => {
     loadMedicines()
     loadSupplies()
-    loadCompounds()
+    loadRawMaterials()
   }, [encounterId])
+
+  const loadRawMaterials = async () => {
+    try {
+      const api = (window.api?.query as { rawMaterial?: RawMaterialApi }).rawMaterial
+      if (api?.list) {
+        const response = await api.list()
+        if (response.success && response.result) {
+          setRawMaterials(response.result)
+        }
+      }
+    } catch (error) {
+      console.error('Error loading raw materials:', error)
+    }
+  }
 
   const loadMedicines = async (category?: MedicineCategory, search?: string) => {
     try {
@@ -106,23 +129,6 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
       console.error('Error loading supplies:', error)
     }
   }
-
-  const loadCompounds = async () => {
-    try {
-      const data = await getCompoundFormulations()
-      setCompounds(data)
-    } catch (error) {
-      console.error('Error loading compounds:', error)
-    }
-  }
-
-  useEffect(() => {
-    const combined = [
-      ...medicines.map((m) => ({ ...m, type: 'medicine' as const })),
-      ...supplies.map((s) => ({ ...s, type: 'supply' as const }))
-    ]
-    setAllItems(combined as any)
-  }, [medicines, supplies])
 
   const handleMedicineCategoryChange = (value: MedicineCategory) => {
     setMedicineCategory(value)
@@ -182,83 +188,17 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
     setCartItems(updated)
   }
 
-  const handleAddCompoundIngredient = () => {
-    setCompoundIngredients([
-      ...compoundIngredients,
-      {
-        item: null as any,
-        itemType: 'medicine',
-        quantity: 1,
-        dosage: ''
-      }
-    ])
-  }
-
-  const handleRemoveCompoundIngredient = (index: number) => {
-    setCompoundIngredients(compoundIngredients.filter((_, i) => i !== index))
-  }
-
-  const handleCompoundIngredientChange = (
-    index: number,
-    field: 'item' | 'quantity' | 'dosage',
-    value: any
-  ) => {
-    const updated = [...compoundIngredients]
-    if (field === 'item') {
-      const foundItem = allItems.find((item) => item.id === value)
-      if (foundItem) {
-        updated[index].item = foundItem
-        updated[index].itemType =
-          'type' in foundItem && foundItem.type === 'supply' ? 'supply' : 'medicine'
-      }
-    } else {
-      updated[index][field] = value
-    }
-    setCompoundIngredients(updated)
-  }
-
-  const handleSaveCompound = async () => {
-    try {
-      const values = await compoundForm.validateFields()
-
-      if (compoundIngredients.length === 0) {
-        message.error('Minimal harus ada 1 bahan untuk racikan')
-        return
-      }
-
-      if (compoundIngredients.some((ing) => !ing.item)) {
-        message.error('Semua bahan harus dipilih')
-        return
-      }
-
-      const compound: CompoundFormulation = {
-        name: values.compoundName,
-        ingredients: compoundIngredients,
-        instructions: values.compoundInstructions
-      }
-
-      const response = await saveCompoundFormulation({ compound })
-
-      if (response.success) {
-        message.success(response.message)
-        setCompoundModalVisible(false)
-        compoundForm.resetFields()
-        setCompoundIngredients([])
-        await loadCompounds()
-      } else {
-        message.error(response.message)
-      }
-    } catch (error) {
-      console.error('Error saving compound:', error)
-    }
-  }
-
   const handleSubmitPrescription = async () => {
-    if (cartItems.length === 0) {
+    const racikanValues = racikanForm.getFieldsValue()
+    const compoundList = racikanValues.compounds || []
+
+    // Validate empty
+    if (cartItems.length === 0 && compoundList.length === 0) {
       message.error('Keranjang resep kosong. Tambahkan minimal 1 item.')
       return
     }
 
+    // Validate cart items
     for (const item of cartItems) {
       if (!item.dosageInstructions || item.dosageInstructions.trim() === '') {
         message.error(`Instruksi dosis untuk "${item.itemName}" belum diisi`)
@@ -270,17 +210,82 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
       }
     }
 
+    const processedCompounds: PrescriptionItem[] = []
+
+    for (const comp of compoundList) {
+      if (!comp.name || !comp.dosageInstruction || !comp.quantity) {
+        message.error('Data racikan tidak lengakap')
+        return
+      }
+
+      if (!comp.items || comp.items.length === 0) {
+        message.error(`Komposisi untuk racikan ${comp.name} kosong`)
+        return
+      }
+
+      const ingredients: CompoundIngredient[] = []
+
+      for (const ingredient of comp.items) {
+        let itemObj: Medicine | Supply | null = null
+
+        if (ingredient.sourceType === 'substance') {
+          const found = rawMaterials.find((r) => r.id === ingredient.rawMaterialId)
+          if (found) {
+            itemObj = {
+              id: String(found.id),
+              name: found.name,
+              code: '',
+              category: SupplyCategory.OTHER,
+              unit: '-',
+              stock: 0,
+              price: 0
+            } as Supply
+          }
+        } else {
+          const found = medicines.find((m) => m.id === ingredient.medicationId)
+          if (found) itemObj = found
+        }
+
+        if (!itemObj) {
+          message.error(`Item tidak ditemukan untuk racikan ${comp.name}`)
+          return
+        }
+
+        ingredients.push({
+          item: itemObj,
+          quantity: 1,
+          dosage: ingredient.note || ''
+        })
+      }
+
+      const compoundFormulation: CompoundFormulation = {
+        name: comp.name,
+        ingredients,
+        instructions: comp.dosageInstruction
+      }
+
+      processedCompounds.push({
+        type: PrescriptionItemType.COMPOUND,
+        item: compoundFormulation,
+        quantity: comp.quantity,
+        dosageInstructions: comp.dosageInstruction,
+        notes: comp.quantityUnit
+      })
+    }
+
     if (!encounterId || !patientData) return
 
     setSubmitting(true)
     try {
+      const finalItems = [...cartItems, ...processedCompounds]
+
       const response = await createPrescription({
         prescription: {
           encounterId,
           patientId: patientData.patient.id,
           doctorId: 'doctor-001', // TODO: from logged in user
           doctorName: patientData.doctor.name,
-          items: cartItems,
+          items: finalItems,
           prescriptionDate: new Date().toISOString()
         }
       })
@@ -303,6 +308,16 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
       setSubmitting(false)
     }
   }
+
+  const medicineOptions = medicines.map((m) => ({
+    label: `${m.name} (Stok: ${m.stock})`,
+    value: m.id
+  }))
+
+  const rawMaterialOptions = rawMaterials.map((rm) => ({
+    label: rm.name,
+    value: rm.id
+  }))
 
   const medicineColumns: ColumnsType<Medicine> = [
     { title: 'Kode', dataIndex: 'code', key: 'code', width: 100 },
@@ -548,55 +563,171 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           </TabPane>
 
           <TabPane tab="Racikan" key="3">
-            <Space direction="vertical" className="w-full" size="large">
-              <Button
-                type="dashed"
-                icon={<PlusOutlined />}
-                onClick={() => setCompoundModalVisible(true)}
-                size="large"
-                block
-              >
-                Buat Racikan Baru
-              </Button>
-
-              <Divider>Racikan yang Tersimpan</Divider>
-
-              {compounds.length === 0 ? (
-                <div className="text-center text-gray-400 py-8">Belum ada racikan tersimpan</div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {compounds.map((compound) => (
-                    <Card
-                      key={compound.id}
-                      size="small"
-                      title={compound.name}
-                      extra={
-                        <Button
-                          type="primary"
+            <Form form={racikanForm} layout="vertical">
+              <div className="space-y-6">
+                <Form.List name="compounds">
+                  {(fields, { add, remove }) => (
+                    <div className="space-y-6">
+                      {fields.map(({ key, name, ...restField }) => (
+                        <Card
+                          key={`compound-${key}`}
                           size="small"
-                          onClick={() => handleAddToCart(PrescriptionItemType.COMPOUND, compound)}
+                          title={`Racikan ${name + 1}`}
+                          extra={
+                            <Button type="text" danger onClick={() => remove(name)}>
+                              Hapus
+                            </Button>
+                          }
+                          className="bg-orange-50 border-orange-100"
                         >
-                          Tambah ke Resep
-                        </Button>
-                      }
-                    >
-                      <div className="text-sm">
-                        <div className="font-semibold mb-2">Bahan:</div>
-                        <ul className="list-disc list-inside mb-2">
-                          {compound.ingredients.map((ing, idx) => (
-                            <li key={idx}>
-                              {ing.item.name} - {ing.quantity} {ing.dosage}
-                            </li>
-                          ))}
-                        </ul>
-                        <div className="font-semibold mb-1">Instruksi:</div>
-                        <div>{compound.instructions}</div>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </Space>
+                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'name']}
+                              label="Nama Racikan"
+                              rules={[{ required: true, message: 'Nama racikan wajib diisi' }]}
+                              className="mb-0"
+                            >
+                              <Input placeholder="Contoh: Puyer Batuk Pilek" />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'dosageInstruction']}
+                              label="Signa / Dosis Racikan"
+                              rules={[{ required: true, message: 'Dosis racikan wajib diisi' }]}
+                              className="mb-0"
+                            >
+                              <Input placeholder="Contoh: 3x1 Bungkus" />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'quantity']}
+                              label="Jumlah Racikan"
+                              className="mb-0"
+                            >
+                              <InputNumber<number> min={1} className="w-full" />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'quantityUnit']}
+                              label="Satuan Racikan"
+                              className="mb-0"
+                            >
+                              <Input placeholder="Contoh: bungkus, botol" />
+                            </Form.Item>
+                          </div>
+
+                          <div className="pl-4 border-l-2 border-orange-200">
+                            <p className="text-xs text-gray-500 mb-2 font-semibold">KOMPOSISI:</p>
+                            <Form.List name={[name, 'items']}>
+                              {(subFields, subOpt) => (
+                                <div className="space-y-2">
+                                  {subFields.map((subField) => {
+                                    const { key: subKey, ...subRestField } = subField
+
+                                    return (
+                                      <div
+                                        key={`compoundItem-${subKey}`}
+                                        className="flex gap-2 items-start"
+                                      >
+                                        <Form.Item
+                                          {...subRestField}
+                                          name={[subRestField.name, 'sourceType']}
+                                          className="mb-0 w-32"
+                                          initialValue="medicine"
+                                        >
+                                          <Select
+                                            options={[
+                                              { label: 'Obat', value: 'medicine' },
+                                              { label: 'Bahan Baku', value: 'substance' }
+                                            ]}
+                                          />
+                                        </Form.Item>
+                                        <Form.Item shouldUpdate noStyle>
+                                          {() => {
+                                            const compounds = racikanForm.getFieldValue('compounds')
+                                            const compound = Array.isArray(compounds)
+                                              ? compounds[name]
+                                              : undefined
+                                            const items = compound?.items || []
+                                            const currentItem = items[subField.name] || {}
+                                            const sourceType = currentItem.sourceType || 'medicine'
+
+                                            if (sourceType === 'substance') {
+                                              return (
+                                                <Form.Item
+                                                  {...subRestField}
+                                                  name={[subRestField.name, 'rawMaterialId']}
+                                                  className="mb-0 flex-1"
+                                                  rules={[
+                                                    { required: true, message: 'Pilih bahan baku' }
+                                                  ]}
+                                                >
+                                                  <Select
+                                                    options={rawMaterialOptions}
+                                                    placeholder="Pilih Bahan Baku"
+                                                    showSearch
+                                                    optionFilterProp="label"
+                                                  />
+                                                </Form.Item>
+                                              )
+                                            }
+
+                                            return (
+                                              <Form.Item
+                                                {...subRestField}
+                                                name={[subRestField.name, 'medicationId']}
+                                                className="mb-0 flex-1"
+                                                rules={[{ required: true, message: 'Pilih obat' }]}
+                                              >
+                                                <Select
+                                                  options={medicineOptions}
+                                                  placeholder="Pilih Obat"
+                                                  showSearch
+                                                  optionFilterProp="label"
+                                                />
+                                              </Form.Item>
+                                            )
+                                          }}
+                                        </Form.Item>
+                                        <Form.Item
+                                          {...subRestField}
+                                          name={[subRestField.name, 'note']}
+                                          className="mb-0 w-32"
+                                        >
+                                          <Input placeholder="Kekuatan (mg)" />
+                                        </Form.Item>
+                                        <Button
+                                          type="text"
+                                          danger
+                                          icon={<MinusCircleOutlined />}
+                                          onClick={() => subOpt.remove(subField.name)}
+                                        />
+                                      </div>
+                                    )
+                                  })}
+                                  <Button
+                                    type="dashed"
+                                    size="small"
+                                    onClick={() => subOpt.add()}
+                                    icon={<PlusOutlined />}
+                                  >
+                                    Tambah Komposisi
+                                  </Button>
+                                </div>
+                              )}
+                            </Form.List>
+                          </div>
+                        </Card>
+                      ))}
+                      <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                        Tambah Racikan Baru
+                      </Button>
+                    </div>
+                  )}
+                </Form.List>
+              </div>
+            </Form>
           </TabPane>
         </Tabs>
       </Card>
@@ -627,7 +758,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           icon={<SaveOutlined />}
           onClick={handleSubmitPrescription}
           loading={submitting}
-          disabled={cartItems.length === 0}
+          disabled={cartItems.length === 0 && (!compoundsValue || compoundsValue.length === 0)}
         >
           Buat Resep
         </Button>
@@ -635,100 +766,6 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           Batal
         </Button>
       </Space>
-
-      <Modal
-        title="Buat Racikan Baru"
-        open={compoundModalVisible}
-        onOk={handleSaveCompound}
-        onCancel={() => {
-          setCompoundModalVisible(false)
-          compoundForm.resetFields()
-          setCompoundIngredients([])
-        }}
-        width={800}
-        okText="Simpan Racikan"
-        cancelText="Batal"
-      >
-        <Form form={compoundForm} layout="vertical">
-          <Form.Item
-            label="Nama Racikan"
-            name="compoundName"
-            rules={[{ required: true, message: 'Nama racikan wajib diisi' }]}
-          >
-            <Input placeholder="e.g., Racikan Batuk Anak" />
-          </Form.Item>
-
-          <Form.Item label="Bahan-bahan">
-            <Space direction="vertical" className="w-full">
-              {compoundIngredients.map((ing, index) => (
-                <Card key={index} size="small">
-                  <Row gutter={8}>
-                    <Col span={10}>
-                      <Select
-                        placeholder="Pilih obat/barang"
-                        showSearch
-                        optionFilterProp="children"
-                        value={ing.item?.id}
-                        onChange={(val) => handleCompoundIngredientChange(index, 'item', val)}
-                        className="w-full"
-                      >
-                        {allItems.map((item) => (
-                          <Option key={item.id} value={item.id}>
-                            {item.name}
-                          </Option>
-                        ))}
-                      </Select>
-                    </Col>
-                    <Col span={4}>
-                      <InputNumber
-                        placeholder="Jumlah"
-                        min={1}
-                        value={ing.quantity}
-                        onChange={(val) =>
-                          handleCompoundIngredientChange(index, 'quantity', val || 1)
-                        }
-                        className="w-full"
-                      />
-                    </Col>
-                    <Col span={8}>
-                      <Input
-                        placeholder="Takaran (e.g., sendok teh)"
-                        value={ing.dosage}
-                        onChange={(e) =>
-                          handleCompoundIngredientChange(index, 'dosage', e.target.value)
-                        }
-                      />
-                    </Col>
-                    <Col span={2}>
-                      <Button
-                        danger
-                        icon={<DeleteOutlined />}
-                        onClick={() => handleRemoveCompoundIngredient(index)}
-                      />
-                    </Col>
-                  </Row>
-                </Card>
-              ))}
-              <Button
-                type="dashed"
-                icon={<PlusOutlined />}
-                onClick={handleAddCompoundIngredient}
-                block
-              >
-                Tambah Bahan
-              </Button>
-            </Space>
-          </Form.Item>
-
-          <Form.Item
-            label="Keterangan / Instruksi"
-            name="compoundInstructions"
-            rules={[{ required: true, message: 'Instruksi wajib diisi' }]}
-          >
-            <TextArea rows={3} placeholder="Cara penggunaan racikan..." />
-          </Form.Item>
-        </Form>
-      </Modal>
     </div>
   )
 }

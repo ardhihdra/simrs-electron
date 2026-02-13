@@ -1,5 +1,5 @@
 import { IpcContext } from '@main/ipc/router'
-import { getClient } from '@main/utils/backendClient'
+import { getClient, parseBackendResponse, BackendListSchema } from '@main/utils/backendClient'
 import z from 'zod'
 
 export const schemas = {
@@ -40,11 +40,20 @@ export const create = async (ctx: IpcContext, payload: any) => {
     try {
         const client = getClient(ctx)
         const res = await client.post('/api/nutritionOrder', payload)
-        const json = await res.json()
+
+        const BackendCreateSchema = z.object({
+            success: z.boolean(),
+            result: z.any().optional(),
+            message: z.string().optional(),
+            error: z.any().optional()
+        })
+
+        const result = await parseBackendResponse(res, BackendCreateSchema)
+
         return {
-            success: json.success ?? true,
-            result: json.result,
-            message: json.message
+            success: true,
+            result: result,
+            message: 'Successfully created NutritionOrder'
         }
     } catch (err: any) {
         console.error('[nutritionOrder.create] error:', err.message)
@@ -56,11 +65,19 @@ export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.ar
     try {
         const client = getClient(ctx)
         const res = await client.get(`/api/nutritionOrder/${args.id}/read`)
-        const json = await res.json()
+
+        const BackendReadSchema = z.object({
+            success: z.boolean(),
+            result: z.any().optional(),
+            message: z.string().optional(),
+            error: z.any().optional()
+        })
+
+        const result = await parseBackendResponse(res, BackendReadSchema)
+
         return {
-            success: json.success ?? true,
-            result: json.result,
-            message: json.message
+            success: true,
+            result: result
         }
     } catch (err: any) {
         console.error('[nutritionOrder.read] error:', err.message)
@@ -76,13 +93,17 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
         if (args.page) params.append('page', args.page)
         if (args.items) params.append('items', args.items)
 
-        const url = `/api/nutritionOrder/list?${params.toString()}`;
+        const url = `/api/nutritionOrder?${params.toString()}`;
+
         const res = await client.get(url)
-        const json = await res.json()
+
+        const ListSchema = BackendListSchema(z.any())
+        const result = await parseBackendResponse(res, ListSchema)
+
         return {
-            success: json.success ?? true,
-            result: json.result || [],
-            message: json.message
+            success: true,
+            result: Array.isArray(result) ? result : [],
+            message: 'Successfully fetched nutrition orders'
         }
     } catch (err: any) {
         console.error('[nutritionOrder.list] error:', err.message)
