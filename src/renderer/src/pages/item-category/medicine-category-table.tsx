@@ -1,4 +1,4 @@
-import { Button, Dropdown, Input, Table } from 'antd'
+import { Button, Dropdown, Input, Switch, Table } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
@@ -6,37 +6,44 @@ import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
 
-interface MedicineBrandAttributes {
+interface MedicineCategoryAttributes {
   id?: number
   name: string
-  email?: string | null
-  phone?: string | null
+  status?: boolean
+  categoryType?: string | null
 }
 
 const columns = [
-  { title: 'Brand', dataIndex: 'name', key: 'name' },
-  { title: 'Email', dataIndex: 'email', key: 'email', render: (v: string | null) => v || '-' },
-  { title: 'Phone', dataIndex: 'phone', key: 'phone', render: (v: string | null) => v || '-' },
+  { title: 'Nama', dataIndex: 'name', key: 'name' },
+  { title: 'Tipe Kategori', dataIndex: 'categoryType', key: 'categoryType' },
+  {
+    title: 'Status',
+    dataIndex: 'status',
+    key: 'status',
+    render: (value: boolean) => <Switch checked={Boolean(value)} disabled />
+  },
   {
     title: 'Action',
     key: 'action',
-    width: 60,
+    width: 80,
     align: 'center' as const,
-    render: (_: MedicineBrandAttributes, r: MedicineBrandAttributes) => <RowActions record={r} />
+    render: (_: MedicineCategoryAttributes, record: MedicineCategoryAttributes) => (
+      <RowActions record={record} />
+    )
   }
 ]
 
-function RowActions({ record }: { record: MedicineBrandAttributes }) {
+function RowActions({ record }: { record: MedicineCategoryAttributes }) {
   const navigate = useNavigate()
   const deleteMutation = useMutation({
-    mutationKey: ['medicineBrand', 'delete'],
+    mutationKey: ['medicineCategory', 'delete'],
     mutationFn: (id: number) => {
-      const fn = window.api?.query?.medicineBrand?.deleteById
-      if (!fn) throw new Error('API merk obat tidak tersedia.')
+      const fn = window.api?.query?.medicineCategory?.deleteById
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
       return fn({ id })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medicineBrand', 'list'] })
+      queryClient.invalidateQueries({ queryKey: ['medicineCategory', 'list'] })
     }
   })
   const items: MenuProps['items'] = [
@@ -46,7 +53,7 @@ function RowActions({ record }: { record: MedicineBrandAttributes }) {
       icon: <EditOutlined />,
       onClick: () =>
         typeof record.id === 'number' &&
-        navigate(`/dashboard/medicine/medicine-brands/edit/${record.id}`)
+        navigate(`/dashboard/medicine/medicine-categories/edit/${record.id}`)
     },
     { type: 'divider' },
     {
@@ -69,30 +76,29 @@ function RowActions({ record }: { record: MedicineBrandAttributes }) {
   )
 }
 
-export function MedicineBrandTable() {
+export function MedicineCategoryTable() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const { data, refetch, isError } = useQuery({
-    queryKey: ['medicineBrand', 'list'],
+    queryKey: ['medicineCategory', 'list'],
     queryFn: () => {
-      const fn = window.api?.query?.medicineBrand?.list
-      if (!fn) throw new Error('API merk obat tidak tersedia.')
+      const fn = window.api?.query?.medicineCategory?.list
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
       return fn()
     }
   })
 
   const filtered = useMemo(() => {
-    const source: MedicineBrandAttributes[] = (data?.result as MedicineBrandAttributes[]) || []
+    const source: MedicineCategoryAttributes[] =
+      (data?.result as MedicineCategoryAttributes[]) || []
     const q = search.trim().toLowerCase()
     if (!q) return source
-    return source.filter((p) =>
-      [p.name, p.email || '', p.phone || ''].join(' ').toLowerCase().includes(q)
-    )
+    return source.filter((p) => p.name.toLowerCase().includes(q))
   }, [data?.result, search])
 
   return (
     <div>
-      <h2 className="text-4xl font-bold mb-4 justify-center flex">Merek Obat</h2>
+      <h2 className="text-4xl font-bold mb-4 justify-center flex">Kategori Item</h2>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <Input
           type="text"
@@ -105,7 +111,7 @@ export function MedicineBrandTable() {
           <Button onClick={() => refetch()}>Refresh</Button>
           <Button
             type="primary"
-            onClick={() => navigate('/dashboard/medicine/medicine-brands/create')}
+            onClick={() => navigate('/dashboard/medicine/medicine-categories/create')}
           >
             Tambah
           </Button>
@@ -124,4 +130,4 @@ export function MedicineBrandTable() {
   )
 }
 
-export default MedicineBrandTable
+export default MedicineCategoryTable
