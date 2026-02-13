@@ -196,17 +196,19 @@ export const VitalSignsMonitoringForm = ({
           className="rounded-none!"
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-          <div className="mt-4">
-            <Form.Item label="Kesadaran" name="consciousness" rules={[{ required: true }]}>
-              <Select placeholder="Pilih Kesadaran">
-                <Select.Option value="Compos Mentis">Compos Mentis</Select.Option>
-                <Select.Option value="Apatis">Apatis</Select.Option>
-                <Select.Option value="Somnolen">Somnolen</Select.Option>
-                <Select.Option value="Sopor">Sopor</Select.Option>
-                <Select.Option value="Coma">Coma</Select.Option>
-              </Select>
-            </Form.Item>
+          <div className="space-y-4">
             <VitalSignsSection form={form} />
+            <Card title="Kesadaran" className="mt-4!">
+              <Form.Item label="Kesadaran" name="consciousness" rules={[{ required: true }]}>
+                <Select placeholder="Pilih Kesadaran">
+                  <Select.Option value="Compos Mentis">Compos Mentis</Select.Option>
+                  <Select.Option value="Apatis">Apatis</Select.Option>
+                  <Select.Option value="Somnolen">Somnolen</Select.Option>
+                  <Select.Option value="Sopor">Sopor</Select.Option>
+                  <Select.Option value="Coma">Coma</Select.Option>
+                </Select>
+              </Form.Item>
+            </Card>
           </div>
         </Card>
 

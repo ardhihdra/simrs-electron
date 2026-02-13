@@ -20,6 +20,8 @@ import {
   useCreateNutritionOrder,
   useNutritionOrderByEncounter
 } from '../../hooks/query/use-nutrition-order'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import dayjs from 'dayjs'
 
 const { TextArea } = Input
@@ -37,14 +39,21 @@ export const NutritionOrderForm = ({
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
 
   const { data: nutritionOrders, isLoading } = useNutritionOrderByEncounter(encounterId)
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'nurse',
+    'dietician',
+    'doctor'
+  ])
   const createMutation = useCreateNutritionOrder()
 
   const handleSubmit = async (values: any) => {
     try {
       const payload = {
         encounterId,
-        patientId: patientData?.patient?.id,
-        dateTime: new Date(),
+        patientId: patientData?.patient?.id || patientData?.id,
+        dateTime: values.assessment_date ? new Date(values.assessment_date) : new Date(),
+        performerId: values.performerId,
+        performerName: performersData?.find((p: any) => p.id === values.performerId)?.name,
         status: 'active',
         oralDietTypes: values.dietType
           ? [
@@ -212,20 +221,22 @@ export const NutritionOrderForm = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+        initialValues={{ assessment_date: dayjs() }}
+      >
         <Card
-          title={
-            <Space>
-              <CoffeeOutlined />
-              <span>Formulir Permintaan Diet & Nutrisi (Nutrition Order)</span>
-            </Space>
-          }
+          title="Formulir Diet & Nutrisi"
           extra={
             <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalOpen(true)}>
               Lihat Riwayat ({nutritionOrders?.result?.length || 0})
             </Button>
           }
         >
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          <Divider style={{ marginTop: 0 }} />
           <Row gutter={[16, 16]}>
             <Col span={12}>
               <Form.Item

@@ -1,17 +1,4 @@
-import {
-  App,
-  Button,
-  Card,
-  Col,
-  DatePicker,
-  Form,
-  Input,
-  Row,
-  Typography,
-  Space,
-  Radio,
-  Modal
-} from 'antd'
+import { App, Button, Card, Col, Form, Input, Row, Typography, Space, Radio, Modal } from 'antd'
 import {
   SaveOutlined,
   PrinterOutlined,
@@ -28,6 +15,9 @@ import bodyBack from '../../assets/images/body_back.png'
 import bodyLeft from '../../assets/images/body_left.png'
 import bodyRight from '../../assets/images/body_right.png'
 import { BodyMappingLetter } from './BodyMappingLetter'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { Divider } from 'antd'
 
 const { Text, Paragraph } = Typography
 const { TextArea } = Input
@@ -145,6 +135,7 @@ interface DischargeSummaryFormProps {
 export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSummaryFormProps) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
   // Body Mapping State
   const [activeView, setActiveView] = useState('front')
@@ -253,16 +244,25 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
 
   const handlePreviewPrint = () => {
     const values = form.getFieldsValue()
-    setFormDataForPrint(values)
+    const performer = performersData?.find((p: any) => p.id === values.performerId)
+    setFormDataForPrint({
+      ...values,
+      report_date: values.assessment_date,
+      doctor_name: performer?.name || ''
+    })
     setIsPreviewVisible(true)
   }
 
   const handleFinish = (values: any) => {
+    const performer = performersData?.find((p: any) => p.id === values.performerId)
     const finalData = {
       ...values,
       bodyMapping: drawingData,
       doctorSignature: doctorSig,
-      encounterId
+      encounterId,
+      report_date: values.assessment_date,
+      doctor_name: performer?.name || '',
+      performerId: values.performerId
     }
     console.log('Body Resume Data Saved:', finalData)
     message.success('Resume Medis Tubuh berhasil disimpan')
@@ -270,227 +270,212 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
 
   return (
     <div className="flex flex-col gap-4">
-      <Card
-        title={
-          <Space>
-            <SkinOutlined className="text-blue-600" />
-            <Text strong>Resume Medis Tubuh (Visual Body Mapping)</Text>
-          </Space>
-        }
-        className=" border-none"
-      >
-        <Paragraph type="secondary" className="mb-0 italic text-xs">
-          Gunakan diagram di bawah untuk menandai lokasi temuan klinis (luka, nyeri, massa, dsb).
-        </Paragraph>
-      </Card>
+      <Card title="Resume Medis Tubuh" className=" border-none">
+        <Row gutter={16}>
+          <Col span={10}>
+            <Card title="Anotasi Visual" className=" h-full overflow-hidden" size="small">
+              <div className="flex flex-col items-center">
+                <div className="mb-4 w-full text-center">
+                  <Radio.Group
+                    value={activeView}
+                    onChange={(e) => setActiveView(e.target.value)}
+                    buttonStyle="solid"
+                    className="w-full flex"
+                  >
+                    <Radio.Button value="front" className="flex-1 text-center">
+                      Depan
+                    </Radio.Button>
+                    <Radio.Button value="back" className="flex-1 text-center">
+                      Belakang
+                    </Radio.Button>
+                    <Radio.Button value="left" className="flex-1 text-center">
+                      Kiri
+                    </Radio.Button>
+                    <Radio.Button value="right" className="flex-1 text-center">
+                      Kanan
+                    </Radio.Button>
+                  </Radio.Group>
+                </div>
 
-      <Row gutter={16}>
-        <Col span={10}>
-          <Card title="Anotasi Visual" className=" h-full overflow-hidden" size="small">
-            <div className="flex flex-col items-center">
-              <div className="mb-4 w-full text-center">
-                <Radio.Group
-                  value={activeView}
-                  onChange={(e) => setActiveView(e.target.value)}
-                  buttonStyle="solid"
-                  className="w-full flex"
-                >
-                  <Radio.Button value="front" className="flex-1 text-center">
-                    Depan
-                  </Radio.Button>
-                  <Radio.Button value="back" className="flex-1 text-center">
-                    Belakang
-                  </Radio.Button>
-                  <Radio.Button value="left" className="flex-1 text-center">
-                    Kiri
-                  </Radio.Button>
-                  <Radio.Button value="right" className="flex-1 text-center">
-                    Kanan
-                  </Radio.Button>
-                </Radio.Group>
-              </div>
-
-              <div
-                className="relative bg-white border border-gray-200 rounded-xl overflow-hidden shadow-inner cursor-crosshair"
-                style={{ width: '320px', height: '480px' }}
-              >
-                {/* Body Map Sprite Background */}
                 <div
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: '100%',
-                    backgroundImage: `url(${viewMap[activeView]})`,
-                    backgroundSize: 'contain',
-                    backgroundRepeat: 'no-repeat',
-                    backgroundPosition: 'center',
-                    opacity: 0.8
-                  }}
-                />
-
-                {/* Drawing Layer */}
-                <canvas
-                  ref={canvasRef}
-                  width={320}
-                  height={480}
-                  className="relative z-10"
-                  onMouseDown={startDrawing}
-                  onMouseUp={stopDrawing}
-                  onMouseMove={draw}
-                  onMouseOut={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchEnd={stopDrawing}
-                  onTouchMove={draw}
-                />
-              </div>
-
-              <div className="mt-4 flex gap-2">
-                <Button size="small" icon={<ClearOutlined />} onClick={clearCanvas}>
-                  Bersihkan Gambar
-                </Button>
-                <div className="flex items-center gap-1 ml-4">
-                  <div className="w-3 h-3 bg-red-600 rounded-full"></div>
-                  <Text className="text-[10px] uppercase font-bold text-gray-400">Pena Merah</Text>
-                </div>
-              </div>
-            </div>
-          </Card>
-        </Col>
-
-        <Col span={14}>
-          <Form
-            form={form}
-            layout="vertical"
-            onFinish={handleFinish}
-            className="h-full flex flex-col gap-4"
-            initialValues={{
-              report_date: dayjs(),
-              doctor_name: patientData?.doctorName || ''
-            }}
-          >
-            <Card title="Detail Temuan Klinis" className=" flex-1" size="small">
-              <Row gutter={16}>
-                <Col span={12}>
-                  <Form.Item
-                    label="Tanggal Pemeriksaan"
-                    name="report_date"
-                    rules={[{ required: true }]}
-                  >
-                    <DatePicker showTime className="w-full" format="DD/MM/YYYY HH:mm" />
-                  </Form.Item>
-                </Col>
-                <Col span={12}>
-                  <Form.Item
-                    label="Dokter Pemeriksa"
-                    name="doctor_name"
-                    rules={[{ required: true }]}
-                  >
-                    <Input placeholder="Nama dokter" />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item label="Deskripsi Temuan (Sesuai Diagram)" name="clinical_description">
-                <TextArea
-                  rows={6}
-                  placeholder="Contoh: &#10;1. Luka robek 2cm pada lengan kanan (lihat diagram Depan)&#10;2. Memar pada punggung bawah (lihat diagram Belakang)"
-                />
-              </Form.Item>
-
-              <Form.Item label="Catatan Tambahan" name="additional_notes" className="mb-0">
-                <TextArea rows={3} placeholder="Instruksi perawatan luka atau catatan lainnya..." />
-              </Form.Item>
-            </Card>
-
-            <Card
-              title="Verifikasi Dokter"
-              className=""
-              size="small"
-              headStyle={{ background: '#f8fafc' }}
-            >
-              <div className="flex flex-col items-center p-2 bg-white rounded border border-dashed border-gray-200">
-                <Text strong className="text-[10px] text-gray-400 uppercase mb-2">
-                  Tanda Tangan Elektronik
-                </Text>
-                <div className="w-full h-24 bg-gray-50 flex items-center justify-center mb-3 rounded shadow-inner overflow-hidden border border-gray-100">
-                  {doctorSig ? (
-                    <img src={doctorSig} alt="Doctor Sig" className="max-h-full" />
-                  ) : (
-                    <div className="text-gray-300 italic text-xs flex flex-col items-center gap-1">
-                      <HistoryOutlined className="text-xl" />
-                      Belum Ditandatangani
-                    </div>
-                  )}
-                </div>
-                <Button
-                  icon={<EditOutlined />}
-                  type="dashed"
-                  className="w-full"
-                  onClick={() => setSigModal({ visible: true, title: 'Dokter Pemeriksa' })}
+                  className="relative bg-white border border-gray-200 rounded-xl overflow-hidden shadow-inner cursor-crosshair"
+                  style={{ width: '320px', height: '480px' }}
                 >
-                  Klik untuk TTD
-                </Button>
+                  {/* Body Map Sprite Background */}
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      backgroundImage: `url(${viewMap[activeView]})`,
+                      backgroundSize: 'contain',
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'center',
+                      opacity: 0.8
+                    }}
+                  />
+
+                  {/* Drawing Layer */}
+                  <canvas
+                    ref={canvasRef}
+                    width={320}
+                    height={480}
+                    className="relative z-10"
+                    onMouseDown={startDrawing}
+                    onMouseUp={stopDrawing}
+                    onMouseMove={draw}
+                    onMouseOut={stopDrawing}
+                    onTouchStart={startDrawing}
+                    onTouchEnd={stopDrawing}
+                    onTouchMove={draw}
+                  />
+                </div>
+
+                <div className="mt-4 flex gap-2">
+                  <Button size="small" icon={<ClearOutlined />} onClick={clearCanvas}>
+                    Bersihkan Gambar
+                  </Button>
+                  <div className="flex items-center gap-1 ml-4">
+                    <div className="w-3 h-3 bg-red-600 rounded-full"></div>
+                    <Text className="text-[10px] uppercase font-bold text-gray-400">
+                      Pena Merah
+                    </Text>
+                  </div>
+                </div>
               </div>
             </Card>
-          </Form>
-        </Col>
-      </Row>
+          </Col>
 
-      <div className="flex justify-end pt-4 pb-12 gap-4">
-        <Button
-          size="large"
-          icon={<PrinterOutlined />}
-          className="px-8 h-12 rounded-xl"
-          onClick={handlePreviewPrint}
-        >
-          Preview Cetak
-        </Button>
-        <Button
-          type="primary"
-          size="large"
-          icon={<SaveOutlined />}
-          className="px-12 h-12 rounded-xl shadow-lg bg-indigo-600 hover:bg-indigo-700"
-          onClick={() => form.submit()}
-        >
-          Simpan Resume Medis Tubuh
-        </Button>
-      </div>
+          <Col span={14}>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleFinish}
+              className="h-full flex flex-col gap-4"
+              initialValues={{
+                assessment_date: dayjs()
+              }}
+            >
+              <Card title="Pemeriksaan & Temuan Klinis" className=" flex-1 shadow-sm" size="small">
+                <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+                <Divider style={{ marginTop: 0 }} />
 
-      <SignaturePadModal
-        title={sigModal.title}
-        visible={sigModal.visible}
-        onClose={() => setSigModal({ ...sigModal, visible: false })}
-        onSave={(url) => setDoctorSig(url)}
-      />
+                <Form.Item
+                  label={<span className="font-semibold">Deskripsi Temuan (Sesuai Diagram)</span>}
+                  name="clinical_description"
+                >
+                  <TextArea
+                    rows={6}
+                    placeholder="Contoh: &#10;1. Luka robek 2cm pada lengan kanan (lihat diagram Depan)&#10;2. Memar pada punggung bawah (lihat diagram Belakang)"
+                    className="rounded-lg"
+                  />
+                </Form.Item>
 
-      <Modal
-        title="Preview Cetak Resume Medis Tubuh"
-        open={isPreviewVisible}
-        onCancel={() => setIsPreviewVisible(false)}
-        width={900}
-        centered
-        footer={[
-          <Button key="close" onClick={() => setIsPreviewVisible(false)}>
-            Tutup
-          </Button>,
-          <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
-            Cetak Sekarang
+                <Form.Item
+                  label={
+                    <span className="font-semibold">Catatan Tambahan / Instruksi Perawatan</span>
+                  }
+                  name="additional_notes"
+                  className="mb-0"
+                >
+                  <TextArea
+                    rows={3}
+                    placeholder="Instruksi perawatan luka atau catatan lainnya..."
+                    className="rounded-lg"
+                  />
+                </Form.Item>
+              </Card>
+
+              <Card
+                title="Verifikasi Dokter"
+                className=""
+                size="small"
+                headStyle={{ background: '#f8fafc' }}
+              >
+                <div className="flex flex-col items-center p-2 bg-white rounded border border-dashed border-gray-200">
+                  <Text strong className="text-[10px] text-gray-400 uppercase mb-2">
+                    Tanda Tangan Elektronik
+                  </Text>
+                  <div className="w-full h-24 bg-gray-50 flex items-center justify-center mb-3 rounded shadow-inner overflow-hidden border border-gray-100">
+                    {doctorSig ? (
+                      <img src={doctorSig} alt="Doctor Sig" className="max-h-full" />
+                    ) : (
+                      <div className="text-gray-300 italic text-xs flex flex-col items-center gap-1">
+                        <HistoryOutlined className="text-xl" />
+                        Belum Ditandatangani
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    icon={<EditOutlined />}
+                    type="dashed"
+                    className="w-full"
+                    onClick={() => setSigModal({ visible: true, title: 'Dokter Pemeriksa' })}
+                  >
+                    Klik untuk TTD
+                  </Button>
+                </div>
+              </Card>
+            </Form>
+          </Col>
+        </Row>
+
+        <div className="flex justify-end pt-4 pb-12 gap-4">
+          <Button
+            size="large"
+            icon={<PrinterOutlined />}
+            className="px-8 h-12 rounded-xl"
+            onClick={handlePreviewPrint}
+          >
+            Preview Cetak
           </Button>
-        ]}
-        bodyStyle={{ padding: 0, background: '#f0f2f5', maxHeight: '80vh', overflow: 'auto' }}
-      >
-        <div className="p-8 flex justify-center bg-gray-200">
-          <BodyMappingLetter
-            ref={printRef}
-            data={formDataForPrint}
-            patientData={patientData}
-            bodyMapping={drawingData}
-            signature={doctorSig}
-          />
+          <Button
+            type="primary"
+            size="large"
+            icon={<SaveOutlined />}
+            className="px-12 h-12 rounded-xl shadow-lg bg-indigo-600 hover:bg-indigo-700"
+            onClick={() => form.submit()}
+          >
+            Simpan Resume Medis Tubuh
+          </Button>
         </div>
-      </Modal>
+
+        <SignaturePadModal
+          title={sigModal.title}
+          visible={sigModal.visible}
+          onClose={() => setSigModal({ ...sigModal, visible: false })}
+          onSave={(url) => setDoctorSig(url)}
+        />
+
+        <Modal
+          title="Preview Cetak Resume Medis Tubuh"
+          open={isPreviewVisible}
+          onCancel={() => setIsPreviewVisible(false)}
+          width={900}
+          centered
+          footer={[
+            <Button key="close" onClick={() => setIsPreviewVisible(false)}>
+              Tutup
+            </Button>,
+            <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
+              Cetak Sekarang
+            </Button>
+          ]}
+          bodyStyle={{ padding: 0, background: '#f0f2f5', maxHeight: '80vh', overflow: 'auto' }}
+        >
+          <div className="p-8 flex justify-center bg-gray-200">
+            <BodyMappingLetter
+              ref={printRef}
+              data={formDataForPrint}
+              patientData={patientData}
+              bodyMapping={drawingData}
+              signature={doctorSig}
+            />
+          </div>
+        </Modal>
+      </Card>
 
       <style>{`
         .ant-radio-button-wrapper-checked {

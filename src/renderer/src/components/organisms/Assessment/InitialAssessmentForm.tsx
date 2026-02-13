@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Form, Spin, Select } from 'antd'
+import { App, Button, Form, Spin, Select, Card } from 'antd'
 
 import dayjs from 'dayjs'
 import { useEffect, useState } from 'react'
@@ -405,7 +405,6 @@ export const InitialAssessmentForm = ({
 
       if (obsToCreate.length > 0) {
         const observations = createObservationBatch(obsToCreate, assessmentDate)
-        console.log('Sending Observations Payload:', observations)
 
         promises.push(
           bulkCreateObservation.mutateAsync({
@@ -563,8 +562,17 @@ export const InitialAssessmentForm = ({
       <Spin spinning={isSubmitting} tip="Menyimpan data asesmen..." size="large">
         <div className="flex flex-col gap-4">
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          <VitalSignsSection form={form} />
 
-          <div className="px-4">
+          {mode === 'inpatient' && (
+            <>
+              <FunctionalStatusSection />
+              <PsychosocialSection />
+              <ScreeningSection />
+              <ConclusionSection />
+            </>
+          )}
+          <Card title="Kesadaran" className="px-4">
             <Form.Item
               label={<span className="font-semibold">Kesadaran</span>}
               name="consciousness"
@@ -579,18 +587,7 @@ export const InitialAssessmentForm = ({
                 <Select.Option value="Coma">Coma</Select.Option>
               </Select>
             </Form.Item>
-          </div>
-
-          <VitalSignsSection form={form} />
-
-          {mode === 'inpatient' && (
-            <>
-              <FunctionalStatusSection />
-              <PsychosocialSection />
-              <ScreeningSection />
-              <ConclusionSection />
-            </>
-          )}
+          </Card>
           <Form.Item className="flex justify-end pt-4">
             <Button
               type="primary"
