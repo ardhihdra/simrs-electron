@@ -7,7 +7,6 @@ import type * as Mod_macaddress from '@main/routes/macaddress'
 import type * as Mod_notification from '@main/routes/notification'
 import type * as Mod_query_allergyIntolerance from '@main/routes/query/allergyIntolerance'
 import type * as Mod_query_backofficeDOReceivedItem from '@main/routes/query/backofficeDOReceivedItem'
-import type * as Mod_query_bill from '@main/routes/query/bill'
 import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
 import type * as Mod_query_composition from '@main/routes/query/composition'
 import type * as Mod_query_condition from '@main/routes/query/condition'
@@ -111,16 +110,6 @@ type Args_Mod_query_allergyIntolerance_update = InferArgs<typeof Mod_query_aller
 type Result_Mod_query_allergyIntolerance_update = InferResult<typeof Mod_query_allergyIntolerance, 'update'>
 type Args_Mod_query_backofficeDOReceivedItem_list = InferArgs<typeof Mod_query_backofficeDOReceivedItem, 'list'>
 type Result_Mod_query_backofficeDOReceivedItem_list = InferResult<typeof Mod_query_backofficeDOReceivedItem, 'list'>
-type Args_Mod_query_bill_create = InferArgs<typeof Mod_query_bill, 'create'>
-type Result_Mod_query_bill_create = InferResult<typeof Mod_query_bill, 'create'>
-type Args_Mod_query_bill_deleteById = InferArgs<typeof Mod_query_bill, 'deleteById'>
-type Result_Mod_query_bill_deleteById = InferResult<typeof Mod_query_bill, 'deleteById'>
-type Args_Mod_query_bill_list = InferArgs<typeof Mod_query_bill, 'list'>
-type Result_Mod_query_bill_list = InferResult<typeof Mod_query_bill, 'list'>
-type Args_Mod_query_bill_read = InferArgs<typeof Mod_query_bill, 'read'>
-type Result_Mod_query_bill_read = InferResult<typeof Mod_query_bill, 'read'>
-type Args_Mod_query_bill_update = InferArgs<typeof Mod_query_bill, 'update'>
-type Result_Mod_query_bill_update = InferResult<typeof Mod_query_bill, 'update'>
 type Args_Mod_query_clinicalNote_create = InferArgs<typeof Mod_query_clinicalNote, 'create'>
 type Result_Mod_query_clinicalNote_create = InferResult<typeof Mod_query_clinicalNote, 'create'>
 type Args_Mod_query_clinicalNote_getByEncounter = InferArgs<typeof Mod_query_clinicalNote, 'getByEncounter'>
@@ -503,13 +492,6 @@ declare global {
         }
         backofficeDOReceivedItem: {
           list: Invoke<Args_Mod_query_backofficeDOReceivedItem_list, Result_Mod_query_backofficeDOReceivedItem_list>
-        }
-        bill: {
-          create: Invoke<Args_Mod_query_bill_create, Result_Mod_query_bill_create>
-          deleteById: Invoke<Args_Mod_query_bill_deleteById, Result_Mod_query_bill_deleteById>
-          list: Invoke<Args_Mod_query_bill_list, Result_Mod_query_bill_list>
-          read: Invoke<Args_Mod_query_bill_read, Result_Mod_query_bill_read>
-          update: Invoke<Args_Mod_query_bill_update, Result_Mod_query_bill_update>
         }
         clinicalNote: {
           create: Invoke<Args_Mod_query_clinicalNote_create, Result_Mod_query_clinicalNote_create>
