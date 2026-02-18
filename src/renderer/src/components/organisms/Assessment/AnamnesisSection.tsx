@@ -1,6 +1,7 @@
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
 import { Button, Card, Checkbox, Col, Form, FormInstance, Row, Select, Spin, Input } from 'antd'
-import React, { useCallback, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
+import { useDiagnosisCodeList } from '@renderer/hooks/query/use-diagnosis-code'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -11,41 +12,32 @@ interface AnamnesisSectionProps {
 
 export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
   const [diagnosisOptions, setDiagnosisOptions] = useState<any[]>([])
-  const [searchingDiagnosis, setSearchingDiagnosis] = useState(false)
+  const [diagnosisSearch, setDiagnosisSearch] = useState('')
+  const [debouncedDiagnosisSearch, setDebouncedDiagnosisSearch] = useState('')
 
-  const searchDiagnosis = useCallback(async (value: string) => {
-    if (value.length >= 2) {
-      setSearchingDiagnosis(true)
-      try {
-        const fn = window.api?.query?.diagnosisCode?.list
-        if (!fn) throw new Error('API diagnosis code tidak tersedia')
+  const { data: masterDiagnosis, isLoading: searchingDiagnosis } = useDiagnosisCodeList({
+    q: debouncedDiagnosisSearch,
+    items: 20
+  })
 
-        const response = await fn({ q: value, items: 20 } as any)
-        if (response.success) {
-          const resultArray = Object.entries(response)
-            .filter(([key]) => !isNaN(Number(key)))
-            .map(([, value]) => value)
-            .filter((item) => typeof item === 'object' && item !== null)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedDiagnosisSearch(diagnosisSearch)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [diagnosisSearch])
 
-          setDiagnosisOptions(resultArray)
-        }
-      } catch (error) {
-        console.error('Error searching diagnosis:', error)
-      } finally {
-        setSearchingDiagnosis(false)
-      }
+  useEffect(() => {
+    if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
+      setDiagnosisOptions(masterDiagnosis)
     } else {
       setDiagnosisOptions([])
     }
-  }, [])
+  }, [masterDiagnosis, debouncedDiagnosisSearch])
 
-  const debouncedSearchDiagnosis = useMemo(() => {
-    let timeoutId: NodeJS.Timeout
-    return (value: string) => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => searchDiagnosis(value), 500)
-    }
-  }, [searchDiagnosis])
+  const handleDiagnosisSearch = (value: string) => {
+    setDiagnosisSearch(value)
+  }
 
   return (
     <Card title="Anamnesis" className="py-4">
@@ -54,7 +46,7 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <Select
             showSearch
             filterOption={false}
-            onSearch={debouncedSearchDiagnosis}
+            onSearch={handleDiagnosisSearch}
             placeholder="Cari kode ICD-10/SNOMED untuk keluhan utama..."
             className="w-full mb-2"
             notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
@@ -65,8 +57,8 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
             allowClear
           >
             {diagnosisOptions.map((d) => (
-              <Option key={d.id} value={d.id} label={`${d.code} - ${d.idDisplay || d.display}`}>
-                {d.code} - {d.idDisplay || d.display}
+              <Option key={d.id} value={d.id} label={`${d.code} - ${d.id_display || d.display}`}>
+                {d.code} - {d.id_display || d.display}
               </Option>
             ))}
           </Select>
@@ -79,13 +71,12 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <TextArea rows={2} placeholder="Masukkan catatan tambahan keluhan utama pasien..." />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Keluhan Penyerta" className="mb-0">
         <Form.Item name={['anamnesis', 'associatedSymptoms_codeId']} style={{ marginBottom: 16 }}>
           <Select
             showSearch
             filterOption={false}
-            onSearch={debouncedSearchDiagnosis}
+            onSearch={handleDiagnosisSearch}
             placeholder="Cari kode ICD-10/SNOMED untuk keluhan penyerta..."
             className="w-full mb-2"
             notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
@@ -96,8 +87,8 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
             allowClear
           >
             {diagnosisOptions.map((d) => (
-              <Option key={d.id} value={d.id} label={`${d.code} - ${d.idDisplay || d.display}`}>
-                {d.code} - {d.idDisplay || d.display}
+              <Option key={d.id} value={d.id} label={`${d.code} - ${d.id_display || d.display}`}>
+                {d.code} - {d.id_display || d.display}
               </Option>
             ))}
           </Select>
@@ -109,7 +100,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Riwayat Penyakit" className="mb-0">
         <Form.Item
           name={['anamnesis', 'historyOfPresentIllness_codeId']}
@@ -118,7 +108,7 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <Select
             showSearch
             filterOption={false}
-            onSearch={debouncedSearchDiagnosis}
+            onSearch={handleDiagnosisSearch}
             placeholder="Cari kode ICD-10/SNOMED untuk riwayat penyakit..."
             className="w-full mb-2"
             notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
@@ -131,8 +121,8 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
             allowClear
           >
             {diagnosisOptions.map((d) => (
-              <Option key={d.id} value={d.id} label={`${d.code} - ${d.idDisplay || d.display}`}>
-                {d.code} - {d.idDisplay || d.display}
+              <Option key={d.id} value={d.id} label={`${d.code} - ${d.id_display || d.display}`}>
+                {d.code} - {d.id_display || d.display}
               </Option>
             ))}
           </Select>
@@ -145,7 +135,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <TextArea rows={3} placeholder="Masukkan catatan tambahan atau riwayat penyakit..." />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Riwayat Penyakit Keluarga">
         <Form.List name={['anamnesis', 'familyHistoryList']}>
           {(fields, { add, remove }) => (
@@ -175,7 +164,7 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
                         <Select
                           showSearch
                           filterOption={false}
-                          onSearch={debouncedSearchDiagnosis}
+                          onSearch={handleDiagnosisSearch}
                           placeholder="Cari kode diagnosa..."
                           notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
                         >
@@ -183,9 +172,9 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
                             <Option
                               key={d.id}
                               value={d.id}
-                              label={`${d.code} - ${d.idDisplay || d.display}`}
+                              label={`${d.code} - ${d.id_display || d.display}`}
                             >
-                              {d.code} - {d.idDisplay || d.display}
+                              {d.code} - {d.id_display || d.display}
                             </Option>
                           ))}
                         </Select>
@@ -233,13 +222,12 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           )}
         </Form.List>
       </Form.Item>
-
       <Form.Item label="Riwayat Alergi" className="gap-4 flex flex-col">
         <Form.Item name={['anamnesis', 'allergyHistory_codeId']} style={{ marginBottom: 16 }}>
           <Select
             showSearch
             filterOption={false}
-            onSearch={debouncedSearchDiagnosis}
+            onSearch={handleDiagnosisSearch}
             placeholder="Cari zat/substansi alergi (ICD-10/SNOMED)..."
             className="w-full mb-2"
             notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
@@ -250,8 +238,8 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
             allowClear
           >
             {diagnosisOptions.map((d) => (
-              <Option key={d.id} value={d.id} label={`${d.code} - ${d.idDisplay || d.display}`}>
-                {d.code} - {d.idDisplay || d.display}
+              <Option key={d.id} value={d.id} label={`${d.code} - ${d.id_display || d.display}`}>
+                {d.code} - {d.id_display || d.display}
               </Option>
             ))}
           </Select>
@@ -260,7 +248,6 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           <TextArea rows={2} placeholder="Masukkan catatan tambahan riwayat alergi (jika ada)..." />
         </Form.Item>
       </Form.Item>
-
       <Form.Item label="Riwayat Pengobatan" name={['anamnesis', 'medicationHistory']}>
         <TextArea rows={2} placeholder="Masukkan riwayat pengobatan sebelumnya (jika ada)..." />
       </Form.Item>

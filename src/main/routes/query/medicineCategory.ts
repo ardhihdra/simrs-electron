@@ -17,37 +17,37 @@ const BackendResponseSchema = z.object({ success: z.boolean(), result: MedicineC
 
 export const list = async (ctx: IpcContext) => {
   const client = createBackendClient(ctx)
-  const res = await client.get('/api/medicinecategory?items=100')
+  const res = await client.get('/api/itemcategory?items=100')
   const result = await parseBackendResponse(res, BackendListSchema(MedicineCategoryWithIdSchema))
   return { success: true, result }
 }
 
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
   const client = createBackendClient(ctx)
-  const res = await client.get(`/api/medicinecategory/read/${args.id}`)
+  const res = await client.get(`/api/itemcategory/read/${args.id}`)
   const result = await parseBackendResponse(res, BackendResponseSchema)
   return { success: true, result }
 }
 
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
   const client = createBackendClient(ctx)
-  const payload = { name: args.name, status: args.status ?? true }
-  const res = await client.post('/api/medicinecategory', payload)
+  const payload = { name: args.name, status: args.status ?? true, categoryType: args.categoryType ?? null }
+  const res = await client.post('/api/itemcategory', payload)
   const result = await parseBackendResponse(res, BackendResponseSchema)
   return { success: true, result }
 }
 
 export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
   const client = createBackendClient(ctx)
-  const payload = { name: args.name, status: args.status ?? true }
-  const res = await client.put(`/api/medicinecategory/${args.id}`, payload)
+  const payload = { name: args.name, status: args.status ?? true, categoryType: args.categoryType ?? null }
+  const res = await client.put(`/api/itemcategory/${args.id}`, payload)
   const result = await parseBackendResponse(res, BackendResponseSchema)
   return { success: true, result }
 }
 
 export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.deleteById.args>) => {
   const client = createBackendClient(ctx)
-  const res = await client.delete(`/api/medicinecategory/${args.id}`)
+  const res = await client.delete(`/api/itemcategory/${args.id}`)
   const DeleteResponseSchema = z.object({ success: z.boolean(), message: z.string().optional(), error: z.string().optional() })
   await parseBackendResponse(res, DeleteResponseSchema)
   return { success: true }

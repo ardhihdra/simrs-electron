@@ -1,7 +1,7 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Col, DatePicker, Form, Radio, Row, Select, Spin } from 'antd'
+import { App, Button, Card, Form, Radio, Select, Spin } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NUTRITION_MAP } from '../../config/observation-maps'
 import {
@@ -9,8 +9,9 @@ import {
   mapRiskLevelToHL7Code,
   OBSERVATION_CATEGORIES
 } from '../../utils/observation-builder'
-
-const { Option } = Select
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { useBulkCreateObservation } from '../../hooks/query/use-observation'
+import { usePerformers } from '../../hooks/query/use-performers'
 
 const WEIGHT_LOSS_OPTIONS = [
   { score: 0, criteria: 'Tidak ada penurunan berat badan', label: 'no' },
@@ -38,7 +39,6 @@ export const NutritionScreeningForm = ({
   const queryClient = useQueryClient()
   const [totalScore, setTotalScore] = useState(0)
 
-  // Query existing data
   const { data: observationData, isLoading } = useQuery({
     queryKey: ['observations', encounterId, 'nutrition'],
     queryFn: async () => {
@@ -49,11 +49,31 @@ export const NutritionScreeningForm = ({
     }
   })
 
+  const bulkCreateObservation = useBulkCreateObservation()
+
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['nurse'])
+
+  const calculateScore = useCallback(() => {
+    const values = form.getFieldsValue()
+
+    const weightLossItem = WEIGHT_LOSS_OPTIONS.find((o) => o.criteria === values.mst_weight_loss)
+    const eatingItem = EATING_POORLY_OPTIONS.find((o) => o.criteria === values.mst_eating_poorly)
+
+    const score = (weightLossItem?.score || 0) + (eatingItem?.score || 0)
+    setTotalScore(score)
+    return score
+  }, [form])
+
   // Auto-fill Logic
   useEffect(() => {
     if (observationData && observationData.length > 0) {
-      // Filter only nutrition related observations
-      const relevantObs = observationData.filter((obs: any) =>
+      const sortedObs = [...observationData].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const relevantObs = sortedObs.filter((obs: any) =>
         obs.codeCoding?.some((coding: any) => Object.keys(NUTRITION_MAP).includes(coding.code))
       )
 
@@ -65,14 +85,9 @@ export const NutritionScreeningForm = ({
             obs.codeCoding?.some((coding: any) => coding.code === code)
           )
           if (found) {
-            // Prefer valueString (Criteria) because scores can be duplicate
             if (found.valueString && fieldName !== 'mst_risk_level') {
               initialValues[fieldName] = found.valueString
             } else if (found.valueQuantity) {
-              // Fallback for backward compatibility or if only score saved
-              // This might still collide but better than nothing
-              // Try to match score to a criteria if possible?
-              // Use first match for now if string missing.
               if (fieldName === 'mst_weight_loss') {
                 const match = WEIGHT_LOSS_OPTIONS.find((o) => o.score === found.valueQuantity.value)
                 if (match) initialValues[fieldName] = match.criteria
@@ -86,37 +101,19 @@ export const NutritionScreeningForm = ({
           }
         })
 
-        if (relevantObs[0].effectiveDateTime) {
-          initialValues['screening_date'] = dayjs(relevantObs[0].effectiveDateTime)
-        }
-
         form.setFieldsValue(initialValues)
-        // Defer calculation to ensure state is ready
         setTimeout(calculateScore, 0)
       }
     } else {
       form.setFieldsValue({
-        screening_date: dayjs()
+        screening_date: dayjs(),
+        assessment_date: dayjs()
       })
     }
-  }, [observationData, form])
-
-  const calculateScore = () => {
-    const values = form.getFieldsValue()
-
-    const weightLossItem = WEIGHT_LOSS_OPTIONS.find((o) => o.criteria === values.mst_weight_loss)
-    const eatingItem = EATING_POORLY_OPTIONS.find((o) => o.criteria === values.mst_eating_poorly)
-
-    const score = (weightLossItem?.score || 0) + (eatingItem?.score || 0)
-    setTotalScore(score)
-    return score
-  }
+  }, [observationData, form, calculateScore])
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      const fn = window.api?.query?.observation?.create
-      if (!fn) throw new Error('API Unavailable')
-
       const weightLossItem = WEIGHT_LOSS_OPTIONS.find((o) => o.criteria === data.mst_weight_loss)
       const eatingItem = EATING_POORLY_OPTIONS.find((o) => o.criteria === data.mst_eating_poorly)
 
@@ -129,6 +126,7 @@ export const NutritionScreeningForm = ({
 
       const interpretation = mapRiskLevelToHL7Code(riskLevel)
 
+      const screeningDate = data.assessment_date || data.screening_date || dayjs()
       const observations = createObservationBatch(
         [
           {
@@ -159,20 +157,26 @@ export const NutritionScreeningForm = ({
             interpretations: [interpretation]
           }
         ],
-        data.screening_date
+        screeningDate
       )
 
-      return fn({
+      const performerName =
+        performersData?.find((p: any) => p.id === data.performerId)?.name || 'Unknown'
+
+      return bulkCreateObservation.mutateAsync({
         encounterId,
         patientId,
         observations,
-        performerId: 'nurse-001',
-        performerName: data.nurse_name || 'Perawat Jaga'
+        performerId: String(data.performerId),
+        performerName: performerName
       })
     },
     onSuccess: () => {
       message.success('Skrining Gizi berhasil disimpan')
       queryClient.invalidateQueries({ queryKey: ['observations', encounterId] })
+      form.resetFields(['performerId'])
+      form.setFieldValue('assessment_date', dayjs())
+      form.setFieldValue('screening_date', dayjs())
     },
     onError: () => {
       message.error('Gagal menyimpan data')
@@ -247,27 +251,7 @@ export const NutritionScreeningForm = ({
       onValuesChange={() => calculateScore()}
       onFinish={(values) => saveMutation.mutate(values)}
     >
-      <Card title="Data Asesmen & Pemeriksa">
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item
-              label="Tanggal Skrining Gizi"
-              name="screening_date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Perawat" name="nurse_name" rules={[{ required: true }]}>
-              <Select showSearch placeholder="Pilih Perawat">
-                <Option value="Perawat Jaga">Perawat Jaga</Option>
-                <Option value="Lainnya">Lainnya</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
+      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title="MST (Malnutrition Screening Tool) - Parameter Skrining Gizi">
         <div className="mb-6">
@@ -290,7 +274,7 @@ export const NutritionScreeningForm = ({
         <div
           className={`p-6 rounded-xl border flex items-center justify-between transition-all duration-300 ${
             totalScore >= 2
-              ? 'bg-red-50 border-red-200 shadow-sm shadow-red-100'
+              ? 'bg-red-50 border-red-200  shadow-red-100'
               : 'bg-green-50 border-green-200'
           }`}
         >
@@ -312,7 +296,7 @@ export const NutritionScreeningForm = ({
               Tingkat Risiko
             </div>
             <div
-              className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${
+              className={`px-4 py-1.5 rounded-full text-sm font-bold  ${
                 totalScore >= 2 ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
               }`}
             >

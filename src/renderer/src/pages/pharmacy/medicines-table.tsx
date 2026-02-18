@@ -15,8 +15,26 @@ interface MedicineAttributes {
   buyingPrice: number
   sellingPrice: number
   stock?: number
+  minimumStock?: number | null
+  code?: string | null
+  uom?: string | null
   category?: { name: string }
   brand?: { name: string }
+}
+
+interface InventoryStockItem {
+  kodeItem: string
+  namaItem: string
+  unit: string
+  stockIn: number
+  stockOut: number
+  availableStock: number
+}
+
+interface InventoryStockResponse {
+  success: boolean
+  result?: InventoryStockItem[]
+  message?: string
 }
 
 const LOW_STOCK_THRESHOLD_MEDICINE = 20
@@ -40,8 +58,14 @@ const columns = [
     dataIndex: 'stock',
     key: 'stock',
     width: 120,
-    render: (value: MedicineAttributes['stock']) => {
+    render: (value: MedicineAttributes['stock'], record: MedicineAttributes) => {
       const stockValue = typeof value === 'number' ? value : 0
+      const minimumStockValue =
+        typeof record.minimumStock === 'number' && record.minimumStock >= 0
+          ? record.minimumStock
+          : null
+      const lowStockThreshold = minimumStockValue ?? LOW_STOCK_THRESHOLD_MEDICINE
+
       if (stockValue === 0) {
         return (
           <Tooltip title="Stok habis">
@@ -49,7 +73,7 @@ const columns = [
           </Tooltip>
         )
       }
-      if (stockValue > 0 && stockValue <= LOW_STOCK_THRESHOLD_MEDICINE) {
+      if (stockValue > 0 && stockValue <= lowStockThreshold) {
         return (
           <Tooltip title="Stok hampir habis">
             <span className="text-orange-600 font-semibold">{stockValue}</span>
@@ -58,6 +82,14 @@ const columns = [
       }
       return stockValue
     }
+  },
+  {
+    title: 'Minimum Stok',
+    dataIndex: 'minimumStock',
+    key: 'minimumStock',
+    width: 140,
+    render: (value: MedicineAttributes['minimumStock']) =>
+      typeof value === 'number' && value > 0 ? value : '-'
   },
   {
     title: 'Harga Beli',
@@ -143,12 +175,67 @@ export function MedicinesTable() {
     }
   })
 
+  const { data: inventoryStockData } = useQuery<InventoryStockResponse>({
+    queryKey: ['inventoryStock', 'list', 'medicine-master'],
+    queryFn: () => {
+      const api = window.api?.query as {
+        inventoryStock?: {
+          list: (args?: { itemType?: 'item' | 'substance' | 'medicine' }) => Promise<InventoryStockResponse>
+        }
+      }
+      const fn = api?.inventoryStock?.list
+      if (!fn) throw new Error('API stok inventory tidak tersedia.')
+      return fn({ itemType: 'item' })
+    }
+  })
+
+  const medicinesWithStock: MedicineAttributes[] = useMemo(() => {
+    const source: MedicineAttributes[] = Array.isArray(data?.result)
+      ? (data.result as MedicineAttributes[])
+      : []
+
+    const stockList: InventoryStockItem[] = Array.isArray(inventoryStockData?.result)
+      ? inventoryStockData.result ?? []
+      : []
+
+    const stockMap = new Map<string, InventoryStockItem>()
+    stockList.forEach((stockItem) => {
+      const kode = stockItem.kodeItem.trim().toUpperCase()
+      if (!kode) return
+      if (!stockMap.has(kode)) {
+        stockMap.set(kode, stockItem)
+      }
+    })
+
+    return source.map((medicine) => {
+      const rawCode = typeof medicine.code === 'string' ? medicine.code : ''
+      const kode = rawCode.trim().toUpperCase()
+      if (!kode) {
+        return medicine
+      }
+
+      const stockEntry = stockMap.get(kode)
+      if (!stockEntry) {
+        return medicine
+      }
+
+      const resolvedStock =
+        typeof stockEntry.availableStock === 'number'
+          ? stockEntry.availableStock
+          : typeof medicine.stock === 'number'
+          ? medicine.stock
+          : 0
+
+      return { ...medicine, stock: resolvedStock }
+    })
+  }, [data?.result, inventoryStockData?.result])
+
   const filtered = useMemo(() => {
-    const source: MedicineAttributes[] = (data?.result as MedicineAttributes[]) || []
+    const source: MedicineAttributes[] = medicinesWithStock
     const q = search.trim().toLowerCase()
     if (!q) return source
     return source.filter((p) => p.name.toLowerCase().includes(q))
-  }, [data?.result, search])
+  }, [medicinesWithStock, search])
 
   return (
     <div>

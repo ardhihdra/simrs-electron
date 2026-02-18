@@ -20,7 +20,19 @@ const CompositionSchema = z.object({
     soapAssessment: z.string().nullable().optional(),
     soapPlan: z.string().nullable().optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
+    updatedAt: z.union([z.string(), z.date()]).optional(),
+    author: z.object({
+        id: z.number(),
+        namaLengkap: z.string(),
+        hakAkses: z.object({
+            nama: z.string()
+        }).nullable().optional()
+    }).nullable().optional(),
+    attesters: z.array(z.object({
+        mode: z.string().optional(),
+        time: z.union([z.string(), z.date()]).optional(),
+        partyDisplay: z.string().nullable().optional()
+    })).nullable().optional()
 })
 
 export const schemas = {

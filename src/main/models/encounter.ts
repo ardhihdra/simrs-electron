@@ -54,178 +54,39 @@ Patient.hasMany(Encounter, { foreignKey: 'patientId', onDelete: 'CASCADE', as: '
 Encounter.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' })
 
 export const EncounterSchema = z.object({
+  episodeOfCareId: z.string().optional(),
   patientId: z.string(),
-  visitDate: z.union([z.date(), z.string()]),
-  serviceType: z.union([z.string(), z.number()]),
-  reason: z.string().nullable().optional(),
-  note: z.string().nullable().optional(),
+  encounterType: z.enum(['AMB', 'EMER', 'IMP', 'LAB']).default('AMB'),
+  arrivalType: z.enum(['WALK_IN', 'REFERRAL', 'TRANSFER']).default('WALK_IN'),
   status: z.enum([
-    'planned',
-    'arrived',
-    'triaged',
-    'in-progress',
-    'onhold',
-    'finished',
-    'cancelled',
-    'entered-in-error',
-    'unknown',
-    // legacy app statuses for backward compatibility
-    'scheduled',
-    'in_progress',
-    'completed'
+    'PLANNED',
+    'IN_PROGRESS',
+    'FINISHED',
+    'CANCELLED'
   ]),
-  resourceType: z.literal('Encounter').optional(),
+  serviceUnitId: z.string().optional(),
+  serviceUnitCodeId: z.string().optional(),
+  queueTicketId: z.string().optional().nullable(),
+  startTime: z.union([z.date(), z.string()]).optional(),
+  endTime: z.union([z.date(), z.string()]).optional().nullable(),
+  partOfId: z.string().optional().nullable(),
+  dischargeDisposition: z.string().optional().nullable(),
+  reason: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
+  visitDate: z.union([z.date(), z.string()]).optional(),
+  serviceType: z.union([z.string(), z.number()]).optional(),
+  resourceType: z.literal('Encounter').optional().default('Encounter'),
   class: z.any().optional().nullable(),
-  classHistory: z
-    .array(
-      z.object({
-        class: z.any(),
-        period: z
-          .object({
-            start: z.string().optional(),
-            end: z.string().optional()
-          })
-          .optional()
-      })
-    )
-    .optional()
-    .nullable(),
-  period: z
-    .object({
-      start: z.string().optional(),
-      end: z.string().optional()
-    })
-    .optional()
-    .nullable(),
-  serviceTypeCode: z
-    .object({
-      coding: z
-        .array(
-          z.object({
-            system: z.string().optional(),
-            version: z.string().optional(),
-            code: z.string().optional(),
-            display: z.string().optional(),
-            userSelected: z.boolean().optional()
-          })
-        )
-        .optional(),
-      text: z.string().optional()
-    })
-    .optional()
-    .nullable(),
-  subject: z
-    .object({
-      reference: z.string().optional(),
-      type: z.string().optional(),
-      display: z.string().optional()
-    })
-    .optional()
-    .nullable(),
-  participant: z
-    .array(
-      z.object({
-        type: z
-          .array(
-            z.object({
-              coding: z
-                .array(
-                  z.object({
-                    system: z.string().optional(),
-                    version: z.string().optional(),
-                    code: z.string().optional(),
-                    display: z.string().optional(),
-                    userSelected: z.boolean().optional()
-                  })
-                )
-                .optional(),
-              text: z.string().optional()
-            })
-          )
-          .optional(),
-        period: z
-          .object({
-            start: z.string().optional(),
-            end: z.string().optional()
-          })
-          .optional(),
-        individual: z
-          .object({
-            reference: z.string().optional(),
-            type: z.string().optional(),
-            display: z.string().optional()
-          })
-          .optional()
-      })
-    )
-    .optional()
-    .nullable(),
-  reasonCode: z
-    .array(
-      z.object({
-        coding: z
-          .array(
-            z.object({
-              system: z.string().optional(),
-              version: z.string().optional(),
-              code: z.string().optional(),
-              display: z.string().optional(),
-              userSelected: z.boolean().optional()
-            })
-          )
-          .optional(),
-        text: z.string().optional()
-      })
-    )
-    .optional()
-    .nullable(),
-  reasonReference: z
-    .array(
-      z.object({
-        reference: z.string().optional(),
-        type: z.string().optional(),
-        display: z.string().optional()
-      })
-    )
-    .optional()
-    .nullable(),
-  hospitalization: z.record(z.string(), z.unknown()).optional().nullable(),
-  location: z
-    .array(
-      z.object({
-        location: z.object({
-          reference: z.string().optional(),
-          type: z.string().optional(),
-          display: z.string().optional()
-        }),
-        status: z.enum(['planned', 'active', 'reserved', 'completed']).optional(),
-        physicalType: z
-          .object({
-            coding: z
-              .array(
-                z.object({
-                  system: z.string().optional(),
-                  version: z.string().optional(),
-                  code: z.string().optional(),
-                  display: z.string().optional(),
-                  userSelected: z.boolean().optional()
-                })
-              )
-              .optional(),
-            text: z.string().optional()
-          })
-          .optional(),
-        period: z
-          .object({
-            start: z.string().optional(),
-            end: z.string().optional()
-          })
-          .optional()
-      })
-    )
-    .optional()
-    .nullable(),
-  encounterCode: z.string().nullable().optional(),
+  classHistory: z.array(z.any()).optional().nullable(),
+  period: z.any().optional().nullable(),
+  serviceTypeCode: z.any().optional().nullable(),
+  subject: z.any().optional().nullable(),
+  participant: z.array(z.any()).optional().nullable(),
+  reasonCode: z.array(z.any()).optional().nullable(),
+  reasonReference: z.array(z.any()).optional().nullable(),
+  hospitalization: z.any().optional().nullable(),
+  location: z.array(z.any()).optional().nullable(),
+  encounterCode: z.string().optional().nullable(),
   createdBy: z.union([z.number(), z.string()]).nullable().optional(),
   updatedBy: z.union([z.number(), z.string()]).nullable().optional(),
   deletedBy: z.union([z.number(), z.string()]).nullable().optional()
@@ -235,5 +96,27 @@ export const EncounterSchemaWithId = EncounterSchema.extend({
   id: z.string(),
   createdAt: z.union([z.date(), z.string()]).optional().nullable(),
   updatedAt: z.union([z.date(), z.string()]).optional().nullable(),
-  deletedAt: z.union([z.date(), z.string()]).optional().nullable()
+  deletedAt: z.union([z.date(), z.string()]).optional().nullable(),
+  queueTicket: z.object({
+    id: z.string(),
+    queueNumber: z.number(),
+    queueDate: z.string(),
+    status: z.string(),
+    serviceUnitCodeId: z.string().optional().nullable(),
+    poliCodeId: z.number().optional().nullable(),
+    registrationChannelCodeId: z.string().optional().nullable(),
+    assuranceCodeId: z.string().optional().nullable(),
+    practitionerId: z.number().optional().nullable(),
+    poli: z.object({
+      id: z.number(),
+      name: z.string(),
+      location: z.string().optional().nullable()
+    }).optional().nullable(),
+    practitioner: z.object({
+      id: z.number(),
+      namaLengkap: z.string(),
+      nik: z.string()
+    }).optional().nullable()
+  }).optional().nullable()
 })
+

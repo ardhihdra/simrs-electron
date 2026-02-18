@@ -122,7 +122,7 @@ export const ReferralForm = ({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card title="Buat Rujukan Baru" className="shadow-sm border-blue-50">
+      <Card title="Buat Rujukan Baru" className=" border-blue-50">
         <Form
           form={form}
           layout="vertical"
@@ -238,7 +238,7 @@ export const ReferralForm = ({
       )}
 
       {Array.isArray(referralHistory) && referralHistory.length > 0 && (
-        <Card title="Riwayat Rujukan" className="shadow-sm border-gray-100">
+        <Card title="Riwayat Rujukan" className=" border-gray-100">
           <div className="flex flex-col gap-3">
             {referralHistory.map((ref: any) => (
               <div
