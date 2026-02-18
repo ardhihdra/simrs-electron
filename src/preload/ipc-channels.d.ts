@@ -6,6 +6,7 @@ import type * as Mod_encounter from '@main/routes/encounter'
 import type * as Mod_macaddress from '@main/routes/macaddress'
 import type * as Mod_notification from '@main/routes/notification'
 import type * as Mod_query_allergyIntolerance from '@main/routes/query/allergyIntolerance'
+import type * as Mod_query_backofficeDOReceivedItem from '@main/routes/query/backofficeDOReceivedItem'
 import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
 import type * as Mod_query_composition from '@main/routes/query/composition'
 import type * as Mod_query_condition from '@main/routes/query/condition'
@@ -50,6 +51,7 @@ import type * as Mod_query_registration from '@main/routes/query/registration'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
 import type * as Mod_query_suplier from '@main/routes/query/suplier'
 import type * as Mod_query_unit from '@main/routes/query/unit'
+import type * as Mod_query_warehouseNTTB from '@main/routes/query/warehouseNTTB'
 import type * as Mod_user from '@main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
@@ -106,6 +108,8 @@ type Args_Mod_query_allergyIntolerance_list = InferArgs<typeof Mod_query_allergy
 type Result_Mod_query_allergyIntolerance_list = InferResult<typeof Mod_query_allergyIntolerance, 'list'>
 type Args_Mod_query_allergyIntolerance_update = InferArgs<typeof Mod_query_allergyIntolerance, 'update'>
 type Result_Mod_query_allergyIntolerance_update = InferResult<typeof Mod_query_allergyIntolerance, 'update'>
+type Args_Mod_query_backofficeDOReceivedItem_list = InferArgs<typeof Mod_query_backofficeDOReceivedItem, 'list'>
+type Result_Mod_query_backofficeDOReceivedItem_list = InferResult<typeof Mod_query_backofficeDOReceivedItem, 'list'>
 type Args_Mod_query_clinicalNote_create = InferArgs<typeof Mod_query_clinicalNote, 'create'>
 type Result_Mod_query_clinicalNote_create = InferResult<typeof Mod_query_clinicalNote, 'create'>
 type Args_Mod_query_clinicalNote_getByEncounter = InferArgs<typeof Mod_query_clinicalNote, 'getByEncounter'>
@@ -210,6 +214,8 @@ type Args_Mod_query_item_list = InferArgs<typeof Mod_query_item, 'list'>
 type Result_Mod_query_item_list = InferResult<typeof Mod_query_item, 'list'>
 type Args_Mod_query_item_read = InferArgs<typeof Mod_query_item, 'read'>
 type Result_Mod_query_item_read = InferResult<typeof Mod_query_item, 'read'>
+type Args_Mod_query_item_searchKfa = InferArgs<typeof Mod_query_item, 'searchKfa'>
+type Result_Mod_query_item_searchKfa = InferResult<typeof Mod_query_item, 'searchKfa'>
 type Args_Mod_query_item_update = InferArgs<typeof Mod_query_item, 'update'>
 type Result_Mod_query_item_update = InferResult<typeof Mod_query_item, 'update'>
 type Args_Mod_query_jaminan_create = InferArgs<typeof Mod_query_jaminan, 'create'>
@@ -450,6 +456,8 @@ type Args_Mod_query_suplier_update = InferArgs<typeof Mod_query_suplier, 'update
 type Result_Mod_query_suplier_update = InferResult<typeof Mod_query_suplier, 'update'>
 type Args_Mod_query_unit_list = InferArgs<typeof Mod_query_unit, 'list'>
 type Result_Mod_query_unit_list = InferResult<typeof Mod_query_unit, 'list'>
+type Args_Mod_query_warehouseNTTB_list = InferArgs<typeof Mod_query_warehouseNTTB, 'list'>
+type Result_Mod_query_warehouseNTTB_list = InferResult<typeof Mod_query_warehouseNTTB, 'list'>
 type Args_Mod_user_create = InferArgs<typeof Mod_user, 'create'>
 type Result_Mod_user_create = InferResult<typeof Mod_user, 'create'>
 type Args_Mod_user_get = InferArgs<typeof Mod_user, 'get'>
@@ -481,6 +489,9 @@ declare global {
           deleteById: Invoke<Args_Mod_query_allergyIntolerance_deleteById, Result_Mod_query_allergyIntolerance_deleteById>
           list: Invoke<Args_Mod_query_allergyIntolerance_list, Result_Mod_query_allergyIntolerance_list>
           update: Invoke<Args_Mod_query_allergyIntolerance_update, Result_Mod_query_allergyIntolerance_update>
+        }
+        backofficeDOReceivedItem: {
+          list: Invoke<Args_Mod_query_backofficeDOReceivedItem_list, Result_Mod_query_backofficeDOReceivedItem_list>
         }
         clinicalNote: {
           create: Invoke<Args_Mod_query_clinicalNote_create, Result_Mod_query_clinicalNote_create>
@@ -567,6 +578,7 @@ declare global {
           deleteById: Invoke<Args_Mod_query_item_deleteById, Result_Mod_query_item_deleteById>
           list: Invoke<Args_Mod_query_item_list, Result_Mod_query_item_list>
           read: Invoke<Args_Mod_query_item_read, Result_Mod_query_item_read>
+          searchKfa: Invoke<Args_Mod_query_item_searchKfa, Result_Mod_query_item_searchKfa>
           update: Invoke<Args_Mod_query_item_update, Result_Mod_query_item_update>
         }
         jaminan: {
@@ -741,6 +753,9 @@ declare global {
         }
         unit: {
           list: Invoke<Args_Mod_query_unit_list, Result_Mod_query_unit_list>
+        }
+        warehouseNTTB: {
+          list: Invoke<Args_Mod_query_warehouseNTTB_list, Result_Mod_query_warehouseNTTB_list>
         }
       }
       user: {

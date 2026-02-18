@@ -1566,20 +1566,6 @@ export function MedicationRequestForm() {
                                     >
                                       <InputNumber placeholder="Jml" min={0} className="w-full" />
                                     </Form.Item>
-                                    <Form.Item
-                                      {...subRestField}
-                                      name={[subRestField.name, 'unit']}
-                                      className="mb-0 w-24"
-                                    >
-                                      <Input placeholder="Satuan" />
-                                    </Form.Item>
-                                    <Form.Item
-                                      {...subRestField}
-                                      name={[subRestField.name, 'note']}
-                                      className="mb-0 w-32"
-                                    >
-                                      <Input placeholder="Kekuatan (mg)" />
-                                    </Form.Item>
                                     <Button
                                       type="text"
                                       danger
