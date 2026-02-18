@@ -92,25 +92,25 @@ const PatientTable = () => {
           dataSource={dataSource as any}
           rowKey="id"
           loading={isLoading || isRefetching}
-          action={{
-            items(record) {
-              return [
-                {
-                  label: 'Detail',
-                  icon: <SearchOutlined />,
-                  onClick: () => console.log(record)
-                },
-                {
-                  label: 'Daftar',
-                  icon: <PlusOutlined />,
-                  onClick: () => {
-                    setSelectedPatient(record)
-                    setOpenRegistration(true)
-                  }
-                }
-              ]
-            }
-          }}
+          // action={{
+          //   items(record) {
+          //     return [
+          //       {
+          //         label: 'Detail',
+          //         icon: <SearchOutlined />,
+          //         onClick: () => console.log(record)
+          //       },
+          //       {
+          //         label: 'Daftar',
+          //         icon: <PlusOutlined />,
+          //         onClick: () => {
+          //           setSelectedPatient(record)
+          //           setOpenRegistration(true)
+          //         }
+          //       }
+          //     ]
+          //   }
+          // }}
         />
       </div>
 

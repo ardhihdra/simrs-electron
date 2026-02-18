@@ -15,6 +15,7 @@ export interface TransferBedFormValues {
   newClassOfCareCodeId: string
   transferReason: string
   roomCodeId: string
+  organizationId: string
 }
 
 export function TransferBedModal({ visible, loading, onConfirm, onCancel }: TransferBedModalProps) {
@@ -58,7 +59,8 @@ export function TransferBedModal({ visible, loading, onConfirm, onCancel }: Tran
                   newRoomCodeId: item.room?.id, // Send UUID
                   newClassOfCareCodeId: item.room?.roomClassCodeId,
                   newBedCodeId: item.bed?.id, // Send UUID
-                  roomCodeId: item.room?.roomCodeId
+                  roomCodeId: item.room?.roomCodeId,
+                  organizationId: item.room?.organizationId
                 })
               }
             }}
@@ -87,6 +89,14 @@ export function TransferBedModal({ visible, loading, onConfirm, onCancel }: Tran
         </Form.Item>
 
         {/* display code id */}
+        <Form.Item
+          name="organizationId"
+          label="Organization ID"
+          style={{ display: 'none' }}
+        >
+          <Input disabled />
+        </Form.Item>
+
         <Form.Item
           name="roomCodeId"
           label="Ruangan Baru (Auto-filled)"

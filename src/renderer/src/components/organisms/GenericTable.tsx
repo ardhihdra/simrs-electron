@@ -77,7 +77,7 @@ function GenericTable<T extends object>({
                           }
                         }}
                         size="small"
-                        style={{ padding: 0 }}
+                       
                       >
                         {item.label}
                       </Button>

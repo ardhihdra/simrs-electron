@@ -37,20 +37,26 @@ const GeneralConsentWrapper = ({
   )
 }
 
-function PatientForm() {
+export interface PatientFormComponentProps {
+    id?: string
+    onSuccess?: (data?: any) => void
+    onCancel?: () => void
+}
+
+export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormComponentProps) {
   const [form] = Form.useForm<PatientFormValues>()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
-  const params = useParams<{ id: string }>()
-  const id = params.id || ''
-  const isEdit = !!params.id
+  
+  // Use passed id or fallback to undefined (for create mode)
+  const isEdit = !!id
 
   const detail = client.patient.getById.useQuery(
-    { id },
+    { id: id! },
     {
       enabled: isEdit,
-      queryKey: ['patient', { id }]
+      queryKey: ['patient', { id: id as string }]
     }
   )
 
@@ -75,10 +81,14 @@ function PatientForm() {
   }, [detail.data, form])
 
   const createMutation = client.patient.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       message.success('Pasien berhasil disimpan')
       form.resetFields()
-      navigate('/dashboard/patient')
+      if (onSuccess) {
+        onSuccess(data)
+      } else {
+        navigate('/dashboard/patient')
+      }
     },
     onError: (error) => {
       message.error(error.message || 'Failed to create patient')
@@ -86,14 +96,18 @@ function PatientForm() {
   })
 
   const updateMutation = client.patient.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       message.success('Pasien berhasil diperbarui')
-      navigate('/dashboard/patient')
+      if (onSuccess) {
+        onSuccess(data)
+      } else {
+        navigate('/dashboard/patient')
+      }
     },
     onError: (error) => {
-      message.error(error.message || 'Failed to update patient')
+        message.error(error.message || 'Failed to update patient')
     }
-  })
+   })
 
   const onFinish = async (values: PatientFormValues) => {
     try {
@@ -122,8 +136,8 @@ function PatientForm() {
         lastFhirUpdated: null,
         lastSyncedAt: null
       }
-      if (isEdit && params.id) {
-        await updateMutation.mutateAsync({ ...payload, id: params.id })
+      if (isEdit && id) {
+        await updateMutation.mutateAsync({ ...payload, id: id })
       } else {
         await createMutation.mutateAsync(payload)
       }
@@ -257,7 +271,11 @@ function PatientForm() {
             htmlType="button"
             onClick={() => {
               form.resetFields()
-              navigate('/dashboard/patient')
+              if (onCancel) {
+                  onCancel()
+              } else {
+                  navigate('/dashboard/patient')
+              }
             }}
           >
             Batal
@@ -266,6 +284,11 @@ function PatientForm() {
       </Form>
     </div>
   )
+}
+
+function PatientForm() {
+    const params = useParams<{ id: string }>()
+    return <PatientFormComponent id={params.id} />
 }
 
 export default PatientForm

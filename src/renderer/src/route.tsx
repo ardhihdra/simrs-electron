@@ -11,6 +11,12 @@ import LabResultPage from './pages/Laboratory/LabResultPage'
 import LabSpecimenPage from './pages/Laboratory/LabSpecimenPage'
 import { ListDiagnosticReport } from './pages/Laboratory/ListDiagnosticReport'
 import RecordResultPage from './pages/Laboratory/RecordResultPage'
+import LaboratoryQueue from './pages/laboratory-management/queue'
+import LaboratoryReports from './pages/laboratory-management/reports'
+import LaboratoryRequests from './pages/laboratory-management/requests'
+import LaboratorySpecimenRequest from './pages/laboratory-management/requests/specimen'
+import LaboratoryResults from './pages/laboratory-management/results'
+import LaboratoryResultEntry from './pages/laboratory-management/results/entry'
 import PermintaanLab from './pages/PermintaanLab'
 import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
@@ -87,6 +93,12 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
+import RegistrationPage from './pages/visit-management/registration-page'
+import RegistrationQueue from './pages/visit-management/registration-queue'
+import ActiveEncountersPage from './pages/visit-management/active-encounters-page'
+import InitialTriage from './pages/visit-management/initial-triage'
+
+// ... existing imports
 
 function MainRoute() {
   const location = useLocation()
@@ -99,6 +111,12 @@ function MainRoute() {
           <Route path="expense" element={<Expense />}>
             <Route index element={<ExpenseTable />} />
             <Route path="create" element={<ExpenseForm />} />
+          </Route>
+          <Route path="registration">
+            <Route index element={<RegistrationPage />} />
+            <Route path="queue" element={<RegistrationQueue />} />
+            <Route path="triage" element={<InitialTriage />} />
+            <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
           <Route path="patient" element={<Patient />}>
             <Route index element={<PatientTable />} />
@@ -250,6 +268,15 @@ function MainRoute() {
             <Route path="report" element={<LabReportPage />} />
             <Route path="report/:id" element={<LabReportDetailPage />} />
             <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
+          </Route>
+          <Route path="laboratory-management">
+            <Route index element={<LaboratoryQueue />} />
+            <Route path="queue" element={<LaboratoryQueue />} />
+            <Route path="requests" element={<LaboratoryRequests />} />
+            <Route path="requests/specimen" element={<LaboratorySpecimenRequest />} />
+            <Route path="results" element={<LaboratoryResults />} />
+            <Route path="results/entry" element={<LaboratoryResultEntry />} />
+            <Route path="reports" element={<LaboratoryReports />} />
           </Route>
         </Route>
         <Route
