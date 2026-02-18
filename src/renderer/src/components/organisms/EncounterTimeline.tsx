@@ -1,5 +1,14 @@
 import { Card, Button, Tag, Typography, Empty, Spin, Table, Space, Avatar, Modal } from 'antd'
-import { EyeOutlined, UserOutlined, CalendarOutlined, CaretRightOutlined } from '@ant-design/icons'
+import {
+  EyeOutlined,
+  UserOutlined,
+  CalendarOutlined,
+  CaretRightOutlined,
+  AlertOutlined,
+  FileTextOutlined,
+  ToolOutlined,
+  MedicineBoxOutlined
+} from '@ant-design/icons'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import 'dayjs/locale/id'
@@ -20,54 +29,17 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
   const [detailItems, setDetailItems] = useState<any[]>([])
 
   const { data: timelineData, isLoading } = useQuery({
-    queryKey: ['observations', encounterId, 'timeline'],
+    queryKey: ['encounter', encounterId, 'timeline'],
     queryFn: async () => {
-      const fn = window.api?.query?.observation?.getByEncounter
-      if (!fn) throw new Error('API observation tidak tersedia')
+      const fn = window.api?.query?.encounter?.getTimeline
+      if (!fn) throw new Error('API timeline tidak tersedia')
       const res = await fn({ encounterId })
 
-      let allObs: any[] = []
-      if (res.result && !Array.isArray(res.result) && Array.isArray(res.result.all)) {
-        allObs = res.result.all
-      } else {
-        allObs = Array.isArray(res.result) ? res.result : []
+      if (!res.success || !res.result) {
+        return []
       }
 
-      const dateGroups: Record<
-        string,
-        { date: string; items: any[]; doctors: Set<string>; sessions: Record<string, any[]> }
-      > = {}
-      allObs.forEach((obs) => {
-        const dateKey = dayjs(obs.createdAt).format('YYYY-MM-DD')
-        const timeKey = dayjs(obs.createdAt).format('HH:mm')
-
-        if (!dateGroups[dateKey]) {
-          dateGroups[dateKey] = {
-            date: dateKey,
-            items: [],
-            doctors: new Set(),
-            sessions: {}
-          }
-        }
-
-        if (!dateGroups[dateKey].sessions[timeKey]) {
-          dateGroups[dateKey].sessions[timeKey] = []
-        }
-
-        dateGroups[dateKey].items.push(obs)
-        dateGroups[dateKey].sessions[timeKey].push(obs)
-        const doc = obs.performers?.[0]?.display || 'Petugas Medis'
-        dateGroups[dateKey].doctors.add(doc)
-      })
-
-      return Object.values(dateGroups)
-        .map((day) => ({
-          ...day,
-          sessionList: Object.entries(day.sessions)
-            .map(([time, items]) => ({ time, items }))
-            .sort((a, b) => b.time.localeCompare(a.time))
-        }))
-        .sort((a, b) => b.date.localeCompare(a.date))
+      return res.result
     }
   })
 
@@ -82,7 +54,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (isLoading)
     return (
-      <Card className="mb-4 shadow-sm border-gray-200" size="small">
+      <Card className="mb-4  border-gray-200" size="small">
         <div className="p-8 text-center">
           <Spin tip="Memuat riwayat harian..." />
         </div>
@@ -91,7 +63,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (!timelineData || timelineData.length === 0)
     return (
-      <Card className="mb-4 shadow-sm border-gray-200" size="small">
+      <Card className="mb-4  border-gray-200" size="small">
         <Empty description="Belum ada riwayat pemeriksaan" image={Empty.PRESENTED_IMAGE_SIMPLE} />
       </Card>
     )
@@ -111,17 +83,25 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
     },
     {
       title: 'Pemberi Layanan',
-      dataIndex: 'doctors',
-      key: 'doctors',
-      render: (doctors: Set<string>) => (
-        <Space wrap size={4}>
-          {Array.from(doctors).map((doc, i) => (
-            <Tag key={i} className="m-0 bg-gray-50 border-gray-200 text-gray-600 rounded-full px-3">
-              {doc}
-            </Tag>
-          ))}
-        </Space>
-      )
+      key: 'performers',
+      render: (record: any) => {
+        const performers = new Set<string>()
+        record.sessions?.forEach((session: any) => {
+          if (session.performer) performers.add(session.performer)
+        })
+        return (
+          <Space wrap size={4}>
+            {Array.from(performers).map((doc, i) => (
+              <Tag
+                key={i}
+                className="m-0 bg-gray-50 border-gray-200 text-gray-600 rounded-full px-3"
+              >
+                {doc}
+              </Tag>
+            ))}
+          </Space>
+        )
+      }
     },
     {
       title: 'Ringkasan',
@@ -129,7 +109,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       width: 200,
       render: (record: any) => (
         <Tag color="cyan" className="rounded-full px-3 border-0">
-          {record.sessionList.length} Sesi Pemeriksaan
+          {record.sessions?.length || 0} Sesi Pemeriksaan
         </Tag>
       )
     }
@@ -141,7 +121,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         title: 'Jam',
         dataIndex: 'time',
         key: 'time',
-        width: 100,
+        width: 80,
         render: (text: string) => (
           <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
             {text}
@@ -151,8 +131,9 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       {
         title: 'Pemeriksa',
         key: 'performer',
-        render: (item: any) => {
-          const name = item.items[0]?.performers?.[0]?.display || 'Petugas Medis'
+        width: 250,
+        render: (session: any) => {
+          const name = session.performer || 'Petugas Medis'
           return (
             <Space>
               <Avatar size="small" icon={<UserOutlined />} className="bg-slate-300" />
@@ -162,19 +143,54 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         }
       },
       {
+        title: 'Data Klinis',
+        key: 'content',
+        render: (session: any) => (
+          <Space wrap size={[4, 4]}>
+            {session.conditions?.length > 0 && (
+              <Tag icon={<AlertOutlined />} color="orange" className="rounded-full">
+                Diagnosis ({session.conditions.length})
+              </Tag>
+            )}
+            {session.compositions?.length > 0 && (
+              <Tag icon={<FileTextOutlined />} color="blue" className="rounded-full">
+                CPPT/SOAP ({session.compositions.length})
+              </Tag>
+            )}
+            {session.procedures?.length > 0 && (
+              <Tag icon={<ToolOutlined />} color="purple" className="rounded-full">
+                Tindakan ({session.procedures.length})
+              </Tag>
+            )}
+            {session.observations?.length > 0 && (
+              <Tag icon={<MedicineBoxOutlined />} color="cyan" className="rounded-full">
+                Observasi ({session.observations.length})
+              </Tag>
+            )}
+          </Space>
+        )
+      },
+      {
         title: '',
         key: 'action',
-        width: 120,
+        width: 100,
         align: 'right' as const,
-        render: (item: any) => (
+        render: (session: any) => (
           <Button
-            type="link"
+            type="text"
             size="small"
-            className="text-blue-600 hover:text-blue-800"
+            className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100"
             icon={<EyeOutlined />}
-            onClick={() => handleOpenDetail(`${record.date} ${item.time}`, item.items)}
+            onClick={() =>
+              handleOpenDetail(`${record.date} ${session.time}`, [
+                ...(session.observations || []),
+                ...(session.conditions || []),
+                ...(session.procedures || []),
+                ...(session.compositions || [])
+              ])
+            }
           >
-            Lihat Detail
+            Detail
           </Button>
         )
       }
@@ -184,7 +200,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       <div className="">
         <Table
           columns={sessionColumns}
-          dataSource={record.sessionList}
+          dataSource={record.sessions}
           pagination={false}
           size="small"
           rowKey="time"
@@ -197,15 +213,92 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   const detailColumns = [
     {
-      title: 'Pemeriksaan',
+      title: 'Aspek / Pemeriksaan',
       dataIndex: 'display',
       key: 'display',
-      render: (text: string, record: any) => text || record.codeCoding?.[0]?.display || '-'
+      render: (text: string, record: any) => {
+        if (record.title) return <Text strong>{record.title}</Text>
+        return text || record.codeCoding?.[0]?.display || '-'
+      }
     },
     {
-      title: 'Hasil',
+      title: 'Hasil / Keterangan',
       key: 'value',
       render: (record: any) => {
+        if (record.clinicalStatus || record.verificationStatus) {
+          return (
+            <Space direction="vertical" size={0}>
+              <Space>
+                <Tag color="volcano">{record.clinicalStatus}</Tag>
+                <Tag color="orange">{record.verificationStatus}</Tag>
+              </Space>
+              {record.note && <Text type="secondary">{record.note}</Text>}
+            </Space>
+          )
+        }
+
+        if (record.status && record.display && !record.title) {
+          return (
+            <Space direction="vertical" size={0}>
+              <Tag color="blue">{record.status.toUpperCase()}</Tag>
+              {record.note && <Text type="secondary">{record.note}</Text>}
+            </Space>
+          )
+        }
+
+        if (
+          record.title &&
+          (record.soapSubjective ||
+            record.soapObjective ||
+            record.soapAssessment ||
+            record.soapPlan)
+        ) {
+          return (
+            <div className="bg-gray-50 p-2 rounded border border-gray-100 mt-1">
+              {record.soapSubjective && (
+                <div className="mb-2">
+                  <Text strong className="text-xs text-blue-600 block">
+                    S (SUBJECTIVE)
+                  </Text>
+                  <Text>{record.soapSubjective}</Text>
+                </div>
+              )}
+              {record.soapObjective && (
+                <div className="mb-2">
+                  <Text strong className="text-xs text-blue-600 block">
+                    O (OBJECTIVE)
+                  </Text>
+                  <Text>{record.soapObjective}</Text>
+                </div>
+              )}
+              {record.soapAssessment && (
+                <div className="mb-2">
+                  <Text strong className="text-xs text-blue-600 block">
+                    A (ASSESSMENT)
+                  </Text>
+                  <Text>{record.soapAssessment}</Text>
+                </div>
+              )}
+              {record.soapPlan && (
+                <div className="">
+                  <Text strong className="text-xs text-blue-600 block">
+                    P (PLAN)
+                  </Text>
+                  <Text>{record.soapPlan}</Text>
+                </div>
+              )}
+            </div>
+          )
+        }
+
+        if (record.value !== undefined) return record.value
+        if (record.status && record.title)
+          return (
+            <Tag color="cyan" className="rounded-full">
+              {record.status.toUpperCase()}
+            </Tag>
+          )
+
         if (record.valueQuantity) {
           return `${record.valueQuantity.value} ${record.valueQuantity.unit || ''}`
         }

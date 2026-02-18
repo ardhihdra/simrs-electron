@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Card, Button, Input, Form, Spin, Switch, App } from 'antd'
 import { SaveOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { HEAD_TO_TOE_MAP } from '../../config/observation-maps'
+import { HEAD_TO_TOE_MAP } from '@renderer/config/observation-maps'
 
 const { TextArea } = Input
 
@@ -58,7 +58,6 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
 
       const initialValues: any = {}
 
-      // Sort by date desc to get latest
       examObservations.sort(
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
@@ -69,7 +68,6 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
         )
         if (found) {
           initialValues[key] = found.valueString
-          // Robust check: check valueBoolean or look into interpretations array
           const isAbnormal =
             found.valueBoolean === false || found.interpretations?.some((i: any) => i.code === 'A')
           initialValues[`${key}_NORMAL`] = !isAbnormal
@@ -102,7 +100,6 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
           system: 'http://loinc.org',
           valueString: textValue || (isNormal ? 'Dalam batas normal' : 'Abnormal'),
           valueBoolean: isNormal,
-          // FHIR Interpretation: N (Normal) or A (Abnormal)
           interpretations: [
             {
               code: isNormal ? 'N' : 'A',

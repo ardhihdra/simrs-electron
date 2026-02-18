@@ -19,6 +19,7 @@ export interface ConditionBuilderOptions {
     diagnosisCodeId?: string | number
     clinicalStatus?: 'active' | 'recurrence' | 'relapse' | 'inactive' | 'remission' | 'resolved'
     verificationStatus?: 'unconfirmed' | 'provisional' | 'differential' | 'confirmed' | 'refuted' | 'entered-in-error'
+    recordedDate?: string | Date
 }
 
 /**
@@ -40,6 +41,9 @@ export const createCondition = (options: ConditionBuilderOptions): any => {
     }
     if (options.verificationStatus) {
         condition.verificationStatus = options.verificationStatus
+    }
+    if (options.recordedDate) {
+        condition.recordedDate = options.recordedDate
     }
 
     return condition

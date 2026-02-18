@@ -1,5 +1,5 @@
 import { Card, Descriptions, Tag, Space, Button } from 'antd'
-import { UserOutlined, CalendarOutlined, ContactsOutlined } from '@ant-design/icons'
+import { UserOutlined, CalendarOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 
@@ -15,7 +15,7 @@ export const PatientHeader = ({ patientData, onBack }: PatientHeaderProps) => {
   const age = dayjs().diff(dayjs(patient.birthDate), 'year')
 
   return (
-    <Card size="small" className="mb-4 shadow-sm bg-blue-50/30 border-blue-100">
+    <Card size="small" className="mb-4 bg-blue-50/30 border-blue-100">
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <Space align="start" size="large">

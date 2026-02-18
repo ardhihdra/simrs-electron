@@ -1,10 +1,10 @@
-import GenericTable from '@renderer/components/organisms/GenericTable'
-import { useEncounterList } from '@renderer/hooks/query/use-encounter'
-import { EncounterRow } from '@shared/encounter'
 import { Button, Input, Tag } from 'antd'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import GenericTable from '@renderer/components/organisms/GenericTable'
+import { useEncounterList } from '@renderer/hooks/query/use-encounter'
+import { EncounterRow } from '@shared/encounter'
 
 interface QueueListProps {
   title: string

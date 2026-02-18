@@ -12,6 +12,8 @@ import {
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
 } from '../../utils/observation-builder'
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { usePerformers } from '../../hooks/query/use-performers'
 
 const { Option } = Select
 
@@ -32,17 +34,25 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
   const { data: response } = useObservationByEncounter(encounterId)
 
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['nurse'])
+
   useEffect(() => {
     const observations = response?.result?.all
     if (response?.success && observations && Array.isArray(observations)) {
-      const vitalSigns = formatVitalSigns(observations)
+      const sortedObs = [...observations].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const vitalSigns = formatVitalSigns(sortedObs)
       const { gcsEye, gcsVerbal, gcsMotor } = vitalSigns
 
       if (gcsEye) setGcsEye(gcsEye)
       if (gcsVerbal) setGcsVerbal(gcsVerbal)
       if (gcsMotor) setGcsMotor(gcsMotor)
     }
-  }, [response])
+  }, [response, form])
 
   const bulkCreateObservation = useBulkCreateObservation()
 
@@ -146,16 +156,20 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
       }
 
       if (obsToCreate.length > 0) {
-        const observations = createObservationBatch(obsToCreate, values.assessment_date)
+        const assessmentDate = values.assessment_date || dayjs()
+        const observations = createObservationBatch(obsToCreate, assessmentDate)
+        const performerName =
+          performersData?.find((p: any) => p.id === values.performerId)?.name || 'Unknown'
 
         await bulkCreateObservation.mutateAsync({
           encounterId,
           patientId: patientData?.patient?.id || patientData?.id,
           observations,
-          performerId: 'nurse-001',
-          performerName: values.nurse_name || 'Perawat Jaga'
+          performerId: String(values.performerId),
+          performerName: performerName
         })
         message.success('Data Skrining Nyeri & GCS berhasil disimpan')
+        form.setFieldValue('assessment_date', dayjs())
       } else {
         message.warning('Tidak ada data yang disimpan')
       }
@@ -177,30 +191,9 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
         pain_scale_score: 0
       }}
     >
-      <Card title="Data Asesmen & Pemeriksa" className="py-4">
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item
-              label="Tanggal Pemeriksaan"
-              name="assessment_date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Perawat" name="nurse_name" rules={[{ required: true }]}>
-              <Select showSearch placeholder="Pilih Perawat">
-                <Option value="Perawat Jaga">Perawat Jaga</Option>
-                <Option value="Perawat Senior">Perawat Senior</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
+      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title="Pemeriksaan GCS (Glasgow Coma Scale)" className="py-4">
-        {/* Eye Response */}
         <div className="mb-6">
           <h4 className="font-semibold text-gray-700 mb-2">Respon Mata (Eye)</h4>
           <table className="w-full text-sm border border-gray-200 rounded overflow-hidden">
@@ -236,7 +229,6 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
           </table>
         </div>
 
-        {/* Verbal Response */}
         <div className="mb-6">
           <h4 className="font-semibold text-gray-700 mb-2">Respon Verbal (Verbal)</h4>
           <table className="w-full text-sm border border-gray-200 rounded overflow-hidden">

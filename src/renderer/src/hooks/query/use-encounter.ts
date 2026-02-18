@@ -38,7 +38,7 @@ export const useEncounterDetail = (id?: number | string) => {
     return useQuery({
         queryKey: ['encounter', 'detail', id],
         queryFn: () => {
-            const fn = window.api?.query?.encounter?.getById
+            const fn = window.api?.query?.encounter?.read
             if (!fn || !id) throw new Error('API encounter tidak tersedia')
             return fn({ id: String(id) })
         },

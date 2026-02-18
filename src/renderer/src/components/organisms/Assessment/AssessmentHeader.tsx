@@ -1,28 +1,60 @@
-import { Card, Col, DatePicker, Form, Row, Select } from 'antd'
+import { Col, DatePicker, Form, Row, Select } from 'antd'
 import React from 'react'
-import { SelectProps } from 'antd'
 
 const { Option } = Select
 
-export const AssessmentHeader: React.FC = () => {
+interface Performer {
+  id: number | string
+  name: string
+}
+
+interface AssessmentHeaderProps {
+  performers?: Performer[]
+  loading?: boolean
+}
+
+export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
+  performers = [],
+  loading = false
+}) => {
   return (
-    <Card title="Data Asesmen & Pemeriksa" className="py-4">
+    <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 mb-4">
       <Row gutter={24}>
         <Col span={10}>
-          <Form.Item label="Tanggal Asesmen" name="assessment_date" rules={[{ required: true }]}>
+          <Form.Item
+            label={<span className="text-gray-600 font-semibold">Tanggal Asesmen</span>}
+            name="assessment_date"
+            rules={[{ required: true }]}
+            className="mb-0"
+          >
             <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
           </Form.Item>
         </Col>
         <Col span={10}>
-          <Form.Item label="Perawat Pemeriksa" name="performer" rules={[{ required: true }]}>
-            <Select showSearch placeholder="Pilih Perawat">
-              <Option value="Perawat Jaga">Perawat Jaga</Option>
-              <Option value="Perawat Ahli">Perawat Ahli</Option>
-              <Option value="Perawat Senior">Perawat Senior</Option>
+          <Form.Item
+            label={<span className="text-gray-600 font-semibold">Petugas Pemeriksa</span>}
+            name="performerId"
+            rules={[{ required: true, message: 'Wajib memilih petugas pemeriksa' }]}
+            className="mb-0"
+          >
+            <Select
+              showSearch
+              placeholder="Pilih Petugas"
+              loading={loading}
+              optionFilterProp="children"
+              filterOption={(input, option) =>
+                (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())
+              }
+            >
+              {performers.map((p) => (
+                <Option key={p.id} value={p.id}>
+                  {p.name}
+                </Option>
+              ))}
             </Select>
           </Form.Item>
         </Col>
       </Row>
-    </Card>
+    </div>
   )
 }

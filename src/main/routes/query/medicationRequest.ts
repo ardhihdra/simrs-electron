@@ -1,10 +1,9 @@
 import z from 'zod'
 import {
-  MedicationRequestSchema,
   MedicationRequestWithIdSchema
 } from '@main/models/medicationRequest'
 import { IpcContext } from '@main/ipc/router'
-import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
+import { parseBackendResponse, getClient } from '@main/utils/backendClient'
 
 export const requireSession = true
 
@@ -12,52 +11,27 @@ export const schemas = {
   list: {
     args: z.object({
       patientId: z.string().optional(),
+      encounterId: z.string().optional(),
       page: z.number().optional(),
       limit: z.number().optional()
     }),
-    result: z.object({
-      success: z.boolean(),
-      data: MedicationRequestWithIdSchema.array().optional(),
-      pagination: z
-        .object({
-          page: z.number(),
-          limit: z.number(),
-          total: z.number(),
-          pages: z.number()
-        })
-        .optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   getById: {
     args: z.object({ id: z.number() }),
-    result: z.object({
-      success: z.boolean(),
-      data: MedicationRequestWithIdSchema.optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   create: {
-    args: z.union([MedicationRequestSchema, MedicationRequestSchema.array()]),
-    result: z.object({
-      success: z.boolean(),
-      data: z
-        .union([MedicationRequestWithIdSchema, MedicationRequestWithIdSchema.array()])
-        .optional(),
-      error: z.string().optional()
-    })
+    args: z.any(),
+    result: z.any()
   },
   update: {
-    args: MedicationRequestWithIdSchema.partial().extend({ id: z.number() }),
-    result: z.object({
-      success: z.boolean(),
-      data: MedicationRequestWithIdSchema.optional(),
-      error: z.string().optional()
-    })
+    args: z.any(),
+    result: z.any()
   },
   deleteById: {
     args: z.object({ id: z.number() }),
-    result: z.object({ success: z.boolean(), error: z.string().optional() })
+    result: z.any()
   }
 } as const
 
@@ -66,16 +40,29 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     const client = getClient(ctx)
     const params = new URLSearchParams()
     if (args.patientId) params.append('patientId', args.patientId)
+    if (args.encounterId) params.append('encounterId', args.encounterId)
     if (args.page) params.append('page', String(args.page))
     if (args.limit) params.append('limit', String(args.limit))
 
     const res = await client.get(`/api/medicationrequest?${params.toString()}`)
-    const ListSchema = BackendListSchema(MedicationRequestWithIdSchema)
-    const result = await parseBackendResponse(res, ListSchema)
-    return { success: true, data: result }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { success: false, error: msg }
+    const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON from backend' }))
+
+    if (!res.ok || !raw.success) {
+      return {
+        success: false,
+        error: raw.message || raw.error || 'Terjadi kesalahan pada server'
+      }
+    }
+
+    const result = raw.result || raw.data || []
+
+    return {
+      success: true,
+      result: result,
+      pagination: raw.pagination
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message }
   }
 }
 
