@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Form, Input, Radio, Select, Spin } from 'antd'
+import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
 import { EDMONSON_MAP, FALL_RISK_MAP, HUMPTY_DUMPTY_MAP } from '../../config/observation-maps'
@@ -12,7 +12,6 @@ import {
 } from '../../utils/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { useBulkCreateObservation } from '../../hooks/query/use-observation'
-import { usePerformers } from '../../hooks/query/use-performers'
 
 interface FallRiskAssessmentFormProps {
   encounterId: string
@@ -380,49 +379,41 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
   const renderTable = (label, name, items) => {
     return (
       <div className="mb-8">
-        <h4 className="font-bold text-gray-700 mb-3 ml-1">{label}</h4>
-        <div className="overflow-hidden rounded-lg border border-gray-200">
+        <h4 className="font-bold  mb-3 ml-1">{label}</h4>
+        <div className="overflow-hidden rounded-lg border border-white/10">
           <Form.Item name={name} className="mb-0">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-100 text-gray-600 font-semibold border-b border-gray-200 uppercase text-xs tracking-wider">
+              <thead className="text-gray-600 font-semibold border-b border-white/10 uppercase text-xs tracking-wider">
                 <tr>
-                  <th className="p-4 border-r border-gray-200 w-1/3">Keterangan</th>
-                  <th className="p-4 border-r border-gray-200 w-1/3">Pilih</th>
+                  <th className="p-4 border-r border-white/10 w-1/3">Keterangan</th>
+                  <th className="p-4 border-r border-white/10 w-1/3">Pilih</th>
                   <th className="p-4 w-1/6 text-center">Nilai</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-white/10 ">
                 {items.map((item) => {
                   const isSelected = form.getFieldValue(name) === item.score
                   return (
                     <tr
                       key={`${item.score}-${item.label}`}
-                      className={`cursor-pointer transition-all duration-200 ${
-                        isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                      }`}
+                      className={`cursor-pointer transition-all duration-200`}
                       onClick={() => {
                         form.setFieldValue(name, item.score)
-                        calculateRisk() // Recalculate immediately
+                        calculateRisk()
                       }}
                     >
-                      <td className="p-4 border-r border-gray-100 text-gray-700 font-medium">
-                        {item.criteria}
-                      </td>
-                      <td className="p-4 border-r border-gray-100">
-                        <Radio
-                          checked={isSelected}
-                          value={item.score}
-                          className="font-semibold text-gray-800"
-                        >
+                      <td className="p-4 border-r border-white/10 font-medium">{item.criteria}</td>
+                      <td className="p-4 border-r border-white/10">
+                        <Radio checked={isSelected} value={item.score} className="font-semibold ">
                           {item.label}
                         </Radio>
                       </td>
                       <td className="p-4 text-center">
-                        <div
+                        <Card
                           className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}
                         >
                           {item.score}
-                        </div>
+                        </Card>
                       </td>
                     </tr>
                   )
@@ -458,14 +449,12 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
       <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title={`Parameter Risiko Jatuh (${scaleType})`}>
-        {/* Scale Selector */}
         <div className="mb-6">
           <Form.Item label="Pilih Skala Risiko Jatuh" className="mb-0">
             <Radio.Group
               value={scaleType}
               onChange={(e) => {
                 setScaleType(e.target.value)
-                // Reset Level & Score when switching
                 setTotalScore(0)
                 setRiskLevel('')
               }}
@@ -681,13 +670,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         )}
 
         <div
-          className={`mt-8 p-6 rounded-xl border flex items-center justify-between transition-all duration-300 ${
-            riskLevel.includes('Tinggi')
-              ? 'bg-red-50 border-red-200  shadow-red-100'
-              : riskLevel.includes('Sedang')
-                ? 'bg-orange-50 border-orange-200'
-                : 'bg-green-50 border-green-200'
-          }`}
+          className={`mt-8 p-6 rounded-xl border flex items-center justify-between transition-all duration-300 border-white/10`}
         >
           <div className="flex flex-col gap-1">
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">

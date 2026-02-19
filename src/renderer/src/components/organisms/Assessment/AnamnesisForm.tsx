@@ -253,7 +253,7 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
       form={form}
       layout="vertical"
       onFinish={handleFinish}
-      className="flex flex-col gap-4"
+      className="flex! flex-col! gap-4!"
       initialValues={{
         assessment_date: dayjs()
       }}
@@ -261,7 +261,6 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
       <Spin spinning={isSubmitting} tip="Menyimpan Anamnesis..." size="large">
         <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
         <AnamnesisSection form={form} />
-
         <Form.Item className="flex justify-end pt-4!">
           <Button
             type="primary"

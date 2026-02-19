@@ -179,12 +179,13 @@ export const VitalSignsMonitoringForm = ({
   ]
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex! flex-col! gap-4!">
       <Form
         form={form}
         layout="vertical"
         onFinish={handleFinish}
         initialValues={{ assessment_date: dayjs() }}
+        className="flex! flex-col! gap-4!"
       >
         <Card
           title="Input Monitoring TTV Harian"
@@ -193,12 +194,11 @@ export const VitalSignsMonitoringForm = ({
               Lihat Riwayat ({groupedHistory.length})
             </Button>
           }
-          className="rounded-none!"
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-          <div className="space-y-4">
+          <div className="flex flex-col gap-4">
+            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
             <VitalSignsSection form={form} />
-            <Card title="Kesadaran" className="mt-4!">
+            <Card title="Kesadaran" className="mt-4">
               <Form.Item label="Kesadaran" name="consciousness" rules={[{ required: true }]}>
                 <Select placeholder="Pilih Kesadaran">
                   <Select.Option value="Compos Mentis">Compos Mentis</Select.Option>
@@ -212,7 +212,7 @@ export const VitalSignsMonitoringForm = ({
           </div>
         </Card>
 
-        <Form.Item className="mt-4!">
+        <Form.Item>
           <div className="flex justify-end gap-2">
             <Button size="large" onClick={() => form.resetFields()}>
               Reset

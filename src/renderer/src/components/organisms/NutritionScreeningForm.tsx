@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Form, Radio, Select, Spin } from 'antd'
+import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -187,31 +187,26 @@ export const NutritionScreeningForm = ({
     return (
       <Form.Item name={name} className="mb-0">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-100 text-gray-600 font-semibold border-b border-gray-200 uppercase text-xs tracking-wider">
+          <thead className="font-semibold border-b border-white/10 uppercase text-xs tracking-wider">
             <tr>
-              <th className="p-4 border-r border-gray-200 w-2/3">Keterangan</th>
-              <th className="p-4 border-r border-gray-200 w-1/6">Pilih</th>
+              <th className="p-4 border-r border-white/10 w-2/3">Keterangan</th>
+              <th className="p-4 border-r border-white/10 w-1/6">Pilih</th>
               <th className="p-4 w-1/6 text-center">Skor</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody className="divide-y divide-white/10">
             {items.map((item) => {
               const isSelected = form.getFieldValue(name) === item.criteria
               return (
                 <tr
                   key={item.label}
-                  className={`cursor-pointer transition-all duration-200 ${
-                    isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
                   onClick={() => {
                     form.setFieldValue(name, item.criteria)
                     calculateScore()
                   }}
                 >
-                  <td className="p-4 border-r border-gray-100 text-gray-700 font-medium">
-                    {item.criteria}
-                  </td>
-                  <td className="p-4 border-r border-gray-100">
+                  <td className="p-4 border-r border-white/10  font-medium">{item.criteria}</td>
+                  <td className="p-4 border-r border-white/10">
                     <Radio
                       checked={isSelected}
                       value={item.criteria}
@@ -255,28 +250,24 @@ export const NutritionScreeningForm = ({
 
       <Card title="MST (Malnutrition Screening Tool) - Parameter Skrining Gizi">
         <div className="mb-6">
-          <h4 className="font-bold text-gray-700 mb-3 ml-1">
+          <h4 className="font-bold  mb-3 ml-1">
             1. Apakah pasien mengalami penurunan berat badan yang tidak direncanakan/diinginkan
             dalam 6 bulan terakhir?
           </h4>
-          <div className="overflow-hidden rounded-lg border border-gray-200">
+          <div className="overflow-hidden rounded-lg border border-white/10">
             {renderItem('mst_weight_loss', WEIGHT_LOSS_OPTIONS)}
           </div>
         </div>
         <div className="mb-6">
-          <h4 className="font-bold text-gray-700 mb-3 ml-1">
+          <h4 className="font-bold  mb-3 ml-1">
             2. Apakah asupan makan pasien berkurang karena tidak nafsu makan?
           </h4>
-          <div className="overflow-hidden rounded-lg border border-gray-200">
+          <div className="overflow-hidden rounded-lg border border-white/10">
             {renderItem('mst_eating_poorly', EATING_POORLY_OPTIONS)}
           </div>
         </div>
         <div
-          className={`p-6 rounded-xl border flex items-center justify-between transition-all duration-300 ${
-            totalScore >= 2
-              ? 'bg-red-50 border-red-200  shadow-red-100'
-              : 'bg-green-50 border-green-200'
-          }`}
+          className={`p-6 rounded-xl border flex items-center justify-between transition-all duration-300 border-white/10`}
         >
           <div className="flex flex-col gap-1">
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">

@@ -40,7 +40,7 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
   }
 
   return (
-    <Card title="Anamnesis" className="py-4">
+    <Card title="Anamnesis" className="mt-4!">
       <Form.Item label="Keluhan Utama" className="">
         <Form.Item name={['anamnesis', 'chiefComplaint_codeId']} style={{ marginBottom: 16 }}>
           <Select

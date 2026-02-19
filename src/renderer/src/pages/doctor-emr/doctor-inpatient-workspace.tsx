@@ -196,16 +196,16 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
   }
 
   return (
-    <Layout className=" rounded-lg overflow-hidden h-full border border-gray-200">
+    <Layout className="rounded-lg overflow-hidden h-full">
       <Sider
         width={260}
         collapsible
         collapsed={collapsed}
         onCollapse={(value) => setCollapsed(value)}
         theme="light"
-        className="border-r border-gray-200"
+        className="border border-white/10"
         trigger={
-          <div className="flex items-center justify-center h-12 border-t border-gray-200 text-gray-500 hover:text-blue-600 transition-colors">
+          <div className="flex items-center justify-center h-12 border-t border-white/10 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
             {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           </div>
         }
@@ -215,7 +215,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
             {collapsed ? (
               <SafetyCertificateOutlined className="text-xl text-blue-600" />
             ) : (
-              <div className="font-bold text-gray-700 flex items-center gap-2">
+              <div className="font-bold flex items-center gap-2">
                 <SafetyCertificateOutlined className="text-blue-600" />
                 Rawat Inap
               </div>
@@ -223,6 +223,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           </div>
           <div className="flex-1 overflow-y-auto">
             <Menu
+              className="custom-menu"
               mode="inline"
               defaultSelectedKeys={['overview']}
               defaultOpenKeys={['assessment', 'orders']}
@@ -237,7 +238,6 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
         <Content
           className="p-6 overflow-y-auto h-full"
           style={{
-            background: colorBgContainer,
             minHeight: 280
           }}
         >

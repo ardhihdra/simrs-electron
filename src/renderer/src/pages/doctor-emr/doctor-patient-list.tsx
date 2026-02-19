@@ -18,6 +18,7 @@ import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
+import { getPolis } from '@renderer/services/nurse.service'
 
 const { RangePicker } = DatePicker
 const { Option } = Select
@@ -101,8 +102,7 @@ const PatientList = () => {
       params.sortOrder = 'DESC'
 
       return fn(params)
-    },
-    enabled: polis.length > 0
+    }
   })
 
   const patients: PatientListTableData[] = (encounterData?.result || []).map(
@@ -148,13 +148,8 @@ const PatientList = () => {
 
   const loadPolis = async () => {
     try {
-      const fn = window.api?.query?.poli?.list
-      if (fn) {
-        const response = await fn()
-        if (response.success && response.result) {
-          setPolis(response.result)
-        }
-      }
+      const data = await getPolis()
+      setPolis(data)
     } catch (error) {
       console.error('Error loading polis:', error)
     }
@@ -206,7 +201,7 @@ const PatientList = () => {
       render: (name: string, record) => (
         <div>
           <div className="font-medium text-base">{name}</div>
-          <div className="text-xs text-gray-500">
+          <div className="text-xs ">
             {record.patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'}, {record.patient.age}{' '}
             tahun
           </div>
@@ -217,7 +212,18 @@ const PatientList = () => {
       title: 'Poli',
       dataIndex: ['poli', 'name'],
       key: 'poli',
-      width: 150
+      width: 150,
+      render: (text: string) => {
+        if (!text) return '-'
+        if (text === 'RAWAT_INAP') return 'Rawat Inap'
+        if (text === 'RAWAT_JALAN') return 'Rawat Jalan'
+        if (text === 'IGD') return 'IGD'
+        return text
+          .toLowerCase()
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (l) => l.toUpperCase())
+          .replace(/\bIgd\b/i, 'IGD')
+      }
     },
     {
       title: 'Jenis',
@@ -286,16 +292,12 @@ const PatientList = () => {
         <div className="flex flex-col gap-6">
           <div className="flex justify-between items-start mb-2">
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold text-gray-800 mb-0">
-                Daftar Antrian & Kunjungan Pasien
-              </h1>
-              <p className="text-sm text-gray-500 m-0">
-                Manajemen pelayanan pasien Rawat Jalan, Inap, dan IGD
-              </p>
+              <h1 className="text-2xl font-bold mb-0">Daftar Antrian & Kunjungan Pasien</h1>
+              <p className="text-sm  m-0">Manajemen pelayanan pasien Rawat Jalan, Inap, dan IGD</p>
             </div>
             <Space size="large" align="center">
               <div className="flex flex-col items-end">
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">
+                <span className="text-[10px] uppercase tracking-wider font-bold">
                   Terakhir Sinkron
                 </span>
                 <span className="text-xs font-mono text-gray-600">
@@ -317,9 +319,7 @@ const PatientList = () => {
 
           <Row gutter={[24, 16]} align="bottom">
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
-                Cari Pasien
-              </div>
+              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">Cari Pasien</div>
               <Input
                 placeholder="Nama Pasien / No. Rekam Medis"
                 prefix={<SearchOutlined className="text-gray-400" />}
@@ -331,7 +331,7 @@ const PatientList = () => {
               />
             </Col>
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">
                 Unit Pelayanan (Poli)
               </div>
               <Select
@@ -350,7 +350,7 @@ const PatientList = () => {
               </Select>
             </Col>
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">
                 Periode Kunjungan
               </div>
               <RangePicker

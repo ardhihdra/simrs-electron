@@ -81,17 +81,121 @@ export const GeneralSOAPForm = ({
         }
       }
 
+      const commonSectionData = {
+        author: [String(values.performerId)],
+        focus: {
+          reference: `Patient/${patientData.patient.id}`,
+          display: patientData.patient.name
+        },
+        mode: 'working',
+        entry: [],
+        emptyReason: null,
+        orderedBy: null
+      }
+
+      const sections = [
+        {
+          title: 'Subjective',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '61150-9',
+                display: 'Subjective'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapSubjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        },
+        {
+          title: 'Objective',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '61149-1',
+                display: 'Objective'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapObjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        },
+        {
+          title: 'Assessment',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '51848-0',
+                display: 'Assessment'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapAssessment?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        },
+        {
+          title: 'Plan',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '18776-5',
+                display: 'Plan of care note'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapPlan?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        }
+      ]
+
       const payload: any = {
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(values.performerId),
         title: 'SOAP Umum',
+        status: values.status,
+        date: values.assessment_date ? values.assessment_date.toISOString() : undefined,
+        type: {
+          coding: [
+            {
+              system: 'http://loinc.org',
+              code: '11506-3',
+              display: 'Progress note'
+            }
+          ]
+        },
+        category: [
+          {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: 'LP173421-1',
+                display: 'Report'
+              }
+            ]
+          }
+        ],
         soapSubjective: values.soapSubjective,
         soapObjective: values.soapObjective,
         soapAssessment: values.soapAssessment,
         soapPlan: values.soapPlan,
-        status: values.status,
-        date: values.assessment_date ? values.assessment_date.toISOString() : undefined
+        section: sections
       }
 
       if (editingId) {
@@ -217,6 +321,7 @@ export const GeneralSOAPForm = ({
 
   const handleEdit = (record: any) => {
     const { remainingText } = parseVitals(record.soapObjective || '')
+
     form.setFieldsValue({
       performerId: record.authorId?.[0] || undefined,
       soapSubjective: record.soapSubjective,
@@ -238,17 +343,87 @@ export const GeneralSOAPForm = ({
 
       const verifierId = selectedPerformerId || record.authorId?.[0] || 1
 
+      const sections =
+        record.sections && record.sections.length > 0
+          ? record.sections
+          : [
+              {
+                title: 'Subjective',
+                code: {
+                  coding: [{ system: 'http://loinc.org', code: '61150-9', display: 'Subjective' }]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapSubjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              },
+              {
+                title: 'Objective',
+                code: {
+                  coding: [{ system: 'http://loinc.org', code: '61149-1', display: 'Objective' }]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapObjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              },
+              {
+                title: 'Assessment',
+                code: {
+                  coding: [{ system: 'http://loinc.org', code: '51848-0', display: 'Assessment' }]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapAssessment?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              },
+              {
+                title: 'Plan',
+                code: {
+                  coding: [
+                    { system: 'http://loinc.org', code: '18776-5', display: 'Plan of care note' }
+                  ]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapPlan?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              }
+            ]
+
       await upsertMutation.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(verifierId),
-        ...record,
+        id: record.id,
         status: 'final',
         title: record.title || 'SOAP Umum',
+        date: record.date,
+        type: {
+          coding: [
+            {
+              system: 'http://loinc.org',
+              code: '11506-3',
+              display: 'Progress note'
+            }
+          ]
+        },
+        category: [
+          {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: 'LP173421-1',
+                display: 'Report'
+              }
+            ]
+          }
+        ],
         soapSubjective: record.soapSubjective,
         soapObjective: record.soapObjective,
         soapAssessment: record.soapAssessment,
-        soapPlan: record.soapPlan
+        soapPlan: record.soapPlan,
+        section: sections
       })
 
       message.success('SOAP Umum berhasil diverifikasi (Final)')
@@ -285,7 +460,7 @@ export const GeneralSOAPForm = ({
       render: (_: any, record: any) => (
         <div className="flex items-center gap-3">
           <div className="flex flex-col">
-            <span className="font-bold text-gray-800 text-sm">
+            <span className="font-bold  text-sm">
               {record.author?.namaLengkap || record.authorName || 'PPA'}
             </span>
             <span className="text-gray-500 text-xs">
@@ -361,11 +536,9 @@ export const GeneralSOAPForm = ({
               <div className="flex flex-col items-center">
                 <CheckCircleOutlined className="text-green-500 text-lg" />
                 {legalAttester && (
-                  <span className="text-[10px] text-gray-500 text-center mt-1 leading-tight">
+                  <span className="text-[10px]  text-center mt-1 leading-tight">
                     Verified by <br />
-                    <span className="font-semibold text-gray-700">
-                      {legalAttester.partyDisplay}
-                    </span>
+                    <span className="font-semibold ">{legalAttester.partyDisplay}</span>
                     <br />
                     {dayjs(legalAttester.time).format('DD/MM/YY HH:mm')}
                   </span>
@@ -409,13 +582,9 @@ export const GeneralSOAPForm = ({
   )
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <Card
-        title={
-          <Space>
-            <HistoryOutlined /> Asesmen Awal Pasien
-          </Space>
-        }
+        title="Asesmen Awal Pasien"
         extra={
           <>
             {/* {hasFinalEntry && (
@@ -445,7 +614,6 @@ export const GeneralSOAPForm = ({
                         )} */}
           </>
         }
-        className="rounded-none!"
       >
         <Table
           columns={columns}
@@ -510,7 +678,7 @@ export const GeneralSOAPForm = ({
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          className="pt-4"
+          className="pt-4 space-y-4! flex! flex-col!"
           initialValues={{
             assessment_date: dayjs()
           }}
@@ -540,11 +708,10 @@ export const GeneralSOAPForm = ({
                     )} */}
 
           {showTTVSection && (
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 mt-4">
-              <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
-                <div className="font-bold text-blue-700 uppercase text-xs tracking-wider">
-                  Data Tanda-Tanda Vital (Dari Monitoring)
-                </div>
+            <Card
+              title="Data Tanda-Tanda Vital (Dari Monitoring)"
+              className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 mt-4"
+              extra={
                 <Button
                   type="primary"
                   ghost
@@ -552,10 +719,10 @@ export const GeneralSOAPForm = ({
                   icon={<CopyOutlined />}
                   onClick={handleFetchVitals}
                 >
-                  Ambil Data TTV Terakhir
+                  Ambil Data Terakhir
                 </Button>
-              </div>
-
+              }
+            >
               <div className="grid grid-cols-3 gap-x-6 gap-y-4">
                 <Form.Item label="Tekanan Darah" style={{ marginBottom: 0 }}>
                   <Space align="start" className="w-full">
@@ -608,16 +775,14 @@ export const GeneralSOAPForm = ({
                   <Input className="w-full" placeholder="-" readOnly disabled />
                 </Form.Item>
               </div>
-            </div>
+            </Card>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <Form.Item
                 name="soapSubjective"
-                label={
-                  <span className="font-bold text-gray-700">Subjective (S) - Keluhan Utama</span>
-                }
+                label={<span className="font-bold ">Subjective (S) - Keluhan Utama</span>}
                 rules={[{ required: true, message: 'Wajib diisi' }]}
                 extra={
                   currentRole === 'nurse'
@@ -633,7 +798,7 @@ export const GeneralSOAPForm = ({
 
               <Form.Item
                 name="soapObjective"
-                label={<span className="font-bold text-gray-700">Objective (O) - Pemeriksaan</span>}
+                label={<span className="font-bold ">Objective (O) - Pemeriksaan</span>}
                 rules={[
                   { required: currentRole === 'nurse', message: 'Wajib diisi untuk perawat' }
                 ]}
@@ -649,7 +814,7 @@ export const GeneralSOAPForm = ({
             <div className="space-y-4">
               <Form.Item
                 name="soapAssessment"
-                label={<span className="font-bold text-gray-700">Assessment (A) - Diagnosis</span>}
+                label={<span className="font-bold ">Assessment (A) - Diagnosis</span>}
                 rules={[
                   {
                     required: currentRole === 'doctor',
@@ -675,7 +840,7 @@ export const GeneralSOAPForm = ({
 
               <Form.Item
                 name="soapPlan"
-                label={<span className="font-bold text-gray-700">Plan (P) - Rencana Terapi</span>}
+                label={<span className="font-bold ">Plan (P) - Rencana Terapi</span>}
                 rules={[
                   {
                     required: currentRole === 'doctor',
@@ -705,6 +870,6 @@ export const GeneralSOAPForm = ({
           </Form.Item>
         </Form>
       </Modal>
-    </div>
+    </>
   )
 }

@@ -268,11 +268,11 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
   )
 
   const signatureBox = (type: string, label: string) => (
-    <div className="flex flex-col items-center bg-white p-4 rounded-xl border border-gray-100 ">
+    <div className="flex flex-col items-center p-4  border border-black/10 bg-white/10 ">
       <Text strong className="mb-3 uppercase text-[10px] tracking-widest text-gray-400">
         {label}
       </Text>
-      <div className="border border-gray-100 w-full h-32 flex items-center justify-center mb-4 bg-gray-50/30 rounded-lg overflow-hidden relative group">
+      <div className="border border-white/10 w-full h-32 flex items-center justify-center mb-4 bg-white/10 rounded-lg overflow-hidden relative group">
         {signatures[type] ? (
           <img
             src={signatures[type]}
@@ -314,10 +314,7 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         consent_type: 'agree'
       }}
     >
-      <Card
-        className="border-none  rounded-xl overflow-hidden"
-        bodyStyle={{ background: 'linear-gradient(to right, #f8fafc, #ffffff)' }}
-      >
+      <Card>
         <Space align="start">
           <InfoCircleOutlined className="text-blue-500 text-xl mt-1" />
           <div>
@@ -331,11 +328,11 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         </Space>
       </Card>
 
-      <Card title="1. Pemberian Informasi" className=" rounded-xl">
+      <Card title="1. Pemberian Informasi" className=" ">
         <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
       </Card>
 
-      <Card title="2. Penerima Informasi / Wali" className=" rounded-xl">
+      <Card title="2. Penerima Informasi / Wali" className=" ">
         <Row gutter={24}>
           <Col span={8}>
             <Form.Item label="Nama Penerima" name="receiver_name" rules={[{ required: true }]}>
@@ -355,7 +352,7 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         </Row>
       </Card>
 
-      <Card title="3. Jenis Informasi (Materi Edukasi)" className=" rounded-xl">
+      <Card title="3. Jenis Informasi (Materi Edukasi)" className=" ">
         {renderInfoRow('Diagnosis (WD & DD)', 'info_diagnosis', 'check_diagnosis')}
         {renderInfoRow('Dasar Diagnosis', 'info_basis', 'check_basis')}
         {renderInfoRow('Tindakan Kedokteran', 'info_procedure', 'check_procedure')}
@@ -368,11 +365,7 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         {renderInfoRow('Alternatif & Risiko', 'info_alternative', 'check_alternative')}
       </Card>
 
-      <Card
-        title="4. Pernyataan Persetujuan / Penolakan"
-        className=" rounded-xl overflow-hidden"
-        headStyle={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
-      >
+      <Card title="4. Pernyataan Persetujuan / Penolakan">
         <div className="mb-6">
           <Form.Item
             name="consent_type"
@@ -391,7 +384,7 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
               ]}
             />
           </Form.Item>
-          <Paragraph className="mt-4 p-3 bg-gray-50 rounded border border-gray-200">
+          <Paragraph className="mt-4 p-3 rounded border border-white/10">
             Terhadap diri saya sendiri / Istri / Suami / Anak / Ayah / Ibu saya dengan Nama
             <Text strong className="mx-2 text-blue-600 underline">
               {patientData?.patient?.name || '..........'}
@@ -421,7 +414,7 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         </Row>
       </Card>
 
-      <Card title="5. Saksi-Saksi" className=" rounded-xl">
+      <Card title="5. Saksi-Saksi" className=" ">
         <Row gutter={32}>
           <Col span={12}>
             <Form.Item label="Saksi 1 (Pihak Keluarga)" name="witness1_name">

@@ -47,7 +47,11 @@ export const schemas = {
             soapObjective: z.string().optional(),
             soapAssessment: z.string().optional(),
             soapPlan: z.string().optional(),
-            status: z.string().optional()
+            status: z.string().optional(),
+            section: z.array(z.any()).optional(),
+            custodian: z.any().optional(),
+            type: z.any().optional(),
+            category: z.any().optional()
         }),
         result: z.object({
             success: z.boolean(),
@@ -82,7 +86,11 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
             soapObjective: args.soapObjective,
             soapAssessment: args.soapAssessment,
             soapPlan: args.soapPlan,
-            status: args.status
+            status: args.status,
+            section: args.section,
+            custodian: args.custodian,
+            type: args.type,
+            category: args.category
         }
 
         const res = await client.post('/api/composition', payload)

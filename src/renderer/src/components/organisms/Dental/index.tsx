@@ -1,11 +1,11 @@
 import {
   Button,
+  Card,
   DatePicker,
   Form,
   Input,
   Modal,
   Select,
-  Timeline,
   Typography,
   App,
   AutoComplete,
@@ -216,9 +216,9 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   }, [observationData])
 
   return (
-    <Content className="md:ml-[40px] md:mr-[14px] my-4 rounded-md shadow bg-white">
+    <Content className="md:ml-[40px] md:mr-[14px] my-4 rounded-md shadow">
       <div className="flex gap-4 w-full">
-        <div className="py-8 w-full max-w-lg h-[600px] flex justify-center items-center">
+        <Card className="py-8 w-full max-w-lg h-[600px] flex justify-center items-center">
           <Odontogram
             key={odontoKey}
             theme="light"
@@ -226,73 +226,77 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
             onChange={(props) => handleChange(props)}
             selectedIds={hoveredTeeth.map((t) => t.id)}
           />
-        </div>
-        <div className="bg-zinc-100 p-4 border-l border-l-zinc-300 w-full">
-          <Typography.Title level={4}>Pemeriksaan Gigi</Typography.Title>
-          <div className="flex items-center justify-start mt-8">
+        </Card>
+        <Card
+          className="flex-1 overflow-y-auto rounded-none border-0 border-l"
+          title="Riwayat Pemeriksaan Gigi"
+        >
+          <div className="flex flex-col gap-3 mt-2">
             {selected.length > 0 ? (
-              <Timeline
-                className="w-full"
-                items={selected.map((item, idx) => ({
-                  color: 'gray',
-                  children: (
-                    <TimelineContent
-                      setHoveredTeeth={setHoveredTeeth}
-                      date={item.date}
-                      treatment={item.treatment}
-                      condition={item.condition}
-                      dentist={item.dentist}
-                      tooth={item.tooth}
-                      status={item.status}
-                      notes={item.notes}
-                      onEdit={() => {
-                        const values = {
-                          date: dayjs(item.date, 'DD-MM-YYYY'),
-                          treatment: item.treatment,
-                          condition: item.condition,
-                          dentist: item.dentist,
-                          status: item.status,
-                          notes: item.notes
-                        }
-                        const foundDoc = performersData?.find((d: any) => d.name === item.dentist)
-                        if (foundDoc) {
-                          values.dentist = foundDoc.id
-                        }
+              selected.map((item, idx) => (
+                <TimelineContent
+                  key={idx}
+                  setHoveredTeeth={setHoveredTeeth}
+                  date={item.date}
+                  treatment={item.treatment}
+                  condition={item.condition}
+                  dentist={item.dentist}
+                  tooth={item.tooth}
+                  status={item.status}
+                  notes={item.notes}
+                  onEdit={() => {
+                    const values = {
+                      date: dayjs(item.date, 'DD-MM-YYYY'),
+                      treatment: item.treatment,
+                      condition: item.condition,
+                      dentist: item.dentist,
+                      status: item.status,
+                      notes: item.notes
+                    }
+                    const foundDoc = performersData?.find((d: any) => d.name === item.dentist)
+                    if (foundDoc) {
+                      values.dentist = foundDoc.id
+                    }
 
-                        form.setFieldsValue(values as any)
-                        setPendingTeeth(item.tooth)
-                        setEditingIndex(idx)
-                        setIsModalOpen(true)
-                        if (item.treatment) {
-                          let tName = ''
-                          if (typeof item.treatment === 'string') {
-                            tName = item.treatment
-                            setSelectedTreatmentData(null)
-                          } else if (
-                            typeof item.treatment === 'object' &&
-                            'code' in item.treatment &&
-                            'name' in item.treatment
-                          ) {
-                            tName = `${item.treatment.code} - ${item.treatment.name}`
-                            setSelectedTreatmentData(item.treatment)
-                          }
-                          setProcedureSearch(tName)
-                          form.setFieldValue('treatment', tName)
-                        } else {
-                          setProcedureSearch('')
-                          setSelectedTreatmentData(null)
-                        }
-                      }}
-                      onDelete={() => handleDelete(item)}
-                    />
-                  )
-                }))}
-              />
+                    form.setFieldsValue(values as any)
+                    setPendingTeeth(item.tooth)
+                    setEditingIndex(idx)
+                    setIsModalOpen(true)
+                    if (item.treatment) {
+                      let tName = ''
+                      if (typeof item.treatment === 'string') {
+                        tName = item.treatment
+                        setSelectedTreatmentData(null)
+                      } else if (
+                        typeof item.treatment === 'object' &&
+                        'code' in item.treatment &&
+                        'name' in item.treatment
+                      ) {
+                        tName = `${item.treatment.code} - ${item.treatment.name}`
+                        setSelectedTreatmentData(item.treatment)
+                      }
+                      setProcedureSearch(tName)
+                      form.setFieldValue('treatment', tName)
+                    } else {
+                      setProcedureSearch('')
+                      setSelectedTreatmentData(null)
+                    }
+                  }}
+                  onDelete={() => handleDelete(item)}
+                />
+              ))
             ) : (
-              <Typography.Text>Silakan pilih gigi pada odontogram</Typography.Text>
+              <div className="flex flex-col items-center justify-center py-12 opacity-50">
+                <Typography.Text className="text-sm">
+                  Belum ada data pemeriksaan gigi.
+                </Typography.Text>
+                <Typography.Text className="text-xs mt-1">
+                  Silakan pilih gigi pada odontogram untuk memulai.
+                </Typography.Text>
+              </div>
             )}
           </div>
-        </div>
+        </Card>
       </div>
 
       <Modal

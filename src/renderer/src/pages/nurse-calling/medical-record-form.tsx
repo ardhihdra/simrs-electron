@@ -10,13 +10,13 @@ import {
   MedicineBoxOutlined
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
-import { PatientQueue } from '../../types/nurse.types'
-import { PatientStatus } from '../../types/nurse.types'
-import { PatientInfoCard } from '../../components/molecules/PatientInfoCard'
-import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
+import { PatientQueue } from '@renderer/types/nurse.types'
+import { PatientStatus } from '@renderer/types/nurse.types'
+import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessmentForm'
 import { GeneralSOAPForm } from '@renderer/components/organisms/GeneralSOAPForm'
-import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
-import { CPPTForm } from '../../components/organisms/CPPTForm'
+import { VitalSignsMonitoringForm } from '@renderer/components/organisms/VitalSignsMonitoringForm'
+import { CPPTForm } from '@renderer/components/organisms/CPPTForm'
 
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
@@ -137,7 +137,7 @@ const MedicalRecordForm = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen overflow-hidden">
       <div className="px-4 pt-4 flex justify-between items-center">
         <Button
           icon={<ArrowLeftOutlined />}
@@ -159,16 +159,15 @@ const MedicalRecordForm = () => {
       </div>
 
       <div className="flex-1 px-4 pb-4 overflow-hidden relative flex flex-col min-h-0">
-        <Layout className="rounded-lg overflow-hidden h-full border border-gray-200">
+        <Layout className="rounded-lg overflow-hidden h-full ">
           <Layout.Sider
             width={260}
             collapsible
             collapsed={collapsed}
             onCollapse={(value) => setCollapsed(value)}
             theme="light"
-            className="border-r border-gray-200"
             trigger={
-              <div className="flex items-center justify-center h-12 border-t border-gray-200 text-gray-500 hover:text-blue-600 transition-colors">
+              <div className="flex items-center justify-center h-12 border-t border-white/10 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
                 {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               </div>
             }
@@ -176,10 +175,10 @@ const MedicalRecordForm = () => {
             <div className="h-full flex flex-col">
               <div className={`p-4 ${collapsed ? 'text-center' : ''}`}>
                 {collapsed ? (
-                  <MedicineBoxOutlined className="text-xl text-blue-600" />
+                  <MedicineBoxOutlined className="text-xl" />
                 ) : (
-                  <div className="font-bold text-gray-700 flex items-center gap-2">
-                    <MedicineBoxOutlined className="text-blue-600" />
+                  <div className="font-bold flex items-center gap-2">
+                    <MedicineBoxOutlined />
                     Perawat
                   </div>
                 )}
@@ -222,13 +221,7 @@ const MedicalRecordForm = () => {
             </div>
           </Layout.Sider>
           <Layout>
-            <Layout.Content
-              className="p-6 overflow-y-auto h-full"
-              style={{
-                background: colorBgContainer,
-                minHeight: 280
-              }}
-            >
+            <Layout.Content className="p-6 overflow-y-auto h-full">
               {renderContent()}
             </Layout.Content>
           </Layout>

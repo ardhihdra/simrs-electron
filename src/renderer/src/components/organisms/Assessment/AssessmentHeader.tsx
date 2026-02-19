@@ -1,4 +1,4 @@
-import { Col, DatePicker, Form, Row, Select } from 'antd'
+import { Card, Col, DatePicker, Form, Row, Select } from 'antd'
 import React from 'react'
 
 const { Option } = Select
@@ -18,11 +18,11 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
   loading = false
 }) => {
   return (
-    <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 mb-4">
+    <Card className="">
       <Row gutter={24}>
         <Col span={10}>
           <Form.Item
-            label={<span className="text-gray-600 font-semibold">Tanggal Asesmen</span>}
+            label={<span className="font-semibold">Tanggal Asesmen</span>}
             name="assessment_date"
             rules={[{ required: true }]}
             className="mb-0"
@@ -32,7 +32,7 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
         </Col>
         <Col span={10}>
           <Form.Item
-            label={<span className="text-gray-600 font-semibold">Petugas Pemeriksa</span>}
+            label={<span className="font-semibold">Petugas Pemeriksa</span>}
             name="performerId"
             rules={[{ required: true, message: 'Wajib memilih petugas pemeriksa' }]}
             className="mb-0"
@@ -55,6 +55,6 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
           </Form.Item>
         </Col>
       </Row>
-    </div>
+    </Card>
   )
 }

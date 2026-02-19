@@ -311,15 +311,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   return (
     <>
-      <Card
-        className="overflow-hidden mb-4"
-        title={
-          <div className="flex items-center gap-2">
-            <CalendarOutlined className="text-blue-600" />
-            <span className="font-bold text-gray-700">Riwayat Harian Pemeriksaan</span>
-          </div>
-        }
-      >
+      <Card className="overflow-hidden mb-4" title="Riwayat Harian Pemeriksaan">
         <Table
           dataSource={timelineData}
           columns={columns}

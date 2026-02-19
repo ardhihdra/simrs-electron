@@ -25,10 +25,10 @@ export const ScreeningSection: React.FC = () => {
           </Col>
         </Row>
       </div>
-      <div className="py-6 border-t border-gray-100">
+      <div className="py-6 border-t border-white/10">
         <Row gutter={24}>
           <Col span={6}>
-            <h4 className="font-semibold text-gray-800 text-base">Risiko Jatuh</h4>
+            <h4 className="font-semibold text-base">Risiko Jatuh</h4>
             <span className="text-sm text-gray-500 block mt-1">(Get Up and Go Test)</span>
           </Col>
           <Col span={18}>
@@ -62,7 +62,7 @@ export const ScreeningSection: React.FC = () => {
       <div className="py-6 border-t border-gray-100">
         <Row gutter={24}>
           <Col span={6}>
-            <h4 className="font-semibold text-gray-800 text-base">Skrining Nyeri</h4>
+            <h4 className="font-semibold text-base">Skrining Nyeri</h4>
           </Col>
           <Col span={18}>
             <Row gutter={24}>
@@ -217,10 +217,10 @@ export const ScreeningSection: React.FC = () => {
         </Row>
       </div>
 
-      <div className="py-6 border-t border-gray-100">
+      <div className="py-6 border-t border-white/10">
         <Row gutter={24}>
           <Col span={6}>
-            <h4 className="font-semibold text-gray-800 text-base">Skrining Batuk</h4>
+            <h4 className="font-semibold text-base">Skrining Batuk</h4>
           </Col>
           <Col span={18}>
             <Form.Item name="cough_screening_status">

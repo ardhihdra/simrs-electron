@@ -61,18 +61,122 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     try {
       const assessmentDate = values.assessment_date ? dayjs(values.assessment_date) : dayjs()
 
+      const commonSectionData = {
+        author: [String(values.performerId)],
+        focus: {
+          reference: `Patient/${patientData.patient.id}`,
+          display: patientData.patient.name
+        },
+        mode: 'working',
+        entry: [],
+        emptyReason: null,
+        orderedBy: null
+      }
+
+      const sections = [
+        {
+          title: 'Subjective',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '61150-9',
+                display: 'Subjective'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapSubjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        },
+        {
+          title: 'Objective',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '61149-1',
+                display: 'Objective'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapObjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        },
+        {
+          title: 'Assessment',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '51848-0',
+                display: 'Assessment'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapAssessment?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        },
+        {
+          title: 'Plan',
+          code: {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: '18776-5',
+                display: 'Plan of care note'
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${values.soapPlan?.replace(/\n/g, '<br/>') || '-'}</div>`
+          },
+          ...commonSectionData
+        }
+      ]
+
       await upsertMutation.mutateAsync({
         id: values.id,
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(values.performerId),
         title: 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
+        status: values.status,
+        date: assessmentDate.toISOString(),
+        type: {
+          coding: [
+            {
+              system: 'http://loinc.org',
+              code: '11506-3',
+              display: 'Progress note'
+            }
+          ]
+        },
+        category: [
+          {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: 'LP173421-1',
+                display: 'Report'
+              }
+            ]
+          }
+        ],
         soapSubjective: values.soapSubjective,
         soapObjective: values.soapObjective,
         soapAssessment: values.soapAssessment,
         soapPlan: values.soapPlan,
-        status: values.status,
-        date: assessmentDate.toISOString()
+        section: sections
       })
 
       const statusMsg = values.status === 'final' ? 'Final' : 'Draft'
@@ -189,6 +293,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
   const handleEdit = (record: any) => {
     const { remainingText } = parseVitals(record.soapObjective || '')
+
     form.setFieldsValue({
       id: record.id,
       soapSubjective: record.soapSubjective,
@@ -214,17 +319,87 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
       const verifierId = selectedPerformerId || record.authorId?.[0] || 1
 
+      const sections =
+        record.sections && record.sections.length > 0
+          ? record.sections
+          : [
+              {
+                title: 'Subjective',
+                code: {
+                  coding: [{ system: 'http://loinc.org', code: '61150-9', display: 'Subjective' }]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapSubjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              },
+              {
+                title: 'Objective',
+                code: {
+                  coding: [{ system: 'http://loinc.org', code: '61149-1', display: 'Objective' }]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapObjective?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              },
+              {
+                title: 'Assessment',
+                code: {
+                  coding: [{ system: 'http://loinc.org', code: '51848-0', display: 'Assessment' }]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapAssessment?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              },
+              {
+                title: 'Plan',
+                code: {
+                  coding: [
+                    { system: 'http://loinc.org', code: '18776-5', display: 'Plan of care note' }
+                  ]
+                },
+                text: {
+                  status: 'generated',
+                  div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapPlan?.replace(/\n/g, '<br/>') || '-'}</div>`
+                }
+              }
+            ]
+
       await upsertMutation.mutateAsync({
+        id: record.id,
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(verifierId),
-        ...record,
-        status: 'final',
         title: record.title || 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
+        status: 'final',
+        date: record.date,
+        type: {
+          coding: [
+            {
+              system: 'http://loinc.org',
+              code: '11506-3',
+              display: 'Progress note'
+            }
+          ]
+        },
+        category: [
+          {
+            coding: [
+              {
+                system: 'http://loinc.org',
+                code: 'LP173421-1',
+                display: 'Report'
+              }
+            ]
+          }
+        ],
         soapSubjective: record.soapSubjective,
         soapObjective: record.soapObjective,
         soapAssessment: record.soapAssessment,
-        soapPlan: record.soapPlan
+        soapPlan: record.soapPlan,
+        section: sections
       })
 
       message.success('CPPT berhasil diverifikasi (Final)')
@@ -261,8 +436,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       render: (_: any, record: any) => (
         <div className="flex items-center gap-3">
           <div className="flex flex-col">
-            <span className="font-bold text-gray-800 text-sm">
-              {record.author?.namaLengkap || record.authorName || 'PPA Jaga'}
+            <span className="font-bold  text-sm">
+              {record.author?.namaLengkap || record.authorName || 'PPA'}
             </span>
             <span className="text-gray-500 text-xs">
               {record.author?.hakAkses?.nama || record.role || 'Dokter/Perawat'}
@@ -304,7 +479,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       render: (_: any, record: any) => (
         <div className="flex gap-2 text-sm bg-yellow-50 p-2 rounded border border-yellow-100">
           <span className="font-bold text-yellow-600 w-4">P:</span>
-          <div className="flex-1 whitespace-pre-wrap">{record.soapPlan}</div>
+          <div className="flex-1 whitespace-pre-wrap text-black">{record.soapPlan}</div>
         </div>
       )
     },
@@ -347,11 +522,9 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
               <div className="flex flex-col items-center">
                 <CheckCircleOutlined className="text-green-500 text-lg" />
                 {legalAttester && (
-                  <span className="text-[10px] text-gray-500 text-center mt-1 leading-tight">
+                  <span className="text-[10px] text-center mt-1 leading-tight">
                     Verified by <br />
-                    <span className="font-semibold text-gray-700">
-                      {legalAttester.partyDisplay}
-                    </span>
+                    <span className="font-semibold ">{legalAttester.partyDisplay}</span>
                     <br />
                     {dayjs(legalAttester.time).format('DD/MM/YY HH:mm')}
                   </span>
@@ -380,7 +553,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   }
 
   const cpptHistory = (compositionData?.result || []).filter(
-    (comp: any) => comp.title !== 'SOAP Umum'
+    (comp: any) => comp.title === 'CPPT - Catatan Perkembangan Pasien Terintegrasi'
   )
 
   return (
@@ -447,20 +620,18 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          className="pt-4"
+          className="pt-4 space-y-4! flex! flex-col!"
           initialValues={{
             assessment_date: dayjs(),
             status: 'preliminary'
           }}
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-
           {(currentRole === 'nurse' || currentRole === 'doctor') && (
-            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 mt-4">
-              <div className="flex justify-between items-center mb-4 border-b border-blue-200 pb-2">
-                <div className="font-bold text-blue-700 uppercase text-xs tracking-wider">
-                  Data Tanda-Tanda Vital (Dari Monitoring)
-                </div>
+            <Card
+              title="Data Tanda-Tanda Vital (Dari Monitoring)"
+              className="bg-blue-50 p-4 rounded-lg border border-blue-200 mb-6 mt-4"
+              extra={
                 <Button
                   type="primary"
                   ghost
@@ -470,8 +641,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                 >
                   Ambil Data Terakhir
                 </Button>
-              </div>
-
+              }
+            >
               <div className="grid grid-cols-3 gap-x-6 gap-y-4">
                 <Form.Item label="Tekanan Darah" style={{ marginBottom: 0 }}>
                   <Space align="start" className="w-full">
@@ -524,14 +695,14 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                   <Input className="w-full" placeholder="-" readOnly disabled />
                 </Form.Item>
               </div>
-            </div>
+            </Card>
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <Form.Item
                 name="soapSubjective"
-                label={<span className="font-bold text-gray-700">Subjective (S)</span>}
+                label={<span className="font-bold ">Subjective (S)</span>}
                 rules={[{ required: true, message: 'Wajib diisi' }]}
                 extra="Keluhan utama dan riwayat penyakit saat ini."
               >
@@ -543,7 +714,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
               <Form.Item
                 name="soapObjective"
-                label={<span className="font-bold text-gray-700">Objective (O)</span>}
+                label={<span className="font-bold ">Objective (O)</span>}
                 rules={[{ required: false }]}
                 extra="Hasil pemeriksaan fisik dan penunjang lainnya."
               >
@@ -557,7 +728,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
             <div className="space-y-4">
               <Form.Item
                 name="soapAssessment"
-                label={<span className="font-bold text-gray-700">Assessment (A)</span>}
+                label={<span className="font-bold ">Assessment (A)</span>}
                 rules={[
                   {
                     required: currentRole === 'doctor',
@@ -583,7 +754,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
               <Form.Item
                 name="soapPlan"
-                label={<span className="font-bold text-gray-700">Plan (P) / Instruksi</span>}
+                label={<span className="font-bold ">Plan (P) / Instruksi</span>}
                 rules={[
                   {
                     required: currentRole === 'doctor',
