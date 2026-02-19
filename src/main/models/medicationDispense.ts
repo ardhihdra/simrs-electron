@@ -55,7 +55,7 @@ export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional(),
-	patient: PatientSchema.optional(),
+	patient: PatientSchema.nullable().optional(),
   performer: PerformerSchema.nullable().optional(),
   authorizingPrescription: MedicationRequestWithIdSchema.nullable().optional()
 })

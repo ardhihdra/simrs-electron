@@ -16,6 +16,7 @@ export const ItemSchema = z.object({
 	nama: z.string().min(1),
 	kode: z.string().min(1),
 	kodeUnit: z.string().min(1),
+	kfaCode: z.string().nullable().optional(),
 	kind: ItemKindSchema.nullable().optional(),
 	minimumStock: z.number().nullable().optional(),
 	stock: z.number().nullable().optional(),
