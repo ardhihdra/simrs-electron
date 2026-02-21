@@ -188,6 +188,7 @@ const items = [
       { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <FileAddOutlined /> },
       { label: 'Penyerahan Obat ', key: '/dashboard/medicine/medication-dispenses', icon: <MedicineBoxOutlined /> },
       { label: 'Kategori Item', key: '/dashboard/medicine/medicine-categories', icon: <UnorderedListOutlined /> },
+      { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
       { label: 'Obat dan Barang', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
       { label: 'Transaksi Penjualan Barang', key: '/dashboard/medicine/item-purchase', icon: <WalletOutlined /> },
       { label: 'Laporan', key: '/dashboard/medicine/report', icon: <FileTextOutlined /> }

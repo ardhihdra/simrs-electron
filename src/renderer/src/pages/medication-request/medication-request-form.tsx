@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { queryClient } from '@renderer/query-client'
 import dayjs from 'dayjs'
+import { PatientAttributes } from 'simrs-types'
 
 // Enums copied locally to avoid import issues with main process
 enum MedicationRequestStatus {
@@ -161,6 +162,33 @@ export function MedicationRequestForm() {
     }
   }
 
+  type DosageEntry = {
+    sequence?: number
+    text?: string
+    timing?: { repeat?: { frequency?: number; period?: number; periodUnit?: string } }
+    doseAndRate?: Array<{
+      type?: { coding?: Array<{ system?: string; code?: string }> }
+      doseQuantity?: { value?: number; unit?: string }
+    }>
+  }
+
+  const buildDosageInstruction = (text?: string, quantity?: number, unit?: string): DosageEntry => {
+    const doseValue = typeof quantity === 'number' && quantity > 0 ? quantity : 1
+    const doseUnit = typeof unit === 'string' && unit.trim().length > 0 ? unit.trim() : undefined
+    return {
+      sequence: 1,
+      text: typeof text === 'string' ? text : undefined,
+      timing: { repeat: { frequency: 2, period: 1, periodUnit: 'd' } },
+      doseAndRate: [
+        {
+          type: {
+            coding: [{ system: 'http://terminology.hl7.org/CodeSystem/dose-rate-type', code: 'ordered' }]
+          },
+          doseQuantity: { value: doseValue, unit: doseUnit }
+        }
+      ]
+    }
+  }
   useEffect(() => {
     window.api.auth.getSession().then((res) => {
       if (res.success) setSession(res)
@@ -180,7 +208,7 @@ export function MedicationRequestForm() {
   // Fetch lists for dropdowns
   const { data: patientData, isLoading: patientLoading } = useQuery({
     queryKey: ['patient', 'list'],
-    queryFn: () => window.api?.query?.patient?.list({ limit: 100 })
+    queryFn: () => window.api?.query?.patient?.list({ items: 100 })
   })
 
   const { data: medicineData, isLoading: medicineLoading } = useQuery({
@@ -272,11 +300,58 @@ export function MedicationRequestForm() {
 
   const { data: encounterData, isLoading: encounterLoading } = useQuery({
     queryKey: ['encounter', 'list', selectedPatientId],
-    queryFn: () => window.api?.query?.encounter?.list({ 
-      limit: 100,
-      patientId: selectedPatientId // Filter by patient if selected
-    }),
+    queryFn: async () => {
+      const api = window.api?.query?.encounter?.list
+      if (!api) throw new Error('API encounter tidak tersedia')
+      const primary: {
+        success?: boolean
+        result?: EncounterOptionSource[]
+        data?: EncounterOptionSource[]
+        error?: string
+      } = await api({
+        limit: 100,
+        patientId: selectedPatientId ? String(selectedPatientId) : undefined
+      })
+      const hasArray =
+        Array.isArray(primary?.result) || Array.isArray(primary?.data)
+      try {
+        console.log('MR Encounter API primary:', {
+          success: primary?.success ?? null,
+          resultLen: Array.isArray(primary?.result) ? primary?.result?.length : 0,
+          dataLen: Array.isArray(primary?.data) ? primary?.data?.length : 0,
+          error: primary?.error ?? null
+        })
+      } catch {}
+      if (hasArray) return primary
+      const rpc = window.rpc?.encounter?.list
+      if (rpc) {
+        const params: { depth?: number; status?: string; id?: string } = { depth: 1 }
+        const fallback: {
+          success?: boolean
+          result?: EncounterOptionSource[]
+          data?: EncounterOptionSource[]
+          error?: string
+        } = await rpc(params)
+        try {
+          console.log('MR Encounter RPC fallback:', {
+            success: fallback?.success ?? null,
+            resultLen: Array.isArray(fallback?.result) ? fallback?.result?.length : 0,
+            dataLen: Array.isArray(fallback?.data) ? fallback?.data?.length : 0,
+            error: fallback?.error ?? null
+          })
+        } catch {}
+        return fallback
+      }
+      return primary
+    },
     enabled: !!selectedPatientId || isEdit // Only fetch when patient is selected or in edit mode
+  })
+  
+  // Fallback: fetch encounters without patient filter, used only when filtered result is empty
+  const { data: encounterAllData } = useQuery({
+    queryKey: ['encounter', 'list', 'all'],
+    queryFn: () => window.api?.query?.encounter?.list({ limit: 100 }),
+    enabled: true
   })
   
   const { data: requesterData } = useQuery({
@@ -284,10 +359,13 @@ export function MedicationRequestForm() {
     queryFn: () => window.api?.query?.kepegawaian?.list()
   })
 
-  const patientOptions = useMemo(() => 
-    ((patientData?.data || []) as any[]).map((p) => ({ label: `${p.name} (${p.mrNo})`, value: p.id })), 
-    [patientData]
-  )
+  const patientOptions = useMemo(() => {
+    const patients = (patientData?.data || []) as PatientAttributes[]
+    return patients.map((p) => ({
+      label: `${p.name} (${p.medicalRecordNumber || '-'})`,
+      value: p.id!
+    }))
+  }, [patientData])
 
   const medicineOptions = useMemo(
     () => {
@@ -392,10 +470,84 @@ export function MedicationRequestForm() {
     [itemSource?.result, itemCategoryMap]
   )
 
-  const encounterOptions = useMemo(() => 
-    ((encounterData?.data || []) as any[]).map((e) => ({ label: `${e.encounterCode || e.id} - ${e.patient?.name || 'Unknown'}`, value: e.id })), 
-    [encounterData]
-  )
+  type EncounterOptionSource = {
+    id: string
+    encounterCode?: string
+    patient?: { id?: string | number; name?: string }
+    visitDate?: string
+    period?: { start?: string; end?: string }
+    startTime?: string
+    createdAt?: string | Date | null
+    updatedAt?: string | Date | null
+  }
+  type EncounterListPayload =
+    | { result?: EncounterOptionSource[]; data?: EncounterOptionSource[] }
+    | undefined
+  const extractEncounters = (src: EncounterListPayload): EncounterOptionSource[] => {
+    const a = src?.result
+    const b = src?.data
+    return Array.isArray(a) ? a : Array.isArray(b) ? b! : []
+  }
+  const encounterOptions = useMemo(() => {
+    const filtered = extractEncounters(encounterData)
+    const all = extractEncounters(encounterAllData)
+    try {
+      const selected = selectedPatientId ? String(selectedPatientId) : ''
+      console.log('MR Encounter raw summary:', {
+        selectedPatientId: selected,
+        filteredLen: filtered.length,
+        allLen: all.length,
+        filteredSample: filtered.slice(0, 3).map((e) => ({
+          id: e.id,
+          patientId: e.patient?.id,
+          patientName: e.patient?.name,
+          code: e.encounterCode
+        })),
+        allSample: all.slice(0, 3).map((e) => ({
+          id: e.id,
+          patientId: e.patient?.id,
+          patientName: e.patient?.name,
+          code: e.encounterCode
+        }))
+      })
+    } catch {}
+    const base = filtered.length > 0 ? filtered : all
+    const toDateText = (e: EncounterOptionSource): string | undefined => {
+      const raw = e.startTime || e.period?.start || e.visitDate || e.updatedAt || e.createdAt
+      if (!raw) return undefined
+      const dt =
+        raw instanceof Date
+          ? raw
+          : typeof raw === 'string'
+          ? new Date(raw)
+          : new Date(String(raw))
+      if (Number.isNaN(dt.getTime())) return undefined
+      return dt.toLocaleString('id-ID', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
+    const options = base
+      .filter((e) => {
+        if (!selectedPatientId || filtered.length > 0) return true
+        // When using fallback (all), ensure we only show encounters of selected patient if patient info is present
+        // Some endpoints may not embed patient object; in that case, show all to let user pick manually.
+        const pid = e.patient?.id
+        return pid ? String(pid) === String(selectedPatientId) : true
+      })
+      .map((e) => ({
+      label: toDateText(e) || e.encounterCode || e.id,
+      value: e.id
+    }))
+    try {
+      const sample = options.slice(0, 5)
+      console.log('MR Encounter options count:', options.length, 'sample:', sample)
+    } catch {}
+    return options
+  }, [encounterData, encounterAllData, selectedPatientId])
 
   // Auto-fill Requester from Session (match NIK)
   useEffect(() => {
@@ -419,6 +571,16 @@ export function MedicationRequestForm() {
       const encounters = (encounterData.result || encounterData.data || []) as any[]
       const activeEncounter = encounters.find(e => e.status === 'in-progress' || e.status === 'active')
       
+      try {
+        console.log('MR Selected patientId:', selectedPatientId)
+        console.log('MR Encounter result length:', Array.isArray(encounterData?.result) ? (encounterData!.result as unknown[]).length : 0)
+        console.log('MR Encounter first entries:', (encounterData?.result || []).slice(0, 3))
+        if (!Array.isArray(encounterData?.result) || encounterData!.result!.length === 0) {
+          console.log('MR Fallback all encounters length:', Array.isArray(encounterAllData?.result) ? (encounterAllData!.result as unknown[]).length : 0)
+          console.log('MR Fallback first entries:', (encounterAllData?.result || []).slice(0, 3))
+        }
+      } catch {}
+
       if (activeEncounter) {
         form.setFieldValue('encounterId', activeEncounter.id)
       } else if (encounters.length > 0) {
@@ -635,14 +797,18 @@ export function MedicationRequestForm() {
 
   const createMutation = useMutation({
     mutationKey: ['medicationRequest', 'create'],
-    mutationFn: (data: any) => {
+    mutationFn: (data) => {
       const fn = window.api?.query?.medicationRequest?.create
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      console.log('MedicationRequest create success', res)
       queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
       navigate('/dashboard/medicine/medication-requests')
+    },
+    onError: (error) => {
+      console.error('MedicationRequest create error', error)
     }
   })
 
@@ -792,9 +958,9 @@ export function MedicationRequestForm() {
 							itemId: item.medicationId,
 							note: item.note ?? null,
 							groupIdentifier,
-							dosageInstruction: item.dosageInstruction
-								? [{ text: item.dosageInstruction }]
-								: null,
+              dosageInstruction: item.dosageInstruction
+                ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
+                : null,
 							dispenseRequest: buildDispenseRequest(
 								item.quantity,
 								item.quantityUnit
@@ -881,9 +1047,9 @@ export function MedicationRequestForm() {
 							itemId: null,
 							note: fullNote,
 							groupIdentifier,
-							dosageInstruction: input.dosageInstruction
-								? [{ text: input.dosageInstruction }]
-								: null,
+                dosageInstruction: input.dosageInstruction
+                  ? [buildDosageInstruction(input.dosageInstruction, input.quantity, input.quantityUnit)]
+                  : null,
 							dispenseRequest: buildDispenseRequest(
 								input.quantity,
 								input.quantityUnit
@@ -1094,19 +1260,19 @@ export function MedicationRequestForm() {
 
 				if (updates.length === 0 && typeof baseId === 'number' && !Number.isNaN(baseId)) {
 					const firstItem = items.length > 0 ? items[0] : undefined
-					await updateMutation.mutateAsync({
-						...baseCommonPayload,
-						itemId: firstItem?.medicationId,
-						note: firstItem?.note ?? null,
-						dosageInstruction: firstItem?.dosageInstruction
-							? [{ text: firstItem.dosageInstruction }]
-							: null,
-						dispenseRequest: buildDispenseRequest(
-							firstItem?.quantity,
-							firstItem?.quantityUnit
-						),
-						id: baseId
-					})
+          await updateMutation.mutateAsync({
+            ...baseCommonPayload,
+            itemId: firstItem?.medicationId,
+            note: firstItem?.note ?? null,
+            dosageInstruction: firstItem?.dosageInstruction
+              ? [buildDosageInstruction(firstItem.dosageInstruction, firstItem?.quantity, firstItem?.quantityUnit)]
+              : null,
+            dispenseRequest: buildDispenseRequest(
+              firstItem?.quantity,
+              firstItem?.quantityUnit
+            ),
+            id: baseId
+          })
 				} else {
 					for (const entry of updates) {
 						await updateMutation.mutateAsync({ ...entry.payload, id: entry.id })
@@ -1157,7 +1323,9 @@ export function MedicationRequestForm() {
         ...baseCommonPayload,
         groupIdentifier,
         itemId: item.medicationId,
-        dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
+        dosageInstruction: item.dosageInstruction
+          ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
+          : null,
         note: item.note,
         dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)
       }))
@@ -1198,7 +1366,9 @@ export function MedicationRequestForm() {
           groupIdentifier,
           medicationId: null,
           itemId: null,
-          dosageInstruction: comp.dosageInstruction ? [{ text: comp.dosageInstruction }] : null,
+          dosageInstruction: comp.dosageInstruction
+            ? [buildDosageInstruction(comp.dosageInstruction, comp.quantity, comp.quantityUnit)]
+            : null,
           identifier: [{ system: 'racikan-group', value: compoundId }],
           note: `[Racikan: ${comp.name}]`,
           category: [{ text: 'racikan', code: 'compound' }],
@@ -1229,6 +1399,9 @@ export function MedicationRequestForm() {
             itemId: it.itemId,
             medicationId: null,
             note: combinedNote.length > 0 ? combinedNote : null,
+            dosageInstruction: instructionText
+              ? [buildDosageInstruction(instructionText, it.quantity, unitCode)]
+              : null,
             dispenseRequest:
               typeof it.quantity === 'number' && unitCode
                 ? buildDispenseRequest(it.quantity, unitCode)
@@ -1243,6 +1416,7 @@ export function MedicationRequestForm() {
 				return
 			}
 
+			console.log('MedicationRequestForm create payload', payload)
 			createMutation.mutate(payload)
     }
   }
@@ -1269,7 +1443,7 @@ export function MedicationRequestForm() {
                 />
               </Form.Item>
               
-              <Form.Item label="Kunjungan (Encounter)" name="encounterId">
+              <Form.Item label="Kunjungan (Encounter)" name="encounterId" rules={[{ required: true, message: 'Kunjungan wajib diisi' }]}>
                 <Select 
                   options={encounterOptions} 
                   placeholder="Pilih Kunjungan" 

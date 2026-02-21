@@ -6,34 +6,62 @@ import z from 'zod'
 
 export const schemas = {
   list: {
-    result: z.object({
-      success: z.boolean(),
-      data: z
-        .array(
-          EncounterSchemaWithId.extend({
-            patient: z
-              .object({
-                id: z.string(),
-                kode: z.string().optional(),
-                name: z.string(),
-                medicalRecordNumber: z.string().optional(),
-                gender: z.string().optional(),
-                birthDate: z.union([z.string(), z.date()]).optional(),
-                nik: z.string().optional()
-              })
-              .optional(),
-            queueTicket: z.any().optional()
-          })
-        )
-        .optional(),
-      error: z.string().optional()
-    }),
     args: z.object({
+      patientId: z.string().optional(),
+      status: z.string().optional(),
+      encounterType: z.string().optional(),
+      id: z.string().optional(),
       filter: z.string().optional(),
       equal: z.string().optional(),
       startDate: z.coerce.date().optional(),
       endDate: z.coerce.date().optional(),
       depth: z.number().optional()
+    }),
+    result: z.object({
+      success: z.boolean(),
+      result: z
+        .array(
+          z
+            .object({
+              id: z.string(),
+              encounterCode: z.string().optional(),
+              patient: z
+                .object({
+                  id: z.union([z.string(), z.number()]),
+                  name: z.string().optional(),
+                  medicalRecordNumber: z.string().optional(),
+                  gender: z.string().optional(),
+                  birthDate: z.union([z.string(), z.date()]).optional(),
+                  kode: z.string().optional(),
+                  nik: z.string().optional()
+                })
+                .optional()
+            })
+            .passthrough()
+        )
+        .optional(),
+      data: z
+        .array(
+          z
+            .object({
+              id: z.string(),
+              encounterCode: z.string().optional(),
+              patient: z
+                .object({
+                  id: z.union([z.string(), z.number()]),
+                  name: z.string().optional(),
+                  medicalRecordNumber: z.string().optional(),
+                  gender: z.string().optional(),
+                  birthDate: z.union([z.string(), z.date()]).optional(),
+                  kode: z.string().optional(),
+                  nik: z.string().optional()
+                })
+                .optional()
+            })
+            .passthrough()
+        )
+        .optional(),
+      error: z.string().optional()
     })
   },
   read: {
@@ -84,14 +112,56 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
     if (!queryParams.has('items')) queryParams.set('items', '100')
     if (!queryParams.has('depth')) queryParams.set('depth', '1')
 
-    const res = await client.get(`/api/encounter?${queryParams.toString()}`)
+    const queryString = queryParams.toString()
+    const url = `/api/encounter?${queryString}`
+    console.log('[ipc:encounter.list] GET', url)
+    const res = await client.get(url)
 
     // Extend the base schema to include the joined 'patient' relation
     const EncounterWithPatientSchema = z.any()
     const ListSchema = BackendListSchema(EncounterWithPatientSchema)
 
     const result = await parseBackendResponse(res, ListSchema)
-    return { success: true, result }
+    const count = Array.isArray(result) ? result.length : 0
+    console.log('[ipc:encounter.list] result_count', count)
+    if (Array.isArray(result) && result.length > 0) {
+      const safe = result as Array<{
+        id?: string
+        patient?: { id?: string | number }
+        patientId?: string | number
+        startTime?: string | Date | null
+        visitDate?: string | Date | null
+        period?: { start?: string | Date | null } | null
+      }>
+      const sampleIds = safe.slice(0, 5).map((e) => e.id ?? null)
+      const samplePatientIds = safe
+        .slice(0, 5)
+        .map((e) => e.patient?.id ?? e.patientId ?? null)
+      const sampleTimes = safe.slice(0, 5).map((e) => {
+        const raw = e.startTime ?? e.period?.start ?? e.visitDate ?? null
+        return raw ? String(raw) : null
+      })
+      console.log('[ipc:encounter.list] sample_ids', sampleIds)
+      console.log('[ipc:encounter.list] sample_patient_ids', samplePatientIds)
+      console.log('[ipc:encounter.list] sample_times', sampleTimes)
+    }
+    if (count === 0 && args?.patientId) {
+      const fallbackParams = new URLSearchParams()
+      fallbackParams.append('patientId', args.patientId)
+      if (args.depth) fallbackParams.append('depth', String(args.depth))
+      const fallbackUrl = `/api/module/encounter?${fallbackParams.toString()}`
+      console.log('[ipc:encounter.list] fallback GET', fallbackUrl)
+      const res2 = await client.get(fallbackUrl)
+      const fallbackResult = await parseBackendResponse(res2, ListSchema)
+      const count2 = Array.isArray(fallbackResult) ? fallbackResult.length : 0
+      console.log('[ipc:encounter.list] fallback_result_count', count2)
+      if (count2 > 0) {
+        console.log('[ipc:encounter.list] returning success:true (fallback)')
+        return { success: true, result: fallbackResult, data: fallbackResult }
+      }
+    }
+    console.log('[ipc:encounter.list] returning success:true')
+    return { success: true, result, data: result }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

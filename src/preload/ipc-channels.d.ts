@@ -26,6 +26,7 @@ import type * as Mod_query_inventoryStock from '@main/routes/query/inventoryStoc
 import type * as Mod_query_item from '@main/routes/query/item'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
+import type * as Mod_query_kfaCode from '@main/routes/query/kfaCode'
 import type * as Mod_query_masterProcedure from '@main/routes/query/masterProcedure'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
 import type * as Mod_query_medicationDispense from '@main/routes/query/medicationDispense'
@@ -240,6 +241,16 @@ type Args_Mod_query_kepegawaian_listAll = InferArgs<typeof Mod_query_kepegawaian
 type Result_Mod_query_kepegawaian_listAll = InferResult<typeof Mod_query_kepegawaian, 'listAll'>
 type Args_Mod_query_kepegawaian_update = InferArgs<typeof Mod_query_kepegawaian, 'update'>
 type Result_Mod_query_kepegawaian_update = InferResult<typeof Mod_query_kepegawaian, 'update'>
+type Args_Mod_query_kfaCode_create = InferArgs<typeof Mod_query_kfaCode, 'create'>
+type Result_Mod_query_kfaCode_create = InferResult<typeof Mod_query_kfaCode, 'create'>
+type Args_Mod_query_kfaCode_deleteById = InferArgs<typeof Mod_query_kfaCode, 'deleteById'>
+type Result_Mod_query_kfaCode_deleteById = InferResult<typeof Mod_query_kfaCode, 'deleteById'>
+type Args_Mod_query_kfaCode_getById = InferArgs<typeof Mod_query_kfaCode, 'getById'>
+type Result_Mod_query_kfaCode_getById = InferResult<typeof Mod_query_kfaCode, 'getById'>
+type Args_Mod_query_kfaCode_list = InferArgs<typeof Mod_query_kfaCode, 'list'>
+type Result_Mod_query_kfaCode_list = InferResult<typeof Mod_query_kfaCode, 'list'>
+type Args_Mod_query_kfaCode_update = InferArgs<typeof Mod_query_kfaCode, 'update'>
+type Result_Mod_query_kfaCode_update = InferResult<typeof Mod_query_kfaCode, 'update'>
 type Args_Mod_query_masterProcedure_getById = InferArgs<typeof Mod_query_masterProcedure, 'getById'>
 type Result_Mod_query_masterProcedure_getById = InferResult<typeof Mod_query_masterProcedure, 'getById'>
 type Args_Mod_query_masterProcedure_list = InferArgs<typeof Mod_query_masterProcedure, 'list'>
@@ -595,6 +606,13 @@ declare global {
           list: Invoke<Args_Mod_query_kepegawaian_list, Result_Mod_query_kepegawaian_list>
           listAll: Invoke<Args_Mod_query_kepegawaian_listAll, Result_Mod_query_kepegawaian_listAll>
           update: Invoke<Args_Mod_query_kepegawaian_update, Result_Mod_query_kepegawaian_update>
+        }
+        kfaCode: {
+          create: Invoke<Args_Mod_query_kfaCode_create, Result_Mod_query_kfaCode_create>
+          deleteById: Invoke<Args_Mod_query_kfaCode_deleteById, Result_Mod_query_kfaCode_deleteById>
+          getById: Invoke<Args_Mod_query_kfaCode_getById, Result_Mod_query_kfaCode_getById>
+          list: Invoke<Args_Mod_query_kfaCode_list, Result_Mod_query_kfaCode_list>
+          update: Invoke<Args_Mod_query_kfaCode_update, Result_Mod_query_kfaCode_update>
         }
         masterProcedure: {
           getById: Invoke<Args_Mod_query_masterProcedure_getById, Result_Mod_query_masterProcedure_getById>

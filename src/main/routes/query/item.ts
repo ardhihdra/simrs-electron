@@ -103,9 +103,9 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 			nama: args.nama,
 			kode: args.kode,
 			kodeUnit: args.kodeUnit,
-			kfaCode: args.kfaCode ?? null,
+			...(typeof args.kfaCode === 'string' || args.kfaCode === null ? { kfaCode: args.kfaCode } : {}),
 			kind: args.kind ?? null,
-			itemCategoryId: args.itemCategoryId ?? null,
+			...(typeof args.itemCategoryId === 'number' || args.itemCategoryId === null ? { itemCategoryId: args.itemCategoryId } : {}),
 			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
 			sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
 			buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
@@ -163,27 +163,64 @@ export const searchKfa = async (ctx: IpcContext, args: z.infer<typeof schemas.se
     }
 
     // Fallback: Panggil API publik KFA jika backend belum mengimplementasikannya
-    const publicUrl = `https://kfa.kemkes.go.id/api/v1/products/all?product_type=obat&name=${encodeURIComponent(args.query)}`
-    const publicRes = await fetch(publicUrl)
-    
-    if (!publicRes.ok) {
-      throw new Error(`KFA API returned ${publicRes.status}`)
+    const domainHost = 'kfa.kemkes.go.id'
+    const publicUrl = `https://${domainHost}/api/v1/products/all?product_type=obat&name=${encodeURIComponent(args.query)}`
+    let publicRes = await fetch(publicUrl, {
+      headers: {
+        Host: domainHost,
+        Accept: 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    }).catch((err) => {
+      console.warn('[item.searchKfa] Public KFA fetch error (domain), will try IP fallback:', err)
+      return null as unknown as Response
+    })
+ 
+    if (!publicRes || !publicRes.ok) {
+      const fallbackIp = '103.73.77.171'
+      const ipUrl = `https://${fallbackIp}/api/v1/products/all?product_type=obat&name=${encodeURIComponent(args.query)}`
+      publicRes = await fetch(ipUrl, {
+        headers: {
+          Host: domainHost,
+          Accept: 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      }).catch((err) => {
+        console.error('[item.searchKfa] Public KFA fetch error (IP fallback):', err)
+        return null as unknown as Response
+      })
+      if (!publicRes || !publicRes.ok) {
+        throw new Error(`KFA API returned ${publicRes ? publicRes.status : 'unknown error'}`)
+      }
     }
 
     const data = await publicRes.json()
     
     // Transformasi data dari API publik KFA ke format yang kita inginkan
-    const rawData = data.result?.data || data.data || data.result || []
-    const results = (Array.isArray(rawData) ? rawData : [rawData]).map((item: any) => ({
-      kode: item.kfa_code || item.code || item.identifier || '',
-      nama: item.item_name || item.name || item.display_name || item.display || '',
-      kategori: item.product_type || item.farmalkes_type?.name || 'Obat'
-    })).filter((i: any) => i.kode && i.nama)
-
-    return { 
-      success: true, 
-      result: results 
+    type KfaRaw = {
+      kfa_code?: string
+      code?: string
+      identifier?: string
+      item_name?: string
+      name?: string
+      display_name?: string
+      display?: string
+      product_type?: string
+      farmalkes_type?: { name?: string }
     }
+    const rawData = (data as { result?: { data?: KfaRaw[] } } | { data?: KfaRaw[] } | KfaRaw[])
+    const rawArr: KfaRaw[] =
+      (rawData as any)?.result?.data || (rawData as any)?.data || (rawData as any)?.result || []
+    const source: KfaRaw[] = Array.isArray(rawArr) ? rawArr : [rawArr]
+    const results = source
+      .map((item) => ({
+        kode: item.kfa_code || item.code || item.identifier || '',
+        nama: item.item_name || item.name || item.display_name || item.display || '',
+        kategori: item.product_type || item.farmalkes_type?.name || 'Obat'
+      }))
+      .filter((i) => i.kode.length > 0 && i.nama.length > 0)
 
     return { 
       success: true, 

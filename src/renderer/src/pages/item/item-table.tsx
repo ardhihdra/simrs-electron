@@ -4,7 +4,8 @@ import {
   HistoryOutlined,
   MoreOutlined,
   PlusOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SyncOutlined
 } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { queryClient } from '@renderer/query-client'
@@ -152,6 +153,7 @@ interface ItemUpdatePayload {
   nama: string
   kode: string
   kodeUnit: string
+  kfaCode?: string | null
   kind?: ItemKind | null
   minimumStock?: number | null
 }
@@ -225,6 +227,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
   const api = (window.api?.query as { item?: ItemApi }).item
   const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
     .inventoryStock
+  const [updatingKfa, setUpdatingKfa] = useState(false)
 
 	const updateStockAndMinimumStockMutation = useMutation({
     mutationKey: ['item', 'update', 'stock-and-minimumStock', record.id],
@@ -320,6 +323,38 @@ function RowActions({ record }: { record: ItemAttributes }) {
       icon: <EditOutlined />,
       onClick: () => {
         if (typeof record.id === 'number') navigate(`/dashboard/medicine/items/edit/${record.id}`)
+      }
+    },
+    {
+      key: 'sync-kfa',
+      label: updatingKfa ? 'Sinkronisasi KFA...' : 'Sinkronisasi KFA',
+      icon: <SyncOutlined />,
+      disabled: updatingKfa,
+      onClick: async () => {
+        if (!api?.searchKfa || !api?.update) return
+        setUpdatingKfa(true)
+        try {
+          const res = await api.searchKfa({ query: record.nama })
+          const items = Array.isArray(res?.result) ? res.result : []
+          const first = items.length > 0 ? items[0] : null
+          if (first && typeof record.id === 'number') {
+            await api.update({
+              id: record.id,
+              nama: record.nama,
+              kode: record.kode,
+              kodeUnit: record.kodeUnit,
+              kfaCode: first.kode
+            })
+            message.success('Kode KFA diperbarui')
+            queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
+          } else {
+            message.info('Data KFA tidak ditemukan')
+          }
+        } catch (err) {
+          message.error('Sinkronisasi KFA gagal')
+        } finally {
+          setUpdatingKfa(false)
+        }
       }
     },
     {
