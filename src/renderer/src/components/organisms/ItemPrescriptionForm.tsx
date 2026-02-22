@@ -15,7 +15,7 @@ export const ItemPrescriptionForm = ({ itemOptions, loading }: ItemPrescriptionF
             {fields.map(({ key, name, ...restField }) => (
               <div
                 key={`item-${key}`}
-                className="flex gap-4 items-start bg-gray-50 p-4 rounded-lg relative group border border-gray-200"
+                className="flex gap-4 items-start  p-4 rounded-lg relative group border border-white/10"
               >
                 <div className="flex-1 space-y-2">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

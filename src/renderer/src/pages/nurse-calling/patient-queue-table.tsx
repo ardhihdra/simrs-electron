@@ -89,6 +89,7 @@ const PatientQueueTable = () => {
         key: enc.id,
         id: enc.id,
         encounterId: enc.id,
+        queueNumber: enc.queueTicket?.queueNumber || 0,
         patient: {
           id: enc.patient?.id || '',
           name: enc.patient?.name || 'Unknown',
@@ -186,9 +187,9 @@ const PatientQueueTable = () => {
       title: 'No',
       dataIndex: 'no',
       key: 'no',
-      width: 120,
+      width: 100,
       align: 'center',
-      render: (num: number) => <div className="text-2xl font-bold text-blue-600">{num}</div>
+      render: (num: number) => <div className="text-xl font-bold text-blue-600">{num}</div>
     },
     {
       title: 'No. Rekam Medis',
@@ -200,11 +201,11 @@ const PatientQueueTable = () => {
       title: 'Nama Pasien',
       dataIndex: ['patient', 'name'],
       key: 'patientName',
-      width: 200,
+      width: 250,
       render: (name: string, record) => (
         <div>
-          <div className="font-medium">{name}</div>
-          <div className="text-xs text-gray-500">
+          <div className="font-medium text-base">{name}</div>
+          <div className="text-xs ">
             {record.patient.gender === 'MALE' ? 'Laki-laki' : 'Perempuan'}, {record.patient.age}{' '}
             tahun
           </div>
@@ -215,7 +216,18 @@ const PatientQueueTable = () => {
       title: 'Poli',
       dataIndex: ['poli', 'name'],
       key: 'poli',
-      width: 150
+      width: 150,
+      render: (text: string) => {
+        if (!text) return '-'
+        if (text === 'RAWAT_INAP') return 'Rawat Inap'
+        if (text === 'RAWAT_JALAN') return 'Rawat Jalan'
+        if (text === 'IGD') return 'IGD'
+        return text
+          .toLowerCase()
+          .replace(/_/g, ' ')
+          .replace(/\b\w/g, (l) => l.toUpperCase())
+          .replace(/\bIgd\b/i, 'IGD')
+      }
     },
     {
       title: 'Jenis',
@@ -254,8 +266,9 @@ const PatientQueueTable = () => {
     {
       title: 'Aksi',
       key: 'action',
-      width: 150,
+      width: 100,
       align: 'center',
+      fixed: 'right',
       render: (_, record) => {
         return (
           <Button
@@ -263,6 +276,7 @@ const PatientQueueTable = () => {
             icon={<PhoneOutlined />}
             onClick={() => handleCallPatient(record)}
             loading={calling === record.id}
+            size="small"
           >
             Panggil
           </Button>
@@ -286,17 +300,15 @@ const PatientQueueTable = () => {
           {/* Header Manual */}
           <div className="flex justify-between items-start mb-2">
             <div className="flex flex-col">
-              <h1 className="text-2xl font-bold text-gray-800 mb-0">
-                Antrian & Pemanggilan Pasien
-              </h1>
-              <p className="text-sm text-gray-500 m-0">
+              <h1 className="text-2xl font-bold  mb-0">Antrian & Pemanggilan Pasien</h1>
+              <p className="text-sm  m-0">
                 Manajemen antrian dan proses pemanggilan pasien ke ruang periksa
               </p>
             </div>
 
             <Space size="large" align="center">
               <div className="flex flex-col items-end">
-                <span className="text-[10px] text-gray-400 uppercase tracking-wider font-bold">
+                <span className="text-[10px] uppercase tracking-wider font-bold">
                   Terakhir Sinkron
                 </span>
                 <span className="text-xs font-mono text-gray-600">
@@ -318,9 +330,7 @@ const PatientQueueTable = () => {
 
           <Row gutter={[24, 16]} align="bottom">
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
-                Cari Pasien
-              </div>
+              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">Cari Pasien</div>
               <Input
                 placeholder="Nama Pasien / No. Rekam Medis"
                 prefix={<SearchOutlined className="text-gray-400" />}
@@ -332,7 +342,7 @@ const PatientQueueTable = () => {
               />
             </Col>
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">
                 Unit Pelayanan (Poli)
               </div>
               <Select
@@ -351,7 +361,7 @@ const PatientQueueTable = () => {
               </Select>
             </Col>
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1.5 uppercase tracking-tight">
+              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">
                 Periode Kunjungan
               </div>
               <RangePicker

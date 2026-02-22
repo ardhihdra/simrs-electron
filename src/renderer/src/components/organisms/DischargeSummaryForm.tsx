@@ -1,10 +1,23 @@
-import { App, Button, Card, Col, Form, Input, Row, Typography, Space, Radio, Modal } from 'antd'
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  Row,
+  Typography,
+  Radio,
+  Modal,
+  Select,
+  Table,
+  Tag
+} from 'antd'
 import {
   SaveOutlined,
   PrinterOutlined,
   EditOutlined,
   ClearOutlined,
-  SkinOutlined,
   HistoryOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -18,114 +31,15 @@ import { BodyMappingLetter } from './BodyMappingLetter'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { Divider } from 'antd'
+import {
+  useUpsertComposition,
+  useCompositionByEncounter
+} from '@renderer/hooks/query/use-composition'
+import { SECTION_TEMPLATES } from '@renderer/utils/section-templates'
+import { SignaturePadModal } from '../molecules/SignaturePadModal'
 
-const { Text, Paragraph } = Typography
+const { Text } = Typography
 const { TextArea } = Input
-
-interface SignatureModalProps {
-  title: string
-  visible: boolean
-  onClose: () => void
-  onSave: (dataUrl: string) => void
-}
-
-const SignaturePadModal = ({ title, visible, onClose, onSave }: SignatureModalProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [isDrawing, setIsDrawing] = useState(false)
-
-  useEffect(() => {
-    if (visible && canvasRef.current) {
-      const canvas = canvasRef.current
-      const ctx = canvas.getContext('2d')
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height)
-        ctx.strokeStyle = '#000'
-        ctx.lineWidth = 2
-        ctx.lineCap = 'round'
-      }
-    }
-  }, [visible])
-
-  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
-    setIsDrawing(true)
-    draw(e)
-  }
-
-  const stopDrawing = () => {
-    setIsDrawing(false)
-    const ctx = canvasRef.current?.getContext('2d')
-    ctx?.beginPath()
-  }
-
-  const draw = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDrawing || !canvasRef.current) return
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    const rect = canvas.getBoundingClientRect()
-    let x, y
-    if ('touches' in e) {
-      x = e.touches[0].clientX - rect.left
-      y = e.touches[0].clientY - rect.top
-    } else {
-      x = e.clientX - rect.left
-      y = e.clientY - rect.top
-    }
-
-    ctx.lineTo(x, y)
-    ctx.stroke()
-    ctx.beginPath()
-    ctx.moveTo(x, y)
-  }
-
-  const clear = () => {
-    const canvas = canvasRef.current
-    if (canvas) {
-      const ctx = canvas.getContext('2d')
-      ctx?.clearRect(0, 0, canvas.width, canvas.height)
-    }
-  }
-
-  const handleSave = () => {
-    const canvas = canvasRef.current
-    if (canvas) {
-      onSave(canvas.toDataURL())
-      onClose()
-    }
-  }
-
-  return (
-    <Modal
-      title={`Tanda Tangan: ${title}`}
-      open={visible}
-      onCancel={onClose}
-      onOk={handleSave}
-      okText="Simpan"
-      cancelText="Batal"
-      width={440}
-    >
-      <div className="border border-gray-300 rounded mb-2 bg-white shadow-inner">
-        <canvas
-          ref={canvasRef}
-          width={400}
-          height={200}
-          onMouseDown={startDrawing}
-          onMouseUp={stopDrawing}
-          onMouseMove={draw}
-          onMouseOut={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchEnd={stopDrawing}
-          onTouchMove={draw}
-          className="cursor-crosshair w-full"
-        />
-      </div>
-      <Button icon={<ClearOutlined />} size="small" onClick={clear}>
-        Bersihkan
-      </Button>
-    </Modal>
-  )
-}
 
 interface DischargeSummaryFormProps {
   encounterId: string
@@ -137,7 +51,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
   const [form] = Form.useForm()
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
-  // Body Mapping State
   const [activeView, setActiveView] = useState('front')
   const [drawingData, setDrawingData] = useState<Record<string, string>>({
     front: '',
@@ -151,7 +64,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
   const [sigModal, setSigModal] = useState({ visible: false, title: '' })
   const [doctorSig, setDoctorSig] = useState('')
 
-  // Mapping View to Image Source
   const viewMap: Record<string, string> = {
     front: bodyFront,
     back: bodyBack,
@@ -164,11 +76,10 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
     if (canvas) {
       const ctx = canvas.getContext('2d')
       if (ctx) {
-        ctx.strokeStyle = '#ff0000' // Red for clinical notes
+        ctx.strokeStyle = '#ff0000'
         ctx.lineWidth = 3
         ctx.lineCap = 'round'
 
-        // Restore drawing if exists
         if (drawingData[activeView]) {
           const img = new Image()
           img.src = drawingData[activeView]
@@ -193,7 +104,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
     const ctx = canvasRef.current?.getContext('2d')
     ctx?.beginPath()
 
-    // Auto-save to state
     if (canvasRef.current) {
       setDrawingData((prev) => ({
         ...prev,
@@ -253,24 +163,188 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
     setIsPreviewVisible(true)
   }
 
-  const handleFinish = (values: any) => {
-    const performer = performersData?.find((p: any) => p.id === values.performerId)
-    const finalData = {
-      ...values,
-      bodyMapping: drawingData,
-      doctorSignature: doctorSig,
-      encounterId,
-      report_date: values.assessment_date,
-      doctor_name: performer?.name || '',
-      performerId: values.performerId
+  const { mutate: saveComposition, isPending: isSaving } = useUpsertComposition()
+
+  const { data: compositionData, isLoading: isLoadingHistory } =
+    useCompositionByEncounter(encounterId)
+  const [isHistoryModalVisible, setIsHistoryModalVisible] = useState(false)
+
+  const historyData = (compositionData?.result || []).filter(
+    (comp: any) => comp.title === 'Resume Medis Tubuh'
+  )
+
+  const columns = [
+    {
+      title: 'Tanggal',
+      dataIndex: 'date',
+      key: 'date',
+      render: (date: string) => dayjs(date).format('DD/MM/YYYY HH:mm')
+    },
+    {
+      title: 'Dokter',
+      key: 'author',
+      render: (_: any, record: any) => record.author?.namaLengkap || record.authorName || '-'
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => (
+        <Tag color={status === 'final' ? 'green' : 'orange'}>{status.toUpperCase()}</Tag>
+      )
+    },
+    {
+      title: 'Aksi',
+      key: 'action',
+      render: (_: any, record: any) => (
+        <Button
+          size="small"
+          onClick={() => {
+            const performer = performersData?.find((p: any) => p.id === record.authorId?.[0])
+
+            setFormDataForPrint({
+              ...record,
+              clinical_description: record.soapSubjective,
+              additional_notes: record.soapPlan,
+              report_date: dayjs(record.date),
+              doctor_name: performer?.name || record.author?.namaLengkap || ''
+            })
+            setIsPreviewVisible(true)
+          }}
+        >
+          Lihat
+        </Button>
+      )
     }
-    console.log('Body Resume Data Saved:', finalData)
-    message.success('Resume Medis Tubuh berhasil disimpan')
+  ]
+
+  const handleFinish = (values: any) => {
+    const commonSectionData = {
+      author: [String(values.performerId)],
+      focus: {
+        reference: `Patient/${patientData?.patient?.id}`,
+        display: patientData?.patient?.name
+      },
+      mode: 'working',
+      entry: [],
+      emptyReason: null,
+      orderedBy: null
+    }
+
+    const sections: any[] = []
+
+    if (Object.values(drawingData).some((v) => v)) {
+      const visualDiv = `
+        <div xmlns="http://www.w3.org/1999/xhtml">
+          <h3>Anotasi Visual Tubuh</h3>
+          <p>Temuan visual pada diagram tubuh:</p>
+          ${Object.entries(drawingData)
+            .map(([view, data]) =>
+              data
+                ? `<div><strong>${view.toUpperCase()}</strong>:<br/><img src="${data}" alt="${view}" style="max-width:300px;"/></div>`
+                : ''
+            )
+            .join('')}
+        </div>
+      `
+
+      sections.push({
+        title: 'Anotasi Visual (Body Mapping)',
+        code: {
+          coding: [
+            {
+              system: 'http://loinc.org',
+              code: '55107-7',
+              display: 'Physical findings of Body structure'
+            }
+          ]
+        },
+        text: {
+          status: 'generated',
+          div: visualDiv
+        },
+        ...commonSectionData
+      })
+    }
+
+    if (values.dynamic_sections && values.dynamic_sections.length > 0) {
+      values.dynamic_sections.forEach((sec: any) => {
+        sections.push({
+          title: sec.title,
+          code: {
+            coding: [
+              {
+                system: sec.code_system || 'http://loinc.org',
+                code: sec.code_code,
+                display: sec.code_display
+              }
+            ]
+          },
+          text: {
+            status: 'generated',
+            div: `<div xmlns="http://www.w3.org/1999/xhtml">${sec.text_content?.replace(/\n/g, '<br/>')}</div>`
+          },
+          ...commonSectionData,
+          mode: sec.mode || 'working'
+        })
+      })
+    }
+
+    const payload = {
+      encounterId,
+      patientId: patientData?.patient?.id,
+      doctorId: Number(values.performerId),
+      title: 'Resume Medis Tubuh',
+      type: {
+        coding: [
+          {
+            system: 'http://loinc.org',
+            code: '18842-5',
+            display: 'Discharge summary'
+          }
+        ]
+      },
+      category: [
+        {
+          coding: [
+            {
+              system: 'http://loinc.org',
+              code: 'LP173421-1',
+              display: 'Report'
+            }
+          ]
+        }
+      ],
+      date: values.assessment_date?.toISOString(),
+      status: 'final',
+      section: sections,
+      soapSubjective: values.clinical_description,
+      soapPlan: values.additional_notes
+    }
+
+    saveComposition(payload, {
+      onSuccess: () => {
+        message.success('Resume Medis Tubuh berhasil disimpan ke database')
+      },
+      onError: (err: any) => {
+        message.error(`Gagal menyimpan: ${err.message}`)
+      }
+    })
   }
 
   return (
     <div className="flex flex-col gap-4">
-      <Card title="Resume Medis Tubuh" className=" border-none">
+      <Card
+        title={
+          <div className="flex justify-between items-center">
+            <span className="font-semibold text-lg">Resume Medis Tubuh</span>
+            <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalVisible(true)}>
+              Riwayat ({historyData.length})
+            </Button>
+          </div>
+        }
+        className=" border-none"
+      >
         <Row gutter={16}>
           <Col span={10}>
             <Card title="Anotasi Visual" className=" h-full overflow-hidden" size="small">
@@ -301,7 +375,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
                   className="relative bg-white border border-gray-200 rounded-xl overflow-hidden shadow-inner cursor-crosshair"
                   style={{ width: '320px', height: '480px' }}
                 >
-                  {/* Body Map Sprite Background */}
                   <div
                     style={{
                       position: 'absolute',
@@ -317,7 +390,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
                     }}
                   />
 
-                  {/* Drawing Layer */}
                   <canvas
                     ref={canvasRef}
                     width={320}
@@ -388,17 +460,128 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
                 </Form.Item>
               </Card>
 
-              <Card
-                title="Verifikasi Dokter"
-                className=""
-                size="small"
-                headStyle={{ background: '#f8fafc' }}
-              >
-                <div className="flex flex-col items-center p-2 bg-white rounded border border-dashed border-gray-200">
+              <Card title="Bagian Tambahan (Sections)" size="small">
+                <Form.List name="dynamic_sections">
+                  {(fields, { add, remove }) => (
+                    <div className="flex flex-col gap-4">
+                      {fields.map(({ key, name, ...restField }) => (
+                        <Card
+                          key={key}
+                          size="small"
+                          type="inner"
+                          title={`Bagian #${name + 1}`}
+                          extra={
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              onClick={() => remove(name)}
+                              icon={<ClearOutlined />}
+                            >
+                              Hapus
+                            </Button>
+                          }
+                        >
+                          <Row gutter={12}>
+                            <Col span={24}>
+                              <Form.Item
+                                {...restField}
+                                name={[name, 'template_index']}
+                                label="Jenis Bagian"
+                                rules={[{ required: true, message: 'Pilih jenis bagian' }]}
+                              >
+                                <Select
+                                  placeholder="Pilih Jenis Bagian"
+                                  onChange={(idx) => {
+                                    const template = SECTION_TEMPLATES[idx]
+                                    if (template) {
+                                      const titlePath = ['dynamic_sections', name, 'title']
+                                      const codePath = ['dynamic_sections', name, 'code_code']
+                                      const displayPath = ['dynamic_sections', name, 'code_display']
+                                      const systemPath = ['dynamic_sections', name, 'code_system']
+
+                                      form.setFieldValue(titlePath, template.title)
+                                      form.setFieldValue(codePath, template.code)
+                                      form.setFieldValue(displayPath, template.display)
+                                      form.setFieldValue(systemPath, template.system)
+                                    }
+                                  }}
+                                >
+                                  {SECTION_TEMPLATES.map((t, idx) => (
+                                    <Select.Option key={idx} value={idx}>
+                                      {t.label}
+                                    </Select.Option>
+                                  ))}
+                                </Select>
+                              </Form.Item>
+                            </Col>
+                            <Col span={24}>
+                              <Form.Item
+                                {...restField}
+                                name={[name, 'title']}
+                                label="Judul Bagian"
+                                rules={[{ required: true, message: 'Judul wajib diisi' }]}
+                              >
+                                <Input placeholder="Judul Bagian" />
+                              </Form.Item>
+                            </Col>
+
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'code_system']}
+                              hidden
+                              initialValue="http://loinc.org"
+                            >
+                              <Input />
+                            </Form.Item>
+                            <Form.Item {...restField} name={[name, 'code_code']} hidden>
+                              <Input />
+                            </Form.Item>
+                            <Form.Item {...restField} name={[name, 'code_display']} hidden>
+                              <Input />
+                            </Form.Item>
+
+                            <Col span={24}>
+                              <Form.Item
+                                {...restField}
+                                name={[name, 'text_content']}
+                                label="Isi Narasi"
+                                rules={[{ required: true, message: 'Narasi wajib diisi' }]}
+                              >
+                                <TextArea rows={4} placeholder="Tuliskan narasi klinis disini..." />
+                              </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                              <Form.Item
+                                {...restField}
+                                name={[name, 'mode']}
+                                label="Mode"
+                                initialValue="working"
+                              >
+                                <Select>
+                                  <Select.Option value="working">Working</Select.Option>
+                                  <Select.Option value="snapshot">Snapshot</Select.Option>
+                                  <Select.Option value="changes">Changes</Select.Option>
+                                </Select>
+                              </Form.Item>
+                            </Col>
+                          </Row>
+                        </Card>
+                      ))}
+                      <Button type="dashed" onClick={() => add()} block icon={<EditOutlined />}>
+                        Tambah Bagian Baru
+                      </Button>
+                    </div>
+                  )}
+                </Form.List>
+              </Card>
+
+              <Card title="Verifikasi Dokter" className="" size="small">
+                <div className="flex flex-col items-center p-2 rounded border border-dashed border-white/20">
                   <Text strong className="text-[10px] text-gray-400 uppercase mb-2">
                     Tanda Tangan Elektronik
                   </Text>
-                  <div className="w-full h-24 bg-gray-50 flex items-center justify-center mb-3 rounded shadow-inner overflow-hidden border border-gray-100">
+                  <div className="w-full h-32 bg-gray-50 flex items-center justify-center mb-3 rounded-md overflow-hidden border border-white/10">
                     {doctorSig ? (
                       <img src={doctorSig} alt="Doctor Sig" className="max-h-full" />
                     ) : (
@@ -437,6 +620,7 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
             icon={<SaveOutlined />}
             className="px-12 h-12 rounded-xl shadow-lg bg-indigo-600 hover:bg-indigo-700"
             onClick={() => form.submit()}
+            loading={isSaving}
           >
             Simpan Resume Medis Tubuh
           </Button>
@@ -448,6 +632,26 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
           onClose={() => setSigModal({ ...sigModal, visible: false })}
           onSave={(url) => setDoctorSig(url)}
         />
+
+        <Modal
+          title="Riwayat Resume Medis Tubuh"
+          open={isHistoryModalVisible}
+          onCancel={() => setIsHistoryModalVisible(false)}
+          width={900}
+          footer={[
+            <Button key="close" onClick={() => setIsHistoryModalVisible(false)}>
+              Tutup
+            </Button>
+          ]}
+        >
+          <Table
+            dataSource={historyData}
+            columns={columns}
+            rowKey="id"
+            pagination={{ pageSize: 5 }}
+            loading={isLoadingHistory}
+          />
+        </Modal>
 
         <Modal
           title="Preview Cetak Resume Medis Tubuh"
@@ -476,14 +680,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
           </div>
         </Modal>
       </Card>
-
-      <style>{`
-        .ant-radio-button-wrapper-checked {
-          background: #4f46e5 !important;
-          border-color: #4f46e5 !important;
-          color: white !important;
-        }
-      `}</style>
     </div>
   )
 }

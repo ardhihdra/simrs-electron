@@ -36,7 +36,7 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
     return (
       <div
         ref={ref}
-        className="bg-white p-8 md:p-12 max-w-[210mm] mx-auto text-black text-sm print:p-0"
+        className="bg-white p-8 md:p-12 max-w-[210mm] mx-auto text-black! text-sm print:p-0"
         style={{ fontFamily: 'Times New Roman, serif' }}
       >
         <div className="flex items-center justify-between border-b-4 border-double border-gray-400 pb-4 mb-6">
@@ -44,27 +44,29 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
             Logo RS
           </div>
           <div className="text-center flex-1 px-4">
-            <Title level={4} className="uppercase mb-0 tracking-wider">
+            <Title level={4} className="uppercase mb-0 tracking-wider text-black!">
               Rumah Sakit Rahayu Sentosa
             </Title>
-            <Text className="text-xs">
+            <Text className="text-xs text-black!">
               Cigagade, Kec. Balubur Limbangan, Kabupaten Garut, Jawa Barat 44186
             </Text>
             <br />
-            <Text className="text-xs">Telp: (021) 123-4567 | Email: info@rs-rahayusentosa.com</Text>
+            <Text className="text-xs text-black!">
+              Telp: (021) 123-4567 | Email: info@rs-rahayusentosa.com
+            </Text>
           </div>
           <div className="w-20"></div>
         </div>
 
         <div className="text-center mb-6">
-          <Title level={4} className="underline uppercase mb-1">
+          <Title level={4} className="underline uppercase mb-1 text-black!">
             Persetujuan Tindakan Kedokteran (Informed Consent)
           </Title>
         </div>
 
         <div className="grid grid-cols-2 gap-8 mb-6 border p-4 rounded bg-gray-50/20">
           <div>
-            <Text strong className="block mb-2 border-b">
+            <Text strong className="block mb-2 border-b text-black!">
               1. PEMBERIAN INFORMASI
             </Text>
             <table className="w-full text-xs">
@@ -85,7 +87,7 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
             </table>
           </div>
           <div>
-            <Text strong className="block mb-2 border-b">
+            <Text strong className="block mb-2 border-b text-black!">
               2. PENERIMA INFORMASI
             </Text>
             <table className="w-full text-xs">
@@ -108,7 +110,7 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
         </div>
 
         <div className="mb-6">
-          <Text strong className="block mb-2">
+          <Text strong className="block mb-2 text-black!">
             3. JENIS INFORMASI (MATERI EDUKASI)
           </Text>
           <table className="w-full border-collapse border border-gray-400 text-xs">
@@ -136,20 +138,20 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
         </div>
 
         <div className="mb-6 border border-gray-400 p-3 rounded">
-          <Paragraph className="mb-2 italic">
+          <Paragraph className="mb-2 italic text-black!">
             &quot;Dengan ini saya menyatakan bahwa saya telah memberikan informasi di atas secara
             jujur dan lengkap kepada pasien/wali.&quot;
           </Paragraph>
-          <Paragraph className="mb-0 italic border-t pt-2">
+          <Paragraph className="mb-0 italic border-t pt-2 text-black!">
             &quot;Dengan ini saya menyatakan bahwa saya telah menerima informasi, memahami
             sepenuhnya, dan telah diberikan kesempatan bertanya.&quot;
           </Paragraph>
         </div>
 
-        <div className="mb-10 text-center border border-gray-300 p-3 bg-gray-50 uppercase font-bold text-base">
+        <div className="mb-10 text-center border border-gray-300 p-3 bg-gray-50 uppercase font-bold text-base text-black!">
           SAYA {data.consent_type === 'agree' ? 'SETUJU (MENYETUJUI)' : 'TIDAK SETUJU (MENOLAK)'}{' '}
           DILAKUKAN TINDAKAN TERSEBUT
-          <div className="text-xs font-normal normal-case mt-1">
+          <div className="text-xs font-normal normal-case mt-1 text-black!">
             Terhadap diri saya sendiri / Istri / Suami / Anak / Ayah / Ibu saya dengan Nama{' '}
             <b>{patient.name}</b>, Lahir pada tanggal{' '}
             <b>{dayjs(patient.birthDate).format('DD MMM YYYY')}</b>.
@@ -158,7 +160,7 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
 
         <div className="grid grid-cols-2 gap-y-12 mb-8">
           <div className="text-center">
-            <Text className="block mb-2">Dokter Pelaksana Tindakan</Text>
+            <Text className="block mb-2 text-black!">Dokter Pelaksana Tindakan</Text>
             <div className="h-24 flex items-center justify-center">
               {signatures.doctor ? (
                 <img src={signatures.doctor} className="h-20" />
@@ -168,10 +170,12 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
                 </div>
               )}
             </div>
-            <Text className="block font-bold underline">( {data.doctor_executor} )</Text>
+            <Text className="block font-bold underline text-black!">
+              ( {data.doctor_executor} )
+            </Text>
           </div>
           <div className="text-center">
-            <Text className="block mb-2">Yang Membuat Pernyataan</Text>
+            <Text className="block mb-2 text-black!">Yang Membuat Pernyataan</Text>
             <div className="h-24 flex items-center justify-center">
               {signatures.receiver ? (
                 <img src={signatures.receiver} className="h-20" />
@@ -181,10 +185,10 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
                 </div>
               )}
             </div>
-            <Text className="block font-bold underline">( {data.receiver_name} )</Text>
+            <Text className="block font-bold underline text-black!">( {data.receiver_name} )</Text>
           </div>
           <div className="text-center">
-            <Text className="block mb-2">Saksi 1 (Keluarga)</Text>
+            <Text className="block mb-2 text-black!">Saksi 1 (Keluarga)</Text>
             <div className="h-24 flex items-center justify-center">
               {signatures.witness1 ? (
                 <img src={signatures.witness1} className="h-20" />
@@ -194,12 +198,12 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
                 </div>
               )}
             </div>
-            <Text className="block font-bold underline">
+            <Text className="block font-bold underline text-black!">
               ( {data.witness1_name || '....................'} )
             </Text>
           </div>
           <div className="text-center">
-            <Text className="block mb-2">Saksi 2 (Paramedis/RS)</Text>
+            <Text className="block mb-2 text-black!">Saksi 2 (Paramedis/RS)</Text>
             <div className="h-24 flex items-center justify-center">
               {signatures.witness2 ? (
                 <img src={signatures.witness2} className="h-20" />
@@ -209,7 +213,7 @@ export const InformedConsentLetter = forwardRef<HTMLDivElement, InformedConsentL
                 </div>
               )}
             </div>
-            <Text className="block font-bold underline">
+            <Text className="block font-bold underline text-black!">
               ( {data.witness2_name || '....................'} )
             </Text>
           </div>

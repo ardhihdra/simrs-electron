@@ -403,9 +403,9 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           layout="vertical"
           onFinish={handleSubmitPrescription}
           initialValues={{ assessment_date: dayjs() }}
+          className="space-y-4!"
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-
           <Tabs defaultActiveKey="1" type="card" className="mt-4">
             <TabPane tab="Obat & Barang" key="1">
               <ItemPrescriptionForm itemOptions={itemOptions} loading={rawMaterialLoading} />

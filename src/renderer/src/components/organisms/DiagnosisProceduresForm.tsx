@@ -475,7 +475,7 @@ export const DiagnosisProceduresForm = ({
         </Card>
 
         <Form.Item className="mb-0">
-          <div className="flex justify-end pt-4 border-t border-gray-200">
+          <div className="flex justify-end pt-4 ">
             <Button
               type="primary"
               htmlType="submit"

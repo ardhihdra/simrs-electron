@@ -11,6 +11,10 @@ import {
 import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssessmentHeader'
 import { createObservationBatch, OBSERVATION_CATEGORIES } from '@renderer/utils/observation-builder'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+import {
+  useBodyMarkerByEncounter,
+  useBulkCreateBodyMarker
+} from '@renderer/hooks/query/use-body-marker'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -48,6 +52,10 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
   const { data: response, isLoading } = useObservationByEncounter(encounterId)
   const observationData = useMemo(() => response?.result?.all || [], [response])
 
+  const { data: bodyMarkerData, isLoading: isLoadingBodyMarker } =
+    useBodyMarkerByEncounter(encounterId)
+  const bulkCreateBodyMarker = useBulkCreateBodyMarker()
+
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'
@@ -73,7 +81,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       }
       const updatedMarkers = [...markers, newMarker]
       setMarkers(updatedMarkers)
-      updateFormNotes(updatedMarkers)
+
       setIsModalOpen(false)
       message.success('Penanda ditambahkan')
     } else {
@@ -84,18 +92,6 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
   const removeMarker = (id: number) => {
     const updatedMarkers = markers.filter((m) => m.id !== id)
     setMarkers(updatedMarkers)
-    updateFormNotes(updatedMarkers)
-  }
-
-  const updateFormNotes = (currentMarkers: BodyMarker[]) => {
-    const summary = currentMarkers.map((m, i) => `[${i + 1}] ${m.note}`).join('\n')
-    const currentNote = form.getFieldValue(['physicalExamination', 'additionalNotes']) || ''
-    form.setFieldValue(
-      ['physicalExamination', 'additionalNotes'],
-      currentNote
-        ? `${currentNote}\n\nTemuan Body Map:\n${summary}`
-        : `Temuan Body Map:\n${summary}`
-    )
   }
 
   const handleFinish = async (values: any) => {
@@ -114,7 +110,6 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       const obsToCreate: any[] = []
       const assessmentDate = values.assessment_date || dayjs()
 
-      // 1. General Condition
       if (values.physicalExamination?.generalCondition) {
         obsToCreate.push({
           category: OBSERVATION_CATEGORIES.EXAM,
@@ -123,7 +118,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
           valueString: values.physicalExamination.generalCondition
         })
       }
-      // 2. Notes
+
       if (values.physicalExamination?.additionalNotes) {
         obsToCreate.push({
           category: OBSERVATION_CATEGORIES.EXAM,
@@ -133,7 +128,6 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
         })
       }
 
-      // 3. Head to Toe
       Object.entries(HEAD_TO_TOE_MAP).forEach(([key, label]) => {
         const textValue = values[key]
         const isNormal = values[`${key}_NORMAL`]
@@ -169,6 +163,18 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
           performerName: performerName
         })
 
+        if (markers.length > 0) {
+          await bulkCreateBodyMarker.mutateAsync({
+            encounterId,
+            markers: markers.map((m) => ({
+              x: m.x,
+              y: m.y,
+              note: m.note
+            })),
+            createdBy: Number(values.performerId)
+          })
+        }
+
         message.success('Pemeriksaan fisik berhasil disimpan')
         form.resetFields(['assessment_date', 'performerId'])
         form.setFieldValue('assessment_date', dayjs())
@@ -194,7 +200,6 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
         physicalExamination: {}
       }
 
-      // 1. General Condition & Notes
       const generalCond = sortedObs.find((obs: any) =>
         obs.codeCoding?.some((c: any) => c.code === 'general-condition')
       )
@@ -205,7 +210,6 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       )
       if (notesObs) initialValues.physicalExamination.additionalNotes = notesObs.valueString
 
-      // 2. Head to Toe
       Object.keys(HEAD_TO_TOE_MAP).forEach((key) => {
         const found = sortedObs.find((obs: any) =>
           obs.codeCoding?.some((coding: any) => coding.code === key)
@@ -223,6 +227,18 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       form.setFieldsValue(initialValues)
     }
   }, [observationData, form])
+
+  useEffect(() => {
+    if (bodyMarkerData?.result && Array.isArray(bodyMarkerData.result)) {
+      const loadedMarkers = bodyMarkerData.result.map((m: any) => ({
+        id: m.id,
+        x: m.x,
+        y: m.y,
+        note: m.note
+      }))
+      setMarkers(loadedMarkers)
+    }
+  }, [bodyMarkerData])
 
   if (isLoading)
     return (
@@ -343,7 +359,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
           </Card>
         </Form>
       </div>
-      <div className="flex justify-end pt-4! border-t border-gray-200 mt-auto">
+      <div className="flex justify-end pt-4! border-t border-white/10 mt-auto">
         <Button
           type="primary"
           icon={<SaveOutlined />}

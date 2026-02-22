@@ -185,11 +185,27 @@ const items = [
     icon: <WalletOutlined />,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
-      { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <FileAddOutlined /> },
-      { label: 'Penyerahan Obat ', key: '/dashboard/medicine/medication-dispenses', icon: <MedicineBoxOutlined /> },
-      { label: 'Kategori Item', key: '/dashboard/medicine/medicine-categories', icon: <UnorderedListOutlined /> },
+      {
+        label: 'Permintaan Obat (Resep)',
+        key: '/dashboard/medicine/medication-requests',
+        icon: <FileAddOutlined />
+      },
+      {
+        label: 'Penyerahan Obat ',
+        key: '/dashboard/medicine/medication-dispenses',
+        icon: <MedicineBoxOutlined />
+      },
+      {
+        label: 'Kategori Item',
+        key: '/dashboard/medicine/medicine-categories',
+        icon: <UnorderedListOutlined />
+      },
       { label: 'Obat dan Barang', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
-      { label: 'Transaksi Penjualan Barang', key: '/dashboard/medicine/item-purchase', icon: <WalletOutlined /> },
+      {
+        label: 'Transaksi Penjualan Barang',
+        key: '/dashboard/medicine/item-purchase',
+        icon: <WalletOutlined />
+      },
       { label: 'Laporan', key: '/dashboard/medicine/report', icon: <FileTextOutlined /> }
     ]
   },
@@ -387,7 +403,7 @@ function Dashboard() {
     setActiveSide(match || (children[0]?.key as string))
   }, [location.pathname])
   return (
-    <div className="min-h-screen flex overflow-hidden">
+    <div className="h-screen flex overflow-hidden">
       <aside
         className={`${collapsed ? 'w-20' : 'w-64'} bg-white dark:bg-[#141414] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300`}
       >
@@ -419,7 +435,7 @@ function Dashboard() {
         </div>
       </aside>
       <div
-        className={`flex-1 transition-all duration-300 flex flex-col ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
+        className={`flex-1 transition-all duration-300 flex flex-col overflow-y-auto h-full ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
       >
         <header className="sticky top-0 z-50 bg-white dark:bg-[#141414] border-b border-gray-200 dark:border-gray-800 h-14 px-4 flex items-center justify-between gap-4 transition-colors">
           <Menu

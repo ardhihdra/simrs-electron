@@ -40,7 +40,7 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
   }
 
   return (
-    <Card title="Anamnesis" className="py-4">
+    <Card title="Anamnesis" className="mt-4!">
       <Form.Item label="Keluhan Utama" className="">
         <Form.Item name={['anamnesis', 'chiefComplaint_codeId']} style={{ marginBottom: 16 }}>
           <Select
@@ -222,28 +222,46 @@ export const AnamnesisSection: React.FC<AnamnesisSectionProps> = ({ form }) => {
           )}
         </Form.List>
       </Form.Item>
-      <Form.Item label="Riwayat Alergi" className="gap-4 flex flex-col">
-        <Form.Item name={['anamnesis', 'allergyHistory_codeId']} style={{ marginBottom: 16 }}>
-          <Select
-            showSearch
-            filterOption={false}
-            onSearch={handleDiagnosisSearch}
-            placeholder="Cari zat/substansi alergi (ICD-10/SNOMED)..."
-            className="w-full mb-2"
-            notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
-            onSelect={(_, option: any) => {
-              const current = form.getFieldValue(['anamnesis', 'allergyHistory'])
-              if (!current) form.setFieldValue(['anamnesis', 'allergyHistory'], option.label)
-            }}
-            allowClear
-          >
-            {diagnosisOptions.map((d) => (
-              <Option key={d.id} value={d.id} label={`${d.code} - ${d.id_display || d.display}`}>
-                {d.code} - {d.id_display || d.display}
-              </Option>
-            ))}
-          </Select>
-        </Form.Item>
+      <Form.Item label="Riwayat Alergi" className="gap-4 flex flex-col mb-4">
+        <Row gutter={16} className="mb-2">
+          <Col span={16}>
+            <Form.Item name={['anamnesis', 'allergyHistory_codeId']} className="mb-0">
+              <Select
+                showSearch
+                filterOption={false}
+                onSearch={handleDiagnosisSearch}
+                placeholder="Cari zat/substansi alergi (ICD-10/SNOMED)..."
+                className="w-full"
+                notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
+                onSelect={(_, option: any) => {
+                  const current = form.getFieldValue(['anamnesis', 'allergyHistory'])
+                  if (!current) form.setFieldValue(['anamnesis', 'allergyHistory'], option.label)
+                }}
+                allowClear
+              >
+                {diagnosisOptions.map((d) => (
+                  <Option
+                    key={d.id}
+                    value={d.id}
+                    label={`${d.code} - ${d.id_display || d.display}`}
+                  >
+                    {d.code} - {d.id_display || d.display}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item name={['anamnesis', 'allergyHistory_category']} className="mb-0">
+              <Select placeholder="Kategori Alergi" allowClear>
+                <Option value="food">Makanan (Food)</Option>
+                <Option value="medication">Obat (Medication)</Option>
+                <Option value="environment">Lingkungan (Environment)</Option>
+                <Option value="biologic">Biologi (Biologic)</Option>
+              </Select>
+            </Form.Item>
+          </Col>
+        </Row>
         <Form.Item name={['anamnesis', 'allergyHistory']}>
           <TextArea rows={2} placeholder="Masukkan catatan tambahan riwayat alergi (jika ada)..." />
         </Form.Item>

@@ -140,7 +140,9 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
         conditionsToCreate.push({
           category: CONDITION_CATEGORIES.CHIEF_COMPLAINT,
           notes: anamnesis.chiefComplaint,
-          diagnosisCodeId: anamnesis.chiefComplaint_codeId,
+          diagnosisCodeId: anamnesis.chiefComplaint_codeId
+            ? Number(anamnesis.chiefComplaint_codeId)
+            : undefined,
           recordedDate
         })
       }
@@ -150,7 +152,9 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
         conditionsToCreate.push({
           category: CONDITION_CATEGORIES.ASSOCIATED_SYMPTOMS,
           notes: anamnesis.associatedSymptoms,
-          diagnosisCodeId: anamnesis.associatedSymptoms_codeId,
+          diagnosisCodeId: anamnesis.associatedSymptoms_codeId
+            ? Number(anamnesis.associatedSymptoms_codeId)
+            : undefined,
           recordedDate
         })
       }
@@ -162,7 +166,9 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
             ? CONDITION_CATEGORIES.PREVIOUS_CONDITION
             : CONDITION_CATEGORIES.HISTORY_OF_PRESENT_ILLNESS,
           notes: anamnesis.historyOfPresentIllness,
-          diagnosisCodeId: anamnesis.historyOfPresentIllness_codeId,
+          diagnosisCodeId: anamnesis.historyOfPresentIllness_codeId
+            ? Number(anamnesis.historyOfPresentIllness_codeId)
+            : undefined,
           recordedDate
         })
       }
@@ -204,7 +210,8 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
             ? Number(anamnesis.allergyHistory_codeId)
             : undefined,
           clinicalStatus: 'active',
-          verificationStatus: 'confirmed'
+          verificationStatus: 'confirmed',
+          category: anamnesis.allergyHistory_category || 'food'
         })
         promises.push(createAllergy.mutateAsync(allergyPayload))
       }
@@ -253,7 +260,7 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
       form={form}
       layout="vertical"
       onFinish={handleFinish}
-      className="flex flex-col gap-4"
+      className="flex! flex-col! gap-4!"
       initialValues={{
         assessment_date: dayjs()
       }}
@@ -261,7 +268,6 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
       <Spin spinning={isSubmitting} tip="Menyimpan Anamnesis..." size="large">
         <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
         <AnamnesisSection form={form} />
-
         <Form.Item className="flex justify-end pt-4!">
           <Button
             type="primary"

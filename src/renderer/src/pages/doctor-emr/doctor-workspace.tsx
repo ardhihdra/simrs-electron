@@ -86,7 +86,7 @@ const DoctorWorkspace = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gray-50">
+      <div className="flex justify-center items-center h-screen">
         <Spin size="large" tip="Memuat Rekam Medis..." />
       </div>
     )
@@ -113,15 +113,15 @@ const DoctorWorkspace = () => {
   const allergies =
     allergyData?.result && Array.isArray(allergyData.result) && allergyData.result.length > 0
       ? allergyData.result
-        .map((a: any) => a.note)
-        .filter(Boolean)
-        .join(', ')
+          .map((a: any) => a.note)
+          .filter(Boolean)
+          .join(', ')
       : '-'
 
   const currentStatus = encounterDetail?.data?.status || EncounterStatus.IN_PROGRESS
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col h-screen rounded-lg overflow-hidden">
       <div className="px-4 pt-4 flex justify-between items-center">
         <Button icon={<ArrowLeftOutlined />} onClick={handleBack} className="mb-4">
           Kembali ke Daftar Pasien
@@ -173,7 +173,6 @@ const DoctorWorkspace = () => {
             </div>
           </div>
         )}
-
 
         {encounterDetail?.result?.encounterType === EncounterType.IMP ? (
           <DoctorInpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />

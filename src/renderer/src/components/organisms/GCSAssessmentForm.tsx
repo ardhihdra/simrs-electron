@@ -195,16 +195,16 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
       <Card title="Pemeriksaan GCS (Glasgow Coma Scale)" className="py-4">
         <div className="mb-6">
-          <h4 className="font-semibold text-gray-700 mb-2">Respon Mata (Eye)</h4>
-          <table className="w-full text-sm border border-gray-200 rounded overflow-hidden">
-            <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+          <h4 className="font-semibold  mb-2">Respon Mata (Eye)</h4>
+          <table className="w-full text-sm border border-white/10 rounded overflow-hidden">
+            <thead className=" text-gray-600 font-semibold border-b border-white/10">
               <tr>
                 <th className="p-2 text-left w-2/3">Kriteria</th>
                 <th className="p-2 text-center w-1/6">Skor</th>
                 <th className="p-2 text-center w-1/6">Pilih</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-white/10">
               {[
                 { score: 4, label: 'Spontan (Membuka mata spontan)' },
                 { score: 3, label: 'Terhadap Suara (Membuka dengan perintah)' },
@@ -213,7 +213,7 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
               ].map((item) => (
                 <tr
                   key={item.score}
-                  className={`cursor-pointer hover:bg-blue-50 transition-colors ${gcsEye === item.score ? 'bg-blue-50' : ''}`}
+                  className={`cursor-pointer transition-colors ${gcsEye === item.score ? 'bg-blue-50' : ''}`}
                   onClick={() => {
                     setGcsEye(item.score)
                   }}
@@ -230,16 +230,16 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
         </div>
 
         <div className="mb-6">
-          <h4 className="font-semibold text-gray-700 mb-2">Respon Verbal (Verbal)</h4>
-          <table className="w-full text-sm border border-gray-200 rounded overflow-hidden">
-            <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+          <h4 className="font-semibold  mb-2">Respon Verbal (Verbal)</h4>
+          <table className="w-full text-sm border border-white/10 rounded overflow-hidden">
+            <thead className=" text-gray-600 font-semibold border-b border-white/10">
               <tr>
                 <th className="p-2 text-left w-2/3">Kriteria</th>
                 <th className="p-2 text-center w-1/6">Skor</th>
                 <th className="p-2 text-center w-1/6">Pilih</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-white/10">
               {[
                 { score: 5, label: 'Orientasi Baik (Menjawab dengan benar)' },
                 { score: 4, label: 'Bingung (Kalimat membingungkan)' },
@@ -264,19 +264,17 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
             </tbody>
           </table>
         </div>
-
-        {/* Motor Response */}
         <div className="mb-4">
-          <h4 className="font-semibold text-gray-700 mb-2">Respon Motorik (Motor)</h4>
-          <table className="w-full text-sm border border-gray-200 rounded overflow-hidden">
-            <thead className="bg-gray-50 text-gray-600 font-semibold border-b border-gray-200">
+          <h4 className="font-semibold  mb-2">Respon Motorik (Motor)</h4>
+          <table className="w-full text-sm border border-white/10 rounded overflow-hidden">
+            <thead className=" text-gray-600 font-semibold border-b border-white/10">
               <tr>
                 <th className="p-2 text-left w-2/3">Kriteria</th>
                 <th className="p-2 text-center w-1/6">Skor</th>
                 <th className="p-2 text-center w-1/6">Pilih</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-white/10">
               {[
                 { score: 6, label: 'Mengikuti Perintah' },
                 { score: 5, label: 'Melokalisir Nyeri' },
@@ -287,13 +285,13 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
               ].map((item) => (
                 <tr
                   key={item.score}
-                  className={`cursor-pointer hover:bg-blue-50 transition-colors ${gcsMotor === item.score ? 'bg-blue-50' : ''}`}
+                  className={`cursor-pointer`}
                   onClick={() => {
                     setGcsMotor(item.score)
                   }}
                 >
                   <td className="p-2">{item.label}</td>
-                  <td className="p-2 text-center font-bold text-gray-500">{item.score}</td>
+                  <td className="p-2 text-center font-bold ">{item.score}</td>
                   <td className="p-2 text-center">
                     <Radio checked={gcsMotor === item.score} />
                   </td>
@@ -303,14 +301,14 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
           </table>
         </div>
 
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between">
+        <div className=" p-4 rounded-lg border border-white/10 flex items-center justify-between">
           <div>
             <div className="text-gray-500 text-sm font-medium">Total Skor GCS (E+V+M)</div>
             <div className="text-3xl font-bold text-blue-600">{gcsTotal > 0 ? gcsTotal : '-'}</div>
           </div>
           <div className="text-right">
             <div className="text-gray-500 text-sm font-medium">Kesimpulan</div>
-            <div className="text-xl font-bold text-gray-800">{getGCSConclusion(gcsTotal)}</div>
+            <div className="text-xl font-bold">{getGCSConclusion(gcsTotal)}</div>
           </div>
         </div>
       </Card>

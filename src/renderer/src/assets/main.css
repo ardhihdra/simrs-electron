@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -83,4 +83,8 @@
   .dark .ant-menu-item-selected {
     background: #262626 !important;
   }
+}
+
+.custom-menu .ant-menu-sub.ant-menu-inline {
+  background: transparent !important;
 }

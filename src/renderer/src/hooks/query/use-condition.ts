@@ -26,7 +26,8 @@ export const useBulkCreateCondition = () => {
 
             // Check if the backend returned an error response
             if (result && typeof result === 'object' && 'success' in result && result.success === false) {
-                throw new Error(result.message || 'Gagal menyimpan kondisi')
+                console.error("Condition Creation Error Payload:", result)
+                throw new Error(result.error || result.message || 'Gagal menyimpan kondisi')
             }
 
             return result

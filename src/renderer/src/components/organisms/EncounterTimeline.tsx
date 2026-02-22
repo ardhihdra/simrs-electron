@@ -137,7 +137,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
           return (
             <Space>
               <Avatar size="small" icon={<UserOutlined />} className="bg-slate-300" />
-              <span className="text-gray-700 font-medium">{name}</span>
+              <span className=" font-medium">{name}</span>
             </Space>
           )
         }
@@ -254,7 +254,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
             record.soapPlan)
         ) {
           return (
-            <div className="bg-gray-50 p-2 rounded border border-gray-100 mt-1">
+            <div className="p-2 rounded border border-white/10 ">
               {record.soapSubjective && (
                 <div className="mb-2">
                   <Text strong className="text-xs text-blue-600 block">
@@ -311,15 +311,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   return (
     <>
-      <Card
-        className="overflow-hidden mb-4"
-        title={
-          <div className="flex items-center gap-2">
-            <CalendarOutlined className="text-blue-600" />
-            <span className="font-bold text-gray-700">Riwayat Harian Pemeriksaan</span>
-          </div>
-        }
-      >
+      <Card className="overflow-hidden mb-4" title="Riwayat Harian Pemeriksaan">
         <Table
           dataSource={timelineData}
           columns={columns}
