@@ -70,6 +70,7 @@ export interface AllergyBuilderOptions {
     verificationStatus?: 'unconfirmed' | 'confirmed' | 'refuted' | 'entered-in-error'
     criticality?: 'low' | 'high' | 'unable-to-assess'
     type?: 'allergy' | 'intolerance'
+    category?: string
 }
 
 /**
@@ -84,7 +85,8 @@ export const createAllergy = (options: AllergyBuilderOptions): any => {
         clinicalStatus: options.clinicalStatus || 'active',
         verificationStatus: options.verificationStatus || 'confirmed',
         criticality: options.criticality,
-        type: options.type
+        type: options.type,
+        category: options.category
     }
 }
 

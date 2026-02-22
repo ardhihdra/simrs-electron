@@ -196,14 +196,14 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
   }
 
   return (
-    <Layout className="rounded-lg overflow-hidden h-full">
+    <Layout className="rounded-lg overflow-hidden h-full border border-white/10">
       <Sider
         width={260}
         collapsible
         collapsed={collapsed}
         onCollapse={(value) => setCollapsed(value)}
         theme="light"
-        className="border border-white/10"
+        className="border-r border-white/10"
         trigger={
           <div className="flex items-center justify-center h-12 border-t border-white/10 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
             {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
@@ -238,6 +238,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
         <Content
           className="p-6 overflow-y-auto h-full"
           style={{
+            background: colorBgContainer,
             minHeight: 280
           }}
         >
