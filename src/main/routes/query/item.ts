@@ -36,7 +36,20 @@ export const schemas = {
       })).optional(),
       message: z.string().optional() 
     })
-  }
+  },
+  searchKfaMaster: {
+    args: z.object({ query: z.string() }),
+    result: z.object({
+      success: z.boolean(),
+      result: z.array(z.object({
+        kode: z.string(),
+        nama: z.string(),
+        kategori: z.string().optional()
+      })).optional(),
+      message: z.string().optional()
+    })
+  },
+  
 } as const
 
 const BackendDetailSchema: z.ZodSchema<{
@@ -229,6 +242,33 @@ export const searchKfa = async (ctx: IpcContext, args: z.infer<typeof schemas.se
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[item.searchKfa] error', msg)
+    return { success: false, message: msg }
+  }
+}
+
+export const searchKfaMaster = async (ctx: IpcContext, args: z.infer<typeof schemas.searchKfaMaster.args>) => {
+  try {
+    const client = createBackendClient(ctx)
+    const isCodeQuery = /^[0-9]{6,10}$/.test(args.query)
+    const fields = isCodeQuery ? 'code' : 'display'
+    const res = await client.get(`/api/kfacode/search?q=${encodeURIComponent(args.query)}&fields=${fields}`)
+    const KfaRecordSchema = z.object({
+      id: z.number().optional(),
+      code: z.number(),
+      display: z.string()
+    })
+    const list = await parseBackendResponse(res, BackendListSchema(KfaRecordSchema))
+    const mapped = Array.isArray(list)
+      ? list.map((r) => ({
+          kode: String(r.code),
+          nama: r.display,
+          kategori: 'Obat'
+        }))
+      : []
+    return { success: true, result: mapped }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[item.searchKfaMaster] error', msg)
     return { success: false, message: msg }
   }
 }

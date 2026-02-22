@@ -60,7 +60,7 @@ type ItemApi = {
 	  read: (args: { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
 	  create: (data: ItemFormValues) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
 	  update: (data: ItemFormValues & { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
-	  searchKfa: (args: { query: string }) => Promise<{ success: boolean; result?: KfaEntry[]; message?: string }>
+	  searchKfaMaster?: (args: { query: string }) => Promise<{ success: boolean; result?: KfaEntry[]; message?: string }>
 }
 
 interface UnitListEntry {
@@ -86,7 +86,8 @@ export function ItemForm() {
 	  const { id } = useParams()
 		  const [form] = Form.useForm<ItemFormValues>()
 	  const isEdit = Boolean(id)
-	  const [kfaOptions, setKfaOptions] = useState<{ label: string; value: string; nama: string }[]>([])
+	  type KfaOption = { label: string; value: string; realKode: string; nama: string }
+	  const [kfaOptions, setKfaOptions] = useState<KfaOption[]>([])
 	  const [loadingKfa, setLoadingKfa] = useState(false)
 
 		  const api = window.api?.query?.item as ItemApi | undefined
@@ -318,9 +319,9 @@ export function ItemForm() {
           </Form.Item>
 
           <Form.Item
-            label="Integrasi SATUSEHAT (KFA)"
+            label="Kode KFA"
             name="kfaCode"
-            help="Cari nama obat untuk mendapatkan kode KFA SATUSEHAT"
+            help="Cari nama obat dari Master KFA"
           >
             <Select
               showSearch
@@ -332,12 +333,12 @@ export function ItemForm() {
                 if (val.length < 3) return
                 setLoadingKfa(true)
                 try {
-                  const res = await api?.searchKfa({ query: val })
+                  const res = await api?.searchKfaMaster?.({ query: val })
                   if (res?.success && res.result) {
                     const options = res.result.map((k, index) => ({
                       label: `${k.kode} - ${k.nama} (${k.kategori || 'N/A'})`,
                       value: `${k.kode}-${index}`, // Make value unique to avoid key warning
-                      realKode: k.kode, // Keep real kode
+                      realKode: k.kode,
                       nama: k.nama
                     }))
                     setKfaOptions(options)
@@ -352,19 +353,21 @@ export function ItemForm() {
               }}
               options={kfaOptions}
               onChange={(val, option) => {
-                if (val && !Array.isArray(option) && 'realKode' in option) {
-                  const realValue = (option as any).realKode
+                if (val && !Array.isArray(option)) {
+                  const opt = option as KfaOption
+                  const realValue = opt.realKode
                   form.setFieldValue('kfaCode', realValue)
                   
                   // Otomatis isi nama item jika masih kosong
                   const currentNama = form.getFieldValue('nama')
                   if (!currentNama) {
-                    form.setFieldValue('nama', (option as any).nama)
+                    form.setFieldValue('nama', opt.nama)
                   }
                 }
               }}
             />
           </Form.Item>
+
 
           <Form.Item
 	            label="Kode Item"

@@ -331,10 +331,11 @@ function RowActions({ record }: { record: ItemAttributes }) {
       icon: <SyncOutlined />,
       disabled: updatingKfa,
       onClick: async () => {
-        if (!api?.searchKfa || !api?.update) return
+        const searchFn = window.api?.query?.item?.searchKfaMaster
+        if (!searchFn || !api?.update) return
         setUpdatingKfa(true)
         try {
-          const res = await api.searchKfa({ query: record.nama })
+          const res = await searchFn({ query: record.nama })
           const items = Array.isArray(res?.result) ? res.result : []
           const first = items.length > 0 ? items[0] : null
           if (first && typeof record.id === 'number') {
