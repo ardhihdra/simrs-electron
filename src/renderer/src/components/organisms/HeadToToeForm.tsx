@@ -22,9 +22,6 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
       const fn = window.api?.query?.observation?.getByEncounter
       if (!fn) throw new Error('API observation tidak tersedia')
       const res = await fn({ encounterId })
-      if (res.result && !Array.isArray(res.result) && Array.isArray(res.result.all)) {
-        return res.result.all
-      }
       return Array.isArray(res.result) ? res.result : []
     }
   })

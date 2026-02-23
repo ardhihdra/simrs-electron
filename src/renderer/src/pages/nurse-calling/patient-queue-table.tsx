@@ -79,6 +79,8 @@ const PatientQueueTable = () => {
     enabled: polis.length > 0
   })
 
+  console.log('encounter data', encounterData)
+
   const patientQueue: PatientQueueTableData[] = (encounterData?.result || []).map(
     (enc: any, index: number) => {
       const birthDate = enc.patient?.birthDate ? dayjs(enc.patient.birthDate) : null

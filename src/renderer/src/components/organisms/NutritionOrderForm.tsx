@@ -1,4 +1,4 @@
-import { SaveOutlined, CoffeeOutlined, HistoryOutlined } from '@ant-design/icons'
+import { SaveOutlined, HistoryOutlined } from '@ant-design/icons'
 import {
   App,
   Button,

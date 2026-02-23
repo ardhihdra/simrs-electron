@@ -39,7 +39,7 @@ export const schemas = {
 export const create = async (ctx: IpcContext, payload: any) => {
     try {
         const client = getClient(ctx)
-        const res = await client.post('/api/nutritionOrder', payload)
+        const res = await client.post('/api/module/nutrition-order', payload)
 
         const BackendCreateSchema = z.object({
             success: z.boolean(),
@@ -64,7 +64,7 @@ export const create = async (ctx: IpcContext, payload: any) => {
 export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/nutritionOrder/${args.id}/read`)
+        const res = await client.get(`/api/module/nutrition-order/encounter/${args.id}`)
 
         const BackendReadSchema = z.object({
             success: z.boolean(),
@@ -93,7 +93,7 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
         if (args.page) params.append('page', args.page)
         if (args.items) params.append('items', args.items)
 
-        const url = `/api/nutritionOrder?${params.toString()}`;
+        const url = `/api/module/nutrition-order?${params.toString()}`;
 
         const res = await client.get(url)
 

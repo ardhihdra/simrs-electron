@@ -37,7 +37,7 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['nurse'])
 
   useEffect(() => {
-    const observations = response?.result?.all
+    const observations = response?.result
     if (response?.success && observations && Array.isArray(observations)) {
       const sortedObs = [...observations].sort(
         (a: any, b: any) =>

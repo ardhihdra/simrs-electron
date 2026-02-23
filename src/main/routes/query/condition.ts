@@ -1,13 +1,25 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
-import {
-    parseBackendResponse,
-    getClient
-} from '@main/utils/backendClient'
+import { getClient } from '@main/utils/backendClient'
+
 
 export const requireSession = true
 
+const ConditionCategorySchema = z.object({
+    code: z.string().optional(),
+    display: z.string().optional(),
+    system: z.string().optional()
+})
 
+const ConditionCodeCodingSchema = z.object({
+    diagnosisCodeId: z.number(),
+    isPrimary: z.boolean().optional(),
+    diagnosisCode: z.object({
+        code: z.string(),
+        display: z.string(),
+        system: z.string()
+    }).optional()
+})
 
 const ConditionSchema = z.object({
     id: z.number().optional(),
@@ -18,6 +30,8 @@ const ConditionSchema = z.object({
     recordedDate: z.union([z.string(), z.date()]).optional(),
     recorder: z.number().optional(),
     note: z.string().optional().nullable(),
+    categories: z.array(ConditionCategorySchema).optional(),
+    codeCoding: z.array(ConditionCodeCodingSchema).optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional()
 })
@@ -26,7 +40,15 @@ const BulkCreateConditionInputSchema = z.object({
     diagnosisCodeId: z.number().optional(),
     isPrimary: z.boolean().optional(),
     category: z.string().optional(),
-    notes: z.string().optional()
+    notes: z.string().optional(),
+    recordedDate: z.union([z.string(), z.date()]).optional()
+})
+
+const BackendConditionResponseSchema = z.object({
+    success: z.boolean(),
+    result: z.array(ConditionSchema).optional().nullable(),
+    message: z.string().optional(),
+    error: z.string().optional()
 })
 
 export const schemas = {
@@ -37,23 +59,13 @@ export const schemas = {
             doctorId: z.number(),
             conditions: z.array(BulkCreateConditionInputSchema)
         }),
-        result: z.object({
-            success: z.boolean(),
-            result: z.array(ConditionSchema).optional(),
-            message: z.string().optional(),
-            error: z.string().optional()
-        })
+        result: BackendConditionResponseSchema
     },
     getByEncounter: {
         args: z.object({
             encounterId: z.string()
         }),
-        result: z.object({
-            success: z.boolean(),
-            result: z.array(z.any()).optional().nullable(),
-            message: z.string().optional(),
-            error: z.string().optional()
-        })
+        result: BackendConditionResponseSchema
     }
 } as const
 
@@ -67,27 +79,31 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
             conditions: args.conditions
         }
 
-        const res = await client.post('/api/condition', payload)
+        const res = await client.post('/api/module/condition', payload)
+        const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 
-        const BackendCreateSchema = z.object({
-            success: z.boolean(),
-            result: z.array(z.any()).optional().nullable(),
-            message: z.string().optional(),
-            error: z.any().optional()
-        })
+        if (!res.ok || !raw.success) {
+            return {
+                success: false as const,
+                error: raw.error || raw.message || `HTTP ${res.status}`
+            }
+        }
 
-        const result = await parseBackendResponse(res, BackendCreateSchema)
-        return { success: true, result }
+        return {
+            success: true as const,
+            result: raw.result,
+            message: raw.message
+        }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        return { success: false, error: msg }
+        return { success: false as const, error: msg }
     }
 }
 
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/condition/read/${args.encounterId}`)
+        const res = await client.get(`/api/module/condition/${args.encounterId}`)
 
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 

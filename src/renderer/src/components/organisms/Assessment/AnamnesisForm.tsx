@@ -50,7 +50,7 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
   ])
 
   useEffect(() => {
-    const observations = response?.result?.all
+    const observations = response?.result
     const conditions = conditionResponse?.result
 
     if ((response?.success && observations) || (conditionResponse?.success && conditions)) {

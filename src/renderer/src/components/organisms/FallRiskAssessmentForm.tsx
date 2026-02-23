@@ -32,7 +32,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
       const fn = window.api?.query?.observation?.getByEncounter
       if (!fn) throw new Error('API Unavailable')
       const res = await fn({ encounterId })
-      return res?.result?.all || []
+      return res?.result || []
     }
   })
 

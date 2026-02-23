@@ -168,6 +168,7 @@ export const GeneralSOAPForm = ({
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(values.performerId),
+        authorName: selectedPerformer?.name || undefined,
         title: 'SOAP Umum',
         status: values.status,
         date: values.assessment_date ? values.assessment_date.toISOString() : undefined,
@@ -220,12 +221,12 @@ export const GeneralSOAPForm = ({
   }
 
   const handleFetchVitals = () => {
-    if (!obsData?.result?.all) {
+    if (!obsData?.result) {
       message.warning('Tidak ada data TTV ditemukan')
       return
     }
 
-    const rawObs = obsData?.result?.all || []
+    const rawObs = obsData?.result || []
     const sortedObs = [...rawObs].sort(
       (a: any, b: any) =>
         dayjs(b.effectiveDateTime || b.issued).valueOf() -
@@ -262,7 +263,7 @@ export const GeneralSOAPForm = ({
     if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
     if (vitalSigns.temperature) vitalsParts.push(`S: ${vitalSigns.temperature} °C`)
 
-    const observations = obsData?.result?.all || []
+    const observations = obsData?.result || []
     const findObs = (code: string) => observations.find((o: any) => o.code === code)
     const gcsEye = findObs('9267-5')?.valueQuantity?.value
     const gcsVerbal = findObs('9270-9')?.valueQuantity?.value
@@ -395,6 +396,7 @@ export const GeneralSOAPForm = ({
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(verifierId),
+        authorName: selectedPerformer?.name || record.authorName,
         id: record.id,
         status: 'final',
         title: record.title || 'SOAP Umum',
