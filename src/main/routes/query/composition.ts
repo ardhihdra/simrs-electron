@@ -42,6 +42,7 @@ export const schemas = {
             encounterId: z.string(),
             patientId: z.string(),
             doctorId: z.number(),
+            authorName: z.string().optional(),
             title: z.string().optional(),
             soapSubjective: z.string().optional(),
             soapObjective: z.string().optional(),
@@ -81,6 +82,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
             encounterId: args.encounterId,
             patientId: args.patientId,
             doctorId: args.doctorId,
+            authorName: args.authorName,
             title: args.title,
             soapSubjective: args.soapSubjective,
             soapObjective: args.soapObjective,
@@ -93,7 +95,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
             category: args.category
         }
 
-        const res = await client.post('/api/composition', payload)
+        const res = await client.post('/api/module/composition', payload)
 
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 
@@ -111,7 +113,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/composition/read/${args.encounterId}`)
+        const res = await client.get(`/api/module/composition/${args.encounterId}`)
 
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 

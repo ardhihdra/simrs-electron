@@ -149,6 +149,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(values.performerId),
+        authorName: selectedPerformer?.name || undefined,
         title: 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
         status: values.status,
         date: assessmentDate.toISOString(),
@@ -192,12 +193,12 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   }
 
   const handleFetchVitals = () => {
-    if (!obsData?.result?.all && !condData?.result) {
+    if (!obsData?.result && !condData?.result) {
       message.warning('Tidak ada data asesmen perawat ditemukan')
       return
     }
 
-    const rawObs = obsData?.result?.all || []
+    const rawObs = obsData?.result || []
     const sortedObs = [...rawObs].sort(
       (a: any, b: any) =>
         dayjs(b.effectiveDateTime || b.issued).valueOf() -
@@ -234,7 +235,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
     if (vitalSigns.temperature) vitalsParts.push(`S: ${vitalSigns.temperature} °C`)
 
-    const observations = obsData?.result?.all || []
+    const observations = obsData?.result || []
     const findObs = (code: string) => observations.find((o: any) => o.code === code)
     const gcsEye = findObs('9267-5')?.valueQuantity?.value
     const gcsVerbal = findObs('9270-9')?.valueQuantity?.value
@@ -372,6 +373,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(verifierId),
+        authorName: selectedPerformer?.name || record.authorName,
         title: record.title || 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
         status: 'final',
         date: record.date,

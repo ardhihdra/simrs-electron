@@ -34,12 +34,7 @@ export const ClinicalAnnotationForm = ({
       if (!fn) throw new Error('API observation tidak tersedia')
       const res = await fn({ encounterId })
 
-      let allObs: any[] = []
-      if (res.result && !Array.isArray(res.result) && Array.isArray(res.result.all)) {
-        allObs = res.result.all
-      } else {
-        allObs = Array.isArray(res.result) ? res.result : []
-      }
+      const allObs: any[] = Array.isArray(res.result) ? res.result : []
 
       const filtered = allObs.filter((obs: any) =>
         obs.codeCoding?.some((coding: any) => coding.code === code)

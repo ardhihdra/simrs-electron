@@ -37,8 +37,7 @@ export const schemas = {
         result: z.object({
             success: z.boolean(),
             result: z.array(z.any()).optional(),
-            message: z.string().optional(),
-            pagination: z.any().optional()
+            message: z.string().optional()
         })
     }
 } as const
@@ -47,7 +46,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     try {
         console.log("IPC [questionnaireResponse:create] Payload:", JSON.stringify(args, null, 2))
         const client = getClient(ctx)
-        const res = await client.post('/api/questionnaireresponse', args)
+        const res = await client.post('/api/module/questionnaire-response', args)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         console.log("IPC [questionnaireResponse:create] Response:", JSON.stringify(raw, null, 2))
         return raw as any
@@ -60,7 +59,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/questionnaireresponse?encounterId=${args.encounterId}`)
+        const res = await client.get(`/api/module/questionnaire-response?encounterId=${args.encounterId}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {
@@ -73,7 +72,7 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     try {
         const client = getClient(ctx)
         const params = new URLSearchParams(args as any).toString()
-        const res = await client.get(`/api/questionnaireresponse?${params}`)
+        const res = await client.get(`/api/module/questionnaire-response?${params}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {

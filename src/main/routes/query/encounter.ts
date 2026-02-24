@@ -135,7 +135,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
     if (!queryParams.has('items')) queryParams.set('items', '100')
     if (!queryParams.has('depth')) queryParams.set('depth', '1')
 
-    const res = await client.get(`/api/encounter?${queryParams.toString()}`)
+    const res = await client.get(`/api/module/encounter?${queryParams.toString()}`)
 
     // Extend the base schema to include the joined 'patient' relation
     const EncounterWithPatientSchema = EncounterSchemaWithId.extend({
@@ -205,7 +205,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get(`/api/encounter/${args.id}/read`)
+    const res = await client.get(`/api/module/encounter/${args.id}`)
 
     const BackendReadSchema = z.object({
       success: z.boolean(),

@@ -7,7 +7,11 @@ import {
   useObservationByEncounter
 } from '../../hooks/query/use-observation'
 import { formatObservationSummary } from '../../utils/observation-helpers'
-import { createObservationBatch, OBSERVATION_CATEGORIES } from '../../utils/observation-builder'
+import {
+  createObservationBatch,
+  OBSERVATION_CATEGORIES,
+  OBSERVATION_SYSTEMS
+} from '../../utils/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { VitalSignsSection } from './Assessment/VitalSignsSection'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
@@ -37,52 +41,70 @@ export const VitalSignsMonitoringForm = ({
         [
           {
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
-            code: '85354-9',
-            display: 'Blood Pressure',
-            valueQuantity: {
-              value: values.vitalSigns.systolicBloodPressure,
-              unit: 'mmHg'
-            },
-            components: [
+            code: '8480-6',
+            codeCoding: [
               {
                 code: '8480-6',
-                display: 'Systolic',
-                valueQuantity: { value: values.vitalSigns.systolicBloodPressure, unit: 'mmHg' }
-              },
+                display: 'Systolic blood pressure',
+                system: OBSERVATION_SYSTEMS.LOINC
+              }
+            ],
+            display: 'Systolic blood pressure',
+            valueQuantity: { value: values.vitalSigns.systolicBloodPressure, unit: 'mmHg' }
+          },
+          {
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '8462-4',
+            codeCoding: [
               {
                 code: '8462-4',
-                display: 'Diastolic',
-                valueQuantity: { value: values.vitalSigns.diastolicBloodPressure, unit: 'mmHg' }
+                display: 'Diastolic blood pressure',
+                system: OBSERVATION_SYSTEMS.LOINC
               }
-            ]
+            ],
+            display: 'Diastolic blood pressure',
+            valueQuantity: { value: values.vitalSigns.diastolicBloodPressure, unit: 'mmHg' }
           },
           {
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8867-4',
+            codeCoding: [
+              { code: '8867-4', display: 'Heart rate', system: OBSERVATION_SYSTEMS.LOINC }
+            ],
             display: 'Heart rate',
             valueQuantity: { value: values.vitalSigns.pulseRate, unit: 'bpm' }
           },
           {
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '9279-1',
+            codeCoding: [
+              { code: '9279-1', display: 'Respiratory rate', system: OBSERVATION_SYSTEMS.LOINC }
+            ],
             display: 'Respiratory rate',
             valueQuantity: { value: values.vitalSigns.respiratoryRate, unit: '/min' }
           },
           {
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8310-5',
+            codeCoding: [
+              { code: '8310-5', display: 'Body temperature', system: OBSERVATION_SYSTEMS.LOINC }
+            ],
             display: 'Body temperature',
             valueQuantity: { value: values.vitalSigns.temperature, unit: '°C' }
           },
           {
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '2708-6',
+            codeCoding: [
+              { code: '2708-6', display: 'Oxygen saturation', system: OBSERVATION_SYSTEMS.LOINC }
+            ],
             display: 'Oxygen saturation',
             valueQuantity: { value: values.vitalSigns.oxygenSaturation, unit: '%' }
           },
           {
             category: OBSERVATION_CATEGORIES.EXAM,
             code: 'consciousness',
+            codeCoding: [{ code: 'consciousness', display: 'Consciousness' }],
             display: 'Consciousness',
             valueString: values.consciousness
           }
@@ -117,7 +139,7 @@ export const VitalSignsMonitoringForm = ({
     }
   }
 
-  const historyData = response?.result?.all || []
+  const historyData = response?.result || []
 
   const groupedHistory = historyData
     .filter((obs: any) => {
@@ -150,6 +172,18 @@ export const VitalSignsMonitoringForm = ({
         consciousness: summary.physicalExamination?.consciousness,
         bmiCategory: summary.vitalSigns.bmiCategory
       }
+    })
+    .filter((group) => {
+      const v = group.vitals
+      return (
+        v.systolicBloodPressure ||
+        v.diastolicBloodPressure ||
+        v.pulseRate ||
+        v.respiratoryRate ||
+        v.temperature ||
+        v.oxygenSaturation ||
+        group.consciousness
+      )
     })
     .sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix())
 

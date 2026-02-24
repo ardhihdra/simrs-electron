@@ -50,7 +50,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
 
   const bulkCreateObservation = useBulkCreateObservation()
   const { data: response, isLoading } = useObservationByEncounter(encounterId)
-  const observationData = useMemo(() => response?.result?.all || [], [response])
+  const observationData = useMemo(() => response?.result || [], [response])
 
   const { data: bodyMarkerData, isLoading: isLoadingBodyMarker } =
     useBodyMarkerByEncounter(encounterId)

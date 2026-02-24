@@ -435,7 +435,7 @@ export const InitialAssessmentForm = ({
   }
 
   useEffect(() => {
-    const observations = response?.result?.all
+    const observations = response?.result
 
     if (response?.success && observations) {
       const summary = formatObservationSummary(observations || [], [])
