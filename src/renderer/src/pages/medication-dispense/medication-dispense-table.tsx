@@ -158,7 +158,8 @@ type StatusFilter = 'all' | 'completed' | 'return'
 function getStatusLabel(status: string): string {
 	if (status === 'entered-in-error') return 'return'
 	if (status === 'cancelled' || status === 'stopped' || status === 'declined') return 'cancel'
-	if (status === 'preparation' || status === 'in-progress') return 'pending'
+	if (status === 'preparation') return 'pending'
+	if (status === 'in-progress') return 'on process'
 	if (status === 'on-hold') return 'hold'
 	return status
 }

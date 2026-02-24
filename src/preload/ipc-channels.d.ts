@@ -269,10 +269,18 @@ type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_med
 type Result_Mod_query_medicalStaffSchedule_update = InferResult<typeof Mod_query_medicalStaffSchedule, 'update'>
 type Args_Mod_query_medicationDispense_createFromRequest = InferArgs<typeof Mod_query_medicationDispense, 'createFromRequest'>
 type Result_Mod_query_medicationDispense_createFromRequest = InferResult<typeof Mod_query_medicationDispense, 'createFromRequest'>
+type Args_Mod_query_medicationDispense_createModule = InferArgs<typeof Mod_query_medicationDispense, 'createModule'>
+type Result_Mod_query_medicationDispense_createModule = InferResult<typeof Mod_query_medicationDispense, 'createModule'>
 type Args_Mod_query_medicationDispense_list = InferArgs<typeof Mod_query_medicationDispense, 'list'>
 type Result_Mod_query_medicationDispense_list = InferResult<typeof Mod_query_medicationDispense, 'list'>
+type Args_Mod_query_medicationDispense_listModule = InferArgs<typeof Mod_query_medicationDispense, 'listModule'>
+type Result_Mod_query_medicationDispense_listModule = InferResult<typeof Mod_query_medicationDispense, 'listModule'>
+type Args_Mod_query_medicationDispense_readModule = InferArgs<typeof Mod_query_medicationDispense, 'readModule'>
+type Result_Mod_query_medicationDispense_readModule = InferResult<typeof Mod_query_medicationDispense, 'readModule'>
 type Args_Mod_query_medicationDispense_update = InferArgs<typeof Mod_query_medicationDispense, 'update'>
 type Result_Mod_query_medicationDispense_update = InferResult<typeof Mod_query_medicationDispense, 'update'>
+type Args_Mod_query_medicationDispense_updateModule = InferArgs<typeof Mod_query_medicationDispense, 'updateModule'>
+type Result_Mod_query_medicationDispense_updateModule = InferResult<typeof Mod_query_medicationDispense, 'updateModule'>
 type Args_Mod_query_medicationRequest_create = InferArgs<typeof Mod_query_medicationRequest, 'create'>
 type Result_Mod_query_medicationRequest_create = InferResult<typeof Mod_query_medicationRequest, 'create'>
 type Args_Mod_query_medicationRequest_deleteById = InferArgs<typeof Mod_query_medicationRequest, 'deleteById'>
@@ -630,8 +638,12 @@ declare global {
         }
         medicationDispense: {
           createFromRequest: Invoke<Args_Mod_query_medicationDispense_createFromRequest, Result_Mod_query_medicationDispense_createFromRequest>
+          createModule: Invoke<Args_Mod_query_medicationDispense_createModule, Result_Mod_query_medicationDispense_createModule>
           list: Invoke<Args_Mod_query_medicationDispense_list, Result_Mod_query_medicationDispense_list>
+          listModule: Invoke<Args_Mod_query_medicationDispense_listModule, Result_Mod_query_medicationDispense_listModule>
+          readModule: Invoke<Args_Mod_query_medicationDispense_readModule, Result_Mod_query_medicationDispense_readModule>
           update: Invoke<Args_Mod_query_medicationDispense_update, Result_Mod_query_medicationDispense_update>
+          updateModule: Invoke<Args_Mod_query_medicationDispense_updateModule, Result_Mod_query_medicationDispense_updateModule>
         }
         medicationRequest: {
           create: Invoke<Args_Mod_query_medicationRequest_create, Result_Mod_query_medicationRequest_create>

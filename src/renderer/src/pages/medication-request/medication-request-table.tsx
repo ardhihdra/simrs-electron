@@ -88,6 +88,9 @@ interface ParentRow {
 	priority?: string
 	authoredOn?: string
 	isPartial?: boolean
+  isOnProcess?: boolean
+  hasRemaining?: boolean
+  remainingTotal?: number
 	items: MedicationItemRow[]
 }
 
@@ -179,7 +182,7 @@ const columns = [
     dataIndex: 'status',
     key: 'status',
 			render: (val: string, record: ParentRow) => {
-				if (val === 'active') {
+        if (val === 'active') {
 					const numericQuantities: number[] = record.items
 						.map((item) => item.quantity)
 						.filter((q): q is number => typeof q === 'number')
@@ -192,7 +195,10 @@ const columns = [
 					if (record.isPartial) {
 						return <Tag color="gold">active (parsial)</Tag>
 					}
-					return <Tag color="green">active</Tag>
+          if (record.isOnProcess) {
+            return <Tag color="geekblue">on process</Tag>
+          }
+          return <Tag color="green">active</Tag>
 				}
 				return <Tag color="default">{val}</Tag>
 			}
@@ -212,6 +218,12 @@ const columns = [
       ) : (
         '-'
       )
+  },
+  {
+    title: 'Sisa',
+    dataIndex: 'remainingTotal',
+    key: 'remainingTotal',
+    render: (val: number | undefined) => (typeof val === 'number' ? val : '-')
   },
   {
     title: 'Tanggal',
@@ -245,6 +257,7 @@ function RowActions({ record }: { record: ParentRow }) {
     {
       key: 'process-dispense',
       label: 'Proses Pengambilan Obat',
+      disabled: record.isOnProcess || !record.hasRemaining,
       onClick: () => {
         if (typeof record.baseId === 'number') {
           navigate(`/dashboard/medicine/medication-requests/dispense/${record.baseId}`)
@@ -293,12 +306,13 @@ function RowActions({ record }: { record: ParentRow }) {
 export function MedicationRequestTable() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [showOnlyActive, setShowOnlyActive] = useState(false)
 	const { data, refetch, isError } = useQuery({
 		queryKey: ['medicationRequest', 'list'],
-		queryFn: async () => {
+    queryFn: async () => {
 			const fn = window.api?.query?.medicationRequest?.list
 			if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
-			return fn({})
+      return fn({ limit: 1000 })
 		}
 	})
 
@@ -401,12 +415,26 @@ export function MedicationRequestTable() {
 		return map
 	}, [dispenseListData?.data])
 
-	const filtered = useMemo(() => {
+  const hasInProgressByRequestId = useMemo(() => {
+    const source: MedicationDispenseForFilter[] = Array.isArray(dispenseListData?.data)
+      ? dispenseListData.data
+      : []
+    const set = new Set<number>()
+    source.forEach((item) => {
+      if (typeof item.authorizingPrescriptionId !== 'number') return
+      if (item.status === 'in-progress' || item.status === 'preparation') {
+        set.add(item.authorizingPrescriptionId)
+      }
+    })
+    return set
+  }, [dispenseListData?.data])
+
+  const filtered = useMemo(() => {
 		const source: MedicationRequestAttributes[] = Array.isArray(data?.data)
 			? (data.data as MedicationRequestAttributes[])
 			: []
 
-		const baseFiltered = source.filter((request) => request.status === 'active')
+    const baseFiltered = showOnlyActive ? source.filter((request) => request.status === 'active') : source
 
 		const q = search.trim().toLowerCase()
 		if (!q) return baseFiltered
@@ -517,6 +545,8 @@ export function MedicationRequestTable() {
       const existing = groups.get(key)
       if (!existing) {
 				let isPartial = false
+        let isOnProcess = false
+        let remainingTotal = 0
 				if (typeof record.id === 'number') {
 					const summary = dispensedSummaryByRequestId.get(record.id)
 					const prescribed = record.dispenseRequest?.quantity?.value
@@ -524,7 +554,13 @@ export function MedicationRequestTable() {
 					if (typeof prescribed === 'number' && completed > 0 && completed < prescribed) {
 						isPartial = true
 					}
+          if (hasInProgressByRequestId.has(record.id)) {
+            isOnProcess = true
+          }
 				}
+        if (typeof item.quantity === 'number') {
+          remainingTotal = item.quantity
+        }
         groups.set(key, {
           key,
           baseId: record.id,
@@ -533,16 +569,24 @@ export function MedicationRequestTable() {
           intent: record.intent,
           priority: record.priority,
 					authoredOn: record.authoredOn,
-					isPartial,
+          isPartial,
+          isOnProcess,
+          hasRemaining: remainingTotal > 0,
+          remainingTotal,
           items: groupItems
         })
       } else {
         existing.items.push(...groupItems)
+        const addQ = typeof item.quantity === 'number' ? item.quantity : 0
+        const prevTotal = existing.remainingTotal ?? 0
+        const nextTotal = prevTotal + addQ
+        existing.remainingTotal = nextTotal
+        existing.hasRemaining = nextTotal > 0
       }
     })
 
-		return Array.from(groups.values())
-	}, [filtered, dispensedSummaryByRequestId, medicineMap, itemMap])
+    return Array.from(groups.values())
+  }, [filtered, dispensedSummaryByRequestId, hasInProgressByRequestId, medicineMap, itemMap])
 
 	  return (
     <div>
@@ -550,6 +594,9 @@ export function MedicationRequestTable() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <Input type="text" placeholder="Cari Pasien atau Obat" className="w-full md:max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
         <div className="flex gap-2 flex-wrap md:justify-end">
+          <Button onClick={() => setShowOnlyActive((prev) => !prev)}>
+            {showOnlyActive ? 'Tampilkan Semua Status' : 'Hanya Status Active'}
+          </Button>
           <Button onClick={() => refetch()}>Refresh</Button>
           <Button type="primary" onClick={() => navigate('/dashboard/medicine/medication-requests/create')}>Tambah Permintaan</Button>
         </div>

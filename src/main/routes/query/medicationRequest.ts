@@ -13,7 +13,8 @@ export const schemas = {
     args: z.object({
       patientId: z.string().optional(),
       page: z.number().optional(),
-      limit: z.number().optional()
+      limit: z.number().optional(),
+      items: z.number().optional()
     }),
     result: z.object({
       success: z.boolean(),
@@ -83,7 +84,12 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     const params = new URLSearchParams()
     if (args.patientId) params.append('patientId', args.patientId)
     if (args.page) params.append('page', String(args.page))
-    if (args.limit) params.append('limit', String(args.limit))
+    if (args.items) {
+      params.append('items', String(args.items))
+    } else if (args.limit) {
+      // Map legacy 'limit' to backend 'items'
+      params.append('items', String(args.limit))
+    }
 
     const res = await client.get(`/api/module/medication-request/medication-requests?${params.toString()}`)
     const ListSchema = BackendListSchema(MedicationRequestWithIdSchema)
