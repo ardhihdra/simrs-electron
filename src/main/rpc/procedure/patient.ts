@@ -1,4 +1,4 @@
-import { ApiResponseSchema, PatientSchema } from 'simrs-types'
+import { ApiResponseSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
@@ -15,7 +15,7 @@ export type PatientGetByIdInput = z.infer<typeof PatientGetByIdInputSchema>
 export const patientRpc = {
   list: t
     .input(PatientListInputSchema)
-    .output(ApiResponseSchema(z.array(PatientSchema)))
+    .output(ApiResponseSchema(z.array(z.any())))
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()
       if (input.page) params.append('page', String(input.page))
@@ -24,30 +24,34 @@ export const patientRpc = {
 
       const data = await client.get(`/api/patient?${params.toString()}`)
       const res = await data.json()
-      // console.log('RES PATIENT:', res)
+      console.log('RES PATIENT:', res)
       return res
     }),
   getById: t
-    .input(PatientGetByIdInputSchema)
-    .output(ApiResponseSchema(PatientSchema))
+    .input(z.any())
+    .output(z.any())
     .query(async ({ client }, input) => {
-      const data = await client.get(`/api/patient/${input.id}`)
-      return await data.json()
+      console.log(`/api/patient/${input.id}`)
+      const data = await client.get(`/api/patient/${input.id}/read`)
+      const res = await data.json()
+      console.log(res)
+      return res
     }),
   create: t
-    .input(PatientSchema.omit({ id: true }))
+    .input(z.any())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
-      const data = await client.post('/api/module/registration/patients', input)
+      const data = await client.post('/api/module/visit-management/patients', input)
       const res = await data.json()
       return res
     }),
   update: t
-    .input(PatientSchema.partial().required({ id: true }))
+    .input(z.any())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       console.log(input)
-      const data = await client.put(`/api/module/registration/patients/${input.id}`, input)
+      // We use post to the visit-management patients endpoint because it acts as an upsert based on the ID/NIK
+      const data = await client.post('/api/module/visit-management/patients', input)
       return await data.json()
     })
 }

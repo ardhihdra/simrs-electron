@@ -171,8 +171,7 @@ console.log(queueData)
                         Batal
                     </Button>,
                     <Button key="triage" onClick={() => handleProcessCall(true)}>
-                        Panggil ke Triage
-                    </Button>,
+                        Ke Pemeriksaan Awal                    </Button>,
                     <Button key="poli" type="primary" onClick={() => handleProcessCall(false)}>
                         Langsung ke Poli
                     </Button>,

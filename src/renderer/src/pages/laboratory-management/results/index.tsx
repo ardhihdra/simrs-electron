@@ -2,10 +2,10 @@ import { FileSearchOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { DatePicker, Form, Input, Tag, Tooltip } from 'antd'
+import { DatePicker, Form, Input, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 export default function LaboratoryResults() {
@@ -17,16 +17,38 @@ export default function LaboratoryResults() {
         status: 'COMPLETED' 
     })
 
-    const { data: requestData, isLoading, isRefetching } = client.laboratoryManagement.getPendingOrders.useQuery({
+    const { data: requestData, isLoading, isRefetching } = client.laboratoryManagement.getOrders.useQuery({
         fromDate: searchParams.fromDate,
         toDate: searchParams.toDate,
         status: searchParams.status as any
     })
 
-    const columns: ColumnsType<any> = [
+    // Grouping logic by encounterId
+    const groupedData = useMemo(() => {
+        if (!requestData?.result) return []
+
+        const groups = requestData.result.reduce((acc: Record<string, any>, current: any) => {
+            if (!acc[current.encounterId]) {
+                acc[current.encounterId] = {
+                    key: current.encounterId,
+                    encounterId: current.encounterId,
+                    patient: current.patient,
+                    requestedAt: current.requestedAt, // Using first test's requestedAt for group
+                    status: current.status, // Can accumulate statuses if needed
+                    tests: []
+                }
+            }
+            acc[current.encounterId].tests.push({ ...current, key: current.id })
+            return acc
+        }, {})
+
+        return Object.values(groups)
+    }, [requestData?.result])
+
+    const parentColumns: ColumnsType<any> = [
         { 
             title: 'Tgl. Selesai', 
-            dataIndex: 'requestedAt', // Ideally completedAt, but using requestedAt for now
+            dataIndex: 'requestedAt', 
             key: 'requestedAt',
             width: 150,
             render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm')
@@ -42,15 +64,31 @@ export default function LaboratoryResults() {
             )
         },
         { 
+            title: 'Pasien', 
+            dataIndex: ['patient', 'name'], 
+            key: 'patientName',
+            render: (text) => <span className="font-medium">{text || '-'}</span>
+        },
+        { 
+            title: 'Total Pemeriksaan', 
+            key: 'totalTests',
+            render: (_, record) => <span>{record.tests.length} Pemeriksaan</span>
+        },
+        {
+            title: 'Status',
+            dataIndex: 'status',
+            key: 'status',
+            width: 120,
+            render: (status) => <Tag color="green">{status}</Tag>
+        }
+    ]
+
+    const childColumns: ColumnsType<any> = [
+        { 
             title: 'Pemeriksaan', 
             dataIndex: 'testDisplay', 
             key: 'testDisplay',
             render: (text) => <span className="font-medium">{text}</span>
-        },
-        { 
-            title: 'Hasil', 
-            key: 'result',
-            render: () => <span className="text-gray-500">Lihat Detail</span>
         },
         {
             title: 'Status',
@@ -70,7 +108,7 @@ export default function LaboratoryResults() {
     }
 
     const handleViewReport = (record: any) => {
-        // Navigate to report view
+        // Navigate to report view using encounterId
         navigate(`/dashboard/laboratory-management/results/${record.encounterId}`)
     }
 
@@ -91,12 +129,24 @@ export default function LaboratoryResults() {
                 </div>
             </TableHeader>
 
-            <div className="mt-4">
+            <div className="mt-4 bg-white p-4 rounded-lg border border-gray-100">
                 <GenericTable
-                    columns={columns}
-                    dataSource={requestData?.result || []}
-                    rowKey="id"
+                    columns={parentColumns}
+                    dataSource={groupedData}
+                    rowKey="key"
                     loading={isLoading || isRefetching}
+                    expandable={{
+                        expandedRowRender: (record) => (
+                            <div className="px-10 py-2">
+                                <GenericTable 
+                                    columns={childColumns} 
+                                    dataSource={record.tests} 
+                                    rowKey="key" 
+                                    pagination={false}
+                                />
+                            </div>
+                        )
+                    }}
                     action={{
                         title: 'Aksi',
                         width: 100,

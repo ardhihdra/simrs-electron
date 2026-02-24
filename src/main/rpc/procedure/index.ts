@@ -6,6 +6,7 @@ import { practitionerRpc } from './practitioner'
 import { roomRpc } from './room'
 import { triageRpc } from './triage'
 import { visitManagementRpc } from './visit-management'
+import { wilayahRpc } from './wilayah'
 
 export const rpcRouter = {
   patient: patientRpc,
@@ -15,7 +16,8 @@ export const rpcRouter = {
   practitioner: practitionerRpc,
   triage: triageRpc,
   visitManagement: visitManagementRpc,
-  laboratoryManagement: laboratoryManagementRpc
+  laboratoryManagement: laboratoryManagementRpc,
+  wilayah: wilayahRpc
 }
 
 export type AppRouter = typeof rpcRouter

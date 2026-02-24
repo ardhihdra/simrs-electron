@@ -34,6 +34,11 @@ export default function LaboratoryQueue() {
             width: 120,
             render: (text: string) => <span className="font-bold text-lg">{text}</span>
         },
+        {
+            title:"Service Unit Code",
+            dataIndex:"serviceUnitCodeId",
+
+        },
         { 
             title: 'Pasien', 
             dataIndex: 'patient', 

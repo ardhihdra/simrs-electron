@@ -96,7 +96,7 @@ const items = [
         icon: <DashboardOutlined />
       },
       {
-        label: 'Active Encounters',
+        label: 'Daftar kunjungan',
         key: '/dashboard/registration/active-encounters',
         icon: <UnorderedListOutlined />
       },
@@ -104,12 +104,12 @@ const items = [
       //   label: 'Daftar Antrian',
       //   key: '/dashboard/encounter',
       //   icon: <UserAddOutlined />
+      // // },
+      // {
+      //   label: 'Kunjungan Pasien',
+      //   key: '/dashboard/encounter/transition',
+      //   icon: <CalendarOutlined />
       // },
-      {
-        label: 'Kunjungan Pasien',
-        key: '/dashboard/encounter/transition',
-        icon: <CalendarOutlined />
-      },
       {
         label: 'Triage',
         key: '/dashboard/encounter/triage',

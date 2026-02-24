@@ -90,10 +90,40 @@ export const laboratoryManagementRpc = {
         if (input.fromDate) params.append('fromDate', input.fromDate)
         if (input.toDate) params.append('toDate', input.toDate)
         
+        const res = await client.get(`/api/module/lab-management/pending-orders?${params.toString()}`)
+        const data = await res.json()
+     
+        return data
+    }),
+
+  getOrders: t
+    .input(z.object({
+        status: LabServiceRequestStatusSchema.optional(),
+        priority: LabPrioritySchema.optional(),
+        fromDate: z.string().optional(),
+        toDate: z.string().optional()
+    }))
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, input) => {
+        const params = new URLSearchParams()
+        if (input.status) params.append('status', input.status)
+        if (input.priority) params.append('priority', input.priority)
+        if (input.fromDate) params.append('fromDate', input.fromDate)
+        if (input.toDate) params.append('toDate', input.toDate)
+        
         const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
         const data = await res.json()
      
         return data
+    }),
+
+  // Get Complete Order
+  getCompleteOrder: t
+    .input(z.object({ id: z.string().uuid() }))
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, input) => {
+        const res = await client.get(`/api/module/lab-management/order/${input.id}`)
+        return await res.json()
     }),
 
   // Specimen

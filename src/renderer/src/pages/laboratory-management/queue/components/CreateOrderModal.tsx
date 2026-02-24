@@ -193,7 +193,7 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
               </div>
             </Card>
 
-            <Card title="Tambah Pemeriksaan" size="small">
+            <Card title="Tambah Pemeriksaan" size="small" style={{ marginTop: '1rem' }}>
               <Form form={form} layout="vertical" onFinish={handleAddItem}>
                 <Form.Item
                   name="category"

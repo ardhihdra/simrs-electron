@@ -2,7 +2,6 @@ import { client, rpc } from '@renderer/utils/client'
 import { Button, Card, Space, Table, Tag, message } from 'antd'
 import dayjs from 'dayjs'
 import { useState } from 'react'
-import { EncounterDischargeInput } from 'simrs-types'
 import { TransferBedFormValues, TransferBedModal } from '../encounter-transition/components/TransferBedModal'
 import { DischargeModal } from '../encounter-transition/components/DischargeModal'
 import { MpdnDischargeModal } from '../encounter-transition/components/MpdnDischargeModal'
@@ -136,11 +135,17 @@ export default function ActiveEncountersPage() {
         setMpdnDischargeModalVisible(true)
         return
     }
+
+    if (selectedDisposition === 'REFERRED') {
+        setDischargeModalVisible(false)
+        setRujukanModalVisible(true)
+        return
+    }
     
     try {
         setIsSubmitting(true)
-        const input: EncounterDischargeInput = { id: selectedEncounter.id, dischargeDisposition: selectedDisposition }
-        await rpc.encounter.discharge(input)
+        const input = { encounterId: selectedEncounter.id, dischargeDisposition: selectedDisposition }
+        await rpc.visitManagement.dischargeEncounter(input as any)
         message.success('Pasien dipulangkan')
         setDischargeModalVisible(false)
         setSelectedDisposition('')
@@ -176,11 +181,28 @@ export default function ActiveEncountersPage() {
     }
   }
 
-  const handleRujukanConfirm = (referralType: string) => {
-    // Implement referral logic if backend ready, for now just UI
-    console.log('Rujukan confirmed:', referralType)
-    message.success(`Pasien berhasil dirujuk (${referralType})`)
-    setRujukanModalVisible(false)
+  const handleRujukanConfirm = async (referralType: string) => {
+    if (!selectedEncounter) return
+    setIsSubmitting(true)
+    try {
+        const input = {
+            encounterId: selectedEncounter.id,
+            dischargeDisposition: 'REFERRED',
+            dischargeNote: referralType
+        }
+
+        await rpc.visitManagement.dischargeEncounter(input as any)
+        console.log('Rujukan confirmed:', referralType)
+        message.success(`Pasien berhasil dirujuk (${referralType})`)
+        setRujukanModalVisible(false)
+        setSelectedDisposition('')
+        refetch()
+    } catch (error: any) {
+        console.error(error)
+        message.error(error.message || 'Gagal merujuk pasien')
+    } finally {
+        setIsSubmitting(false)
+    }
   }
 
   return (
@@ -222,6 +244,7 @@ export default function ActiveEncountersPage() {
 
       <RujukanModal
         visible={rujukanModalVisible}
+        loading={isSubmitting}
         encounterId={selectedEncounter?.id}
         onConfirm={handleRujukanConfirm}
         onCancel={() => setRujukanModalVisible(false)}
