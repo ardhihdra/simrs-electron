@@ -74,13 +74,13 @@ export default function LaboratoryResults() {
             key: 'totalTests',
             render: (_, record) => <span>{record.tests.length} Pemeriksaan</span>
         },
-        {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            width: 120,
-            render: (status) => <Tag color="green">{status}</Tag>
-        }
+        // {
+        //     title: 'Status',
+        //     dataIndex: 'status',
+        //     key: 'status',
+        //     width: 120,
+        //     render: (status) => <Tag color="green">{status}</Tag>
+        // }
     ]
 
     const childColumns: ColumnsType<any> = [
@@ -109,7 +109,7 @@ export default function LaboratoryResults() {
 
     const handleViewReport = (record: any) => {
         // Navigate to report view using encounterId
-        navigate(`/dashboard/laboratory-management/results/${record.encounterId}`)
+        navigate(`/dashboard/laboratory/report/${record.encounterId}`)
     }
 
     return (
@@ -135,17 +135,19 @@ export default function LaboratoryResults() {
                     dataSource={groupedData}
                     rowKey="key"
                     loading={isLoading || isRefetching}
-                    expandable={{
-                        expandedRowRender: (record) => (
-                            <div className="px-10 py-2">
-                                <GenericTable 
-                                    columns={childColumns} 
-                                    dataSource={record.tests} 
-                                    rowKey="key" 
-                                    pagination={false}
-                                />
-                            </div>
-                        )
+                    tableProps={{
+                        expandable: {
+                            expandedRowRender: (record) => (
+                                <div className="px-10 py-2 bg-gray-50">
+                                    <GenericTable 
+                                        columns={childColumns} 
+                                        dataSource={record.tests} 
+                                        rowKey="key" 
+                                        tableProps={{ pagination: false }}
+                                    />
+                                </div>
+                            )
+                        }
                     }}
                     action={{
                         title: 'Aksi',
