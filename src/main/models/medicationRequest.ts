@@ -30,7 +30,7 @@ const CategoryEntrySchema = z.object({
 const SupportingInformationEntrySchema = z.object({
 	type: z.string().optional(),
 	itemId: z.number().optional(),
-	unitCode: z.string().optional(),
+  unitCode: z.string().nullable().optional(),
 	quantity: z.number().optional(),
 	instruction: z.string().optional()
 })

@@ -146,10 +146,16 @@ function getPatientDisplayName(patient?: PatientInfo): string {
 
 function isCompound(record: MedicationRequestAttributes): boolean {
   const categories = record.category ?? []
-  return categories.some((category) => {
+  const byCategory = categories.some((category) => {
     const code = category.code?.toLowerCase()
     const text = category.text?.toLowerCase()
     return code === 'compound' || text === 'racikan'
+  })
+  if (byCategory) return true
+  const infos = Array.isArray(record.supportingInformation) ? record.supportingInformation : []
+  return infos.some((info: any) => {
+    const type = info?.resourceType || info?.resource_type
+    return type === 'Ingredient'
   })
 }
 

@@ -1,25 +1,25 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { createBackendClient, parseBackendResponse, BackendListSchema } from '@main/utils/backendClient'
-import { ItemSchema, ItemWithIdSchema } from '@main/models/item'
+import { ItemSchema, ItemWithIdSchema, ItemKindSchema } from '@main/models/item'
 
 export const requireSession = true
 
 export const schemas = {
   list: {
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.array().optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
   read: {
     args: z.object({ id: z.number() }),
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
   create: {
     args: ItemSchema.partial(),
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
   update: {
     args: ItemSchema.extend({ id: z.number() }),
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
   deleteById: {
     args: z.object({ id: z.number() }),
@@ -52,29 +52,75 @@ export const schemas = {
   
 } as const
 
-const BackendDetailSchema: z.ZodSchema<{
-	success: boolean
-	result?: z.infer<typeof ItemWithIdSchema> | null
-	message?: string
-	error?: string
-}> = z.object({
-	success: z.boolean(),
-	result: ItemWithIdSchema.nullable().optional(),
-	message: z.string().optional(),
-	error: z.any().optional()
+const DomainItemSchema = z.object({
+  id: z.number(),
+  kodeUnit: z.string(),
+  nama: z.string(),
+  kode: z.string(),
+  kind: ItemKindSchema.nullable().optional(),
+  minimumStock: z.number().nullable().optional(),
+  stock: z.number().nullable().optional(),
+  itemCategoryId: z.number().nullable().optional(),
+  buyingPrice: z.number().nullable().optional(),
+  sellingPrice: z.number().nullable().optional(),
+  kfaCode: z.string().nullable().optional(),
+  snomedCode: z.string().nullable().optional(),
+  buyPriceRules: z
+    .object({ unitCode: z.string(), qty: z.number().positive(), price: z.number().nonnegative() })
+    .array()
+    .nullable()
+    .optional(),
+  sellPriceRules: z
+    .object({ unitCode: z.string(), qty: z.number().positive(), price: z.number().nonnegative() })
+    .array()
+    .nullable()
+    .optional(),
+  createdBy: z.string().nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
+  createdAt: z.union([z.date(), z.string()]).nullable().optional(),
+  updatedAt: z.union([z.date(), z.string()]).nullable().optional(),
+  deletedAt: z.union([z.date(), z.string()]).nullable().optional(),
+  deletedBy: z.union([z.date(), z.string()]).nullable().optional()
+})
+
+const BackendCreateUpdateSchema = z.object({
+  success: z.boolean(),
+  result: z
+    .object({
+      id: z.number(),
+      kode: z.string(),
+      nama: z.string(),
+      kfaCode: z.string().nullable().optional()
+    })
+    .nullable()
+    .optional(),
+  message: z.string().optional(),
+  error: z.string().optional()
+})
+
+const BackendGetDetailSchema = z.object({
+  success: z.boolean(),
+  result: z
+    .object({
+      item: DomainItemSchema.optional()
+    })
+    .nullable()
+    .optional(),
+  message: z.string().optional(),
+  error: z.string().optional()
 })
 
 export const list = async (ctx: IpcContext) => {
   const client = createBackendClient(ctx)
-  const res = await client.get('/api/item?items=100&depth=1')
-  const result = await parseBackendResponse(res, BackendListSchema(ItemWithIdSchema))
+  const res = await client.get('/api/module/item/items?items=100&depth=1')
+  const result = await parseBackendResponse(res, BackendListSchema(DomainItemSchema))
   return { success: true, result }
 }
 
 export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.args>) => {
   const client = createBackendClient(ctx)
-  const res = await client.get(`/api/item/read/${args.id}`)
-  const result = await parseBackendResponse(res, BackendDetailSchema)
+  const res = await client.get(`/api/module/item/items/${args.id}`)
+  const result = await parseBackendResponse(res, BackendGetDetailSchema)
   return { success: true, result }
 }
 
@@ -98,9 +144,37 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 				? { ...basePayload, minimumStock: args.minimumStock }
 				: basePayload
 		console.log('[item.create] payload', payload)
-		const res = await client.post('/api/item', payload)
-		const result = await parseBackendResponse(res, BackendDetailSchema)
+    const res = await client.post('/api/module/item/items', payload)
+		const result = await parseBackendResponse(res, BackendCreateUpdateSchema)
 		console.log('[item.create] backend result', result)
+
+    try {
+      const createdId = result?.id
+      if (typeof createdId === 'number' && createdId > 0) {
+        console.log('[item.sync] start', createdId)
+        const syncRes = await client.post(`/api/module/item/items/${createdId}/sync-satusehat`, {})
+        if (syncRes.ok) {
+          console.log('[item.sync] success', createdId)
+        } else {
+          let detail = ''
+          try {
+            const ct = syncRes.headers.get('content-type') ?? ''
+            if (ct.includes('application/json')) {
+              const json = await syncRes.json() as { message?: string }
+              detail = typeof json.message === 'string' ? json.message : ''
+            } else {
+              detail = await syncRes.text()
+            }
+          } catch {}
+          console.warn('[item.sync] failed', createdId, syncRes.status, detail)
+        }
+      } else {
+        console.warn('[item.sync] skipped: invalid created id', result)
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[item.sync] exception', msg)
+    }
 		return { success: true, result }
 	} catch (err) {
 		const msg = err instanceof Error ? err.message : String(err)
@@ -129,8 +203,8 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 				? { ...basePayload, minimumStock: args.minimumStock }
 				: basePayload
 		console.log('[item.update] payload', { id: args.id, ...payload })
-		const res = await client.put(`/api/item/${args.id}`, payload)
-		const result = await parseBackendResponse(res, BackendDetailSchema)
+    const res = await client.put(`/api/module/item/items/${args.id}`, payload)
+		const result = await parseBackendResponse(res, BackendCreateUpdateSchema)
 		console.log('[item.update] backend result', result)
 		return { success: true, result }
 	} catch (err) {
@@ -143,7 +217,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.deleteById.args>) => {
 	try {
 		const client = createBackendClient(ctx)
-		const res = await client.delete(`/api/item/${args.id}`)
+    const res = await client.delete(`/api/module/item/items/${args.id}`)
 		const DeleteSchema = z.object({ success: z.boolean(), message: z.string().optional(), error: z.string().optional() })
 		await parseBackendResponse(res, DeleteSchema)
 		return { success: true }
