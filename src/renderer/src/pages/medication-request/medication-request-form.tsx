@@ -150,7 +150,7 @@ export function MedicationRequestForm() {
   const isEdit = Boolean(id)
   const [session, setSession] = useState<any>(null)
   const [originalGroupRecords, setOriginalGroupRecords] = useState<MedicationRequestRecordForEdit[]>([])
-  const { message } = AntdApp.useApp()
+  const { message, modal } = AntdApp.useApp()
 
   const buildDispenseRequest = (quantity?: number, unit?: string) => {
     if (!quantity) return null
@@ -804,11 +804,19 @@ export function MedicationRequestForm() {
     },
     onSuccess: (res) => {
       console.log('MedicationRequest create success', res)
+      if (!res?.success) {
+        const msg = (res as any)?.error || (res as any)?.message || 'Gagal membuat Permintaan Obat'
+        modal.error({ title: 'Gagal', content: msg })
+        return
+      }
+      message.success('Permintaan Obat berhasil dibuat')
       queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
       navigate('/dashboard/medicine/medication-requests')
     },
     onError: (error) => {
       console.error('MedicationRequest create error', error)
+      const msg = error instanceof Error ? error.message : String(error)
+      modal.error({ title: 'Gagal', content: msg || 'Gagal membuat Permintaan Obat' })
     }
   })
 
@@ -819,9 +827,19 @@ export function MedicationRequestForm() {
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
+      if (!res?.success) {
+        const msg = (res as any)?.error || (res as any)?.message || 'Gagal mengubah Permintaan Obat'
+        modal.error({ title: 'Gagal', content: msg })
+        return
+      }
+      message.success('Permintaan Obat berhasil diubah')
       queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'detail', id] })
+    },
+    onError: (error) => {
+      const msg = error instanceof Error ? error.message : String(error)
+      modal.error({ title: 'Gagal', content: msg || 'Gagal mengubah Permintaan Obat' })
     }
   })
 

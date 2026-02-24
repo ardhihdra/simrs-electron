@@ -1,4 +1,4 @@
-import { Button, Form, Input, Select, message, InputNumber } from 'antd'
+import { Button, Form, Input, Select, InputNumber, App } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, Fragment, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -86,6 +86,7 @@ export function ItemForm() {
 	  const { id } = useParams()
 		  const [form] = Form.useForm<ItemFormValues>()
 	  const isEdit = Boolean(id)
+  const { message, modal } = App.useApp()
 	  type KfaOption = { label: string; value: string; realKode: string; nama: string }
 	  const [kfaOptions, setKfaOptions] = useState<KfaOption[]>([])
 	  const [loadingKfa, setLoadingKfa] = useState(false)
@@ -195,10 +196,11 @@ export function ItemForm() {
       console.log('[ItemForm] create success', result)
       if (!result?.success) {
         const msg = result?.message ?? result?.error ?? 'Gagal menyimpan data'
-        message.error(msg)
+        modal.error({ title: 'Gagal', content: msg })
         return
       }
 
+      message.success('Item berhasil disimpan')
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
       navigate('/dashboard/medicine/items', { replace: true })
@@ -206,7 +208,7 @@ export function ItemForm() {
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
       console.error('[ItemForm] create error', msg)
-      message.error(msg || 'Gagal menyimpan data')
+      modal.error({ title: 'Gagal', content: msg || 'Gagal menyimpan data' })
     }
   })
 
@@ -222,10 +224,11 @@ export function ItemForm() {
       console.log('[ItemForm] update success', result)
       if (!result?.success) {
         const msg = result?.message ?? result?.error ?? 'Gagal mengupdate data'
-        message.error(msg)
+        modal.error({ title: 'Gagal', content: msg })
         return
       }
 
+      message.success('Item berhasil diperbarui')
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['item', 'detail', id] })
@@ -234,7 +237,7 @@ export function ItemForm() {
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
       console.error('[ItemForm] update error', msg)
-      message.error(msg || 'Gagal mengupdate data')
+      modal.error({ title: 'Gagal', content: msg || 'Gagal mengupdate data' })
     }
   })
 
@@ -273,7 +276,7 @@ export function ItemForm() {
 			  ? baseUnitFromRules
 			  : values.kodeUnit
 		  if (!baseUnitCode) {
-			  message.error('Minimal isi satu baris harga dengan satuan dan isi/pcs yang valid')
+      message.error('Minimal isi satu baris harga dengan satuan dan isi/pcs yang valid')
 			  return
 		  }
 	    const payload: ItemFormValues = {
@@ -347,6 +350,7 @@ export function ItemForm() {
                   }
                 } catch (err) {
                   console.error('[item-form] Gagal mencari KFA', err)
+                  message.error('Gagal mencari KFA')
                 } finally {
                   setLoadingKfa(false)
                 }

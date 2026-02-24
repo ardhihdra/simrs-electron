@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, message } from 'antd'
+import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -197,6 +197,7 @@ function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
 }
 
 export default function MedicationDispenseFromRequest() {
+	const { message, modal } = App.useApp()
 	const params = useParams()
 	const navigate = useNavigate()
 	const idParam = params.id
@@ -480,7 +481,7 @@ export default function MedicationDispenseFromRequest() {
 		onSuccess: (result) => {
 			console.log('DEBUG: Mutation onSuccess', result)
 			if (!result.success) {
-				message.error(result.error || 'Gagal membuat MedicationDispense')
+				modal.error({ title: 'Gagal', content: result.error || 'Gagal membuat MedicationDispense' })
 				return
 			}
 			const recordsForGroup: MedicationRequestDetail[] =
@@ -507,7 +508,7 @@ export default function MedicationDispenseFromRequest() {
 		onError: (error) => {
 			console.error('DEBUG: Mutation onError', error)
 			const msg = error instanceof Error ? error.message : String(error)
-			message.error(msg || 'Gagal memproses dispense')
+			modal.error({ title: 'Gagal', content: msg || 'Gagal memproses dispense' })
 		}
 	})
 
