@@ -9,6 +9,14 @@ export const schemas = {
   list: {
     result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
+  syncSatusehat: {
+    args: z.object({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
+  },
   read: {
     args: z.object({ id: z.number() }),
     result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
@@ -75,6 +83,7 @@ const DomainItemSchema = z.object({
     .array()
     .nullable()
     .optional(),
+  fhirId: z.string().nullable().optional(),
   createdBy: z.string().nullable().optional(),
   updatedBy: z.string().nullable().optional(),
   createdAt: z.union([z.date(), z.string()]).nullable().optional(),
@@ -344,5 +353,23 @@ export const searchKfaMaster = async (ctx: IpcContext, args: z.infer<typeof sche
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[item.searchKfaMaster] error', msg)
     return { success: false, message: msg }
+  }
+}
+
+export const syncSatusehat = async (ctx: IpcContext, args: z.infer<typeof schemas.syncSatusehat.args>) => {
+  try {
+    const client = createBackendClient(ctx)
+    const res = await client.post(`/api/module/item/items/${args.id}/sync-satusehat`, {})
+    const raw = await res
+      .json()
+      .catch(() => ({} as { success?: boolean; message?: string; error?: string }))
+    if (!res.ok || raw?.success !== true) {
+      const errMsg = raw?.error || raw?.message || `HTTP ${res.status}`
+      return { success: false, error: errMsg }
+    }
+    return { success: true, message: raw?.message }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
   }
 }

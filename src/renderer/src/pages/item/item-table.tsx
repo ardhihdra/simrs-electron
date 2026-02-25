@@ -7,11 +7,11 @@ import {
   ReloadOutlined,
   SyncOutlined
 } from '@ant-design/icons'
-import GenericTable from '@renderer/components/organisms/GenericTable'
 import { queryClient } from '@renderer/query-client'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { MenuProps } from 'antd'
 import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -29,6 +29,7 @@ interface ItemAttributes {
 	kode: string
 	kodeUnit: string
 	kfaCode?: string | null
+  fhirId?: string | null
 	kind?: ItemKind | null
 	unit?: { nama?: string; kode?: string } | null
 	stock?: number | null
@@ -227,7 +228,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
   const api = (window.api?.query as { item?: ItemApi }).item
   const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
     .inventoryStock
-  const [updatingKfa, setUpdatingKfa] = useState(false)
+  const [syncingSatusehat, setSyncingSatusehat] = useState(false)
 
 	const updateStockAndMinimumStockMutation = useMutation({
     mutationKey: ['item', 'update', 'stock-and-minimumStock', record.id],
@@ -326,35 +327,39 @@ function RowActions({ record }: { record: ItemAttributes }) {
       }
     },
     {
-      key: 'sync-kfa',
-      label: updatingKfa ? 'Sinkronisasi KFA...' : 'Sinkronisasi KFA',
+      key: 'sync-satusehat',
+      label: syncingSatusehat ? 'Sinkronisasi Satu Sehat...' : 'Sinkronisasi Satu Sehat',
       icon: <SyncOutlined />,
-      disabled: updatingKfa,
+      disabled: syncingSatusehat,
       onClick: async () => {
-        const searchFn = window.api?.query?.item?.searchKfaMaster
-        if (!searchFn || !api?.update) return
-        setUpdatingKfa(true)
+        if (typeof record.id !== 'number') return
+        const fn = window.api?.query?.item?.syncSatusehat
+        if (!fn) {
+          message.error('API sinkronisasi tidak tersedia. Silakan refresh/restart aplikasi.')
+          return
+        }
+        setSyncingSatusehat(true)
         try {
-          const res = await searchFn({ query: record.nama })
-          const items = Array.isArray(res?.result) ? res.result : []
-          const first = items.length > 0 ? items[0] : null
-          if (first && typeof record.id === 'number') {
-            await api.update({
-              id: record.id,
-              nama: record.nama,
-              kode: record.kode,
-              kodeUnit: record.kodeUnit,
-              kfaCode: first.kode
-            })
-            message.success('Kode KFA diperbarui')
+          const res = await fn({ id: record.id })
+          if (res && (res as { success?: boolean }).success) {
+            const msg = (res as { message?: string }).message || ''
+            if (msg.toLowerCase().includes('already')) {
+              message.info('Sudah tersinkron ke SATUSEHAT')
+            } else {
+              message.success('Sinkronisasi Satu Sehat berhasil')
+            }
             queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
           } else {
-            message.info('Data KFA tidak ditemukan')
+            const errMsg =
+              (res as { error?: string; message?: string }).error ||
+              (res as { error?: string; message?: string }).message ||
+              'Sinkronisasi Satu Sehat gagal'
+            message.error(errMsg)
           }
-        } catch (err) {
-          message.error('Sinkronisasi KFA gagal')
+        } catch {
+          message.error('Sinkronisasi Satu Sehat gagal')
         } finally {
-          setUpdatingKfa(false)
+          setSyncingSatusehat(false)
         }
       }
     },
@@ -391,7 +396,12 @@ function RowActions({ record }: { record: ItemAttributes }) {
   return (
     <>
       <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-        <Button type="text" icon={<MoreOutlined />} />
+        <button
+          aria-label="Actions"
+          className="p-1 rounded text-gray-700 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
+          <MoreOutlined />
+        </button>
       </Dropdown>
       <Modal
         title="Penyesuaian Stok Fisik Item"
@@ -591,13 +601,136 @@ export function ItemTable() {
 		}
 	}
 
+  const columns: ColumnsType<ItemAttributes> = [
+    { title: 'Nama', dataIndex: 'nama', key: 'nama' },
+    { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 120 },
+    {
+      title: 'Kode KFA',
+      dataIndex: 'kfaCode',
+      key: 'kfaCode',
+      width: 120,
+      render: (v: string | null) => v || '-'
+    },
+    {
+      title: 'Satu Sehat',
+      dataIndex: 'fhirId',
+      key: 'fhirId',
+      width: 140,
+      render: (v: string | null | undefined) => {
+        const ok = typeof v === 'string' && v.trim().length > 0
+        return ok ? <span className="text-green-600">Tersinkron</span> : <span className="text-red-600">Belum</span>
+      }
+    },
+    {
+      title: 'Stok',
+      dataIndex: 'stock',
+      key: 'stock',
+      width: 100,
+      render: (v: ItemAttributes['stock']) => (typeof v === 'number' ? v : 0)
+    },
+    {
+      title: 'Minimum Stok',
+      dataIndex: 'minimumStock',
+      key: 'minimumStock',
+      width: 140,
+      render: (v: ItemAttributes['minimumStock']) => (typeof v === 'number' && v > 0 ? v : '-')
+    },
+    {
+      title: 'Unit',
+      dataIndex: 'unit',
+      key: 'unit',
+      render: (v: ItemAttributes['unit']) => v?.nama || v?.kode || '-'
+    },
+    {
+      title: 'Harga Beli Satuan',
+      key: 'buyUnitPrice',
+      render: (_: unknown, record: ItemAttributes) => {
+        const baseUnitCode = getBaseUnitCodeForItem(record)
+        const unitPrices = buildUnitPrices(record.buyPriceRules ?? null, baseUnitCode)
+        if (unitPrices.length > 0) {
+          return (
+            <div className="flex flex-col">
+              {unitPrices.map((p) => (
+                <span key={`${p.unitCode}-${p.value}`}>
+                  {formatRupiah(p.value)} / {p.unitCode}
+                </span>
+              ))}
+            </div>
+          )
+        }
+        const price = record.buyingPrice
+        if (typeof price === 'number' && Number.isFinite(price)) {
+          const unitLabel = record.kodeUnit || 'PCS'
+          return (
+            <span>
+              {formatRupiah(price)} / {unitLabel}
+            </span>
+          )
+        }
+        return '-' as const
+      }
+    },
+    {
+      title: 'Harga Jual Satuan',
+      key: 'sellUnitPrice',
+      render: (_: unknown, record: ItemAttributes) => {
+        const baseUnitCode = getBaseUnitCodeForItem(record)
+        const unitPrices = buildUnitPrices(record.sellPriceRules ?? null, baseUnitCode)
+        if (unitPrices.length > 0) {
+          return (
+            <div className="flex flex-col">
+              {unitPrices.map((p) => (
+                <span key={`${p.unitCode}-${p.value}`}>
+                  {formatRupiah(p.value)} / {p.unitCode}
+                </span>
+              ))}
+            </div>
+          )
+        }
+        const price = record.sellingPrice
+        if (typeof price === 'number' && Number.isFinite(price)) {
+          const unitLabel = record.kodeUnit || 'PCS'
+          return (
+            <span>
+              {formatRupiah(price)} / {unitLabel}
+            </span>
+          )
+        }
+        return '-' as const
+      }
+    },
+    {
+      title: 'Kategori',
+      dataIndex: 'itemCategoryId',
+      key: 'itemCategoryId',
+      render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
+        const directName = typeof record.category?.name === 'string' ? record.category.name.trim() : ''
+        if (directName.length > 0) return directName
+        const idFromRecord = typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
+        if (typeof idFromRecord === 'number') {
+          const mapped = itemCategoryNameById.get(idFromRecord)
+          if (typeof mapped === 'string' && mapped.length > 0) return mapped
+        }
+        return '-'
+      }
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      width: 80,
+      align: 'center',
+      fixed: 'right',
+      render: (_: unknown, record: ItemAttributes) => <RowActions record={record} />
+    }
+  ]
+
   return (
     <div>
-      <h2 className="text-3xl md:text-4xl font-bold mb-4 justify-center flex">Data Master Item</h2>
+      <h2 className="text-4xl font-bold mb-4 justify-center flex">Data Master Item</h2>
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <Input
           type="text"
-          placeholder="Cari nama, kode, atau unit"
+          placeholder="Cari"
           className="w-full md:max-w-sm"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -710,138 +843,13 @@ export function ItemTable() {
 					]}
 				/>
 			</Modal>
-	       <GenericTable<ItemAttributes>
-	         columns={[
-	           { title: 'Nama', dataIndex: 'nama', key: 'nama' },
-            { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 120 },
-            { 
-              title: 'Kode KFA', 
-              dataIndex: 'kfaCode', 
-              key: 'kfaCode', 
-              width: 120,
-              render: (v: string | null) => v || '-'
-            },
-            {
-              title: 'Stok',
-              dataIndex: 'stock',
-              key: 'stock',
-              width: 100,
-              render: (v: ItemAttributes['stock']) => (typeof v === 'number' ? v : 0)
-            },
-            {
-              title: 'Minimum Stok',
-              dataIndex: 'minimumStock',
-              key: 'minimumStock',
-              width: 140,
-              render: (v: ItemAttributes['minimumStock']) =>
-                typeof v === 'number' && v > 0 ? v : '-'
-            },
-            {
-              title: 'Unit',
-              dataIndex: 'unit',
-              key: 'unit',
-              render: (v: ItemAttributes['unit']) => v?.nama || v?.kode || '-'
-            },
-          {
-            title: 'Harga Beli Satuan',
-            key: 'buyUnitPrice',
-            render: (_: unknown, record: ItemAttributes) => {
-              const baseUnitCode = getBaseUnitCodeForItem(record)
-              const unitPrices = buildUnitPrices(record.buyPriceRules ?? null, baseUnitCode)
-
-              if (unitPrices.length > 0) {
-                return (
-                  <div className="flex flex-col">
-                    {unitPrices.map((p) => (
-                      <span key={`${p.unitCode}-${p.value}`}>
-                        {formatRupiah(p.value)} / {p.unitCode}
-                      </span>
-                    ))}
-                  </div>
-                )
-              }
-
-              const price = record.buyingPrice
-              if (typeof price === 'number' && Number.isFinite(price)) {
-                const unitLabel = record.kodeUnit || 'PCS'
-                return (
-                  <span>
-                    {formatRupiah(price)} / {unitLabel}
-                  </span>
-                )
-              }
-
-              return '-' as const
-            }
-          },
-          {
-            title: 'Harga Jual Satuan',
-            key: 'sellUnitPrice',
-            render: (_: unknown, record: ItemAttributes) => {
-              const baseUnitCode = getBaseUnitCodeForItem(record)
-              const unitPrices = buildUnitPrices(record.sellPriceRules ?? null, baseUnitCode)
-
-              if (unitPrices.length > 0) {
-                return (
-                  <div className="flex flex-col">
-                    {unitPrices.map((p) => (
-                      <span key={`${p.unitCode}-${p.value}`}>
-                        {formatRupiah(p.value)} / {p.unitCode}
-                      </span>
-                    ))}
-                  </div>
-                )
-              }
-
-              const price = record.sellingPrice
-              if (typeof price === 'number' && Number.isFinite(price)) {
-                const unitLabel = record.kodeUnit || 'PCS'
-                return (
-                  <span>
-                    {formatRupiah(price)} / {unitLabel}
-                  </span>
-                )
-              }
-
-              return '-' as const
-            }
-          },
-          {
-            title: 'Kategori',
-            dataIndex: 'itemCategoryId',
-            key: 'itemCategoryId',
-            render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
-              const directName =
-                typeof record.category?.name === 'string'
-                  ? record.category.name.trim()
-                  : ''
-
-              if (directName.length > 0) {
-                return directName
-              }
-
-              const idFromRecord =
-                typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
-              if (typeof idFromRecord === 'number') {
-                const mapped = itemCategoryNameById.get(idFromRecord)
-                if (typeof mapped === 'string' && mapped.length > 0) {
-                  return mapped
-                }
-              }
-
-              return '-'
-            }
-          }
-          ]}
+        <Table
           dataSource={filtered}
+          columns={columns}
+          size="small"
+          className="mt-4 rounded-xl shadow-sm"
           rowKey={(r) => String(r.id ?? r.kode)}
-          action={{
-            title: 'Action',
-            width: 80,
-            align: 'center',
-            fixedRight: true,
-            render: (record) => <RowActions record={record} />
-          }}
+          scroll={{ x: 'max-content' }}
         />
       </div>
     </div>
