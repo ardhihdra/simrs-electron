@@ -52,7 +52,18 @@ export const schemas = {
             practitioner: z.any().nullable()
           })
           .nullable(),
-        labServiceRequests: z.array(z.any()).optional()
+        labServiceRequests: z.array(z.any()).optional(),
+        satuSehatSyncStatus: z.object({
+          encounterSynced: z.boolean(),
+          allSynced: z.boolean(),
+          resources: z.object({
+            observation: z.object({ total: z.number(), synced: z.number() }),
+            condition: z.object({ total: z.number(), synced: z.number() }),
+            procedure: z.object({ total: z.number(), synced: z.number() }),
+            allergyIntolerance: z.object({ total: z.number(), synced: z.number() }),
+            composition: z.object({ total: z.number(), synced: z.number() }),
+          })
+        }).optional().nullable()
       })),
       error: z.string().optional()
     })
@@ -114,6 +125,24 @@ export const schemas = {
       success: z.boolean(),
       result: z.array(z.any()).optional(),
       message: z.string().optional(),
+      error: z.string().optional()
+    })
+  },
+  syncSatusehat: {
+    args: z.object({ id: z.string() }),
+    result: z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      encounterId: z.string().optional(),
+      error: z.string().optional()
+    })
+  },
+  bulkSyncSatusehat: {
+    args: z.any().optional(),
+    result: z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      count: z.number().optional(),
       error: z.string().optional()
     })
   }
@@ -179,6 +208,17 @@ export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
           practitioner: z.any().nullable()
         })
         .nullable(),
+      satuSehatSyncStatus: z.object({
+        encounterSynced: z.boolean().optional(),
+        allSynced: z.boolean().optional(),
+        resources: z.object({
+          observation: z.object({ total: z.number(), synced: z.number() }).optional(),
+          condition: z.object({ total: z.number(), synced: z.number() }).optional(),
+          procedure: z.object({ total: z.number(), synced: z.number() }).optional(),
+          allergyIntolerance: z.object({ total: z.number(), synced: z.number() }).optional(),
+          composition: z.object({ total: z.number(), synced: z.number() }).optional(),
+        }).optional()
+      }).optional().nullable(),
       labServiceRequests: z.array(z.any()).optional()
     })
 
@@ -426,5 +466,51 @@ export const getTimeline = async (
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ENCOUNTER TIMELINE] Error:', msg)
     return { success: false, error: msg, result: [] }
+  }
+}
+
+export const syncSatusehat = async (
+  ctx: IpcContext,
+  args: z.infer<typeof schemas.syncSatusehat.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.post(`/api/module/encounter/${args.id}/sync`, {})
+
+    const SyncSchema = z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      encounterId: z.string().optional()
+    })
+
+    const parsedResult = await parseBackendResponse(res, SyncSchema) as any
+    return { success: true, ...parsedResult }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ENCOUNTER SYNC] Error:', msg)
+    return { success: false, error: msg }
+  }
+}
+
+export const bulkSyncSatusehat = async (
+  ctx: IpcContext,
+  args?: z.infer<typeof schemas.bulkSyncSatusehat.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.post(`/api/module/encounter/sync`, {})
+
+    const BulkSyncSchema = z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      count: z.number().optional()
+    })
+
+    const parsedResult = await parseBackendResponse(res, BulkSyncSchema) as any
+    return { success: true, ...parsedResult }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ENCOUNTER BULK SYNC] Error:', msg)
+    return { success: false, error: msg }
   }
 }

@@ -189,15 +189,16 @@ const PatientQueueTable = () => {
       title: 'No',
       dataIndex: 'no',
       key: 'no',
-      width: 100,
+      width: 50,
       align: 'center',
-      render: (num: number) => <div className="text-xl font-bold text-blue-600">{num}</div>
+      render: (num: number) => <span className="text-sm font-semibold text-gray-400">{num}</span>
     },
     {
       title: 'No. Rekam Medis',
       dataIndex: ['patient', 'medicalRecordNumber'],
       key: 'medicalRecordNumber',
-      width: 150
+      width: 140,
+      render: (mrn: string) => <span className="font-mono text-xs text-gray-500">{mrn || '-'}</span>
     },
     {
       title: 'Nama Pasien',
@@ -206,9 +207,9 @@ const PatientQueueTable = () => {
       width: 250,
       render: (name: string, record) => (
         <div>
-          <div className="font-medium text-base">{name}</div>
-          <div className="text-xs ">
-            {record.patient.gender === 'MALE' ? 'Laki-laki' : 'Perempuan'}, {record.patient.age}{' '}
+          <div className="font-semibold text-sm">{name}</div>
+          <div className="text-xs text-gray-400">
+            {record.patient.gender === 'MALE' ? 'Laki-laki' : 'Perempuan'} · {record.patient.age}{' '}
             tahun
           </div>
         </div>
@@ -218,7 +219,7 @@ const PatientQueueTable = () => {
       title: 'Poli',
       dataIndex: ['poli', 'name'],
       key: 'poli',
-      width: 150,
+      width: 140,
       render: (text: string) => {
         if (!text) return '-'
         if (text === 'RAWAT_INAP') return 'Rawat Inap'
@@ -228,18 +229,16 @@ const PatientQueueTable = () => {
           .toLowerCase()
           .replace(/_/g, ' ')
           .replace(/\b\w/g, (l) => l.toUpperCase())
-          .replace(/\bIgd\b/i, 'IGD')
       }
     },
     {
       title: 'Jenis',
       dataIndex: 'encounterType',
       key: 'encounterType',
-      width: 120,
+      width: 110,
       render: (type: string) => {
-        let label = type || '-'
-        let color = 'default'
-
+        let label = type || '-',
+          color = 'default'
         switch (type) {
           case 'EMER':
             label = 'IGD'
@@ -254,7 +253,6 @@ const PatientQueueTable = () => {
             color = 'green'
             break
         }
-
         return <Tag color={color}>{label}</Tag>
       }
     },
@@ -262,26 +260,32 @@ const PatientQueueTable = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 150,
+      width: 140,
       render: (status: string) => getStatusTag(status)
     },
     {
       title: 'Aksi',
       key: 'action',
-      width: 100,
+      width: 160,
       align: 'center',
       fixed: 'right',
       render: (_, record) => {
         return (
-          <Button
-            type="primary"
-            icon={<PhoneOutlined />}
-            onClick={() => handleCallPatient(record)}
-            loading={calling === record.id}
-            size="small"
-          >
-            Panggil
-          </Button>
+          <Space direction="vertical" size={4} className="w-full">
+            <Button
+              type="primary"
+              icon={<PhoneOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleCallPatient(record)
+              }}
+              loading={calling === record.id}
+              size="small"
+              block
+            >
+              Panggil
+            </Button>
+          </Space>
         )
       }
     }
@@ -297,42 +301,29 @@ const PatientQueueTable = () => {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <Card bodyStyle={{ padding: '24px' }} className="border-none">
-        <div className="flex flex-col gap-6">
-          {/* Header Manual */}
-          <div className="flex justify-between items-start mb-2">
-            <div className="flex flex-col">
-              <h1 className="text-2xl font-bold  mb-0">Antrian & Pemanggilan Pasien</h1>
-              <p className="text-sm  m-0">
+      <Card bodyStyle={{ padding: '20px 24px' }} className="border-none">
+        <div className="flex flex-col gap-5">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold mb-0">Antrian & Pemanggilan Pasien</h1>
+              <p className="text-sm text-gray-400 m-0">
                 Manajemen antrian dan proses pemanggilan pasien ke ruang periksa
               </p>
             </div>
 
-            <Space size="large" align="center">
-              <div className="flex flex-col items-end">
-                <span className="text-[10px] uppercase tracking-wider font-bold">
-                  Terakhir Sinkron
-                </span>
-                <span className="text-xs font-mono text-gray-600">
-                  {dayjs().format('HH:mm:ss')}
-                </span>
-              </div>
-              <Button
-                type="primary"
-                ghost
-                icon={<ReloadOutlined />}
-                onClick={handleRefresh}
-                loading={isLoading}
-                className="h-10 rounded-lg px-6 font-medium border-blue-200 hover:bg-blue-50 transition-all"
-              >
-                Refresh Antrian
+            <Space size="middle" align="center">
+              <Button icon={<ReloadOutlined />} onClick={handleRefresh} loading={isLoading}>
+                Refresh
               </Button>
             </Space>
           </div>
 
-          <Row gutter={[24, 16]} align="bottom">
+          {/* Filters */}
+          <Row gutter={[16, 12]} align="bottom">
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">Cari Pasien</div>
+              <div className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-tight">
+                Cari Pasien
+              </div>
               <Input
                 placeholder="Nama Pasien / No. Rekam Medis"
                 prefix={<SearchOutlined className="text-gray-400" />}
@@ -340,16 +331,15 @@ const PatientQueueTable = () => {
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
                 allowClear
-                className="rounded-lg"
               />
             </Col>
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">
+              <div className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-tight">
                 Unit Pelayanan (Poli)
               </div>
               <Select
                 placeholder="-- Semua Unit Pelayanan --"
-                className="w-full rounded-lg"
+                className="w-full"
                 size="large"
                 allowClear
                 value={selectedPoli}
@@ -363,11 +353,11 @@ const PatientQueueTable = () => {
               </Select>
             </Col>
             <Col xs={24} md={8}>
-              <div className="text-xs font-bold  mb-1.5 uppercase tracking-tight">
+              <div className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-tight">
                 Periode Kunjungan
               </div>
               <RangePicker
-                className="w-full rounded-lg"
+                className="w-full"
                 size="large"
                 value={dateRange}
                 onChange={(dates) => setDateRange(dates as any)}
@@ -396,7 +386,7 @@ const PatientQueueTable = () => {
               showTotal: (total) => `Total ${total} pasien`,
               showSizeChanger: true
             }}
-            scroll={{ x: 1200, y: 'calc(100vh - 350px)' }}
+            scroll={{ x: 1200, y: 'calc(100vh - 420px)' }}
             className="flex-1"
           />
         </Spin>

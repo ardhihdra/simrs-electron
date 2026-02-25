@@ -57,7 +57,7 @@ interface PrescriptionFormProps {
 export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormProps) => {
   const navigate = useNavigate()
   const { message, modal } = App.useApp()
-  const [form] = Form.useForm() // Kept as it might be used in Form component
+  const [form] = Form.useForm()
   const [compoundForm] = Form.useForm()
 
   const [submitting, setSubmitting] = useState(false)
