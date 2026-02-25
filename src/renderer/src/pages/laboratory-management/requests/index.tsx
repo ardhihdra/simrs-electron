@@ -35,6 +35,7 @@ export default function LaboratoryRequests() {
                 id: item.patientId,
                 patientId: item.patientId,
                 patient: item.patient,
+                queueNumber: item.queueTicket?.number,
                 requests: [item]
             })
         }
@@ -53,13 +54,23 @@ export default function LaboratoryRequests() {
 
     const patientColumns: ColumnsType<any> = [
         { 
+            title: 'No. Antrian', 
+            dataIndex: 'queueNumber', 
+            key: 'queueNumber',
+            render: (queueNumber) => (
+                <div>
+                    <div className="font-bold">{queueNumber}</div>
+                </div>
+            )
+        },
+        { 
             title: 'Pasien', 
             dataIndex: 'patient', 
             key: 'patient',
-            render: (patient) => (
+            render: (patient,record) => (
                 <div>
-                    <div className="font-bold">{patient?.name}</div>
-                    <div className="text-xs text-gray-500">{patient?.mrn}</div>
+                      <span className="text-gray-500 text-xs">{record.patient.mrn} - </span>
+                    <span className="font-bold">{patient?.name}</span>
                 </div>
             )
         },
@@ -135,7 +146,8 @@ export default function LaboratoryRequests() {
             status: values.status
         })
     }
-
+console.log("PERMINTAAN",requestData)
+console.log("patientGroups",patientGroups)
     return (
         <div className="p-4">
              <TableHeader

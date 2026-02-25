@@ -32,6 +32,7 @@ export default function LaboratoryResults() {
                 acc[current.encounterId] = {
                     key: current.encounterId,
                     encounterId: current.encounterId,
+                    queueNumber: current.queueTicket?.number,
                     patient: current.patient,
                     requestedAt: current.requestedAt, // Using first test's requestedAt for group
                     status: current.status, // Can accumulate statuses if needed
@@ -54,12 +55,12 @@ export default function LaboratoryResults() {
             render: (date) => dayjs(date).format('DD/MM/YYYY HH:mm')
         },
         { 
-            title: 'No. Layanan', 
-            dataIndex: 'encounterId',
-            key: 'encounterId',
+            title: 'No. Antrian', 
+            dataIndex: 'queueNumber',
+            key: 'queueNumber',
             render: (_, record) => (
                 <div>
-                     <span className="font-semibold text-gray-700">Encounter: {record.encounterId.substring(0, 8)}...</span>
+                     <span className="font-semibold text-gray-700">{record.queueNumber}</span>
                 </div>
             )
         },
@@ -67,7 +68,10 @@ export default function LaboratoryResults() {
             title: 'Pasien', 
             dataIndex: ['patient', 'name'], 
             key: 'patientName',
-            render: (text) => <span className="font-medium">{text || '-'}</span>
+            render: (text, record) => <div>
+                <span className="text-gray-500 text-xs">{record.patient.mrn} - </span>
+                <span className="font-medium">{text || '-'}</span>
+            </div>  
         },
         { 
             title: 'Total Pemeriksaan', 

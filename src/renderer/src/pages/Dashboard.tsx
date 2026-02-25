@@ -110,11 +110,11 @@ const items = [
       //   key: '/dashboard/encounter/transition',
       //   icon: <CalendarOutlined />
       // },
-      {
-        label: 'Triage',
-        key: '/dashboard/encounter/triage',
-        icon: <MedicineBoxOutlined />
-      },
+      // {
+      //   label: 'Triage',
+      //   key: '/dashboard/encounter/triage',
+      //   icon: <MedicineBoxOutlined />
+      // },
       {
         label: 'Data Jaminan',
         key: '/dashboard/registration/jaminan',

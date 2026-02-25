@@ -6,6 +6,7 @@ import { DatePicker, Form, Input, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
+import { useLaboratoryActions } from '../../Laboratory/useLaboratoryActions'
 
 export default function LaboratoryReports() {
     const [searchParams, setSearchParams] = useState({ 
@@ -31,6 +32,8 @@ export default function LaboratoryReports() {
                     id: item.encounterId, // Use encounterId as row key
                     encounterId: item.encounterId,
                     patientId: item.patientId,
+                    patient:item.patient,
+                    medicalRecordNumber: item.queueTicket?.number,
                     lastUpdate: item.requestedAt, // Approximate
                     requestCount: 0,
                     items: []
@@ -47,18 +50,28 @@ export default function LaboratoryReports() {
     }, [requestData])
 
     const columns: ColumnsType<any> = [
+        {
+            title: 'No. RM',
+            dataIndex: 'medicalRecordNumber',
+            key: 'medicalRecordNumber'
+        },
+        {
+            title: 'Pasien',
+            dataIndex: 'patient',
+            key: 'patient',
+            render: (patient,record) => (
+                <div>
+                      <span className="text-gray-500 text-xs">{record.patient.mrn} - </span>
+                    <span className="font-bold">{patient?.name}</span>
+                </div>
+            )
+        },
         { 
             title: 'Tanggal', 
             dataIndex: 'lastUpdate', 
             key: 'lastUpdate',
             width: 150,
             render: (date) => dayjs(date).format('DD/MM/YYYY')
-        },
-        { 
-            title: 'No. Layanan', 
-            dataIndex: 'encounterId',
-            key: 'encounterId',
-            render: (text) => <span className="font-semibold">{text.substring(0, 8)}...</span>
         },
         {
             title: 'Jumlah Pemeriksaan',
@@ -81,13 +94,9 @@ export default function LaboratoryReports() {
         })
     }
 
-    const handlePrintReport = (record: any) => {
-        // Validation: Ensure we can print
-        // For now, just log or show message
-        console.log('Printing report for encounter:', record.encounterId)
-        // In a real app, this would open a PDF or print window
-        // window.open(`/api/module/laboratory-management/report/${record.encounterId}/pdf`)
-    }
+    const { handlePrintReport } = useLaboratoryActions()
+    console.log("ReportList",reportList)
+    console.log("requestData",requestData)
 
     return (
         <div className="p-4">
@@ -120,7 +129,7 @@ export default function LaboratoryReports() {
                                 label: 'Cetak',
                                 icon: <PrinterOutlined />,
                                 type: 'primary',
-                                onClick: () => handlePrintReport(record)
+                                onClick: () => handlePrintReport(record.encounterId)
                             }
                         ]
                     }}

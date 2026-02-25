@@ -1,7 +1,9 @@
+import { message, Tag, Form, Input } from 'antd'
 import { client, rpc } from '@renderer/utils/client'
-import { Button, Card, Space, Table, Tag, message } from 'antd'
+import GenericTable from '@renderer/components/organisms/GenericTable'
+import { TableHeader } from '@renderer/components/TableHeader'
 import dayjs from 'dayjs'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { TransferBedFormValues, TransferBedModal } from '../encounter-transition/components/TransferBedModal'
 import { DischargeModal } from '../encounter-transition/components/DischargeModal'
 import { MpdnDischargeModal } from '../encounter-transition/components/MpdnDischargeModal'
@@ -30,6 +32,8 @@ export default function ActiveEncountersPage() {
   const [rujukanModalVisible, setRujukanModalVisible] = useState(false)
   const [selectedDisposition, setSelectedDisposition] = useState<string>('')
 
+  const [searchText, setSearchText] = useState('')
+
   const [selectedEncounter, setSelectedEncounter] = useState<GetActiveEncountersResult | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [mpdnDischargeModalVisible, setMpdnDischargeModalVisible] = useState(false)
@@ -40,14 +44,19 @@ export default function ActiveEncountersPage() {
 
   const columns = [
     {
-      title: 'No. MR',
-      dataIndex: 'patientMrNo',
-      key: 'patientMrNo',
+      title: 'No. Antrian',
+      dataIndex: 'queueTicket',
+      key: 'queueTicket',
+      render: (_, record: any) => record.encounter?.queueTicket?.formattedQueueNumber || record.encounter?.queueTicket?.queueNumber
     },
     {
       title: 'Patient Name',
       dataIndex: 'patientName',
       key: 'patientName',
+      render:(patientName,record)=><div>
+        <span className='text-xs text-gray-500'>{record.patientMrNo} -</span>
+        <span> {patientName}</span>
+      </div>
     },
     {
         title: 'Start Time',
@@ -57,33 +66,21 @@ export default function ActiveEncountersPage() {
     },
     {
       title: 'Unit',
-      dataIndex: 'serviceUnitName',
+      dataIndex: 'encounter',
       key: 'serviceUnitName',
+      render:(encounter)=>encounter?.queueTicket?.serviceUnit?.display
+    },
+    {
+      title:"Poli",
+      dataIndex:"encounter",
+      key:"poli",
+      render:(encounter)=>encounter?.queueTicket?.poli?.name
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => <Tag color="blue">{status}</Tag>,
-    },
-    {
-      title: 'Actions',
-      key: 'action',
-      render: (_, record: GetActiveEncountersResult) => (
-        <Space size="middle">
-          {record.encounterType === 'EMER' && (
-            <Button type="primary" size="small" onClick={() => handleTransitionClick(record)}>
-              Transfer Inpatient
-            </Button>
-          )}
-          <Button size="small" onClick={() => handleDischargeClick(record)}>
-            Discharge
-          </Button>
-          <Button size="small" onClick={() => handleRujukanClick(record)}>
-            Rujuk
-          </Button>
-        </Space>
-      ),
     },
   ]
 
@@ -205,16 +202,65 @@ export default function ActiveEncountersPage() {
     }
   }
 
+  const onSearch = (values: any) => {
+    setSearchText(values.patientName?.toLowerCase() || '')
+  }
+
+  const filteredData = useMemo(() => {
+    const data = (encounters as any)?.data || []
+    if (!searchText) return data
+    return data.filter((item: any) => 
+      item.patientName?.toLowerCase().includes(searchText) ||
+      item.patientMrNo?.toLowerCase().includes(searchText)
+    )
+  }, [encounters, searchText])
+console.log(encounters)
   return (
-    <div className="p-6">
-      <Card title="Active Encounters">
-        <Table 
-            dataSource={(encounters as any)?.data || []} 
-            columns={columns} 
-            loading={isLoading} 
-            rowKey="id"
-        />
-      </Card>
+    <div className="p-4">
+      <TableHeader
+        title="Active Encounters"
+        loading={isLoading}
+        onSearch={onSearch}
+      >
+        <div className="flex gap-4">
+          <Form.Item name="patientName" label="Pasien" className="mb-0">
+            <Input placeholder="Cari Nama / No. MR" allowClear />
+          </Form.Item>
+        </div>
+      </TableHeader>
+      <div className="mt-4">
+          <GenericTable 
+              dataSource={filteredData} 
+              columns={columns} 
+              loading={isLoading} 
+              rowKey="id"
+              action={{
+                  title: 'Aksi',
+                  width: 70,
+                  items: (record) => [
+                      ...(record.encounterType === 'EMER' ? [{
+                          label: 'Transfer Inpatient',
+                          type: 'primary' as const,
+                          onClick: () => handleTransitionClick(record)
+                      }] : []),
+                      {
+                          label: 'Discharge',
+                          onClick: () => handleDischargeClick(record)
+                      },
+                      {
+                          label: 'Rujuk',
+                          onClick: () => handleRujukanClick(record)
+                      },
+                      {
+                          label: 'Cancel',
+                          type: 'primary' as const,
+                          danger: true,
+                          onClick: () => console.log('Cancel clicked', record)
+                      }
+                  ]
+              }}
+          />
+      </div>
 
       <TransferBedModal
         visible={transitionModalVisible}

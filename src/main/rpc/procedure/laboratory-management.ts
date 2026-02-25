@@ -90,7 +90,7 @@ export const laboratoryManagementRpc = {
         if (input.fromDate) params.append('fromDate', input.fromDate)
         if (input.toDate) params.append('toDate', input.toDate)
         
-        const res = await client.get(`/api/module/lab-management/pending-orders?${params.toString()}`)
+        const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
         const data = await res.json()
      
         return data

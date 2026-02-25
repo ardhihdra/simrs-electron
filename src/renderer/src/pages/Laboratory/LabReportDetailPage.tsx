@@ -32,25 +32,27 @@ export default function LabReportDetailPage() {
     encounter.labServiceRequests?.flatMap((req: any) =>
       (req.observations || []).map((obs: any) => ({
         key: obs.id,
-        testName: req.testCode?.display || req.testCode?.name || req.testCodeId, // Getting test name from request or code
-        observationName: obs.observationCodeId, // Ideally this should be a name, but using ID for now
+        display: req.serviceCode?.display,
+        systemUri: req.serviceCode?.systemUri,
+        code: req.serviceCode?.code,
         value: obs.value,
         unit: obs.unit,
         referenceRange: obs.referenceRange,
-        interpretation: obs.interpretation
+        interpretation: obs.interpretation,
       }))
     ) || []
 
   const columns = [
     {
-      title: 'Test',
-      dataIndex: 'testName',
-      key: 'testName'
+      title: 'Code',
+      dataIndex: "code",
+      key: 'code',
+      render: (text: string,row:any) => <strong>{row.systemUri}/{text}</strong>
     },
     {
-      title: 'Observation',
-      dataIndex: 'observationName',
-      key: 'observationName'
+      title: 'Test Name',
+      dataIndex: "display",
+      key: 'display'
     },
     {
       title: 'Result',
@@ -82,7 +84,8 @@ export default function LabReportDetailPage() {
       }
     }
   ]
-
+  console.log("encounter",encounter)
+console.log("observations",observations)
   return (
     <div className="p-4">
       <Title level={3}>Laboratory Result Report</Title>
@@ -90,7 +93,7 @@ export default function LabReportDetailPage() {
       <Card title="Patient Information" className="mb-4">
         <Descriptions column={2}>
           <Descriptions.Item label="Patient Name">{encounter.patient?.name}</Descriptions.Item>
-          <Descriptions.Item label="Patient ID">{encounter.patient?.id}</Descriptions.Item>
+          <Descriptions.Item label="Medical Record Number">{encounter.patient?.medicalRecordNumber}</Descriptions.Item>
           <Descriptions.Item label="Encounter Date">
             {dayjs(encounter.startTime).format('YYYY-MM-DD HH:mm')}
           </Descriptions.Item>
