@@ -20,7 +20,19 @@ const CompositionSchema = z.object({
     soapAssessment: z.string().nullable().optional(),
     soapPlan: z.string().nullable().optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
+    updatedAt: z.union([z.string(), z.date()]).optional(),
+    author: z.object({
+        id: z.number(),
+        namaLengkap: z.string(),
+        hakAkses: z.object({
+            nama: z.string()
+        }).nullable().optional()
+    }).nullable().optional(),
+    attesters: z.array(z.object({
+        mode: z.string().optional(),
+        time: z.union([z.string(), z.date()]).optional(),
+        partyDisplay: z.string().nullable().optional()
+    })).nullable().optional()
 })
 
 export const schemas = {
@@ -30,12 +42,17 @@ export const schemas = {
             encounterId: z.string(),
             patientId: z.string(),
             doctorId: z.number(),
+            authorName: z.string().optional(),
             title: z.string().optional(),
             soapSubjective: z.string().optional(),
             soapObjective: z.string().optional(),
             soapAssessment: z.string().optional(),
             soapPlan: z.string().optional(),
-            status: z.string().optional()
+            status: z.string().optional(),
+            section: z.array(z.any()).optional(),
+            custodian: z.any().optional(),
+            type: z.any().optional(),
+            category: z.any().optional()
         }),
         result: z.object({
             success: z.boolean(),
@@ -65,15 +82,20 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
             encounterId: args.encounterId,
             patientId: args.patientId,
             doctorId: args.doctorId,
+            authorName: args.authorName,
             title: args.title,
             soapSubjective: args.soapSubjective,
             soapObjective: args.soapObjective,
             soapAssessment: args.soapAssessment,
             soapPlan: args.soapPlan,
-            status: args.status
+            status: args.status,
+            section: args.section,
+            custodian: args.custodian,
+            type: args.type,
+            category: args.category
         }
 
-        const res = await client.post('/api/composition', payload)
+        const res = await client.post('/api/module/composition', payload)
 
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 
@@ -91,7 +113,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/composition/read/${args.encounterId}`)
+        const res = await client.get(`/api/module/composition/${args.encounterId}`)
 
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 

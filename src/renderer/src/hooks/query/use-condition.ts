@@ -22,7 +22,15 @@ export const useBulkCreateCondition = () => {
             // Updated to call the new 'create' method in IPC
             const fn = window.api?.query?.condition?.create
             if (!fn) throw new Error('API condition tidak tersedia')
-            return fn(payload)
+            const result = await fn(payload)
+
+            // Check if the backend returned an error response
+            if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+                console.error("Condition Creation Error Payload:", result)
+                throw new Error(result.error || result.message || 'Gagal menyimpan kondisi')
+            }
+
+            return result
         },
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({ queryKey: ['condition', 'by-encounter', variables.encounterId] })

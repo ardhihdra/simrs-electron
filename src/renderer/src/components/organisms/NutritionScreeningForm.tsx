@@ -1,7 +1,7 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Col, DatePicker, Form, Radio, Row, Select, Spin } from 'antd'
+import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NUTRITION_MAP } from '../../config/observation-maps'
 import {
@@ -9,8 +9,9 @@ import {
   mapRiskLevelToHL7Code,
   OBSERVATION_CATEGORIES
 } from '../../utils/observation-builder'
-
-const { Option } = Select
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { useBulkCreateObservation } from '../../hooks/query/use-observation'
+import { usePerformers } from '../../hooks/query/use-performers'
 
 const WEIGHT_LOSS_OPTIONS = [
   { score: 0, criteria: 'Tidak ada penurunan berat badan', label: 'no' },
@@ -38,22 +39,41 @@ export const NutritionScreeningForm = ({
   const queryClient = useQueryClient()
   const [totalScore, setTotalScore] = useState(0)
 
-  // Query existing data
   const { data: observationData, isLoading } = useQuery({
     queryKey: ['observations', encounterId, 'nutrition'],
     queryFn: async () => {
       const fn = window.api?.query?.observation?.getByEncounter
       if (!fn) throw new Error('API Unavailable')
       const res = await fn({ encounterId })
-      return res?.result?.all || []
+      return res?.result || []
     }
   })
+
+  const bulkCreateObservation = useBulkCreateObservation()
+
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['nurse'])
+
+  const calculateScore = useCallback(() => {
+    const values = form.getFieldsValue()
+
+    const weightLossItem = WEIGHT_LOSS_OPTIONS.find((o) => o.criteria === values.mst_weight_loss)
+    const eatingItem = EATING_POORLY_OPTIONS.find((o) => o.criteria === values.mst_eating_poorly)
+
+    const score = (weightLossItem?.score || 0) + (eatingItem?.score || 0)
+    setTotalScore(score)
+    return score
+  }, [form])
 
   // Auto-fill Logic
   useEffect(() => {
     if (observationData && observationData.length > 0) {
-      // Filter only nutrition related observations
-      const relevantObs = observationData.filter((obs: any) =>
+      const sortedObs = [...observationData].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const relevantObs = sortedObs.filter((obs: any) =>
         obs.codeCoding?.some((coding: any) => Object.keys(NUTRITION_MAP).includes(coding.code))
       )
 
@@ -65,14 +85,9 @@ export const NutritionScreeningForm = ({
             obs.codeCoding?.some((coding: any) => coding.code === code)
           )
           if (found) {
-            // Prefer valueString (Criteria) because scores can be duplicate
             if (found.valueString && fieldName !== 'mst_risk_level') {
               initialValues[fieldName] = found.valueString
             } else if (found.valueQuantity) {
-              // Fallback for backward compatibility or if only score saved
-              // This might still collide but better than nothing
-              // Try to match score to a criteria if possible?
-              // Use first match for now if string missing.
               if (fieldName === 'mst_weight_loss') {
                 const match = WEIGHT_LOSS_OPTIONS.find((o) => o.score === found.valueQuantity.value)
                 if (match) initialValues[fieldName] = match.criteria
@@ -86,37 +101,19 @@ export const NutritionScreeningForm = ({
           }
         })
 
-        if (relevantObs[0].effectiveDateTime) {
-          initialValues['screening_date'] = dayjs(relevantObs[0].effectiveDateTime)
-        }
-
         form.setFieldsValue(initialValues)
-        // Defer calculation to ensure state is ready
         setTimeout(calculateScore, 0)
       }
     } else {
       form.setFieldsValue({
-        screening_date: dayjs()
+        screening_date: dayjs(),
+        assessment_date: dayjs()
       })
     }
-  }, [observationData, form])
-
-  const calculateScore = () => {
-    const values = form.getFieldsValue()
-
-    const weightLossItem = WEIGHT_LOSS_OPTIONS.find((o) => o.criteria === values.mst_weight_loss)
-    const eatingItem = EATING_POORLY_OPTIONS.find((o) => o.criteria === values.mst_eating_poorly)
-
-    const score = (weightLossItem?.score || 0) + (eatingItem?.score || 0)
-    setTotalScore(score)
-    return score
-  }
+  }, [observationData, form, calculateScore])
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
-      const fn = window.api?.query?.observation?.create
-      if (!fn) throw new Error('API Unavailable')
-
       const weightLossItem = WEIGHT_LOSS_OPTIONS.find((o) => o.criteria === data.mst_weight_loss)
       const eatingItem = EATING_POORLY_OPTIONS.find((o) => o.criteria === data.mst_eating_poorly)
 
@@ -129,6 +126,7 @@ export const NutritionScreeningForm = ({
 
       const interpretation = mapRiskLevelToHL7Code(riskLevel)
 
+      const screeningDate = data.assessment_date || data.screening_date || dayjs()
       const observations = createObservationBatch(
         [
           {
@@ -159,20 +157,26 @@ export const NutritionScreeningForm = ({
             interpretations: [interpretation]
           }
         ],
-        data.screening_date
+        screeningDate
       )
 
-      return fn({
+      const performerName =
+        performersData?.find((p: any) => p.id === data.performerId)?.name || 'Unknown'
+
+      return bulkCreateObservation.mutateAsync({
         encounterId,
         patientId,
         observations,
-        performerId: 'nurse-001',
-        performerName: data.nurse_name || 'Perawat Jaga'
+        performerId: String(data.performerId),
+        performerName: performerName
       })
     },
     onSuccess: () => {
       message.success('Skrining Gizi berhasil disimpan')
       queryClient.invalidateQueries({ queryKey: ['observations', encounterId] })
+      form.resetFields(['performerId'])
+      form.setFieldValue('assessment_date', dayjs())
+      form.setFieldValue('screening_date', dayjs())
     },
     onError: () => {
       message.error('Gagal menyimpan data')
@@ -183,31 +187,26 @@ export const NutritionScreeningForm = ({
     return (
       <Form.Item name={name} className="mb-0">
         <table className="w-full text-sm text-left">
-          <thead className="bg-gray-100 text-gray-600 font-semibold border-b border-gray-200 uppercase text-xs tracking-wider">
+          <thead className="font-semibold border-b border-white/10 uppercase text-xs tracking-wider">
             <tr>
-              <th className="p-4 border-r border-gray-200 w-2/3">Keterangan</th>
-              <th className="p-4 border-r border-gray-200 w-1/6">Pilih</th>
+              <th className="p-4 border-r border-white/10 w-2/3">Keterangan</th>
+              <th className="p-4 border-r border-white/10 w-1/6">Pilih</th>
               <th className="p-4 w-1/6 text-center">Skor</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 bg-white">
+          <tbody className="divide-y divide-white/10">
             {items.map((item) => {
               const isSelected = form.getFieldValue(name) === item.criteria
               return (
                 <tr
                   key={item.label}
-                  className={`cursor-pointer transition-all duration-200 ${
-                    isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                  }`}
                   onClick={() => {
                     form.setFieldValue(name, item.criteria)
                     calculateScore()
                   }}
                 >
-                  <td className="p-4 border-r border-gray-100 text-gray-700 font-medium">
-                    {item.criteria}
-                  </td>
-                  <td className="p-4 border-r border-gray-100">
+                  <td className="p-4 border-r border-white/10  font-medium">{item.criteria}</td>
+                  <td className="p-4 border-r border-white/10">
                     <Radio
                       checked={isSelected}
                       value={item.criteria}
@@ -247,52 +246,28 @@ export const NutritionScreeningForm = ({
       onValuesChange={() => calculateScore()}
       onFinish={(values) => saveMutation.mutate(values)}
     >
-      <Card title="Data Asesmen & Pemeriksa">
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item
-              label="Tanggal Skrining Gizi"
-              name="screening_date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Perawat" name="nurse_name" rules={[{ required: true }]}>
-              <Select showSearch placeholder="Pilih Perawat">
-                <Option value="Perawat Jaga">Perawat Jaga</Option>
-                <Option value="Lainnya">Lainnya</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
+      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title="MST (Malnutrition Screening Tool) - Parameter Skrining Gizi">
         <div className="mb-6">
-          <h4 className="font-bold text-gray-700 mb-3 ml-1">
+          <h4 className="font-bold  mb-3 ml-1">
             1. Apakah pasien mengalami penurunan berat badan yang tidak direncanakan/diinginkan
             dalam 6 bulan terakhir?
           </h4>
-          <div className="overflow-hidden rounded-lg border border-gray-200">
+          <div className="overflow-hidden rounded-lg border border-white/10">
             {renderItem('mst_weight_loss', WEIGHT_LOSS_OPTIONS)}
           </div>
         </div>
         <div className="mb-6">
-          <h4 className="font-bold text-gray-700 mb-3 ml-1">
+          <h4 className="font-bold  mb-3 ml-1">
             2. Apakah asupan makan pasien berkurang karena tidak nafsu makan?
           </h4>
-          <div className="overflow-hidden rounded-lg border border-gray-200">
+          <div className="overflow-hidden rounded-lg border border-white/10">
             {renderItem('mst_eating_poorly', EATING_POORLY_OPTIONS)}
           </div>
         </div>
         <div
-          className={`p-6 rounded-xl border flex items-center justify-between transition-all duration-300 ${
-            totalScore >= 2
-              ? 'bg-red-50 border-red-200 shadow-sm shadow-red-100'
-              : 'bg-green-50 border-green-200'
-          }`}
+          className={`p-6 rounded-xl border flex items-center justify-between transition-all duration-300 border-white/10`}
         >
           <div className="flex flex-col gap-1">
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">
@@ -312,7 +287,7 @@ export const NutritionScreeningForm = ({
               Tingkat Risiko
             </div>
             <div
-              className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${
+              className={`px-4 py-1.5 rounded-full text-sm font-bold  ${
                 totalScore >= 2 ? 'bg-red-600 text-white' : 'bg-green-600 text-white'
               }`}
             >

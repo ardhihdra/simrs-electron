@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
+import { queryClient } from "@renderer/query-client"
 
 interface FamilyHistoryInput {
     patientId: string
@@ -25,7 +26,17 @@ export const useCreateFamilyHistory = () => {
         mutationFn: async (payload: FamilyHistoryInput) => {
             const fn = window.api?.query?.familyMemberHistory?.create
             if (!fn) throw new Error('API familyMemberHistory tidak tersedia')
-            return fn(payload)
+            const result = await fn(payload)
+
+            // Check if the backend returned an error response
+            if (result && typeof result === 'object' && 'success' in result && result.success === false) {
+                throw new Error(result.message || 'Gagal menyimpan riwayat keluarga')
+            }
+
+            return result
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({ queryKey: ['family-history', 'list', variables.patientId] })
         }
     })
 }

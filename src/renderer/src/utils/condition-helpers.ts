@@ -15,6 +15,8 @@ export interface ConditionData {
             idDisplay?: string
         }
     }>
+    recordedDate?: string | Date
+    onsetDateTime?: string | Date
 }
 
 export interface FormattedAnamnesis {

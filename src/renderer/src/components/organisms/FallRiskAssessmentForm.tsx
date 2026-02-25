@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Col, DatePicker, Form, Input, Radio, Row, Select, Spin } from 'antd'
+import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
 import { EDMONSON_MAP, FALL_RISK_MAP, HUMPTY_DUMPTY_MAP } from '../../config/observation-maps'
@@ -10,9 +10,8 @@ import {
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
 } from '../../utils/observation-builder'
-
-const { TextArea } = Input
-const { Option } = Select
+import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { useBulkCreateObservation } from '../../hooks/query/use-observation'
 
 interface FallRiskAssessmentFormProps {
   encounterId: string
@@ -33,7 +32,27 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
       const fn = window.api?.query?.observation?.getByEncounter
       if (!fn) throw new Error('API Unavailable')
       const res = await fn({ encounterId })
-      return res?.result?.all || []
+      return res?.result || []
+    }
+  })
+
+  const bulkCreateObservation = useBulkCreateObservation()
+
+  const { data: performersData, isLoading: isLoadingPerformers } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'perawat'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) throw new Error('API kepegawaian tidak tersedia')
+      const res = await fn()
+      if (res.success && res.result) {
+        return res.result
+          .filter((p: any) => p.hakAksesId === 'nurse')
+          .map((p: any) => ({
+            id: p.id,
+            name: p.namaLengkap
+          }))
+      }
+      return []
     }
   })
 
@@ -68,18 +87,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         if (score >= 12) level = 'Risiko Tinggi'
         else level = 'Risiko Rendah'
       } else if (type === 'Edmonson Scale') {
-        // Edmonson logic (usually < 90 is high risk, but let's implement standard summing)
-        // Let's assume standard points where > 90 is Low Risk (safe) and < 90 is High.
-        // OR alternative version: Sum of risk factors.
-        // *Wait, Edmonson usually: Score > 90 = Low Risk. Score < 90 = High Risk.*
-        // However, often implementations invert it. Let's stick to common sum-based if available or implement the subtraction one.
-        // Use standard: Age (8), Mental (13-14), etc.
-        // Let's implement Sum.
-        // If sum >= 90 (Safe). < 90 (Risk).
-        // Actually most implementations in Indonesia use:
-        // < 90 : Risiko Tinggi
-        // >= 90 : Tidak Berisiko
-
         score =
           (values.ed_age || 0) +
           (values.ed_mental || 0) +
@@ -89,9 +96,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
           (values.ed_ambulation || 0) +
           (values.ed_nutrition || 0) +
           (values.ed_sleep || 0)
-
-        // NOTE: Edmonson usually starts from 100 or similar? No, usually it's summing items.
-        // Let's follow a content-based approach where items have scores.
 
         if (score >= 90) level = 'Tidak Berisiko'
         else level = 'Risiko Tinggi'
@@ -105,7 +109,13 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
 
   useEffect(() => {
     if (observationData && observationData.length > 0) {
-      const relevantObs = observationData.filter((obs: any) =>
+      const sortedObs = [...observationData].sort(
+        (a: any, b: any) =>
+          dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
+          dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
+      )
+
+      const relevantObs = sortedObs.filter((obs: any) =>
         obs.categories?.some((cat: any) => cat.code === 'fall-risk')
       )
 
@@ -130,9 +140,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         if (initialValues.hd_age !== undefined) setScaleType('Humpty Dumpty Scale')
         else if (initialValues.ed_age !== undefined) setScaleType('Edmonson Scale')
         else setScaleType('Morse Fall Scale')
-        if (relevantObs[0].effectiveDateTime) {
-          initialValues['assessment_date'] = dayjs(relevantObs[0].effectiveDateTime)
-        }
 
         form.setFieldsValue(initialValues)
         setTimeout(() => {
@@ -153,7 +160,6 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
     }
   }, [observationData, form, calculateRisk])
 
-  // Watch for changes to calculate score
   const handleValuesChange = () => {
     calculateRisk()
   }
@@ -345,17 +351,24 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         )
       }
 
-      const observations = createObservationBatch(obsToCreate, data.assessment_date)
+      const assessmentDate = data.assessment_date || dayjs()
+      const observations = createObservationBatch(obsToCreate, assessmentDate)
+      const performerName =
+        performersData?.find((p: any) => p.id === data.performerId)?.name || 'Unknown'
 
-      return fn({
+      return bulkCreateObservation.mutateAsync({
         encounterId,
         patientId,
-        observations
+        observations,
+        performerId: String(data.performerId),
+        performerName: performerName
       })
     },
     onSuccess: () => {
       message.success('Data Risiko Jatuh berhasil disimpan')
       queryClient.invalidateQueries({ queryKey: ['observations', encounterId] })
+      form.resetFields(['performerId'])
+      form.setFieldValue('assessment_date', dayjs())
     },
     onError: (err) => {
       console.error('Failed to save fall risk assessment:', err)
@@ -366,49 +379,41 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
   const renderTable = (label, name, items) => {
     return (
       <div className="mb-8">
-        <h4 className="font-bold text-gray-700 mb-3 ml-1">{label}</h4>
-        <div className="overflow-hidden rounded-lg border border-gray-200">
+        <h4 className="font-bold  mb-3 ml-1">{label}</h4>
+        <div className="overflow-hidden rounded-lg border border-white/10">
           <Form.Item name={name} className="mb-0">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-100 text-gray-600 font-semibold border-b border-gray-200 uppercase text-xs tracking-wider">
+              <thead className="text-gray-600 font-semibold border-b border-white/10 uppercase text-xs tracking-wider">
                 <tr>
-                  <th className="p-4 border-r border-gray-200 w-1/3">Keterangan</th>
-                  <th className="p-4 border-r border-gray-200 w-1/3">Pilih</th>
+                  <th className="p-4 border-r border-white/10 w-1/3">Keterangan</th>
+                  <th className="p-4 border-r border-white/10 w-1/3">Pilih</th>
                   <th className="p-4 w-1/6 text-center">Nilai</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-white/10 ">
                 {items.map((item) => {
                   const isSelected = form.getFieldValue(name) === item.score
                   return (
                     <tr
                       key={`${item.score}-${item.label}`}
-                      className={`cursor-pointer transition-all duration-200 ${
-                        isSelected ? 'bg-blue-50' : 'hover:bg-gray-50'
-                      }`}
+                      className={`cursor-pointer transition-all duration-200`}
                       onClick={() => {
                         form.setFieldValue(name, item.score)
-                        calculateRisk() // Recalculate immediately
+                        calculateRisk()
                       }}
                     >
-                      <td className="p-4 border-r border-gray-100 text-gray-700 font-medium">
-                        {item.criteria}
-                      </td>
-                      <td className="p-4 border-r border-gray-100">
-                        <Radio
-                          checked={isSelected}
-                          value={item.score}
-                          className="font-semibold text-gray-800"
-                        >
+                      <td className="p-4 border-r border-white/10 font-medium">{item.criteria}</td>
+                      <td className="p-4 border-r border-white/10">
+                        <Radio checked={isSelected} value={item.score} className="font-semibold ">
                           {item.label}
                         </Radio>
                       </td>
                       <td className="p-4 text-center">
-                        <div
+                        <Card
                           className={`inline-flex items-center justify-center w-8 h-8 rounded-full font-bold ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500'}`}
                         >
                           {item.score}
-                        </div>
+                        </Card>
                       </td>
                     </tr>
                   )
@@ -441,42 +446,15 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         message.error('Mohon lengkapi semua field yang wajib diisi')
       }}
     >
-      <Card title="Data Asesmen & Pemeriksa">
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item
-              label="Tanggal Penilaian"
-              name="assessment_date"
-              rules={[{ required: true }]}
-            >
-              <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="Perawat" name="nurse_name" rules={[{ required: true }]}>
-              <Select showSearch placeholder="Pilih Perawat">
-                <Option value="Perawat Jaga">Perawat Jaga</Option>
-                <Option value="Lainnya">Lainnya</Option>
-              </Select>
-            </Form.Item>
-          </Col>
-          <Col span={24}>
-            <Form.Item label="Keterangan" name="remarks">
-              <TextArea rows={2} placeholder="Tambahkan keterangan jika perlu..." />
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
+      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
       <Card title={`Parameter Risiko Jatuh (${scaleType})`}>
-        {/* Scale Selector */}
         <div className="mb-6">
           <Form.Item label="Pilih Skala Risiko Jatuh" className="mb-0">
             <Radio.Group
               value={scaleType}
               onChange={(e) => {
                 setScaleType(e.target.value)
-                // Reset Level & Score when switching
                 setTotalScore(0)
                 setRiskLevel('')
               }}
@@ -692,13 +670,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         )}
 
         <div
-          className={`mt-8 p-6 rounded-xl border flex items-center justify-between transition-all duration-300 ${
-            riskLevel.includes('Tinggi')
-              ? 'bg-red-50 border-red-200 shadow-sm shadow-red-100'
-              : riskLevel.includes('Sedang')
-                ? 'bg-orange-50 border-orange-200'
-                : 'bg-green-50 border-green-200'
-          }`}
+          className={`mt-8 p-6 rounded-xl border flex items-center justify-between transition-all duration-300 border-white/10`}
         >
           <div className="flex flex-col gap-1">
             <div className="text-gray-500 text-xs font-bold uppercase tracking-wider">
@@ -722,7 +694,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
               Tingkat Risiko
             </div>
             <div
-              className={`px-4 py-1.5 rounded-full text-sm font-bold shadow-sm ${
+              className={`px-4 py-1.5 rounded-full text-sm font-bold  ${
                 riskLevel.includes('Tinggi')
                   ? 'bg-red-600 text-white'
                   : riskLevel.includes('Sedang')

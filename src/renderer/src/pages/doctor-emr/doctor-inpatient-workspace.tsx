@@ -11,12 +11,13 @@ import {
   SolutionOutlined
 } from '@ant-design/icons'
 import { CPPTForm } from '@renderer/components/organisms/CPPTForm'
+import { GeneralSOAPForm } from '@renderer/components/organisms/GeneralSOAPForm'
 import { ClinicalNoteForm } from '@renderer/components/organisms/ClinicalNoteForm'
 import { DiagnosisProceduresForm } from '@renderer/components/organisms/DiagnosisProceduresForm'
 import { DiagnosticResultViewer } from '@renderer/components/organisms/DiagnosticResultViewer'
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
 import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
-import { DentalAssessmentForm } from '../../components/organisms/Assessment/DentalAssessmentForm'
+import DentalPage from '../../components/organisms/Dental'
 import { FallRiskAssessmentForm } from '@renderer/components/organisms/FallRiskAssessmentForm'
 import { GCSAssessmentForm } from '@renderer/components/organisms/GCSAssessmentForm'
 import { InformedConsentForm } from '@renderer/components/organisms/InformedConsentForm'
@@ -25,6 +26,10 @@ import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
 import { NutritionScreeningForm } from '@renderer/components/organisms/NutritionScreeningForm'
 import { PrescriptionForm } from '@renderer/components/organisms/PrescriptionForm'
 import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
+import { NutritionOrderForm } from '@renderer/components/organisms/NutritionOrderForm'
+import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
+import { PhysicalAssessmentForm } from '../../components/organisms/Assessment/PhysicalAssessmentForm'
+import { AnamnesisForm } from '../../components/organisms/Assessment/AnamnesisForm'
 import { Layout, Menu, theme } from 'antd'
 import { useState } from 'react'
 
@@ -51,14 +56,27 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
     {
       key: 'assessment',
       icon: <SolutionOutlined />,
-      label: 'Asesmen Awal',
+      label: 'Asesmen',
       children: [
-        { key: 'nurse-assessment', label: '* Skrining Rawat Jalan' },
-        { key: 'dental-assessment', label: '* Pemeriksaan Gigi' },
-        { key: 'risiko-jatuh', label: '* Risiko Jatuh' },
-        { key: 'skrining-gizi', label: '* Skrining Gizi' },
-        { key: 'gcs', label: '* GCS (Glasgow Coma Scale)' }
+        { key: 'initial-assessment', label: 'Skrining Perawat' },
+        { key: 'anamnesis', label: 'Anamnesis' },
+        { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
+        { key: 'dental-assessment', label: 'Pemeriksaan Gigi' },
+        { key: 'risiko-jatuh', label: 'Risiko Jatuh' },
+        { key: 'skrining-gizi', label: 'Skrining Gizi' },
+        { key: 'gcs', label: 'GCS (Glasgow Coma Scale)' }
       ]
+    },
+    {
+      key: 'monitoring',
+      icon: <MonitorOutlined />,
+      label: 'Monitoring Harian',
+      children: [{ key: 'monitoring-ttv', label: 'Monitoring TTV' }]
+    },
+    {
+      key: 'general-soap',
+      icon: <FormOutlined />,
+      label: 'SOAP Umum'
     },
     {
       key: 'cppt',
@@ -71,7 +89,8 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       label: 'Tindakan & Terapi',
       children: [
         { key: 'procedures', label: 'Diagnosis & Tindakan' },
-        { key: 'prescription', label: 'E-Resep' }
+        { key: 'prescription', label: 'E-Resep' },
+        { key: 'nutrition-order', label: 'Order Diet (Gizi)' }
       ]
     },
     {
@@ -90,7 +109,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       children: [
         { key: 'informed-consent', label: 'Informed Consent' },
         { key: 'rujukan', label: 'Rujukan' },
-        { key: 'resume', label: 'Resume Medis' }
+        { key: 'resume', label: 'Resume Medis Tubuh' }
       ]
     },
     {
@@ -108,10 +127,27 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
             <EncounterTimeline encounterId={encounterId} />
           </div>
         )
-      case 'nurse-assessment':
-        return <InitialAssessmentForm encounterId={encounterId!} patientData={patientData} />
+      case 'initial-assessment':
+        return (
+          <InitialAssessmentForm
+            encounterId={encounterId!}
+            patientData={patientData}
+            mode="inpatient"
+            role="nurse"
+          />
+        )
+      case 'anamnesis':
+        return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
+      case 'physical-assessment':
+        return (
+          <PhysicalAssessmentForm
+            encounterId={encounterId!}
+            patientId={patientData.patient.id}
+            patientData={patientData}
+          />
+        )
       case 'dental-assessment':
-        return <DentalAssessmentForm encounterId={encounterId!} patientData={patientData} />
+        return <DentalPage encounterId={encounterId!} patientId={patientData.patient.id} />
       case 'skrining-gizi':
         return (
           <NutritionScreeningForm encounterId={encounterId} patientId={patientData.patient.id} />
@@ -122,10 +158,16 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
         )
       case 'gcs':
         return <GCSAssessmentForm encounterId={encounterId} patientData={patientData} />
+      case 'monitoring-ttv':
+        return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
+      case 'general-soap':
+        return <GeneralSOAPForm encounterId={encounterId} patientData={patientData} />
       case 'cppt':
         return <CPPTForm encounterId={encounterId} patientData={patientData} />
       case 'prescription':
         return <PrescriptionForm encounterId={encounterId} patientData={patientData} />
+      case 'nutrition-order':
+        return <NutritionOrderForm encounterId={encounterId} patientData={patientData} />
       case 'procedures':
         return <DiagnosisProceduresForm encounterId={encounterId} patientData={patientData} />
       case 'lab-rad-order':
@@ -154,16 +196,16 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
   }
 
   return (
-    <Layout className="bg-white rounded-lg overflow-hidden h-full border border-gray-200">
+    <Layout className="rounded-lg overflow-hidden h-full border border-white/10">
       <Sider
         width={260}
         collapsible
         collapsed={collapsed}
         onCollapse={(value) => setCollapsed(value)}
         theme="light"
-        className="border-r border-gray-200"
+        className="border-r border-white/10"
         trigger={
-          <div className="flex items-center justify-center h-12 border-t border-gray-200 text-gray-500 hover:text-blue-600 transition-colors">
+          <div className="flex items-center justify-center h-12 border-t border-white/10 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
             {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
           </div>
         }
@@ -173,7 +215,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
             {collapsed ? (
               <SafetyCertificateOutlined className="text-xl text-blue-600" />
             ) : (
-              <div className="font-bold text-gray-700 flex items-center gap-2">
+              <div className="font-bold flex items-center gap-2">
                 <SafetyCertificateOutlined className="text-blue-600" />
                 Rawat Inap
               </div>
@@ -181,6 +223,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           </div>
           <div className="flex-1 overflow-y-auto">
             <Menu
+              className="custom-menu"
               mode="inline"
               defaultSelectedKeys={['overview']}
               defaultOpenKeys={['assessment', 'orders']}
@@ -191,7 +234,7 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
           </div>
         </div>
       </Sider>
-      <Layout className="bg-gray-50">
+      <Layout className="">
         <Content
           className="p-6 overflow-y-auto h-full"
           style={{

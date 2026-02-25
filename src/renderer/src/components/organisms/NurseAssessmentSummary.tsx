@@ -24,7 +24,7 @@ export const NurseAssessmentSummary = ({
   const { data: condData, isLoading: condLoading } = useConditionByEncounter(encounterId)
   const { data: allergyData, isLoading: allergyLoading } = useAllergyByEncounter(encounterId)
 
-  const patientId = propPatientId || obsData?.result?.all?.[0]?.subject?.id || ''
+  const patientId = propPatientId || obsData?.result?.[0]?.subject?.id || ''
   const { data: familyData, isLoading: familyLoading } = useFamilyHistoryByPatient(patientId)
 
   const isLoading = obsLoading || condLoading || allergyLoading || familyLoading
@@ -41,7 +41,7 @@ export const NurseAssessmentSummary = ({
     return <Alert message="Gagal memuat data pemeriksaan awal" type="error" showIcon />
   }
 
-  const observations = obsData?.result?.all || []
+  const observations = obsData?.result || []
   const conditions = condData?.result || []
 
   // Check if we have ANY data (either obs or conditions)

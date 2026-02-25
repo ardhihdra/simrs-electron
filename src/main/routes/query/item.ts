@@ -1,7 +1,7 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { createBackendClient, parseBackendResponse, BackendListSchema } from '@main/utils/backendClient'
-import { ItemSchema, ItemWithIdSchema, ItemKindSchema } from '@main/models/item'
+import { ItemSchema , ItemKindSchema } from '@main/models/item'
 
 export const requireSession = true
 
@@ -114,14 +114,14 @@ export const list = async (ctx: IpcContext) => {
   const client = createBackendClient(ctx)
   const res = await client.get('/api/module/item/items?items=100&depth=1')
   const result = await parseBackendResponse(res, BackendListSchema(DomainItemSchema))
-  return { success: true, result }
+  return result ? { success: true, result } : { success: false }
 }
 
 export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.args>) => {
   const client = createBackendClient(ctx)
   const res = await client.get(`/api/module/item/items/${args.id}`)
   const result = await parseBackendResponse(res, BackendGetDetailSchema)
-  return { success: true, result }
+  return result?.item ? { success: true, result: result.item } : { success: false }
 }
 
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {

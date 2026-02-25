@@ -19,6 +19,7 @@ export interface ConditionBuilderOptions {
     diagnosisCodeId?: string | number
     clinicalStatus?: 'active' | 'recurrence' | 'relapse' | 'inactive' | 'remission' | 'resolved'
     verificationStatus?: 'unconfirmed' | 'provisional' | 'differential' | 'confirmed' | 'refuted' | 'entered-in-error'
+    recordedDate?: string | Date
 }
 
 /**
@@ -40,6 +41,9 @@ export const createCondition = (options: ConditionBuilderOptions): any => {
     }
     if (options.verificationStatus) {
         condition.verificationStatus = options.verificationStatus
+    }
+    if (options.recordedDate) {
+        condition.recordedDate = options.recordedDate
     }
 
     return condition
@@ -66,6 +70,7 @@ export interface AllergyBuilderOptions {
     verificationStatus?: 'unconfirmed' | 'confirmed' | 'refuted' | 'entered-in-error'
     criticality?: 'low' | 'high' | 'unable-to-assess'
     type?: 'allergy' | 'intolerance'
+    category?: string
 }
 
 /**
@@ -80,7 +85,8 @@ export const createAllergy = (options: AllergyBuilderOptions): any => {
         clinicalStatus: options.clinicalStatus || 'active',
         verificationStatus: options.verificationStatus || 'confirmed',
         criticality: options.criticality,
-        type: options.type
+        type: options.type,
+        category: options.category
     }
 }
 

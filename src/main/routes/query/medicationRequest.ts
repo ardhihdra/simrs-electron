@@ -4,7 +4,7 @@ import {
   MedicationRequestWithIdSchema
 } from '@main/models/medicationRequest'
 import { IpcContext } from '@main/ipc/router'
-import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
+import { parseBackendResponse, getClient, BackendListSchema } from '@main/utils/backendClient'
 
 export const requireSession = true
 
@@ -12,31 +12,16 @@ export const schemas = {
   list: {
     args: z.object({
       patientId: z.string().optional(),
+      encounterId: z.string().optional(),
       page: z.number().optional(),
       limit: z.number().optional(),
       items: z.number().optional()
     }),
-    result: z.object({
-      success: z.boolean(),
-      data: MedicationRequestWithIdSchema.array().optional(),
-      pagination: z
-        .object({
-          page: z.number(),
-          limit: z.number(),
-          total: z.number(),
-          pages: z.number()
-        })
-        .optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   getById: {
     args: z.object({ id: z.number() }),
-    result: z.object({
-      success: z.boolean(),
-      data: MedicationRequestWithIdSchema.optional(),
-      error: z.string().optional()
-    })
+    result: z.any()
   },
   create: {
     args: z.union([MedicationRequestSchema, MedicationRequestSchema.array()]),
@@ -74,7 +59,7 @@ export const schemas = {
   },
   deleteById: {
     args: z.object({ id: z.number() }),
-    result: z.object({ success: z.boolean(), error: z.string().optional() })
+    result: z.any()
   }
 } as const
 
@@ -83,6 +68,7 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     const client = getClient(ctx)
     const params = new URLSearchParams()
     if (args.patientId) params.append('patientId', args.patientId)
+    if (args.encounterId) params.append('encounterId', args.encounterId)
     if (args.page) params.append('page', String(args.page))
     if (args.items) {
       params.append('items', String(args.items))
@@ -94,7 +80,7 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     const res = await client.get(`/api/module/medication-request/medication-requests?${params.toString()}`)
     const ListSchema = BackendListSchema(MedicationRequestWithIdSchema)
     const result = await parseBackendResponse(res, ListSchema)
-    return { success: true, data: result }
+    return result ? { success: true, data: result } : { success: false } 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -111,7 +97,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
       error: z.string().optional()
     })
     const result = await parseBackendResponse(res, ReadSchema)
-    return { success: true, data: result }
+    return result ? { success: true, data: result } : { success: false } 
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -162,7 +148,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
         message: z.string().optional()
       })
       const result = await parseBackendResponse(res, SingleSchema)
-      return { success: true, data: result }
+      return result ? { success: true, data: result } : { success: false }
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -187,7 +173,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
       error: z.string().optional()
     })
     const result = await parseBackendResponse(res, UpdateSchema)
-    return { success: true, data: result }
+    return result ? { success: true, data: result } : { success: false }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

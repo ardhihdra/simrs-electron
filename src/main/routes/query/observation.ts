@@ -6,6 +6,33 @@ import {
 
 export const requireSession = true
 
+const ObservationPropsSchema = z.object({
+    id: z.string().optional(),
+    status: z.string().optional(),
+    subjectId: z.string().optional(),
+    encounterId: z.string().optional(),
+    effectiveDateTime: z.string().optional(),
+    issued: z.string().optional(),
+    valueQuantity: z.any().optional(),
+    valueString: z.any().nullable().optional(),
+    valueBoolean: z.any().nullable().optional(),
+    categories: z.array(z.any()).optional(),
+    codeCoding: z.array(z.any()).optional(),
+    performers: z.array(z.any()).optional(),
+    bodySites: z.array(z.any()).optional(),
+    interpretations: z.array(z.any()).optional(),
+    methods: z.array(z.any()).optional(),
+    components: z.array(z.any()).optional(),
+    notes: z.array(z.any()).optional(),
+}).passthrough()
+
+const PaginationSchema = z.object({
+    page: z.number(),
+    pages: z.number(),
+    count: z.number(),
+    limit: z.number()
+}).passthrough()
+
 export const schemas = {
     getByEncounter: {
         args: z.object({
@@ -13,28 +40,21 @@ export const schemas = {
         }),
         result: z.object({
             success: z.boolean(),
-            result: z.any().optional(),
+            result: z.array(ObservationPropsSchema).optional(),
             message: z.string().optional()
         })
     },
-    // Changed from bulkCreate to create to match controller
     create: {
         args: z.object({
             encounterId: z.string(),
             patientId: z.string(),
             observations: z.array(z.any()),
-            performerId: z.union([z.number(), z.string(), z.null()])
-                .optional()
-                .transform(val => {
-                    if (val === '' || val === null || val === undefined) return undefined;
-                    const num = Number(val);
-                    return isNaN(num) ? undefined : num;
-                }),
+            performerId: z.union([z.number(), z.string(), z.null()]).optional(),
             performerName: z.string().optional()
         }),
         result: z.object({
             success: z.boolean(),
-            result: z.array(z.any()).optional(),
+            result: z.array(ObservationPropsSchema).optional(),
             message: z.string().optional()
         })
     },
@@ -42,9 +62,9 @@ export const schemas = {
         args: z.any().optional(),
         result: z.object({
             success: z.boolean(),
-            result: z.array(z.any()).optional(),
+            result: z.array(ObservationPropsSchema).optional(),
             message: z.string().optional(),
-            pagination: z.any().optional()
+            pagination: PaginationSchema.optional()
         })
     },
     update: {
@@ -56,7 +76,7 @@ export const schemas = {
     },
     deleteById: {
         args: z.object({
-            id: z.number()
+            id: z.union([z.number(), z.string()])
         }),
         result: z.object({
             success: z.boolean(),
@@ -68,7 +88,7 @@ export const schemas = {
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/observation/read/${args.encounterId}`)
+        const res = await client.get(`/api/module/observation/${args.encounterId}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {
@@ -80,7 +100,7 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.post('/api/observation', args)
+        const res = await client.post('/api/module/observation', args)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {
@@ -92,10 +112,8 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
 export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.args>) => {
     try {
         const client = getClient(ctx)
-        // Convert args to query string if needed, or simple get for now
-        // Assuming args is object
         const params = new URLSearchParams(args as any).toString()
-        const res = await client.get(`/api/observation?${params}`)
+        const res = await client.get(`/api/module/observation?${params}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {
@@ -108,7 +126,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     try {
         const client = getClient(ctx)
         const { id, ...rest } = args
-        const res = await client.patch(`/api/observation/${id}`, rest)
+        const res = await client.patch(`/api/module/observation/${id}`, rest)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {
@@ -121,7 +139,7 @@ export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.d
     try {
         const client = getClient(ctx)
         const { id } = args
-        const res = await client.delete(`/api/observation/${id}`)
+        const res = await client.delete(`/api/module/observation/${id}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {

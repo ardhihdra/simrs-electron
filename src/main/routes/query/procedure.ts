@@ -1,11 +1,29 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
-import {
-    parseBackendResponse,
-    getClient
-} from '@main/utils/backendClient'
+import { getClient } from '@main/utils/backendClient'
 
 export const requireSession = true
+
+const ProcedureCodeCodingSchema = z.object({
+    procedureCodeId: z.number(),
+    isPrimary: z.boolean().optional(),
+    procedureCode: z.object({
+        code: z.string(),
+        name: z.string().optional(),
+        display: z.string().optional(),
+        system: z.string().optional()
+    }).optional()
+})
+
+const ProcedureNoteSchema = z.object({
+    text: z.string(),
+    time: z.union([z.string(), z.date()]).optional()
+})
+
+const ProcedurePerformerSchema = z.object({
+    actorReference: z.string(),
+    actorType: z.string()
+})
 
 const ProcedureSchema = z.object({
     id: z.number().optional(),
@@ -14,14 +32,24 @@ const ProcedureSchema = z.object({
     encounterId: z.string(),
     performedDateTime: z.union([z.string(), z.date()]).optional(),
     recorderId: z.number().optional(),
+    codeCoding: z.array(ProcedureCodeCodingSchema).optional(),
+    notes: z.array(ProcedureNoteSchema).optional(),
+    performers: z.array(ProcedurePerformerSchema).optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional()
 })
 
 const BulkCreateProcedureInputSchema = z.object({
-    procedureCodeId: z.number(),
+    procedureCodeId: z.number().optional(),
     notes: z.string().optional(),
-    performedAt: z.string().optional()
+    performedAt: z.union([z.string(), z.date()]).optional()
+})
+
+const BackendProcedureResponseSchema = z.object({
+    success: z.boolean(),
+    result: z.array(ProcedureSchema).optional().nullable(),
+    message: z.string().optional(),
+    error: z.string().optional()
 })
 
 export const schemas = {
@@ -32,23 +60,13 @@ export const schemas = {
             doctorId: z.number(),
             procedures: z.array(BulkCreateProcedureInputSchema)
         }),
-        result: z.object({
-            success: z.boolean(),
-            result: z.array(ProcedureSchema).optional(),
-            message: z.string().optional(),
-            error: z.string().optional()
-        })
+        result: BackendProcedureResponseSchema
     },
     getByEncounter: {
         args: z.object({
             encounterId: z.string()
         }),
-        result: z.object({
-            success: z.boolean(),
-            result: z.array(z.any()).optional().nullable(),
-            message: z.string().optional(),
-            error: z.string().optional()
-        })
+        result: BackendProcedureResponseSchema
     }
 } as const
 
@@ -62,46 +80,51 @@ export const bulkCreate = async (ctx: IpcContext, args: z.infer<typeof schemas.b
             procedures: args.procedures
         }
 
-        const res = await client.post('/api/procedure', payload)
+        const res = await client.post('/api/module/procedure', payload)
+        const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 
-        const BackendCreateSchema = z.object({
-            success: z.boolean(),
-            result: z.array(z.any()).optional().nullable(),
-            message: z.string().optional(),
-            error: z.any().optional()
-        })
+        if (!res.ok || !raw.success) {
+            return {
+                success: false as const,
+                error: raw.error || raw.message || `HTTP ${res.status}`
+            }
+        }
 
-        const result = await parseBackendResponse(res, BackendCreateSchema)
-        return { success: true, result }
+        return {
+            success: true as const,
+            result: raw.result,
+            message: raw.message
+        }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        return { success: false, error: msg }
+        return { success: false as const, error: msg }
     }
 }
 
 export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/procedure/read/${args.encounterId}`)
-
-        // Manual extraction to ensure robust handling
+        const res = await client.get(`/api/module/procedure/${args.encounterId}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 
         if (!raw || typeof raw !== 'object') {
-            return { success: false, error: 'Invalid response format' }
+            return { success: false as const, error: 'Invalid response format' }
         }
 
-        if (raw.success === false) {
+        if (!res.ok || raw.success === false) {
             return {
-                success: false,
+                success: false as const,
                 error: raw.error || raw.message || 'Unknown backend error'
             }
         }
 
-        // Return raw response directly
-        return raw as any
+        return {
+            success: true as const,
+            result: raw.result,
+            message: raw.message
+        }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        return { success: false, error: msg }
+        return { success: false as const, error: msg }
     }
 }

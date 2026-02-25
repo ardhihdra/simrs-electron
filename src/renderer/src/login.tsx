@@ -46,7 +46,7 @@ const LoginForm: React.FC = () => {
       {errorInfo && <Alert message={errorInfo} type="error" className="mb-4" />}
 
       <div className="max-w-5xl w-full mx-auto h-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 bg-white/80 backdrop-blur rounded-2xl shadow-lg overflow-hidden h-full">
+        <div className="grid grid-cols-1 md:grid-cols-2 border border-white/10 backdrop-blur rounded-2xl shadow-lg overflow-hidden h-full">
           <div className="p-8 h-full flex flex-col justify-center">
             <div className="mb-6 text-center">
               <div className="w-12 h-12 rounded-xl items-center justify-center mb-3 overflow-hidden mx-auto">
@@ -109,7 +109,7 @@ const LoginForm: React.FC = () => {
             </Form>
           </div>
 
-          <div className="p-8 bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center h-full">
+          <div className="p-8 bg-linear-to-br from-blue-50 to-blue-100 flex items-center justify-center h-full">
             <div className="w-full max-w-xl h-full">
               <Carousel autoplay dots className="rounded-xl overflow-hidden h-full">
                 <div>

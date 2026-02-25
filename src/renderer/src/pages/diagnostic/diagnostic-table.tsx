@@ -31,7 +31,7 @@ const baseColumns = [
         ? new Date(value).toLocaleDateString() + ' ' + new Date(value).toLocaleTimeString()
         : '-'
   },
-  { title: 'Conclusiom', dataIndex: 'conclusion', key: 'conclusion', ellipsis: true },
+  { title: 'Conclusiom', dataIndex: 'conclusion', key: 'conclusion', ellipsis: true }
 ]
 
 function RowActions({ record }: { record: DiagnosticReportAttributes }) {
@@ -124,14 +124,23 @@ export function DiagnosticTable() {
                   entity: 'diagnosticreport',
                   usePagination: false
                 })
-                if (res && typeof res === 'object' && 'success' in res && res.success && 'url' in res && res.url) {
+                if (
+                  res &&
+                  typeof res === 'object' &&
+                  'success' in res &&
+                  res.success &&
+                  'url' in res &&
+                  res.url
+                ) {
                   window.open(res.url as string, '_blank')
                 }
               } catch (e) {
                 console.error(e instanceof Error ? e.message : String(e))
               }
             }}
-          >Export CSV</Button>
+          >
+            Export CSV
+          </Button>
           <Button type="primary" onClick={() => navigate('/dashboard/diagnostic/create')}>
             Add Diagnostic
           </Button>
@@ -149,7 +158,7 @@ export function DiagnosticTable() {
           fixedRight: true,
           render: (record) => <RowActions record={record} />
         }}
-        tableProps={{ size: 'small', className: 'mt-4 rounded-xl shadow-sm', scroll: { x: 'max-content' } }}
+        tableProps={{ size: 'small', className: 'mt-4 rounded-xl ', scroll: { x: 'max-content' } }}
       />
     </div>
   )

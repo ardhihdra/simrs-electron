@@ -82,32 +82,6 @@ interface BackendEncounterPatient {
     address?: string
 }
 
-interface BackendCoding {
-    code?: string
-    display?: string
-}
-
-interface BackendObservation {
-    codeCoding?: BackendCoding[]
-    valueString?: string
-    valueQuantity?: { value: number; unit?: string }
-    valueBoolean?: boolean
-    valueInteger?: number
-}
-
-interface BackendConditionCategory {
-    coding?: BackendCoding[]
-    code?: string
-}
-
-interface BackendCondition {
-    id: string
-    category?: string
-    categories?: BackendConditionCategory[]
-    note?: string
-    notes?: string
-}
-
 interface BackendMedicine {
     id: string | number
     code?: string
@@ -139,14 +113,14 @@ export const getPatientMedicalRecord = async (
     encounterId: string
 ): Promise<PatientWithMedicalRecord | null> => {
     try {
-        const encounterRes = await window.api.query.encounter.getById({ id: encounterId })
+        const encounterRes = await window.api.query.encounter.read({ id: encounterId })
 
-        if (!encounterRes.success || !encounterRes.data) {
+        if (!encounterRes.success || !encounterRes.result) {
             console.error('Encounter not found or error:', encounterRes.error)
             return null
         }
 
-        const encounter = encounterRes.data
+        const encounter = encounterRes.result
         const patient = encounter.patient as unknown as BackendEncounterPatient
 
         if (!patient) {
@@ -369,23 +343,25 @@ export const searchMedicalProcedures = async (query: string): Promise<MedicalPro
 }
 
 export const saveDiagnosisAndProcedures = async (
-    request: SaveDiagnosisAndProceduresRequest
+    request: SaveDiagnosisAndProceduresRequest & { assessmentDate?: string; doctorId?: number }
 ): Promise<SaveDiagnosisAndProceduresResponse> => {
     try {
-        const { encounterId, patientId, diagnoses, procedures } = request
+        const { encounterId, patientId, diagnoses, procedures, assessmentDate, doctorId: requestDoctorId } = request
 
         if (!patientId) {
             throw new Error('Patient ID is required')
         }
 
-        const doctorId = 1 // TODO: Get from logged in user session
+        const doctorId = requestDoctorId || 1
+        const effectiveDate = assessmentDate || new Date().toISOString()
 
         if (diagnoses.length > 0) {
             const conditionsPayload = diagnoses.map((d) => ({
                 diagnosisCodeId: parseInt(d.diagnosisCode.id),
                 isPrimary: d.isPrimary,
                 category: d.diagnosisCode.category,
-                notes: d.notes
+                notes: d.notes,
+                recordedDate: effectiveDate
             }))
 
             const conditionRes = await window.api.query.condition.create({
@@ -405,7 +381,7 @@ export const saveDiagnosisAndProcedures = async (
             const proceduresPayload = procedures.map((p) => ({
                 procedureCodeId: parseInt(p.procedure.id),
                 notes: p.notes,
-                performedAt: p.performedAt
+                performedAt: effectiveDate
             }))
 
             const procedureRes = await window.api.query.procedure.bulkCreate({
