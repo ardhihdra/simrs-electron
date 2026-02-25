@@ -97,6 +97,12 @@ export const EncounterSchemaWithId = EncounterSchema.extend({
   createdAt: z.union([z.date(), z.string()]).optional().nullable(),
   updatedAt: z.union([z.date(), z.string()]).optional().nullable(),
   deletedAt: z.union([z.date(), z.string()]).optional().nullable(),
+  // SatuSehat / FHIR fields
+  fhirId: z.string().optional().nullable(),
+  fhirServer: z.string().optional().nullable(),
+  fhirVersion: z.string().optional().nullable(),
+  lastFhirUpdated: z.union([z.date(), z.string()]).optional().nullable(),
+  lastSyncedAt: z.union([z.date(), z.string()]).optional().nullable(),
   queueTicket: z.object({
     id: z.string(),
     queueNumber: z.number(),
