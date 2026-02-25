@@ -60,6 +60,14 @@ export const schemas = {
   deleteById: {
     args: z.object({ id: z.number() }),
     result: z.any()
+  },
+  syncSatusehat: {
+    args: z.object({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
   }
 } as const
 
@@ -80,7 +88,7 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     const res = await client.get(`/api/module/medication-request/medication-requests?${params.toString()}`)
     const ListSchema = BackendListSchema(MedicationRequestWithIdSchema)
     const result = await parseBackendResponse(res, ListSchema)
-    return result ? { success: true, data: result } : { success: false } 
+    return result ? { success: true, data: result } : { success: false }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -97,7 +105,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
       error: z.string().optional()
     })
     const result = await parseBackendResponse(res, ReadSchema)
-    return result ? { success: true, data: result } : { success: false } 
+    return result ? { success: true, data: result } : { success: false }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -190,6 +198,24 @@ export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.d
     })
     await parseBackendResponse(res, DeleteSchema)
     return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const syncSatusehat = async (ctx: IpcContext, args: z.infer<typeof schemas.syncSatusehat.args>) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.post(`/api/module/medication-request/medication-requests/${args.id}/sync-satusehat`, {})
+    const raw = await res
+      .json()
+      .catch(() => ({} as { success?: boolean; message?: string; error?: string }))
+    if (!res.ok || raw?.success !== true) {
+      const errMsg = (raw as { error?: string; message?: string }).error || (raw as { error?: string; message?: string }).message || `HTTP ${res.status}`
+      return { success: false, error: errMsg }
+    }
+    return { success: true, message: (raw as { message?: string }).message }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

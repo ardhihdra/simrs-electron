@@ -302,6 +302,8 @@ type Args_Mod_query_medicationRequest_getById = InferArgs<typeof Mod_query_medic
 type Result_Mod_query_medicationRequest_getById = InferResult<typeof Mod_query_medicationRequest, 'getById'>
 type Args_Mod_query_medicationRequest_list = InferArgs<typeof Mod_query_medicationRequest, 'list'>
 type Result_Mod_query_medicationRequest_list = InferResult<typeof Mod_query_medicationRequest, 'list'>
+type Args_Mod_query_medicationRequest_syncSatusehat = InferArgs<typeof Mod_query_medicationRequest, 'syncSatusehat'>
+type Result_Mod_query_medicationRequest_syncSatusehat = InferResult<typeof Mod_query_medicationRequest, 'syncSatusehat'>
 type Args_Mod_query_medicationRequest_update = InferArgs<typeof Mod_query_medicationRequest, 'update'>
 type Result_Mod_query_medicationRequest_update = InferResult<typeof Mod_query_medicationRequest, 'update'>
 type Args_Mod_query_medicine_create = InferArgs<typeof Mod_query_medicine, 'create'>
@@ -682,6 +684,7 @@ declare global {
           deleteById: Invoke<Args_Mod_query_medicationRequest_deleteById, Result_Mod_query_medicationRequest_deleteById>
           getById: Invoke<Args_Mod_query_medicationRequest_getById, Result_Mod_query_medicationRequest_getById>
           list: Invoke<Args_Mod_query_medicationRequest_list, Result_Mod_query_medicationRequest_list>
+          syncSatusehat: Invoke<Args_Mod_query_medicationRequest_syncSatusehat, Result_Mod_query_medicationRequest_syncSatusehat>
           update: Invoke<Args_Mod_query_medicationRequest_update, Result_Mod_query_medicationRequest_update>
         }
         medicine: {

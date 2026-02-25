@@ -602,7 +602,13 @@ export function ItemTable() {
 	}
 
   const columns: ColumnsType<ItemAttributes> = [
-    { title: 'Nama', dataIndex: 'nama', key: 'nama' },
+    {
+      title: 'Nama',
+      dataIndex: 'nama',
+      key: 'nama',
+      width: 240,
+      render: (text: string) => <span className="item-table-nama-cell">{text}</span>
+    },
     { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 120 },
     {
       title: 'Kode KFA',
@@ -760,6 +766,15 @@ export function ItemTable() {
       )}
 
       <div className="mt-4 bg-white dark:bg-[#141414] rounded-lg shadow border border-gray-200 dark:border-gray-800">
+        <style>{`
+          .item-table-nama-cell {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            word-break: break-word;
+          }
+        `}</style>
 			<Modal
 				title="History Penyesuaian Stok"
 				open={isHistoryOpen}
@@ -851,6 +866,9 @@ export function ItemTable() {
           rowKey={(r) => String(r.id ?? r.kode)}
           scroll={{ x: 'max-content' }}
         />
+      </div>
+      <div className="mt-3 text-xs text-gray-600">
+        Catatan: Item selain obat tidak memerlukan sinkronisasi Satu Sehat maupun Kode KFA.
       </div>
     </div>
   )

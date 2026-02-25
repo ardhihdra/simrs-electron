@@ -30,7 +30,7 @@ const CategoryEntrySchema = z.object({
 const SupportingInformationEntrySchema = z.object({
 	type: z.string().optional(),
 	itemId: z.number().optional(),
-  unitCode: z.string().nullable().optional(),
+	unitCode: z.string().nullable().optional(),
 	quantity: z.number().optional(),
 	instruction: z.string().optional()
 })
@@ -76,6 +76,7 @@ export const MedicationRequestSchema = z.object({
 
 export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({
 	id: z.number(),
+	fhirId: z.string().nullable().optional(),
 	created_at: z.string().or(z.date()).nullable().optional(),
 	updated_at: z.string().or(z.date()).nullable().optional(),
 	deleted_at: z.string().or(z.date()).nullable().optional(),
