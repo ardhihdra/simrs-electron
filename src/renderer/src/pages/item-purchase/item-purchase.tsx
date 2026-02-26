@@ -2,6 +2,7 @@ import { Button, Card, Input, InputNumber, Select, Table, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { HistoryModal } from './component/HistoryModal'
+import { ImportFromMRModal } from './component/ImportFromMRModal'
 import { ItemSearchModal } from './component/ItemSearchModal'
 import { PaymentModal } from './component/PaymentModal'
 import {
@@ -52,6 +53,7 @@ function ItemPurchasePage() {
 	const [historyRows, setHistoryRows] = useState<PharmacyTransactionRecord[]>([])
 
 	const [isPaymentOpen, setIsPaymentOpen] = useState(false)
+	const [isImportMROpen, setIsImportMROpen] = useState(false)
 
 	// --- Payment state ---
 	const [paymentMethod, setPaymentMethod] = useState<'cash' | 'noncash'>('cash')
@@ -285,7 +287,8 @@ function ItemPurchasePage() {
 					quantity: r.qty,
 					unitPrice: r.harga,
 					discountAmount: 0,
-					taxAmount: 0
+					taxAmount: 0,
+					mrId: r.mrId ?? null
 				}))
 			}
 
@@ -330,9 +333,54 @@ function ItemPurchasePage() {
 	const columns: ColumnsType<PurchaseItemRow> = [
 		{ title: 'Kode', dataIndex: 'kode', key: 'kode', width: 110 },
 		{ title: 'Nama Barang', dataIndex: 'nama', key: 'nama' },
-		{ title: 'Harga', dataIndex: 'harga', key: 'harga', align: 'right', width: 130, render: (v: number) => formatRupiah(v) },
-		{ title: 'Qty', dataIndex: 'qty', key: 'qty', align: 'right', width: 70 },
-		{ title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 90 },
+		{
+			title: 'Satuan & Harga', key: 'price_unit', width: 220,
+			render: (_: unknown, record: PurchaseItemRow) => {
+				const rules = record.sellPriceRules ?? []
+
+				const options: { value: string; label: string }[] = []
+				if (record.basePrice != null && record.basePrice > 0) {
+					options.push({ value: `DEFAULT|${record.basePrice}`, label: `Default — ${formatRupiah(record.basePrice)}` })
+				}
+				for (const r of rules) {
+					options.push({
+						value: `${r.unitCode.toUpperCase()}|${r.price}`,
+						label: `${r.unitCode.toUpperCase()} — ${formatRupiah(r.price)}`
+					})
+				}
+
+				if (options.length <= 1) return <span>{record.satuan} — {formatRupiah(record.harga)}</span>
+
+				return (
+					<Select
+						size="small"
+						value={options.find(o => o.value.startsWith(record.satuan))?.value ?? options[0]?.value}
+						options={options}
+						onChange={(v) => {
+							const [unit, priceStr] = v.split('|')
+							const price = Number(priceStr)
+							setRows(prev => prev.map(r => r.key === record.key ? { ...r, satuan: unit, harga: price, subTotal: price * r.qty } : r))
+						}}
+						className="w-full"
+					/>
+				)
+			}
+		},
+		{
+			title: 'Qty', key: 'qty', align: 'center', width: 100,
+			render: (_: unknown, record: PurchaseItemRow) => (
+				<InputNumber
+					size="small"
+					min={1}
+					value={record.qty}
+					onChange={(v) => {
+						const nextQty = Number(v) || 1
+						setRows(prev => prev.map(r => r.key === record.key ? { ...r, qty: nextQty, subTotal: r.harga * nextQty } : r))
+					}}
+					className="w-full"
+				/>
+			)
+		},
 		{ title: 'Sub Total', dataIndex: 'subTotal', key: 'subTotal', align: 'right', width: 140, render: (v: number) => formatRupiah(v) },
 		{
 			title: '', key: 'del', align: 'center', width: 70,
@@ -418,6 +466,9 @@ function ItemPurchasePage() {
 							}}>
 								Selesai / Bayar
 							</Button>
+							<Button block onClick={() => setIsImportMROpen(true)}>
+								Import dari Resep (MR)
+							</Button>
 							<Button block onClick={handleOpenHistory}>
 								Riwayat Transaksi
 							</Button>
@@ -481,8 +532,28 @@ function ItemPurchasePage() {
 				onCancel={() => setIsPaymentOpen(false)}
 				onSave={handleSave}
 			/>
+
+			<ImportFromMRModal
+				open={isImportMROpen}
+				onClose={() => setIsImportMROpen(false)}
+				onImport={(importedRows) => {
+					setRows(prev => {
+						const merged = [...prev]
+						for (const row of importedRows) {
+							const idx = merged.findIndex(r => r.key === row.key)
+							if (idx >= 0) {
+								merged[idx] = { ...merged[idx], qty: merged[idx].qty + row.qty, subTotal: (merged[idx].qty + row.qty) * merged[idx].harga }
+							} else {
+								merged.push(row)
+							}
+						}
+						return merged
+					})
+				}}
+			/>
 		</div>
 	)
 }
 
 export default ItemPurchasePage
+

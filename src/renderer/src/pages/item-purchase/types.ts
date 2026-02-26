@@ -52,6 +52,9 @@ export interface PurchaseItemRow {
     qty: number
     satuan: string
     subTotal: number
+    mrId?: number | null
+    sellPriceRules?: PriceRule[] | null
+    basePrice?: number | null
 }
 
 export const formatRupiah = (value: number | null | undefined): string => {

@@ -58,7 +58,6 @@ import MedicineCategoryTable from './pages/item-category/medicine-category-table
 import KfaCodeForm from './pages/kfa-code/kfa-code-form'
 import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
-import PharmacyCashierPage from './pages/pharmacy/pharmacy-cashier'
 import QueueList from './pages/queue/queue-list'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
@@ -164,7 +163,6 @@ function MainRoute() {
           </Route>
           <Route path="medicine" element={<Pharmacy />}>
             <Route index element={<PharmacyDashboard />} />
-            <Route path="cashier" element={<PharmacyCashierPage />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
             <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />

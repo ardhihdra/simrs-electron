@@ -79,6 +79,7 @@ interface MedicationDispenseAttributes {
 	performer?: PerformerInfo
 	dosageInstruction?: DosageInstructionEntry[] | null
 	authorizingPrescription?: AuthorizingPrescriptionInfo | null
+	paymentStatus?: string
 }
 
 interface MedicationDispenseListArgs {
@@ -156,6 +157,7 @@ interface ParentRow {
 	key: string
 	patient?: PatientInfo
 	status: string
+	paymentStatus?: string
 	handedOverAt?: string
 	items: DispenseItemRow[]
 }
@@ -486,7 +488,7 @@ const columns = [
 		}
 	},
 	{
-		title: 'Status',
+		title: 'Status Penyerahan',
 		dataIndex: 'status',
 		key: 'status',
 		render: (val: string) => {
@@ -497,6 +499,16 @@ const columns = [
 						? 'red'
 						: 'default'
 			return <Tag color={color}>{getStatusLabel(val)}</Tag>
+		}
+	},
+	{
+		title: 'Pembayaran',
+		dataIndex: 'paymentStatus',
+		key: 'paymentStatus',
+		render: (val: string | undefined) => {
+			const status = val || 'Belum Ditagihkan'
+			const color = status === 'Lunas' ? 'green' : status === 'Sebagian' ? 'orange' : 'volcano'
+			return <Tag color={color}>{status}</Tag>
 		}
 	},
 	{
@@ -890,6 +902,7 @@ export function MedicationDispenseTable() {
 					key,
 					patient: item.patient,
 					status: item.status,
+					paymentStatus: item.paymentStatus,
 					handedOverAt,
 					items: [rowItem]
 				})
