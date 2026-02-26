@@ -51,8 +51,16 @@ export const RecordRadiologyResultSchema = z.object({
   patientId: z.string().uuid(),
   modalityCode: z.string(),
   findings: z.string(),
-  files: z.array(z.string()).optional(), // Array of Base64 strings
+  studyInstanceUid: z.string().optional(),
   started: z.string().optional() // Date string
+})
+
+export const UploadRadiologyDicomSchema = z.object({
+  patientId: z.string().uuid(),
+  encounterId: z.string().uuid(),
+  uploadedBy: z.string(),
+  source: z.string(),
+  files: z.array(z.string()) // Base64 dataURIs
 })
 
 // Terminology Search
@@ -155,6 +163,41 @@ export const laboratoryManagementRpc = {
       return data
     }),
 
+  uploadRadiologyDicom: t
+    .input(UploadRadiologyDicomSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, input) => {
+      const formData = new FormData()
+
+      formData.append('patientId', input.patientId)
+      formData.append('encounterId', input.encounterId)
+      formData.append('uploadedBy', input.uploadedBy)
+      formData.append('source', input.source)
+
+      for (let i = 0; i < input.files.length; i++) {
+        const base64File = input.files[i]
+        const match = base64File.match(/^data:(.*);base64,(.*)$/)
+        const cleanBase64 = match ? match[2] : base64File
+        const mimeType = match ? match[1] : 'application/dicom'
+        
+        // Convert Base64 back to Blob for FormData
+        const byteCharacters = atob(cleanBase64)
+        const byteNumbers = new Array(byteCharacters.length)
+        
+        for (let j = 0; j < byteCharacters.length; j++) {
+          byteNumbers[j] = byteCharacters.charCodeAt(j)
+        }
+        
+        const byteArray = new Uint8Array(byteNumbers)
+        
+        const fileBlob = new Blob([byteArray], { type: mimeType })
+        formData.append('files', fileBlob, `dicom-image-${i}.dcm`)
+      }
+
+      const res = await client.createWithUpload('/api/module/imaging/upload', formData)
+      return await res.json()
+    }),
+
   getReport: t
     .input(z.object({ encounterId: z.string().uuid() }))
     .output(ApiResponseSchema(z.any()))
@@ -184,6 +227,25 @@ export const laboratoryManagementRpc = {
     .output(ApiResponseSchema(z.any()))
     .query(async ({ client }) => {
         const res = await client.get('/api/module/lab-management/terminology/categories')
+        return await res.json()
+    }),
+
+  // PACS study search — QIDO-RS proxy
+  searchPacsStudies: t
+    .input(z.object({
+        patientId: z.string().optional(),
+        patientName: z.string().optional(),
+        modality: z.string().optional(),
+        studyDate: z.string().optional()
+    }))
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, input) => {
+        const params = new URLSearchParams()
+        if (input.patientId) params.append('patientId', input.patientId)
+        if (input.patientName) params.append('patientName', input.patientName)
+        if (input.modality) params.append('modality', input.modality)
+        if (input.studyDate) params.append('studyDate', input.studyDate)
+        const res = await client.get(`/api/module/imaging/studies/search?${params.toString()}`)
         return await res.json()
     })
 }

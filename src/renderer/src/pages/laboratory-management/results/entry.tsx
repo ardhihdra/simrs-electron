@@ -1,9 +1,11 @@
-import { ArrowLeftOutlined, UploadOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Input, Select, Typography, Upload, message, Space } from 'antd'
+import { ArrowLeftOutlined, CloudDownloadOutlined, UploadOutlined } from '@ant-design/icons'
+import { Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload, message } from 'antd'
 import { useLocation, useNavigate } from 'react-router'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
 import { client } from '@renderer/utils/client'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+
+type DicomSourceMode = 'upload' | 'modality'
 
 
 const { Title, Text } = Typography
@@ -11,42 +13,58 @@ const { Title, Text } = Typography
 export default function RecordResultPage() {
     const navigate = useNavigate()
     const location = useLocation()
-    const record = location.state as any
+    const record = location.state as Record<string, unknown> | null
     const [form] = Form.useForm()
+    const [dicomSourceMode, setDicomSourceMode] = useState<DicomSourceMode>('modality')
+    const [selectedStudyUid, setSelectedStudyUid] = useState<string | undefined>(undefined)
 
     // Terminology Data for Unit and Domain Check
     const { data: terminologyData } = client.laboratoryManagement.searchTerminology.useQuery(
         {
-            query: record.test?.code || '',
+            query: (record?.test as any).code || '',
             // domain: 'laboratory', // Search all domains to find if it is radiology
             limit: 1
         },
         {
-            enabled: !!record.test?.code,
-            queryKey: ['search-terminology', { query: record.test?.code, limit: 1 }]
+            enabled: !!(record?.test as any)?.code,
+            queryKey: ['search-terminology', { query: (record?.test as any)?.code, limit: 1 }]
         }
     )
 
-    const terminologyItem = terminologyData?.result?.[0] as any
+    const terminologyItem = (terminologyData as Record<string, unknown>)?.result as Record<string, unknown> | undefined
+    const firstTermItem = Array.isArray(terminologyItem) ? terminologyItem[0] as Record<string, unknown> | undefined : undefined
+
+    // PACS study search — generic, autofills with patientId on mount
+    const patientId = (record as Record<string, unknown>)?.patientId as string | undefined
+    const [pacsSearchParams, setPacsSearchParams] = useState<{ patientId?: string; patientName?: string }>({ patientId })
+    const { data: pacsStudiesData, isLoading: isLoadingPacsStudies } = client.laboratoryManagement.searchPacsStudies.useQuery(
+        pacsSearchParams,
+        {
+            enabled: dicomSourceMode === 'modality' && Object.values(pacsSearchParams).some(Boolean),
+            queryKey: ['searchPacsStudies', pacsSearchParams]
+        }
+    )
+    const pacsStudies = ((pacsStudiesData as Record<string, unknown>)?.result as Record<string, unknown>[]) || []
+
+
 
     useEffect(() => {
-        if (terminologyItem) {
-             // Verify exact match if possible, though search by code should be specific enough
-            if (terminologyItem.loinc === record.test?.code && terminologyItem.ucum) {
+        if (firstTermItem) {
+            if (firstTermItem.loinc === (record as Record<string, unknown>)?.test && (firstTermItem as Record<string, string>).ucum) {
                 form.setFieldsValue({
-                    unit: terminologyItem.ucum
+                    unit: (firstTermItem as Record<string, string>).ucum
                 })
             }
         }
-    }, [terminologyItem, form, record.test?.code])
+    }, [firstTermItem, form, record])
 
     const { handleRecordResult, loading } = useLaboratoryActions(() => {
         message.success('Result recorded successfully')
         navigate('/dashboard/laboratory-management/requests')
     })
     
-    // Add Radiology RPC
-    const { mutateAsync: recordRadiology, isPending: isUploading } = client.laboratoryManagement.recordRadiologyResult.useMutation({
+    // Add Radiology findings RPC
+    const { mutateAsync: recordRadiology, isPending: isSavingFindings } = client.laboratoryManagement.recordRadiologyResult.useMutation({
         onSuccess: () => {
             message.success('Radiology result recorded successfully')
             navigate('/dashboard/laboratory-management/requests')
@@ -56,12 +74,19 @@ export default function RecordResultPage() {
         }
     })
 
+    // Add Radiology DICOM Upload RPC
+    const { mutateAsync: uploadRadiologyDicom, isPending: isUploading } = client.laboratoryManagement.uploadRadiologyDicom.useMutation({
+        onError: (err) => {
+            message.error(err.message)
+        }
+    })
+
     // Helper for Upload in Form
-    const normFile = (e: any) => {
+    const normFile = (e: { fileList?: unknown[] } | unknown[]) => {
         if (Array.isArray(e)) {
             return e
         }
-        return e?.fileList
+        return (e as { fileList?: unknown[] })?.fileList
     }
 
     const beforeUpload = () => {
@@ -70,13 +95,15 @@ export default function RecordResultPage() {
     
     // Determine if Radiology based on context/props.
     // Try multiple indicators: category, name, or code prefix
+    const rec = record as Record<string, unknown>
+    const testObj = rec?.test as Record<string, string> | undefined
     const isRadiology = 
-        record?.test?.category === 'RADIOLOGY' || 
-        terminologyItem?.domain === 'radiology' || // Check from terminology
-        record?.test?.name?.toLowerCase().includes('x-ray') ||
-        record?.test?.name?.toLowerCase().includes('ct scan') ||
-        record?.test?.code?.startsWith('RAD') ||
-        record?.modality // In case we passed it explicitly
+        testObj?.category === 'RADIOLOGY' || 
+        firstTermItem?.domain === 'radiology' ||
+        testObj?.name?.toLowerCase().includes('x-ray') ||
+        testObj?.name?.toLowerCase().includes('ct scan') ||
+        testObj?.code?.startsWith('RAD') ||
+        rec?.modality
         
     const handleSubmit = async () => {
         try {
@@ -84,44 +111,75 @@ export default function RecordResultPage() {
 
             if (isRadiology) {
                 // Radiology Logic
-                 const fileList = values.files || []
-                 const filesBase64: string[] = []
-                 
-                 for (const fileItem of fileList) {
-                     const fileObj = fileItem.originFileObj
-                     if (fileObj) {
-                         const base64 = await new Promise<string>((resolve, reject) => {
-                             const reader = new FileReader();
-                             reader.readAsDataURL(fileObj);
-                             reader.onload = () => resolve(reader.result as string);
-                             reader.onerror = error => reject(error);
-                         });
-                         filesBase64.push(base64)
-                     }
-                 }
+                let returnedStudyInstanceUid: string | undefined = selectedStudyUid;
+
+                if (dicomSourceMode === 'upload') {
+                    // Upload flow
+                    const fileList = (values.files || []) as { originFileObj?: File }[]
+                    const filesBase64: string[] = []
+                    
+                    if (fileList.length > 0) {
+                        for (const fileItem of fileList) {
+                            const fileObj = fileItem.originFileObj
+                            if (fileObj) {
+                                const base64 = await new Promise<string>((resolve, reject) => {
+                                    const reader = new FileReader();
+                                    reader.readAsDataURL(fileObj);
+                                    reader.onload = () => resolve(reader.result as string);
+                                    reader.onerror = error => reject(error);
+                                });
+                                filesBase64.push(base64)
+                            }
+                        }
+
+                        try {
+                            const uploadParams = {
+                                patientId: rec.patientId as string,
+                                encounterId: rec.encounterId as string,
+                                uploadedBy: 'user-system',
+                                source: 'MANUAL',
+                                files: filesBase64
+                            }
+
+                            const data = await uploadRadiologyDicom(uploadParams) as Record<string, unknown>
+                            
+                            if (data && data.success === false) {
+                                message.error((data.message as string) || 'Failed to upload DICOM files')
+                                return
+                            }
+                            
+                            returnedStudyInstanceUid = (data.result as Record<string, string>)?.studyInstanceUID
+                        } catch (error: unknown) {
+                            const errorMessage = error instanceof Error ? error.message : 'Upload failed'
+                            message.error(errorMessage)
+                            return
+                        }
+                    }
+                }
                 
+                // Record the findings
                 await recordRadiology({
-                    serviceRequestId: record.id,
-                    encounterId: record.encounterId,
-                    patientId: record.patientId,
-                    modalityCode: values.modalityCode,
-                    started: new Date().toISOString(), // Or from input
-                    findings: values.findings,
-                    files: filesBase64
+                    serviceRequestId: rec.id as string,
+                    encounterId: rec.encounterId as string,
+                    patientId: rec.patientId as string,
+                    modalityCode: values.modalityCode as string,
+                    started: new Date().toISOString(),
+                    findings: values.findings as string,
+                    studyInstanceUid: returnedStudyInstanceUid
                 })
 
             } else {
                 // Lab Logic
                 await handleRecordResult({
-                    serviceRequestId: record.id,
-                    encounterId: record.encounterId,
-                    patientId: record.patientId,
+                    serviceRequestId: rec.id as string,
+                    encounterId: rec.encounterId as string,
+                    patientId: rec.patientId as string,
                     observations: [{
-                        observationCodeId: record.testCodeId || record.test?.id,
-                        value: values.value,
-                        unit: values.unit,
-                        referenceRange: values.referenceRange,
-                        interpretation: values.interpretation || 'NORMAL',
+                        observationCodeId: (rec.testCodeId as string) || testObj?.id || '',
+                        value: values.value as string,
+                        unit: values.unit as string,
+                        referenceRange: values.referenceRange as string,
+                        interpretation: (values.interpretation as string) || 'NORMAL',
                         observedAt: new Date().toISOString()
                     }]
                 })
@@ -151,13 +209,13 @@ export default function RecordResultPage() {
                 <div className="mb-6 grid grid-cols-2 gap-4">
                     <div>
                         <Text type="secondary">Pasien</Text>
-                        <Title level={5}>{record.patient?.name}</Title>
-                        <Text>{record.patient?.mrn}</Text>
+                        <Title level={5}>{(rec.patient as Record<string, string>)?.name}</Title>
+                        <Text>{(rec.patient as Record<string, string>)?.mrn}</Text>
                     </div>
                     <div>
                         <Text type="secondary">Pemeriksaan</Text>
-                        <Title level={5}>{record.testDisplay || record.test?.name}</Title>
-                        <Text>{record.test?.code}</Text>
+                        <Title level={5}>{(rec.testDisplay as string) || testObj?.name}</Title>
+                        <Text>{testObj?.code}</Text>
                     </div>
                 </div>
 
@@ -178,22 +236,93 @@ export default function RecordResultPage() {
                             >
                                 <Input.TextArea rows={6} placeholder="Enter radiology report findings..." />
                             </Form.Item>
-                             <Form.Item
-                                name="files"
-                                label="Images / Documents"
-                                valuePropName="fileList"
-                                getValueFromEvent={normFile}
-                            >
-                                <Upload
-                                    name="file"
-                                    beforeUpload={beforeUpload}
-                                    listType="picture"
-                                    multiple
-                                    maxCount={10}
-                                >
-                                    <Button icon={<UploadOutlined />}>Click to select file</Button>
-                                </Upload>
+
+                            {/* DICOM Source Toggle */}
+                            <Form.Item label="DICOM Source">
+                                <Radio.Group value={dicomSourceMode} onChange={(e) => { setDicomSourceMode(e.target.value); setSelectedStudyUid(undefined) }}>
+                                    <Radio.Button value="modality"><CloudDownloadOutlined /> Select from Modality</Radio.Button>
+                                    <Radio.Button value="upload"><UploadOutlined /> Upload File</Radio.Button>
+                                </Radio.Group>
                             </Form.Item>
+
+                            {dicomSourceMode === 'modality' ? (
+                                <div>
+                                    <Form.Item label="Search PACS Studies">
+                                        <Input.Search
+                                            placeholder="Search by patient name..."
+                                            allowClear
+                                            onSearch={(value) => {
+                                                if (value.trim()) {
+                                                    setPacsSearchParams({ patientName: value.trim() })
+                                                } else {
+                                                    setPacsSearchParams({ patientId })
+                                                }
+                                            }}
+                                            onChange={(e) => {
+                                                if (!e.target.value) {
+                                                    setPacsSearchParams({ patientId })
+                                                }
+                                            }}
+                                            enterButton
+                                            loading={isLoadingPacsStudies}
+                                        />
+                                    </Form.Item>
+
+                                    {isLoadingPacsStudies ? (
+                                        <div className="text-center py-4"><Spin /></div>
+                                    ) : pacsStudies.length > 0 ? (
+                                     <div className="mb-4">
+                                         <Card title="Result from PACS">   <Radio.Group
+                                                value={selectedStudyUid}
+                                                onChange={(e) => setSelectedStudyUid(e.target.value)}
+                                                className="w-full"
+                                            >
+                                                <div className="flex flex-col gap-2">
+                                                    {pacsStudies.map((study: Record<string, unknown>) => (
+                                                        <Radio
+                                                            key={study.studyInstanceUID as string}
+                                                            value={study.studyInstanceUID as string}
+                                                            className="w-full"
+                                                        >
+                                                            <div>
+                                                                <Text strong>{study.modality as string}</Text>
+                                                                {' — '}
+                                                                <Text>{study.studyDate as string}</Text>
+                                                                {' — '}
+                                                                <Text>{(study.patientName as string) || 'Unknown'}</Text>
+                                                                <br />
+                                                                <Text type="secondary">
+                                                                    {(study.studyDescription as string) || 'No description'}
+                                                                    {' · '}{study.numberOfInstances as number} images
+                                                                </Text>
+                                                            </div>
+                                                        </Radio>
+                                                    ))}
+                                                </div>
+                                            </Radio.Group></Card>
+                                     </div>
+                                    ) : (
+                                        <Text type="secondary">No studies found in PACS</Text>
+                                    )}
+                                </div>
+                            ) : (
+                                <Form.Item
+                                    name="files"
+                                    label="Images / Documents"
+                                    valuePropName="fileList"
+                                    getValueFromEvent={normFile}
+                                >
+                                    <Upload
+                                        name="file"
+                                        beforeUpload={beforeUpload}
+                                        listType="picture"
+                                        multiple
+                                        maxCount={10}
+                                    >
+                                        <Button icon={<UploadOutlined />}>Click to select file</Button>
+                                    </Upload>
+                                </Form.Item>
+                            )}
                         </>
                     ) : (
                         <>
@@ -234,7 +363,7 @@ export default function RecordResultPage() {
                     )}
 
                     <div className="flex gap-2">
-                        <Button type="primary" onClick={handleSubmit} loading={loading === 'record-result' || isUploading}>
+                        <Button type="primary" onClick={handleSubmit} loading={loading === 'record-result' || isSavingFindings || isUploading}>
                             Simpan Hasil
                         </Button>
                         <Button onClick={() => navigate(-1)}>
