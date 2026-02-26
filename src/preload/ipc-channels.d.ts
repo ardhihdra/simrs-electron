@@ -33,6 +33,7 @@ import type * as Mod_query_medicationRequest from '@main/routes/query/medication
 import type * as Mod_query_medicine from '@main/routes/query/medicine'
 import type * as Mod_query_medicineBrand from '@main/routes/query/medicineBrand'
 import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCategory'
+import type * as Mod_query_nutritionOrder from '@main/routes/query/nutritionOrder'
 import type * as Mod_query_observation from '@main/routes/query/observation'
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
@@ -41,6 +42,7 @@ import type * as Mod_query_poli from '@main/routes/query/poli'
 import type * as Mod_query_procedure from '@main/routes/query/procedure'
 import type * as Mod_query_productionFormula from '@main/routes/query/productionFormula'
 import type * as Mod_query_productionRequest from '@main/routes/query/productionRequest'
+import type * as Mod_query_questionnaireResponse from '@main/routes/query/questionnaireResponse'
 import type * as Mod_query_queue from '@main/routes/query/queue'
 import type * as Mod_query_queueticket from '@main/routes/query/queueticket'
 import type * as Mod_query_rawMaterial from '@main/routes/query/rawMaterial'
@@ -56,31 +58,31 @@ import type * as Mod_user from '@main/routes/user'
 type Invoke<Args = unknown, Result = unknown> = (args?: Args) => Promise<Result>
 type InferArgs<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-  ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
-  ? z.input<A>
-  : unknown
-  : unknown
+    ? M['schemas'][K] extends { args: infer A extends z.ZodTypeAny }
+      ? z.input<A>
+      : unknown
+    : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-  ? S[K] extends { args: infer A extends z.ZodTypeAny }
-  ? z.input<A>
-  : unknown
-  : unknown
+    ? S[K] extends { args: infer A extends z.ZodTypeAny }
+      ? z.input<A>
+      : unknown
+    : unknown
   : M extends { argsSchema: infer A extends z.ZodTypeAny }
   ? z.input<A>
   : unknown
 type InferResult<M, K extends string> = M extends { schemas: Record<string, any> }
   ? K extends keyof M['schemas']
-  ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
-  ? z.output<R>
-  : unknown
-  : unknown
+    ? M['schemas'][K] extends { result: infer R extends z.ZodTypeAny }
+      ? z.output<R>
+      : unknown
+    : unknown
   : M extends { schemas: infer S }
   ? K extends keyof S
-  ? S[K] extends { result: infer R extends z.ZodTypeAny }
-  ? z.output<R>
-  : unknown
-  : unknown
+    ? S[K] extends { result: infer R extends z.ZodTypeAny }
+      ? z.output<R>
+      : unknown
+    : unknown
   : M extends { resultSchema: infer R extends z.ZodTypeAny }
   ? z.output<R>
   : unknown
@@ -166,6 +168,8 @@ type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'cr
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
 type Result_Mod_query_encounter_deleteById = InferResult<typeof Mod_query_encounter, 'deleteById'>
+type Args_Mod_query_encounter_getTimeline = InferArgs<typeof Mod_query_encounter, 'getTimeline'>
+type Result_Mod_query_encounter_getTimeline = InferResult<typeof Mod_query_encounter, 'getTimeline'>
 type Args_Mod_query_encounter_list = InferArgs<typeof Mod_query_encounter, 'list'>
 type Result_Mod_query_encounter_list = InferResult<typeof Mod_query_encounter, 'list'>
 type Args_Mod_query_encounter_read = InferArgs<typeof Mod_query_encounter, 'read'>
@@ -300,6 +304,12 @@ type Args_Mod_query_medicineCategory_list = InferArgs<typeof Mod_query_medicineC
 type Result_Mod_query_medicineCategory_list = InferResult<typeof Mod_query_medicineCategory, 'list'>
 type Args_Mod_query_medicineCategory_update = InferArgs<typeof Mod_query_medicineCategory, 'update'>
 type Result_Mod_query_medicineCategory_update = InferResult<typeof Mod_query_medicineCategory, 'update'>
+type Args_Mod_query_nutritionOrder_create = InferArgs<typeof Mod_query_nutritionOrder, 'create'>
+type Result_Mod_query_nutritionOrder_create = InferResult<typeof Mod_query_nutritionOrder, 'create'>
+type Args_Mod_query_nutritionOrder_list = InferArgs<typeof Mod_query_nutritionOrder, 'list'>
+type Result_Mod_query_nutritionOrder_list = InferResult<typeof Mod_query_nutritionOrder, 'list'>
+type Args_Mod_query_nutritionOrder_read = InferArgs<typeof Mod_query_nutritionOrder, 'read'>
+type Result_Mod_query_nutritionOrder_read = InferResult<typeof Mod_query_nutritionOrder, 'read'>
 type Args_Mod_query_observation_create = InferArgs<typeof Mod_query_observation, 'create'>
 type Result_Mod_query_observation_create = InferResult<typeof Mod_query_observation, 'create'>
 type Args_Mod_query_observation_deleteById = InferArgs<typeof Mod_query_observation, 'deleteById'>
@@ -374,6 +384,12 @@ type Args_Mod_query_productionRequest_list = InferArgs<typeof Mod_query_producti
 type Result_Mod_query_productionRequest_list = InferResult<typeof Mod_query_productionRequest, 'list'>
 type Args_Mod_query_productionRequest_update = InferArgs<typeof Mod_query_productionRequest, 'update'>
 type Result_Mod_query_productionRequest_update = InferResult<typeof Mod_query_productionRequest, 'update'>
+type Args_Mod_query_questionnaireResponse_create = InferArgs<typeof Mod_query_questionnaireResponse, 'create'>
+type Result_Mod_query_questionnaireResponse_create = InferResult<typeof Mod_query_questionnaireResponse, 'create'>
+type Args_Mod_query_questionnaireResponse_getByEncounter = InferArgs<typeof Mod_query_questionnaireResponse, 'getByEncounter'>
+type Result_Mod_query_questionnaireResponse_getByEncounter = InferResult<typeof Mod_query_questionnaireResponse, 'getByEncounter'>
+type Args_Mod_query_questionnaireResponse_list = InferArgs<typeof Mod_query_questionnaireResponse, 'list'>
+type Result_Mod_query_questionnaireResponse_list = InferResult<typeof Mod_query_questionnaireResponse, 'list'>
 type Args_Mod_query_queue_create = InferArgs<typeof Mod_query_queue, 'create'>
 type Result_Mod_query_queue_create = InferResult<typeof Mod_query_queue, 'create'>
 type Args_Mod_query_queue_list = InferArgs<typeof Mod_query_queue, 'list'>
@@ -540,6 +556,7 @@ declare global {
         encounter: {
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
           deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>
+          getTimeline: Invoke<Args_Mod_query_encounter_getTimeline, Result_Mod_query_encounter_getTimeline>
           list: Invoke<Args_Mod_query_encounter_list, Result_Mod_query_encounter_list>
           read: Invoke<Args_Mod_query_encounter_read, Result_Mod_query_encounter_read>
           update: Invoke<Args_Mod_query_encounter_update, Result_Mod_query_encounter_update>
@@ -640,6 +657,11 @@ declare global {
           list: Invoke<Args_Mod_query_medicineCategory_list, Result_Mod_query_medicineCategory_list>
           update: Invoke<Args_Mod_query_medicineCategory_update, Result_Mod_query_medicineCategory_update>
         }
+        nutritionOrder: {
+          create: Invoke<Args_Mod_query_nutritionOrder_create, Result_Mod_query_nutritionOrder_create>
+          list: Invoke<Args_Mod_query_nutritionOrder_list, Result_Mod_query_nutritionOrder_list>
+          read: Invoke<Args_Mod_query_nutritionOrder_read, Result_Mod_query_nutritionOrder_read>
+        }
         observation: {
           create: Invoke<Args_Mod_query_observation_create, Result_Mod_query_observation_create>
           deleteById: Invoke<Args_Mod_query_observation_deleteById, Result_Mod_query_observation_deleteById>
@@ -692,6 +714,11 @@ declare global {
           getById: Invoke<Args_Mod_query_productionRequest_getById, Result_Mod_query_productionRequest_getById>
           list: Invoke<Args_Mod_query_productionRequest_list, Result_Mod_query_productionRequest_list>
           update: Invoke<Args_Mod_query_productionRequest_update, Result_Mod_query_productionRequest_update>
+        }
+        questionnaireResponse: {
+          create: Invoke<Args_Mod_query_questionnaireResponse_create, Result_Mod_query_questionnaireResponse_create>
+          getByEncounter: Invoke<Args_Mod_query_questionnaireResponse_getByEncounter, Result_Mod_query_questionnaireResponse_getByEncounter>
+          list: Invoke<Args_Mod_query_questionnaireResponse_list, Result_Mod_query_questionnaireResponse_list>
         }
         queue: {
           create: Invoke<Args_Mod_query_queue_create, Result_Mod_query_queue_create>
@@ -766,4 +793,4 @@ declare global {
     }
   }
 }
-export { }
+export {}
