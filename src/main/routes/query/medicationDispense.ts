@@ -348,11 +348,6 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
         ? `/api/module/medication-dispense/medication-dispenses?${queryString}`
         : '/api/module/medication-dispense/medication-dispenses'
 
-    console.log('MedicationDispense IPC list called with args and url:', {
-      args,
-      url
-    })
-
     const res = await client.get(url)
     const ListSchema = ModuleListCompatSchema
     const base = (await parseBackendResponse(res, ListSchema)) ?? []
@@ -528,11 +523,6 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
         authorizingPrescription: mergedRx ?? item.authorizingPrescription
       })
     })
-
-    console.log(
-      'MedicationDispense IPC list backend result length:',
-      Array.isArray(result) ? result.length : null
-    )
 
     return { success: true, data: result }
   } catch (err) {

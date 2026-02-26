@@ -1,6 +1,6 @@
-import { Modal, ConfigProvider, Button, Input, Table, Tag, Segmented, message, Dropdown, MenuProps, App as AntdApp } from 'antd'
+import { Modal, Button, Input, Table, Tag, Dropdown, MenuProps, App as AntdApp } from 'antd'
 import { SyncOutlined, MoreOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
 import dayjs from 'dayjs'
@@ -533,12 +533,12 @@ const columns = [
 ]
 
 export function MedicationDispenseTable() {
-	const { message } = AntdApp.useApp()
 	const navigate = useNavigate()
 	const location = useLocation()
 	const [search, setSearch] = useState('')
 	const [showOnlyPending, setShowOnlyPending] = useState(false)
-	const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const [statusFilter, _setStatusFilter] = useState<StatusFilter>('all')
 
 	const prescriptionIdParam = useMemo(() => {
 		const params = new URLSearchParams(location.search)
@@ -676,21 +676,6 @@ export function MedicationDispenseTable() {
 			const patientName = getPatientDisplayName(item.patient).toLowerCase()
 			const medicineName = item.medication?.name?.toLowerCase() ?? ''
 			return patientName.includes(q) || medicineName.includes(q)
-		})
-
-		// === DEBUG LOG ===
-		console.log('[MedicationDispense] === DATA RAW (Non-Grouped) ===')
-		result.forEach((item, index) => {
-			console.log(`[MedicationDispense] Data ke-${index + 1}:`, {
-				id: item.id,
-				authorizingPrescriptionId: item.authorizingPrescriptionId,
-				status: item.status,
-				medicationId: item.medicationId,
-				itemId: item.itemId,
-				dosageInstruction: item.dosageInstruction,
-				authorizingPrescription: item.authorizingPrescription,
-				medication: item.medication
-			})
 		})
 
 		return result
@@ -895,7 +880,7 @@ export function MedicationDispenseTable() {
 				performerName: item.performer?.name,
 				instruksi,
 				availableStock: typeof item.medication?.stock === 'number' ? item.medication.stock : undefined,
-				fhirId: typeof item.fhirId === 'string' && item.fhirId.trim().length > 0 ? item.fhirId.trim() : undefined,
+				fhirId: typeof (item as any).fhirId === 'string' && (item as any).fhirId.trim().length > 0 ? (item as any).fhirId.trim() : undefined,
 				children
 			}
 

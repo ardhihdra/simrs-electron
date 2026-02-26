@@ -635,22 +635,6 @@ export function MedicationRequestTable() {
 
 		const result = Array.from(groups.values())
 
-		// === DEBUG LOG ===
-		console.log('[MedicationRequest] === DATA RAW (Non-Grouped) ===')
-		filtered.forEach((item, index) => {
-			console.log(`[MedicationRequest] Data ke-${index + 1}:`, {
-				id: item.id,
-				patientId: item.patientId,
-				fhirId: item.fhirId,
-				medication: item.medication,
-				item: item.item,
-				dosageInstruction: item.dosageInstruction,
-				supportingInformation: item.supportingInformation,
-				category: item.category,
-				note: item.note
-			})
-		})
-
 		return result
 	}, [filtered, dispensedSummaryByRequestId, hasInProgressByRequestId, medicineMap, itemMap])
 
