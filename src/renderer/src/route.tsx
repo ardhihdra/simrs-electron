@@ -49,7 +49,7 @@ import ItemTable from './pages/item/item-table'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import ReportPage from './pages/pharmacy/ReportPage'
 import MedicationDispenseFromRequest from './pages/medication-dispense/medication-dispense-from-request'
-import MedicationDispenseReport from './pages/medication-dispense/medication-dispense-report'
+import MedicationDispenseReport from './pages/medication-dispense/component/medication-dispense-report'
 import MedicationDispenseTable from './pages/medication-dispense/medication-dispense-table'
 import MedicationRequestForm from './pages/medication-request/medication-request-form'
 import MedicationRequestTable from './pages/medication-request/medication-request-table'
@@ -184,7 +184,7 @@ function MainRoute() {
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
             <Route path="item-purchase" element={<ItemPurchasePage />} />
           </Route>
-            
+
           <Route path="nurse-calling" element={<NurseCalling />}>
             <Route index element={<PatientQueueTable />} />
             <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />

@@ -83,5 +83,11 @@ export const MedicationRequestWithIdSchema = MedicationRequestSchema.extend({
 	patient: z.any().optional(),
 	requester: z.any().optional(),
 	encounter: z.any().optional(),
-	item: z.any().optional()
+	item: z.any().optional(),
+	medication: z.any().optional(),
+	dosageInstruction: z.any().nullable().optional(),
+	supportingInformation: z.any().nullable().optional(),
+	category: z.any().nullable().optional(),
+	groupIdentifier: z.any().nullable().optional(),
+	note: z.string().nullable().optional()
 })

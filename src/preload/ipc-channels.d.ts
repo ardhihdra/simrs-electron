@@ -172,6 +172,8 @@ type Args_Mod_query_doctorSchedule_list = InferArgs<typeof Mod_query_doctorSched
 type Result_Mod_query_doctorSchedule_list = InferResult<typeof Mod_query_doctorSchedule, 'list'>
 type Args_Mod_query_doctorSchedule_update = InferArgs<typeof Mod_query_doctorSchedule, 'update'>
 type Result_Mod_query_doctorSchedule_update = InferResult<typeof Mod_query_doctorSchedule, 'update'>
+type Args_Mod_query_encounter_bulkSyncSatusehat = InferArgs<typeof Mod_query_encounter, 'bulkSyncSatusehat'>
+type Result_Mod_query_encounter_bulkSyncSatusehat = InferResult<typeof Mod_query_encounter, 'bulkSyncSatusehat'>
 type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'create'>
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
@@ -182,6 +184,8 @@ type Args_Mod_query_encounter_list = InferArgs<typeof Mod_query_encounter, 'list
 type Result_Mod_query_encounter_list = InferResult<typeof Mod_query_encounter, 'list'>
 type Args_Mod_query_encounter_read = InferArgs<typeof Mod_query_encounter, 'read'>
 type Result_Mod_query_encounter_read = InferResult<typeof Mod_query_encounter, 'read'>
+type Args_Mod_query_encounter_syncSatusehat = InferArgs<typeof Mod_query_encounter, 'syncSatusehat'>
+type Result_Mod_query_encounter_syncSatusehat = InferResult<typeof Mod_query_encounter, 'syncSatusehat'>
 type Args_Mod_query_encounter_update = InferArgs<typeof Mod_query_encounter, 'update'>
 type Result_Mod_query_encounter_update = InferResult<typeof Mod_query_encounter, 'update'>
 type Args_Mod_query_expense_create = InferArgs<typeof Mod_query_expense, 'create'>
@@ -290,6 +294,8 @@ type Args_Mod_query_medicationDispense_listModule = InferArgs<typeof Mod_query_m
 type Result_Mod_query_medicationDispense_listModule = InferResult<typeof Mod_query_medicationDispense, 'listModule'>
 type Args_Mod_query_medicationDispense_readModule = InferArgs<typeof Mod_query_medicationDispense, 'readModule'>
 type Result_Mod_query_medicationDispense_readModule = InferResult<typeof Mod_query_medicationDispense, 'readModule'>
+type Args_Mod_query_medicationDispense_syncSatusehat = InferArgs<typeof Mod_query_medicationDispense, 'syncSatusehat'>
+type Result_Mod_query_medicationDispense_syncSatusehat = InferResult<typeof Mod_query_medicationDispense, 'syncSatusehat'>
 type Args_Mod_query_medicationDispense_update = InferArgs<typeof Mod_query_medicationDispense, 'update'>
 type Result_Mod_query_medicationDispense_update = InferResult<typeof Mod_query_medicationDispense, 'update'>
 type Args_Mod_query_medicationDispense_updateModule = InferArgs<typeof Mod_query_medicationDispense, 'updateModule'>
@@ -591,11 +597,13 @@ declare global {
           update: Invoke<Args_Mod_query_doctorSchedule_update, Result_Mod_query_doctorSchedule_update>
         }
         encounter: {
+          bulkSyncSatusehat: Invoke<Args_Mod_query_encounter_bulkSyncSatusehat, Result_Mod_query_encounter_bulkSyncSatusehat>
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
           deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>
           getTimeline: Invoke<Args_Mod_query_encounter_getTimeline, Result_Mod_query_encounter_getTimeline>
           list: Invoke<Args_Mod_query_encounter_list, Result_Mod_query_encounter_list>
           read: Invoke<Args_Mod_query_encounter_read, Result_Mod_query_encounter_read>
+          syncSatusehat: Invoke<Args_Mod_query_encounter_syncSatusehat, Result_Mod_query_encounter_syncSatusehat>
           update: Invoke<Args_Mod_query_encounter_update, Result_Mod_query_encounter_update>
         }
         expense: {
@@ -676,6 +684,7 @@ declare global {
           list: Invoke<Args_Mod_query_medicationDispense_list, Result_Mod_query_medicationDispense_list>
           listModule: Invoke<Args_Mod_query_medicationDispense_listModule, Result_Mod_query_medicationDispense_listModule>
           readModule: Invoke<Args_Mod_query_medicationDispense_readModule, Result_Mod_query_medicationDispense_readModule>
+          syncSatusehat: Invoke<Args_Mod_query_medicationDispense_syncSatusehat, Result_Mod_query_medicationDispense_syncSatusehat>
           update: Invoke<Args_Mod_query_medicationDispense_update, Result_Mod_query_medicationDispense_update>
           updateModule: Invoke<Args_Mod_query_medicationDispense_updateModule, Result_Mod_query_medicationDispense_updateModule>
         }

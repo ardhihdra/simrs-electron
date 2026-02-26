@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
-import { DeleteOutlined, EditOutlined, MoreOutlined, SyncOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, MoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 type PatientNameEntry = {
@@ -240,7 +240,11 @@ const columns = [
 		width: 110,
 		render: (_: unknown, record: ParentRow) => {
 			const ok = typeof record.fhirId === 'string' && record.fhirId.trim().length > 0
-			return ok ? <span className="text-green-600">Tersinkron</span> : <span className="text-red-500">Belum</span>
+			return ok ? (
+				<Tag icon={<CheckCircleOutlined />} color="success">Tersinkron</Tag>
+			) : (
+				<Tag icon={<CloseCircleOutlined />} color="error">Belum</Tag>
+			)
 		}
 	},
 	{
@@ -629,7 +633,25 @@ export function MedicationRequestTable() {
 			}
 		})
 
-		return Array.from(groups.values())
+		const result = Array.from(groups.values())
+
+		// === DEBUG LOG ===
+		console.log('[MedicationRequest] === DATA RAW (Non-Grouped) ===')
+		filtered.forEach((item, index) => {
+			console.log(`[MedicationRequest] Data ke-${index + 1}:`, {
+				id: item.id,
+				patientId: item.patientId,
+				fhirId: item.fhirId,
+				medication: item.medication,
+				item: item.item,
+				dosageInstruction: item.dosageInstruction,
+				supportingInformation: item.supportingInformation,
+				category: item.category,
+				note: item.note
+			})
+		})
+
+		return result
 	}, [filtered, dispensedSummaryByRequestId, hasInProgressByRequestId, medicineMap, itemMap])
 
 	return (

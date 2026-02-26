@@ -5,12 +5,14 @@ import {
   MoreOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SyncOutlined
+  SyncOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined
 } from '@ant-design/icons'
 import { queryClient } from '@renderer/query-client'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { MenuProps } from 'antd'
-import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
+import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, Tag, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -18,31 +20,31 @@ import { useNavigate } from 'react-router'
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
 interface PriceRule {
-	unitCode: string
-	qty: number
-	price: number
+  unitCode: string
+  qty: number
+  price: number
 }
 
 interface ItemAttributes {
-	id?: number
-	nama: string
-	kode: string
-	kodeUnit: string
-	kfaCode?: string | null
+  id?: number
+  nama: string
+  kode: string
+  kodeUnit: string
+  kfaCode?: string | null
   fhirId?: string | null
-	kind?: ItemKind | null
-	unit?: { nama?: string; kode?: string } | null
-	stock?: number | null
-	minimumStock?: number | null
-	buyingPrice?: number | null
-	sellingPrice?: number | null
-	buyPriceRules?: PriceRule[] | null
-	sellPriceRules?: PriceRule[] | null
-	itemCategoryId?: number | null
-	category?: {
-		id?: number
-		name?: string | null
-	} | null
+  kind?: ItemKind | null
+  unit?: { nama?: string; kode?: string } | null
+  stock?: number | null
+  minimumStock?: number | null
+  buyingPrice?: number | null
+  sellingPrice?: number | null
+  buyPriceRules?: PriceRule[] | null
+  sellPriceRules?: PriceRule[] | null
+  itemCategoryId?: number | null
+  category?: {
+    id?: number
+    name?: string | null
+  } | null
 }
 
 type ItemListResponse = {
@@ -66,87 +68,87 @@ type InventoryStockResponse = {
   message?: string
 }
 
- 
+
 
 const formatRupiah = (value: number | string | null | undefined): string => {
-	if (value === null || value === undefined) return '-'
-	const raw =
-		typeof value === 'number' ? value : Number(String(value).replace(/[^0-9-]/g, ''))
-	if (!Number.isFinite(raw)) return '-'
-	const formatted = new Intl.NumberFormat('id-ID', {
-		minimumFractionDigits: 0,
-		maximumFractionDigits: 0
-	}).format(raw)
-	return `Rp ${formatted}`
+  if (value === null || value === undefined) return '-'
+  const raw =
+    typeof value === 'number' ? value : Number(String(value).replace(/[^0-9-]/g, ''))
+  if (!Number.isFinite(raw)) return '-'
+  const formatted = new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(raw)
+  return `Rp ${formatted}`
 }
 
 interface UnitPriceDisplay {
-	unitCode: string
-	value: number
+  unitCode: string
+  value: number
 }
 
 const getBaseUnitCodeForItem = (item: ItemAttributes): string | null => {
-	const all: { unitCode: string; qty: number }[] = []
+  const all: { unitCode: string; qty: number }[] = []
 
-	const collect = (rules: PriceRule[] | null | undefined) => {
-		if (!Array.isArray(rules)) return
-		for (const rule of rules) {
-			const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
-			const unitCode = unitCodeRaw.trim().toUpperCase()
-			const qtyRaw = rule.qty
-			const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
-			if (!unitCode) continue
-			if (!Number.isFinite(qty) || qty <= 0) continue
-			all.push({ unitCode, qty })
-		}
-	}
+  const collect = (rules: PriceRule[] | null | undefined) => {
+    if (!Array.isArray(rules)) return
+    for (const rule of rules) {
+      const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
+      const unitCode = unitCodeRaw.trim().toUpperCase()
+      const qtyRaw = rule.qty
+      const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
+      if (!unitCode) continue
+      if (!Number.isFinite(qty) || qty <= 0) continue
+      all.push({ unitCode, qty })
+    }
+  }
 
-	collect(item.buyPriceRules ?? null)
-	collect(item.sellPriceRules ?? null)
+  collect(item.buyPriceRules ?? null)
+  collect(item.sellPriceRules ?? null)
 
-	if (all.length === 0) {
-		const kodeUnitRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : ''
-		const kodeUnit = kodeUnitRaw.trim().toUpperCase()
-		return kodeUnit || null
-	}
+  if (all.length === 0) {
+    const kodeUnitRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : ''
+    const kodeUnit = kodeUnitRaw.trim().toUpperCase()
+    return kodeUnit || null
+  }
 
-	const sorted = [...all].sort((a, b) => a.qty - b.qty)
-	return sorted[0]?.unitCode ?? null
+  const sorted = [...all].sort((a, b) => a.qty - b.qty)
+  return sorted[0]?.unitCode ?? null
 }
 
 const buildUnitPrices = (
-	rules: PriceRule[] | null | undefined,
-	baseUnitCodeRaw: string | null
+  rules: PriceRule[] | null | undefined,
+  baseUnitCodeRaw: string | null
 ): UnitPriceDisplay[] => {
-	if (!Array.isArray(rules)) return []
-	const baseUnitCode = baseUnitCodeRaw ? baseUnitCodeRaw.trim().toUpperCase() : ''
-	const result: UnitPriceDisplay[] = []
+  if (!Array.isArray(rules)) return []
+  const baseUnitCode = baseUnitCodeRaw ? baseUnitCodeRaw.trim().toUpperCase() : ''
+  const result: UnitPriceDisplay[] = []
 
-	for (const rule of rules) {
-		const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
-		const unitCode = unitCodeRaw.trim().toUpperCase()
-		const qtyRaw = rule.qty
-		const priceRaw = rule.price
-		const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
-		const price = typeof priceRaw === 'number' ? priceRaw : Number(priceRaw)
+  for (const rule of rules) {
+    const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
+    const unitCode = unitCodeRaw.trim().toUpperCase()
+    const qtyRaw = rule.qty
+    const priceRaw = rule.price
+    const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
+    const price = typeof priceRaw === 'number' ? priceRaw : Number(priceRaw)
 
-		if (!unitCode) continue
-		if (!Number.isFinite(price)) continue
+    if (!unitCode) continue
+    if (!Number.isFinite(price)) continue
 
-		const isBaseUnit = baseUnitCode !== '' && unitCode === baseUnitCode
+    const isBaseUnit = baseUnitCode !== '' && unitCode === baseUnitCode
 
-		if (isBaseUnit) {
-			result.push({ unitCode, value: price })
-			continue
-		}
+    if (isBaseUnit) {
+      result.push({ unitCode, value: price })
+      continue
+    }
 
-		if (!Number.isFinite(qty) || qty <= 0) continue
-		const unitPrice = price / qty
-		if (!Number.isFinite(unitPrice)) continue
-		result.push({ unitCode, value: unitPrice })
-	}
+    if (!Number.isFinite(qty) || qty <= 0) continue
+    const unitPrice = price / qty
+    if (!Number.isFinite(unitPrice)) continue
+    result.push({ unitCode, value: unitPrice })
+  }
 
-	return result
+  return result
 }
 
 interface ItemUpdatePayload {
@@ -169,70 +171,70 @@ type ItemApi = {
 }
 
 interface AdjustItemStockResult {
-	id?: number
-	kode?: string
-	stock?: number
+  id?: number
+  kode?: string
+  stock?: number
 }
 
 interface AdjustItemStockArgs {
-	itemId: number
-	newStock: number
-	adjustReason?: string
-	note?: string
+  itemId: number
+  newStock: number
+  adjustReason?: string
+  note?: string
 }
 
 type InventoryStockApi = {
-	adjustItemStock: (args: AdjustItemStockArgs) => Promise<{
-		success: boolean
-		result?: AdjustItemStockResult
-		message?: string
-		error?: string
-	}>
-	itemAdjustments: (args?: { itemId?: number }) => Promise<{
-		success: boolean
-		result?: ItemAdjustmentRow[]
-		message?: string
-	}>
+  adjustItemStock: (args: AdjustItemStockArgs) => Promise<{
+    success: boolean
+    result?: AdjustItemStockResult
+    message?: string
+    error?: string
+  }>
+  itemAdjustments: (args?: { itemId?: number }) => Promise<{
+    success: boolean
+    result?: ItemAdjustmentRow[]
+    message?: string
+  }>
 }
 
 interface ItemAdjustmentRow {
-	id: number
-	kodeItem: string
-	type: number
-	qty: number
-	batchNumber: string | null
-	expiryDate: string | null
-	adjustReason: string | null
-	note: string | null
-	previousStock: number
-	newStock: number
-	createdAt: string
-	createdBy: string | null
-	createdByName?: string | null
-	updatedAt: string | null
-	updatedBy: string | null
+  id: number
+  kodeItem: string
+  type: number
+  qty: number
+  batchNumber: string | null
+  expiryDate: string | null
+  adjustReason: string | null
+  note: string | null
+  previousStock: number
+  newStock: number
+  createdAt: string
+  createdBy: string | null
+  createdByName?: string | null
+  updatedAt: string | null
+  updatedBy: string | null
 }
 
 interface StockAdjustmentFormValues {
-	currentStock?: number
-	physicalStock?: number
-	reason?: string
-	note?: string
+  currentStock?: number
+  physicalStock?: number
+  reason?: string
+  note?: string
 }
 
 function RowActions({ record }: { record: ItemAttributes }) {
   const navigate = useNavigate()
   const [isEditStockOpen, setIsEditStockOpen] = useState(false)
-	const [stockForm] = Form.useForm<StockAdjustmentFormValues>()
+  const [stockForm] = Form.useForm<StockAdjustmentFormValues>()
 
   const api = (window.api?.query as { item?: ItemApi }).item
   const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
     .inventoryStock
   const [syncingSatusehat, setSyncingSatusehat] = useState(false)
 
-	const updateStockAndMinimumStockMutation = useMutation({
+  const updateStockAndMinimumStockMutation = useMutation({
     mutationKey: ['item', 'update', 'stock-and-minimumStock', record.id],
-		mutationFn: async (values: StockAdjustmentFormValues) => {
+    mutationFn: async (values: StockAdjustmentFormValues) => {
       if (typeof record.id !== 'number') {
         throw new Error('ID item tidak valid.')
       }
@@ -248,7 +250,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
         throw new Error('API item tidak tersedia.')
       }
 
-			const rawStock = values.physicalStock
+      const rawStock = values.physicalStock
       if (rawStock === undefined || rawStock === null || Number.isNaN(rawStock)) {
         throw new Error('Stok baru harus diisi dengan angka yang valid.')
       }
@@ -259,17 +261,17 @@ function RowActions({ record }: { record: ItemAttributes }) {
 
       const roundedStock = Math.floor(rawStock)
 
-			const normalizedMinimumStock =
-				typeof record.minimumStock === 'number' && record.minimumStock >= 0
-					? record.minimumStock
-					: null
+      const normalizedMinimumStock =
+        typeof record.minimumStock === 'number' && record.minimumStock >= 0
+          ? record.minimumStock
+          : null
 
-			const adjustResult = await adjustFn({
-				itemId: record.id,
-				newStock: roundedStock,
-				adjustReason: values.reason,
-				note: values.note
-			})
+      const adjustResult = await adjustFn({
+        itemId: record.id,
+        newStock: roundedStock,
+        adjustReason: values.reason,
+        note: values.note
+      })
 
       if (!adjustResult?.success) {
         const msg = adjustResult?.message ?? adjustResult?.error ?? 'Gagal memperbarui stok item'
@@ -372,15 +374,15 @@ function RowActions({ record }: { record: ItemAttributes }) {
           typeof record.stock === 'number' && Number.isFinite(record.stock)
             ? record.stock
             : 0
-			stockForm.setFieldsValue({
-				currentStock,
-				physicalStock: currentStock,
-				reason: '',
-				note: ''
-			})
+        stockForm.setFieldsValue({
+          currentStock,
+          physicalStock: currentStock,
+          reason: '',
+          note: ''
+        })
         setIsEditStockOpen(true)
       }
-		},
+    },
     { type: 'divider' },
     {
       key: 'delete',
@@ -424,66 +426,66 @@ function RowActions({ record }: { record: ItemAttributes }) {
         cancelText="Batal"
         destroyOnClose
       >
-		<Form
-		  form={stockForm}
-		  layout="vertical"
-		  initialValues={{
-			currentStock:
-			  typeof record.stock === 'number' && Number.isFinite(record.stock)
-				? record.stock
-				: 0,
-			physicalStock:
-			  typeof record.stock === 'number' && Number.isFinite(record.stock)
-				? record.stock
-				: 0,
-			reason: '',
-			note: ''
-		  }}
-		>
-		  <Form.Item label="Stok Sekarang" name="currentStock">
-			<InputNumber<number> disabled className="w-full" />
-		  </Form.Item>
-		  <Form.Item
-			label="Stok Fisik"
-			name="physicalStock"
-			rules={[
-			  {
-				validator: (_rule, value) => {
-				  if (value === undefined || value === null || value === '') {
-					return Promise.reject(new Error('Stok fisik harus diisi'))
-				  }
-				  if (typeof value !== 'number' || Number.isNaN(value)) {
-					return Promise.reject(new Error('Nilai stok fisik harus berupa angka'))
-				  }
-				  if (value < 0) {
-					return Promise.reject(
-					  new Error('Stok fisik tidak boleh bernilai negatif')
-					)
-				  }
-				  return Promise.resolve()
-				}
-			  }
-			]}
-		  >
-			<InputNumber<number> min={0} className="w-full" />
-		  </Form.Item>
-		  
-		  <Form.Item label="Alasan Penyesuaian" name="reason">
-			<Select
-			  placeholder="Pilih alasan"
-			  options={[
-				{ value: 'hilang', label: 'Hilang' },
-				{ value: 'rusak', label: 'Rusak' },
-				{ value: 'dipakai', label: 'Dipakai' },
-				{ value: 'lebih', label: 'Lebih' }
-			  ]}
-			/>
-		  </Form.Item>
-		  <Form.Item label="Catatan" name="note">
-			<Input.TextArea rows={2} />
-		  </Form.Item>
-		</Form>
-			</Modal>
+        <Form
+          form={stockForm}
+          layout="vertical"
+          initialValues={{
+            currentStock:
+              typeof record.stock === 'number' && Number.isFinite(record.stock)
+                ? record.stock
+                : 0,
+            physicalStock:
+              typeof record.stock === 'number' && Number.isFinite(record.stock)
+                ? record.stock
+                : 0,
+            reason: '',
+            note: ''
+          }}
+        >
+          <Form.Item label="Stok Sekarang" name="currentStock">
+            <InputNumber<number> disabled className="w-full" />
+          </Form.Item>
+          <Form.Item
+            label="Stok Fisik"
+            name="physicalStock"
+            rules={[
+              {
+                validator: (_rule, value) => {
+                  if (value === undefined || value === null || value === '') {
+                    return Promise.reject(new Error('Stok fisik harus diisi'))
+                  }
+                  if (typeof value !== 'number' || Number.isNaN(value)) {
+                    return Promise.reject(new Error('Nilai stok fisik harus berupa angka'))
+                  }
+                  if (value < 0) {
+                    return Promise.reject(
+                      new Error('Stok fisik tidak boleh bernilai negatif')
+                    )
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
+          >
+            <InputNumber<number> min={0} className="w-full" />
+          </Form.Item>
+
+          <Form.Item label="Alasan Penyesuaian" name="reason">
+            <Select
+              placeholder="Pilih alasan"
+              options={[
+                { value: 'hilang', label: 'Hilang' },
+                { value: 'rusak', label: 'Rusak' },
+                { value: 'dipakai', label: 'Dipakai' },
+                { value: 'lebih', label: 'Lebih' }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="Catatan" name="note">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </>
   )
 }
@@ -491,9 +493,9 @@ function RowActions({ record }: { record: ItemAttributes }) {
 export function ItemTable() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
-	const [isHistoryOpen, setIsHistoryOpen] = useState(false)
-	const [historyLoading, setHistoryLoading] = useState(false)
-	const [historyRows, setHistoryRows] = useState<ItemAdjustmentRow[]>([])
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyRows, setHistoryRows] = useState<ItemAdjustmentRow[]>([])
 
   const { data, refetch, isError } = useQuery<ItemListResponse>({
     queryKey: ['item', 'list'],
@@ -504,31 +506,31 @@ export function ItemTable() {
     }
   })
 
-	const itemCategoryNameById = useMemo(() => {
-		const items: ItemAttributes[] = Array.isArray(data?.result)
-			? data.result
-			: []
-		const map = new Map<number, string>()
-		for (const item of items) {
-			const id =
-				typeof item.itemCategoryId === 'number'
-					? item.itemCategoryId
-					: typeof item.category?.id === 'number'
-						? item.category.id
-						: undefined
-			if (typeof id !== 'number') continue
-			const rawName =
-				typeof item.category?.name === 'string'
-					? item.category.name
-					: undefined
-			const name = rawName ? rawName.trim() : ''
-			if (!name) continue
-			if (!map.has(id)) {
-				map.set(id, name)
-			}
-		}
-		return map
-	}, [data?.result])
+  const itemCategoryNameById = useMemo(() => {
+    const items: ItemAttributes[] = Array.isArray(data?.result)
+      ? data.result
+      : []
+    const map = new Map<number, string>()
+    for (const item of items) {
+      const id =
+        typeof item.itemCategoryId === 'number'
+          ? item.itemCategoryId
+          : typeof item.category?.id === 'number'
+            ? item.category.id
+            : undefined
+      if (typeof id !== 'number') continue
+      const rawName =
+        typeof item.category?.name === 'string'
+          ? item.category.name
+          : undefined
+      const name = rawName ? rawName.trim() : ''
+      if (!name) continue
+      if (!map.has(id)) {
+        map.set(id, name)
+      }
+    }
+    return map
+  }, [data?.result])
 
   const { data: stockData } = useQuery<InventoryStockResponse>({
     queryKey: ['inventoryStock', 'list'],
@@ -574,32 +576,32 @@ export function ItemTable() {
     })
   }, [data?.result, stockData?.result, search])
 
-	const handleOpenHistory = async () => {
-		const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
-			.inventoryStock
-		const fn = inventoryApi?.itemAdjustments
-		if (!fn) {
-			message.error('API history penyesuaian stok tidak tersedia.')
-			return
-		}
-		try {
-			setHistoryLoading(true)
-			const res = await fn()
-			if (!res.success) {
-				const msg = res.message ?? 'Gagal mengambil history penyesuaian stok'
-				message.error(msg)
-				setHistoryRows([])
-			} else {
-				setHistoryRows(Array.isArray(res.result) ? res.result : [])
-				setIsHistoryOpen(true)
-			}
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Gagal mengambil history penyesuaian stok'
-			message.error(msg)
-		} finally {
-			setHistoryLoading(false)
-		}
-	}
+  const handleOpenHistory = async () => {
+    const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
+      .inventoryStock
+    const fn = inventoryApi?.itemAdjustments
+    if (!fn) {
+      message.error('API history penyesuaian stok tidak tersedia.')
+      return
+    }
+    try {
+      setHistoryLoading(true)
+      const res = await fn()
+      if (!res.success) {
+        const msg = res.message ?? 'Gagal mengambil history penyesuaian stok'
+        message.error(msg)
+        setHistoryRows([])
+      } else {
+        setHistoryRows(Array.isArray(res.result) ? res.result : [])
+        setIsHistoryOpen(true)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal mengambil history penyesuaian stok'
+      message.error(msg)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
 
   const columns: ColumnsType<ItemAttributes> = [
     {
@@ -624,7 +626,11 @@ export function ItemTable() {
       width: 140,
       render: (v: string | null | undefined) => {
         const ok = typeof v === 'string' && v.trim().length > 0
-        return ok ? <span className="text-green-600">Tersinkron</span> : <span className="text-red-600">Belum</span>
+        return ok ? (
+          <Tag icon={<CheckCircleOutlined />} color="success">Tersinkron</Tag>
+        ) : (
+          <Tag icon={<CloseCircleOutlined />} color="error">Belum</Tag>
+        )
       }
     },
     {
@@ -775,89 +781,89 @@ export function ItemTable() {
             word-break: break-word;
           }
         `}</style>
-			<Modal
-				title="History Penyesuaian Stok"
-				open={isHistoryOpen}
-				onCancel={() => setIsHistoryOpen(false)}
-				footer={null}
-				width={800}
-			>
-				<Table
-					dataSource={historyRows}
-					loading={historyLoading}
-					rowKey={(row) => row.id}
-					size="small"
-					pagination={{ pageSize: 10 }}
-							columns={[
-								{
-									title: 'Tanggal',
-									dataIndex: 'createdAt',
-									key: 'createdAt',
-									render: (value: string) => {
-										const date = new Date(value)
-										if (Number.isNaN(date.getTime())) return value
-										return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
-									}
-								},
-								{
-									title: 'Jenis',
-									dataIndex: 'type',
-									key: 'type',
-									render: (value: number) => (value === 1 ? 'Masuk' : 'Keluar')
-								},
-								{
-									title: 'Stok Sebelum',
-									dataIndex: 'previousStock',
-									key: 'previousStock'
-								},
-								{
-									title: 'Stok Adjustment',
-									dataIndex: 'qty',
-									key: 'stockAdjustment',
-								render: (_: number, row: ItemAdjustmentRow) => {
-									const base = typeof row.qty === 'number' ? row.qty : 0
-									const signed = row.type === 1 ? base : -base
-									const colorClass =
-										signed > 0 ? 'text-green-600' : signed < 0 ? 'text-red-600' : ''
-									const label =
-										signed > 0 ? `+${signed}` : signed < 0 ? String(signed) : '0'
-									return <span className={colorClass}>{label}</span>
-								}
-								},
-								{
-									title: 'Stok Sesudah',
-									dataIndex: 'newStock',
-									key: 'newStock'
-								},
-						{
-							title: 'Alasan',
-							dataIndex: 'adjustReason',
-							key: 'adjustReason',
-							render: (value: string | null) => value ?? '-'
-						},
-						{
-							title: 'Catatan',
-							dataIndex: 'note',
-							key: 'note',
-							render: (value: string | null) => value ?? '-'
-						},
-						{
-							title: 'User',
-								dataIndex: 'createdByName',
-								key: 'createdByName',
-								render: (_: string | null, row: ItemAdjustmentRow) => {
-									if (row.createdByName && row.createdByName.length > 0) {
-										return row.createdByName
-									}
-									if (row.createdBy && row.createdBy.length > 0) {
-										return row.createdBy
-									}
-									return '-'
-								}
-						}
-					]}
-				/>
-			</Modal>
+        <Modal
+          title="History Penyesuaian Stok"
+          open={isHistoryOpen}
+          onCancel={() => setIsHistoryOpen(false)}
+          footer={null}
+          width={800}
+        >
+          <Table
+            dataSource={historyRows}
+            loading={historyLoading}
+            rowKey={(row) => row.id}
+            size="small"
+            pagination={{ pageSize: 10 }}
+            columns={[
+              {
+                title: 'Tanggal',
+                dataIndex: 'createdAt',
+                key: 'createdAt',
+                render: (value: string) => {
+                  const date = new Date(value)
+                  if (Number.isNaN(date.getTime())) return value
+                  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
+                }
+              },
+              {
+                title: 'Jenis',
+                dataIndex: 'type',
+                key: 'type',
+                render: (value: number) => (value === 1 ? 'Masuk' : 'Keluar')
+              },
+              {
+                title: 'Stok Sebelum',
+                dataIndex: 'previousStock',
+                key: 'previousStock'
+              },
+              {
+                title: 'Stok Adjustment',
+                dataIndex: 'qty',
+                key: 'stockAdjustment',
+                render: (_: number, row: ItemAdjustmentRow) => {
+                  const base = typeof row.qty === 'number' ? row.qty : 0
+                  const signed = row.type === 1 ? base : -base
+                  const colorClass =
+                    signed > 0 ? 'text-green-600' : signed < 0 ? 'text-red-600' : ''
+                  const label =
+                    signed > 0 ? `+${signed}` : signed < 0 ? String(signed) : '0'
+                  return <span className={colorClass}>{label}</span>
+                }
+              },
+              {
+                title: 'Stok Sesudah',
+                dataIndex: 'newStock',
+                key: 'newStock'
+              },
+              {
+                title: 'Alasan',
+                dataIndex: 'adjustReason',
+                key: 'adjustReason',
+                render: (value: string | null) => value ?? '-'
+              },
+              {
+                title: 'Catatan',
+                dataIndex: 'note',
+                key: 'note',
+                render: (value: string | null) => value ?? '-'
+              },
+              {
+                title: 'User',
+                dataIndex: 'createdByName',
+                key: 'createdByName',
+                render: (_: string | null, row: ItemAdjustmentRow) => {
+                  if (row.createdByName && row.createdByName.length > 0) {
+                    return row.createdByName
+                  }
+                  if (row.createdBy && row.createdBy.length > 0) {
+                    return row.createdBy
+                  }
+                  return '-'
+                }
+              }
+            ]}
+          />
+        </Modal>
         <Table
           dataSource={filtered}
           columns={columns}

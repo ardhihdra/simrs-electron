@@ -6,12 +6,12 @@ import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
 
 interface QuantityInfo {
-	value?: number
-	unit?: string
+  value?: number
+  unit?: string
 }
 
 interface DispenseRequestInfo {
-	quantity?: QuantityInfo
+  quantity?: QuantityInfo
 }
 
 export const requireSession = true
@@ -57,29 +57,37 @@ export const schemas = {
     })
   },
   createFromRequest: {
-		args: z.object({
-			medicationRequestId: z.number(),
-			quantity: z
-				.object({
-					value: z.number().optional(),
-					unit: z.string().optional()
-				})
-				.optional()
-		}),
-		result: z.object({
-			 success: z.boolean(),
-			 data: z
-         .union([
-           MedicationDispenseWithIdSchema,
-           z.object({
-             id: z.number(),
-             status: z.nativeEnum(MedicationDispenseStatus).optional()
-           })
-         ])
-         .optional(),
-			 error: z.string().optional(),
-			 message: z.string().optional()
-		})
+    args: z.object({
+      medicationRequestId: z.number(),
+      quantity: z
+        .object({
+          value: z.number().optional(),
+          unit: z.string().optional()
+        })
+        .optional()
+    }),
+    result: z.object({
+      success: z.boolean(),
+      data: z
+        .union([
+          MedicationDispenseWithIdSchema,
+          z.object({
+            id: z.number(),
+            status: z.nativeEnum(MedicationDispenseStatus).optional()
+          })
+        ])
+        .optional(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
+  },
+  syncSatusehat: {
+    args: z.object({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
   }
 } as const
 
@@ -152,10 +160,17 @@ export const moduleSchemas = {
         .array(
           z.object({
             text: z.string().optional()
-          })
+          }).passthrough()
         )
         .nullable()
         .optional(),
+      category: z.array(
+        z.object({
+          text: z.string().optional(),
+          code: z.string().optional()
+        }).passthrough()
+      ).nullable().optional(),
+      note: z.string().nullable().optional(),
       performerId: z.number().nullable().optional()
     }),
     result: z.object({
@@ -178,26 +193,31 @@ const FhirReferenceSchema = z.object({
 
 const FhirMedicationDispenseSchema = z.object({
   id: z.number().optional(),
+  fhirId: z.string().nullable().optional(),
   resourceType: z.string().optional(),
   status: z.string(),
   subject: FhirReferenceSchema.optional(),
   context: FhirReferenceSchema.optional(),
-  authorizingPrescription: z.array(FhirReferenceSchema).optional(),
+  authorizingPrescription: z.union([
+    z.array(FhirReferenceSchema),
+    z.any() // Mentoleransi object dari Sequelize include
+  ]).optional(),
   quantity: z
     .object({
       value: z.number().optional(),
       unit: z.string().optional()
     })
     .optional(),
-  whenPrepared: z.string().optional(),
-  whenHandedOver: z.string().optional(),
-  performer: z
-    .array(
+  whenPrepared: z.string().nullable().optional(),
+  whenHandedOver: z.string().nullable().optional(),
+  performer: z.union([
+    z.array(
       z.object({
         actor: FhirReferenceSchema.optional()
       })
-    )
-    .optional(),
+    ),
+    z.any() // Mentoleransi object dari Sequelize include
+  ]).optional(),
   medicationReference: FhirReferenceSchema.optional(),
   medicationCodeableConcept: z
     .object({
@@ -215,36 +235,49 @@ const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
   }
   const patientId = getIdFromRef(fhir.subject?.reference, 'Patient')
   const encounterId = getIdFromRef(fhir.context?.reference, 'Encounter')
-  const authRef = Array.isArray(fhir.authorizingPrescription)
+  const authRef = Array.isArray(fhir.authorizingPrescription) && fhir.authorizingPrescription[0]?.reference
     ? fhir.authorizingPrescription[0]?.reference
     : undefined
   const authorizingPrescriptionIdStr = getIdFromRef(authRef, 'MedicationRequest')
-  const authorizingPrescriptionId =
-    authorizingPrescriptionIdStr && /^\d+$/.test(authorizingPrescriptionIdStr)
-      ? Number(authorizingPrescriptionIdStr)
-      : undefined
+
+  let authorizingPrescriptionId: number | undefined = undefined
+  let authorizingPrescriptionObj: z.infer<typeof MedicationRequestWithIdSchema> | undefined = undefined
+
+  if (authorizingPrescriptionIdStr && /^\d+$/.test(authorizingPrescriptionIdStr)) {
+    authorizingPrescriptionId = Number(authorizingPrescriptionIdStr)
+  } else if (fhir.authorizingPrescription && typeof fhir.authorizingPrescription === 'object' && 'id' in fhir.authorizingPrescription) {
+    authorizingPrescriptionId = fhir.authorizingPrescription.id as number
+    authorizingPrescriptionObj = fhir.authorizingPrescription
+  }
+
   const itemRefIdStr = getIdFromRef(fhir.medicationReference?.reference, 'Medication')
   const itemId =
     itemRefIdStr && /^\d+$/.test(itemRefIdStr) ? Number(itemRefIdStr) : undefined
+
+  // Tangkap fields tambahan yang dikirim backend (fhirId, dosageInstruction, dsb)
+  const rawFhir = fhir as Record<string, any>
+
   const ui: z.infer<typeof MedicationDispenseWithIdSchema> = {
     id: typeof fhir.id === 'number' ? fhir.id : 0,
+    fhirId: typeof rawFhir.fhirId === 'string' ? rawFhir.fhirId : null,
     status: fhir.status as unknown as z.infer<typeof MedicationDispenseWithIdSchema>['status'],
-    itemId: typeof itemId === 'number' ? itemId : null,
-    patientId: (patientId ?? '') as string,
-    encounterId: (encounterId ?? null) as string | null,
+    itemId: typeof rawFhir.itemId === 'number' ? rawFhir.itemId : (typeof itemId === 'number' ? itemId : null),
+    patientId: (patientId ?? rawFhir.patientId ?? '') as string,
+    encounterId: (encounterId ?? rawFhir.encounterId ?? null) as string | null,
     authorizingPrescriptionId:
       typeof authorizingPrescriptionId === 'number' ? authorizingPrescriptionId : null,
     quantity: fhir.quantity ?? null,
     whenPrepared: fhir.whenPrepared ?? null,
     whenHandedOver: fhir.whenHandedOver ?? null,
-    performerId: null,
-    dosageInstruction: null,
+    performerId: typeof rawFhir.performerId === 'number' ? rawFhir.performerId : null,
+    dosageInstruction: rawFhir.dosageInstruction ?? null,
     createdAt: undefined,
     updatedAt: undefined,
     deletedAt: undefined,
     patient: undefined,
-    performer: undefined,
-    authorizingPrescription: undefined
+    performer: rawFhir.performer ?? undefined,
+    medication: rawFhir.medication ?? undefined,
+    authorizingPrescription: authorizingPrescriptionObj ?? null
   }
   return ui
 }
@@ -282,16 +315,16 @@ const ModuleListCompatSchema: z.ZodSchema<{
     result: (val.result ?? val.data)?.map(toUiDispense),
     pagination: val.pagination
       ? {
-          page: val.pagination.page,
-          limit: val.pagination.limit,
-          pages: val.pagination.pages,
-          total:
-            typeof val.pagination.total === 'number'
-              ? val.pagination.total
-              : typeof val.pagination.count === 'number'
+        page: val.pagination.page,
+        limit: val.pagination.limit,
+        pages: val.pagination.pages,
+        total:
+          typeof val.pagination.total === 'number'
+            ? val.pagination.total
+            : typeof val.pagination.count === 'number'
               ? val.pagination.count
               : 0
-        }
+      }
       : undefined,
     message: val.message,
     error: val.error
@@ -402,8 +435,8 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
                   typeof p.identifier === 'string'
                     ? [{ system: 'local-mrn', value: p.identifier }]
                     : Array.isArray(p.identifier)
-                    ? p.identifier
-                    : undefined
+                      ? p.identifier
+                      : undefined
                 map.set(pid, {
                   name,
                   identifier: identifiers,
@@ -592,13 +625,7 @@ export const createFromRequest = async (
       const encounterId =
         typeof request.encounterId === 'string' ? request.encounterId : null
 
-      const payload: {
-        patientId: string
-        authorizingPrescriptionId: number
-        status: MedicationDispenseStatus
-        quantity: QuantityInfo
-        encounterId: string | null
-      } = {
+      const payload = {
         patientId: request.patientId,
         authorizingPrescriptionId: request.id as number,
         status: MedicationDispenseStatus.IN_PROGRESS,
@@ -606,7 +633,13 @@ export const createFromRequest = async (
           value,
           unit: quantity?.unit
         },
-        encounterId
+        encounterId,
+        dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
+        category: Array.isArray(request.category) ? request.category : null,
+        // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
+        note: typeof request.note === 'string' && request.note.trim().length > 0
+          ? [{ text: request.note.trim() }]
+          : null
       }
 
       const createRes = await client.post(
@@ -632,7 +665,7 @@ export const createFromRequest = async (
               } else {
                 detail = await syncRes.text()
               }
-            } catch {}
+            } catch { }
             console.warn('[medication-dispense.sync] failed', createdId, syncRes.status, detail)
           }
         }
@@ -656,14 +689,7 @@ export const createFromRequest = async (
       const encounterId =
         typeof request.encounterId === 'string' ? request.encounterId : null
 
-      const payload: {
-        itemId: number
-        patientId: string
-        authorizingPrescriptionId: number
-        status: MedicationDispenseStatus
-        quantity: QuantityInfo
-        encounterId: string | null
-      } = {
+      const payload = {
         itemId: request.itemId as number,
         patientId: request.patientId,
         authorizingPrescriptionId: request.id,
@@ -672,7 +698,13 @@ export const createFromRequest = async (
           value,
           unit
         },
-        encounterId
+        encounterId,
+        dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
+        category: Array.isArray(request.category) ? request.category : null,
+        // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
+        note: typeof request.note === 'string' && request.note.trim().length > 0
+          ? [{ text: request.note.trim() }]
+          : null
       }
 
       const createRes = await client.post(
@@ -698,7 +730,7 @@ export const createFromRequest = async (
               } else {
                 detail = await syncRes.text()
               }
-            } catch {}
+            } catch { }
             console.warn('[medication-dispense.sync] failed', createdId, syncRes.status, detail)
           }
         }
@@ -798,6 +830,36 @@ export const createModule = async (
     const CreateSchema = moduleSchemas.create.result
     const result = await parseBackendResponse(res, CreateSchema)
     return { success: true, data: result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const syncSatusehat = async (
+  ctx: IpcContext,
+  args: z.infer<typeof schemas.syncSatusehat.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const syncRes = await client.post(
+      `/api/module/medication-dispense/medication-dispenses/${args.id}/sync-satusehat`,
+      {}
+    )
+    if (!syncRes.ok) {
+      let detail = ''
+      try {
+        const ct = syncRes.headers.get('content-type') ?? ''
+        if (ct.includes('application/json')) {
+          const json = (await syncRes.json()) as { message?: string }
+          detail = typeof json.message === 'string' ? json.message : ''
+        } else {
+          detail = await syncRes.text()
+        }
+      } catch { }
+      return { success: false, error: detail || `Gagal sinkron SatuSehat (${syncRes.status})` }
+    }
+    return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
