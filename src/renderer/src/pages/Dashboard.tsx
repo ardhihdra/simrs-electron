@@ -333,7 +333,8 @@ function Dashboard() {
     '/dashboard/laboratory-management',
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
-    '/dashboard/doctor'
+    '/dashboard/doctor',
+    '/dashboard/nurse-calling'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
