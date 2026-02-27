@@ -1,4 +1,5 @@
-import { Button, Divider, Popconfirm, Space, Spin, Table, Tooltip } from 'antd'
+import { Button, Divider, Popconfirm, Space, Spin, Table, Tooltip, Dropdown, MenuProps } from 'antd'
+import { MoreOutlined } from '@ant-design/icons'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import type { ReactNode } from 'react'
 
@@ -61,56 +62,73 @@ function GenericTable<T extends object>({
             }
             if (action.items) {
               const items = action.items(record)
+
+              const renderItem = (item: ActionItem<T>, idx: number) => {
+                const btn = (
+                  <Button
+                    type={item.type ?? 'link'}
+                    danger={item.danger}
+                    disabled={item.disabled}
+                    icon={item.icon}
+                    onClick={(e) => {
+                      if (!item.confirm) {
+                        e.stopPropagation()
+                        item.onClick(record)
+                      }
+                    }}
+                    size="small"
+                  >
+                    {item.label}
+                  </Button>
+                )
+
+                const element = item.confirm ? (
+                  <Popconfirm
+                    key={idx}
+                    title={item.confirm.title}
+                    description={item.confirm.description}
+                    okText={item.confirm.okText ?? 'Ya'}
+                    cancelText={item.confirm.cancelText ?? 'Batal'}
+                    onConfirm={(e) => {
+                      e?.stopPropagation()
+                      item.onClick(record)
+                    }}
+                    onCancel={(e) => e?.stopPropagation()}
+                  >
+                    {btn}
+                  </Popconfirm>
+                ) : (
+                  <span key={idx}>{btn}</span>
+                )
+
+                return item.tooltip ? (
+                  <Tooltip title={item.tooltip} key={idx}>
+                    {element}
+                  </Tooltip>
+                ) : (
+                  element
+                )
+              }
+
+              if (items.length <= 2) {
+                return (
+                  <Space split={<Divider type="vertical" />}>
+                    {items.map((item, idx) => renderItem(item, idx))}
+                  </Space>
+                )
+              }
+
+              const menuItems: MenuProps['items'] = items.map((item, idx) => {
+                 return {
+                    key: String(idx),
+                    label: renderItem(item, idx)
+                 }
+              })
+
               return (
-                <Space split={<Divider type="vertical" />}>
-                  {items.map((item, idx) => {
-                    const btn = (
-                      <Button
-                        type={item.type ?? 'link'}
-                        danger={item.danger}
-                        disabled={item.disabled}
-                        icon={item.icon}
-                        onClick={(e) => {
-                          if (!item.confirm) {
-                            e.stopPropagation()
-                            item.onClick(record)
-                          }
-                        }}
-                        size="small"
-                        style={{ padding: 0 }}
-                      >
-                        {item.label}
-                      </Button>
-                    )
-
-                    const element = item.confirm ? (
-                      <Popconfirm
-                        key={idx}
-                        title={item.confirm.title}
-                        description={item.confirm.description}
-                        okText={item.confirm.okText ?? 'Ya'}
-                        cancelText={item.confirm.cancelText ?? 'Batal'}
-                        onConfirm={(e) => {
-                          e?.stopPropagation()
-                          item.onClick(record)
-                        }}
-                        onCancel={(e) => e?.stopPropagation()}
-                      >
-                        {btn}
-                      </Popconfirm>
-                    ) : (
-                      <span key={idx}>{btn}</span>
-                    )
-
-                    return item.tooltip ? (
-                      <Tooltip title={item.tooltip} key={idx}>
-                        {element}
-                      </Tooltip>
-                    ) : (
-                      element
-                    )
-                  })}
-                </Space>
+                <Dropdown menu={{ items: menuItems }} trigger={['click']}>
+                  <Button size="small" type="text" icon={<MoreOutlined />} onClick={e => e.preventDefault()} />
+                </Dropdown>
               )
             }
             return null

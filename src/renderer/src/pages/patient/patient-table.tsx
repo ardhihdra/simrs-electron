@@ -1,4 +1,4 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { useQuery } from '@tanstack/react-query'
@@ -96,17 +96,9 @@ const PatientTable = () => {
             items(record) {
               return [
                 {
-                  label: 'Detail',
-                  icon: <SearchOutlined />,
-                  onClick: () => console.log(record)
-                },
-                {
-                  label: 'Daftar',
-                  icon: <PlusOutlined />,
-                  onClick: () => {
-                    setSelectedPatient(record)
-                    setOpenRegistration(true)
-                  }
+                  label: 'Ubah Data',
+                  icon: <EditOutlined />,
+                  onClick: () => navigate(`/dashboard/patient/edit/${record.id}`)
                 }
               ]
             }

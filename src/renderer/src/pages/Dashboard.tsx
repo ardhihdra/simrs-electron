@@ -81,20 +81,40 @@ const items = [
         icon: <UserOutlined />
       },
       {
-        label: 'Daftar Antrian',
-        key: '/dashboard/encounter',
-        icon: <UserAddOutlined />
+        label: 'Pendaftaran',
+        key: '/dashboard/registration',
+        icon: <DashboardOutlined />
       },
       {
-        label: 'Kunjungan Pasien',
-        key: '/dashboard/encounter/transition',
-        icon: <CalendarOutlined />
+        label: 'Antrian',
+        key: '/dashboard/registration/queue',
+        icon: <DashboardOutlined />
       },
       {
-        label: 'Triage',
-        key: '/dashboard/encounter/triage',
-        icon: <MedicineBoxOutlined />
+        label: 'Pemeriksaan Awal',
+        key: '/dashboard/registration/triage',
+        icon: <DashboardOutlined />
       },
+      {
+        label: 'Daftar kunjungan',
+        key: '/dashboard/registration/active-encounters',
+        icon: <UnorderedListOutlined />
+      },
+      // {
+      //   label: 'Daftar Antrian',
+      //   key: '/dashboard/encounter',
+      //   icon: <UserAddOutlined />
+      // // },
+      // {
+      //   label: 'Kunjungan Pasien',
+      //   key: '/dashboard/encounter/transition',
+      //   icon: <CalendarOutlined />
+      // },
+      // {
+      //   label: 'Triage',
+      //   key: '/dashboard/encounter/triage',
+      //   icon: <MedicineBoxOutlined />
+      // },
       {
         label: 'Data Jaminan',
         key: '/dashboard/registration/jaminan',
@@ -174,41 +194,68 @@ const items = [
   },
   {
     label: 'Laboratorium',
-    key: '/dashboard/laboratory',
-    icon: <DashboardOutlined />,
+    key: '/dashboard/laboratory-management',
+    icon: <ExperimentOutlined />,
     children: [
       {
-        label: 'List Lab',
-        key: '/dashboard/laboratory/list',
+        label: 'Antrian',
+        key: '/dashboard/laboratory-management/queue',
         icon: <UnorderedListOutlined />
       },
       {
-        label: 'Permintaan Lab',
-        key: '/dashboard/laboratory/permintaan',
+        label: 'Permintaan',
+        key: '/dashboard/laboratory-management/requests',
         icon: <FileAddOutlined />
       },
       {
-        label: 'Pemeriksaan Lab',
-        key: '/dashboard/laboratory/result',
-        icon: <ExperimentOutlined />
-      },
-      {
-        label: 'Laporan Lab',
-        key: '/dashboard/laboratory/report',
+        label: 'Hasil',
+        key: '/dashboard/laboratory-management/results',
         icon: <FileTextOutlined />
       },
       {
-        label: 'Pengambilan Spesimen',
-        key: '/dashboard/laboratory/specimen',
-        icon: <MedicineBoxOutlined />
-      },
-      {
-        label: 'Diagnostic Report',
-        key: '/dashboard/laboratory/diagnostic-report',
+        label: 'Laporan',
+        key: '/dashboard/laboratory-management/reports',
         icon: <FileSearchOutlined />
       }
     ]
   },
+  // {
+  //   label: 'Laboratorium',
+  //   key: '/dashboard/laboratory',
+  //   icon: <DashboardOutlined />,
+  //   children: [
+  //     {
+  //       label: 'List Lab',
+  //       key: '/dashboard/laboratory/list',
+  //       icon: <UnorderedListOutlined />
+  //     },
+  //     {
+  //       label: 'Permintaan Lab',
+  //       key: '/dashboard/laboratory/permintaan',
+  //       icon: <FileAddOutlined />
+  //     },
+  //     {
+  //       label: 'Pemeriksaan Lab',
+  //       key: '/dashboard/laboratory/result',
+  //       icon: <ExperimentOutlined />
+  //     },
+  //     {
+  //       label: 'Laporan Lab',
+  //       key: '/dashboard/laboratory/report',
+  //       icon: <FileTextOutlined />
+  //     },
+  //     {
+  //       label: 'Pengambilan Spesimen',
+  //       key: '/dashboard/laboratory/specimen',
+  //       icon: <MedicineBoxOutlined />
+  //     },
+  //     {
+  //       label: 'Diagnostic Report',
+  //       key: '/dashboard/laboratory/diagnostic-report',
+  //       icon: <FileSearchOutlined />
+  //     }
+  //   ]
+  // },
   {
     label: 'Perawat',
     key: '/dashboard/nurse-calling',
@@ -283,9 +330,9 @@ function Dashboard() {
     '/dashboard/registration/doctor-leave',
     '/dashboard/pharmacy',
     '/dashboard/laboratory',
+    '/dashboard/laboratory-management',
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
-    '/dashboard/nurse-calling',
     '/dashboard/doctor'
   ]
   const isRegisteredPath = (path: string): boolean => {
