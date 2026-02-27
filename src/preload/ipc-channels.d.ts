@@ -7,6 +7,7 @@ import type * as Mod_macaddress from '@main/routes/macaddress'
 import type * as Mod_notification from '@main/routes/notification'
 import type * as Mod_query_allergyIntolerance from '@main/routes/query/allergyIntolerance'
 import type * as Mod_query_backofficeDOReceivedItem from '@main/routes/query/backofficeDOReceivedItem'
+import type * as Mod_query_bodymarker from '@main/routes/query/bodymarker'
 import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
 import type * as Mod_query_composition from '@main/routes/query/composition'
 import type * as Mod_query_condition from '@main/routes/query/condition'
@@ -112,6 +113,12 @@ type Args_Mod_query_allergyIntolerance_update = InferArgs<typeof Mod_query_aller
 type Result_Mod_query_allergyIntolerance_update = InferResult<typeof Mod_query_allergyIntolerance, 'update'>
 type Args_Mod_query_backofficeDOReceivedItem_list = InferArgs<typeof Mod_query_backofficeDOReceivedItem, 'list'>
 type Result_Mod_query_backofficeDOReceivedItem_list = InferResult<typeof Mod_query_backofficeDOReceivedItem, 'list'>
+type Args_Mod_query_bodymarker_create = InferArgs<typeof Mod_query_bodymarker, 'create'>
+type Result_Mod_query_bodymarker_create = InferResult<typeof Mod_query_bodymarker, 'create'>
+type Args_Mod_query_bodymarker_deleteById = InferArgs<typeof Mod_query_bodymarker, 'deleteById'>
+type Result_Mod_query_bodymarker_deleteById = InferResult<typeof Mod_query_bodymarker, 'deleteById'>
+type Args_Mod_query_bodymarker_getByEncounter = InferArgs<typeof Mod_query_bodymarker, 'getByEncounter'>
+type Result_Mod_query_bodymarker_getByEncounter = InferResult<typeof Mod_query_bodymarker, 'getByEncounter'>
 type Args_Mod_query_clinicalNote_create = InferArgs<typeof Mod_query_clinicalNote, 'create'>
 type Result_Mod_query_clinicalNote_create = InferResult<typeof Mod_query_clinicalNote, 'create'>
 type Args_Mod_query_clinicalNote_getByEncounter = InferArgs<typeof Mod_query_clinicalNote, 'getByEncounter'>
@@ -164,6 +171,8 @@ type Args_Mod_query_doctorSchedule_list = InferArgs<typeof Mod_query_doctorSched
 type Result_Mod_query_doctorSchedule_list = InferResult<typeof Mod_query_doctorSchedule, 'list'>
 type Args_Mod_query_doctorSchedule_update = InferArgs<typeof Mod_query_doctorSchedule, 'update'>
 type Result_Mod_query_doctorSchedule_update = InferResult<typeof Mod_query_doctorSchedule, 'update'>
+type Args_Mod_query_encounter_bulkSyncSatusehat = InferArgs<typeof Mod_query_encounter, 'bulkSyncSatusehat'>
+type Result_Mod_query_encounter_bulkSyncSatusehat = InferResult<typeof Mod_query_encounter, 'bulkSyncSatusehat'>
 type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'create'>
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
@@ -174,6 +183,8 @@ type Args_Mod_query_encounter_list = InferArgs<typeof Mod_query_encounter, 'list
 type Result_Mod_query_encounter_list = InferResult<typeof Mod_query_encounter, 'list'>
 type Args_Mod_query_encounter_read = InferArgs<typeof Mod_query_encounter, 'read'>
 type Result_Mod_query_encounter_read = InferResult<typeof Mod_query_encounter, 'read'>
+type Args_Mod_query_encounter_syncSatusehat = InferArgs<typeof Mod_query_encounter, 'syncSatusehat'>
+type Result_Mod_query_encounter_syncSatusehat = InferResult<typeof Mod_query_encounter, 'syncSatusehat'>
 type Args_Mod_query_encounter_update = InferArgs<typeof Mod_query_encounter, 'update'>
 type Result_Mod_query_encounter_update = InferResult<typeof Mod_query_encounter, 'update'>
 type Args_Mod_query_expense_create = InferArgs<typeof Mod_query_expense, 'create'>
@@ -509,6 +520,11 @@ declare global {
         backofficeDOReceivedItem: {
           list: Invoke<Args_Mod_query_backofficeDOReceivedItem_list, Result_Mod_query_backofficeDOReceivedItem_list>
         }
+        bodymarker: {
+          create: Invoke<Args_Mod_query_bodymarker_create, Result_Mod_query_bodymarker_create>
+          deleteById: Invoke<Args_Mod_query_bodymarker_deleteById, Result_Mod_query_bodymarker_deleteById>
+          getByEncounter: Invoke<Args_Mod_query_bodymarker_getByEncounter, Result_Mod_query_bodymarker_getByEncounter>
+        }
         clinicalNote: {
           create: Invoke<Args_Mod_query_clinicalNote_create, Result_Mod_query_clinicalNote_create>
           getByEncounter: Invoke<Args_Mod_query_clinicalNote_getByEncounter, Result_Mod_query_clinicalNote_getByEncounter>
@@ -554,11 +570,13 @@ declare global {
           update: Invoke<Args_Mod_query_doctorSchedule_update, Result_Mod_query_doctorSchedule_update>
         }
         encounter: {
+          bulkSyncSatusehat: Invoke<Args_Mod_query_encounter_bulkSyncSatusehat, Result_Mod_query_encounter_bulkSyncSatusehat>
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
           deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>
           getTimeline: Invoke<Args_Mod_query_encounter_getTimeline, Result_Mod_query_encounter_getTimeline>
           list: Invoke<Args_Mod_query_encounter_list, Result_Mod_query_encounter_list>
           read: Invoke<Args_Mod_query_encounter_read, Result_Mod_query_encounter_read>
+          syncSatusehat: Invoke<Args_Mod_query_encounter_syncSatusehat, Result_Mod_query_encounter_syncSatusehat>
           update: Invoke<Args_Mod_query_encounter_update, Result_Mod_query_encounter_update>
         }
         expense: {

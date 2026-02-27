@@ -83,11 +83,13 @@ import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
 import PatientList from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
+import IframeView from './pages/IframeView'
 
 function MainRoute() {
   const location = useLocation()
   return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
+      <Route path="/iframe-view" element={<IframeView />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
