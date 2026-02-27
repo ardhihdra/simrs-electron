@@ -21,7 +21,7 @@ import {
 } from '@renderer/hooks/query/use-observation'
 import { useMasterProcedureList } from '@renderer/hooks/query/use-master-procedure'
 import { mapDentalDataToObservationPayload } from './dental-mapper'
-import { transformObservationsToTimeline } from '@renderer/config/observation-maps'
+import { transformObservationsToTimeline } from '@renderer/utils/formatters/dental-formatter'
 import { ToothDetail } from './type'
 import Odontogram from './Odontogram'
 import { TimelineContent } from './TimelineContent'
@@ -208,7 +208,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
 
   useEffect(() => {
     if (observationData?.result && observationData.result.length > 0) {
-      const timelineData = transformObservationsToTimeline(observationData.result)
+      const timelineData = transformObservationsToTimeline(observationData.result as any)
       setSelected(timelineData)
     } else {
       setSelected([])

@@ -22,7 +22,7 @@ const ConditionCodeCodingSchema = z.object({
 })
 
 const ConditionSchema = z.object({
-    id: z.number().optional(),
+    id: z.string().optional(),
     clinicalStatus: z.string().optional(),
     verificationStatus: z.string().optional(),
     subjectId: z.string(),

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Card, Button, Input, Form, Spin, Switch, App } from 'antd'
 import { SaveOutlined } from '@ant-design/icons'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { HEAD_TO_TOE_MAP } from '@renderer/config/observation-maps'
+import { HEAD_TO_TOE_MAP } from '@renderer/config/maps/observation-maps'
 
 const { TextArea } = Input
 

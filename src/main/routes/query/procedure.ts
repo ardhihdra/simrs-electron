@@ -26,7 +26,7 @@ const ProcedurePerformerSchema = z.object({
 })
 
 const ProcedureSchema = z.object({
-    id: z.number().optional(),
+    id: z.string().optional(),
     status: z.string().optional(),
     subjectPatientId: z.string(),
     encounterId: z.string(),

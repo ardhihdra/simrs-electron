@@ -3,12 +3,12 @@ import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { NUTRITION_MAP } from '../../config/observation-maps'
+import { NUTRITION_MAP } from '../../config/maps/observation-maps'
 import {
   createObservationBatch,
   mapRiskLevelToHL7Code,
   OBSERVATION_CATEGORIES
-} from '../../utils/observation-builder'
+} from '../../utils/builders/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { useBulkCreateObservation } from '../../hooks/query/use-observation'
 import { usePerformers } from '../../hooks/query/use-performers'
@@ -102,6 +102,17 @@ export const NutritionScreeningForm = ({
         })
 
         form.setFieldsValue(initialValues)
+
+        const firstObs = relevantObs[0] as any
+        const preloadedPerformerId = firstObs?.performers?.[0]?.practitionerId
+        const preloadedDate = firstObs?.effectiveDateTime
+
+        form.setFieldsValue({
+          assessment_date: preloadedDate ? dayjs(preloadedDate) : dayjs(),
+          screening_date: preloadedDate ? dayjs(preloadedDate) : dayjs(),
+          ...(preloadedPerformerId ? { performerId: Number(preloadedPerformerId) } : {})
+        })
+
         setTimeout(calculateScore, 0)
       }
     } else {

@@ -1,25 +1,24 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Col, DatePicker, Form, Radio, Row, Select } from 'antd'
+import { App, Button, Card, Form, Radio } from 'antd'
 import dayjs from 'dayjs'
 import { useState, useEffect } from 'react'
 import {
   useBulkCreateObservation,
   useObservationByEncounter
 } from '../../hooks/query/use-observation'
-import { formatVitalSigns } from '../../utils/observation-helpers'
+import { formatVitalSigns } from '../../utils/formatters/observation-formatter'
 import {
   createObservationBatch,
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
-} from '../../utils/observation-builder'
+} from '../../utils/builders/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { usePerformers } from '../../hooks/query/use-performers'
-
-const { Option } = Select
+import { PatientData } from '@renderer/types/doctor.types'
 
 interface GCSAssessmentFormProps {
   encounterId?: string
-  patientData?: any
+  patientData: PatientData
 }
 
 export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFormProps) => {
@@ -38,7 +37,12 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
   useEffect(() => {
     const observations = response?.result
-    if (response?.success && observations && Array.isArray(observations)) {
+    if (
+      response?.success &&
+      observations &&
+      Array.isArray(observations) &&
+      observations.length > 0
+    ) {
       const sortedObs = [...observations].sort(
         (a: any, b: any) =>
           dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
@@ -51,6 +55,15 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
       if (gcsEye) setGcsEye(gcsEye)
       if (gcsVerbal) setGcsVerbal(gcsVerbal)
       if (gcsMotor) setGcsMotor(gcsMotor)
+
+      const firstObs = sortedObs[0] as any
+      const preloadedPerformerId = firstObs?.performers?.[0]?.practitionerId
+      const preloadedDate = firstObs?.effectiveDateTime
+
+      form.setFieldsValue({
+        assessment_date: preloadedDate ? dayjs(preloadedDate) : dayjs(),
+        ...(preloadedPerformerId ? { performerId: Number(preloadedPerformerId) } : {})
+      })
     }
   }, [response, form])
 
@@ -163,7 +176,7 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
         await bulkCreateObservation.mutateAsync({
           encounterId,
-          patientId: patientData?.patient?.id || patientData?.id,
+          patientId: patientData.patient.id,
           observations,
           performerId: String(values.performerId),
           performerName: performerName

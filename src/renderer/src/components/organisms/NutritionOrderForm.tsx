@@ -23,6 +23,7 @@ import {
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import dayjs from 'dayjs'
+import { PatientData } from '@renderer/types/doctor.types'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -32,7 +33,7 @@ export const NutritionOrderForm = ({
   patientData
 }: {
   encounterId: string
-  patientData?: any
+  patientData: PatientData
 }) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -50,7 +51,7 @@ export const NutritionOrderForm = ({
     try {
       const payload = {
         encounterId,
-        patientId: patientData?.patient?.id || patientData?.id,
+        patientId: patientData.patient.id,
         dateTime: values.assessment_date ? new Date(values.assessment_date) : new Date(),
         performerId: values.performerId,
         performerName: performersData?.find((p: any) => p.id === values.performerId)?.name,

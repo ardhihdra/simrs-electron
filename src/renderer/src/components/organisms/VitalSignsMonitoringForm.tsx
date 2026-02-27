@@ -6,12 +6,12 @@ import {
   useBulkCreateObservation,
   useObservationByEncounter
 } from '../../hooks/query/use-observation'
-import { formatObservationSummary } from '../../utils/observation-helpers'
+import { formatObservationSummary } from '../../utils/formatters/observation-formatter'
 import {
   createObservationBatch,
   OBSERVATION_CATEGORIES,
   OBSERVATION_SYSTEMS
-} from '../../utils/observation-builder'
+} from '../../utils/builders/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { VitalSignsSection } from './Assessment/VitalSignsSection'
 import { usePerformers } from '@renderer/hooks/query/use-performers'

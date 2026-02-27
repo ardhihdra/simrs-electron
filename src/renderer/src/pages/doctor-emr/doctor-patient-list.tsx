@@ -13,9 +13,7 @@ import {
   Col,
   Tabs,
   message,
-  Popover,
   Popconfirm,
-  Modal,
   App
 } from 'antd'
 import {
@@ -34,14 +32,34 @@ import { getPolis } from '@renderer/services/nurse.service'
 const { RangePicker } = DatePicker
 const { Option } = Select
 
+interface FhirFailedLogDetail {
+  internalResourceId: string
+  status: string
+  attemptCount: number
+  lastAttemptAt?: string | null
+  errorMessage?: string | null
+}
+
+interface ResourceLogSummary {
+  success: number
+  failed: number
+  retry: number
+  pending: number
+  lastFailedLog: FhirFailedLogDetail | null
+}
+
 interface ResourceSyncCount {
   total: number
   synced: number
+  needsResync: number
+  logSummary: ResourceLogSummary | null
 }
 
 interface SatuSehatSyncStatus {
   encounterSynced: boolean
   allSynced: boolean
+  hasPendingResync: boolean
+  encounterLog: FhirFailedLogDetail | null
   resources: {
     observation: ResourceSyncCount
     condition: ResourceSyncCount
@@ -108,11 +126,11 @@ const getSyncSummary = (syncStatus: SatuSehatSyncStatus | null | undefined) => {
 
 const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
   const resources = s?.resources || {
-    observation: { total: 0, synced: 0 },
-    condition: { total: 0, synced: 0 },
-    procedure: { total: 0, synced: 0 },
-    allergyIntolerance: { total: 0, synced: 0 },
-    composition: { total: 0, synced: 0 }
+    observation: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    condition: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    procedure: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    allergyIntolerance: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    composition: { total: 0, synced: 0, needsResync: 0, logSummary: null }
   }
 
   return (
@@ -120,18 +138,50 @@ const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
       <div className="flex items-center justify-between p-3 mb-4 bg-gray-50 border border-white/10 rounded-lg">
         <div className="flex items-center gap-2">
           <div
-            className={`w-2 h-2 rounded-full ${s?.encounterSynced ? 'bg-green-500' : 'bg-gray-400'}`}
+            className={`w-2 h-2 rounded-full ${
+              s?.encounterSynced
+                ? 'bg-green-500'
+                : s?.encounterLog?.status === 'failed'
+                  ? 'bg-red-500'
+                  : 'bg-gray-400'
+            }`}
           />
           <span className="font-semibold text-gray-700">Data Kunjungan Dasar</span>
         </div>
         <Tag
-          color={s?.encounterSynced ? 'success' : 'default'}
+          color={
+            s?.encounterSynced
+              ? 'success'
+              : s?.encounterLog?.status === 'failed'
+                ? 'error'
+                : 'default'
+          }
           bordered={false}
           className="m-0 font-medium"
         >
-          {s?.encounterSynced ? 'Terkirim' : 'Belum Dikirim'}
+          {s?.encounterSynced
+            ? 'Terkirim'
+            : s?.encounterLog?.status === 'failed'
+              ? 'Gagal'
+              : 'Belum Dikirim'}
         </Tag>
       </div>
+
+      {/* Encounter error message */}
+      {s?.encounterLog?.errorMessage && (
+        <div className="mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
+          <div className="text-[10px] font-bold text-red-400 uppercase mb-1">Error Kunjungan</div>
+          <div className="text-xs text-red-600 font-mono break-words">
+            {s.encounterLog.errorMessage}
+          </div>
+          {s.encounterLog.lastAttemptAt && (
+            <div className="text-[10px] text-red-400 mt-1">
+              Percobaan ke-{s.encounterLog.attemptCount} ·{' '}
+              {new Date(s.encounterLog.lastAttemptAt).toLocaleString('id-ID')}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
         Rincian Resource Klinis
@@ -139,9 +189,13 @@ const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
 
       <div className="grid gap-2">
         {(Object.keys(resourceLabel) as (keyof typeof resourceLabel)[]).map((k) => {
-          const r = (resources as any)[k] || { total: 0, synced: 0 }
+          const r = (resources as any)[k] as ResourceSyncCount | undefined
+          if (!r) return null
+
           const isAllSynced = r.total > 0 && r.synced === r.total
+          const hasFailed = (r.logSummary?.failed ?? 0) > 0 || (r.logSummary?.retry ?? 0) > 0
           const isPartial = r.synced > 0 && r.synced < r.total
+          const hasResync = (r.needsResync ?? 0) > 0
 
           let bgColor = 'bg-gray-50'
           let textColor = 'text-gray-500'
@@ -151,12 +205,29 @@ const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
             </span>
           )
 
-          if (isAllSynced) {
-            bgColor = 'bg-green-50 borderborder-green-100'
+          if (isAllSynced && hasResync) {
+            bgColor = 'bg-orange-50 border-orange-100'
+            textColor = 'text-orange-700'
+            statusBadge = (
+              <span className="text-orange-700 bg-white border border-orange-200 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
+                Perlu Resync ({r.needsResync})
+              </span>
+            )
+          } else if (isAllSynced) {
+            bgColor = 'bg-green-50 border-green-100'
             textColor = 'text-green-700'
             statusBadge = (
               <span className="text-green-700 bg-white border border-green-200 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
                 Lengkap ({r.synced}/{r.total})
+              </span>
+            )
+          } else if (hasFailed) {
+            bgColor = 'bg-red-50 border-red-100'
+            textColor = 'text-red-700'
+            const failedCount = (r.logSummary?.failed ?? 0) + (r.logSummary?.retry ?? 0)
+            statusBadge = (
+              <span className="text-red-700 bg-white border border-red-200 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
+                {r.synced}/{r.total} · {failedCount} Gagal
               </span>
             )
           } else if (isPartial) {
@@ -177,13 +248,30 @@ const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
             )
           }
 
+          const errorDetail = r.logSummary?.lastFailedLog
+
           return (
             <div
               key={k}
-              className={`flex justify-between items-center p-2.5 border border-white/20 rounded-lg transition-colors ${bgColor}`}
+              className={`border border-white/20 rounded-lg transition-colors ${bgColor}`}
             >
-              <span className={`font-medium ${textColor}`}>{resourceLabel[k]}</span>
-              {statusBadge}
+              <div className={`flex justify-between items-center p-2.5 ${bgColor}`}>
+                <span className={`font-medium ${textColor}`}>{resourceLabel[k]}</span>
+                {statusBadge}
+              </div>
+              {errorDetail?.errorMessage && (
+                <div className="px-3 pb-2.5 pt-1">
+                  <div className="text-[10px] text-red-400 font-mono wrap-break-word bg-red-50 border border-red-100 rounded px-2 py-1">
+                    {errorDetail.errorMessage}
+                  </div>
+                  {errorDetail.lastAttemptAt && (
+                    <div className="text-[9px] text-red-400 mt-0.5">
+                      Percobaan ke-{errorDetail.attemptCount} ·{' '}
+                      {new Date(errorDetail.lastAttemptAt).toLocaleString('id-ID')}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -205,32 +293,26 @@ const PatientList = () => {
 
   const handleOpenSyncDetail = (status: SatuSehatSyncStatus | null, fhirId: string) => {
     if (!status && !fhirId) return
-    console.log('[Modal Trigger] Received status:', status, ' | fhirId:', fhirId)
 
     const s: SatuSehatSyncStatus = status || {
       encounterSynced: !!fhirId,
       allSynced: true,
+      hasPendingResync: false,
+      encounterLog: null,
       resources: {
-        observation: { total: 0, synced: 0 },
-        condition: { total: 0, synced: 0 },
-        procedure: { total: 0, synced: 0 },
-        allergyIntolerance: { total: 0, synced: 0 },
-        composition: { total: 0, synced: 0 }
+        observation: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        condition: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        procedure: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        allergyIntolerance: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        composition: { total: 0, synced: 0, needsResync: 0, logSummary: null }
       }
     }
 
-    console.log(
-      '[Modal Processing] Final status object passing to UI:',
-      s,
-      ' | Resources:',
-      s?.resources
-    )
-
     appModal.info({
       icon: null,
-      title: <span className="font-bold text-gray-800">Detail Sinkronisasi SatuSehat</span>,
+      title: <span className="font-bold">Detail Sinkronisasi SatuSehat</span>,
       content: <SyncPopoverContent s={s} />,
-      width: 400,
+      width: 500,
       centered: true,
       okText: 'Tutup',
       maskClosable: true
@@ -276,7 +358,6 @@ const PatientList = () => {
             val = JSON.parse(val)
           }
           parsedSyncStatus = val
-          console.log(`[Parse Success] Row ${enc.id}`, parsedSyncStatus)
         } catch (e) {
           console.error('Failed to parse satuSehatSyncStatus on row', enc.id, e)
         }
@@ -417,35 +498,58 @@ const PatientList = () => {
           )
         }
 
+        const hasPendingResync = s?.hasPendingResync ?? false
         const hasPartial =
           s &&
           !s.allSynced &&
-          Object.values(s.resources).some((r) => r.total > 0 && r.synced < r.total)
+          Object.values(s.resources).some(
+            (r) =>
+              r.total > 0 &&
+              (r.synced < r.total ||
+                (r.logSummary?.failed ?? 0) > 0 ||
+                (r.logSummary?.retry ?? 0) > 0)
+          )
 
-        const tagContent = hasPartial ? (
-          <Tag
-            color="warning"
-            style={{ fontSize: 11 }}
-            className="cursor-pointer hover:opacity-80 transition-opacity m-0"
-          >
-            Terkirim*
-          </Tag>
-        ) : (
-          <Tag
-            color="success"
-            style={{ fontSize: 11 }}
-            className="cursor-pointer hover:opacity-80 transition-opacity m-0"
-          >
-            Terkirim
-          </Tag>
-        )
+        let tagContent
+        if (hasPendingResync) {
+          tagContent = (
+            <Tag
+              color="orange"
+              style={{ fontSize: 11 }}
+              className="cursor-pointer hover:opacity-80 transition-opacity m-0"
+              title="Ada data yang diubah setelah sync — perlu dikirim ulang ke SatuSehat"
+            >
+              Perlu Resync
+            </Tag>
+          )
+        } else if (hasPartial) {
+          tagContent = (
+            <Tag
+              color="warning"
+              style={{ fontSize: 11 }}
+              className="cursor-pointer hover:opacity-80 transition-opacity m-0"
+            >
+              Terkirim*
+            </Tag>
+          )
+        } else {
+          tagContent = (
+            <Tag
+              color="success"
+              style={{ fontSize: 11 }}
+              className="cursor-pointer hover:opacity-80 transition-opacity m-0"
+            >
+              Terkirim
+            </Tag>
+          )
+        }
 
         return (
           <div
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              handleOpenSyncDetail(s, record.fhirId)
+              handleOpenSyncDetail(s ?? null, record.fhirId)
             }}
             className="inline-block"
             style={{ pointerEvents: 'auto' }}
@@ -535,6 +639,7 @@ const PatientList = () => {
         const isSyncing = syncingRows[record.encounterId]
         const s = record.satuSehatSyncStatus
         const isSynced = s?.encounterSynced || !!record.fhirId
+        const hasPendingResync = s?.hasPendingResync ?? false
 
         let syncLabel = 'Sync SatuSehat'
         let syncStyle: React.CSSProperties = {
@@ -544,10 +649,15 @@ const PatientList = () => {
         }
 
         const isFullyCompleted = s
-          ? !Object.values(s.resources).some((r) => r.total > 0 && r.synced < r.total)
+          ? !Object.values(s.resources).some(
+              (r) => r.total > 0 && (r.synced < r.total || (r.logSummary?.failed ?? 0) > 0)
+            )
           : !!record.fhirId
 
-        if (isSynced && isFullyCompleted) {
+        if (isSynced && hasPendingResync) {
+          syncLabel = 'Kirim Pembaruan'
+          syncStyle = { borderColor: '#f97316', color: '#f97316' }
+        } else if (isSynced && isFullyCompleted) {
           syncLabel = 'Sync Ulang'
           syncStyle = { borderColor: '#22c55e', color: '#22c55e' }
         } else if (isSynced && !isFullyCompleted) {

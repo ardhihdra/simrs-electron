@@ -18,6 +18,7 @@ import { DiagnosticResultViewer } from '@renderer/components/organisms/Diagnosti
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
 import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessmentForm'
 import DentalPage from '../../components/organisms/Dental'
+import { AntenatalCareForm } from '@renderer/components/organisms/AntenatalCare/AntenatalCareForm'
 import { FallRiskAssessmentForm } from '@renderer/components/organisms/FallRiskAssessmentForm'
 import { GCSAssessmentForm } from '@renderer/components/organisms/GCSAssessmentForm'
 import { InformedConsentForm } from '@renderer/components/organisms/InformedConsentForm'
@@ -30,6 +31,10 @@ import { NutritionOrderForm } from '@renderer/components/organisms/NutritionOrde
 import { VitalSignsMonitoringForm } from '../../components/organisms/VitalSignsMonitoringForm'
 import { PhysicalAssessmentForm } from '../../components/organisms/Assessment/PhysicalAssessmentForm'
 import { AnamnesisForm } from '../../components/organisms/Assessment/AnamnesisForm'
+import { AllergyForm } from '../../components/organisms/Assessment/Allergy/AllergyForm'
+import { MedicationForm } from '../../components/organisms/Assessment/Medication/MedicationForm'
+import { PastDiseaseForm } from '../../components/organisms/Assessment/PastDisease/PastDiseaseForm'
+import { FamilyHistoryForm } from '../../components/organisms/Assessment/FamilyHistory/FamilyHistoryForm'
 import { Layout, Menu, theme } from 'antd'
 import { useState } from 'react'
 
@@ -60,11 +65,23 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
       children: [
         { key: 'initial-assessment', label: 'Skrining Perawat' },
         { key: 'anamnesis', label: 'Anamnesis' },
+        { key: 'past-disease', label: 'Riwayat Penyakit' },
+        { key: 'allergy', label: 'Alergi' },
+        { key: 'medication', label: 'Riwayat Pengobatan' },
+        { key: 'family-history', label: 'Riwayat Keluarga' },
         { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
-        { key: 'dental-assessment', label: 'Pemeriksaan Gigi' },
         { key: 'risiko-jatuh', label: 'Risiko Jatuh' },
         { key: 'skrining-gizi', label: 'Skrining Gizi' },
         { key: 'gcs', label: 'GCS (Glasgow Coma Scale)' }
+      ]
+    },
+    {
+      key: 'polyclinic-form',
+      icon: <FormOutlined />,
+      label: 'Form Poli',
+      children: [
+        { key: 'dental-assessment', label: 'Pemeriksaan Gigi' },
+        { key: 'anc-assessment', label: 'Pemeriksaan Kehamilan (ANC)' }
       ]
     },
     {
@@ -138,16 +155,20 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
         )
       case 'anamnesis':
         return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
+      case 'past-disease':
+        return <PastDiseaseForm encounterId={encounterId!} patientData={patientData} />
+      case 'allergy':
+        return <AllergyForm encounterId={encounterId!} patientData={patientData} />
+      case 'medication':
+        return <MedicationForm encounterId={encounterId!} patientData={patientData} />
+      case 'family-history':
+        return <FamilyHistoryForm encounterId={encounterId!} patientData={patientData} />
       case 'physical-assessment':
-        return (
-          <PhysicalAssessmentForm
-            encounterId={encounterId!}
-            patientId={patientData.patient.id}
-            patientData={patientData}
-          />
-        )
+        return <PhysicalAssessmentForm encounterId={encounterId!} patientData={patientData} />
       case 'dental-assessment':
         return <DentalPage encounterId={encounterId!} patientId={patientData.patient.id} />
+      case 'anc-assessment':
+        return <AntenatalCareForm encounterId={encounterId!} patientData={patientData} />
       case 'skrining-gizi':
         return (
           <NutritionScreeningForm encounterId={encounterId} patientId={patientData.patient.id} />

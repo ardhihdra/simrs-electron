@@ -13,8 +13,8 @@ import { useConditionByEncounter } from '../../hooks/query/use-condition'
 import { useProcedureByEncounter } from '../../hooks/query/use-procedure'
 import { useMasterProcedureList } from '../../hooks/query/use-master-procedure'
 import { useDiagnosisCodeList } from '../../hooks/query/use-diagnosis-code'
-import { ANAMNESIS_MAP, DIAGNOSIS_MAP } from '../../config/condition-maps'
-import { PROCEDURE_MAP } from '../../config/procedure-maps'
+import { ANAMNESIS_MAP, DIAGNOSIS_MAP } from '../../config/maps/condition-maps'
+import { PROCEDURE_MAP } from '../../config/maps/procedure-maps'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 
@@ -118,7 +118,11 @@ export const DiagnosisProceduresForm = ({
           return {
             key: `dx-${cond.id}`,
             diagnosisCode: {
-              id: diagnosisCode?.id ? String(diagnosisCode.id) : '',
+              id: diagnosisCode?.id
+                ? String(diagnosisCode.id)
+                : codeCoding?.diagnosisCodeId
+                  ? String(codeCoding.diagnosisCodeId)
+                  : '',
               code: diagnosisCode?.code || codeCoding?.code || '',
               name: diagnosisCode?.name || diagnosisCode?.display || '',
               category:
@@ -145,7 +149,11 @@ export const DiagnosisProceduresForm = ({
         return {
           key: `proc-${proc.id}`,
           procedure: {
-            id: procedureCode?.id ? String(procedureCode.id) : '',
+            id: procedureCode?.id
+              ? String(procedureCode.id)
+              : codeCoding?.procedureCodeId
+                ? String(codeCoding.procedureCodeId)
+                : '',
             code: procedureCode?.code || codeCoding?.code || '',
             name: procedureCode?.name || procedureCode?.display || '',
             system: PROCEDURE_MAP[proc.category] || proc.category || procedureCode?.system || '',

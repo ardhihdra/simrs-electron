@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Card, Button, Input, Spin, App, Empty, Tag, Avatar, Select, Form } from 'antd'
 import { PlusOutlined, UserOutlined, ClockCircleOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { CLINICAL_NOTE_TYPE_MAP } from '@renderer/config/clinicalnote-maps'
+import { CLINICAL_NOTE_TYPE_MAP } from '@renderer/config/maps/clinicalnote-maps'
 import {
   useClinicalNoteByEncounter,
   useUpsertClinicalNote

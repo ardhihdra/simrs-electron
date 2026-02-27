@@ -8,12 +8,12 @@ import {
   useBulkCreateObservation,
   useObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
-import { formatObservationSummary } from '@renderer/utils/observation-helpers'
+import { formatObservationSummary } from '@renderer/utils/formatters/observation-formatter'
 import {
   createObservationBatch,
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
-} from '@renderer/utils/observation-builder'
+} from '@renderer/utils/builders/observation-builder'
 import { AssessmentHeader } from './AssessmentHeader'
 import { ConclusionSection } from './ConclusionSection'
 import { FunctionalStatusSection } from './FunctionalStatusSection'
@@ -21,10 +21,11 @@ import { PsychosocialSection } from './PsychosocialSection'
 import { ScreeningSection } from './ScreeningSection'
 import { VitalSignsSection } from './VitalSignsSection'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { PatientData } from '@renderer/types/doctor.types'
 
 export interface InitialAssessmentFormProps {
   encounterId: string
-  patientData?: any
+  patientData: PatientData
   mode?: 'inpatient' | 'outpatient'
   role?: 'doctor' | 'nurse'
 }
@@ -41,8 +42,7 @@ export const InitialAssessmentForm = ({
   const [loadedMeta, setLoadedMeta] = useState<{ date: string; performerId: number } | null>(null)
 
   const bulkCreateObservation = useBulkCreateObservation()
-
-  const patientId = patientData?.patient?.id || patientData?.id
+  const patientId = patientData.patient.id
 
   const { data: response } = useObservationByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
@@ -437,7 +437,7 @@ export const InitialAssessmentForm = ({
   useEffect(() => {
     const observations = response?.result
 
-    if (response?.success && observations) {
+    if (response?.success && observations && observations.length > 0) {
       const summary = formatObservationSummary(observations || [], [])
       const {
         vitalSigns,
@@ -451,9 +451,12 @@ export const InitialAssessmentForm = ({
         examinationDate
       } = summary
 
+      const firstObs = observations[0] as any
+      const preloadedPerformerId = firstObs?.performers?.[0]?.practitionerId
+
       setLoadedMeta({
         date: examinationDate ? dayjs(examinationDate).toISOString() : '',
-        performerId: 0
+        performerId: preloadedPerformerId ? Number(preloadedPerformerId) : 0
       })
 
       const loadedVitalSigns = {
@@ -478,7 +481,9 @@ export const InitialAssessmentForm = ({
 
       form.setFieldsValue({
         vitalSigns: loadedVitalSigns,
-        consciousness: screening.consciousness_level || 'Compos Mentis' // Load saved consciousness if available
+        consciousness: screening.consciousness_level || 'Compos Mentis', // Load saved consciousness if available
+        assessment_date: examinationDate ? dayjs(examinationDate) : dayjs(),
+        ...(preloadedPerformerId ? { performerId: Number(preloadedPerformerId) } : {})
       })
 
       if (mode === 'inpatient') {

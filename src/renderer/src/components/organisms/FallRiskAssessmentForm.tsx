@@ -2,14 +2,14 @@ import { SaveOutlined } from '@ant-design/icons'
 import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
-import { EDMONSON_MAP, FALL_RISK_MAP, HUMPTY_DUMPTY_MAP } from '../../config/observation-maps'
+import { EDMONSON_MAP, FALL_RISK_MAP, HUMPTY_DUMPTY_MAP } from '../../config/maps/observation-maps'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createObservationBatch,
   mapRiskLevelToHL7Code,
   OBSERVATION_CATEGORIES,
   type ObservationBuilderOptions
-} from '../../utils/observation-builder'
+} from '../../utils/builders/observation-builder'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { useBulkCreateObservation } from '../../hooks/query/use-observation'
 
@@ -142,6 +142,16 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
         else setScaleType('Morse Fall Scale')
 
         form.setFieldsValue(initialValues)
+
+        const firstObs = relevantObs[0] as any
+        const preloadedPerformerId = firstObs?.performers?.[0]?.practitionerId
+        const preloadedDate = firstObs?.effectiveDateTime
+
+        form.setFieldsValue({
+          assessment_date: preloadedDate ? dayjs(preloadedDate) : dayjs(),
+          ...(preloadedPerformerId ? { performerId: Number(preloadedPerformerId) } : {})
+        })
+
         setTimeout(() => {
           const currentType =
             initialValues.hd_age !== undefined

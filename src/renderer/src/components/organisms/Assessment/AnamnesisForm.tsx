@@ -1,48 +1,51 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Form, Spin } from 'antd'
+import { App, Button, Card, Form, Select, Spin, Input } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect, useState } from 'react'
-import { useCreateAllergy, useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
+import React, { useEffect, useState } from 'react'
 import {
   useBulkCreateCondition,
   useConditionByEncounter
 } from '@renderer/hooks/query/use-condition'
+import { formatAnamnesisFromConditions } from '@renderer/utils/formatters/condition-formatter'
 import {
-  useCreateFamilyHistory,
-  useFamilyHistoryByPatient
-} from '@renderer/hooks/query/use-family-history'
-import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
-import { formatObservationSummary } from '@renderer/utils/observation-helpers'
-import {
-  createAllergy as buildAllergy,
-  createFamilyHistory as buildFamilyHistory,
   CONDITION_CATEGORIES,
   type ConditionBuilderOptions,
   createConditionBatch
-} from '@renderer/utils/clinical-data-builder'
-import { AnamnesisSection } from './AnamnesisSection'
+} from '@renderer/utils/builders/condition-builder'
 import { AssessmentHeader } from './AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { useDiagnosisCodeList } from '@renderer/hooks/query/use-diagnosis-code'
+import { PatientData } from '@renderer/types/doctor.types'
+
+const { Option } = Select
+const { TextArea } = Input
 
 export interface AnamnesisFormProps {
   encounterId: string
-  patientData?: any
+  patientData: PatientData
 }
 
-export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) => {
+export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patientData }) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  const [diagnosisOptions, setDiagnosisOptions] = useState<
+    Array<{ id: string; code: string; display: string; id_display?: string }>
+  >([])
+  const [diagnosisSearch, setDiagnosisSearch] = useState('')
+  const [debouncedDiagnosisSearch, setDebouncedDiagnosisSearch] = useState('')
+
+  const { data: masterDiagnosis, isLoading: searchingDiagnosis } = useDiagnosisCodeList({
+    q: debouncedDiagnosisSearch,
+    items: 20
+  })
+
   const bulkCreateCondition = useBulkCreateCondition()
-  const createAllergy = useCreateAllergy()
-  const createFamilyHistory = useCreateFamilyHistory()
 
-  const patientId = patientData?.patient?.id || patientData?.id
+  const patientId = patientData.patient.id
+  const patientIdStr = patientId ? String(patientId) : undefined
 
-  const { data: familyHistoryResponse } = useFamilyHistoryByPatient(patientId)
-  const { data: allergyResponse } = useAllergyByEncounter(encounterId)
-  const { data: response } = useObservationByEncounter(encounterId)
   const { data: conditionResponse } = useConditionByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
@@ -50,12 +53,23 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
   ])
 
   useEffect(() => {
-    const observations = response?.result
+    const timer = setTimeout(() => {
+      setDebouncedDiagnosisSearch(diagnosisSearch)
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [diagnosisSearch])
+
+  useEffect(() => {
+    if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
+      setDiagnosisOptions(masterDiagnosis)
+    }
+  }, [masterDiagnosis, debouncedDiagnosisSearch])
+
+  useEffect(() => {
     const conditions = conditionResponse?.result
 
-    if ((response?.success && observations) || (conditionResponse?.success && conditions)) {
-      const summary = formatObservationSummary(observations || [], conditions || [])
-      const { anamnesis } = summary
+    if (conditionResponse?.success && conditions) {
+      const anamnesis = formatAnamnesisFromConditions(conditions)
 
       const hasAnamnesisData =
         Object.values(anamnesis).some((v) => !!v) || (conditions && conditions.length > 0)
@@ -65,61 +79,36 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
           anamnesis: {
             chiefComplaint: anamnesis.chiefComplaint,
             chiefComplaint_codeId: anamnesis.chiefComplaint_codeId,
-            historyOfPresentIllness: anamnesis.historyOfPresentIllness,
-            historyOfPresentIllness_codeId: anamnesis.historyOfPresentIllness_codeId,
             historyOfPastIllness: anamnesis.historyOfPastIllness,
-            allergyHistory: anamnesis.allergyHistory,
-            medicationHistory: anamnesis.medicationHistory,
             associatedSymptoms: anamnesis.associatedSymptoms,
             associatedSymptoms_codeId: anamnesis.associatedSymptoms_codeId
           }
         })
-      }
 
-      if (familyHistoryResponse?.success && familyHistoryResponse?.result) {
-        const fhList = familyHistoryResponse.result.flatMap(
-          (fh: any) =>
-            fh.conditions?.map((cond: any) => ({
-              diagnosisCodeId: String(cond.diagnosisCodeId),
-              outcome: cond.outcome,
-              contributedToDeath: cond.contributedToDeath,
-              note: cond.note
-            })) || []
-        )
-
-        if (fhList.length > 0) {
-          form.setFieldValue(['anamnesis', 'familyHistoryList'], fhList)
+        const opts: Array<{ id: string; code: string; display: string }> = []
+        const parseDisplay = (codeId: string | undefined, codeDisplay: string | undefined) => {
+          if (!codeId || !codeDisplay) return
+          const dashIdx = codeDisplay.indexOf(' - ')
+          const code = dashIdx >= 0 ? codeDisplay.slice(0, dashIdx) : codeDisplay
+          const display = dashIdx >= 0 ? codeDisplay.slice(dashIdx + 3) : codeDisplay
+          opts.push({ id: codeId, code, display })
         }
-      }
+        parseDisplay(anamnesis.chiefComplaint_codeId, anamnesis.chiefComplaint_codeDisplay)
+        parseDisplay(anamnesis.associatedSymptoms_codeId, anamnesis.associatedSymptoms_codeDisplay)
 
-      if (
-        !form.getFieldValue(['anamnesis', 'allergyHistory']) &&
-        allergyResponse?.success &&
-        allergyResponse?.result
-      ) {
-        const allergies = allergyResponse.result
-        if (Array.isArray(allergies) && allergies.length > 0) {
-          const allergyNotes = allergies
-            .map((a: any) => a.note)
-            .filter(Boolean)
-            .join(', ')
-          if (allergyNotes) {
-            form.setFieldValue(['anamnesis', 'allergyHistory'], allergyNotes)
-          }
+        if (opts.length > 0) {
+          setDiagnosisOptions((prev) => {
+            const existingIds = new Set(prev.map((o) => String(o.id)))
+            const newOpts = opts.filter((o) => !existingIds.has(String(o.id)))
+            return newOpts.length > 0 ? [...prev, ...newOpts] : prev
+          })
         }
       }
     }
-  }, [
-    response,
-    conditionResponse,
-    familyHistoryResponse,
-    form,
-    allergyResponse?.success,
-    allergyResponse?.result
-  ])
+  }, [conditionResponse, form])
 
   const handleFinish = async (values: any) => {
-    if (!encounterId || !patientId) return
+    if (!encounterId || !patientIdStr) return
 
     if (!values.performerId) {
       message.error('Mohon pilih pemeriksa')
@@ -135,49 +124,20 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
         : dayjs().toISOString()
       const conditionsToCreate: ConditionBuilderOptions[] = []
 
-      // Chief Complaint
-      if (anamnesis?.chiefComplaint) {
+      if (anamnesis?.chiefComplaint_codeId) {
         conditionsToCreate.push({
           category: CONDITION_CATEGORIES.CHIEF_COMPLAINT,
           notes: anamnesis.chiefComplaint,
-          diagnosisCodeId: anamnesis.chiefComplaint_codeId
-            ? Number(anamnesis.chiefComplaint_codeId)
-            : undefined,
+          diagnosisCodeId: Number(anamnesis.chiefComplaint_codeId),
           recordedDate
         })
       }
 
-      // Associated Symptoms
-      if (anamnesis?.associatedSymptoms) {
+      if (anamnesis?.associatedSymptoms_codeId) {
         conditionsToCreate.push({
           category: CONDITION_CATEGORIES.ASSOCIATED_SYMPTOMS,
           notes: anamnesis.associatedSymptoms,
-          diagnosisCodeId: anamnesis.associatedSymptoms_codeId
-            ? Number(anamnesis.associatedSymptoms_codeId)
-            : undefined,
-          recordedDate
-        })
-      }
-
-      // History of Present Illness
-      if (anamnesis?.historyOfPresentIllness) {
-        conditionsToCreate.push({
-          category: anamnesis.historyOfPresentIllness_codeId
-            ? CONDITION_CATEGORIES.PREVIOUS_CONDITION
-            : CONDITION_CATEGORIES.HISTORY_OF_PRESENT_ILLNESS,
-          notes: anamnesis.historyOfPresentIllness,
-          diagnosisCodeId: anamnesis.historyOfPresentIllness_codeId
-            ? Number(anamnesis.historyOfPresentIllness_codeId)
-            : undefined,
-          recordedDate
-        })
-      }
-
-      // Medication History
-      if (anamnesis?.medicationHistory) {
-        conditionsToCreate.push({
-          category: CONDITION_CATEGORIES.MEDICATION_HISTORY,
-          notes: anamnesis.medicationHistory,
+          diagnosisCodeId: Number(anamnesis.associatedSymptoms_codeId),
           recordedDate
         })
       }
@@ -188,50 +148,14 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
 
       const promises: Promise<any>[] = []
 
-      // 1. Save Conditions
       if (conditions.length > 0) {
         promises.push(
           bulkCreateCondition.mutateAsync({
             encounterId,
-            patientId,
+            patientId: patientIdStr,
             doctorId: values.performerId ? Number(values.performerId) : 0,
             conditions
           })
-        )
-      }
-
-      // 2. Save Allergy
-      if (anamnesis?.allergyHistory || anamnesis?.allergyHistory_codeId) {
-        const allergyPayload = buildAllergy({
-          patientId,
-          encounterId,
-          note: anamnesis.allergyHistory,
-          diagnosisCodeId: anamnesis.allergyHistory_codeId
-            ? Number(anamnesis.allergyHistory_codeId)
-            : undefined,
-          clinicalStatus: 'active',
-          verificationStatus: 'confirmed',
-          category: anamnesis.allergyHistory_category || 'food'
-        })
-        promises.push(createAllergy.mutateAsync(allergyPayload))
-      }
-
-      // 3. Save Family History
-      if (anamnesis?.familyHistoryList && anamnesis.familyHistoryList.length > 0) {
-        promises.push(
-          createFamilyHistory.mutateAsync(
-            buildFamilyHistory({
-              patientId,
-              status: 'completed',
-              relationship: 'other',
-              conditions: anamnesis.familyHistoryList.map((item: any) => ({
-                diagnosisCodeId: Number(item.diagnosisCodeId),
-                outcome: item.outcome,
-                contributedToDeath: item.contributedToDeath,
-                note: item.note
-              }))
-            })
-          )
         )
       }
 
@@ -241,8 +165,6 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
       const { queryClient } = await import('@renderer/query-client')
       queryClient.invalidateQueries({ queryKey: ['observation', 'by-encounter', encounterId] })
       queryClient.invalidateQueries({ queryKey: ['condition', 'by-encounter', encounterId] })
-      queryClient.invalidateQueries({ queryKey: ['allergy', 'byEncounter', encounterId] })
-      queryClient.invalidateQueries({ queryKey: ['family-history', 'list', patientId] })
 
       form.resetFields(['assessment_date', 'performerId'])
       form.setFieldValue('assessment_date', dayjs())
@@ -253,6 +175,10 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleDiagnosisSearch = (value: string) => {
+    setDiagnosisSearch(value)
   }
 
   return (
@@ -267,7 +193,94 @@ export const AnamnesisForm = ({ encounterId, patientData }: AnamnesisFormProps) 
     >
       <Spin spinning={isSubmitting} tip="Menyimpan Anamnesis..." size="large">
         <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-        <AnamnesisSection form={form} />
+
+        <Card title="Anamnesis" className="mt-4!">
+          <Form.Item label="Keluhan Utama" className="" required>
+            <Form.Item
+              name={['anamnesis', 'chiefComplaint_codeId']}
+              style={{ marginBottom: 16 }}
+              rules={[
+                {
+                  required: true,
+                  message: 'Kode ICD-10/SNOMED wajib dipilih untuk sinkronisasi SatuSehat'
+                }
+              ]}
+            >
+              <Select
+                showSearch
+                filterOption={false}
+                onSearch={handleDiagnosisSearch}
+                placeholder="Cari kode ICD-10/SNOMED untuk keluhan utama..."
+                className="w-full mb-2"
+                notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
+                onSelect={(_, option: { label: string }) => {
+                  form.setFieldValue(['anamnesis', 'chiefComplaint'], option.label)
+                }}
+                allowClear
+              >
+                {diagnosisOptions.map((d) => (
+                  <Option
+                    key={d.id}
+                    value={d.id}
+                    label={`${d.code} - ${d.id_display || d.display}`}
+                  >
+                    {d.code} - {d.id_display || d.display}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item
+              label="Detail Keluhan Utama"
+              name={['anamnesis', 'chiefComplaint']}
+              rules={[{ required: true, message: 'Wajib diisi' }]}
+            >
+              <TextArea rows={2} placeholder="Masukkan catatan tambahan keluhan utama pasien..." />
+            </Form.Item>
+          </Form.Item>
+
+          <Form.Item label="Keluhan Penyerta" className="mb-0" required>
+            <Form.Item
+              name={['anamnesis', 'associatedSymptoms_codeId']}
+              style={{ marginBottom: 16 }}
+              rules={[
+                {
+                  required: true,
+                  message: 'Kode ICD-10/SNOMED wajib dipilih untuk sinkronisasi SatuSehat'
+                }
+              ]}
+            >
+              <Select
+                showSearch
+                filterOption={false}
+                onSearch={handleDiagnosisSearch}
+                placeholder="Cari kode ICD-10/SNOMED untuk keluhan penyerta..."
+                className="w-full mb-2"
+                notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
+                onSelect={(_, option: { label: string }) => {
+                  form.setFieldValue(['anamnesis', 'associatedSymptoms'], option.label)
+                }}
+                allowClear
+              >
+                {diagnosisOptions.map((d) => (
+                  <Option
+                    key={d.id}
+                    value={d.id}
+                    label={`${d.code} - ${d.id_display || d.display}`}
+                  >
+                    {d.code} - {d.id_display || d.display}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+            <Form.Item name={['anamnesis', 'associatedSymptoms']}>
+              <TextArea
+                rows={2}
+                placeholder="Masukkan catatan tambahan keluhan penyerta (jika ada)..."
+              />
+            </Form.Item>
+          </Form.Item>
+        </Card>
+
         <Form.Item className="flex justify-end pt-4!">
           <Button
             type="primary"

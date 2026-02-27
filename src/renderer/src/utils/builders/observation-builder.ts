@@ -1,3 +1,5 @@
+import type { ObservationInput } from '@renderer/hooks/query/use-observation'
+
 export const OBSERVATION_SYSTEMS = {
     LOINC: 'http://loinc.org',
     SNOMED: 'http://snomed.info/sct',
@@ -23,9 +25,14 @@ export interface ObservationBuilderOptions {
     codeCoding?: Array<{ code: string; display: string; system?: string }>
     effectiveDateTime?: string | Date
     issued?: string | Date
-    valueQuantity?: { value: number; unit: string }
+    valueQuantity?: { value: number; unit: string; system?: string; code?: string }
     valueString?: string
     valueBoolean?: boolean
+    valueInteger?: number
+    valueDateTime?: string | Date
+    valueCodeableConcept?: {
+        coding?: Array<{ code: string; display: string; system: string }>
+    }
     interpretations?: Array<{
         code: string
         display: string
@@ -35,13 +42,21 @@ export interface ObservationBuilderOptions {
         code: string
         display: string
         system?: string
-        valueQuantity?: { value: number; unit: string }
+        valueQuantity?: { value: number; unit: string; system?: string; code?: string }
         valueString?: string
     }>
+    referenceRange?: Array<{
+        low?: unknown
+        high?: unknown
+        text?: string
+    }>
+    bodySite?: {
+        coding?: Array<{ code: string; display: string; system: string }>
+    }
 }
 
-export const createObservation = (options: ObservationBuilderOptions): any => {
-    const obs: any = {
+export const createObservation = (options: ObservationBuilderOptions): ObservationInput => {
+    const obs: ObservationInput = {
         category: options.category,
         code: options.code,
         display: options.display,
@@ -53,21 +68,21 @@ export const createObservation = (options: ObservationBuilderOptions): any => {
             : new Date().toISOString()
     }
 
-    if (options.codeCoding) {
-        obs.codeCoding = options.codeCoding
-    }
-    if (options.issued !== undefined) {
-        obs.issued = typeof options.issued === 'string' ? options.issued : options.issued.toISOString()
-    }
-    if (options.valueQuantity !== undefined) {
-        obs.valueQuantity = options.valueQuantity
-    }
-    if (options.valueString !== undefined) {
-        obs.valueString = options.valueString
-    }
-    if (options.valueBoolean !== undefined) {
-        obs.valueBoolean = options.valueBoolean
-    }
+    if (options.codeCoding) obs.codeCoding = options.codeCoding
+    if (options.issued !== undefined)
+        obs.issued =
+            typeof options.issued === 'string' ? options.issued : options.issued.toISOString()
+    if (options.valueQuantity !== undefined) obs.valueQuantity = options.valueQuantity
+    if (options.valueString !== undefined) obs.valueString = options.valueString
+    if (options.valueBoolean !== undefined) obs.valueBoolean = options.valueBoolean
+    if (options.valueInteger !== undefined) obs.valueInteger = options.valueInteger
+    if (options.valueDateTime !== undefined)
+        obs.valueDateTime =
+            typeof options.valueDateTime === 'string'
+                ? options.valueDateTime
+                : options.valueDateTime.toISOString()
+    if (options.valueCodeableConcept !== undefined)
+        obs.valueCodeableConcept = options.valueCodeableConcept
     if (options.interpretations && options.interpretations.length > 0) {
         obs.interpretations = options.interpretations.map((interp) => ({
             ...interp,
@@ -80,35 +95,31 @@ export const createObservation = (options: ObservationBuilderOptions): any => {
             system: comp.system || OBSERVATION_SYSTEMS.LOINC
         }))
     }
+    if (options.referenceRange && options.referenceRange.length > 0)
+        obs.referenceRange = options.referenceRange
+    if (options.bodySite !== undefined) obs.bodySite = options.bodySite
 
     return obs
 }
 
 /**
- * Helper to create HL7 interpretation from risk level text
+ * Maps a risk level string to an HL7 interpretation code.
  */
-export const mapRiskLevelToHL7Code = (
-    riskLevel: string
-): { code: string; display: string } => {
-    if (riskLevel === 'Risiko Rendah' || riskLevel === 'Tidak Berisiko') {
+export const mapRiskLevelToHL7Code = (riskLevel: string): { code: string; display: string } => {
+    if (riskLevel === 'Risiko Rendah' || riskLevel === 'Tidak Berisiko')
         return { code: 'L', display: riskLevel }
-    }
-    if (riskLevel === 'Risiko Sedang') {
-        return { code: 'M', display: riskLevel }
-    }
-    if (riskLevel === 'Risiko Tinggi') {
-        return { code: 'H', display: riskLevel }
-    }
+    if (riskLevel === 'Risiko Sedang') return { code: 'M', display: riskLevel }
+    if (riskLevel === 'Risiko Tinggi') return { code: 'H', display: riskLevel }
     return { code: 'N', display: riskLevel }
 }
 
 /**
- * Batch create observations with common metadata
+ * Batch-creates observations sharing a common effectiveDateTime.
  */
 export const createObservationBatch = (
     observations: Omit<ObservationBuilderOptions, 'effectiveDateTime'>[],
     commonDate?: string | Date
-): any[] => {
+): ObservationInput[] => {
     const effectiveDateTime = commonDate
         ? typeof commonDate === 'string'
             ? commonDate

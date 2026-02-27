@@ -9,9 +9,8 @@ export const ANAMNESIS_MAP: Record<string, string> = {
 }
 
 export const DIAGNOSIS_MAP: Record<string, string> = {
-    'diagnosis': 'Diagnosis',
+    diagnosis: 'Diagnosis',
     'encounter-diagnosis': 'Diagnosis Kedatangan',
     'medical-diagnosis': 'Diagnosis Medis',
     'nursing-diagnosis': 'Diagnosis Keperawatan'
 }
-

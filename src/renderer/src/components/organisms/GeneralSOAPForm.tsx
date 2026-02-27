@@ -26,15 +26,15 @@ import {
   useUpsertComposition
 } from '@renderer/hooks/query/use-composition'
 import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
-import { formatObservationSummary } from '@renderer/utils/observation-helpers'
 import { PatientWithMedicalRecord } from '@renderer/types/doctor.types'
 import {
   COMPOSITION_STATUS_MAP,
   COMPOSITION_STATUS_COLOR_MAP
-} from '@renderer/config/composition-maps'
+} from '@renderer/config/maps/composition-maps'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import dayjs from 'dayjs'
+import { formatObservationSummary } from '@renderer/utils/formatters/observation-formatter'
 
 const { TextArea } = Input
 

@@ -3,18 +3,22 @@ import dayjs from 'dayjs'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { DeleteOutlined, SaveOutlined } from '@ant-design/icons'
 import bodyMapImage from '@renderer/assets/images/body_map.png'
-import { HEAD_TO_TOE_MAP } from '@renderer/config/observation-maps'
+import { HEAD_TO_TOE_MAP } from '@renderer/config/maps/observation-maps'
 import {
   useBulkCreateObservation,
   useObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssessmentHeader'
-import { createObservationBatch, OBSERVATION_CATEGORIES } from '@renderer/utils/observation-builder'
+import {
+  createObservationBatch,
+  OBSERVATION_CATEGORIES
+} from '@renderer/utils/builders/observation-builder'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
   useBodyMarkerByEncounter,
   useBulkCreateBodyMarker
 } from '@renderer/hooks/query/use-body-marker'
+import { PatientData } from '@renderer/types/doctor.types'
 
 const { Option } = Select
 const { TextArea } = Input
@@ -28,19 +32,17 @@ interface BodyMarker {
 
 interface PhysicalAssessmentFormProps {
   encounterId: string
-  patientId?: string
-  patientData?: any
+  patientData: PatientData
 }
 
 export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
   encounterId,
-  patientId,
   patientData
 }) => {
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const { message } = App.useApp()
-  const resolvedPatientId = patientId || patientData?.patient?.id || patientData?.id
+  const patientId = patientData.patient.id
 
   const [markers, setMarkers] = useState<BodyMarker[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -95,7 +97,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
   }
 
   const handleFinish = async (values: any) => {
-    if (!resolvedPatientId) {
+    if (!patientId) {
       message.error('Data pasien tidak lengkap')
       return
     }
@@ -157,7 +159,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
 
         await bulkCreateObservation.mutateAsync({
           encounterId,
-          patientId: resolvedPatientId,
+          patientId: patientId,
           observations,
           performerId: String(values.performerId),
           performerName: performerName
@@ -224,7 +226,15 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
         }
       })
 
-      form.setFieldsValue(initialValues)
+      const firstObs = sortedObs[0] as any
+      const preloadedPerformerId = firstObs?.performers?.[0]?.practitionerId
+      const preloadedDate = firstObs?.effectiveDateTime
+
+      form.setFieldsValue({
+        ...initialValues,
+        assessment_date: preloadedDate ? dayjs(preloadedDate) : dayjs(),
+        ...(preloadedPerformerId ? { performerId: Number(preloadedPerformerId) } : {})
+      })
     }
   }, [observationData, form])
 

@@ -24,9 +24,12 @@ import {
 import { useCompositionByEncounter, useUpsertComposition } from '../../hooks/query/use-composition'
 import { useObservationByEncounter } from '../../hooks/query/use-observation'
 import { useConditionByEncounter } from '../../hooks/query/use-condition'
-import { formatObservationSummary } from '../../utils/observation-helpers'
+import { formatObservationSummary } from '../../utils/formatters/observation-formatter'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
-import { COMPOSITION_STATUS_MAP, COMPOSITION_STATUS_COLOR_MAP } from '../../config/composition-maps'
+import {
+  COMPOSITION_STATUS_MAP,
+  COMPOSITION_STATUS_COLOR_MAP
+} from '../../config/maps/composition-maps'
 import { AssessmentHeader } from './Assessment/AssessmentHeader'
 import dayjs from 'dayjs'
 import { usePerformers } from '@renderer/hooks/query/use-performers'

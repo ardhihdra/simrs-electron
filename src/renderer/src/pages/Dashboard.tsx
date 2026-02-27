@@ -143,43 +143,6 @@ const items = [
     ]
   },
   {
-    label: 'Pelayanan Rumah Sakit',
-    key: '/dashboard/services',
-    icon: <WalletOutlined />,
-    children: [
-      {
-        label: 'Diagnosa',
-        key: '/dashboard/diagnostic',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Pemeriksaan Utama',
-        key: '/dashboard/services/pemeriksaan-utama',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Pemeriksaan Umum',
-        key: '/dashboard/services/general-checkup',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Pemeriksaan Khusus',
-        key: '/dashboard/services/special-checkup',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Tindakan Medis',
-        key: '/dashboard/services/medical-action',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Resep Obat',
-        key: '/dashboard/services/prescription',
-        icon: <WalletOutlined />
-      }
-    ]
-  },
-  {
     label: 'Obat',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
