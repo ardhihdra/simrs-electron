@@ -60,7 +60,7 @@ interface MedicationRequestAttributes {
 	medication?: { name?: string }
 	item?: { nama?: string; itemCategoryId?: number | null }
 	note?: string | null
-	encounter?: { id: string }
+	encounter?: { id: string; encounterType?: string }
 	requester?: { name: string }
 	groupIdentifier?: GroupIdentifier | null
 	category?: CategoryEntry[] | null
@@ -93,6 +93,7 @@ interface ParentRow {
 	hasRemaining?: boolean
 	remainingTotal?: number
 	fhirId?: string | null
+	encounterType?: string
 	items: MedicationItemRow[]
 }
 
@@ -177,6 +178,17 @@ const columns = [
 		render: (val: PatientInfo | undefined) => {
 			const name = getPatientDisplayName(val)
 			return name || '-'
+		}
+	},
+	{
+		title: 'Asal',
+		dataIndex: 'encounterType',
+		key: 'encounterType',
+		render: (val: string) => {
+			if (val === 'AMB') return <Tag color="green">Rawat Jalan</Tag>
+			if (val === 'EMER') return <Tag color="red">IGD</Tag>
+			if (val === 'IMP') return <Tag color="blue">Rawat Inap</Tag>
+			return '-'
 		}
 	},
 	{
@@ -621,6 +633,7 @@ export function MedicationRequestTable() {
 					hasRemaining: remainingTotal > 0,
 					remainingTotal,
 					fhirId: typeof record.fhirId === 'string' && record.fhirId.trim().length > 0 ? record.fhirId.trim() : null,
+					encounterType: record.encounter?.encounterType,
 					items: groupItems
 				})
 			} else {

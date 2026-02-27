@@ -223,7 +223,8 @@ const FhirMedicationDispenseSchema = z.object({
     .object({
       text: z.string().optional()
     })
-    .optional()
+    .optional(),
+  encounter: z.any().optional()
 })
 
 const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
@@ -273,11 +274,11 @@ const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
     dosageInstruction: rawFhir.dosageInstruction ?? null,
     createdAt: undefined,
     updatedAt: undefined,
-    deletedAt: undefined,
     patient: undefined,
     performer: rawFhir.performer ?? undefined,
     medication: rawFhir.medication ?? undefined,
-    authorizingPrescription: authorizingPrescriptionObj ?? null
+    authorizingPrescription: authorizingPrescriptionObj ?? null,
+    encounter: rawFhir.encounter ?? undefined
   }
   return ui
 }

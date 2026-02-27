@@ -52,7 +52,7 @@ const BackendResponseSchema = z.object({
 
 export const list = async (ctx: IpcContext) => {
   const client = createBackendClient(ctx)
-  const res = await client.get('/api/kfacode?items=100')
+  const res = await client.get('/api/kfacode/listAll')
   const result = await parseBackendResponse(res, BackendListSchema(KfaCodeWithIdSchema))
   return { success: true, result }
 }

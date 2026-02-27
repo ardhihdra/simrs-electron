@@ -80,6 +80,7 @@ interface MedicationDispenseAttributes {
 	dosageInstruction?: DosageInstructionEntry[] | null
 	authorizingPrescription?: AuthorizingPrescriptionInfo | null
 	paymentStatus?: string
+	encounter?: { encounterType?: string }
 }
 
 interface MedicationDispenseListArgs {
@@ -159,6 +160,7 @@ interface ParentRow {
 	status: string
 	paymentStatus?: string
 	handedOverAt?: string
+	encounterType?: string
 	items: DispenseItemRow[]
 }
 
@@ -485,6 +487,17 @@ const columns = [
 		render: (val: PatientInfo | undefined) => {
 			const name = getPatientDisplayName(val)
 			return name || '-'
+		}
+	},
+	{
+		title: 'Asal',
+		dataIndex: 'encounterType',
+		key: 'encounterType',
+		render: (val: string) => {
+			if (val === 'AMB') return <Tag color="green">Rawat Jalan</Tag>
+			if (val === 'EMER') return <Tag color="red">IGD</Tag>
+			if (val === 'IMP') return <Tag color="blue">Rawat Inap</Tag>
+			return '-'
 		}
 	},
 	{
@@ -904,6 +917,7 @@ export function MedicationDispenseTable() {
 					status: item.status,
 					paymentStatus: item.paymentStatus,
 					handedOverAt,
+					encounterType: item.encounter?.encounterType,
 					items: [rowItem]
 				})
 			} else {
