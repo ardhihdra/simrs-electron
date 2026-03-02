@@ -1,4 +1,4 @@
-import { message, Tag, Form, Input } from 'antd'
+import {  Tag, Form, Input, App } from 'antd'
 import { client, rpc } from '@renderer/utils/client'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
@@ -27,6 +27,7 @@ interface GetActiveEncountersResult {
 
 export default function ActiveEncountersPage() {
   const { data: encounters, isLoading, refetch } = client.visitManagement.getActiveEncounters.useQuery({})
+  const { message } = App.useApp()
   
   const [transitionModalVisible, setTransitionModalVisible] = useState(false)
   const [dischargeModalVisible, setDischargeModalVisible] = useState(false)

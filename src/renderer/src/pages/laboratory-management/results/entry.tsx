@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, CloudDownloadOutlined, UploadOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload, message } from 'antd'
+import { Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload, App } from 'antd'
 import { useLocation, useNavigate } from 'react-router'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
 import { client } from '@renderer/utils/client'
@@ -13,6 +13,7 @@ const { Title, Text } = Typography
 export default function RecordResultPage() {
     const navigate = useNavigate()
     const location = useLocation()
+    const {message} = App.useApp()
     const record = location.state as Record<string, unknown> | null
     const [form] = Form.useForm()
     const [dicomSourceMode, setDicomSourceMode] = useState<DicomSourceMode>('modality')

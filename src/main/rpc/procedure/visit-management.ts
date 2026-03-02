@@ -132,8 +132,12 @@ export const visitManagementRpc = {
     patientSync: t.input(z.object({
         patientId: z.string(),
     })).output(z.any()).mutation(async ({ client }, input) => {
-        const { patientId } = input
-        const data = await client.post(`/api/module/visit-management/patient/${patientId}/sync`, {})
-        return await data.json()
+        try {
+            const { patientId } = input
+            const response = await client.post(`/api/module/visit-management/patient/${patientId}/sync`, {})
+            return await response.json()
+        } catch (error: any) {
+            throw new Error(error.message || 'Failed to synchronize patient data')
+        }
     }),
 }

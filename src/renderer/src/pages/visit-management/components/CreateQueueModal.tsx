@@ -1,7 +1,7 @@
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
 import { PatientAttributes } from '@shared/patient'
-import { Button, DatePicker, Drawer, Form, message, Space } from 'antd'
+import { Button, DatePicker, Drawer, Form, App, Space } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect } from 'react'
 
@@ -15,7 +15,7 @@ export type CreateQueueModalProps = {
 const CreateQueueModal = ({ open, onClose, patient, onSuccess }: CreateQueueModalProps) => {
   const [form] = Form.useForm()
   const createQueue = client.visitManagement.register.useMutation()
-
+  const { message } = App.useApp()
   useEffect(() => {
     if (open) {
       form.setFieldsValue({

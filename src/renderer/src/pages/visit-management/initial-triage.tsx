@@ -2,7 +2,7 @@ import { ExportOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { message, Tag, Modal } from 'antd'
+import { Tag, Modal, App } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 
 import { useNavigate } from 'react-router'
@@ -10,6 +10,7 @@ import { useState } from 'react'
 
 export default function InitialTriage() {
     const navigate = useNavigate()
+    const { message } = App.useApp()
     const [triageModal, setTriageModal] = useState<{ open: boolean; record?: any }>({ open: false })
     const { data: queueData, isLoading, isRefetching, refetch } = client.visitManagement.getActiveQueues.useQuery({
         status: ['CALLED'] // Only show Called queues
