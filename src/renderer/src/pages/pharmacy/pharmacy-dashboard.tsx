@@ -285,11 +285,11 @@ function PharmacyDashboard() {
 		queryFn: async () => {
 			const inventoryApi = window.api?.query?.inventoryStock as
 				| {
-						expirySummary?: (args?: {
-							itemType?: 'item' | 'substance' | 'medicine'
-							limit?: number
-						}) => Promise<InventoryExpiryResponse>
-				  }
+					expirySummary?: (args?: {
+						itemType?: 'item' | 'substance' | 'medicine'
+						limit?: number
+					}) => Promise<InventoryExpiryResponse>
+				}
 				| undefined
 			const fn = inventoryApi?.expirySummary
 			if (!fn) {
@@ -451,10 +451,10 @@ function PharmacyDashboard() {
 			? medicineExpiryData.result ?? []
 			: []
 		const items = Array.isArray(itemSource?.result) ? itemSource.result : []
-		
+
 		const kodeToCategoryId = new Map<string, number>()
 		const categoryNameById = new Map<number, string>()
-		
+
 		for (const item of items) {
 			if (typeof item.kode !== 'string') continue
 			const kode = item.kode.trim().toUpperCase()
@@ -479,7 +479,7 @@ function PharmacyDashboard() {
 				}
 			}
 		}
-		
+
 		return list.map((entry) => {
 			const kode = entry.kodeItem.trim().toUpperCase()
 			let itemCategoryName: string | undefined
@@ -492,7 +492,7 @@ function PharmacyDashboard() {
 					}
 				}
 			}
-			
+
 			return {
 				key: entry.kodeItem,
 				kodeItem: entry.kodeItem,
@@ -515,26 +515,26 @@ function PharmacyDashboard() {
 
 		const salesMap = new Map<string, MedicineSalesRow>()
 
-			source.forEach((item) => {
-				if (item.status !== 'completed') return
-				const qty = item.quantity?.value
-				if (typeof qty !== 'number') return
-				const itemName = resolveItemName(item, itemNameById)
-				const unit = item.quantity?.unit
-				const mapKey = `${itemName}|${unit ?? ''}`
+		source.forEach((item) => {
+			if (item.status !== 'completed') return
+			const qty = item.quantity?.value
+			if (typeof qty !== 'number') return
+			const itemName = resolveItemName(item, itemNameById)
+			const unit = item.quantity?.unit
+			const mapKey = `${itemName}|${unit ?? ''}`
 			const previous = salesMap.get(mapKey)
 			if (previous) {
 				previous.totalQuantity += qty
 				previous.transactionCount += 1
-				} else {
-					salesMap.set(mapKey, {
-						key: mapKey,
-						itemName,
-						unit,
-						totalQuantity: qty,
-						transactionCount: 1
-					})
-				}
+			} else {
+				salesMap.set(mapKey, {
+					key: mapKey,
+					itemName,
+					unit,
+					totalQuantity: qty,
+					transactionCount: 1
+				})
+			}
 		})
 
 		const allRows = Array.from(salesMap.values())
@@ -602,7 +602,7 @@ function PharmacyDashboard() {
 					dataSource={itemStatusRows}
 					columns={[
 						{ title: 'Status', dataIndex: 'statusLabel', key: 'statusLabel' },
-					{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
+						{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
 						{ title: 'Qty', dataIndex: 'totalQuantity', key: 'totalQuantity' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }
 					] as ColumnsType<ItemStatusRow>}
@@ -611,13 +611,13 @@ function PharmacyDashboard() {
 					size="small"
 				/>
 			</Card>
-		<Card title="Top 10 Barang Expired Terdekat">
+			<Card title="Top 10 Barang Expired Terdekat">
 				<Table<MedicineExpiryRow>
 					dataSource={medicineExpiryRows}
 					columns={[
 						{ title: 'Kode', dataIndex: 'kodeItem', key: 'kodeItem' },
-					{ title: 'Nama Barang', dataIndex: 'namaItem', key: 'namaItem' },
-					{ title: 'Kategori Item', dataIndex: 'itemCategoryName', key: 'itemCategoryName' },
+						{ title: 'Nama Barang', dataIndex: 'namaItem', key: 'namaItem' },
+						{ title: 'Kategori Item', dataIndex: 'itemCategoryName', key: 'itemCategoryName' },
 						{ title: 'Qty Tersedia', dataIndex: 'availableStock', key: 'availableStock' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
 						{
@@ -631,11 +631,11 @@ function PharmacyDashboard() {
 					size="small"
 				/>
 			</Card>
-		<Card title="Barang Paling Laku">
+			<Card title="Barang Paling Laku">
 				<Table<MedicineSalesRow>
 					dataSource={bestSellingRows}
 					columns={[
-					{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
+						{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
 						{ title: 'Qty Terjual', dataIndex: 'totalQuantity', key: 'totalQuantity' },
 						{ title: 'Jumlah Transaksi', dataIndex: 'transactionCount', key: 'transactionCount' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }
@@ -645,11 +645,11 @@ function PharmacyDashboard() {
 					size="small"
 				/>
 			</Card>
-		<Card title="Barang Paling Tidak Laku">
+			<Card title="Barang Paling Tidak Laku">
 				<Table<MedicineSalesRow>
 					dataSource={leastSellingRows}
 					columns={[
-					{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
+						{ title: 'Nama Barang', dataIndex: 'itemName', key: 'itemName' },
 						{ title: 'Qty Terjual', dataIndex: 'totalQuantity', key: 'totalQuantity' },
 						{ title: 'Jumlah Transaksi', dataIndex: 'transactionCount', key: 'transactionCount' },
 						{ title: 'Satuan', dataIndex: 'unit', key: 'unit' }

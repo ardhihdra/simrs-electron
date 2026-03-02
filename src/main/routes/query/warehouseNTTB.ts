@@ -1,6 +1,6 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
-import { createBackendClient, parseBackendResponse } from '@main/utils/backendClient'
+import { createBackendClient } from '@main/utils/backendClient'
 
 export const requireSession = true
 

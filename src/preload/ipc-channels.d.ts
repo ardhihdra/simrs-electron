@@ -27,6 +27,7 @@ import type * as Mod_query_inventoryStock from '@main/routes/query/inventoryStoc
 import type * as Mod_query_item from '@main/routes/query/item'
 import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
+import type * as Mod_query_kfaCode from '@main/routes/query/kfaCode'
 import type * as Mod_query_masterProcedure from '@main/routes/query/masterProcedure'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
 import type * as Mod_query_medicationDispense from '@main/routes/query/medicationDispense'
@@ -231,6 +232,10 @@ type Args_Mod_query_item_read = InferArgs<typeof Mod_query_item, 'read'>
 type Result_Mod_query_item_read = InferResult<typeof Mod_query_item, 'read'>
 type Args_Mod_query_item_searchKfa = InferArgs<typeof Mod_query_item, 'searchKfa'>
 type Result_Mod_query_item_searchKfa = InferResult<typeof Mod_query_item, 'searchKfa'>
+type Args_Mod_query_item_searchKfaMaster = InferArgs<typeof Mod_query_item, 'searchKfaMaster'>
+type Result_Mod_query_item_searchKfaMaster = InferResult<typeof Mod_query_item, 'searchKfaMaster'>
+type Args_Mod_query_item_syncSatusehat = InferArgs<typeof Mod_query_item, 'syncSatusehat'>
+type Result_Mod_query_item_syncSatusehat = InferResult<typeof Mod_query_item, 'syncSatusehat'>
 type Args_Mod_query_item_update = InferArgs<typeof Mod_query_item, 'update'>
 type Result_Mod_query_item_update = InferResult<typeof Mod_query_item, 'update'>
 type Args_Mod_query_jaminan_create = InferArgs<typeof Mod_query_jaminan, 'create'>
@@ -255,6 +260,16 @@ type Args_Mod_query_kepegawaian_listAll = InferArgs<typeof Mod_query_kepegawaian
 type Result_Mod_query_kepegawaian_listAll = InferResult<typeof Mod_query_kepegawaian, 'listAll'>
 type Args_Mod_query_kepegawaian_update = InferArgs<typeof Mod_query_kepegawaian, 'update'>
 type Result_Mod_query_kepegawaian_update = InferResult<typeof Mod_query_kepegawaian, 'update'>
+type Args_Mod_query_kfaCode_create = InferArgs<typeof Mod_query_kfaCode, 'create'>
+type Result_Mod_query_kfaCode_create = InferResult<typeof Mod_query_kfaCode, 'create'>
+type Args_Mod_query_kfaCode_deleteById = InferArgs<typeof Mod_query_kfaCode, 'deleteById'>
+type Result_Mod_query_kfaCode_deleteById = InferResult<typeof Mod_query_kfaCode, 'deleteById'>
+type Args_Mod_query_kfaCode_getById = InferArgs<typeof Mod_query_kfaCode, 'getById'>
+type Result_Mod_query_kfaCode_getById = InferResult<typeof Mod_query_kfaCode, 'getById'>
+type Args_Mod_query_kfaCode_list = InferArgs<typeof Mod_query_kfaCode, 'list'>
+type Result_Mod_query_kfaCode_list = InferResult<typeof Mod_query_kfaCode, 'list'>
+type Args_Mod_query_kfaCode_update = InferArgs<typeof Mod_query_kfaCode, 'update'>
+type Result_Mod_query_kfaCode_update = InferResult<typeof Mod_query_kfaCode, 'update'>
 type Args_Mod_query_masterProcedure_getById = InferArgs<typeof Mod_query_masterProcedure, 'getById'>
 type Result_Mod_query_masterProcedure_getById = InferResult<typeof Mod_query_masterProcedure, 'getById'>
 type Args_Mod_query_masterProcedure_list = InferArgs<typeof Mod_query_masterProcedure, 'list'>
@@ -271,10 +286,20 @@ type Args_Mod_query_medicalStaffSchedule_update = InferArgs<typeof Mod_query_med
 type Result_Mod_query_medicalStaffSchedule_update = InferResult<typeof Mod_query_medicalStaffSchedule, 'update'>
 type Args_Mod_query_medicationDispense_createFromRequest = InferArgs<typeof Mod_query_medicationDispense, 'createFromRequest'>
 type Result_Mod_query_medicationDispense_createFromRequest = InferResult<typeof Mod_query_medicationDispense, 'createFromRequest'>
+type Args_Mod_query_medicationDispense_createModule = InferArgs<typeof Mod_query_medicationDispense, 'createModule'>
+type Result_Mod_query_medicationDispense_createModule = InferResult<typeof Mod_query_medicationDispense, 'createModule'>
 type Args_Mod_query_medicationDispense_list = InferArgs<typeof Mod_query_medicationDispense, 'list'>
 type Result_Mod_query_medicationDispense_list = InferResult<typeof Mod_query_medicationDispense, 'list'>
+type Args_Mod_query_medicationDispense_listModule = InferArgs<typeof Mod_query_medicationDispense, 'listModule'>
+type Result_Mod_query_medicationDispense_listModule = InferResult<typeof Mod_query_medicationDispense, 'listModule'>
+type Args_Mod_query_medicationDispense_readModule = InferArgs<typeof Mod_query_medicationDispense, 'readModule'>
+type Result_Mod_query_medicationDispense_readModule = InferResult<typeof Mod_query_medicationDispense, 'readModule'>
+type Args_Mod_query_medicationDispense_syncSatusehat = InferArgs<typeof Mod_query_medicationDispense, 'syncSatusehat'>
+type Result_Mod_query_medicationDispense_syncSatusehat = InferResult<typeof Mod_query_medicationDispense, 'syncSatusehat'>
 type Args_Mod_query_medicationDispense_update = InferArgs<typeof Mod_query_medicationDispense, 'update'>
 type Result_Mod_query_medicationDispense_update = InferResult<typeof Mod_query_medicationDispense, 'update'>
+type Args_Mod_query_medicationDispense_updateModule = InferArgs<typeof Mod_query_medicationDispense, 'updateModule'>
+type Result_Mod_query_medicationDispense_updateModule = InferResult<typeof Mod_query_medicationDispense, 'updateModule'>
 type Args_Mod_query_medicationRequest_create = InferArgs<typeof Mod_query_medicationRequest, 'create'>
 type Result_Mod_query_medicationRequest_create = InferResult<typeof Mod_query_medicationRequest, 'create'>
 type Args_Mod_query_medicationRequest_deleteById = InferArgs<typeof Mod_query_medicationRequest, 'deleteById'>
@@ -283,6 +308,8 @@ type Args_Mod_query_medicationRequest_getById = InferArgs<typeof Mod_query_medic
 type Result_Mod_query_medicationRequest_getById = InferResult<typeof Mod_query_medicationRequest, 'getById'>
 type Args_Mod_query_medicationRequest_list = InferArgs<typeof Mod_query_medicationRequest, 'list'>
 type Result_Mod_query_medicationRequest_list = InferResult<typeof Mod_query_medicationRequest, 'list'>
+type Args_Mod_query_medicationRequest_syncSatusehat = InferArgs<typeof Mod_query_medicationRequest, 'syncSatusehat'>
+type Result_Mod_query_medicationRequest_syncSatusehat = InferResult<typeof Mod_query_medicationRequest, 'syncSatusehat'>
 type Args_Mod_query_medicationRequest_update = InferArgs<typeof Mod_query_medicationRequest, 'update'>
 type Result_Mod_query_medicationRequest_update = InferResult<typeof Mod_query_medicationRequest, 'update'>
 type Args_Mod_query_medicine_create = InferArgs<typeof Mod_query_medicine, 'create'>
@@ -614,6 +641,8 @@ declare global {
           list: Invoke<Args_Mod_query_item_list, Result_Mod_query_item_list>
           read: Invoke<Args_Mod_query_item_read, Result_Mod_query_item_read>
           searchKfa: Invoke<Args_Mod_query_item_searchKfa, Result_Mod_query_item_searchKfa>
+          searchKfaMaster: Invoke<Args_Mod_query_item_searchKfaMaster, Result_Mod_query_item_searchKfaMaster>
+          syncSatusehat: Invoke<Args_Mod_query_item_syncSatusehat, Result_Mod_query_item_syncSatusehat>
           update: Invoke<Args_Mod_query_item_update, Result_Mod_query_item_update>
         }
         jaminan: {
@@ -631,6 +660,13 @@ declare global {
           listAll: Invoke<Args_Mod_query_kepegawaian_listAll, Result_Mod_query_kepegawaian_listAll>
           update: Invoke<Args_Mod_query_kepegawaian_update, Result_Mod_query_kepegawaian_update>
         }
+        kfaCode: {
+          create: Invoke<Args_Mod_query_kfaCode_create, Result_Mod_query_kfaCode_create>
+          deleteById: Invoke<Args_Mod_query_kfaCode_deleteById, Result_Mod_query_kfaCode_deleteById>
+          getById: Invoke<Args_Mod_query_kfaCode_getById, Result_Mod_query_kfaCode_getById>
+          list: Invoke<Args_Mod_query_kfaCode_list, Result_Mod_query_kfaCode_list>
+          update: Invoke<Args_Mod_query_kfaCode_update, Result_Mod_query_kfaCode_update>
+        }
         masterProcedure: {
           getById: Invoke<Args_Mod_query_masterProcedure_getById, Result_Mod_query_masterProcedure_getById>
           list: Invoke<Args_Mod_query_masterProcedure_list, Result_Mod_query_masterProcedure_list>
@@ -644,14 +680,20 @@ declare global {
         }
         medicationDispense: {
           createFromRequest: Invoke<Args_Mod_query_medicationDispense_createFromRequest, Result_Mod_query_medicationDispense_createFromRequest>
+          createModule: Invoke<Args_Mod_query_medicationDispense_createModule, Result_Mod_query_medicationDispense_createModule>
           list: Invoke<Args_Mod_query_medicationDispense_list, Result_Mod_query_medicationDispense_list>
+          listModule: Invoke<Args_Mod_query_medicationDispense_listModule, Result_Mod_query_medicationDispense_listModule>
+          readModule: Invoke<Args_Mod_query_medicationDispense_readModule, Result_Mod_query_medicationDispense_readModule>
+          syncSatusehat: Invoke<Args_Mod_query_medicationDispense_syncSatusehat, Result_Mod_query_medicationDispense_syncSatusehat>
           update: Invoke<Args_Mod_query_medicationDispense_update, Result_Mod_query_medicationDispense_update>
+          updateModule: Invoke<Args_Mod_query_medicationDispense_updateModule, Result_Mod_query_medicationDispense_updateModule>
         }
         medicationRequest: {
           create: Invoke<Args_Mod_query_medicationRequest_create, Result_Mod_query_medicationRequest_create>
           deleteById: Invoke<Args_Mod_query_medicationRequest_deleteById, Result_Mod_query_medicationRequest_deleteById>
           getById: Invoke<Args_Mod_query_medicationRequest_getById, Result_Mod_query_medicationRequest_getById>
           list: Invoke<Args_Mod_query_medicationRequest_list, Result_Mod_query_medicationRequest_list>
+          syncSatusehat: Invoke<Args_Mod_query_medicationRequest_syncSatusehat, Result_Mod_query_medicationRequest_syncSatusehat>
           update: Invoke<Args_Mod_query_medicationRequest_update, Result_Mod_query_medicationRequest_update>
         }
         medicine: {
