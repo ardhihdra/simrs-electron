@@ -21,6 +21,7 @@ interface GetActiveEncountersResult {
     patientMrNo: string
     serviceUnitId: string
     serviceUnitName: string
+    encounter:any
 }
 
 
@@ -141,7 +142,7 @@ export default function ActiveEncountersPage() {
     
     try {
         setIsSubmitting(true)
-        const input = { encounterId: selectedEncounter.id, dischargeDisposition: selectedDisposition }
+        const input = { encounterId: selectedEncounter.encounter.id, dischargeDisposition: selectedDisposition }
         await rpc.visitManagement.dischargeEncounter(input as any)
         message.success('Pasien dipulangkan')
         setDischargeModalVisible(false)
@@ -202,6 +203,19 @@ export default function ActiveEncountersPage() {
     }
   }
 
+  const syncSatusehat = async (id:string) => {
+    try {
+        setIsSubmitting(true)
+        await rpc.encounter.syncExtracted({id})
+        message.success('Sync Satusehat berhasil')
+    } catch (error: any) {
+        console.error(error)
+        message.error(error.message || 'Gagal sync Satusehat')
+    } finally {
+        setIsSubmitting(false)
+    }
+  }
+
   const onSearch = (values: any) => {
     setSearchText(values.patientName?.toLowerCase() || '')
   }
@@ -250,6 +264,10 @@ console.log(encounters)
                       {
                           label: 'Rujuk',
                           onClick: () => handleRujukanClick(record)
+                      },
+                      {
+                        label: 'Sync Satusehat',
+                        onClick: () => syncSatusehat(record?.encounter?.id)
                       },
                       {
                           label: 'Cancel',

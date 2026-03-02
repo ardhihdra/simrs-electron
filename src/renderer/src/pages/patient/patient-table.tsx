@@ -1,14 +1,15 @@
-import { PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, EditOutlined, SyncOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { useQuery } from '@tanstack/react-query'
-import { Col, Form, Input } from 'antd'
+import { Col, Form, Input, message } from 'antd'
 import { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { PatientAttributes } from 'simrs-types'
 import RegistrationSheet from './components/RegistrationSheet'
+import { rpc } from '@renderer/utils/client'
 
 const PatientTable = () => {
   const navigate = useNavigate()
@@ -58,12 +59,19 @@ const PatientTable = () => {
   const dataSource = (queryData?.data || []).map((item, idx) => ({ ...item, no: idx + 1 }))
 
   const onFinish = async (values: any) => {
-    console.log('Registration Values:', values)
-    // TODO: Implement actual registration logic here
-    // window.api.query.queue.create(values)
     setOpenRegistration(false)
   }
-
+  const handleSyncPatient = async (patientId: string) => {
+    try {
+        await rpc.visitManagement.patientSync({ patientId })
+        message.success('Sync Satusehat berhasil')
+    } catch (error: any) {
+        console.error(error)
+        message.error(error.message || 'Gagal sync Satusehat')
+    } finally {
+        message.destroy()
+    }
+  }
   return (
     <div>
       <TableHeader
@@ -95,6 +103,11 @@ const PatientTable = () => {
           action={{
             items(record) {
               return [
+                {
+                label:'Sync Satusehat',
+                icon:<SyncOutlined />,
+                onClick:()=>handleSyncPatient(record.id)
+                                },
                 {
                   label: 'Ubah Data',
                   icon: <EditOutlined />,

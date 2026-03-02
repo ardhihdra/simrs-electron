@@ -127,4 +127,13 @@ export const visitManagementRpc = {
         const data = await client.post(`/api/module/visit-management/encounters/${encounterId}/transition-inpatient`, body)
         return await data.json()
     }),
+
+
+    patientSync: t.input(z.object({
+        patientId: z.string(),
+    })).output(z.any()).mutation(async ({ client }, input) => {
+        const { patientId } = input
+        const data = await client.post(`/api/module/visit-management/patient/${patientId}/sync`, {})
+        return await data.json()
+    }),
 }

@@ -1,10 +1,10 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { useDebounce } from '@renderer/hooks/useDebounce'
-import { client } from '@renderer/utils/client'
+import { client, rpc } from '@renderer/utils/client'
 import { PatientAttributes } from '@shared/patient'
-import { Button, Form, Input } from 'antd'
+import { Button, Form, Input, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -55,6 +55,18 @@ export default function RegistrationPage() {
     setOpenModal(true)
   }
 
+  const handleSyncPatient = async (patientId: string) => {
+    try {
+        await rpc.visitManagement.patientSync({ patientId })
+        message.success('Sync Satusehat berhasil')
+    } catch (error: any) {
+        console.error(error)
+        message.error(error.message || 'Gagal sync Satusehat')
+    } finally {
+        message.destroy()
+    }
+  }
+
   return (
     <div >
       <TableHeader
@@ -86,6 +98,11 @@ export default function RegistrationPage() {
               title: 'Aksi',
               width: 150,
               items: (record) => [
+                {
+label:'Sync Satusehat',
+icon:<SyncOutlined />,
+onClick:()=>handleSyncPatient(record.id)
+                },
                 {
                   label: 'Daftar',
                   icon: <PlusOutlined />,
