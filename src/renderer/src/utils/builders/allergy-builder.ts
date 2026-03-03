@@ -7,6 +7,7 @@ export interface AllergyBuilderOptions {
     encounterId: string
     note?: string
     diagnosisCodeId?: number
+    kfaCodeId?: number
     clinicalStatus?: 'active' | 'inactive' | 'resolved'
     verificationStatus?: 'unconfirmed' | 'confirmed' | 'refuted' | 'entered-in-error'
     criticality?: 'low' | 'high' | 'unable-to-assess'
@@ -19,6 +20,7 @@ export const createAllergy = (options: AllergyBuilderOptions): Record<string, un
     encounterId: options.encounterId,
     note: options.note,
     diagnosisCodeId: options.diagnosisCodeId,
+    kfaCodeId: options.kfaCodeId,
     clinicalStatus: options.clinicalStatus || 'active',
     verificationStatus: options.verificationStatus || 'confirmed',
     criticality: options.criticality,

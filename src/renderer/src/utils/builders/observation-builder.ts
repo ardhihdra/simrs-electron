@@ -52,7 +52,9 @@ export interface ObservationBuilderOptions {
     }>
     bodySite?: {
         coding?: Array<{ code: string; display: string; system: string }>
+        text?: string
     }
+    hasMember?: Array<{ reference: string }>
 }
 
 export const createObservation = (options: ObservationBuilderOptions): ObservationInput => {
@@ -98,6 +100,7 @@ export const createObservation = (options: ObservationBuilderOptions): Observati
     if (options.referenceRange && options.referenceRange.length > 0)
         obs.referenceRange = options.referenceRange
     if (options.bodySite !== undefined) obs.bodySite = options.bodySite
+    if (options.hasMember && options.hasMember.length > 0) obs.hasMember = options.hasMember
 
     return obs
 }

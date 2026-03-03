@@ -11,6 +11,7 @@ import { useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
 import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
+import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 
 const DoctorWorkspace = () => {
@@ -176,6 +177,8 @@ const DoctorWorkspace = () => {
 
         {encounterDetail?.result?.encounterType === EncounterType.IMP ? (
           <DoctorInpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
+        ) : encounterDetail?.result?.encounterType === EncounterType.EMER ? (
+          <DoctorEmergencyWorkspace encounterId={encounterId || ''} patientData={patientData} />
         ) : (
           <DoctorOutpatientWorkspace encounterId={encounterId || ''} patientData={patientData} />
         )}

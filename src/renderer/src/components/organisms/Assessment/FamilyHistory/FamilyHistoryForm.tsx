@@ -7,7 +7,7 @@ import {
   useFamilyHistoryByPatient
 } from '@renderer/hooks/query/use-family-history'
 import { createFamilyHistory as buildFamilyHistory } from '@renderer/utils/builders/family-history-builder'
-import { AssessmentHeader } from '../AssessmentHeader'
+import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useDiagnosisCodeList } from '@renderer/hooks/query/use-diagnosis-code'
 import { PatientData } from '@renderer/types/doctor.types'

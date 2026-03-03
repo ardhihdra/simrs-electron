@@ -2,8 +2,8 @@ import dayjs from 'dayjs'
 import {
     TOOTH_SNOMED_CODES,
     CONDITION_SNOMED_CODES
-} from '@renderer/components/organisms/Dental/dental-constants'
-import type { ToothDetail } from '@renderer/components/organisms/Dental/type'
+} from '@renderer/components/organisms/Assessment/Dental/dental-constants'
+import type { ToothDetail } from '@renderer/components/organisms/Assessment/Dental/type'
 
 interface ObservationFromDB {
     id?: string

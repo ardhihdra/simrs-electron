@@ -1,7 +1,7 @@
 import dayjs from 'dayjs'
 import type { ConditionData, FormattedAnamnesis } from './condition-formatter'
 import { formatAnamnesisFromConditions } from './condition-formatter'
-import { HEAD_TO_TOE_MAP } from '../../config/maps/observation-maps'
+import { HEAD_TO_TOE_MAP, PSYCHOLOGICAL_STATUS_SNOMED_MAP } from '../../config/maps/observation-maps'
 
 export interface ObservationData {
     id?: string | number
@@ -13,6 +13,9 @@ export interface ObservationData {
     valueQuantity?: { value: number; unit: string }
     valueString?: string
     valueBoolean?: boolean
+    valueCodeableConcept?: {
+        coding?: Array<{ code: string; display: string; system: string }>
+    }
     categories?: Array<{ code: string; display?: string; system?: string }>
     codeCoding?: Array<{ code: string; display?: string; system?: string }>
     performers?: Array<{ reference: string; display: string; type: string }>
@@ -224,7 +227,7 @@ export const formatFunctionalStatus = (
 })
 
 export interface FormattedPsychosocialHistory {
-    psychological_status?: string
+    psychological_status?: string[] | string
     family_relation_note?: string
     living_with_note?: string
     religion?: string
@@ -236,8 +239,26 @@ export const formatPsychosocialHistory = (
     observations: ObservationData[]
 ): FormattedPsychosocialHistory => {
     const sv = (code: string) => extractStringValue(getObservationByCode(observations, code))
+
+    let psychologicalStatusArray: string[] | undefined = undefined
+
+    const mentalStatusObs = getObservationByCode(observations, '8693-4')
+    if (mentalStatusObs?.valueCodeableConcept?.coding) {
+        psychologicalStatusArray = mentalStatusObs.valueCodeableConcept.coding
+            .map((coding) => {
+                const foundEntry = Object.entries(PSYCHOLOGICAL_STATUS_SNOMED_MAP).find(
+                    ([, value]) => value.code === coding.code
+                )
+                return foundEntry ? foundEntry[0] : coding.display || ''
+            })
+            .filter(Boolean) as string[]
+    }
+
     return {
-        psychological_status: sv('psychological-status'),
+        psychological_status:
+            psychologicalStatusArray && psychologicalStatusArray.length > 0
+                ? psychologicalStatusArray
+                : sv('psychological-status') || sv('8693-4'),
         family_relation_note: sv('family-relation-note'),
         living_with_note: sv('living-with-note'),
         religion: sv('patient-religion'),

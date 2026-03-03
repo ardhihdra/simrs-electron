@@ -7,16 +7,18 @@ import {
   FormOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
-  MedicineBoxOutlined
+  MedicineBoxOutlined,
+  AlertOutlined
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
 import { PatientQueue } from '@renderer/types/nurse.types'
 import { PatientStatus } from '@renderer/types/nurse.types'
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
-import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessmentForm'
-import { GeneralSOAPForm } from '@renderer/components/organisms/GeneralSOAPForm'
-import { VitalSignsMonitoringForm } from '@renderer/components/organisms/VitalSignsMonitoringForm'
-import { CPPTForm } from '@renderer/components/organisms/CPPTForm'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
+import { GeneralSOAPForm } from '@renderer/components/organisms/Assessment/GeneralSOAP/GeneralSOAPForm'
+import { VitalSignsMonitoringForm } from '@renderer/components/organisms/Assessment/VitalSignsMonitoring/VitalSignsMonitoringForm'
+import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
+import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
@@ -24,6 +26,7 @@ const MedicalRecordForm = () => {
   const { message } = App.useApp()
   const [loading, setLoading] = useState(false)
   const [patientData, setPatientData] = useState<PatientQueue | null>(null)
+  const [encounterType, setEncounterType] = useState<string>('')
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('initial-assessment')
   const {
@@ -77,6 +80,7 @@ const MedicalRecordForm = () => {
         }
 
         setPatientData(mappedData)
+        setEncounterType(enc.encounterType || '')
       } else {
         message.error('Data pasien tidak ditemukan')
         navigate('/dashboard/nurse-calling')
@@ -106,6 +110,8 @@ const MedicalRecordForm = () => {
             role="nurse"
           />
         )
+      case 'triage':
+        return <TriageForm encounterId={encounterId} patientData={patientData as any} />
       case 'monitoring-ttv':
         return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
       case 'general-soap':
@@ -189,6 +195,15 @@ const MedicalRecordForm = () => {
                   defaultSelectedKeys={['initial-assessment']}
                   style={{ borderRight: 0 }}
                   items={[
+                    ...(encounterType === 'EMER'
+                      ? [
+                          {
+                            key: 'triage',
+                            icon: <AlertOutlined style={{ color: '#ef4444' }} />,
+                            label: 'Data Triase'
+                          }
+                        ]
+                      : []),
                     {
                       key: 'initial-assessment',
                       icon: <SolutionOutlined />,

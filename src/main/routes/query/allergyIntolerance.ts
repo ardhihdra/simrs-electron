@@ -18,14 +18,20 @@ const AllergyIntoleranceSchema = z.object({
     recorder: z.number().optional().nullable(),
     recordedDate: z.string().optional().nullable(),
     diagnosisCodeId: z.number().optional().nullable(),
+    kfaCodeId: z.number().optional().nullable(),
     codeCoding: z.array(z.object({
         diagnosisCodeId: z.number().optional().nullable(),
+        kfaCodeId: z.number().optional().nullable(),
         diagnosisCode: z.object({
             code: z.string().optional().nullable(),
             display: z.string().optional().nullable(),
             system: z.string().optional().nullable(),
             name_id: z.string().optional().nullable(),
             name_en: z.string().optional().nullable()
+        }).optional().nullable(),
+        kfaCode: z.object({
+            code: z.number().optional().nullable(),
+            display: z.string().optional().nullable()
         }).optional().nullable()
     })).optional().nullable(),
     createdAt: z.string().optional().nullable(),
@@ -45,7 +51,8 @@ export const schemas = {
             category: z.enum(['food', 'medication', 'environment', 'biologic']).optional(),
             criticality: z.enum(['low', 'high', 'unable-to-assess']).optional(),
             note: z.string().optional(),
-            diagnosisCodeId: z.number().optional()
+            diagnosisCodeId: z.number().optional(),
+            kfaCodeId: z.number().optional()
         }),
         result: z.object({
             success: z.boolean(),
@@ -77,7 +84,8 @@ export const schemas = {
             note: z.string().optional(),
             recorder: z.number().optional(),
             recordedDate: z.string().optional(),
-            diagnosisCodeId: z.number().optional()
+            diagnosisCodeId: z.number().optional(),
+            kfaCodeId: z.number().optional()
         }),
         result: z.object({
             success: z.boolean(),

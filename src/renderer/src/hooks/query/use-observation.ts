@@ -24,7 +24,11 @@ export interface ObservationInput {
         valueString?: string
     }>
     referenceRange?: Array<{ low?: unknown; high?: unknown; text?: string }>
-    bodySite?: { coding?: Array<{ code: string; display: string; system: string }> }
+    bodySite?: {
+        coding?: Array<{ code: string; display: string; system: string }>
+        text?: string
+    }
+    hasMember?: Array<{ reference: string }>
 }
 
 interface BulkCreateObservationPayload {

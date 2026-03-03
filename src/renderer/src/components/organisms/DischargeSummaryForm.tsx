@@ -27,9 +27,9 @@ import bodyFront from '../../assets/images/body_front.png'
 import bodyBack from '../../assets/images/body_back.png'
 import bodyLeft from '../../assets/images/body_left.png'
 import bodyRight from '../../assets/images/body_right.png'
-import { BodyMappingLetter } from './BodyMappingLetter'
+import { BodyMappingLetter } from './Assessment/Bodymapping/BodyMappingLetter'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
-import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { AssessmentHeader } from './Assessment/AssesmentHeader/AssessmentHeader'
 import { Divider } from 'antd'
 import {
   useUpsertComposition,

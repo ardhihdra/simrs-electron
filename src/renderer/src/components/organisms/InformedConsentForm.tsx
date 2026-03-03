@@ -21,7 +21,7 @@ import { useReactToPrint } from 'react-to-print'
 import { InformedConsentLetter } from './InformedConsentLetter'
 import { SignaturePadModal } from '../molecules/SignaturePadModal'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
-import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { AssessmentHeader } from './Assessment/AssesmentHeader/AssessmentHeader'
 import { InfoCircleOutlined } from '@ant-design/icons'
 
 import { useCreateQuestionnaireResponse } from '@renderer/hooks/query/use-questionnaire-response'

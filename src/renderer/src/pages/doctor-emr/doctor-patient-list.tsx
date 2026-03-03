@@ -28,6 +28,7 @@ import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { getPolis } from '@renderer/services/nurse.service'
+import logoUrl from '@renderer/assets/logo.png'
 
 const { RangePicker } = DatePicker
 const { Option } = Select
@@ -112,7 +113,7 @@ const getSyncSummary = (syncStatus: SatuSehatSyncStatus | null | undefined) => {
   if (!syncStatus) return { totalResources: 0, totalSynced: 0, pct: 0 }
   const res = syncStatus.resources
   const keys = Object.keys(res) as (keyof typeof res)[]
-  let totalResources = 1 // encounter
+  let totalResources = 1
   let totalSynced = syncStatus.encounterSynced ? 1 : 0
   for (const k of keys) {
     if (res[k].total > 0) {
@@ -166,12 +167,10 @@ const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
               : 'Belum Dikirim'}
         </Tag>
       </div>
-
-      {/* Encounter error message */}
       {s?.encounterLog?.errorMessage && (
         <div className="mb-4 px-3 py-2 bg-red-50 border border-red-100 rounded-lg">
           <div className="text-[10px] font-bold text-red-400 uppercase mb-1">Error Kunjungan</div>
-          <div className="text-xs text-red-600 font-mono break-words">
+          <div className="text-xs text-red-600 font-mono wrap-break-word">
             {s.encounterLog.errorMessage}
           </div>
           {s.encounterLog.lastAttemptAt && (
@@ -182,11 +181,9 @@ const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
           )}
         </div>
       )}
-
       <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
         Rincian Resource Klinis
       </div>
-
       <div className="grid gap-2">
         {(Object.keys(resourceLabel) as (keyof typeof resourceLabel)[]).map((k) => {
           const r = (resources as any)[k] as ResourceSyncCount | undefined
@@ -643,8 +640,8 @@ const PatientList = () => {
 
         let syncLabel = 'Sync SatuSehat'
         let syncStyle: React.CSSProperties = {
-          background: '#f97316',
-          borderColor: '#f97316',
+          background: '#16a34a',
+          borderColor: '#16a34a',
           color: '#fff'
         }
 
@@ -656,13 +653,13 @@ const PatientList = () => {
 
         if (isSynced && hasPendingResync) {
           syncLabel = 'Kirim Pembaruan'
-          syncStyle = { borderColor: '#f97316', color: '#f97316' }
+          syncStyle = { borderColor: '#16a34a', color: '#16a34a' }
         } else if (isSynced && isFullyCompleted) {
           syncLabel = 'Sync Ulang'
           syncStyle = { borderColor: '#22c55e', color: '#22c55e' }
         } else if (isSynced && !isFullyCompleted) {
           syncLabel = 'Lengkapi Sync'
-          syncStyle = { borderColor: '#f59e0b', color: '#f59e0b' }
+          syncStyle = { borderColor: '#15803d', color: '#15803d' }
         }
 
         return (
@@ -683,7 +680,17 @@ const PatientList = () => {
             </Button>
             <Button
               ghost={isSynced}
-              icon={isSyncing ? <SyncOutlined spin /> : <CloudSyncOutlined />}
+              icon={
+                isSyncing ? (
+                  <SyncOutlined spin />
+                ) : (
+                  <img
+                    src={logoUrl}
+                    alt="Logo"
+                    className="w-[14px] h-[14px] object-contain relative -top-0.5 inline-block mr-1.5"
+                  />
+                )
+              }
               onClick={(e) => {
                 e.stopPropagation()
                 doSync(record)

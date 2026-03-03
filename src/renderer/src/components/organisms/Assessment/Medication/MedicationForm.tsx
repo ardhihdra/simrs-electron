@@ -10,7 +10,7 @@ import {
   CONDITION_CATEGORIES,
   createConditionBatch
 } from '@renderer/utils/builders/condition-builder'
-import { AssessmentHeader } from '../AssessmentHeader'
+import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { formatAnamnesisFromConditions } from '@renderer/utils/formatters/condition-formatter'
 import { PatientData } from '@renderer/types/doctor.types'
