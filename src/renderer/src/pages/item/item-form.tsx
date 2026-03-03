@@ -1,4 +1,4 @@
-import { Button, Form, Input, Select, message, InputNumber } from 'antd'
+import { Button, Form, Input, Select, InputNumber, App } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, Fragment, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -60,7 +60,7 @@ type ItemApi = {
 	  read: (args: { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
 	  create: (data: ItemFormValues) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
 	  update: (data: ItemFormValues & { id: number }) => Promise<{ success: boolean; result?: ItemFormValues & { id?: number }; message?: string; error?: string }>
-	  searchKfa: (args: { query: string }) => Promise<{ success: boolean; result?: KfaEntry[]; message?: string }>
+	  searchKfaMaster?: (args: { query: string }) => Promise<{ success: boolean; result?: KfaEntry[]; message?: string }>
 }
 
 interface UnitListEntry {
@@ -86,7 +86,9 @@ export function ItemForm() {
 	  const { id } = useParams()
 		  const [form] = Form.useForm<ItemFormValues>()
 	  const isEdit = Boolean(id)
-	  const [kfaOptions, setKfaOptions] = useState<{ label: string; value: string; nama: string }[]>([])
+  const { message, modal } = App.useApp()
+	  type KfaOption = { label: string; value: string; realKode: string; nama: string }
+	  const [kfaOptions, setKfaOptions] = useState<KfaOption[]>([])
 	  const [loadingKfa, setLoadingKfa] = useState(false)
 
 		  const api = window.api?.query?.item as ItemApi | undefined
@@ -194,10 +196,11 @@ export function ItemForm() {
       console.log('[ItemForm] create success', result)
       if (!result?.success) {
         const msg = result?.message ?? result?.error ?? 'Gagal menyimpan data'
-        message.error(msg)
+        modal.error({ title: 'Gagal', content: msg })
         return
       }
 
+      message.success('Item berhasil disimpan')
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
       navigate('/dashboard/medicine/items', { replace: true })
@@ -205,7 +208,7 @@ export function ItemForm() {
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
       console.error('[ItemForm] create error', msg)
-      message.error(msg || 'Gagal menyimpan data')
+      modal.error({ title: 'Gagal', content: msg || 'Gagal menyimpan data' })
     }
   })
 
@@ -221,10 +224,11 @@ export function ItemForm() {
       console.log('[ItemForm] update success', result)
       if (!result?.success) {
         const msg = result?.message ?? result?.error ?? 'Gagal mengupdate data'
-        message.error(msg)
+        modal.error({ title: 'Gagal', content: msg })
         return
       }
 
+      message.success('Item berhasil diperbarui')
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['item', 'detail', id] })
@@ -233,7 +237,7 @@ export function ItemForm() {
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
       console.error('[ItemForm] update error', msg)
-      message.error(msg || 'Gagal mengupdate data')
+      modal.error({ title: 'Gagal', content: msg || 'Gagal mengupdate data' })
     }
   })
 
@@ -272,7 +276,7 @@ export function ItemForm() {
 			  ? baseUnitFromRules
 			  : values.kodeUnit
 		  if (!baseUnitCode) {
-			  message.error('Minimal isi satu baris harga dengan satuan dan isi/pcs yang valid')
+      message.error('Minimal isi satu baris harga dengan satuan dan isi/pcs yang valid')
 			  return
 		  }
 	    const payload: ItemFormValues = {
@@ -318,9 +322,9 @@ export function ItemForm() {
           </Form.Item>
 
           <Form.Item
-            label="Integrasi SATUSEHAT (KFA)"
+            label="Kode KFA"
             name="kfaCode"
-            help="Cari nama obat untuk mendapatkan kode KFA SATUSEHAT"
+            help="Cari nama obat dari Master KFA"
           >
             <Select
               showSearch
@@ -332,12 +336,12 @@ export function ItemForm() {
                 if (val.length < 3) return
                 setLoadingKfa(true)
                 try {
-                  const res = await api?.searchKfa({ query: val })
+                  const res = await api?.searchKfaMaster?.({ query: val })
                   if (res?.success && res.result) {
                     const options = res.result.map((k, index) => ({
                       label: `${k.kode} - ${k.nama} (${k.kategori || 'N/A'})`,
                       value: `${k.kode}-${index}`, // Make value unique to avoid key warning
-                      realKode: k.kode, // Keep real kode
+                      realKode: k.kode,
                       nama: k.nama
                     }))
                     setKfaOptions(options)
@@ -346,25 +350,28 @@ export function ItemForm() {
                   }
                 } catch (err) {
                   console.error('[item-form] Gagal mencari KFA', err)
+                  message.error('Gagal mencari KFA')
                 } finally {
                   setLoadingKfa(false)
                 }
               }}
               options={kfaOptions}
               onChange={(val, option) => {
-                if (val && !Array.isArray(option) && 'realKode' in option) {
-                  const realValue = (option as any).realKode
+                if (val && !Array.isArray(option)) {
+                  const opt = option as KfaOption
+                  const realValue = opt.realKode
                   form.setFieldValue('kfaCode', realValue)
                   
                   // Otomatis isi nama item jika masih kosong
                   const currentNama = form.getFieldValue('nama')
                   if (!currentNama) {
-                    form.setFieldValue('nama', (option as any).nama)
+                    form.setFieldValue('nama', opt.nama)
                   }
                 }
               }}
             />
           </Form.Item>
+
 
           <Form.Item
 	            label="Kode Item"

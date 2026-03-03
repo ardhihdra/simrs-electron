@@ -1,50 +1,50 @@
-import { Button, Dropdown, Input, Table, Tag } from 'antd'
+import { Button, Dropdown, Input, Table, Tag, message } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
-import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EditOutlined, MoreOutlined, SyncOutlined, CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 type PatientNameEntry = {
-  text?: string
-  given?: string[]
-  family?: string
+	text?: string
+	given?: string[]
+	family?: string
 }
 
 type PatientIdentifier = {
-  system?: string
-  value?: string
+	system?: string
+	value?: string
 }
 
 interface GroupIdentifier {
-  system?: string
-  value?: string
+	system?: string
+	value?: string
 }
 
 interface CategoryEntry {
-  text?: string
-  code?: string
+	text?: string
+	code?: string
 }
 
 interface QuantityInfo {
-  value?: number
-  unit?: string
+	value?: number
+	unit?: string
 }
 
 interface DispenseRequestInfo {
-  quantity?: QuantityInfo
+	quantity?: QuantityInfo
 }
 
 interface DosageInstructionEntry {
-  text?: string
+	text?: string
 }
 
 interface PatientInfo {
-  name?: string | PatientNameEntry[]
-  identifier?: PatientIdentifier[]
-  mrNo?: string
+	name?: string | PatientNameEntry[]
+	identifier?: PatientIdentifier[]
+	mrNo?: string
 }
 
 interface MedicationRequestAttributes {
@@ -60,13 +60,14 @@ interface MedicationRequestAttributes {
 	medication?: { name?: string }
 	item?: { nama?: string; itemCategoryId?: number | null }
 	note?: string | null
-	encounter?: { id: string }
+	encounter?: { id: string; encounterType?: string }
 	requester?: { name: string }
 	groupIdentifier?: GroupIdentifier | null
 	category?: CategoryEntry[] | null
 	dosageInstruction?: DosageInstructionEntry[] | null
 	dispenseRequest?: DispenseRequestInfo | null
 	supportingInformation?: any[] | null
+	fhirId?: string | null
 }
 
 interface MedicationItemRow {
@@ -88,6 +89,11 @@ interface ParentRow {
 	priority?: string
 	authoredOn?: string
 	isPartial?: boolean
+	isOnProcess?: boolean
+	hasRemaining?: boolean
+	remainingTotal?: number
+	fhirId?: string | null
+	encounterType?: string
 	items: MedicationItemRow[]
 }
 
@@ -115,136 +121,178 @@ interface MedicationDispenseListResultForFilter {
 	error?: string
 }
 function getPatientDisplayName(patient?: PatientInfo): string {
-  if (!patient) return ''
+	if (!patient) return ''
 
-  if (typeof patient.name === 'string') {
-    const trimmed = patient.name.trim()
-    if (trimmed.length > 0) return trimmed
-  }
+	if (typeof patient.name === 'string') {
+		const trimmed = patient.name.trim()
+		if (trimmed.length > 0) return trimmed
+	}
 
-  const firstName: PatientNameEntry | undefined = Array.isArray(patient.name) && patient.name.length > 0
-    ? patient.name[0]
-    : undefined
+	const firstName: PatientNameEntry | undefined = Array.isArray(patient.name) && patient.name.length > 0
+		? patient.name[0]
+		: undefined
 
-  const nameFromText = firstName?.text?.trim() ?? ''
-  const nameFromGivenFamily = [firstName?.given?.[0], firstName?.family]
-    .filter((v) => typeof v === 'string' && v.trim().length > 0)
-    .join(' ')
-    .trim()
+	const nameFromText = firstName?.text?.trim() ?? ''
+	const nameFromGivenFamily = [firstName?.given?.[0], firstName?.family]
+		.filter((v) => typeof v === 'string' && v.trim().length > 0)
+		.join(' ')
+		.trim()
 
-  const baseName = nameFromText || nameFromGivenFamily
+	const baseName = nameFromText || nameFromGivenFamily
 
-  const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
-  const localMrn = identifiers.find((id) => id.system === 'local-mrn')
-  const mrn = patient.mrNo || localMrn?.value || ''
+	const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
+	const localMrn = identifiers.find((id) => id.system === 'local-mrn')
+	const mrn = patient.mrNo || localMrn?.value || ''
 
-  if (baseName && mrn) return `${baseName} (${mrn})`
-  if (baseName) return baseName
-  if (mrn) return mrn
-  return 'Tanpa nama'
+	if (baseName && mrn) return `${baseName} (${mrn})`
+	if (baseName) return baseName
+	if (mrn) return mrn
+	return 'Tanpa nama'
 }
 
 function isCompound(record: MedicationRequestAttributes): boolean {
-  const categories = record.category ?? []
-  return categories.some((category) => {
-    const code = category.code?.toLowerCase()
-    const text = category.text?.toLowerCase()
-    return code === 'compound' || text === 'racikan'
-  })
+	const categories = record.category ?? []
+	const byCategory = categories.some((category) => {
+		const code = category.code?.toLowerCase()
+		const text = category.text?.toLowerCase()
+		return code === 'compound' || text === 'racikan'
+	})
+	if (byCategory) return true
+	const infos = Array.isArray(record.supportingInformation) ? record.supportingInformation : []
+	return infos.some((info: any) => {
+		const type = info?.resourceType || info?.resource_type
+		return type === 'Ingredient'
+	})
 }
 
 function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
-  if (!Array.isArray(dosage) || dosage.length === 0) return ''
-  return dosage[0]?.text ?? ''
+	if (!Array.isArray(dosage) || dosage.length === 0) return ''
+	return dosage[0]?.text ?? ''
 }
 
 const columns = [
-  {
-    title: 'Pasien',
-    dataIndex: 'patient',
-    key: 'patient',
-    render: (val: PatientInfo | undefined) => {
-      const name = getPatientDisplayName(val)
-      return name || '-'
-    }
-  },
-  {
-    title: 'Status',
-    dataIndex: 'status',
-    key: 'status',
-			render: (val: string, record: ParentRow) => {
-				if (val === 'active') {
-					const numericQuantities: number[] = record.items
-						.map((item) => item.quantity)
-						.filter((q): q is number => typeof q === 'number')
-					const hasQuantity = numericQuantities.length > 0
-					const allZero = hasQuantity && numericQuantities.every((q) => q <= 0)
+	{
+		title: 'Pasien',
+		dataIndex: 'patient',
+		key: 'patient',
+		render: (val: PatientInfo | undefined) => {
+			const name = getPatientDisplayName(val)
+			return name || '-'
+		}
+	},
+	{
+		title: 'Asal',
+		dataIndex: 'encounterType',
+		key: 'encounterType',
+		render: (val: string) => {
+			if (val === 'AMB') return <Tag color="green">Rawat Jalan</Tag>
+			if (val === 'EMER') return <Tag color="red">IGD</Tag>
+			if (val === 'IMP') return <Tag color="blue">Rawat Inap</Tag>
+			return '-'
+		}
+	},
+	{
+		title: 'Status',
+		dataIndex: 'status',
+		key: 'status',
+		render: (val: string, record: ParentRow) => {
+			if (val === 'active') {
+				const numericQuantities: number[] = record.items
+					.map((item) => item.quantity)
+					.filter((q): q is number => typeof q === 'number')
+				const hasQuantity = numericQuantities.length > 0
+				const allZero = hasQuantity && numericQuantities.every((q) => q <= 0)
 
-					if (allZero) {
-						return <Tag color="blue">dispense</Tag>
-					}
-					if (record.isPartial) {
-						return <Tag color="gold">active (parsial)</Tag>
-					}
-					return <Tag color="green">active</Tag>
+				if (allZero) {
+					return <Tag color="blue">dispense</Tag>
 				}
-				return <Tag color="default">{val}</Tag>
+				if (record.isPartial) {
+					return <Tag color="gold">active (parsial)</Tag>
+				}
+				if (record.isOnProcess) {
+					return <Tag color="geekblue">on process</Tag>
+				}
+				return <Tag color="green">active</Tag>
 			}
-  },
-  {
-    title: 'Tujuan',
-    dataIndex: 'intent',
-    key: 'intent'
-  },
-  {
-    title: 'Prioritas',
-    dataIndex: 'priority',
-    key: 'priority',
-    render: (val: string) =>
-      val ? (
-        <Tag color={val === 'urgent' || val === 'stat' ? 'red' : 'blue'}>{val}</Tag>
-      ) : (
-        '-'
-      )
-  },
-  {
-    title: 'Tanggal',
-    dataIndex: 'authoredOn',
-    key: 'authoredOn',
-    render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
-  },
-  {
-    title: 'Aksi',
-    key: 'action',
-    width: 60,
-    align: 'center' as const,
-    render: (_: ParentRow, r: ParentRow) => <RowActions record={r} />
-  }
+			return <Tag color="default">{val}</Tag>
+		}
+	},
+	{
+		title: 'Tujuan',
+		dataIndex: 'intent',
+		key: 'intent'
+	},
+	{
+		title: 'Prioritas',
+		dataIndex: 'priority',
+		key: 'priority',
+		render: (val: string) =>
+			val ? (
+				<Tag color={val === 'urgent' || val === 'stat' ? 'red' : 'blue'}>{val}</Tag>
+			) : (
+				'-'
+			)
+	},
+	{
+		title: 'Sisa',
+		dataIndex: 'remainingTotal',
+		key: 'remainingTotal',
+		render: (val: number | undefined) => (typeof val === 'number' ? val : '-')
+	},
+	{
+		title: 'Tanggal',
+		dataIndex: 'authoredOn',
+		key: 'authoredOn',
+		render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
+	},
+	{
+		title: 'Satu Sehat',
+		dataIndex: 'fhirId',
+		key: 'fhirId',
+		width: 110,
+		render: (_: unknown, record: ParentRow) => {
+			const ok = typeof record.fhirId === 'string' && record.fhirId.trim().length > 0
+			return ok ? (
+				<Tag icon={<CheckCircleOutlined />} color="success">Tersinkron</Tag>
+			) : (
+				<Tag icon={<CloseCircleOutlined />} color="error">Belum</Tag>
+			)
+		}
+	},
+	{
+		title: 'Aksi',
+		key: 'action',
+		width: 60,
+		align: 'center' as const,
+		render: (_: ParentRow, r: ParentRow) => <RowActions record={r} />
+	}
 ]
 
 function RowActions({ record }: { record: ParentRow }) {
-  const navigate = useNavigate()
-  const deleteMutation = useMutation({
-    mutationKey: ['medicationRequest', 'delete'],
-    mutationFn: (id: number) => {
-      const fn = window.api?.query?.medicationRequest?.deleteById
-      if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
-      return fn({ id })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
-    }
-  })
-  const items: MenuProps['items'] = [
-    {
-      key: 'process-dispense',
-      label: 'Proses Pengambilan Obat',
-      onClick: () => {
-        if (typeof record.baseId === 'number') {
-          navigate(`/dashboard/medicine/medication-requests/dispense/${record.baseId}`)
-        }
-      }
-    },
+	const navigate = useNavigate()
+	const [syncingSatusehat, setSyncingSatusehat] = useState(false)
+	const deleteMutation = useMutation({
+		mutationKey: ['medicationRequest', 'delete'],
+		mutationFn: (id: number) => {
+			const fn = window.api?.query?.medicationRequest?.deleteById
+			if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
+			return fn({ id })
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
+		}
+	})
+	const items: MenuProps['items'] = [
+		{
+			key: 'process-dispense',
+			label: 'Proses Pengambilan Obat',
+			disabled: record.isOnProcess || !record.hasRemaining,
+			onClick: () => {
+				if (typeof record.baseId === 'number') {
+					navigate(`/dashboard/medicine/medication-requests/dispense/${record.baseId}`)
+				}
+			}
+		},
 		{
 			key: 'history',
 			label: 'Riwayat Dispense',
@@ -256,43 +304,74 @@ function RowActions({ record }: { record: ParentRow }) {
 				}
 			}
 		},
-    { type: 'divider' },
-    {
-      key: 'edit',
-      label: 'Edit',
-      icon: <EditOutlined />,
-      onClick: () =>
-        typeof record.baseId === 'number' &&
-        navigate(`/dashboard/medicine/medication-requests/edit/${record.baseId}`)
-    },
-    { type: 'divider' },
-    {
-      key: 'delete',
-      danger: true,
-      label: 'Delete',
-      icon: <DeleteOutlined />,
-      onClick: () =>
-        typeof record.baseId === 'number' && deleteMutation.mutate(record.baseId)
-    }
-  ]
-  return (
-    <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-      <button aria-label="Actions" className="p-1 rounded hover:bg-gray-100">
-        <MoreOutlined />
-      </button>
-    </Dropdown>
-  )
+		{ type: 'divider' },
+		{
+			key: 'sync-satusehat',
+			label: syncingSatusehat ? 'Sinkronisasi Satu Sehat...' : 'Sinkronisasi Satu Sehat',
+			icon: <SyncOutlined />,
+			disabled: syncingSatusehat || !!(typeof record.fhirId === 'string' && record.fhirId.trim().length > 0),
+			onClick: async () => {
+				if (typeof record.baseId !== 'number') return
+				const fn = (window.api?.query as { medicationRequest?: { syncSatusehat?: (args: { id: number }) => Promise<{ success?: boolean; message?: string; error?: string }> } }).medicationRequest?.syncSatusehat
+				if (!fn) {
+					message.error('API sinkronisasi tidak tersedia. Silakan refresh/restart aplikasi.')
+					return
+				}
+				setSyncingSatusehat(true)
+				try {
+					const res = await fn({ id: record.baseId })
+					if (res?.success) {
+						message.success(res.message || 'Sinkronisasi Satu Sehat berhasil')
+						queryClient.invalidateQueries({ queryKey: ['medicationRequest', 'list'] })
+					} else {
+						const errMsg = res?.error || res?.message || 'Sinkronisasi Satu Sehat gagal'
+						message.error(errMsg)
+					}
+				} catch {
+					message.error('Sinkronisasi Satu Sehat gagal')
+				} finally {
+					setSyncingSatusehat(false)
+				}
+			}
+		},
+		{ type: 'divider' },
+		{
+			key: 'edit',
+			label: 'Edit',
+			icon: <EditOutlined />,
+			onClick: () =>
+				typeof record.baseId === 'number' &&
+				navigate(`/dashboard/medicine/medication-requests/edit/${record.baseId}`)
+		},
+		{ type: 'divider' },
+		{
+			key: 'delete',
+			danger: true,
+			label: 'Delete',
+			icon: <DeleteOutlined />,
+			onClick: () =>
+				typeof record.baseId === 'number' && deleteMutation.mutate(record.baseId)
+		}
+	]
+	return (
+		<Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
+			<button aria-label="Actions" className="p-1 rounded hover:bg-gray-100">
+				<MoreOutlined />
+			</button>
+		</Dropdown>
+	)
 }
 
 export function MedicationRequestTable() {
-  const navigate = useNavigate()
-  const [search, setSearch] = useState('')
+	const navigate = useNavigate()
+	const [search, setSearch] = useState('')
+	const [showOnlyActive, setShowOnlyActive] = useState(false)
 	const { data, refetch, isError } = useQuery({
 		queryKey: ['medicationRequest', 'list'],
 		queryFn: async () => {
 			const fn = window.api?.query?.medicationRequest?.list
 			if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
-			return fn({})
+			return fn({ limit: 1000 })
 		}
 	})
 
@@ -395,12 +474,26 @@ export function MedicationRequestTable() {
 		return map
 	}, [dispenseListData?.data])
 
+	const hasInProgressByRequestId = useMemo(() => {
+		const source: MedicationDispenseForFilter[] = Array.isArray(dispenseListData?.data)
+			? dispenseListData.data
+			: []
+		const set = new Set<number>()
+		source.forEach((item) => {
+			if (typeof item.authorizingPrescriptionId !== 'number') return
+			if (item.status === 'in-progress' || item.status === 'preparation') {
+				set.add(item.authorizingPrescriptionId)
+			}
+		})
+		return set
+	}, [dispenseListData?.data])
+
 	const filtered = useMemo(() => {
 		const source: MedicationRequestAttributes[] = Array.isArray(data?.data)
 			? (data.data as MedicationRequestAttributes[])
 			: []
 
-		const baseFiltered = source.filter((request) => request.status === 'active')
+		const baseFiltered = showOnlyActive ? source.filter((request) => request.status === 'active') : source
 
 		const q = search.trim().toLowerCase()
 		if (!q) return baseFiltered
@@ -420,8 +513,8 @@ export function MedicationRequestTable() {
 		const groups = new Map<string, ParentRow>()
 
 		filtered.forEach((record) => {
-      const groupId = record.groupIdentifier?.value
-      const key = groupId && groupId.trim().length > 0 ? groupId : `single-${record.id ?? ''}`
+			const groupId = record.groupIdentifier?.value
+			const key = groupId && groupId.trim().length > 0 ? groupId : `single-${record.id ?? ''}`
 
 			const isItem = typeof record.itemId === 'number' && record.itemId > 0
 			const compound = isCompound(record)
@@ -508,9 +601,11 @@ export function MedicationRequestTable() {
 
 			const groupItems: MedicationItemRow[] = [item]
 
-      const existing = groups.get(key)
-      if (!existing) {
+			const existing = groups.get(key)
+			if (!existing) {
 				let isPartial = false
+				let isOnProcess = false
+				let remainingTotal = 0
 				if (typeof record.id === 'number') {
 					const summary = dispensedSummaryByRequestId.get(record.id)
 					const prescribed = record.dispenseRequest?.quantity?.value
@@ -518,47 +613,68 @@ export function MedicationRequestTable() {
 					if (typeof prescribed === 'number' && completed > 0 && completed < prescribed) {
 						isPartial = true
 					}
+					if (hasInProgressByRequestId.has(record.id)) {
+						isOnProcess = true
+					}
 				}
-        groups.set(key, {
-          key,
-          baseId: record.id,
-          patient: record.patient,
-          status: record.status,
-          intent: record.intent,
-          priority: record.priority,
+				if (typeof item.quantity === 'number') {
+					remainingTotal = item.quantity
+				}
+				groups.set(key, {
+					key,
+					baseId: record.id,
+					patient: record.patient,
+					status: record.status,
+					intent: record.intent,
+					priority: record.priority,
 					authoredOn: record.authoredOn,
 					isPartial,
-          items: groupItems
-        })
-      } else {
-        existing.items.push(...groupItems)
-      }
-    })
+					isOnProcess,
+					hasRemaining: remainingTotal > 0,
+					remainingTotal,
+					fhirId: typeof record.fhirId === 'string' && record.fhirId.trim().length > 0 ? record.fhirId.trim() : null,
+					encounterType: record.encounter?.encounterType,
+					items: groupItems
+				})
+			} else {
+				existing.items.push(...groupItems)
+				const addQ = typeof item.quantity === 'number' ? item.quantity : 0
+				const prevTotal = existing.remainingTotal ?? 0
+				const nextTotal = prevTotal + addQ
+				existing.remainingTotal = nextTotal
+				existing.hasRemaining = nextTotal > 0
+			}
+		})
 
-		return Array.from(groups.values())
-	}, [filtered, dispensedSummaryByRequestId, medicineMap, itemMap])
+		const result = Array.from(groups.values())
 
-	  return (
-    <div>
-      <h2 className="text-4xl font-bold mb-4 justify-center flex">Permintaan Obat (Resep)</h2>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <Input type="text" placeholder="Cari Pasien atau Obat" className="w-full md:max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <div className="flex gap-2 flex-wrap md:justify-end">
-          <Button onClick={() => refetch()}>Refresh</Button>
-          <Button type="primary" onClick={() => navigate('/dashboard/medicine/medication-requests/create')}>Tambah Permintaan</Button>
-        </div>
-      </div>
-      {isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
+		return result
+	}, [filtered, dispensedSummaryByRequestId, hasInProgressByRequestId, medicineMap, itemMap])
+
+	return (
+		<div>
+			<h2 className="text-4xl font-bold mb-4 justify-center flex">Permintaan Obat (Resep)</h2>
+			<div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+				<Input type="text" placeholder="Cari Pasien atau Obat" className="w-full md:max-w-sm" value={search} onChange={(e) => setSearch(e.target.value)} />
+				<div className="flex gap-2 flex-wrap md:justify-end">
+					<Button onClick={() => setShowOnlyActive((prev) => !prev)}>
+						{showOnlyActive ? 'Tampilkan Semua Status' : 'Hanya Status Active'}
+					</Button>
+					<Button onClick={() => refetch()}>Refresh</Button>
+					<Button type="primary" onClick={() => navigate('/dashboard/medicine/medication-requests/create')}>Tambah Permintaan</Button>
+				</div>
+			</div>
+			{isError || (!data?.success && <div className="text-red-500">{data?.error}</div>)}
 			<Table
-        dataSource={groupedData}
-        columns={columns}
-        size="small"
-        className="mt-4 rounded-xl shadow-sm"
-        rowKey="key"
-        scroll={{ x: 'max-content' }}
-					expandable={{
-						expandedRowRender: (record: ParentRow) => {
-							const detailColumns = [
+				dataSource={groupedData}
+				columns={columns}
+				size="small"
+				className="mt-4 rounded-xl shadow-sm"
+				rowKey="key"
+				scroll={{ x: 'max-content' }}
+				expandable={{
+					expandedRowRender: (record: ParentRow) => {
+						const detailColumns = [
 							{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
 							{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
 							{ title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
@@ -566,20 +682,20 @@ export function MedicationRequestTable() {
 							{ title: 'Kekuatan', dataIndex: 'instruksi', key: 'instruksi' }
 						]
 
-            return (
-              <Table
-                columns={detailColumns}
-                dataSource={record.items}
-                pagination={false}
-                size="small"
-                rowKey="key"
-              />
-            )
-          }
-        }}
-      />
-    </div>
-  )
+						return (
+							<Table
+								columns={detailColumns}
+								dataSource={record.items}
+								pagination={false}
+								size="small"
+								rowKey="key"
+							/>
+						)
+					}
+				}}
+			/>
+		</div>
+	)
 }
 
 export default MedicationRequestTable

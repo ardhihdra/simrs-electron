@@ -210,7 +210,7 @@ export const schemas = {
   }
 } as const
 
-export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.args>) => {
+export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
   try {
     const client = getClient(ctx)
 
@@ -358,7 +358,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
       }))
       : Result
 
-    return { success: true, result: transformedResult }
+    return transformedResult ? { success: true, result: transformedResult } : { success: false }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ENCOUNTER LIST] Error:', msg)

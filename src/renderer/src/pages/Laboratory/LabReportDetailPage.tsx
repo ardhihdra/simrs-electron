@@ -1,4 +1,4 @@
-import { ArrowLeftOutlined, FileImageOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, EyeOutlined, FileImageOutlined } from '@ant-design/icons'
 import { Button, Card, Descriptions, Empty, Spin, Table, Tag, Typography } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router'
@@ -26,9 +26,9 @@ interface ImagingStudyReport {
 export default function LabReportDetailPage() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const { data, isLoading } = client.laboratory.getReport.useQuery(id!, {
+  const { data, isLoading } = client.laboratoryManagement.getReport.useQuery({encounterId: id!}, {
     enabled: !!id,
-    queryKey: ['laboratory.getReport', id!]
+    queryKey: ['laboratoryManagement.getReport', {encounterId:id!}]
   })
 
   // The RPC returns encounter.toJSON()
@@ -117,18 +117,20 @@ export default function LabReportDetailPage() {
 
       <Title level={3}>Diagnostic Result Report</Title>
 
-      <Card title="Patient Information" className="mb-4">
-        <Descriptions column={2}>
-          <Descriptions.Item label="Patient Name">{encounter.patient?.name}</Descriptions.Item>
-          <Descriptions.Item label="Medical Record Number">{encounter.patient?.medicalRecordNumber}</Descriptions.Item>
-          <Descriptions.Item label="Encounter Date">
-            {dayjs(encounter.startTime).format('YYYY-MM-DD HH:mm')}
-          </Descriptions.Item>
-          <Descriptions.Item label="Status">
-            <Tag color="green">{encounter.status}</Tag>
-          </Descriptions.Item>
-        </Descriptions>
-      </Card>
+      <div className="mb-4">
+        <Card title="Patient Information" className="mb-4">
+          <Descriptions column={2}>
+            <Descriptions.Item label="Patient Name">{encounter.patient?.name}</Descriptions.Item>
+            <Descriptions.Item label="Medical Record Number">{encounter.patient?.medicalRecordNumber}</Descriptions.Item>
+            <Descriptions.Item label="Encounter Date">
+              {dayjs(encounter.startTime).format('YYYY-MM-DD HH:mm')}
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <Tag color="green">{encounter.status}</Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        </Card>
+      </div>
 
       {/* Lab Results Section */}
       {observations.length > 0 && (
@@ -167,7 +169,8 @@ export default function LabReportDetailPage() {
                 <Descriptions.Item label="Modality">{study.modalityCode}</Descriptions.Item>
                 <Descriptions.Item label="Study Date">{dayjs(study.started).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
                 <Descriptions.Item label="Study Instance UID" span={2}>
-                  <Text copyable code>{study.studyInstanceUID}</Text>
+                  <Text copyable code>{study.studyInstanceUID}</Text><Button 
+                  onClick={() => (client.window as any).create({url:`http://localhost:3000/viewer?StudyInstanceUIDs=${study.studyInstanceUID}`, title: study.modalityCode})} size='small' icon={<EyeOutlined />}></Button>
                 </Descriptions.Item>
               </Descriptions>
 

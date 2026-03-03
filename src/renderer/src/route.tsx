@@ -55,12 +55,14 @@ import ItemTable from './pages/item/item-table'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import ReportPage from './pages/pharmacy/ReportPage'
 import MedicationDispenseFromRequest from './pages/medication-dispense/medication-dispense-from-request'
-import MedicationDispenseReport from './pages/medication-dispense/medication-dispense-report'
+import MedicationDispenseReport from './pages/medication-dispense/component/medication-dispense-report'
 import MedicationDispenseTable from './pages/medication-dispense/medication-dispense-table'
 import MedicationRequestForm from './pages/medication-request/medication-request-form'
 import MedicationRequestTable from './pages/medication-request/medication-request-table'
 import MedicineCategoryForm from './pages/item-category/medicine-category-form'
 import MedicineCategoryTable from './pages/item-category/medicine-category-table'
+import KfaCodeForm from './pages/kfa-code/kfa-code-form'
+import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
 import QueueList from './pages/queue/queue-list'
 import ServiceRequest from './pages/service-request/ServiceRequest'
@@ -83,11 +85,13 @@ import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
 import PatientList from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
+import IframeView from './pages/IframeView'
 
 function MainRoute() {
   const location = useLocation()
   return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
+      <Route path="/iframe-view" element={<IframeView />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
@@ -181,6 +185,9 @@ function MainRoute() {
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
             <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
             <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
+            <Route path="kfa-codes" element={<KfaCodeTable />} />
+            <Route path="kfa-codes/create" element={<KfaCodeForm />} />
+            <Route path="kfa-codes/edit/:id" element={<KfaCodeForm />} />
             <Route path="medication-requests" element={<MedicationRequestTable />} />
             <Route path="medication-requests/create" element={<MedicationRequestForm />} />
             <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
@@ -195,7 +202,7 @@ function MainRoute() {
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
             <Route path="item-purchase" element={<ItemPurchasePage />} />
           </Route>
-            
+
           <Route path="nurse-calling" element={<NurseCalling />}>
             <Route index element={<PatientQueueTable />} />
             <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />

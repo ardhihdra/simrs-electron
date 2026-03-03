@@ -57,5 +57,5 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
   })
   
   const result = await parseBackendResponse(res, ListSchema)
-  return { success: true, result: result?.result ? { result: result.result, success: true } : { success: false } }
+  return result ? { success: true, result } : { success: false }
 }

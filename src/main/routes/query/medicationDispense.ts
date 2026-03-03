@@ -6,12 +6,12 @@ import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
 
 interface QuantityInfo {
-	value?: number
-	unit?: string
+  value?: number
+  unit?: string
 }
 
 interface DispenseRequestInfo {
-	quantity?: QuantityInfo
+  quantity?: QuantityInfo
 }
 
 export const requireSession = true
@@ -43,29 +43,293 @@ export const schemas = {
     args: MedicationDispenseWithIdSchema.partial().extend({ id: z.number() }),
     result: z.object({
       success: z.boolean(),
-      data: MedicationDispenseWithIdSchema.optional(),
+      data: z
+        .union([
+          MedicationDispenseWithIdSchema,
+          z.object({
+            id: z.number().optional(),
+            status: z.nativeEnum(MedicationDispenseStatus).optional()
+          })
+        ])
+        .optional(),
       error: z.string().optional(),
       message: z.string().optional()
     })
   },
   createFromRequest: {
-		args: z.object({
-			medicationRequestId: z.number(),
-			quantity: z
-				.object({
-					value: z.number().optional(),
-					unit: z.string().optional()
-				})
-				.optional()
-		}),
-		result: z.object({
-			 success: z.boolean(),
-			 data: MedicationDispenseWithIdSchema.optional(),
-			 error: z.string().optional(),
-			 message: z.string().optional()
-		})
+    args: z.object({
+      medicationRequestId: z.number(),
+      quantity: z
+        .object({
+          value: z.number().optional(),
+          unit: z.string().optional()
+        })
+        .optional()
+    }),
+    result: z.object({
+      success: z.boolean(),
+      data: z
+        .union([
+          MedicationDispenseWithIdSchema,
+          z.object({
+            id: z.number(),
+            status: z.nativeEnum(MedicationDispenseStatus).optional()
+          })
+        ])
+        .optional(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
+  },
+  syncSatusehat: {
+    args: z.object({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
   }
 } as const
+
+export const moduleSchemas = {
+  list: {
+    args: z
+      .object({
+        patientId: z.string().optional(),
+        page: z.number().optional(),
+        items: z.number().optional(),
+        authorizingPrescriptionId: z.string().optional(),
+        sortBy: z.union([z.string(), z.array(z.string())]).optional(),
+        sortOrder: z.string().optional()
+      })
+      .optional(),
+    result: z.object({
+      success: z.boolean(),
+      data: MedicationDispenseWithIdSchema.array().optional(),
+      pagination: z
+        .object({
+          page: z.number(),
+          limit: z.number(),
+          total: z.number(),
+          pages: z.number()
+        })
+        .optional(),
+      error: z.string().optional()
+    })
+  },
+  read: {
+    args: z.object({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      result: MedicationDispenseWithIdSchema.optional(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
+  },
+  update: {
+    args: MedicationDispenseWithIdSchema.partial().extend({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      result: z
+        .object({
+          id: z.number().optional(),
+          status: z.nativeEnum(MedicationDispenseStatus).optional()
+        })
+        .optional(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
+  },
+  create: {
+    args: z.object({
+      patientId: z.string(),
+      itemId: z.number().nullable().optional(),
+      status: z.nativeEnum(MedicationDispenseStatus),
+      authorizingPrescriptionId: z.number().nullable().optional(),
+      encounterId: z.string().nullable().optional(),
+      quantity: z
+        .object({
+          value: z.number().optional(),
+          unit: z.string().optional()
+        })
+        .nullable()
+        .optional(),
+      whenPrepared: z.string().or(z.date()).nullable().optional(),
+      whenHandedOver: z.string().or(z.date()).nullable().optional(),
+      dosageInstruction: z
+        .array(
+          z.object({
+            text: z.string().optional()
+          }).passthrough()
+        )
+        .nullable()
+        .optional(),
+      category: z.array(
+        z.object({
+          text: z.string().optional(),
+          code: z.string().optional()
+        }).passthrough()
+      ).nullable().optional(),
+      note: z.string().nullable().optional(),
+      performerId: z.number().nullable().optional()
+    }),
+    result: z.object({
+      success: z.boolean(),
+      result: z
+        .object({
+          id: z.number(),
+          status: z.nativeEnum(MedicationDispenseStatus)
+        })
+        .optional(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
+  }
+} as const
+
+const FhirReferenceSchema = z.object({
+  reference: z.string().optional()
+})
+
+const FhirMedicationDispenseSchema = z.object({
+  id: z.number().optional(),
+  fhirId: z.string().nullable().optional(),
+  resourceType: z.string().optional(),
+  status: z.string(),
+  subject: FhirReferenceSchema.optional(),
+  context: FhirReferenceSchema.optional(),
+  authorizingPrescription: z.union([
+    z.array(FhirReferenceSchema),
+    z.any() // Mentoleransi object dari Sequelize include
+  ]).optional(),
+  quantity: z
+    .object({
+      value: z.number().optional(),
+      unit: z.string().optional()
+    })
+    .optional(),
+  whenPrepared: z.string().nullable().optional(),
+  whenHandedOver: z.string().nullable().optional(),
+  performer: z.union([
+    z.array(
+      z.object({
+        actor: FhirReferenceSchema.optional()
+      })
+    ),
+    z.any() // Mentoleransi object dari Sequelize include
+  ]).optional(),
+  medicationReference: FhirReferenceSchema.optional(),
+  medicationCodeableConcept: z
+    .object({
+      text: z.string().optional()
+    })
+    .optional(),
+  encounter: z.any().optional()
+})
+
+const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
+  const getIdFromRef = (ref?: string, prefix?: string): string | undefined => {
+    if (!ref || !prefix) return undefined
+    const idx = ref.indexOf(`${prefix}/`)
+    if (idx === -1) return undefined
+    return ref.slice(idx + prefix.length + 1)
+  }
+  const patientId = getIdFromRef(fhir.subject?.reference, 'Patient')
+  const encounterId = getIdFromRef(fhir.context?.reference, 'Encounter')
+  const authRef = Array.isArray(fhir.authorizingPrescription) && fhir.authorizingPrescription[0]?.reference
+    ? fhir.authorizingPrescription[0]?.reference
+    : undefined
+  const authorizingPrescriptionIdStr = getIdFromRef(authRef, 'MedicationRequest')
+
+  let authorizingPrescriptionId: number | undefined = undefined
+  let authorizingPrescriptionObj: z.infer<typeof MedicationRequestWithIdSchema> | undefined = undefined
+
+  if (authorizingPrescriptionIdStr && /^\d+$/.test(authorizingPrescriptionIdStr)) {
+    authorizingPrescriptionId = Number(authorizingPrescriptionIdStr)
+  } else if (fhir.authorizingPrescription && typeof fhir.authorizingPrescription === 'object' && 'id' in fhir.authorizingPrescription) {
+    authorizingPrescriptionId = fhir.authorizingPrescription.id as number
+    authorizingPrescriptionObj = fhir.authorizingPrescription
+  }
+
+  const itemRefIdStr = getIdFromRef(fhir.medicationReference?.reference, 'Medication')
+  const itemId =
+    itemRefIdStr && /^\d+$/.test(itemRefIdStr) ? Number(itemRefIdStr) : undefined
+
+  // Tangkap fields tambahan yang dikirim backend (fhirId, dosageInstruction, dsb)
+  const rawFhir = fhir as Record<string, any>
+
+  const ui: z.infer<typeof MedicationDispenseWithIdSchema> = {
+    id: typeof fhir.id === 'number' ? fhir.id : 0,
+    fhirId: typeof rawFhir.fhirId === 'string' ? rawFhir.fhirId : null,
+    status: fhir.status as unknown as z.infer<typeof MedicationDispenseWithIdSchema>['status'],
+    itemId: typeof rawFhir.itemId === 'number' ? rawFhir.itemId : (typeof itemId === 'number' ? itemId : null),
+    patientId: (patientId ?? rawFhir.patientId ?? '') as string,
+    encounterId: (encounterId ?? rawFhir.encounterId ?? null) as string | null,
+    authorizingPrescriptionId:
+      typeof authorizingPrescriptionId === 'number' ? authorizingPrescriptionId : null,
+    quantity: fhir.quantity ?? null,
+    whenPrepared: fhir.whenPrepared ?? null,
+    whenHandedOver: fhir.whenHandedOver ?? null,
+    performerId: typeof rawFhir.performerId === 'number' ? rawFhir.performerId : null,
+    dosageInstruction: rawFhir.dosageInstruction ?? null,
+    createdAt: undefined,
+    updatedAt: undefined,
+    patient: undefined,
+    performer: rawFhir.performer ?? undefined,
+    medication: rawFhir.medication ?? undefined,
+    authorizingPrescription: authorizingPrescriptionObj ?? null,
+    encounter: rawFhir.encounter ?? undefined
+  }
+  return ui
+}
+
+const ModuleListCompatSchema: z.ZodSchema<{
+  success: boolean
+  result?: z.infer<typeof MedicationDispenseWithIdSchema>[]
+  error?: string
+  message?: string
+  pagination?: {
+    page: number
+    limit: number
+    total: number
+    pages: number
+  }
+}> = z
+  .object({
+    success: z.boolean(),
+    result: FhirMedicationDispenseSchema.array().optional(),
+    data: FhirMedicationDispenseSchema.array().optional(),
+    pagination: z
+      .object({
+        page: z.number(),
+        limit: z.number(),
+        pages: z.number(),
+        count: z.number().optional(),
+        total: z.number().optional()
+      })
+      .optional(),
+    message: z.string().optional(),
+    error: z.string().optional()
+  })
+  .transform((val) => ({
+    success: val.success,
+    result: (val.result ?? val.data)?.map(toUiDispense),
+    pagination: val.pagination
+      ? {
+        page: val.pagination.page,
+        limit: val.pagination.limit,
+        pages: val.pagination.pages,
+        total:
+          typeof val.pagination.total === 'number'
+            ? val.pagination.total
+            : typeof val.pagination.count === 'number'
+              ? val.pagination.count
+              : 0
+      }
+      : undefined,
+    message: val.message,
+    error: val.error
+  }))
 
 
 type ListArgs = z.infer<typeof schemas.list.args>
@@ -77,21 +341,189 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
 
     if (args?.patientId) params.append('patientId', args.patientId)
     if (args?.page) params.append('page', String(args.page))
-    if (args?.limit) params.append('limit', String(args.limit))
+    if (args?.limit) params.append('items', String(args.limit))
 
     const queryString = params.toString()
-    const url = queryString.length > 0 ? `/api/medicationdispense?${queryString}` : '/api/medicationdispense'
-
-    console.log('MedicationDispense IPC list called with args and url:', {
-      args,
-      url
-    })
+    const url =
+      queryString.length > 0
+        ? `/api/module/medication-dispense/medication-dispenses?${queryString}`
+        : '/api/module/medication-dispense/medication-dispenses'
 
     const res = await client.get(url)
-    const ListSchema = BackendListSchema(MedicationDispenseWithIdSchema)
-    const result = await parseBackendResponse(res, ListSchema)
+    const ListSchema = ModuleListCompatSchema
+    const base = (await parseBackendResponse(res, ListSchema)) ?? []
 
-    console.log('MedicationDispense IPC list backend result length:', Array.isArray(result) ? result.length : null)
+    // Enrichment: fetch patient and prescription details to support UI needs (racikan & patient label)
+    const uniquePatientIds = Array.from(
+      new Set(
+        base
+          .map((i) => i.patientId)
+          .filter((pid): pid is string => typeof pid === 'string' && pid.trim().length > 0)
+      )
+    )
+    const uniquePrescriptionIds = Array.from(
+      new Set(
+        base
+          .map((i) => i.authorizingPrescriptionId)
+          .filter((rid): rid is number => typeof rid === 'number' && Number.isFinite(rid))
+      )
+    )
+    const uniqueItemIds = Array.from(
+      new Set(
+        base
+          .map((i) => i.itemId)
+          .filter((iid): iid is number => typeof iid === 'number' && Number.isFinite(iid))
+      )
+    )
+
+    const PatientReadSchema = z.object({
+      success: z.boolean(),
+      result: z
+        .object({
+          id: z.union([z.string(), z.number()]).optional(),
+          kode: z.string().optional(),
+          name: z.union([
+            z.string(),
+            z.array(
+              z.object({
+                text: z.string().optional(),
+                given: z.array(z.string()).optional(),
+                family: z.string().optional()
+              })
+            )
+          ]).optional(),
+          identifier: z
+            .union([
+              z.string(),
+              z.array(
+                z.object({
+                  system: z.string().optional(),
+                  value: z.string().optional()
+                })
+              )
+            ])
+            .optional()
+        })
+        .optional(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
+
+    const PrescriptionReadSchema = z.object({
+      success: z.boolean(),
+      result: MedicationRequestWithIdSchema.optional(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
+
+    const [patientMap, prescriptionMap] = await Promise.all([
+      (async () => {
+        const map = new Map<string, z.infer<typeof MedicationDispenseWithIdSchema>['patient']>()
+        await Promise.all(
+          uniquePatientIds.map(async (pid) => {
+            try {
+              const r = await client.get(`/api/patient/read/${pid}`)
+              const p = await parseBackendResponse(r, PatientReadSchema)
+              if (p) {
+                const name =
+                  typeof p.name === 'string' || Array.isArray(p.name) ? p.name : undefined
+                const identifiers =
+                  typeof p.identifier === 'string'
+                    ? [{ system: 'local-mrn', value: p.identifier }]
+                    : Array.isArray(p.identifier)
+                      ? p.identifier
+                      : undefined
+                map.set(pid, {
+                  name,
+                  identifier: identifiers,
+                  mrNo: p.kode
+                })
+              }
+            } catch {
+              // ignore enrichment errors per patient
+            }
+          })
+        )
+        return map
+      })(),
+      (async () => {
+        const map = new Map<number, z.infer<typeof MedicationRequestWithIdSchema>>()
+        await Promise.all(
+          uniquePrescriptionIds.map(async (rid) => {
+            try {
+              const r = await client.get(
+                `/api/module/medication-request/medication-requests/${rid}`
+              )
+              const pr = await parseBackendResponse(r, PrescriptionReadSchema)
+              if (pr) {
+                map.set(rid, pr)
+              }
+            } catch {
+              // ignore enrichment errors per prescription
+            }
+          })
+        )
+        return map
+      })()
+    ])
+
+    const ItemDomainSchema = z.object({
+      id: z.number(),
+      nama: z.string().optional(),
+      itemCategoryId: z.number().nullable().optional(),
+      category: z
+        .object({
+          id: z.number().optional(),
+          name: z.string().nullable().optional()
+        })
+        .nullable()
+        .optional()
+    })
+    const ItemReadSchema = z.object({
+      success: z.boolean(),
+      result: z
+        .object({
+          item: ItemDomainSchema.optional()
+        })
+        .optional(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
+
+    const itemMap = new Map<number, z.infer<typeof ItemDomainSchema>>()
+    await Promise.all(
+      uniqueItemIds.map(async (iid) => {
+        try {
+          const r = await client.get(`/api/module/item/items/${iid}`)
+          const data = await parseBackendResponse(r, ItemReadSchema)
+          const itemDetail = data?.item
+          if (itemDetail) {
+            itemMap.set(iid, itemDetail)
+          }
+        } catch {
+          // ignore item enrichment errors
+        }
+      })
+    )
+
+    const result = base.map((item) => {
+      const enrichedPatient =
+        typeof item.patientId === 'string' ? patientMap.get(item.patientId) : undefined
+      const enrichedRx =
+        typeof item.authorizingPrescriptionId === 'number'
+          ? prescriptionMap.get(item.authorizingPrescriptionId)
+          : undefined
+      const itemDetail =
+        typeof item.itemId === 'number' ? itemMap.get(item.itemId) : undefined
+      const mergedRx =
+        enrichedRx && !enrichedRx.item && itemDetail
+          ? { ...enrichedRx, item: itemDetail }
+          : enrichedRx
+      return Object.assign({}, item, {
+        patient: enrichedPatient ?? item.patient,
+        authorizingPrescription: mergedRx ?? item.authorizingPrescription
+      })
+    })
 
     return { success: true, data: result }
   } catch (err) {
@@ -108,12 +540,11 @@ export const update = async (
   try {
     const client = getClient(ctx)
     const { id, ...data } = args
-    const res = await client.put(`/api/medicationdispense/${id}`, data)
-    const UpdateSchema = z.object({
-      success: z.boolean(),
-      result: MedicationDispenseWithIdSchema.optional(),
-      error: z.string().optional()
-    })
+    const res = await client.put(
+      `/api/module/medication-dispense/medication-dispenses/${id}`,
+      data
+    )
+    const UpdateSchema = moduleSchemas.update.result
     const result = await parseBackendResponse(res, UpdateSchema)
     return { success: true, data: result }
   } catch (err) {
@@ -129,7 +560,7 @@ export const createFromRequest = async (
   try {
     const client = getClient(ctx)
 
-    const requestRes = await client.get(`/api/medicationrequest/read/${args.medicationRequestId}`)
+    const requestRes = await client.get(`/api/module/medication-request/medication-requests/${args.medicationRequestId}`)
     const ReadSchema = z.object({
       success: z.boolean(),
       result: MedicationRequestWithIdSchema.optional(),
@@ -182,42 +613,59 @@ export const createFromRequest = async (
         throw new Error('Qty Diambil harus lebih dari 0')
       }
 
+      const encounterId =
+        typeof request.encounterId === 'string' ? request.encounterId : null
+
       const payload = {
-        medicationRequestId: request.id,
+        patientId: request.patientId,
+        authorizingPrescriptionId: request.id as number,
+        status: MedicationDispenseStatus.IN_PROGRESS,
         quantity: {
-          value: value,
+          value,
           unit: quantity?.unit
-        }
+        },
+        encounterId,
+        dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
+        category: Array.isArray(request.category) ? request.category : null,
+        // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
+        note: typeof request.note === 'string' && request.note.trim().length > 0
+          ? [{ text: request.note.trim() }]
+          : null
       }
 
-      // Call the specialized endpoint for dispensing from request (handles stock deduction for compounds)
-      const createRes = await client.post('/api/inventorystock/dispense-from-medication-request', payload)
-      
-      // The backend returns { success: true, result: { id, status } }
-      // We need to map this to the expected return format or just return success
-      const ResponseSchema = z.object({
-        success: z.boolean(),
-        result: z.object({
-          id: z.number(),
-          status: z.string()
-        }).optional(),
-        message: z.string().optional(),
-        error: z.string().optional()
-      })
-      
-      await parseBackendResponse(createRes, ResponseSchema)
-      
-      // Since the backend creates a MedicationDispense internally, we might not get the full object back
-          // But the UI expects success.
-          return {
-             success: true,
-             data: {
-                id: 0,
-                status: MedicationDispenseStatus.COMPLETED,
-                patientId: request.patientId
-             } as any
+      const createRes = await client.post(
+        '/api/module/medication-dispense/medication-dispenses',
+        payload
+      )
+      const CreateSchema = moduleSchemas.create.result
+      const created = await parseBackendResponse(createRes, CreateSchema)
+      try {
+        const createdId = typeof created?.id === 'number' ? created.id : 0
+        if (createdId > 0) {
+          const syncRes = await client.post(
+            `/api/module/medication-dispense/medication-dispenses/${createdId}/sync-satusehat`,
+            {}
+          )
+          if (!syncRes.ok) {
+            let detail = ''
+            try {
+              const ct = syncRes.headers.get('content-type') ?? ''
+              if (ct.includes('application/json')) {
+                const json = (await syncRes.json()) as { message?: string }
+                detail = typeof json.message === 'string' ? json.message : ''
+              } else {
+                detail = await syncRes.text()
+              }
+            } catch { }
+            console.warn('[medication-dispense.sync] failed', createdId, syncRes.status, detail)
           }
         }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        console.error('[medication-dispense.sync] exception', msg)
+      }
+      return { success: true, data: created }
+    }
 
 
 
@@ -229,38 +677,180 @@ export const createFromRequest = async (
 
       const unit = quantity?.unit
 
-      const payload: {
-        itemId: number
-        patientId: string
-        authorizingPrescriptionId: number
-        status: MedicationDispenseStatus
-        quantity: QuantityInfo
-      } = {
+      const encounterId =
+        typeof request.encounterId === 'string' ? request.encounterId : null
+
+      const payload = {
         itemId: request.itemId as number,
         patientId: request.patientId,
         authorizingPrescriptionId: request.id,
-        status: MedicationDispenseStatus.PREPARATION,
+        status: MedicationDispenseStatus.IN_PROGRESS,
         quantity: {
           value,
           unit
-        }
+        },
+        encounterId,
+        dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
+        category: Array.isArray(request.category) ? request.category : null,
+        // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
+        note: typeof request.note === 'string' && request.note.trim().length > 0
+          ? [{ text: request.note.trim() }]
+          : null
       }
 
-      const createRes = await client.post('/api/medicationdispense', payload)
-      const CreateSchema = z.object({
-        success: z.boolean(),
-        result: MedicationDispenseWithIdSchema.optional(),
-        error: z.string().optional(),
-        message: z.string().optional()
-      })
+      const createRes = await client.post(
+        '/api/module/medication-dispense/medication-dispenses',
+        payload
+      )
+      const CreateSchema = moduleSchemas.create.result
       const created = await parseBackendResponse(createRes, CreateSchema)
-
+      try {
+        const createdId = typeof created?.id === 'number' ? created.id : 0
+        if (createdId > 0) {
+          const syncRes = await client.post(
+            `/api/module/medication-dispense/medication-dispenses/${createdId}/sync-satusehat`,
+            {}
+          )
+          if (!syncRes.ok) {
+            let detail = ''
+            try {
+              const ct = syncRes.headers.get('content-type') ?? ''
+              if (ct.includes('application/json')) {
+                const json = (await syncRes.json()) as { message?: string }
+                detail = typeof json.message === 'string' ? json.message : ''
+              } else {
+                detail = await syncRes.text()
+              }
+            } catch { }
+            console.warn('[medication-dispense.sync] failed', createdId, syncRes.status, detail)
+          }
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e)
+        console.error('[medication-dispense.sync] exception', msg)
+      }
       return { success: true, data: created }
     }
-
     throw new Error(
       'MedicationRequest ini tidak berisi obat atau item yang dapat diproses untuk dispense.'
     )
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const listModule = async (
+  ctx: IpcContext,
+  args?: z.infer<typeof moduleSchemas.list.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const params = new URLSearchParams()
+    if (args?.patientId) params.append('patientId', args.patientId)
+    if (args?.authorizingPrescriptionId)
+      params.append('authorizingPrescriptionId', args.authorizingPrescriptionId)
+    if (args?.page) params.append('page', String(args.page))
+    if (args?.items) params.append('items', String(args.items))
+    if (typeof args?.sortBy === 'string') params.append('sortBy', args.sortBy)
+    if (Array.isArray(args?.sortBy)) params.append('sortBy', args!.sortBy.join(','))
+    if (args?.sortOrder) params.append('sortOrder', args.sortOrder)
+    const queryString = params.toString()
+    const url =
+      queryString.length > 0
+        ? `/api/module/medication-dispense/medication-dispenses?${queryString}`
+        : `/api/module/medication-dispense/medication-dispenses`
+    const res = await client.get(url)
+    const ListSchema = BackendListSchema(MedicationDispenseWithIdSchema)
+    const result = await parseBackendResponse(res, ListSchema)
+    return { success: true, data: result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const readModule = async (
+  ctx: IpcContext,
+  args: z.infer<typeof moduleSchemas.read.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.get(
+      `/api/module/medication-dispense/medication-dispenses/${args.id}`
+    )
+    const ReadSchema = moduleSchemas.read.result
+    const result = await parseBackendResponse(res, ReadSchema)
+    return { success: true, data: result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const updateModule = async (
+  ctx: IpcContext,
+  args: z.infer<typeof moduleSchemas.update.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const { id, ...data } = args
+    const res = await client.put(
+      `/api/module/medication-dispense/medication-dispenses/${id}`,
+      data
+    )
+    const UpdateSchema = moduleSchemas.update.result
+    const result = await parseBackendResponse(res, UpdateSchema)
+    return { success: true, data: result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const createModule = async (
+  ctx: IpcContext,
+  args: z.infer<typeof moduleSchemas.create.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.post(
+      `/api/module/medication-dispense/medication-dispenses`,
+      args
+    )
+    const CreateSchema = moduleSchemas.create.result
+    const result = await parseBackendResponse(res, CreateSchema)
+    return { success: true, data: result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const syncSatusehat = async (
+  ctx: IpcContext,
+  args: z.infer<typeof schemas.syncSatusehat.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    const syncRes = await client.post(
+      `/api/module/medication-dispense/medication-dispenses/${args.id}/sync-satusehat`,
+      {}
+    )
+    if (!syncRes.ok) {
+      let detail = ''
+      try {
+        const ct = syncRes.headers.get('content-type') ?? ''
+        if (ct.includes('application/json')) {
+          const json = (await syncRes.json()) as { message?: string }
+          detail = typeof json.message === 'string' ? json.message : ''
+        } else {
+          detail = await syncRes.text()
+        }
+      } catch { }
+      return { success: false, error: detail || `Gagal sinkron SatuSehat (${syncRes.status})` }
+    }
+    return { success: true }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

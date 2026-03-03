@@ -1,25 +1,33 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { createBackendClient, parseBackendResponse, BackendListSchema } from '@main/utils/backendClient'
-import { ItemSchema, ItemWithIdSchema } from '@main/models/item'
+import { ItemSchema, ItemKindSchema } from '@main/models/item'
 
 export const requireSession = true
 
 export const schemas = {
   list: {
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.array().optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
+  },
+  syncSatusehat: {
+    args: z.object({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
   },
   read: {
     args: z.object({ id: z.number() }),
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
   create: {
     args: ItemSchema.partial(),
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
   update: {
     args: ItemSchema.extend({ id: z.number() }),
-    result: z.object({ success: z.boolean(), result: ItemWithIdSchema.optional(), message: z.string().optional() })
+    result: z.object({ success: z.boolean(), result: z.any().optional(), message: z.string().optional() })
   },
   deleteById: {
     args: z.object({ id: z.number() }),
@@ -27,117 +35,199 @@ export const schemas = {
   },
   searchKfa: {
     args: z.object({ query: z.string() }),
-    result: z.object({ 
-      success: z.boolean(), 
+    result: z.object({
+      success: z.boolean(),
       result: z.array(z.object({
         kode: z.string(),
         nama: z.string(),
         kategori: z.string().optional()
       })).optional(),
-      message: z.string().optional() 
+      message: z.string().optional()
     })
-  }
+  },
+  searchKfaMaster: {
+    args: z.object({ query: z.string() }),
+    result: z.object({
+      success: z.boolean(),
+      result: z.array(z.object({
+        kode: z.string(),
+        nama: z.string(),
+        kategori: z.string().optional()
+      })).optional(),
+      message: z.string().optional()
+    })
+  },
+
 } as const
 
-const BackendDetailSchema: z.ZodSchema<{
-	success: boolean
-	result?: z.infer<typeof ItemWithIdSchema> | null
-	message?: string
-	error?: string
-}> = z.object({
-	success: z.boolean(),
-	result: ItemWithIdSchema.nullable().optional(),
-	message: z.string().optional(),
-	error: z.any().optional()
+const DomainItemSchema = z.object({
+  id: z.number(),
+  kodeUnit: z.string(),
+  nama: z.string(),
+  kode: z.string(),
+  kind: ItemKindSchema.nullable().optional(),
+  minimumStock: z.number().nullable().optional(),
+  stock: z.number().nullable().optional(),
+  itemCategoryId: z.number().nullable().optional(),
+  buyingPrice: z.number().nullable().optional(),
+  sellingPrice: z.number().nullable().optional(),
+  kfaCode: z.string().nullable().optional(),
+  snomedCode: z.string().nullable().optional(),
+  buyPriceRules: z
+    .object({ unitCode: z.string(), qty: z.number().positive(), price: z.number().nonnegative() })
+    .array()
+    .nullable()
+    .optional(),
+  sellPriceRules: z
+    .object({ unitCode: z.string(), qty: z.number().positive(), price: z.number().nonnegative() })
+    .array()
+    .nullable()
+    .optional(),
+  fhirId: z.string().nullable().optional(),
+  createdBy: z.string().nullable().optional(),
+  updatedBy: z.string().nullable().optional(),
+  createdAt: z.union([z.date(), z.string()]).nullable().optional(),
+  updatedAt: z.union([z.date(), z.string()]).nullable().optional(),
+  deletedAt: z.union([z.date(), z.string()]).nullable().optional(),
+  deletedBy: z.union([z.date(), z.string()]).nullable().optional()
+})
+
+const BackendCreateUpdateSchema = z.object({
+  success: z.boolean(),
+  result: z
+    .object({
+      id: z.number(),
+      kode: z.string(),
+      nama: z.string(),
+      kfaCode: z.string().nullable().optional()
+    })
+    .nullable()
+    .optional(),
+  message: z.string().optional(),
+  error: z.string().optional()
+})
+
+const BackendGetDetailSchema = z.object({
+  success: z.boolean(),
+  result: z
+    .object({
+      item: DomainItemSchema.optional()
+    })
+    .nullable()
+    .optional(),
+  message: z.string().optional(),
+  error: z.string().optional()
 })
 
 export const list = async (ctx: IpcContext) => {
   const client = createBackendClient(ctx)
-  const res = await client.get('/api/item?items=100&depth=1')
-  const result = await parseBackendResponse(res, BackendListSchema(ItemWithIdSchema))
-  return { success: true, result }
+  const res = await client.get('/api/module/item/items?items=100&depth=1')
+  const result = await parseBackendResponse(res, BackendListSchema(DomainItemSchema))
+  return result ? { success: true, result } : { success: false }
 }
 
 export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.args>) => {
   const client = createBackendClient(ctx)
-  const res = await client.get(`/api/item/read/${args.id}`)
-  const result = await parseBackendResponse(res, BackendDetailSchema)
-  return { success: true, result }
+  const res = await client.get(`/api/module/item/items/${args.id}`)
+  const result = await parseBackendResponse(res, BackendGetDetailSchema)
+  return result?.item ? { success: true, result: result.item } : { success: false }
 }
 
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
-	try {
-		const client = createBackendClient(ctx)
-		const basePayload = {
-			nama: args.nama,
-			kode: args.kode,
-			kodeUnit: args.kodeUnit,
-			kfaCode: args.kfaCode ?? null,
-			kind: args.kind ?? null,
-			itemCategoryId: args.itemCategoryId ?? null,
-			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
-			sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
-			buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
-			sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
-		}
-		const payload =
-			typeof args.minimumStock === 'number'
-				? { ...basePayload, minimumStock: args.minimumStock }
-				: basePayload
-		console.log('[item.create] payload', payload)
-		const res = await client.post('/api/item', payload)
-		const result = await parseBackendResponse(res, BackendDetailSchema)
-		console.log('[item.create] backend result', result)
-		return { success: true, result }
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err)
-		console.error('[item.create] error', msg)
-		return { success: false, error: msg }
-	}
+  try {
+    const client = createBackendClient(ctx)
+    const basePayload = {
+      nama: args.nama,
+      kode: args.kode,
+      kodeUnit: args.kodeUnit,
+      kfaCode: args.kfaCode ?? null,
+      kind: args.kind ?? null,
+      itemCategoryId: args.itemCategoryId ?? null,
+      buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
+      sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
+      buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
+      sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
+    }
+    const payload =
+      typeof args.minimumStock === 'number'
+        ? { ...basePayload, minimumStock: args.minimumStock }
+        : basePayload
+    const res = await client.post('/api/module/item/items', payload)
+    const result = await parseBackendResponse(res, BackendCreateUpdateSchema)
+
+    try {
+      const createdId = result?.id
+      if (typeof createdId === 'number' && createdId > 0) {
+        const syncRes = await client.post(`/api/module/item/items/${createdId}/sync-satusehat`, {})
+        if (syncRes.ok) {
+        } else {
+          let detail = ''
+          try {
+            const ct = syncRes.headers.get('content-type') ?? ''
+            if (ct.includes('application/json')) {
+              const json = await syncRes.json() as { message?: string }
+              detail = typeof json.message === 'string' ? json.message : ''
+            } else {
+              detail = await syncRes.text()
+            }
+          } catch { }
+          console.warn('[item.sync] failed', createdId, syncRes.status, detail)
+        }
+      } else {
+        console.warn('[item.sync] skipped: invalid created id', result)
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.error('[item.sync] exception', msg)
+    }
+    return { success: true, result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[item.create] error', msg)
+    return { success: false, error: msg }
+  }
 }
 
 export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
-	try {
-		const client = createBackendClient(ctx)
-		const basePayload = {
-			nama: args.nama,
-			kode: args.kode,
-			kodeUnit: args.kodeUnit,
-			kfaCode: args.kfaCode ?? null,
-			kind: args.kind ?? null,
-			itemCategoryId: args.itemCategoryId ?? null,
-			buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
-			sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
-			buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
-			sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
-		}
-		const payload =
-			typeof args.minimumStock === 'number'
-				? { ...basePayload, minimumStock: args.minimumStock }
-				: basePayload
-		console.log('[item.update] payload', { id: args.id, ...payload })
-		const res = await client.put(`/api/item/${args.id}`, payload)
-		const result = await parseBackendResponse(res, BackendDetailSchema)
-		console.log('[item.update] backend result', result)
-		return { success: true, result }
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err)
-		console.error('[item.update] error', msg)
-		return { success: false, error: msg }
-	}
+  try {
+    const client = createBackendClient(ctx)
+    const basePayload = {
+      nama: args.nama,
+      kode: args.kode,
+      kodeUnit: args.kodeUnit,
+      ...(typeof args.kfaCode === 'string' || args.kfaCode === null ? { kfaCode: args.kfaCode } : {}),
+      kind: args.kind ?? null,
+      ...(typeof args.itemCategoryId === 'number' || args.itemCategoryId === null ? { itemCategoryId: args.itemCategoryId } : {}),
+      buyingPrice: typeof args.buyingPrice === 'number' ? args.buyingPrice : undefined,
+      sellingPrice: typeof args.sellingPrice === 'number' ? args.sellingPrice : undefined,
+      buyPriceRules: Array.isArray(args.buyPriceRules) ? args.buyPriceRules : undefined,
+      sellPriceRules: Array.isArray(args.sellPriceRules) ? args.sellPriceRules : undefined
+    }
+    const payload =
+      typeof args.minimumStock === 'number'
+        ? { ...basePayload, minimumStock: args.minimumStock }
+        : basePayload
+    const res = await client.put(`/api/module/item/items/${args.id}`, payload)
+    const result = await parseBackendResponse(res, BackendCreateUpdateSchema)
+    return { success: true, result }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[item.update] error', msg)
+    return { success: false, error: msg }
+  }
 }
 
 export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.deleteById.args>) => {
-	try {
-		const client = createBackendClient(ctx)
-		const res = await client.delete(`/api/item/${args.id}`)
-		const DeleteSchema = z.object({ success: z.boolean(), message: z.string().optional(), error: z.string().optional() })
-		await parseBackendResponse(res, DeleteSchema)
-		return { success: true }
-	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err)
-		return { success: false, error: msg }
-	}
+  try {
+    const client = createBackendClient(ctx)
+    const res = await client.delete(`/api/module/item/items/${args.id}`)
+    const DeleteSchema = z.object({ success: z.boolean(), message: z.string().optional(), error: z.string().optional() })
+    await parseBackendResponse(res, DeleteSchema)
+    return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
 }
 
 export const searchKfa = async (ctx: IpcContext, args: z.infer<typeof schemas.searchKfa.args>) => {
@@ -163,35 +253,117 @@ export const searchKfa = async (ctx: IpcContext, args: z.infer<typeof schemas.se
     }
 
     // Fallback: Panggil API publik KFA jika backend belum mengimplementasikannya
-    const publicUrl = `https://kfa.kemkes.go.id/api/v1/products/all?product_type=obat&name=${encodeURIComponent(args.query)}`
-    const publicRes = await fetch(publicUrl)
-    
-    if (!publicRes.ok) {
-      throw new Error(`KFA API returned ${publicRes.status}`)
+    const domainHost = 'kfa.kemkes.go.id'
+    const publicUrl = `https://${domainHost}/api/v1/products/all?product_type=obat&name=${encodeURIComponent(args.query)}`
+    let publicRes = await fetch(publicUrl, {
+      headers: {
+        Host: domainHost,
+        Accept: 'application/json',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    }).catch((err) => {
+      console.warn('[item.searchKfa] Public KFA fetch error (domain), will try IP fallback:', err)
+      return null as unknown as Response
+    })
+
+    if (!publicRes || !publicRes.ok) {
+      const fallbackIp = '103.73.77.171'
+      const ipUrl = `https://${fallbackIp}/api/v1/products/all?product_type=obat&name=${encodeURIComponent(args.query)}`
+      publicRes = await fetch(ipUrl, {
+        headers: {
+          Host: domainHost,
+          Accept: 'application/json',
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      }).catch((err) => {
+        console.error('[item.searchKfa] Public KFA fetch error (IP fallback):', err)
+        return null as unknown as Response
+      })
+      if (!publicRes || !publicRes.ok) {
+        throw new Error(`KFA API returned ${publicRes ? publicRes.status : 'unknown error'}`)
+      }
     }
 
     const data = await publicRes.json()
-    
+
     // Transformasi data dari API publik KFA ke format yang kita inginkan
-    const rawData = data.result?.data || data.data || data.result || []
-    const results = (Array.isArray(rawData) ? rawData : [rawData]).map((item: any) => ({
-      kode: item.kfa_code || item.code || item.identifier || '',
-      nama: item.item_name || item.name || item.display_name || item.display || '',
-      kategori: item.product_type || item.farmalkes_type?.name || 'Obat'
-    })).filter((i: any) => i.kode && i.nama)
-
-    return { 
-      success: true, 
-      result: results 
+    type KfaRaw = {
+      kfa_code?: string
+      code?: string
+      identifier?: string
+      item_name?: string
+      name?: string
+      display_name?: string
+      display?: string
+      product_type?: string
+      farmalkes_type?: { name?: string }
     }
+    const rawData = (data as { result?: { data?: KfaRaw[] } } | { data?: KfaRaw[] } | KfaRaw[])
+    const rawArr: KfaRaw[] =
+      (rawData as any)?.result?.data || (rawData as any)?.data || (rawData as any)?.result || []
+    const source: KfaRaw[] = Array.isArray(rawArr) ? rawArr : [rawArr]
+    const results = source
+      .map((item) => ({
+        kode: item.kfa_code || item.code || item.identifier || '',
+        nama: item.item_name || item.name || item.display_name || item.display || '',
+        kategori: item.product_type || item.farmalkes_type?.name || 'Obat'
+      }))
+      .filter((i) => i.kode.length > 0 && i.nama.length > 0)
 
-    return { 
-      success: true, 
-      result: results 
+    return {
+      success: true,
+      result: results
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[item.searchKfa] error', msg)
     return { success: false, message: msg }
+  }
+}
+
+export const searchKfaMaster = async (ctx: IpcContext, args: z.infer<typeof schemas.searchKfaMaster.args>) => {
+  try {
+    const client = createBackendClient(ctx)
+    const isCodeQuery = /^[0-9]{6,10}$/.test(args.query)
+    const fields = isCodeQuery ? 'code' : 'display'
+    const res = await client.get(`/api/kfacode/search?q=${encodeURIComponent(args.query)}&fields=${fields}`)
+    const KfaRecordSchema = z.object({
+      id: z.number().optional(),
+      code: z.number(),
+      display: z.string()
+    })
+    const list = await parseBackendResponse(res, BackendListSchema(KfaRecordSchema))
+    const mapped = Array.isArray(list)
+      ? list.map((r) => ({
+        kode: String(r.code),
+        nama: r.display,
+        kategori: 'Obat'
+      }))
+      : []
+    return { success: true, result: mapped }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[item.searchKfaMaster] error', msg)
+    return { success: false, message: msg }
+  }
+}
+
+export const syncSatusehat = async (ctx: IpcContext, args: z.infer<typeof schemas.syncSatusehat.args>) => {
+  try {
+    const client = createBackendClient(ctx)
+    const res = await client.post(`/api/module/item/items/${args.id}/sync-satusehat`, {})
+    const raw = await res
+      .json()
+      .catch(() => ({} as { success?: boolean; message?: string; error?: string }))
+    if (!res.ok || raw?.success !== true) {
+      const errMsg = raw?.error || raw?.message || `HTTP ${res.status}`
+      return { success: false, error: errMsg }
+    }
+    return { success: true, message: raw?.message }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
   }
 }

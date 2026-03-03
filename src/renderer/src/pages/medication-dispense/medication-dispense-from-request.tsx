@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, message } from 'antd'
+import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -197,6 +197,7 @@ function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
 }
 
 export default function MedicationDispenseFromRequest() {
+	const { message, modal } = App.useApp()
 	const params = useParams()
 	const navigate = useNavigate()
 	const idParam = params.id
@@ -360,8 +361,8 @@ export default function MedicationDispenseFromRequest() {
 				typeof item.itemCategoryId === 'number'
 					? item.itemCategoryId
 					: typeof item.category?.id === 'number'
-					? item.category.id
-					: undefined
+						? item.category.id
+						: undefined
 			if (typeof directId === 'number') {
 				map.set(item.id, directId)
 			}
@@ -387,14 +388,10 @@ export default function MedicationDispenseFromRequest() {
 	const createDispenseMutation = useMutation({
 		mutationKey: ['medicationDispense', 'createFromRequest', requestId],
 		mutationFn: async (): Promise<DispenseCreateResult> => {
-			console.log('DEBUG: Starting createDispenseMutation', { requestId, detail, quantityOverrides })
-
 			if (!Number.isFinite(requestId)) {
-				console.error('DEBUG: Invalid requestId')
 				throw new Error('ID resep tidak valid')
 			}
 			if (!detail) {
-				console.error('DEBUG: Detail not available')
 				throw new Error('Detail resep belum tersedia')
 			}
 			const api = window.api?.query as {
@@ -417,8 +414,6 @@ export default function MedicationDispenseFromRequest() {
 				Array.isArray(groupListData) && groupListData.length > 0
 					? groupListData
 					: [detail]
-			
-			console.log('DEBUG: recordsForGroup', recordsForGroup)
 
 			const toProcess: { record: MedicationRequestDetail; quantityValue: number; unit?: string }[] = []
 			for (const record of recordsForGroup) {
@@ -431,11 +426,8 @@ export default function MedicationDispenseFromRequest() {
 					typeof record.id === 'number' ? quantityOverrides[record.id] : undefined
 				const resolvedQuantity =
 					typeof overrideForRecord === 'number' ? overrideForRecord : quantityFromRequest
-				
-				console.log(`DEBUG: Processing record ${record.id}`, { quantityFromRequest, overrideForRecord, resolvedQuantity })
 
 				if (typeof resolvedQuantity !== 'number' || resolvedQuantity <= 0) {
-					console.warn(`DEBUG: Invalid quantity for record ${record.id}`, resolvedQuantity)
 					throw new Error('Qty Diambil harus lebih dari 0')
 				}
 				toProcess.push({
@@ -444,8 +436,6 @@ export default function MedicationDispenseFromRequest() {
 					unit: unitFromRequest
 				})
 			}
-
-			console.log('DEBUG: toProcess list', toProcess)
 
 			if (toProcess.length === 0) {
 				console.warn('DEBUG: No records to process')
@@ -480,7 +470,7 @@ export default function MedicationDispenseFromRequest() {
 		onSuccess: (result) => {
 			console.log('DEBUG: Mutation onSuccess', result)
 			if (!result.success) {
-				message.error(result.error || 'Gagal membuat MedicationDispense')
+				modal.error({ title: 'Gagal', content: result.error || 'Gagal membuat MedicationDispense' })
 				return
 			}
 			const recordsForGroup: MedicationRequestDetail[] =
@@ -507,7 +497,7 @@ export default function MedicationDispenseFromRequest() {
 		onError: (error) => {
 			console.error('DEBUG: Mutation onError', error)
 			const msg = error instanceof Error ? error.message : String(error)
-			message.error(msg || 'Gagal memproses dispense')
+			modal.error({ title: 'Gagal', content: msg || 'Gagal memproses dispense' })
 		}
 	})
 
