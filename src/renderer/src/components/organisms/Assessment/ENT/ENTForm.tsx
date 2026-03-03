@@ -1,7 +1,10 @@
 import React, { useState, useRef } from 'react'
 import { Form, Input, Radio, Card, Row, Col, Button, App, Modal, Select } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import entMapImage from '@renderer/assets/images/ent_anatomy_map.png'
+import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { TextArea } = Input
 
@@ -13,6 +16,11 @@ export interface ENTFormProps {
 export const ENTForm: React.FC<ENTFormProps> = ({ encounterId, patientData }) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
+
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'doctor',
+    'nurse'
+  ])
 
   const [markers, setMarkers] = useState<{ id: number; x: number; y: number; note: string }[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -75,7 +83,6 @@ export const ENTForm: React.FC<ENTFormProps> = ({ encounterId, patientData }) =>
     'Perforasi Marginal',
     'Perforasi Atik'
   ]
-  const secretOptions = ['Tidak Ada', 'Serous', 'Mukoid', 'Purulen', 'Berdarah']
 
   return (
     <div className="h-full flex flex-col gap-4">
@@ -85,14 +92,17 @@ export const ENTForm: React.FC<ENTFormProps> = ({ encounterId, patientData }) =>
           layout="vertical"
           onFinish={handleFinish}
           initialValues={{
+            assessment_date: dayjs(),
             earPain: 'Tidak',
             tinnitus: 'Tidak',
             hearingLoss: 'Tidak',
             vertigo: 'Tidak'
           }}
+          className="flex! flex-col! gap-4!"
         >
-          {/* Peta Anatomi THT */}
-          <Card title="1. Peta Anatomi THT (Ear, Nose, Throat Map)" size="small" className="mb-4">
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
+          <Card title="Peta Anatomi THT (Ear, Nose, Throat Map)" size="small" className="mb-4">
             <div className="mb-2 bg-blue-50 p-3 rounded text-blue-700 text-xs">
               Klik pada gambar anatomi untuk menandai kelainan pada telinga, hidung, atau
               tenggorokan.
@@ -138,8 +148,7 @@ export const ENTForm: React.FC<ENTFormProps> = ({ encounterId, patientData }) =>
             </div>
           </Card>
 
-          {/* Anamnesis Khusus THT */}
-          <Card title="2. Anamnesis / Keluhan THT" size="small" className="mb-4">
+          <Card title="Anamnesis / Keluhan THT" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={6}>
                 <Form.Item label="Nyeri Telinga (Otalgia)" name="earPain">
@@ -189,8 +198,7 @@ export const ENTForm: React.FC<ENTFormProps> = ({ encounterId, patientData }) =>
             </Row>
           </Card>
 
-          {/* Pemeriksaan THT */}
-          <Card title="3. Pemeriksaan Telinga (Aurikula & MAE)" size="small" className="mb-4">
+          <Card title="Pemeriksaan Telinga (Aurikula & MAE)" size="small" className="mb-4">
             <p className="font-semibold mb-2">Telinga Kanan (Dekstra)</p>
             <Row gutter={24}>
               <Col xs={24} md={8}>
@@ -239,7 +247,7 @@ export const ENTForm: React.FC<ENTFormProps> = ({ encounterId, patientData }) =>
           </Card>
 
           <Card
-            title="4. Pemeriksaan Hidung (Rhinoskopi Anterior) & Tenggorok"
+            title="Pemeriksaan Hidung (Rhinoskopi Anterior) & Tenggorok"
             size="small"
             className="mb-4"
           >
@@ -268,8 +276,7 @@ export const ENTForm: React.FC<ENTFormProps> = ({ encounterId, patientData }) =>
             </Row>
           </Card>
 
-          {/* Diagnosis & Plan */}
-          <Card title="5. Diagnosis & Penatalaksanaan" size="small" className="mb-4 bg-blue-50/30">
+          <Card title="Diagnosis & Penatalaksanaan" size="small" className="mb-4 bg-blue-50/30">
             <Form.Item
               label="Diagnosis Kerja Primer"
               name="diagnosis"

@@ -1,7 +1,10 @@
 import React, { useState, useRef } from 'react'
 import { Form, Input, InputNumber, Radio, Divider, Card, Row, Col, Button, App, Modal } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import eyeMapImage from '@renderer/assets/images/eye_anatomy_map.png'
+import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { TextArea } = Input
 
@@ -16,6 +19,11 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
 }) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
+
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'doctor',
+    'nurse'
+  ])
 
   const [markers, setMarkers] = useState<{ id: number; x: number; y: number; note: string }[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -54,7 +62,6 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
   }
 
   const handleFinish = (values: any) => {
-    // Struktur JSON hasil dari Form
     const payload = {
       encounterId,
       patientId: patientData?.patient?.id,
@@ -65,7 +72,6 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
       timestamp: new Date().toISOString()
     }
 
-    // Menampilkan struktur JSON pada console sesuai permintaan (tanpa panggil API)
     console.log('Ophthalmology Submission Data:', JSON.stringify(payload, null, 2))
   }
 
@@ -77,6 +83,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
           layout="vertical"
           onFinish={handleFinish}
           initialValues={{
+            assessment_date: dayjs(),
             visualAcuity: {
               od: { correction: 'tanpa_koreksi' },
               os: { correction: 'tanpa_koreksi' }
@@ -89,8 +96,9 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               rapd: 'no'
             }
           }}
+          className="flex! flex-col! gap-4!"
         >
-          {/* Eye Map Form (Peta Mata) */}
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <Card title="Peta Mata (Eye Map)" size="small" className="mb-4">
             <div className="mb-2 bg-blue-50 p-3 rounded text-blue-700 text-xs">
               Klik pada gambar mata untuk menandai lokasi lesi/temuan.
@@ -135,9 +143,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </div>
             </div>
           </Card>
-
-          {/* Visual Acuity */}
-          <Card title="1. Visual Acuity" size="small" className="mb-4">
+          <Card title="Visual Acuity" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
                 <Divider
@@ -183,9 +189,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </Col>
             </Row>
           </Card>
-
-          {/* Refraction */}
-          <Card title="2. Refraction" size="small" className="mb-4">
+          <Card title="Refraction" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
                 <Divider orientation="left" className="m-0 mb-4 text-blue-600 text-sm">
@@ -233,9 +237,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </Col>
             </Row>
           </Card>
-
-          {/* Intraocular Pressure (IOP) */}
-          <Card title="3. Intraocular Pressure (IOP)" size="small" className="mb-4">
+          <Card title="Intraocular Pressure (IOP)" size="small" className="mb-4">
             <Row gutter={24} align="top">
               <Col xs={24} md={24} className="mb-2">
                 <Form.Item label="Metode" name={['iop', 'method']}>
@@ -258,9 +260,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </Col>
             </Row>
           </Card>
-
-          {/* Pupil Examination */}
-          <Card title="4. Pupil Examination" size="small" className="mb-4">
+          <Card title="Pupil Examination" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={24}>
                 <Form.Item label="Bentuk & Ukuran (Symmetry)" name={['pupil', 'symmetry']}>
@@ -299,9 +299,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </Col>
             </Row>
           </Card>
-
-          {/* Slit Lamp Examination */}
-          <Card title="5. Slit Lamp Examination (Segmen Anterior)" size="small" className="mb-4">
+          <Card title="Slit Lamp Examination (Segmen Anterior)" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
                 <div className="font-semibold mb-3 bg-gray-50 border border-gray-200 p-2 rounded text-blue-600 text-center">
@@ -339,9 +337,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </Col>
             </Row>
           </Card>
-
-          {/* Fundus Examination */}
-          <Card title="6. Fundus Examination (Segmen Posterior)" size="small" className="mb-4">
+          <Card title="Fundus Examination (Segmen Posterior)" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
                 <div className="font-semibold mb-3 bg-gray-50 border border-gray-200 p-2 rounded text-blue-600 text-center">
@@ -379,10 +375,8 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </Col>
             </Row>
           </Card>
-
-          {/* Diagnosis & Plan */}
           <Card
-            title="7. Kesimpulan & Rencana Tindak Lanjut"
+            title="Kesimpulan & Rencana Tindak Lanjut"
             size="small"
             className="mb-4 bg-blue-50/30"
           >

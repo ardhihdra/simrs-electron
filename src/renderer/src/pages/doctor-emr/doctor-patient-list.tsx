@@ -21,7 +21,8 @@ import {
   ReloadOutlined,
   SearchOutlined,
   CloudSyncOutlined,
-  SyncOutlined
+  SyncOutlined,
+  DownloadOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
@@ -429,6 +430,68 @@ const PatientList = () => {
     }
   }
 
+  const handleExportData = async () => {
+    try {
+      setIsBulkSyncing(true)
+      const fn = window.api?.query?.encounter?.exportData
+      if (!fn) throw new Error('API perantara tidak tersedia')
+
+      const params: any = {}
+      if (searchText) params.q = searchText
+      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+      if (selectedPoli) {
+        const selectedPoliData = polis.find((p) => p.id === selectedPoli || p.name === selectedPoli)
+        if (selectedPoliData) params.serviceType = selectedPoliData.name
+      }
+      if (dateRange) {
+        params.startDate = dateRange[0].startOf('day').toISOString()
+        params.endDate = dateRange[1].endOf('day').toISOString()
+      }
+
+      message.loading({ content: 'Menyiapkan file export...', key: 'exportMsg' })
+      const result = await fn(params)
+
+      if (result.success && result.base64Data) {
+        // Convert base64 to byte array
+        const byteString = atob(result.base64Data)
+        const ab = new ArrayBuffer(byteString.length)
+        const ia = new Uint8Array(ab)
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i)
+        }
+
+        // Build blob and force download
+        const blob = new Blob([ab], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+
+        // Generate filename based on date range or current date
+        const dateStr = dateRange
+          ? `${dateRange[0].format('DD_MM_YYYY')}_Sd_${dateRange[1].format('DD_MM_YYYY')}`
+          : new Date().toISOString().split('T')[0]
+
+        a.href = url
+        a.download = `Data_Kunjungan_Pasien_${dateStr}.xlsx`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        message.success({ content: 'File berhasil diunduh.', key: 'exportMsg' })
+      } else {
+        message.error({ content: result.error || 'Gagal export data kunjungan.', key: 'exportMsg' })
+      }
+    } catch (error: any) {
+      message.error({
+        content: error.message || 'Terjadi kesalahan saat mengekspor',
+        key: 'exportMsg'
+      })
+    } finally {
+      setIsBulkSyncing(false)
+    }
+  }
+
   const doSync = async (record: PatientListTableData) => {
     try {
       setSyncingRows((prev) => ({ ...prev, [record.encounterId]: true }))
@@ -735,6 +798,14 @@ const PatientList = () => {
             <Space size="middle" align="center">
               <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
                 Refresh
+              </Button>
+              <Button
+                type="default"
+                onClick={handleExportData}
+                loading={isBulkSyncing}
+                icon={<DownloadOutlined />}
+              >
+                Export Excel
               </Button>
               <Popconfirm
                 title="Sinkronisasi Semua Encounter"

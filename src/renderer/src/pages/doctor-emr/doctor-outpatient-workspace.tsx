@@ -9,7 +9,8 @@ import {
   ExportOutlined,
   FormOutlined,
   MenuUnfoldOutlined,
-  MenuFoldOutlined
+  MenuFoldOutlined,
+  UserOutlined
 } from '@ant-design/icons'
 import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
 import { AllergyForm } from '../../components/organisms/Assessment/Allergy/AllergyForm'
@@ -43,14 +44,20 @@ import { FallRiskAssessmentForm } from '@renderer/components/organisms/Assessmen
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
 
+import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
+
 interface DoctorOutpatientWorkspaceProps {
   encounterId: string
   patientData: any
+  patientInfoCardData: any
+  onEditStatus: () => void
 }
 
 export const DoctorOutpatientWorkspace = ({
   encounterId,
-  patientData
+  patientData,
+  patientInfoCardData,
+  onEditStatus
 }: DoctorOutpatientWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('overview')
@@ -61,6 +68,11 @@ export const DoctorOutpatientWorkspace = ({
 
   const items = useMemo(
     () => [
+      {
+        key: 'info',
+        icon: <UserOutlined />,
+        label: 'Informasi Pasien'
+      },
       {
         key: 'overview',
         icon: <MonitorOutlined />,
@@ -170,171 +182,216 @@ export const DoctorOutpatientWorkspace = ({
   }, [items, searchText])
 
   return (
-    <Layout className="rounded-lg overflow-hidden h-full border border-white/10">
-      <Layout.Sider
-        width={260}
-        collapsible
-        collapsed={collapsed}
-        onCollapse={(value) => setCollapsed(value)}
-        theme="light"
-        className="border-r border-gray-200 dark:border-white/10"
-        trigger={
-          <div className="flex items-center justify-center h-12 border-t border-gray-200 dark:border-white/10 text-gray-500 hover:text-blue-600 transition-colors">
-            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          </div>
-        }
-      >
-        <div className="h-full flex flex-col">
-          <div className={`p-4 ${collapsed ? 'text-center' : ''}`}>
-            {collapsed ? (
-              <MedicineBoxOutlined className="text-xl text-blue-600" />
-            ) : (
-              <div className="font-bold flex items-center gap-2">
-                <MedicineBoxOutlined className="text-blue-600" />
-                Rawat Jalan
-              </div>
+    <div className="flex flex-col h-full overflow-hidden">
+      <Layout className="rounded-lg overflow-hidden flex-1 border border-white/10">
+        <Layout.Sider
+          width={260}
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(value) => setCollapsed(value)}
+          theme="light"
+          className="border-r border-gray-200 dark:border-white/10"
+          trigger={
+            <div className="flex items-center justify-center h-12 border-t border-gray-200 dark:border-white/10 text-gray-500 hover:text-blue-600 transition-colors">
+              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            </div>
+          }
+        >
+          <div className="h-full flex flex-col">
+            <div className={`p-4 ${collapsed ? 'text-center' : ''}`}>
+              {collapsed ? (
+                <MedicineBoxOutlined className="text-xl text-blue-600" />
+              ) : (
+                <div className="font-bold flex items-center gap-2">
+                  <MedicineBoxOutlined className="text-blue-600" />
+                  Rawat Jalan
+                </div>
+              )}
+            </div>
+
+            {!collapsed && (
+              <>
+                <div className="flex flex-col flex-1 overflow-hidden mt-2">
+                  <div className="px-4 pb-2">
+                    <Input.Search
+                      placeholder="Cari menu/form..."
+                      allowClear
+                      onChange={(e) => setSearchText(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1 overflow-y-auto pb-4">
+                    {filteredItems.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-32 mt-10">
+                        <Empty
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                          description={
+                            <span className="text-gray-400 text-sm">Form tidak ditemukan</span>
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <Menu
+                        mode="inline"
+                        defaultSelectedKeys={['overview']}
+                        defaultOpenKeys={
+                          searchText
+                            ? filteredItems.map((item) => item.key)
+                            : ['assessment', 'orders']
+                        }
+                        style={{ borderRight: 0 }}
+                        items={filteredItems}
+                        onSelect={({ key }) => setSelectedKey(key)}
+                      />
+                    )}
+                  </div>
+                </div>
+              </>
             )}
-          </div>
-          <div className="px-4 pb-2">
-            <Input.Search
-              placeholder="Cari menu/form..."
-              allowClear
-              onChange={(e) => setSearchText(e.target.value)}
-              className="w-full"
-            />
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {filteredItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 mt-10">
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={<span className="text-gray-400 text-sm">Form tidak ditemukan</span>}
+            {collapsed && (
+              <div className="flex-1 overflow-y-auto py-4">
+                <Menu
+                  mode="inline"
+                  defaultSelectedKeys={['overview']}
+                  style={{ borderRight: 0 }}
+                  items={filteredItems}
+                  onSelect={({ key }) => setSelectedKey(key)}
                 />
               </div>
-            ) : (
-              <Menu
-                mode="inline"
-                defaultSelectedKeys={['overview']}
-                defaultOpenKeys={
-                  searchText ? filteredItems.map((item) => item.key) : ['assessment', 'orders']
-                }
-                style={{ borderRight: 0 }}
-                items={filteredItems}
-                onSelect={({ key }) => setSelectedKey(key)}
-              />
             )}
           </div>
-        </div>
-      </Layout.Sider>
-      <Layout>
-        <Layout.Content
-          className="p-6 overflow-y-auto h-full"
-          style={{
-            background: colorBgContainer,
-            minHeight: 280
-          }}
-        >
-          {(() => {
-            switch (selectedKey) {
-              case 'overview':
-                return <EncounterTimeline encounterId={encounterId || ''} />
-              case 'anamnesis':
-                return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
-              case 'past-disease':
-                return <PastDiseaseForm encounterId={encounterId!} patientData={patientData} />
-              case 'clinical-course':
-                return (
-                  <RiwayatPerjalananPenyakitForm
-                    encounterId={encounterId!}
-                    patientData={patientData}
-                  />
-                )
-              case 'clinical-rationale':
-                return <RasionalKlinisForm encounterId={encounterId!} patientData={patientData} />
-              case 'allergy':
-                return <AllergyForm encounterId={encounterId!} patientData={patientData} />
-              case 'medication':
-                return <MedicationForm encounterId={encounterId!} patientData={patientData} />
-              case 'family-history':
-                return <FamilyHistoryForm encounterId={encounterId!} patientData={patientData} />
-              case 'physical-assessment':
-                return (
-                  <PhysicalAssessmentForm encounterId={encounterId!} patientData={patientData} />
-                )
-              case 'functional-assessment':
-                return (
-                  <FunctionalAssessmentForm encounterId={encounterId!} patientData={patientData} />
-                )
-              case 'care-goal':
-                return <GoalForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'care-plan':
-                return <CarePlanForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'prognosis':
-                return <PrognosisForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'dental-assessment':
-                return <DentalPage encounterId={encounterId!} patientId={patientData.patient.id} />
-              case 'anc-assessment':
-                return <AntenatalCareForm encounterId={encounterId!} patientData={patientData} />
-              case 'ophthalmology':
-                return <OphthalmologyForm encounterId={encounterId!} patientData={patientData} />
-              case 'dermatology':
-                return <DermatologyForm encounterId={encounterId!} patientData={patientData} />
-              case 'cardiology':
-                return <CardiologyForm encounterId={encounterId!} patientData={patientData} />
-              case 'ent':
-                return <ENTForm encounterId={encounterId!} patientData={patientData} />
-              case 'general-soap':
-                return <GeneralSOAPForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'diagnosis':
-                return <DiagnosisForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'procedures':
-                return <ProceduresForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'education':
-                return <EducationForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'nutrition-order':
-                return (
-                  <NutritionOrderForm encounterId={encounterId || ''} patientData={patientData} />
-                )
-              case 'prescription':
-                return (
-                  <PrescriptionForm encounterId={encounterId || ''} patientData={patientData} />
-                )
-              case 'risk-assessment':
-                return (
-                  <FallRiskAssessmentForm
-                    encounterId={encounterId || ''}
-                    patientId={patientData?.patient?.id}
-                  />
-                )
-              case 'lab-rad-order':
-                return <LabRadOrderForm encounterId={encounterId || ''} patientData={patientData} />
-              case 'results':
-                return (
-                  <DiagnosticResultViewer
-                    encounterId={encounterId || ''}
-                    patientId={patientData?.patient.id}
-                  />
-                )
-              case 'referral':
-                return (
-                  <ReferralForm
-                    encounterId={encounterId || ''}
-                    patientId={patientData?.patient.id}
-                    patientData={patientData}
-                  />
-                )
-              case 'discharge-summary':
-                return (
-                  <DischargeSummaryForm encounterId={encounterId || ''} patientData={patientData} />
-                )
-              case 'notes':
-                return <ClinicalNoteForm encounterId={encounterId || ''} />
-              default:
-                return <div>Halaman tidak ditemukan</div>
-            }
-          })()}
-        </Layout.Content>
+        </Layout.Sider>
+        <Layout>
+          <Layout.Content
+            className="p-6 overflow-y-auto h-full"
+            style={{
+              background: colorBgContainer,
+              minHeight: 280
+            }}
+          >
+            {(() => {
+              switch (selectedKey) {
+                case 'info':
+                  return (
+                    <PatientInfoCard
+                      patientData={patientInfoCardData}
+                      onEditStatus={onEditStatus}
+                    />
+                  )
+                case 'overview':
+                  return <EncounterTimeline encounterId={encounterId || ''} />
+                case 'anamnesis':
+                  return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
+                case 'past-disease':
+                  return <PastDiseaseForm encounterId={encounterId!} patientData={patientData} />
+                case 'clinical-course':
+                  return (
+                    <RiwayatPerjalananPenyakitForm
+                      encounterId={encounterId!}
+                      patientData={patientData}
+                    />
+                  )
+                case 'clinical-rationale':
+                  return <RasionalKlinisForm encounterId={encounterId!} patientData={patientData} />
+                case 'allergy':
+                  return <AllergyForm encounterId={encounterId!} patientData={patientData} />
+                case 'medication':
+                  return <MedicationForm encounterId={encounterId!} patientData={patientData} />
+                case 'family-history':
+                  return <FamilyHistoryForm encounterId={encounterId!} patientData={patientData} />
+                case 'physical-assessment':
+                  return (
+                    <PhysicalAssessmentForm encounterId={encounterId!} patientData={patientData} />
+                  )
+                case 'functional-assessment':
+                  return (
+                    <FunctionalAssessmentForm
+                      encounterId={encounterId!}
+                      patientData={patientData}
+                    />
+                  )
+                case 'care-goal':
+                  return <GoalForm encounterId={encounterId || ''} patientData={patientData} />
+                case 'care-plan':
+                  return <CarePlanForm encounterId={encounterId || ''} patientData={patientData} />
+                case 'prognosis':
+                  return <PrognosisForm encounterId={encounterId || ''} patientData={patientData} />
+                case 'dental-assessment':
+                  return (
+                    <DentalPage encounterId={encounterId!} patientId={patientData.patient.id} />
+                  )
+                case 'anc-assessment':
+                  return <AntenatalCareForm encounterId={encounterId!} patientData={patientData} />
+                case 'ophthalmology':
+                  return <OphthalmologyForm encounterId={encounterId!} patientData={patientData} />
+                case 'dermatology':
+                  return <DermatologyForm encounterId={encounterId!} patientData={patientData} />
+                case 'cardiology':
+                  return <CardiologyForm encounterId={encounterId!} patientData={patientData} />
+                case 'ent':
+                  return <ENTForm encounterId={encounterId!} patientData={patientData} />
+                case 'general-soap':
+                  return (
+                    <GeneralSOAPForm encounterId={encounterId || ''} patientData={patientData} />
+                  )
+                case 'diagnosis':
+                  return <DiagnosisForm encounterId={encounterId || ''} patientData={patientData} />
+                case 'procedures':
+                  return (
+                    <ProceduresForm encounterId={encounterId || ''} patientData={patientData} />
+                  )
+                case 'education':
+                  return <EducationForm encounterId={encounterId || ''} patientData={patientData} />
+                case 'nutrition-order':
+                  return (
+                    <NutritionOrderForm encounterId={encounterId || ''} patientData={patientData} />
+                  )
+                case 'prescription':
+                  return (
+                    <PrescriptionForm encounterId={encounterId || ''} patientData={patientData} />
+                  )
+                case 'risk-assessment':
+                  return (
+                    <FallRiskAssessmentForm
+                      encounterId={encounterId || ''}
+                      patientId={patientData?.patient?.id}
+                    />
+                  )
+                case 'lab-rad-order':
+                  return (
+                    <LabRadOrderForm encounterId={encounterId || ''} patientData={patientData} />
+                  )
+                case 'results':
+                  return (
+                    <DiagnosticResultViewer
+                      encounterId={encounterId || ''}
+                      patientId={patientData?.patient.id}
+                    />
+                  )
+                case 'referral':
+                  return (
+                    <ReferralForm
+                      encounterId={encounterId || ''}
+                      patientId={patientData?.patient.id}
+                      patientData={patientData}
+                    />
+                  )
+                case 'discharge-summary':
+                  return (
+                    <DischargeSummaryForm
+                      encounterId={encounterId || ''}
+                      patientData={patientData}
+                    />
+                  )
+                case 'notes':
+                  return <ClinicalNoteForm encounterId={encounterId || ''} />
+                default:
+                  return <div>Halaman tidak ditemukan</div>
+              }
+            })()}
+          </Layout.Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </div>
   )
 }

@@ -1,7 +1,10 @@
 import React, { useState, useRef } from 'react'
 import { Form, Input, Radio, Card, Row, Col, Button, App, Modal, Select, InputNumber } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import heartMapImage from '@renderer/assets/images/heart_anatomy_map.png'
+import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { TextArea } = Input
 
@@ -13,6 +16,11 @@ export interface CardiologyFormProps {
 export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, patientData }) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
+
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'doctor',
+    'nurse'
+  ])
 
   const [markers, setMarkers] = useState<{ id: number; x: number; y: number; note: string }[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -91,14 +99,17 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
           layout="vertical"
           onFinish={handleFinish}
           initialValues={{
+            assessment_date: dayjs(),
             chestPain: 'Tidak',
             dyspnea: 'Tidak',
             edema: 'Tidak',
             murmurPresence: 'Tidak Ada Murmur'
           }}
+          className="flex! flex-col! gap-4!"
         >
-          {/* Peta Anatomi Jantung (Heart Map) */}
-          <Card title="1. Peta Anatomi Jantung (Cardiovascular Map)" size="small" className="mb-4">
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
+          <Card title="Peta Anatomi Jantung (Cardiovascular Map)" size="small" className="mb-4">
             <div className="mb-2 bg-blue-50 p-3 rounded text-blue-700 text-xs">
               Klik pada gambar anatomi jantung untuk menandai kelainan spesifik seperti area murmur,
               iskemia, atau letak valve.
@@ -144,8 +155,7 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
             </div>
           </Card>
 
-          {/* Anamnesis / Keluhan Kardiovaskular */}
-          <Card title="2. Keluhan Kardiovaskular (Gejala)" size="small" className="mb-4">
+          <Card title="Keluhan Kardiovaskular (Gejala)" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={8}>
                 <Form.Item label="Nyeri Dada (Chest Pain)" name="chestPain">
@@ -174,8 +184,7 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
             </Row>
           </Card>
 
-          {/* Pemeriksaan Fisik: Auskultasi & Inspeksi */}
-          <Card title="3. Pemeriksaan Fisik Kardiovaskular" size="small" className="mb-4">
+          <Card title="Pemeriksaan Fisik Kardiovaskular" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={8}>
                 <Form.Item label="Tekanan Darah (Sistolik)" name="systolicBP">
@@ -226,9 +235,8 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
             </Row>
           </Card>
 
-          {/* Elektrokardiogram (EKG) / Echo */}
           <Card
-            title="4. Evaluasi Penunjang Khusus (EKG / Echocardiography)"
+            title="Evaluasi Penunjang Khusus (EKG / Echocardiography)"
             size="small"
             className="mb-4"
           >
@@ -262,9 +270,8 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
             </Row>
           </Card>
 
-          {/* Diagnosis & Plan */}
           <Card
-            title="5. Diagnosis & Penatalaksanaan Kardiovaskular"
+            title="Diagnosis & Penatalaksanaan Kardiovaskular"
             size="small"
             className="mb-4 bg-blue-50/30"
           >

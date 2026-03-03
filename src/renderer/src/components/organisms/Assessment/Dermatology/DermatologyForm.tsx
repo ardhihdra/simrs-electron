@@ -1,7 +1,10 @@
 import React, { useState, useRef } from 'react'
 import { Form, Input, Radio, Divider, Card, Row, Col, Button, App, Modal, Select } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import skinMapImage from '@renderer/assets/images/skin_cross_section_map.png'
+import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { TextArea } = Input
 
@@ -13,6 +16,11 @@ export interface DermatologyFormProps {
 export const DermatologyForm: React.FC<DermatologyFormProps> = ({ encounterId, patientData }) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
+
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'doctor',
+    'nurse'
+  ])
 
   const [markers, setMarkers] = useState<{ id: number; x: number; y: number; note: string }[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -129,11 +137,14 @@ export const DermatologyForm: React.FC<DermatologyFormProps> = ({ encounterId, p
           layout="vertical"
           onFinish={handleFinish}
           initialValues={{
+            assessment_date: dayjs(),
             border: 'tegas'
           }}
+          className="flex! flex-col! gap-4!"
         >
-          {/* Section: Penampang Kulit (Skin Cross Section) */}
-          <Card title="1. Peta Anatomi Kulit (Potongan Melintang)" size="small" className="mb-4">
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
+          <Card title="Peta Anatomi Kulit (Potongan Melintang)" size="small" className="mb-4">
             <div className="mb-2 bg-pink-50 p-3 rounded text-pink-700 text-xs">
               Klik pada penampang melintang kulit untuk menandai kedalaman/lokasi spesifik lesi atau
               kelainan.
@@ -179,8 +190,7 @@ export const DermatologyForm: React.FC<DermatologyFormProps> = ({ encounterId, p
             </div>
           </Card>
 
-          {/* Status Dermatologis */}
-          <Card title="2. Status Dermatologis (Efloresensi/UKK)" size="small" className="mb-4">
+          <Card title="Status Dermatologis (Efloresensi/UKK)" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
                 <Form.Item label="Lokasi (Regio)" name="location" rules={[{ required: true }]}>
@@ -260,8 +270,7 @@ export const DermatologyForm: React.FC<DermatologyFormProps> = ({ encounterId, p
             </Row>
           </Card>
 
-          {/* Status Venerologis / Selaput Lendir */}
-          <Card title="3. Status Venerologis & Appendiks Kulit" size="small" className="mb-4">
+          <Card title="Status Venerologis & Appendiks Kulit" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={8}>
                 <Form.Item label="Rambut / Kepala" name={['appendages', 'hair']}>
@@ -289,8 +298,7 @@ export const DermatologyForm: React.FC<DermatologyFormProps> = ({ encounterId, p
             </Row>
           </Card>
 
-          {/* Diagnosis & Plan */}
-          <Card title="4. Diagnosis & Penatalaksanaan" size="small" className="mb-4 bg-blue-50/30">
+          <Card title="Diagnosis & Penatalaksanaan" size="small" className="mb-4 bg-blue-50/30">
             <Form.Item
               label="Diagnosis Kerja"
               name="diagnosis"

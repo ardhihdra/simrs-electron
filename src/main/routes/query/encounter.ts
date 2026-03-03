@@ -207,6 +207,14 @@ export const schemas = {
       count: z.number().optional(),
       error: z.string().optional()
     })
+  },
+  exportData: {
+    args: z.any().optional(),
+    result: z.object({
+      success: z.boolean(),
+      base64Data: z.string().optional(),
+      error: z.string().optional()
+    })
   }
 } as const
 
@@ -635,6 +643,42 @@ export const bulkSyncSatusehat = async (
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ENCOUNTER BULK SYNC] Error:', msg)
+    return { success: false, error: msg }
+  }
+}
+
+export const exportData = async (
+  ctx: IpcContext,
+  args?: Record<string, unknown>
+) => {
+  try {
+    const client = getClient(ctx)
+
+    const queryParams = new URLSearchParams()
+    if (args) {
+      Object.entries(args).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+
+    // Call the export endpoint
+    const response = await client.get(`/api/module/encounter/export?${queryParams.toString()}`) as any;
+    if (!response.ok) {
+      throw new Error(`Gagal memuat dokumen: HTTP ${response.status}`);
+    }
+
+    // Extract the raw ArrayBuffer from fetch response
+    const arrayBuffer = await response.arrayBuffer();
+
+    // Convert to Base64 to safely transmit over IPC
+    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+
+    return { success: true, base64Data }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ENCOUNTER EXPORT] Error:', msg)
     return { success: false, error: msg }
   }
 }

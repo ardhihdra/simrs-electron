@@ -8,7 +8,8 @@ import {
   MonitorOutlined,
   ReconciliationOutlined,
   SafetyCertificateOutlined,
-  SolutionOutlined
+  SolutionOutlined,
+  UserOutlined
 } from '@ant-design/icons'
 import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
 import { GeneralSOAPForm } from '@renderer/components/organisms/Assessment/GeneralSOAP/GeneralSOAPForm'
@@ -48,12 +49,21 @@ import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnes
 
 const { Sider, Content } = Layout
 
+import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
+
 interface InpatientWorkspaceProps {
   encounterId: string
   patientData: any
+  patientInfoCardData: any
+  onEditStatus: () => void
 }
 
-export const DoctorInpatientWorkspace = ({ encounterId, patientData }: InpatientWorkspaceProps) => {
+export const DoctorInpatientWorkspace = ({
+  encounterId,
+  patientData,
+  patientInfoCardData,
+  onEditStatus
+}: InpatientWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('overview')
   const [searchText, setSearchText] = useState('')
@@ -63,6 +73,11 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
 
   const items = useMemo(
     () => [
+      {
+        key: 'info',
+        icon: <UserOutlined />,
+        label: 'Informasi Pasien'
+      },
       {
         key: 'overview',
         icon: <MonitorOutlined />,
@@ -186,6 +201,8 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
 
   const renderContent = () => {
     switch (selectedKey) {
+      case 'info':
+        return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
       case 'overview':
         return (
           <div className="space-y-4">
@@ -282,74 +299,80 @@ export const DoctorInpatientWorkspace = ({ encounterId, patientData }: Inpatient
   }
 
   return (
-    <Layout className="rounded-lg overflow-hidden h-full border border-white/10">
-      <Sider
-        width={260}
-        collapsible
-        collapsed={collapsed}
-        onCollapse={(value) => setCollapsed(value)}
-        theme="light"
-        className="border-r border-white/10"
-        trigger={
-          <div className="flex items-center justify-center h-12 border-t border-white/10 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
-            {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-          </div>
-        }
-      >
-        <div className="h-full flex flex-col">
-          <div className={`p-4 ${collapsed ? 'text-center' : ''}`}>
-            {collapsed ? (
-              <SafetyCertificateOutlined className="text-xl text-blue-600" />
-            ) : (
-              <div className="font-bold flex items-center gap-2">
-                <SafetyCertificateOutlined className="text-blue-600" />
-                Rawat Inap
-              </div>
-            )}
-          </div>
-          <div className="px-4 pb-2">
-            <Input.Search
-              placeholder="Cari menu/form..."
-              allowClear
-              onChange={(e) => setSearchText(e.target.value)}
-              className="w-full"
-            />
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {filteredItems.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-32 mt-10">
-                <Empty
-                  image={Empty.PRESENTED_IMAGE_SIMPLE}
-                  description={<span className="text-gray-400 text-sm">Form tidak ditemukan</span>}
+    <div className="flex flex-col h-full overflow-hidden">
+      <Layout className="rounded-lg overflow-hidden flex-1 border border-white/10">
+        <Sider
+          width={260}
+          collapsible
+          collapsed={collapsed}
+          onCollapse={(value) => setCollapsed(value)}
+          theme="light"
+          className="border-r border-white/10"
+          trigger={
+            <div className="flex items-center justify-center h-12 border-t border-white/10 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
+              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            </div>
+          }
+        >
+          <div className="h-full flex flex-col">
+            <div className={`p-4 ${collapsed ? 'text-center' : ''}`}>
+              {collapsed ? (
+                <SafetyCertificateOutlined className="text-xl text-blue-600" />
+              ) : (
+                <div className="font-bold flex items-center gap-2">
+                  <SafetyCertificateOutlined className="text-blue-600" />
+                  Rawat Inap
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col flex-1 overflow-hidden mt-2">
+              <div className="px-4 pb-2">
+                <Input.Search
+                  placeholder="Cari menu/form..."
+                  allowClear
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="w-full"
                 />
               </div>
-            ) : (
-              <Menu
-                className="custom-menu"
-                mode="inline"
-                defaultSelectedKeys={['overview']}
-                defaultOpenKeys={
-                  searchText ? filteredItems.map((item) => item.key) : ['assessment', 'orders']
-                }
-                style={{ borderRight: 0 }}
-                items={filteredItems}
-                onSelect={({ key }) => setSelectedKey(key)}
-              />
-            )}
+              <div className="flex-1 overflow-y-auto pb-4">
+                {filteredItems.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-32 mt-10">
+                    <Empty
+                      image={Empty.PRESENTED_IMAGE_SIMPLE}
+                      description={
+                        <span className="text-gray-400 text-sm">Form tidak ditemukan</span>
+                      }
+                    />
+                  </div>
+                ) : (
+                  <Menu
+                    className="custom-menu"
+                    mode="inline"
+                    defaultSelectedKeys={['info']}
+                    defaultOpenKeys={
+                      searchText ? filteredItems.map((item) => item.key) : ['assessment', 'orders']
+                    }
+                    style={{ borderRight: 0 }}
+                    items={filteredItems}
+                    onSelect={({ key }) => setSelectedKey(key)}
+                  />
+                )}
+              </div>
+            </div>
           </div>
-        </div>
-      </Sider>
-      <Layout className="">
-        <Content
-          className="p-6 overflow-y-auto h-full"
-          style={{
-            background: colorBgContainer,
-            minHeight: 280
-          }}
-        >
-          {renderContent()}
-        </Content>
+        </Sider>
+        <Layout className="">
+          <Content
+            className="p-6 overflow-y-auto h-full"
+            style={{
+              background: colorBgContainer,
+              minHeight: 280
+            }}
+          >
+            {renderContent()}
+          </Content>
+        </Layout>
       </Layout>
-    </Layout>
+    </div>
   )
 }
