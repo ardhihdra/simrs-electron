@@ -1,11 +1,18 @@
-import { Button, Dropdown, Input, Tag } from 'antd'
+import { Button, Dropdown, Input, Tag, Card, theme, Table, Spin } from 'antd'
 import type { MenuProps } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { queryClient } from '@renderer/query-client'
-import { DeleteOutlined, EditOutlined, MoreOutlined } from '@ant-design/icons'
-import GenericTable from '@renderer/components/organisms/GenericTable'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  MoreOutlined,
+  SearchOutlined,
+  ReloadOutlined,
+  PlusOutlined,
+  CalendarOutlined
+} from '@ant-design/icons'
 
 interface DaySchedule {
   enabled: boolean
@@ -163,9 +170,10 @@ function RowActions({ record }: { record: MedicalStaffScheduleAttributes }) {
 }
 
 export function MedicalStaffScheduleTable() {
+  const { token } = theme.useToken()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
-  const { data, refetch, isError } = useQuery({
+  const { data, refetch, isError, isLoading } = useQuery({
     queryKey: ['medicalStaffSchedule', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.medicalStaffSchedule?.list
@@ -191,65 +199,179 @@ export function MedicalStaffScheduleTable() {
     })
   }, [data?.result, search])
 
+  const tableColumns = [
+    ...baseColumns,
+    {
+      title: 'Aksi',
+      key: 'action',
+      width: 80,
+      align: 'center' as const,
+      fixed: 'right' as const,
+      render: (_, record: MedicalStaffScheduleAttributes) => <RowActions record={record} />
+    }
+  ]
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Jadwal Praktek Petugas Medis</h2>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <Input
-          type="text"
-          placeholder="Search"
-          className="w-full md:max-w-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="flex gap-2 flex-wrap md:justify-end">
-          <Button onClick={() => refetch()}>Refresh</Button>
-          <Button
-            onClick={async () => {
-              try {
-                const res = await window.api.query.export.exportCsv({
-                  entity: 'jadwalPraktekPetugasMedis',
-                  usePagination: false
-                })
-                if (
-                  res &&
-                  typeof res === 'object' &&
-                  'success' in res &&
-                  res.success &&
-                  'url' in res &&
-                  res.url
-                ) {
-                  window.open(res.url as string, '_blank')
-                }
-              } catch (e) {
-                console.error(e instanceof Error ? e.message : String(e))
-              }
-            }}
-          >
-            Export CSV
-          </Button>
-          <Button
-            type="primary"
-            onClick={() => navigate('/dashboard/registration/medical-staff-schedule/create')}
-          >
-            Tambah Jadwal
-          </Button>
-        </div>
-      </div>
-      {isError || (!data?.success && <div className="text-red-500">{data?.message}</div>)}
-      <GenericTable<MedicalStaffScheduleAttributes>
-        columns={baseColumns}
-        dataSource={filtered}
-        rowKey={(r) => String(r.id ?? `${r.kategori}-${r.pegawai?.namaLengkap}`)}
-        action={{
-          title: 'Action',
-          width: 80,
-          align: 'center',
-          fixedRight: true,
-          render: (record) => <RowActions record={record} />
+    <div className="flex flex-col gap-4 h-full">
+      {/* 1. Header Card */}
+      <Card
+        styles={{ body: { padding: '20px 24px' } }}
+        variant="borderless"
+        style={{
+          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
         }}
-        tableProps={{ size: 'small', className: 'mt-4 rounded-xl ', scroll: { x: 'max-content' } }}
-      />
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+                  <CalendarOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+                </div>
+                <h1 className="text-xl font-bold text-white m-0 leading-tight">
+                  Jadwal Praktek Petugas Medis
+                </h1>
+              </div>
+              <p className="text-sm text-blue-200 m-0 ml-12">
+                Manajemen pengaturan jadwal praktik staf medis
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refetch()}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+                ghost
+              >
+                Refresh
+              </Button>
+              <Button
+                type="default"
+                onClick={async () => {
+                  try {
+                    const res = await window.api.query.export.exportCsv({
+                      entity: 'jadwalPraktekPetugasMedis',
+                      usePagination: false
+                    })
+                    if (
+                      res &&
+                      typeof res === 'object' &&
+                      'success' in res &&
+                      res.success &&
+                      'url' in res &&
+                      res.url
+                    ) {
+                      window.open(res.url as string, '_blank')
+                    }
+                  } catch (e) {
+                    console.error(e instanceof Error ? e.message : String(e))
+                  }
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+              >
+                Export CSV
+              </Button>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/dashboard/registration/medical-staff-schedule/create')}
+                style={{
+                  background: '#fff',
+                  borderColor: '#fff',
+                  color: token.colorPrimaryActive
+                }}
+              >
+                Tambah Jadwal
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(255,255,255,0.10)' }}
+              >
+                <CalendarOutlined style={{ color: '#fff', fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {filtered.length}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Total Terjadwal
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* 2. Search Filter Card */}
+      <Card styles={{ body: { padding: '16px 20px' } }} variant="borderless">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: token.colorTextTertiary,
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Pencarian
+            </div>
+            <Input
+              placeholder="Search data..."
+              prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* 3. Main Data Table Card */}
+      <Card className="flex-1 overflow-hidden flex flex-col" variant="borderless">
+        <Spin spinning={isLoading}>
+          <div className="flex-1" style={{ background: token.colorBgContainer }}>
+            {isError && (
+              <div style={{ color: token.colorErrorText }} className="p-4">
+                Gagal memuat jadwal dari server
+              </div>
+            )}
+            <Table
+              columns={tableColumns}
+              dataSource={filtered}
+              rowKey={(r) => String(r.id ?? `${r.kategori}-${r.pegawai?.namaLengkap}`)}
+              pagination={{
+                pageSize: 10,
+                showTotal: (total) => `Total ${total} jadwal`,
+                showSizeChanger: true
+              }}
+              scroll={{ x: 1200, y: 'calc(100vh - 460px)' }}
+              className="flex-1 h-full"
+              size="middle"
+            />
+          </div>
+        </Spin>
+      </Card>
     </div>
   )
 }

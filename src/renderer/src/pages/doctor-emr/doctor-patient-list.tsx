@@ -11,37 +11,62 @@ import {
   Space,
   Row,
   Col,
-  Tabs,
   message,
-  Popover,
   Popconfirm,
-  Modal,
-  App
+  App,
+  Badge,
+  theme
 } from 'antd'
 import {
   EyeOutlined,
   ReloadOutlined,
   SearchOutlined,
   CloudSyncOutlined,
-  SyncOutlined
+  SyncOutlined,
+  DownloadOutlined,
+  TeamOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  ExceptionOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { getPolis } from '@renderer/services/nurse.service'
+import logoUrl from '@renderer/assets/logo.png'
 
 const { RangePicker } = DatePicker
 const { Option } = Select
 
+interface FhirFailedLogDetail {
+  internalResourceId: string
+  status: string
+  attemptCount: number
+  lastAttemptAt?: string | null
+  errorMessage?: string | null
+}
+
+interface ResourceLogSummary {
+  success: number
+  failed: number
+  retry: number
+  pending: number
+  lastFailedLog: FhirFailedLogDetail | null
+}
+
 interface ResourceSyncCount {
   total: number
   synced: number
+  needsResync: number
+  logSummary: ResourceLogSummary | null
 }
 
 interface SatuSehatSyncStatus {
   encounterSynced: boolean
   allSynced: boolean
+  hasPendingResync: boolean
+  encounterLog: FhirFailedLogDetail | null
   resources: {
     observation: ResourceSyncCount
     condition: ResourceSyncCount
@@ -94,7 +119,7 @@ const getSyncSummary = (syncStatus: SatuSehatSyncStatus | null | undefined) => {
   if (!syncStatus) return { totalResources: 0, totalSynced: 0, pct: 0 }
   const res = syncStatus.resources
   const keys = Object.keys(res) as (keyof typeof res)[]
-  let totalResources = 1 // encounter
+  let totalResources = 1
   let totalSynced = syncStatus.encounterSynced ? 1 : 0
   for (const k of keys) {
     if (res[k].total > 0) {
@@ -107,83 +132,268 @@ const getSyncSummary = (syncStatus: SatuSehatSyncStatus | null | undefined) => {
 }
 
 const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
+  const { token } = theme.useToken()
   const resources = s?.resources || {
-    observation: { total: 0, synced: 0 },
-    condition: { total: 0, synced: 0 },
-    procedure: { total: 0, synced: 0 },
-    allergyIntolerance: { total: 0, synced: 0 },
-    composition: { total: 0, synced: 0 }
+    observation: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    condition: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    procedure: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    allergyIntolerance: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+    composition: { total: 0, synced: 0, needsResync: 0, logSummary: null }
   }
 
   return (
     <div className="text-sm mt-3">
-      <div className="flex items-center justify-between p-3 mb-4 bg-gray-50 border border-white/10 rounded-lg">
+      <div
+        className="flex items-center justify-between p-3 mb-4 rounded-lg"
+        style={{
+          background: token.colorFillAlter,
+          border: `1px solid ${token.colorBorderSecondary}`
+        }}
+      >
         <div className="flex items-center gap-2">
           <div
-            className={`w-2 h-2 rounded-full ${s?.encounterSynced ? 'bg-green-500' : 'bg-gray-400'}`}
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: s?.encounterSynced
+                ? token.colorSuccess
+                : s?.encounterLog?.status === 'failed'
+                  ? token.colorError
+                  : token.colorTextQuaternary
+            }}
           />
-          <span className="font-semibold text-gray-700">Data Kunjungan Dasar</span>
+          <span style={{ fontWeight: 600, color: token.colorText }}>Data Kunjungan Dasar</span>
         </div>
         <Tag
-          color={s?.encounterSynced ? 'success' : 'default'}
+          color={
+            s?.encounterSynced
+              ? 'success'
+              : s?.encounterLog?.status === 'failed'
+                ? 'error'
+                : 'default'
+          }
           bordered={false}
           className="m-0 font-medium"
         >
-          {s?.encounterSynced ? 'Terkirim' : 'Belum Dikirim'}
+          {s?.encounterSynced
+            ? 'Terkirim'
+            : s?.encounterLog?.status === 'failed'
+              ? 'Gagal'
+              : 'Belum Dikirim'}
         </Tag>
       </div>
-
-      <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">
+      {s?.encounterLog?.errorMessage && (
+        <div
+          className="mb-4 px-3 py-2 rounded-lg"
+          style={{ background: token.colorErrorBg, border: `1px solid ${token.colorErrorBorder}` }}
+        >
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: token.colorError,
+              textTransform: 'uppercase',
+              marginBottom: 4
+            }}
+          >
+            Error Kunjungan
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              color: token.colorErrorText,
+              fontFamily: 'monospace',
+              wordBreak: 'break-word'
+            }}
+          >
+            {s.encounterLog.errorMessage}
+          </div>
+          {s.encounterLog.lastAttemptAt && (
+            <div style={{ fontSize: 10, color: token.colorError, marginTop: 4 }}>
+              Percobaan ke-{s.encounterLog.attemptCount} ·{' '}
+              {new Date(s.encounterLog.lastAttemptAt).toLocaleString('id-ID')}
+            </div>
+          )}
+        </div>
+      )}
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 700,
+          color: token.colorTextTertiary,
+          textTransform: 'uppercase',
+          letterSpacing: '0.05em',
+          marginBottom: 12,
+          padding: '0 4px'
+        }}
+      >
         Rincian Resource Klinis
       </div>
-
       <div className="grid gap-2">
         {(Object.keys(resourceLabel) as (keyof typeof resourceLabel)[]).map((k) => {
-          const r = (resources as any)[k] || { total: 0, synced: 0 }
-          const isAllSynced = r.total > 0 && r.synced === r.total
-          const isPartial = r.synced > 0 && r.synced < r.total
+          const r = (resources as any)[k] as ResourceSyncCount | undefined
+          if (!r) return null
 
-          let bgColor = 'bg-gray-50'
-          let textColor = 'text-gray-500'
+          const isAllSynced = r.total > 0 && r.synced === r.total
+          const hasFailed = (r.logSummary?.failed ?? 0) > 0 || (r.logSummary?.retry ?? 0) > 0
+          const isPartial = r.synced > 0 && r.synced < r.total
+          const hasResync = (r.needsResync ?? 0) > 0
+
+          let bgStyle: React.CSSProperties = { background: token.colorFillAlter }
+          let textColor = token.colorTextTertiary
           let statusBadge = (
-            <span className="text-gray-400 border border-white/10 px-2.5 py-1 rounded-md text-xs font-medium shadow-sm">
+            <span
+              style={{
+                color: token.colorTextTertiary,
+                border: `1px solid ${token.colorBorderSecondary}`,
+                padding: '4px 10px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 500
+              }}
+            >
               Tidak Ada (0/0)
             </span>
           )
 
-          if (isAllSynced) {
-            bgColor = 'bg-green-50 borderborder-green-100'
-            textColor = 'text-green-700'
+          if (isAllSynced && hasResync) {
+            bgStyle = {
+              background: token.colorWarningBg,
+              border: `1px solid ${token.colorWarningBorder}`
+            }
+            textColor = token.colorWarningText
             statusBadge = (
-              <span className="text-green-700 bg-white border border-green-200 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
+              <span
+                style={{
+                  color: token.colorWarning,
+                  background: token.colorBgContainer,
+                  border: `1px solid ${token.colorWarningBorder}`,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
+                Perlu Resync ({r.needsResync})
+              </span>
+            )
+          } else if (isAllSynced) {
+            bgStyle = {
+              background: token.colorSuccessBg,
+              border: `1px solid ${token.colorSuccessBorder}`
+            }
+            textColor = token.colorSuccessText
+            statusBadge = (
+              <span
+                style={{
+                  color: token.colorSuccessText,
+                  background: token.colorBgContainer,
+                  border: `1px solid ${token.colorSuccessBorder}`,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
                 Lengkap ({r.synced}/{r.total})
               </span>
             )
-          } else if (isPartial) {
-            bgColor = 'bg-amber-50 border-amber-100'
-            textColor = 'text-amber-700'
+          } else if (hasFailed) {
+            bgStyle = {
+              background: token.colorErrorBg,
+              border: `1px solid ${token.colorErrorBorder}`
+            }
+            textColor = token.colorErrorText
+            const failedCount = (r.logSummary?.failed ?? 0) + (r.logSummary?.retry ?? 0)
             statusBadge = (
-              <span className="text-amber-700 bg-white border border-amber-200 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
+              <span
+                style={{
+                  color: token.colorErrorText,
+                  background: token.colorBgContainer,
+                  border: `1px solid ${token.colorErrorBorder}`,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
+                {r.synced}/{r.total} · {failedCount} Gagal
+              </span>
+            )
+          } else if (isPartial) {
+            bgStyle = {
+              background: token.colorWarningBg,
+              border: `1px solid ${token.colorWarningBorder}`
+            }
+            textColor = token.colorWarningText
+            statusBadge = (
+              <span
+                style={{
+                  color: token.colorWarningText,
+                  background: token.colorBgContainer,
+                  border: `1px solid ${token.colorWarningBorder}`,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
                 Proses ({r.synced}/{r.total})
               </span>
             )
           } else if (r.total > 0 && r.synced === 0) {
-            bgColor = 'bg-red-50 border-red-100'
-            textColor = 'text-red-700'
+            bgStyle = {
+              background: token.colorErrorBg,
+              border: `1px solid ${token.colorErrorBorder}`
+            }
+            textColor = token.colorErrorText
             statusBadge = (
-              <span className="text-red-700 bg-white border border-red-200 px-2.5 py-1 rounded-md text-xs font-bold shadow-sm">
+              <span
+                style={{
+                  color: token.colorErrorText,
+                  background: token.colorBgContainer,
+                  border: `1px solid ${token.colorErrorBorder}`,
+                  padding: '4px 10px',
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 700
+                }}
+              >
                 Belum ({r.synced}/{r.total})
               </span>
             )
           }
 
+          const errorDetail = r.logSummary?.lastFailedLog
+
           return (
-            <div
-              key={k}
-              className={`flex justify-between items-center p-2.5 border border-white/20 rounded-lg transition-colors ${bgColor}`}
-            >
-              <span className={`font-medium ${textColor}`}>{resourceLabel[k]}</span>
-              {statusBadge}
+            <div key={k} className="rounded-lg transition-colors" style={bgStyle}>
+              <div className="flex justify-between items-center p-2.5" style={bgStyle}>
+                <span style={{ fontWeight: 500, color: textColor }}>{resourceLabel[k]}</span>
+                {statusBadge}
+              </div>
+              {errorDetail?.errorMessage && (
+                <div className="px-3 pb-2.5 pt-1">
+                  <div
+                    className="font-mono wrap-break-word px-2 py-1 rounded"
+                    style={{
+                      fontSize: 10,
+                      color: token.colorError,
+                      background: token.colorErrorBg,
+                      border: `1px solid ${token.colorErrorBorder}`
+                    }}
+                  >
+                    {errorDetail.errorMessage}
+                  </div>
+                  {errorDetail.lastAttemptAt && (
+                    <div style={{ fontSize: 9, color: token.colorError, marginTop: 2 }}>
+                      Percobaan ke-{errorDetail.attemptCount} ·{' '}
+                      {new Date(errorDetail.lastAttemptAt).toLocaleString('id-ID')}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )
         })}
@@ -192,9 +402,25 @@ const SyncPopoverContent = ({ s }: { s: SatuSehatSyncStatus }) => {
   )
 }
 
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; antColor: string; dotColor: string }
+> = {
+  all: { label: 'Semua', color: '', antColor: 'default', dotColor: '#6b7280' },
+  PLANNED: { label: 'Menunggu', color: 'blue', antColor: 'processing', dotColor: '#3b82f6' },
+  IN_PROGRESS: {
+    label: 'Diperiksa',
+    color: 'orange',
+    antColor: 'warning',
+    dotColor: '#f97316'
+  },
+  FINISHED: { label: 'Selesai', color: 'green', antColor: 'success', dotColor: '#22c55e' },
+  CANCELLED: { label: 'Dibatalkan', color: 'red', antColor: 'error', dotColor: '#ef4444' }
+}
+
 const PatientList = () => {
-  const navigate = useNavigate()
   const { modal: appModal } = App.useApp()
+  const { token } = theme.useToken()
   const [polis, setPolis] = useState<any[]>([])
   const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
@@ -205,32 +431,26 @@ const PatientList = () => {
 
   const handleOpenSyncDetail = (status: SatuSehatSyncStatus | null, fhirId: string) => {
     if (!status && !fhirId) return
-    console.log('[Modal Trigger] Received status:', status, ' | fhirId:', fhirId)
 
     const s: SatuSehatSyncStatus = status || {
       encounterSynced: !!fhirId,
       allSynced: true,
+      hasPendingResync: false,
+      encounterLog: null,
       resources: {
-        observation: { total: 0, synced: 0 },
-        condition: { total: 0, synced: 0 },
-        procedure: { total: 0, synced: 0 },
-        allergyIntolerance: { total: 0, synced: 0 },
-        composition: { total: 0, synced: 0 }
+        observation: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        condition: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        procedure: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        allergyIntolerance: { total: 0, synced: 0, needsResync: 0, logSummary: null },
+        composition: { total: 0, synced: 0, needsResync: 0, logSummary: null }
       }
     }
 
-    console.log(
-      '[Modal Processing] Final status object passing to UI:',
-      s,
-      ' | Resources:',
-      s?.resources
-    )
-
     appModal.info({
       icon: null,
-      title: <span className="font-bold text-gray-800">Detail Sinkronisasi SatuSehat</span>,
+      title: <span className="font-bold">Detail Sinkronisasi SatuSehat</span>,
       content: <SyncPopoverContent s={s} />,
-      width: 400,
+      width: 500,
       centered: true,
       okText: 'Tutup',
       maskClosable: true
@@ -276,7 +496,6 @@ const PatientList = () => {
             val = JSON.parse(val)
           }
           parsedSyncStatus = val
-          console.log(`[Parse Success] Row ${enc.id}`, parsedSyncStatus)
         } catch (e) {
           console.error('Failed to parse satuSehatSyncStatus on row', enc.id, e)
         }
@@ -329,8 +548,9 @@ const PatientList = () => {
     loadPolis()
   }, [])
 
-  const handleViewRecord = (record: PatientListTableData) =>
-    navigate(`/dashboard/doctor/${record.encounterId}`)
+  const handleViewRecord = (record: PatientListTableData) => {
+    window.open(`#/dashboard/doctor/${record.encounterId}`, '_blank')
+  }
 
   const handleBulkSyncSatusehat = async () => {
     try {
@@ -346,6 +566,65 @@ const PatientList = () => {
       }
     } catch (error: any) {
       message.error(error.message || 'Terjadi kesalahan sistem')
+    } finally {
+      setIsBulkSyncing(false)
+    }
+  }
+
+  const handleExportData = async () => {
+    try {
+      setIsBulkSyncing(true)
+      const fn = window.api?.query?.encounter?.exportData
+      if (!fn) throw new Error('API perantara tidak tersedia')
+
+      const params: any = {}
+      if (searchText) params.q = searchText
+      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+      if (selectedPoli) {
+        const selectedPoliData = polis.find((p) => p.id === selectedPoli || p.name === selectedPoli)
+        if (selectedPoliData) params.serviceType = selectedPoliData.name
+      }
+      if (dateRange) {
+        params.startDate = dateRange[0].startOf('day').toISOString()
+        params.endDate = dateRange[1].endOf('day').toISOString()
+      }
+
+      message.loading({ content: 'Menyiapkan file export...', key: 'exportMsg' })
+      const result = await fn(params)
+
+      if (result.success && result.base64Data) {
+        const byteString = atob(result.base64Data)
+        const ab = new ArrayBuffer(byteString.length)
+        const ia = new Uint8Array(ab)
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i)
+        }
+
+        const blob = new Blob([ab], {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+
+        const dateStr = dateRange
+          ? `${dateRange[0].format('DD_MM_YYYY')}_Sd_${dateRange[1].format('DD_MM_YYYY')}`
+          : new Date().toISOString().split('T')[0]
+
+        a.href = url
+        a.download = `Data_Kunjungan_Pasien_${dateStr}.xlsx`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        message.success({ content: 'File berhasil diunduh.', key: 'exportMsg' })
+      } else {
+        message.error({ content: result.error || 'Gagal export data kunjungan.', key: 'exportMsg' })
+      }
+    } catch (error: any) {
+      message.error({
+        content: error.message || 'Terjadi kesalahan saat mengekspor',
+        key: 'exportMsg'
+      })
     } finally {
       setIsBulkSyncing(false)
     }
@@ -371,39 +650,156 @@ const PatientList = () => {
   }
 
   const getStatusTag = (status: string) => {
-    switch (status) {
-      case 'PLANNED':
-        return <Tag color="blue">Menunggu</Tag>
-      case 'IN_PROGRESS':
-        return <Tag color="orange">Sedang Diperiksa</Tag>
-      case 'FINISHED':
-        return <Tag color="success">Selesai</Tag>
-      case 'CANCELLED':
-        return <Tag color="error">Dibatalkan</Tag>
-      default:
-        return <Tag>{status}</Tag>
-    }
+    const cfg = STATUS_CONFIG[status]
+    if (!cfg) return <Tag>{status}</Tag>
+    return (
+      <Tag color={cfg.color} bordered={false} className="font-medium rounded-md">
+        {cfg.label}
+      </Tag>
+    )
   }
 
   const totalSynced = patients.filter(
     (p) => p.satuSehatSyncStatus?.encounterSynced || !!p.fhirId
   ).length
   const totalNotSynced = patients.length - totalSynced
+  const totalInProgress = patients.filter((p) => p.status === 'IN_PROGRESS').length
+  const totalFinished = patients.filter((p) => p.status === 'FINISHED').length
 
   const columns: ColumnsType<PatientListTableData> = [
     {
-      title: 'No',
+      title: '#',
       dataIndex: 'no',
       key: 'no',
-      width: 50,
+      width: 44,
       align: 'center',
-      render: (num: number) => <span className="text-sm font-semibold text-gray-400">{num}</span>
+      render: (num: number) => (
+        <span style={{ fontSize: 12, fontWeight: 500, color: token.colorTextTertiary }}>{num}</span>
+      )
+    },
+    {
+      title: 'Pasien',
+      key: 'patientInfo',
+      width: 230,
+      render: (_, record) => (
+        <div className="flex items-center gap-3 py-1">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+            style={{
+              background: token.colorPrimaryBg,
+              border: `1px solid ${token.colorPrimaryBorder}`
+            }}
+          >
+            <span style={{ color: token.colorPrimary, fontSize: 12, fontWeight: 700 }}>
+              {record.patient.name.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <div
+              style={{ fontWeight: 600, fontSize: 14, color: token.colorText }}
+              className="truncate leading-tight"
+            >
+              {record.patient.name}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span
+                className="font-mono rounded"
+                style={{
+                  fontSize: 10,
+                  color: token.colorTextTertiary,
+                  background: token.colorFillAlter,
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                  padding: '1px 6px'
+                }}
+              >
+                {record.patient.medicalRecordNumber || '-'}
+              </span>
+              <span style={{ fontSize: 10, color: token.colorTextTertiary }}>
+                {record.patient.gender === 'male' ? '♂' : '♀'} {record.patient.age}th
+              </span>
+            </div>
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Unit / Jenis',
+      key: 'unitJenis',
+      width: 160,
+      render: (_, record) => {
+        const poliName = record.poli.name
+        const displayPoli =
+          poliName === 'RAWAT_INAP'
+            ? 'Rawat Inap'
+            : poliName === 'RAWAT_JALAN'
+              ? 'Rawat Jalan'
+              : poliName === 'IGD'
+                ? 'IGD'
+                : poliName
+                    .toLowerCase()
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (l) => l.toUpperCase())
+
+        let typeLabel = record.encounterType || '-'
+        let typeColor = 'default'
+        switch (record.encounterType) {
+          case 'EMER':
+            typeLabel = 'IGD'
+            typeColor = 'red'
+            break
+          case 'AMB':
+            typeLabel = 'Rawat Jalan'
+            typeColor = 'blue'
+            break
+          case 'IMP':
+            typeLabel = 'Rawat Inap'
+            typeColor = 'green'
+            break
+        }
+
+        return (
+          <div>
+            <div
+              style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}
+              className="truncate"
+            >
+              {displayPoli}
+            </div>
+            <Tag color={typeColor} bordered={false} className="mt-0.5 text-[10px] font-medium m-0">
+              {typeLabel}
+            </Tag>
+          </div>
+        )
+      }
+    },
+    {
+      title: 'Tgl Kunjungan',
+      dataIndex: 'visitDate',
+      key: 'visitDate',
+      width: 135,
+      render: (date: string) => (
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}>
+            {dayjs(date).format('DD MMM YYYY')}
+          </div>
+          <div style={{ fontSize: 12, color: token.colorTextTertiary }}>
+            {dayjs(date).format('HH:mm')}
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (status: string) => getStatusTag(status)
     },
     {
       title: 'SatuSehat',
       dataIndex: 'fhirId',
       key: 'satuSehatStatus',
-      width: 100,
+      width: 110,
       align: 'center',
       render: (_: string, record) => {
         const s = record.satuSehatSyncStatus
@@ -411,176 +807,123 @@ const PatientList = () => {
 
         if (!isSynced) {
           return (
-            <Tag color="default" style={{ fontSize: 11 }}>
+            <Tag
+              color="default"
+              bordered={false}
+              className="text-[10px] font-medium cursor-default"
+            >
               Belum Sync
             </Tag>
           )
         }
 
+        const hasPendingResync = s?.hasPendingResync ?? false
         const hasPartial =
           s &&
           !s.allSynced &&
-          Object.values(s.resources).some((r) => r.total > 0 && r.synced < r.total)
+          Object.values(s.resources).some(
+            (r) =>
+              r.total > 0 &&
+              (r.synced < r.total ||
+                (r.logSummary?.failed ?? 0) > 0 ||
+                (r.logSummary?.retry ?? 0) > 0)
+          )
 
-        const tagContent = hasPartial ? (
-          <Tag
-            color="warning"
-            style={{ fontSize: 11 }}
-            className="cursor-pointer hover:opacity-80 transition-opacity m-0"
-          >
-            Terkirim*
-          </Tag>
-        ) : (
-          <Tag
-            color="success"
-            style={{ fontSize: 11 }}
-            className="cursor-pointer hover:opacity-80 transition-opacity m-0"
-          >
-            Terkirim
-          </Tag>
-        )
+        let tagColor = 'success'
+        let tagText = 'Terkirim'
+        if (hasPendingResync) {
+          tagColor = 'orange'
+          tagText = 'Perlu Resync'
+        } else if (hasPartial) {
+          tagColor = 'warning'
+          tagText = 'Terkirim*'
+        }
 
         return (
           <div
             onClick={(e) => {
               e.preventDefault()
               e.stopPropagation()
-              handleOpenSyncDetail(s, record.fhirId)
+              handleOpenSyncDetail(s ?? null, record.fhirId)
             }}
-            className="inline-block"
-            style={{ pointerEvents: 'auto' }}
+            className="inline-block cursor-pointer"
           >
-            {tagContent}
+            <Tag
+              color={tagColor}
+              bordered={false}
+              className="text-[10px] font-medium hover:opacity-80 transition-opacity m-0"
+            >
+              {tagText}
+            </Tag>
           </div>
         )
       }
     },
     {
-      title: 'No. Rekam Medis',
-      dataIndex: ['patient', 'medicalRecordNumber'],
-      key: 'medicalRecordNumber',
-      width: 140,
-      render: (mrn: string) => <span className="font-mono text-xs text-gray-500">{mrn || '-'}</span>
-    },
-    {
-      title: 'Nama Pasien',
-      dataIndex: ['patient', 'name'],
-      key: 'patientName',
-      width: 210,
-      render: (name: string, record) => (
-        <div>
-          <div className="font-semibold text-sm">{name}</div>
-          <div className="text-xs text-gray-400">
-            {record.patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'} · {record.patient.age}{' '}
-            tahun
-          </div>
-        </div>
-      )
-    },
-    {
-      title: 'Poli',
-      dataIndex: ['poli', 'name'],
-      key: 'poli',
-      width: 140,
-      render: (text: string) => {
-        if (!text) return '-'
-        if (text === 'RAWAT_INAP') return 'Rawat Inap'
-        if (text === 'RAWAT_JALAN') return 'Rawat Jalan'
-        if (text === 'IGD') return 'IGD'
-        return text
-          .toLowerCase()
-          .replace(/_/g, ' ')
-          .replace(/\b\w/g, (l) => l.toUpperCase())
-      }
-    },
-    {
-      title: 'Jenis',
-      dataIndex: 'encounterType',
-      key: 'encounterType',
-      width: 110,
-      render: (type: string) => {
-        let label = type || '-',
-          color = 'default'
-        switch (type) {
-          case 'EMER':
-            label = 'IGD'
-            color = 'red'
-            break
-          case 'AMB':
-            label = 'Rawat Jalan'
-            color = 'blue'
-            break
-          case 'IMP':
-            label = 'Rawat Inap'
-            color = 'green'
-            break
-        }
-        return <Tag color={color}>{label}</Tag>
-      }
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      width: 140,
-      render: (status: string) => getStatusTag(status)
-    },
-    {
       title: 'Aksi',
       key: 'action',
-      width: 160,
+      width: 200,
       align: 'center',
       fixed: 'right',
       render: (_, record) => {
         const isSyncing = syncingRows[record.encounterId]
         const s = record.satuSehatSyncStatus
         const isSynced = s?.encounterSynced || !!record.fhirId
+        const hasPendingResync = s?.hasPendingResync ?? false
 
-        let syncLabel = 'Sync SatuSehat'
+        let syncLabel = 'Sync'
         let syncStyle: React.CSSProperties = {
-          background: '#f97316',
-          borderColor: '#f97316',
+          background: token.colorSuccess,
+          borderColor: token.colorSuccess,
           color: '#fff'
         }
 
         const isFullyCompleted = s
-          ? !Object.values(s.resources).some((r) => r.total > 0 && r.synced < r.total)
+          ? !Object.values(s.resources).some(
+              (r) => r.total > 0 && (r.synced < r.total || (r.logSummary?.failed ?? 0) > 0)
+            )
           : !!record.fhirId
 
-        if (isSynced && isFullyCompleted) {
+        if (isSynced && hasPendingResync) {
+          syncLabel = 'Kirim Pembaruan'
+          syncStyle = { borderColor: token.colorSuccess, color: token.colorSuccess }
+        } else if (isSynced && isFullyCompleted) {
           syncLabel = 'Sync Ulang'
-          syncStyle = { borderColor: '#22c55e', color: '#22c55e' }
+          syncStyle = { borderColor: token.colorSuccessActive, color: token.colorSuccessActive }
         } else if (isSynced && !isFullyCompleted) {
-          syncLabel = 'Lengkapi Sync'
-          syncStyle = { borderColor: '#f59e0b', color: '#f59e0b' }
+          syncLabel = 'Lengkapi'
+          syncStyle = { borderColor: token.colorSuccessActive, color: token.colorSuccessActive }
         }
 
         return (
-          <Space
-            direction="vertical"
-            size={4}
-            className="w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <Space size={6} onClick={(e) => e.stopPropagation()}>
             <Button
               type="primary"
               icon={<EyeOutlined />}
               onClick={() => handleViewRecord(record)}
               size="small"
-              block
             >
               Periksa
             </Button>
             <Button
               ghost={isSynced}
-              icon={isSyncing ? <SyncOutlined spin /> : <CloudSyncOutlined />}
+              icon={
+                isSyncing ? (
+                  <SyncOutlined spin />
+                ) : (
+                  <img
+                    src={logoUrl}
+                    alt="Logo"
+                    className="w-[13px] h-[13px] object-contain relative -top-0.5 inline-block mr-1"
+                  />
+                )
+              }
               onClick={(e) => {
                 e.stopPropagation()
                 doSync(record)
               }}
               size="small"
               loading={isSyncing}
-              block
               style={syncStyle}
               title={
                 s && isSynced
@@ -596,28 +939,75 @@ const PatientList = () => {
     }
   ]
 
-  const statusTabs = [
-    { key: 'all', label: 'Semua' },
-    { key: 'PLANNED', label: 'Menunggu' },
-    { key: 'IN_PROGRESS', label: 'Sedang Diperiksa' },
-    { key: 'FINISHED', label: 'Selesai' },
-    { key: 'CANCELLED', label: 'Dibatalkan' }
-  ]
+  const statusTabItems = Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
+    const count = key === 'all' ? patients.length : patients.filter((p) => p.status === key).length
+
+    return {
+      key,
+      label: (
+        <span className="flex items-center gap-2 px-1">
+          {cfg.label}
+          {count > 0 && (
+            <Badge count={count} color={cfg.dotColor} size="small" style={{ fontSize: 10 }} />
+          )}
+        </span>
+      )
+    }
+  })
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <Card bodyStyle={{ padding: '20px 24px' }} className="border-none">
+      <Card
+        styles={{ body: { padding: '20px 24px' } }}
+        variant="borderless"
+        style={{
+          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
+        }}
+      >
         <div className="flex flex-col gap-5">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold mb-0">Daftar Antrian & Kunjungan Pasien</h1>
-              <p className="text-sm text-gray-400 m-0">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+                  <TeamOutlined
+                    className="text-base"
+                    style={{ color: token.colorSuccessBg, fontSize: 16 }}
+                  />
+                </div>
+                <h1 className="text-xl font-bold text-white m-0 leading-tight">
+                  Daftar Antrian &amp; Kunjungan
+                </h1>
+              </div>
+              <p className="text-sm text-blue-200 m-0 ml-12">
                 Manajemen pelayanan pasien Rawat Jalan, Inap, dan IGD
               </p>
             </div>
-            <Space size="middle" align="center">
-              <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isLoading}>
+            <Space size="small" align="center">
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refetch()}
+                loading={isLoading}
+                className="border-white/30 text-white hover:border-white hover:text-white"
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+                ghost
+              >
                 Refresh
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleExportData}
+                loading={isBulkSyncing}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+              >
+                Export Excel
               </Button>
               <Popconfirm
                 title="Sinkronisasi Semua Encounter"
@@ -627,102 +1017,229 @@ const PatientList = () => {
                 cancelText="Batal"
               >
                 <Button
-                  type="primary"
                   icon={<CloudSyncOutlined />}
                   loading={isBulkSyncing}
-                  style={{ backgroundColor: '#16a34a', borderColor: '#16a34a' }}
+                  style={{
+                    background: token.colorSuccess,
+                    borderColor: token.colorSuccessActive,
+                    color: '#fff'
+                  }}
                 >
-                  Sync Semua ke SatuSehat{totalNotSynced > 0 ? ` (${totalNotSynced})` : ''}
+                  Sync Semua{totalNotSynced > 0 ? ` (${totalNotSynced})` : ''}
                 </Button>
               </Popconfirm>
             </Space>
           </div>
-
-          {/* <div className="flex gap-3 flex-wrap">
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-              <CheckCircleFilled style={{ color: '#22c55e', fontSize: 15 }} />
-              <div>
-                <div className="text-[11px] text-gray-500 leading-none">Terkirim ke SatuSehat</div>
-                <div className="text-xl font-bold text-green-600 leading-tight">{totalSynced}</div>
+          <div className="grid grid-cols-4 gap-3">
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(255,255,255,0.10)' }}
+              >
+                <TeamOutlined style={{ color: '#fff', fontSize: 16 }} />
               </div>
-            </div>
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
-              <CloseCircleFilled style={{ color: '#9ca3af', fontSize: 15 }} />
               <div>
-                <div className="text-[11px] text-gray-500 leading-none">Belum Dikirim</div>
-                <div className="text-xl font-bold text-gray-500 leading-tight">
-                  {totalNotSynced}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-4 py-2">
-              <div>
-                <div className="text-[11px] text-gray-500 leading-none">Total Kunjungan</div>
-                <div className="text-xl font-bold text-gray-700 leading-tight">
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
                   {patients.length}
                 </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Total Kunjungan
+                </div>
               </div>
             </div>
-          </div> */}
-
-          <Row gutter={[16, 12]} align="bottom">
-            <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-tight">
-                Cari Pasien
-              </div>
-              <Input
-                placeholder="Nama Pasien / No. Rekam Medis"
-                prefix={<SearchOutlined className="text-gray-400" />}
-                size="large"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                allowClear
-              />
-            </Col>
-            <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-tight">
-                Unit Pelayanan
-              </div>
-              <Select
-                placeholder="-- Semua Unit Pelayanan --"
-                className="w-full"
-                size="large"
-                allowClear
-                value={selectedPoli}
-                onChange={setSelectedPoli}
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorWarning}33` }}
               >
-                {polis.map((p) => (
-                  <Option key={p.id} value={p.name}>
-                    {p.name}
-                  </Option>
-                ))}
-              </Select>
-            </Col>
-            <Col xs={24} md={8}>
-              <div className="text-xs font-bold text-gray-500 mb-1 uppercase tracking-tight">
-                Periode Kunjungan
+                <ClockCircleOutlined style={{ color: token.colorWarningBg, fontSize: 16 }} />
               </div>
-              <RangePicker
-                className="w-full"
-                size="large"
-                value={dateRange}
-                onChange={(dates) => setDateRange(dates as any)}
-                format="DD MMM YYYY"
-              />
-            </Col>
-          </Row>
-
-          <Tabs
-            activeKey={activeStatus}
-            onChange={setActiveStatus}
-            items={statusTabs}
-            type="card"
-            className="mb-[-17px]"
-          />
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {totalInProgress}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Sedang Diperiksa
+                </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorSuccess}33` }}
+              >
+                <CheckCircleOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {totalFinished}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Selesai
+                </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorSuccess}33` }}
+              >
+                <ExceptionOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {totalSynced}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Sync SatuSehat
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
+      <Card styles={{ body: { padding: '16px 20px' } }} variant="borderless">
+        <Row gutter={[16, 12]} align="bottom">
+          <Col xs={24} md={8}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: token.colorTextTertiary,
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Cari Pasien
+            </div>
+            <Input
+              placeholder="Nama Pasien / No. Rekam Medis"
+              prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+            />
+          </Col>
+          <Col xs={24} md={8}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: token.colorTextTertiary,
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Unit Pelayanan
+            </div>
+            <Select
+              placeholder="-- Semua Unit --"
+              className="w-full"
+              allowClear
+              value={selectedPoli}
+              onChange={setSelectedPoli}
+            >
+              {polis.map((p) => (
+                <Option key={p.id} value={p.name}>
+                  {p.name}
+                </Option>
+              ))}
+            </Select>
+          </Col>
+          <Col xs={24} md={8}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: token.colorTextTertiary,
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Periode Kunjungan
+            </div>
+            <RangePicker
+              className="w-full"
+              value={dateRange}
+              onChange={(dates) => setDateRange(dates as any)}
+              format="DD MMM YYYY"
+            />
+          </Col>
+        </Row>
 
-      <Card bodyStyle={{ padding: '0' }} className="flex-1 overflow-hidden flex flex-col">
+        {/* Status Tab Bar */}
+        <div
+          className="flex gap-1.5 mt-4 pt-4 flex-wrap"
+          style={{ borderTop: `1px solid ${token.colorBorderSecondary}` }}
+        >
+          {statusTabItems.map((tab) => {
+            const isActive = activeStatus === tab.key
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveStatus(tab.key)}
+                style={
+                  isActive
+                    ? {
+                        background: token.colorPrimary,
+                        borderColor: token.colorPrimary,
+                        color: '#fff',
+                        padding: '6px 12px',
+                        borderRadius: token.borderRadiusSM,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }
+                    : {
+                        background: token.colorFillAlter,
+                        borderColor: token.colorBorderSecondary,
+                        color: token.colorTextSecondary,
+                        padding: '6px 12px',
+                        borderRadius: token.borderRadiusSM,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }
+                }
+              >
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+      </Card>
+      <Card className="flex-1 overflow-hidden flex flex-col" variant="borderless">
         <Spin spinning={isLoading}>
           <Table
             columns={columns}
@@ -732,8 +1249,9 @@ const PatientList = () => {
               showTotal: (total) => `Total ${total} kunjungan`,
               showSizeChanger: true
             }}
-            scroll={{ x: 1050, y: 'calc(100vh - 420px)' }}
+            scroll={{ x: 1050, y: 'calc(100vh - 460px)' }}
             className="flex-1"
+            size="middle"
           />
         </Spin>
       </Card>

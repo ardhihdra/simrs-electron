@@ -22,7 +22,7 @@ const ConditionCodeCodingSchema = z.object({
 })
 
 const ConditionSchema = z.object({
-    id: z.number().optional(),
+    id: z.string().optional(),
     clinicalStatus: z.string().optional(),
     verificationStatus: z.string().optional(),
     subjectId: z.string(),
@@ -32,6 +32,9 @@ const ConditionSchema = z.object({
     note: z.string().optional().nullable(),
     categories: z.array(ConditionCategorySchema).optional(),
     codeCoding: z.array(ConditionCodeCodingSchema).optional(),
+    onsetPeriodStart: z.union([z.string(), z.date()]).optional(),
+    onsetPeriodEnd: z.union([z.string(), z.date()]).optional(),
+    onsetAge: z.number().optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional()
 })
@@ -39,9 +42,17 @@ const ConditionSchema = z.object({
 const BulkCreateConditionInputSchema = z.object({
     diagnosisCodeId: z.number().optional(),
     isPrimary: z.boolean().optional(),
-    category: z.string().optional(),
+    categories: z.array(z.object({
+        code: z.string().optional(),
+        display: z.string().optional(),
+        system: z.string().optional()
+    })).optional(),
     notes: z.string().optional(),
-    recordedDate: z.union([z.string(), z.date()]).optional()
+    recordedDate: z.union([z.string(), z.date()]).optional(),
+    onsetPeriodStart: z.union([z.string(), z.date()]).optional(),
+    onsetPeriodEnd: z.union([z.string(), z.date()]).optional(),
+    onsetAge: z.number().optional(),
+    clinicalStatus: z.string().optional()
 })
 
 const BackendConditionResponseSchema = z.object({

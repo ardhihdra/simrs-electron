@@ -49,7 +49,8 @@ export const create = async (ctx: IpcContext, args: CreateArgs) => {
 			grandTotal: args.grandTotal,
 			paidAmount: args.paidAmount,
 			changeAmount: args.changeAmount,
-			notes: args.notes ?? null
+			notes: args.notes ?? null,
+			items: args.items ?? []
 		}
 		const res = await client.post('/api/pharmacytransaction', payload)
 		const BackendSchema = z.object({

@@ -70,21 +70,22 @@ export default function RegistrationPage() {
     <div >
       <TableHeader
         title="Registrasi Kunjungan"
+        subtitle="Manajemen pendaftaran pasien"
         onSearch={(values) => setSearchParams(values)}
         onReset={() => setSearchParams({ nik: '', name: '' })}
         onCreate={handleCreateEmptyQueue}
         createLabel="Buat Antrian (Tanpa Pasien)"
         loading={isLoading || isRefetching}
         
-      >
-        <div className="flex gap-4">
-            <Form.Item name="nik" label="NIK" className="mb-0">
-                <Input placeholder="Cari NIK" allowClear />
+      > <Form.Item name="medicalRecordNumber" style={{ width: '100%' }} >
+                <Input placeholder="Cari MRN" allowClear size='large' />
             </Form.Item>
-            <Form.Item name="name" label="Nama Pasien" className="mb-0">
-                <Input placeholder="Cari Nama" allowClear />
+            <Form.Item name="nik" style={{ width: '100%' }} >
+                <Input placeholder="Cari NIK" allowClear size='large' />
             </Form.Item>
-        </div>
+            <Form.Item name="name" style={{ width: '100%' }} >
+                <Input placeholder="Cari Nama" allowClear size='large' />
+            </Form.Item>
       </TableHeader>
 
       <div className="mt-4">

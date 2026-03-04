@@ -1,9 +1,10 @@
 import z from 'zod'
 import {
+  MedicationRequestSchema,
   MedicationRequestWithIdSchema
 } from '@main/models/medicationRequest'
 import { IpcContext } from '@main/ipc/router'
-import { parseBackendResponse, getClient } from '@main/utils/backendClient'
+import { parseBackendResponse, getClient, BackendListSchema } from '@main/utils/backendClient'
 
 export const requireSession = true
 
@@ -13,7 +14,8 @@ export const schemas = {
       patientId: z.string().optional(),
       encounterId: z.string().optional(),
       page: z.number().optional(),
-      limit: z.number().optional()
+      limit: z.number().optional(),
+      items: z.number().optional()
     }),
     result: z.any()
   },
@@ -22,16 +24,50 @@ export const schemas = {
     result: z.any()
   },
   create: {
-    args: z.any(),
-    result: z.any()
+    args: z.union([MedicationRequestSchema, MedicationRequestSchema.array()]),
+    result: z.object({
+      success: z.boolean(),
+      data: z
+        .union([
+          z.object({
+            id: z.number(),
+            status: z.string().optional()
+          }),
+          z
+            .object({
+              id: z.number(),
+              status: z.string().optional()
+            })
+            .array()
+        ])
+        .optional(),
+      error: z.string().optional()
+    })
   },
   update: {
-    args: z.any(),
-    result: z.any()
+    args: MedicationRequestWithIdSchema.partial().extend({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      data: z
+        .object({
+          id: z.number(),
+          status: z.string().optional()
+        })
+        .optional(),
+      error: z.string().optional()
+    })
   },
   deleteById: {
     args: z.object({ id: z.number() }),
     result: z.any()
+  },
+  syncSatusehat: {
+    args: z.object({ id: z.number() }),
+    result: z.object({
+      success: z.boolean(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
   }
 } as const
 
@@ -42,41 +78,34 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     if (args.patientId) params.append('patientId', args.patientId)
     if (args.encounterId) params.append('encounterId', args.encounterId)
     if (args.page) params.append('page', String(args.page))
-    if (args.limit) params.append('limit', String(args.limit))
-
-    const res = await client.get(`/api/medicationrequest?${params.toString()}`)
-    const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON from backend' }))
-
-    if (!res.ok || !raw.success) {
-      return {
-        success: false,
-        error: raw.message || raw.error || 'Terjadi kesalahan pada server'
-      }
+    if (args.items) {
+      params.append('items', String(args.items))
+    } else if (args.limit) {
+      // Map legacy 'limit' to backend 'items'
+      params.append('items', String(args.limit))
     }
 
-    const result = raw.result || raw.data || []
-
-    return {
-      success: true,
-      result: result,
-      pagination: raw.pagination
-    }
-  } catch (err: any) {
-    return { success: false, error: err.message }
+    const res = await client.get(`/api/module/medication-request/medication-requests?${params.toString()}`)
+    const ListSchema = BackendListSchema(MedicationRequestWithIdSchema)
+    const result = await parseBackendResponse(res, ListSchema)
+    return result ? { success: true, data: result } : { success: false }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
   }
 }
 
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.get(`/api/medicationrequest/read/${args.id}`)
+    const res = await client.get(`/api/module/medication-request/medication-requests/${args.id}`)
     const ReadSchema = z.object({
       success: z.boolean(),
       result: MedicationRequestWithIdSchema.optional(),
-      error: z.any().optional()
+      error: z.string().optional()
     })
     const result = await parseBackendResponse(res, ReadSchema)
-    return { success: true, data: result }
+    return result ? { success: true, data: result } : { success: false }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -86,17 +115,49 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.post('/api/medicationrequest', args)
-    const CreateSchema = z.object({
-      success: z.boolean(),
-      result: z
-        .union([MedicationRequestWithIdSchema, MedicationRequestWithIdSchema.array()])
-        .optional(),
-      error: z.any().optional(),
-      message: z.string().optional()
-    })
-    const result = await parseBackendResponse(res, CreateSchema)
-    return { success: true, data: result }
+    if (Array.isArray(args)) {
+      const SingleSchema = z.object({
+        success: z.boolean(),
+        result: z
+          .object({
+            id: z.number(),
+            status: z.string().optional()
+          })
+          .optional(),
+        error: z.string().optional(),
+        message: z.string().optional()
+      })
+      const results: Array<{ id: number; status?: string }> = []
+      for (const entry of args) {
+        const res = await client.post(
+          '/api/module/medication-request/medication-requests',
+          entry
+        )
+        const parsed = await parseBackendResponse(res, SingleSchema)
+        if (parsed && typeof parsed.id === 'number') {
+          results.push(parsed)
+        }
+      }
+      return { success: true, data: results }
+    } else {
+      const res = await client.post(
+        '/api/module/medication-request/medication-requests',
+        args
+      )
+      const SingleSchema = z.object({
+        success: z.boolean(),
+        result: z
+          .object({
+            id: z.number(),
+            status: z.string().optional()
+          })
+          .optional(),
+        error: z.string().optional(),
+        message: z.string().optional()
+      })
+      const result = await parseBackendResponse(res, SingleSchema)
+      return result ? { success: true, data: result } : { success: false }
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('MedicationRequest IPC create error:', msg)
@@ -108,14 +169,19 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
   try {
     const client = getClient(ctx)
     const { id, ...data } = args
-    const res = await client.put(`/api/medicationrequest/${id}`, data)
+    const res = await client.put(`/api/module/medication-request/medication-requests/${id}`, data)
     const UpdateSchema = z.object({
       success: z.boolean(),
-      result: MedicationRequestWithIdSchema.optional(),
-      error: z.any().optional()
+      result: z
+        .object({
+          id: z.number(),
+          status: z.string().optional()
+        })
+        .optional(),
+      error: z.string().optional()
     })
     const result = await parseBackendResponse(res, UpdateSchema)
-    return { success: true, data: result }
+    return result ? { success: true, data: result } : { success: false }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }
@@ -125,13 +191,31 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
 export const deleteById = async (ctx: IpcContext, args: z.infer<typeof schemas.deleteById.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.delete(`/api/medicationrequest/${args.id}`)
+    const res = await client.delete(`/api/module/medication-request/medication-requests/${args.id}`)
     const DeleteSchema = z.object({
       success: z.boolean(),
-      error: z.any().optional()
+      error: z.string().optional()
     })
     await parseBackendResponse(res, DeleteSchema)
     return { success: true }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const syncSatusehat = async (ctx: IpcContext, args: z.infer<typeof schemas.syncSatusehat.args>) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.post(`/api/module/medication-request/medication-requests/${args.id}/sync-satusehat`, {})
+    const raw = await res
+      .json()
+      .catch(() => ({} as { success?: boolean; message?: string; error?: string }))
+    if (!res.ok || raw?.success !== true) {
+      const errMsg = (raw as { error?: string; message?: string }).error || (raw as { error?: string; message?: string }).message || `HTTP ${res.status}`
+      return { success: false, error: errMsg }
+    }
+    return { success: true, message: (raw as { message?: string }).message }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     return { success: false, error: msg }

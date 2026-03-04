@@ -27,9 +27,9 @@ import bodyFront from '../../assets/images/body_front.png'
 import bodyBack from '../../assets/images/body_back.png'
 import bodyLeft from '../../assets/images/body_left.png'
 import bodyRight from '../../assets/images/body_right.png'
-import { BodyMappingLetter } from './BodyMappingLetter'
+import { BodyMappingLetter } from './Assessment/Bodymapping/BodyMappingLetter'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
-import { AssessmentHeader } from './Assessment/AssessmentHeader'
+import { AssessmentHeader } from './Assessment/AssesmentHeader/AssessmentHeader'
 import { Divider } from 'antd'
 import {
   useUpsertComposition,
@@ -605,27 +605,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
           </Col>
         </Row>
 
-        <div className="flex justify-end pt-4 pb-12 gap-4">
-          <Button
-            size="large"
-            icon={<PrinterOutlined />}
-            className="px-8 h-12 rounded-xl"
-            onClick={handlePreviewPrint}
-          >
-            Preview Cetak
-          </Button>
-          <Button
-            type="primary"
-            size="large"
-            icon={<SaveOutlined />}
-            className="px-12 h-12 rounded-xl shadow-lg bg-indigo-600 hover:bg-indigo-700"
-            onClick={() => form.submit()}
-            loading={isSaving}
-          >
-            Simpan Resume Medis Tubuh
-          </Button>
-        </div>
-
         <SignaturePadModal
           title={sigModal.title}
           visible={sigModal.visible}
@@ -680,6 +659,20 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
           </div>
         </Modal>
       </Card>
+      <div className="flex justify-end gap-4">
+        <Button size="large" icon={<PrinterOutlined />} onClick={handlePreviewPrint}>
+          Preview Cetak
+        </Button>
+        <Button
+          type="primary"
+          size="large"
+          icon={<SaveOutlined />}
+          onClick={() => form.submit()}
+          loading={isSaving}
+        >
+          Simpan Resume Medis Tubuh
+        </Button>
+      </div>
     </div>
   )
 }

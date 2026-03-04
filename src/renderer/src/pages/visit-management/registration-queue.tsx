@@ -2,7 +2,7 @@ import { CheckCircleOutlined, SoundOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { DatePicker, Form, Tag, App, Input, Modal, Button } from 'antd'
+import { DatePicker, Form, Tag, App, Input, Modal, Button, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -118,17 +118,18 @@ console.log(queueData)
         <div>
             <TableHeader
                 title="Antrian Pendaftaran"
+                subtitle="Manajemen antrian pendaftaran pasien"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
             >
-                <div className="flex gap-4">
-                    <Form.Item name="queueDate" label="Tanggal" initialValue={dayjs()}>
-                         <DatePicker allowClear={false} />
+               
+                    <Form.Item name="queueDate" style={{ width: '100%' }} initialValue={dayjs()}>
+                         <DatePicker allowClear={false} size='large' style={{ width: '100%' }} />
                     </Form.Item>
-                    <Form.Item name="queueNumber" label="No. Antrian">
-                         <Input placeholder="Cari No. Antrian" allowClear />
+                    <Form.Item name="queueNumber" style={{ width: '100%' }} >
+                         <Input placeholder="Cari No. Antrian" allowClear size='large' />
                     </Form.Item>
-                </div>
+               
             </TableHeader>
 
             <div className='mt-4'><GenericTable

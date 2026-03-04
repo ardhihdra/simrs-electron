@@ -1,8 +1,9 @@
-import { Button, Form, Input, Select } from 'antd'
+import { Button, Card, Form, Input, Select, Tag, theme } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { useEffect } from 'react'
 import { queryClient } from '@renderer/query-client'
+import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 
 interface JaminanFormData {
   nama: string
@@ -12,6 +13,7 @@ interface JaminanFormData {
 }
 
 export function JaminanForm() {
+  const { token } = theme.useToken()
   const navigate = useNavigate()
   const { id } = useParams()
   const [form] = Form.useForm()
@@ -88,65 +90,103 @@ export function JaminanForm() {
     }
   }
 
+  const isLoading = createMutation.isPending || updateMutation.isPending
+
   return (
-    <div className="flex justify-center">
-      <div className="w-full max-w-2xl">
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          {isEdit ? 'Edit Jaminan' : 'Tambah Jaminan'}
-        </h2>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          initialValues={{
-            status: 'active'
-          }}
-        >
-          <Form.Item
-            label="Kode Jaminan"
-            name="kode"
-            rules={[{ required: true, message: 'Kode jaminan harus diisi' }]}
+    <div className="flex flex-col gap-4 h-full">
+      {/* Header Card */}
+      <Card bodyStyle={{ padding: '20px 24px' }} bordered={false}>
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard/registration/jaminan')}
+                style={{ color: token.colorTextSecondary }}
+                className="hover:opacity-80 transition-opacity bg-transparent border-none p-0 cursor-pointer flex items-center gap-1 text-sm font-medium"
+              >
+                <ArrowLeftOutlined />
+                <span>Master Jaminan</span>
+              </button>
+            </div>
+            <h1 style={{ color: token.colorText }} className="text-2xl font-bold mb-0">
+              {isEdit ? 'Edit Jaminan' : 'Tambah Jaminan'}
+            </h1>
+            <p style={{ color: token.colorTextTertiary }} className="text-sm m-0">
+              {isEdit
+                ? 'Perbarui data jaminan atau asuransi pasien'
+                : 'Isi formulir berikut untuk menambahkan data jaminan baru'}
+            </p>
+          </div>
+          <Tag
+            color={isEdit ? 'blue' : 'green'}
+            className="px-3 py-1 text-sm m-0 border-0"
+            style={{ fontWeight: 500 }}
           >
-            <Input placeholder="Contoh: BPJS, ASWASTA" />
-          </Form.Item>
+            {isEdit ? 'Mode Edit' : 'Data Baru'}
+          </Tag>
+        </div>
+      </Card>
 
-          <Form.Item
-            label="Nama Jaminan"
-            name="nama"
-            rules={[{ required: true, message: 'Nama jaminan harus diisi' }]}
-          >
-            <Input placeholder="Contoh: BPJS Kesehatan" />
-          </Form.Item>
+      {/* Form Card */}
+      <Form form={form} layout="vertical" onFinish={onFinish} initialValues={{ status: 'active' }}>
+        <Card bodyStyle={{ padding: '20px 24px' }} bordered={false} title="Informasi Jaminan">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+            <Form.Item
+              label={<span className="font-medium">Kode Jaminan</span>}
+              name="kode"
+              rules={[{ required: true, message: 'Kode jaminan harus diisi' }]}
+            >
+              <Input placeholder="Contoh: BPJS, ASWASTA" size="large" />
+            </Form.Item>
 
-          <Form.Item label="Keterangan" name="keterangan">
+            <Form.Item
+              label={<span className="font-medium">Nama Jaminan</span>}
+              name="nama"
+              rules={[{ required: true, message: 'Nama jaminan harus diisi' }]}
+            >
+              <Input placeholder="Contoh: BPJS Kesehatan" size="large" />
+            </Form.Item>
+          </div>
+
+          <Form.Item label={<span className="font-medium">Keterangan</span>} name="keterangan">
             <Input.TextArea rows={3} placeholder="Keterangan tambahan (opsional)" />
           </Form.Item>
 
           <Form.Item
-            label="Status"
+            label={<span className="font-medium">Status</span>}
             name="status"
             rules={[{ required: true, message: 'Status harus dipilih' }]}
           >
-            <Select placeholder="Pilih status">
+            <Select placeholder="Pilih status" size="large">
               <Select.Option value="active">Aktif</Select.Option>
               <Select.Option value="inactive">Tidak Aktif</Select.Option>
             </Select>
           </Form.Item>
+        </Card>
 
-          <Form.Item>
-            <div className="flex gap-2 justify-center">
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={createMutation.isPending || updateMutation.isPending}
-              >
-                {isEdit ? 'Update' : 'Simpan'}
-              </Button>
-              <Button onClick={() => navigate('/dashboard/registration/jaminan')}>Batal</Button>
-            </div>
-          </Form.Item>
-        </Form>
-      </div>
+        {/* Action Footer */}
+        <Card bodyStyle={{ padding: '16px 24px' }} bordered={false} className="mt-4">
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              size="large"
+              onClick={() => navigate('/dashboard/registration/jaminan')}
+              icon={<ArrowLeftOutlined />}
+            >
+              Batal
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              htmlType="submit"
+              loading={isLoading}
+              icon={<SaveOutlined />}
+            >
+              {isEdit ? 'Update Jaminan' : 'Simpan Jaminan'}
+            </Button>
+          </div>
+        </Card>
+      </Form>
     </div>
   )
 }

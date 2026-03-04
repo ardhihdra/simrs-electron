@@ -4,43 +4,63 @@ import {
   HistoryOutlined,
   MoreOutlined,
   PlusOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SyncOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  MedicineBoxOutlined,
+  SearchOutlined
 } from '@ant-design/icons'
-import GenericTable from '@renderer/components/organisms/GenericTable'
 import { queryClient } from '@renderer/query-client'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { MenuProps } from 'antd'
-import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, message } from 'antd'
+import {
+  Button,
+  Dropdown,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Table,
+  Tag,
+  message,
+  Card,
+  Spin,
+  theme
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
 interface PriceRule {
-	unitCode: string
-	qty: number
-	price: number
+  unitCode: string
+  qty: number
+  price: number
 }
 
 interface ItemAttributes {
-	id?: number
-	nama: string
-	kode: string
-	kodeUnit: string
-	kfaCode?: string | null
-	kind?: ItemKind | null
-	unit?: { nama?: string; kode?: string } | null
-	stock?: number | null
-	minimumStock?: number | null
-	buyingPrice?: number | null
-	sellingPrice?: number | null
-	buyPriceRules?: PriceRule[] | null
-	sellPriceRules?: PriceRule[] | null
-	itemCategoryId?: number | null
-	category?: {
-		id?: number
-		name?: string | null
-	} | null
+  id?: number
+  nama: string
+  kode: string
+  kodeUnit: string
+  kfaCode?: string | null
+  fhirId?: string | null
+  kind?: ItemKind | null
+  unit?: { nama?: string; kode?: string } | null
+  stock?: number | null
+  minimumStock?: number | null
+  buyingPrice?: number | null
+  sellingPrice?: number | null
+  buyPriceRules?: PriceRule[] | null
+  sellPriceRules?: PriceRule[] | null
+  itemCategoryId?: number | null
+  category?: {
+    id?: number
+    name?: string | null
+  } | null
 }
 
 type ItemListResponse = {
@@ -64,87 +84,84 @@ type InventoryStockResponse = {
   message?: string
 }
 
- 
-
 const formatRupiah = (value: number | string | null | undefined): string => {
-	if (value === null || value === undefined) return '-'
-	const raw =
-		typeof value === 'number' ? value : Number(String(value).replace(/[^0-9-]/g, ''))
-	if (!Number.isFinite(raw)) return '-'
-	const formatted = new Intl.NumberFormat('id-ID', {
-		minimumFractionDigits: 0,
-		maximumFractionDigits: 0
-	}).format(raw)
-	return `Rp ${formatted}`
+  if (value === null || value === undefined) return '-'
+  const raw = typeof value === 'number' ? value : Number(String(value).replace(/[^0-9-]/g, ''))
+  if (!Number.isFinite(raw)) return '-'
+  const formatted = new Intl.NumberFormat('id-ID', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(raw)
+  return `Rp ${formatted}`
 }
 
 interface UnitPriceDisplay {
-	unitCode: string
-	value: number
+  unitCode: string
+  value: number
 }
 
 const getBaseUnitCodeForItem = (item: ItemAttributes): string | null => {
-	const all: { unitCode: string; qty: number }[] = []
+  const all: { unitCode: string; qty: number }[] = []
 
-	const collect = (rules: PriceRule[] | null | undefined) => {
-		if (!Array.isArray(rules)) return
-		for (const rule of rules) {
-			const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
-			const unitCode = unitCodeRaw.trim().toUpperCase()
-			const qtyRaw = rule.qty
-			const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
-			if (!unitCode) continue
-			if (!Number.isFinite(qty) || qty <= 0) continue
-			all.push({ unitCode, qty })
-		}
-	}
+  const collect = (rules: PriceRule[] | null | undefined) => {
+    if (!Array.isArray(rules)) return
+    for (const rule of rules) {
+      const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
+      const unitCode = unitCodeRaw.trim().toUpperCase()
+      const qtyRaw = rule.qty
+      const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
+      if (!unitCode) continue
+      if (!Number.isFinite(qty) || qty <= 0) continue
+      all.push({ unitCode, qty })
+    }
+  }
 
-	collect(item.buyPriceRules ?? null)
-	collect(item.sellPriceRules ?? null)
+  collect(item.buyPriceRules ?? null)
+  collect(item.sellPriceRules ?? null)
 
-	if (all.length === 0) {
-		const kodeUnitRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : ''
-		const kodeUnit = kodeUnitRaw.trim().toUpperCase()
-		return kodeUnit || null
-	}
+  if (all.length === 0) {
+    const kodeUnitRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : ''
+    const kodeUnit = kodeUnitRaw.trim().toUpperCase()
+    return kodeUnit || null
+  }
 
-	const sorted = [...all].sort((a, b) => a.qty - b.qty)
-	return sorted[0]?.unitCode ?? null
+  const sorted = [...all].sort((a, b) => a.qty - b.qty)
+  return sorted[0]?.unitCode ?? null
 }
 
 const buildUnitPrices = (
-	rules: PriceRule[] | null | undefined,
-	baseUnitCodeRaw: string | null
+  rules: PriceRule[] | null | undefined,
+  baseUnitCodeRaw: string | null
 ): UnitPriceDisplay[] => {
-	if (!Array.isArray(rules)) return []
-	const baseUnitCode = baseUnitCodeRaw ? baseUnitCodeRaw.trim().toUpperCase() : ''
-	const result: UnitPriceDisplay[] = []
+  if (!Array.isArray(rules)) return []
+  const baseUnitCode = baseUnitCodeRaw ? baseUnitCodeRaw.trim().toUpperCase() : ''
+  const result: UnitPriceDisplay[] = []
 
-	for (const rule of rules) {
-		const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
-		const unitCode = unitCodeRaw.trim().toUpperCase()
-		const qtyRaw = rule.qty
-		const priceRaw = rule.price
-		const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
-		const price = typeof priceRaw === 'number' ? priceRaw : Number(priceRaw)
+  for (const rule of rules) {
+    const unitCodeRaw = typeof rule.unitCode === 'string' ? rule.unitCode : ''
+    const unitCode = unitCodeRaw.trim().toUpperCase()
+    const qtyRaw = rule.qty
+    const priceRaw = rule.price
+    const qty = typeof qtyRaw === 'number' ? qtyRaw : Number(qtyRaw)
+    const price = typeof priceRaw === 'number' ? priceRaw : Number(priceRaw)
 
-		if (!unitCode) continue
-		if (!Number.isFinite(price)) continue
+    if (!unitCode) continue
+    if (!Number.isFinite(price)) continue
 
-		const isBaseUnit = baseUnitCode !== '' && unitCode === baseUnitCode
+    const isBaseUnit = baseUnitCode !== '' && unitCode === baseUnitCode
 
-		if (isBaseUnit) {
-			result.push({ unitCode, value: price })
-			continue
-		}
+    if (isBaseUnit) {
+      result.push({ unitCode, value: price })
+      continue
+    }
 
-		if (!Number.isFinite(qty) || qty <= 0) continue
-		const unitPrice = price / qty
-		if (!Number.isFinite(unitPrice)) continue
-		result.push({ unitCode, value: unitPrice })
-	}
+    if (!Number.isFinite(qty) || qty <= 0) continue
+    const unitPrice = price / qty
+    if (!Number.isFinite(unitPrice)) continue
+    result.push({ unitCode, value: unitPrice })
+  }
 
-	return result
+  return result
 }
 
 interface ItemUpdatePayload {
@@ -152,6 +169,7 @@ interface ItemUpdatePayload {
   nama: string
   kode: string
   kodeUnit: string
+  kfaCode?: string | null
   kind?: ItemKind | null
   minimumStock?: number | null
 }
@@ -166,69 +184,69 @@ type ItemApi = {
 }
 
 interface AdjustItemStockResult {
-	id?: number
-	kode?: string
-	stock?: number
+  id?: number
+  kode?: string
+  stock?: number
 }
 
 interface AdjustItemStockArgs {
-	itemId: number
-	newStock: number
-	adjustReason?: string
-	note?: string
+  itemId: number
+  newStock: number
+  adjustReason?: string
+  note?: string
 }
 
 type InventoryStockApi = {
-	adjustItemStock: (args: AdjustItemStockArgs) => Promise<{
-		success: boolean
-		result?: AdjustItemStockResult
-		message?: string
-		error?: string
-	}>
-	itemAdjustments: (args?: { itemId?: number }) => Promise<{
-		success: boolean
-		result?: ItemAdjustmentRow[]
-		message?: string
-	}>
+  adjustItemStock: (args: AdjustItemStockArgs) => Promise<{
+    success: boolean
+    result?: AdjustItemStockResult
+    message?: string
+    error?: string
+  }>
+  itemAdjustments: (args?: { itemId?: number }) => Promise<{
+    success: boolean
+    result?: ItemAdjustmentRow[]
+    message?: string
+  }>
 }
 
 interface ItemAdjustmentRow {
-	id: number
-	kodeItem: string
-	type: number
-	qty: number
-	batchNumber: string | null
-	expiryDate: string | null
-	adjustReason: string | null
-	note: string | null
-	previousStock: number
-	newStock: number
-	createdAt: string
-	createdBy: string | null
-	createdByName?: string | null
-	updatedAt: string | null
-	updatedBy: string | null
+  id: number
+  kodeItem: string
+  type: number
+  qty: number
+  batchNumber: string | null
+  expiryDate: string | null
+  adjustReason: string | null
+  note: string | null
+  previousStock: number
+  newStock: number
+  createdAt: string
+  createdBy: string | null
+  createdByName?: string | null
+  updatedAt: string | null
+  updatedBy: string | null
 }
 
 interface StockAdjustmentFormValues {
-	currentStock?: number
-	physicalStock?: number
-	reason?: string
-	note?: string
+  currentStock?: number
+  physicalStock?: number
+  reason?: string
+  note?: string
 }
 
 function RowActions({ record }: { record: ItemAttributes }) {
   const navigate = useNavigate()
   const [isEditStockOpen, setIsEditStockOpen] = useState(false)
-	const [stockForm] = Form.useForm<StockAdjustmentFormValues>()
+  const [stockForm] = Form.useForm<StockAdjustmentFormValues>()
 
   const api = (window.api?.query as { item?: ItemApi }).item
-  const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
-    .inventoryStock
+  const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi }).inventoryStock
+  const [syncingSatusehat, setSyncingSatusehat] = useState(false)
 
-	const updateStockAndMinimumStockMutation = useMutation({
+  const updateStockAndMinimumStockMutation = useMutation({
     mutationKey: ['item', 'update', 'stock-and-minimumStock', record.id],
-		mutationFn: async (values: StockAdjustmentFormValues) => {
+    mutationFn: async (values: StockAdjustmentFormValues) => {
       if (typeof record.id !== 'number') {
         throw new Error('ID item tidak valid.')
       }
@@ -244,7 +262,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
         throw new Error('API item tidak tersedia.')
       }
 
-			const rawStock = values.physicalStock
+      const rawStock = values.physicalStock
       if (rawStock === undefined || rawStock === null || Number.isNaN(rawStock)) {
         throw new Error('Stok baru harus diisi dengan angka yang valid.')
       }
@@ -255,17 +273,17 @@ function RowActions({ record }: { record: ItemAttributes }) {
 
       const roundedStock = Math.floor(rawStock)
 
-			const normalizedMinimumStock =
-				typeof record.minimumStock === 'number' && record.minimumStock >= 0
-					? record.minimumStock
-					: null
+      const normalizedMinimumStock =
+        typeof record.minimumStock === 'number' && record.minimumStock >= 0
+          ? record.minimumStock
+          : null
 
-			const adjustResult = await adjustFn({
-				itemId: record.id,
-				newStock: roundedStock,
-				adjustReason: values.reason,
-				note: values.note
-			})
+      const adjustResult = await adjustFn({
+        itemId: record.id,
+        newStock: roundedStock,
+        adjustReason: values.reason,
+        note: values.note
+      })
 
       if (!adjustResult?.success) {
         const msg = adjustResult?.message ?? adjustResult?.error ?? 'Gagal memperbarui stok item'
@@ -323,23 +341,58 @@ function RowActions({ record }: { record: ItemAttributes }) {
       }
     },
     {
+      key: 'sync-satusehat',
+      label: syncingSatusehat ? 'Sinkronisasi Satu Sehat...' : 'Sinkronisasi Satu Sehat',
+      icon: <SyncOutlined />,
+      disabled: syncingSatusehat,
+      onClick: async () => {
+        if (typeof record.id !== 'number') return
+        const fn = window.api?.query?.item?.syncSatusehat
+        if (!fn) {
+          message.error('API sinkronisasi tidak tersedia. Silakan refresh/restart aplikasi.')
+          return
+        }
+        setSyncingSatusehat(true)
+        try {
+          const res = await fn({ id: record.id })
+          if (res && (res as { success?: boolean }).success) {
+            const msg = (res as { message?: string }).message || ''
+            if (msg.toLowerCase().includes('already')) {
+              message.info('Sudah tersinkron ke SATUSEHAT')
+            } else {
+              message.success('Sinkronisasi Satu Sehat berhasil')
+            }
+            queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
+          } else {
+            const errMsg =
+              (res as { error?: string; message?: string }).error ||
+              (res as { error?: string; message?: string }).message ||
+              'Sinkronisasi Satu Sehat gagal'
+            message.error(errMsg)
+          }
+        } catch {
+          message.error('Sinkronisasi Satu Sehat gagal')
+        } finally {
+          setSyncingSatusehat(false)
+        }
+      }
+    },
+    {
       key: 'edit-stock',
       label: 'Penyesuaian Stok',
       icon: <EditOutlined />,
       onClick: () => {
         const currentStock =
-          typeof record.stock === 'number' && Number.isFinite(record.stock)
-            ? record.stock
-            : 0
-			stockForm.setFieldsValue({
-				currentStock,
-				physicalStock: currentStock,
-				reason: '',
-				note: ''
-			})
+          typeof record.stock === 'number' && Number.isFinite(record.stock) ? record.stock : 0
+        stockForm.setFieldsValue({
+          currentStock,
+          physicalStock: currentStock,
+          reason: '',
+          note: ''
+        })
         setIsEditStockOpen(true)
       }
-		},
+    },
     { type: 'divider' },
     {
       key: 'delete',
@@ -355,7 +408,12 @@ function RowActions({ record }: { record: ItemAttributes }) {
   return (
     <>
       <Dropdown menu={{ items }} trigger={['click']} placement="bottomRight">
-        <Button type="text" icon={<MoreOutlined />} />
+        <button
+          aria-label="Actions"
+          className="p-1 rounded text-gray-700 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800"
+        >
+          <MoreOutlined />
+        </button>
       </Dropdown>
       <Modal
         title="Penyesuaian Stok Fisik Item"
@@ -378,78 +436,73 @@ function RowActions({ record }: { record: ItemAttributes }) {
         cancelText="Batal"
         destroyOnClose
       >
-		<Form
-		  form={stockForm}
-		  layout="vertical"
-		  initialValues={{
-			currentStock:
-			  typeof record.stock === 'number' && Number.isFinite(record.stock)
-				? record.stock
-				: 0,
-			physicalStock:
-			  typeof record.stock === 'number' && Number.isFinite(record.stock)
-				? record.stock
-				: 0,
-			reason: '',
-			note: ''
-		  }}
-		>
-		  <Form.Item label="Stok Sekarang" name="currentStock">
-			<InputNumber<number> disabled className="w-full" />
-		  </Form.Item>
-		  <Form.Item
-			label="Stok Fisik"
-			name="physicalStock"
-			rules={[
-			  {
-				validator: (_rule, value) => {
-				  if (value === undefined || value === null || value === '') {
-					return Promise.reject(new Error('Stok fisik harus diisi'))
-				  }
-				  if (typeof value !== 'number' || Number.isNaN(value)) {
-					return Promise.reject(new Error('Nilai stok fisik harus berupa angka'))
-				  }
-				  if (value < 0) {
-					return Promise.reject(
-					  new Error('Stok fisik tidak boleh bernilai negatif')
-					)
-				  }
-				  return Promise.resolve()
-				}
-			  }
-			]}
-		  >
-			<InputNumber<number> min={0} className="w-full" />
-		  </Form.Item>
-		  
-		  <Form.Item label="Alasan Penyesuaian" name="reason">
-			<Select
-			  placeholder="Pilih alasan"
-			  options={[
-				{ value: 'hilang', label: 'Hilang' },
-				{ value: 'rusak', label: 'Rusak' },
-				{ value: 'dipakai', label: 'Dipakai' },
-				{ value: 'lebih', label: 'Lebih' }
-			  ]}
-			/>
-		  </Form.Item>
-		  <Form.Item label="Catatan" name="note">
-			<Input.TextArea rows={2} />
-		  </Form.Item>
-		</Form>
-			</Modal>
+        <Form
+          form={stockForm}
+          layout="vertical"
+          initialValues={{
+            currentStock:
+              typeof record.stock === 'number' && Number.isFinite(record.stock) ? record.stock : 0,
+            physicalStock:
+              typeof record.stock === 'number' && Number.isFinite(record.stock) ? record.stock : 0,
+            reason: '',
+            note: ''
+          }}
+        >
+          <Form.Item label="Stok Sekarang" name="currentStock">
+            <InputNumber<number> disabled className="w-full" />
+          </Form.Item>
+          <Form.Item
+            label="Stok Fisik"
+            name="physicalStock"
+            rules={[
+              {
+                validator: (_rule, value) => {
+                  if (value === undefined || value === null || value === '') {
+                    return Promise.reject(new Error('Stok fisik harus diisi'))
+                  }
+                  if (typeof value !== 'number' || Number.isNaN(value)) {
+                    return Promise.reject(new Error('Nilai stok fisik harus berupa angka'))
+                  }
+                  if (value < 0) {
+                    return Promise.reject(new Error('Stok fisik tidak boleh bernilai negatif'))
+                  }
+                  return Promise.resolve()
+                }
+              }
+            ]}
+          >
+            <InputNumber<number> min={0} className="w-full" />
+          </Form.Item>
+
+          <Form.Item label="Alasan Penyesuaian" name="reason">
+            <Select
+              placeholder="Pilih alasan"
+              options={[
+                { value: 'hilang', label: 'Hilang' },
+                { value: 'rusak', label: 'Rusak' },
+                { value: 'dipakai', label: 'Dipakai' },
+                { value: 'lebih', label: 'Lebih' }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item label="Catatan" name="note">
+            <Input.TextArea rows={2} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </>
   )
 }
 
 export function ItemTable() {
+  const { token } = theme.useToken()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
-	const [isHistoryOpen, setIsHistoryOpen] = useState(false)
-	const [historyLoading, setHistoryLoading] = useState(false)
-	const [historyRows, setHistoryRows] = useState<ItemAdjustmentRow[]>([])
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [historyRows, setHistoryRows] = useState<ItemAdjustmentRow[]>([])
 
-  const { data, refetch, isError } = useQuery<ItemListResponse>({
+  const { data, refetch, isError, isLoading } = useQuery<ItemListResponse>({
     queryKey: ['item', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.item?.list
@@ -458,31 +511,26 @@ export function ItemTable() {
     }
   })
 
-	const itemCategoryNameById = useMemo(() => {
-		const items: ItemAttributes[] = Array.isArray(data?.result)
-			? data.result
-			: []
-		const map = new Map<number, string>()
-		for (const item of items) {
-			const id =
-				typeof item.itemCategoryId === 'number'
-					? item.itemCategoryId
-					: typeof item.category?.id === 'number'
-						? item.category.id
-						: undefined
-			if (typeof id !== 'number') continue
-			const rawName =
-				typeof item.category?.name === 'string'
-					? item.category.name
-					: undefined
-			const name = rawName ? rawName.trim() : ''
-			if (!name) continue
-			if (!map.has(id)) {
-				map.set(id, name)
-			}
-		}
-		return map
-	}, [data?.result])
+  const itemCategoryNameById = useMemo(() => {
+    const items: ItemAttributes[] = Array.isArray(data?.result) ? data.result : []
+    const map = new Map<number, string>()
+    for (const item of items) {
+      const id =
+        typeof item.itemCategoryId === 'number'
+          ? item.itemCategoryId
+          : typeof item.category?.id === 'number'
+            ? item.category.id
+            : undefined
+      if (typeof id !== 'number') continue
+      const rawName = typeof item.category?.name === 'string' ? item.category.name : undefined
+      const name = rawName ? rawName.trim() : ''
+      if (!name) continue
+      if (!map.has(id)) {
+        map.set(id, name)
+      }
+    }
+    return map
+  }, [data?.result])
 
   const { data: stockData } = useQuery<InventoryStockResponse>({
     queryKey: ['inventoryStock', 'list'],
@@ -528,286 +576,413 @@ export function ItemTable() {
     })
   }, [data?.result, stockData?.result, search])
 
-	const handleOpenHistory = async () => {
-		const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
-			.inventoryStock
-		const fn = inventoryApi?.itemAdjustments
-		if (!fn) {
-			message.error('API history penyesuaian stok tidak tersedia.')
-			return
-		}
-		try {
-			setHistoryLoading(true)
-			const res = await fn()
-			if (!res.success) {
-				const msg = res.message ?? 'Gagal mengambil history penyesuaian stok'
-				message.error(msg)
-				setHistoryRows([])
-			} else {
-				setHistoryRows(Array.isArray(res.result) ? res.result : [])
-				setIsHistoryOpen(true)
-			}
-		} catch (err) {
-			const msg = err instanceof Error ? err.message : 'Gagal mengambil history penyesuaian stok'
-			message.error(msg)
-		} finally {
-			setHistoryLoading(false)
-		}
-	}
+  const handleOpenHistory = async () => {
+    const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
+      .inventoryStock
+    const fn = inventoryApi?.itemAdjustments
+    if (!fn) {
+      message.error('API history penyesuaian stok tidak tersedia.')
+      return
+    }
+    try {
+      setHistoryLoading(true)
+      const res = await fn()
+      if (!res.success) {
+        const msg = res.message ?? 'Gagal mengambil history penyesuaian stok'
+        message.error(msg)
+        setHistoryRows([])
+      } else {
+        setHistoryRows(Array.isArray(res.result) ? res.result : [])
+        setIsHistoryOpen(true)
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Gagal mengambil history penyesuaian stok'
+      message.error(msg)
+    } finally {
+      setHistoryLoading(false)
+    }
+  }
+
+  const columns: ColumnsType<ItemAttributes> = [
+    {
+      title: 'Nama',
+      dataIndex: 'nama',
+      key: 'nama',
+      width: 240,
+      render: (text: string) => <span className="item-table-nama-cell">{text}</span>
+    },
+    { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 120 },
+    {
+      title: 'Kode KFA',
+      dataIndex: 'kfaCode',
+      key: 'kfaCode',
+      width: 120,
+      render: (v: string | null) => v || '-'
+    },
+    {
+      title: 'Satu Sehat',
+      dataIndex: 'fhirId',
+      key: 'fhirId',
+      width: 140,
+      render: (v: string | null | undefined) => {
+        const ok = typeof v === 'string' && v.trim().length > 0
+        return ok ? (
+          <Tag icon={<CheckCircleOutlined />} color="success">
+            Tersinkron
+          </Tag>
+        ) : (
+          <Tag icon={<CloseCircleOutlined />} color="error">
+            Belum
+          </Tag>
+        )
+      }
+    },
+    {
+      title: 'Stok',
+      dataIndex: 'stock',
+      key: 'stock',
+      width: 100,
+      render: (v: ItemAttributes['stock']) => (typeof v === 'number' ? v : 0)
+    },
+    {
+      title: 'Minimum Stok',
+      dataIndex: 'minimumStock',
+      key: 'minimumStock',
+      width: 140,
+      render: (v: ItemAttributes['minimumStock']) => (typeof v === 'number' && v > 0 ? v : '-')
+    },
+    {
+      title: 'Unit',
+      dataIndex: 'unit',
+      key: 'unit',
+      render: (v: ItemAttributes['unit']) => v?.nama || v?.kode || '-'
+    },
+    {
+      title: 'Harga Beli Satuan',
+      key: 'buyUnitPrice',
+      render: (_: unknown, record: ItemAttributes) => {
+        const baseUnitCode = getBaseUnitCodeForItem(record)
+        const unitPrices = buildUnitPrices(record.buyPriceRules ?? null, baseUnitCode)
+        if (unitPrices.length > 0) {
+          return (
+            <div className="flex flex-col">
+              {unitPrices.map((p) => (
+                <span key={`${p.unitCode}-${p.value}`}>
+                  {formatRupiah(p.value)} / {p.unitCode}
+                </span>
+              ))}
+            </div>
+          )
+        }
+        const price = record.buyingPrice
+        if (typeof price === 'number' && Number.isFinite(price)) {
+          const unitLabel = record.kodeUnit || 'PCS'
+          return (
+            <span>
+              {formatRupiah(price)} / {unitLabel}
+            </span>
+          )
+        }
+        return '-' as const
+      }
+    },
+    {
+      title: 'Harga Jual Satuan',
+      key: 'sellUnitPrice',
+      render: (_: unknown, record: ItemAttributes) => {
+        const baseUnitCode = getBaseUnitCodeForItem(record)
+        const unitPrices = buildUnitPrices(record.sellPriceRules ?? null, baseUnitCode)
+        if (unitPrices.length > 0) {
+          return (
+            <div className="flex flex-col">
+              {unitPrices.map((p) => (
+                <span key={`${p.unitCode}-${p.value}`}>
+                  {formatRupiah(p.value)} / {p.unitCode}
+                </span>
+              ))}
+            </div>
+          )
+        }
+        const price = record.sellingPrice
+        if (typeof price === 'number' && Number.isFinite(price)) {
+          const unitLabel = record.kodeUnit || 'PCS'
+          return (
+            <span>
+              {formatRupiah(price)} / {unitLabel}
+            </span>
+          )
+        }
+        return '-' as const
+      }
+    },
+    {
+      title: 'Kategori',
+      dataIndex: 'itemCategoryId',
+      key: 'itemCategoryId',
+      render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
+        const directName =
+          typeof record.category?.name === 'string' ? record.category.name.trim() : ''
+        if (directName.length > 0) return directName
+        const idFromRecord =
+          typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
+        if (typeof idFromRecord === 'number') {
+          const mapped = itemCategoryNameById.get(idFromRecord)
+          if (typeof mapped === 'string' && mapped.length > 0) return mapped
+        }
+        return '-'
+      }
+    },
+    {
+      title: 'Action',
+      key: 'action',
+      width: 80,
+      align: 'center',
+      fixed: 'right',
+      render: (_: unknown, record: ItemAttributes) => <RowActions record={record} />
+    }
+  ]
 
   return (
-    <div>
-      <h2 className="text-3xl md:text-4xl font-bold mb-4 justify-center flex">Data Master Item</h2>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <Input
-          type="text"
-          placeholder="Cari nama, kode, atau unit"
-          className="w-full md:max-w-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="flex gap-2 flex-wrap md:justify-end">
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
-            Refresh
-          </Button>
-          <Button icon={<HistoryOutlined />} onClick={handleOpenHistory}>
-            History Penyesuaian
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/dashboard/medicine/items/create')}
-          >
-            Tambah
-          </Button>
+    <div className="flex flex-col gap-4 h-full">
+      {/* 1. Header Card */}
+      <Card
+        styles={{ body: { padding: '20px 24px' } }}
+        variant="borderless"
+        style={{
+          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
+        }}
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+                  <MedicineBoxOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+                </div>
+                <h1 className="text-xl font-bold text-white m-0 leading-tight">Data Master Item</h1>
+              </div>
+              <p className="text-sm text-blue-200 m-0 ml-12">
+                Manajemen data obat, alat pelayan kesehatan, bahan medis, dan umum
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refetch()}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+                ghost
+              >
+                Refresh
+              </Button>
+              <Button
+                icon={<HistoryOutlined />}
+                onClick={handleOpenHistory}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+                ghost
+              >
+                History Penyesuaian
+              </Button>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/dashboard/medicine/items/create')}
+                style={{
+                  background: '#fff',
+                  borderColor: '#fff',
+                  color: token.colorPrimaryActive
+                }}
+              >
+                Tambah
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(255,255,255,0.10)' }}
+              >
+                <MedicineBoxOutlined style={{ color: '#fff', fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {filtered.length}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Total Data
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-      {(isError || data?.success === false) && (
-        <div className="text-red-500 mt-2">
-          {typeof data?.message === 'string' && data.message.length > 0
-            ? data.message
-            : 'Gagal memuat data item'}
+      </Card>
+
+      {/* 2. Search Filter Card */}
+      <Card styles={{ body: { padding: '16px 20px' } }} variant="borderless">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: token.colorTextTertiary,
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Pencarian
+            </div>
+            <Input
+              placeholder="Cari item, kode, satuan..."
+              prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+            />
+          </div>
         </div>
-      )}
+      </Card>
 
-      <div className="mt-4 bg-white dark:bg-[#141414] rounded-lg shadow border border-gray-200 dark:border-gray-800">
-			<Modal
-				title="History Penyesuaian Stok"
-				open={isHistoryOpen}
-				onCancel={() => setIsHistoryOpen(false)}
-				footer={null}
-				width={800}
-			>
-				<Table
-					dataSource={historyRows}
-					loading={historyLoading}
-					rowKey={(row) => row.id}
-					size="small"
-					pagination={{ pageSize: 10 }}
-							columns={[
-								{
-									title: 'Tanggal',
-									dataIndex: 'createdAt',
-									key: 'createdAt',
-									render: (value: string) => {
-										const date = new Date(value)
-										if (Number.isNaN(date.getTime())) return value
-										return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
-									}
-								},
-								{
-									title: 'Jenis',
-									dataIndex: 'type',
-									key: 'type',
-									render: (value: number) => (value === 1 ? 'Masuk' : 'Keluar')
-								},
-								{
-									title: 'Stok Sebelum',
-									dataIndex: 'previousStock',
-									key: 'previousStock'
-								},
-								{
-									title: 'Stok Adjustment',
-									dataIndex: 'qty',
-									key: 'stockAdjustment',
-								render: (_: number, row: ItemAdjustmentRow) => {
-									const base = typeof row.qty === 'number' ? row.qty : 0
-									const signed = row.type === 1 ? base : -base
-									const colorClass =
-										signed > 0 ? 'text-green-600' : signed < 0 ? 'text-red-600' : ''
-									const label =
-										signed > 0 ? `+${signed}` : signed < 0 ? String(signed) : '0'
-									return <span className={colorClass}>{label}</span>
-								}
-								},
-								{
-									title: 'Stok Sesudah',
-									dataIndex: 'newStock',
-									key: 'newStock'
-								},
-						{
-							title: 'Alasan',
-							dataIndex: 'adjustReason',
-							key: 'adjustReason',
-							render: (value: string | null) => value ?? '-'
-						},
-						{
-							title: 'Catatan',
-							dataIndex: 'note',
-							key: 'note',
-							render: (value: string | null) => value ?? '-'
-						},
-						{
-							title: 'User',
-								dataIndex: 'createdByName',
-								key: 'createdByName',
-								render: (_: string | null, row: ItemAdjustmentRow) => {
-									if (row.createdByName && row.createdByName.length > 0) {
-										return row.createdByName
-									}
-									if (row.createdBy && row.createdBy.length > 0) {
-										return row.createdBy
-									}
-									return '-'
-								}
-						}
-					]}
-				/>
-			</Modal>
-	       <GenericTable<ItemAttributes>
-	         columns={[
-	           { title: 'Nama', dataIndex: 'nama', key: 'nama' },
-            { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 120 },
-            { 
-              title: 'Kode KFA', 
-              dataIndex: 'kfaCode', 
-              key: 'kfaCode', 
-              width: 120,
-              render: (v: string | null) => v || '-'
-            },
-            {
-              title: 'Stok',
-              dataIndex: 'stock',
-              key: 'stock',
-              width: 100,
-              render: (v: ItemAttributes['stock']) => (typeof v === 'number' ? v : 0)
-            },
-            {
-              title: 'Minimum Stok',
-              dataIndex: 'minimumStock',
-              key: 'minimumStock',
-              width: 140,
-              render: (v: ItemAttributes['minimumStock']) =>
-                typeof v === 'number' && v > 0 ? v : '-'
-            },
-            {
-              title: 'Unit',
-              dataIndex: 'unit',
-              key: 'unit',
-              render: (v: ItemAttributes['unit']) => v?.nama || v?.kode || '-'
-            },
-          {
-            title: 'Harga Beli Satuan',
-            key: 'buyUnitPrice',
-            render: (_: unknown, record: ItemAttributes) => {
-              const baseUnitCode = getBaseUnitCodeForItem(record)
-              const unitPrices = buildUnitPrices(record.buyPriceRules ?? null, baseUnitCode)
+      {/* 3. Main Data Table Card */}
+      <Card className="flex-1 overflow-hidden flex flex-col" variant="borderless">
+        <Spin spinning={isLoading}>
+          <div className="flex-1" style={{ background: token.colorBgContainer }}>
+            {(isError || data?.success === false) && (
+              <div style={{ color: token.colorErrorText }} className="p-4">
+                {typeof data?.message === 'string' && data.message.length > 0
+                  ? data.message
+                  : 'Gagal memuat data item'}
+              </div>
+            )}
 
-              if (unitPrices.length > 0) {
-                return (
-                  <div className="flex flex-col">
-                    {unitPrices.map((p) => (
-                      <span key={`${p.unitCode}-${p.value}`}>
-                        {formatRupiah(p.value)} / {p.unitCode}
-                      </span>
-                    ))}
-                  </div>
-                )
+            <style>{`
+              .item-table-nama-cell {
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                word-break: break-word;
               }
+            `}</style>
 
-              const price = record.buyingPrice
-              if (typeof price === 'number' && Number.isFinite(price)) {
-                const unitLabel = record.kodeUnit || 'PCS'
-                return (
-                  <span>
-                    {formatRupiah(price)} / {unitLabel}
-                  </span>
-                )
-              }
+            <Modal
+              title="History Penyesuaian Stok"
+              open={isHistoryOpen}
+              onCancel={() => setIsHistoryOpen(false)}
+              footer={null}
+              width={800}
+            >
+              <Table
+                dataSource={historyRows}
+                loading={historyLoading}
+                rowKey={(row) => row.id}
+                size="small"
+                pagination={{ pageSize: 10 }}
+                columns={[
+                  {
+                    title: 'Tanggal',
+                    dataIndex: 'createdAt',
+                    key: 'createdAt',
+                    render: (value: string) => {
+                      const date = new Date(value)
+                      if (Number.isNaN(date.getTime())) return value
+                      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
+                    }
+                  },
+                  {
+                    title: 'Jenis',
+                    dataIndex: 'type',
+                    key: 'type',
+                    render: (value: number) => (value === 1 ? 'Masuk' : 'Keluar')
+                  },
+                  {
+                    title: 'Stok Sebelum',
+                    dataIndex: 'previousStock',
+                    key: 'previousStock'
+                  },
+                  {
+                    title: 'Stok Adjustment',
+                    dataIndex: 'qty',
+                    key: 'stockAdjustment',
+                    render: (_: number, row: ItemAdjustmentRow) => {
+                      const base = typeof row.qty === 'number' ? row.qty : 0
+                      const signed = row.type === 1 ? base : -base
+                      const colorClass =
+                        signed > 0 ? 'text-green-600' : signed < 0 ? 'text-red-600' : ''
+                      const label = signed > 0 ? `+${signed}` : signed < 0 ? String(signed) : '0'
+                      return <span className={colorClass}>{label}</span>
+                    }
+                  },
+                  {
+                    title: 'Stok Sesudah',
+                    dataIndex: 'newStock',
+                    key: 'newStock'
+                  },
+                  {
+                    title: 'Alasan',
+                    dataIndex: 'adjustReason',
+                    key: 'adjustReason',
+                    render: (value: string | null) => value ?? '-'
+                  },
+                  {
+                    title: 'Catatan',
+                    dataIndex: 'note',
+                    key: 'note',
+                    render: (value: string | null) => value ?? '-'
+                  },
+                  {
+                    title: 'User',
+                    dataIndex: 'createdByName',
+                    key: 'createdByName',
+                    render: (_: string | null, row: ItemAdjustmentRow) => {
+                      if (row.createdByName && row.createdByName.length > 0) {
+                        return row.createdByName
+                      }
+                      if (row.createdBy && row.createdBy.length > 0) {
+                        return row.createdBy
+                      }
+                      return '-'
+                    }
+                  }
+                ]}
+              />
+            </Modal>
 
-              return '-' as const
-            }
-          },
-          {
-            title: 'Harga Jual Satuan',
-            key: 'sellUnitPrice',
-            render: (_: unknown, record: ItemAttributes) => {
-              const baseUnitCode = getBaseUnitCodeForItem(record)
-              const unitPrices = buildUnitPrices(record.sellPriceRules ?? null, baseUnitCode)
+            <Table
+              dataSource={filtered}
+              columns={columns}
+              size="middle"
+              className="flex-1 h-full"
+              rowKey={(r) => String(r.id ?? r.kode)}
+              scroll={{ x: 800, y: 'calc(100vh - 460px)' }}
+              pagination={{
+                pageSize: 10,
+                showTotal: (total) => `Total ${total} data`,
+                showSizeChanger: true
+              }}
+            />
+          </div>
 
-              if (unitPrices.length > 0) {
-                return (
-                  <div className="flex flex-col">
-                    {unitPrices.map((p) => (
-                      <span key={`${p.unitCode}-${p.value}`}>
-                        {formatRupiah(p.value)} / {p.unitCode}
-                      </span>
-                    ))}
-                  </div>
-                )
-              }
-
-              const price = record.sellingPrice
-              if (typeof price === 'number' && Number.isFinite(price)) {
-                const unitLabel = record.kodeUnit || 'PCS'
-                return (
-                  <span>
-                    {formatRupiah(price)} / {unitLabel}
-                  </span>
-                )
-              }
-
-              return '-' as const
-            }
-          },
-          {
-            title: 'Kategori',
-            dataIndex: 'itemCategoryId',
-            key: 'itemCategoryId',
-            render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
-              const directName =
-                typeof record.category?.name === 'string'
-                  ? record.category.name.trim()
-                  : ''
-
-              if (directName.length > 0) {
-                return directName
-              }
-
-              const idFromRecord =
-                typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
-              if (typeof idFromRecord === 'number') {
-                const mapped = itemCategoryNameById.get(idFromRecord)
-                if (typeof mapped === 'string' && mapped.length > 0) {
-                  return mapped
-                }
-              }
-
-              return '-'
-            }
-          }
-          ]}
-          dataSource={filtered}
-          rowKey={(r) => String(r.id ?? r.kode)}
-          action={{
-            title: 'Action',
-            width: 80,
-            align: 'center',
-            fixedRight: true,
-            render: (record) => <RowActions record={record} />
-          }}
-        />
-      </div>
+          <div className="mt-3 text-xs" style={{ color: token.colorTextTertiary }}>
+            Catatan: Item selain obat tidak memerlukan sinkronisasi Satu Sehat maupun Kode KFA.
+          </div>
+        </Spin>
+      </Card>
     </div>
   )
 }

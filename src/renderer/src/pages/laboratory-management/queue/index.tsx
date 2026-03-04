@@ -86,17 +86,18 @@ export default function LaboratoryQueue() {
         <div className="p-4">
              <TableHeader
                 title="Antrian Laboratorium"
+                subtitle="Manajemen antrian laboratorium"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
             >
-                <div className="flex gap-4">
-                    <Form.Item name="queueDate" label="Tanggal" initialValue={dayjs()}>
-                         <DatePicker allowClear={false} />
+               
+                    <Form.Item name="queueDate" style={{ width: '100%' }} label="Tanggal" initialValue={dayjs()}>
+                         <DatePicker allowClear={false} style={{ width: '100%' }} size="large"/>
                     </Form.Item>
-                    <Form.Item name="queueNumber" label="No. Antrian">
-                         <Input placeholder="Cari No. Antrian" allowClear suffix={<SearchOutlined />} />
+                    <Form.Item name="queueNumber" style={{ width: '100%' }} label="No. Antrian">
+                         <Input placeholder="Cari No. Antrian" allowClear suffix={<SearchOutlined />} size="large"/>
                     </Form.Item>
-                </div>
+               
             </TableHeader>
 
             <div className="mt-4">
