@@ -1,4 +1,5 @@
 import { FileSearchOutlined } from '@ant-design/icons'
+import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
@@ -120,17 +121,47 @@ export default function LaboratoryResults() {
         <div className="p-4">
              <TableHeader
                 title="Daftar Hasil Pemeriksaan"
+                subtitle="Manajemen hasil pemeriksaan laboratorium"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
+                action={
+                  <ExportButton
+                    data={groupedData as any}
+                    fileName="daftar-hasil-pemeriksaan"
+                    title="Daftar Hasil Pemeriksaan Laboratorium"
+                    columns={[
+                      { key: 'queueNumber',  label: 'No. Antrian' },
+                      { key: 'patient.mrn',  label: 'MRN' },
+                      { key: 'patient.name', label: 'Nama Pasien' },
+                      {
+                        key: 'requestedAt',
+                        label: 'Tgl. Selesai',
+                        render: (v) => v ? dayjs(v as string).format('DD/MM/YYYY HH:mm') : '-'
+                      },
+                      {
+                        key: 'tests',
+                        label: 'Total Pemeriksaan',
+                        render: (v) => `${(v as unknown[]).length} Pemeriksaan`
+                      }
+                    ]}
+                    nestedTable={{
+                      getChildren: (parent) => parent.tests as Record<string, unknown>[],
+                      columns: [
+                        { key: 'testDisplay', label: 'Pemeriksaan' },
+                        { key: 'status',      label: 'Status' }
+                      ]
+                    }}
+                  />
+                }
             >
-                <div className="flex gap-4">
-                    <Form.Item name="dateRange" label="Tanggal" initialValue={[dayjs().subtract(7, 'days'), dayjs()]}>
-                         <DatePicker.RangePicker allowClear={false} />
+               
+                    <Form.Item name="dateRange" label="Tanggal" initialValue={[dayjs().subtract(7, 'days'), dayjs()]} style={{ width: '100%' }}>
+                         <DatePicker.RangePicker allowClear={false} style={{ width: '100%' }} size="large"/>
                     </Form.Item>
-                    <Form.Item name="patientName" label="Pasien">
-                         <Input placeholder="Cari Nama Pasien" allowClear />
+                    <Form.Item name="patientName" label="Pasien" style={{ width: '100%' }}>
+                         <Input placeholder="Cari Nama Pasien" allowClear size="large"/>
                     </Form.Item>
-                </div>
+              
             </TableHeader>
 
             <div className="mt-4 bg-white p-4 rounded-lg border border-gray-100">
