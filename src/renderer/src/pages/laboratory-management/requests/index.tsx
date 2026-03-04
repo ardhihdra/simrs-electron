@@ -153,6 +153,7 @@ console.log("patientGroups",patientGroups)
         <div className="p-4">
              <TableHeader
                 title="Daftar Permintaan Laboratorium"
+                subtitle="Manajemen permintaan laboratorium"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
                 action={
@@ -195,19 +196,19 @@ console.log("patientGroups",patientGroups)
                   />
                 }
             >
-                <div className="flex gap-4">
-                    <Form.Item name="date" label="Tanggal" initialValue={dayjs()}>
-                         <DatePicker allowClear={false} />
+                
+                    <Form.Item name="date" label="Tanggal" initialValue={dayjs()} style={{ width: '100%' }}>
+                         <DatePicker allowClear={false} style={{ width: '100%' }} size="large"/>
                     </Form.Item>
-                    <Form.Item name="status" label="Status">
-                         <Select placeholder="Semua Status" allowClear style={{ width: 150 }}>
+                    <Form.Item name="status" label="Status" style={{ width: '100%' }}>
+                         <Select placeholder="Semua Status" allowClear style={{ width: '100%' }} size="large">
                              <Select.Option value="REQUESTED">Requested</Select.Option>
                              <Select.Option value="IN_PROGRESS">In Progress</Select.Option>
                              <Select.Option value="COMPLETED">Completed</Select.Option>
                              <Select.Option value="CANCELLED">Cancelled</Select.Option>
                          </Select>
                     </Form.Item>
-                </div>
+               
             </TableHeader>
 
             <div className="mt-4">

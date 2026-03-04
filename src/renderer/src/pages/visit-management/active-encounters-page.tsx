@@ -217,9 +217,10 @@ export default function ActiveEncountersPage() {
   }, [encounters, searchText])
 
   return (
-    <div className="p-4">
+    <div>
       <TableHeader
-        title="Active Encounters"
+        title="Kunjungan Aktif"
+        subtitle="Manajemen kunjungan aktif"
         loading={isLoading}
         onSearch={onSearch}
         action={<ExportButton data={filteredData.map((item: any) => ({
@@ -230,11 +231,19 @@ export default function ActiveEncountersPage() {
           Status: item.status,
         }))} fileName="daftar-kunjungan"  />}
       >
-        <div className="flex gap-4">
-          <Form.Item name="patientName" label="Pasien" className="mb-0">
-            <Input placeholder="Cari Nama / No. MR" allowClear />
+      
+          <Form.Item name="patientName" style={{ width: '100%' }} label="Pasien" className="mb-0">
+            <Input placeholder="Cari Nama / No. MR" allowClear size='large' />
           </Form.Item>
-        </div>
+          <Form.Item name="patientMrNo" style={{ width: '100%' }} label="MRN" className="mb-0">
+            <Input placeholder="Cari MRN" allowClear size='large' />
+          </Form.Item>
+          <Form.Item name="encounterType" style={{ width: '100%' }} label="Tipe Kunjungan" className="mb-0">
+            <Input placeholder="Cari Tipe Kunjungan" allowClear size='large' />
+          </Form.Item>
+          <Form.Item name="status" style={{ width: '100%' }} label="Status" className="mb-0">
+            <Input placeholder="Cari Status" allowClear size='large' />
+          </Form.Item>
       </TableHeader>
       <div className="mt-4">
           <GenericTable 

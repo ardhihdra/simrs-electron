@@ -3,7 +3,7 @@ import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { useQuery } from '@tanstack/react-query'
-import { Col, Form, Input } from 'antd'
+import { Form, Input } from 'antd'
 import { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -69,6 +69,7 @@ const PatientTable = () => {
     <div>
       <TableHeader
         title="Daftar Pasien"
+        subtitle='Manajemen pelayanan pasien'
         onSearch={(values) => setFilter(values)}
         onReset={() => setFilter({ nik: '', name: '' })}
         onCreate={() => navigate('/dashboard/patient/register')}
@@ -83,16 +84,15 @@ const PatientTable = () => {
           { key: 'address', label: 'Alamat' }
         ]} />}
       >
-        <Col span={12}>
-          <Form.Item name="nik" label="NIK">
-            <Input placeholder="Cari NIK" allowClear />
+        <Form.Item name="medicalRecordNumber" style={{ width: '100%' }} >
+            <Input placeholder="Cari MRN" allowClear size='large' />
           </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item name="name" label="Nama">
-            <Input placeholder="Cari Nama" allowClear />
+          <Form.Item name="nik"  style={{ width: '100%' }} >
+            <Input placeholder="Cari NIK" allowClear size='large' />
           </Form.Item>
-        </Col>
+          <Form.Item name="name" style={{ width: '100%' }}>
+            <Input placeholder="Cari Nama" allowClear size='large' />
+          </Form.Item>
       </TableHeader>
 
       <div className="mt-4">

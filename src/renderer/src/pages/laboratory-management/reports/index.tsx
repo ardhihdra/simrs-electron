@@ -103,6 +103,7 @@ export default function LaboratoryReports() {
         <div className="p-4">
              <TableHeader
                 title="Laporan Diagnostik"
+                subtitle="Manajemen laporan diagnostik laboratorium"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
                 action={
@@ -136,14 +137,12 @@ export default function LaboratoryReports() {
                   />
                 }
             >
-                <div className="flex gap-4">
-                    <Form.Item name="dateRange" label="Tanggal" initialValue={[dayjs().subtract(7, 'days'), dayjs()]}>
-                         <DatePicker.RangePicker allowClear={false} />
+                    <Form.Item name="dateRange" label="Tanggal" initialValue={[dayjs().subtract(7, 'days'), dayjs()]} style={{ width: '100%' }}>
+                         <DatePicker.RangePicker allowClear={false} style={{ width: '100%' }} size="large"/>
                     </Form.Item>
-                    <Form.Item name="patientName" label="Pasien">
-                         <Input placeholder="Cari Nama Pasien" allowClear />
+                    <Form.Item name="patientName" label="Pasien" style={{ width: '100%' }}>
+                         <Input placeholder="Cari Nama Pasien" allowClear size="large"/>
                     </Form.Item>
-                </div>
             </TableHeader>
 
             <div className="mt-4">
