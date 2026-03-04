@@ -144,7 +144,13 @@ export const RasionalKlinisForm: React.FC<RasionalKlinisFormProps> = ({
         </Form.Item>
       </Card>
       <Form.Item className="mb-0 text-right">
-        <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={isSubmitting}>
+        <Button
+          type="primary"
+          htmlType="submit"
+          size="large"
+          icon={<SaveOutlined />}
+          loading={isSubmitting}
+        >
           Simpan Rasional Klinis
         </Button>
       </Form.Item>

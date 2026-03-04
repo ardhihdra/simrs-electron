@@ -562,7 +562,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
           </Card>
         </Form>
       </div>
-      <div className="flex justify-end pt-4! border-t border-white/10 mt-auto">
+      <div className="flex justify-end border-t border-white/10 mt-auto">
         <Button
           type="primary"
           icon={<SaveOutlined />}

@@ -7,7 +7,12 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import type { PatientAttributes } from 'simrs-types'
 
-type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & { birthDate: Dayjs; district?: string; village?: string; relatedPerson?: any[] }
+type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & {
+  birthDate: Dayjs
+  district?: string
+  village?: string
+  relatedPerson?: any[]
+}
 
 // Wrapper component to isolate re-renders caused by useWatch
 const GeneralConsentWrapper = ({
@@ -38,9 +43,9 @@ const GeneralConsentWrapper = ({
 }
 
 export interface PatientFormComponentProps {
-    id?: string
-    onSuccess?: (data?: any) => void
-    onCancel?: () => void
+  id?: string
+  onSuccess?: (data?: any) => void
+  onCancel?: () => void
 }
 
 export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormComponentProps) {
@@ -48,12 +53,12 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
-  
+
   // Use passed id or fallback to undefined (for create mode)
   const isEdit = !!id
 
   const detail = client.patient.getById.useQuery(
-    { id: id || "" },
+    { id: id || '' },
     {
       enabled: isEdit,
       queryKey: ['patient', { id: id as string }]
@@ -61,7 +66,9 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
   )
 
   useEffect(() => {
-    const item = detail.data?.result as Partial<PatientAttributes & {district: string, village: string}> | undefined
+    const item = detail.data?.result as
+      | Partial<PatientAttributes & { district: string; village: string }>
+      | undefined
     if (item) {
       form.setFieldsValue({
         nik: item.nik,
@@ -107,9 +114,9 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       }
     },
     onError: (error) => {
-        message.error(error.message || 'Failed to update patient')
+      message.error(error.message || 'Failed to update patient')
     }
-   })
+  })
 
   const onFinish = async (values: PatientFormValues) => {
     try {
@@ -183,7 +190,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
   const selectedCity = Form.useWatch('city', form)
   const selectedDistrict = Form.useWatch('district', form)
 
-  const provincesQuery = client.wilayah.getProvince.useQuery({parentCode: 'null'})
+  const provincesQuery = client.wilayah.getProvince.useQuery({ parentCode: 'null' })
   const citiesQuery = client.wilayah.getWilayahFromParentCode.useQuery(
     { parentCode: selectedProvince! },
     {
@@ -205,8 +212,8 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       queryKey: ['wilayah', { parentCode: selectedDistrict as string }]
     }
   )
-console.log("DETAIL DATA", detail.data)
-console.log("isEdit",isEdit)
+  console.log('DETAIL DATA', detail.data)
+  console.log('isEdit', isEdit)
   return (
     <div className="my-4 space-y-6">
       <div className="w-full max-w-xl mx-auto">
@@ -270,11 +277,12 @@ console.log("isEdit",isEdit)
                   form.setFieldsValue({ city: undefined, district: undefined, village: undefined })
                 }}
               >
-                {Array.isArray(provincesQuery.data?.result) && provincesQuery.data.result.map((p: any) => (
-                  <Select.Option key={p.code} value={p.code}>
-                    {p.name}
-                  </Select.Option>
-                ))}
+                {Array.isArray(provincesQuery.data?.result) &&
+                  provincesQuery.data.result.map((p: any) => (
+                    <Select.Option key={p.code} value={p.code}>
+                      {p.name}
+                    </Select.Option>
+                  ))}
               </Select>
             </Form.Item>
             <Form.Item label="Kabupaten/Kota" name="city">
@@ -288,11 +296,12 @@ console.log("isEdit",isEdit)
                   form.setFieldsValue({ district: undefined, village: undefined })
                 }}
               >
-                {Array.isArray(citiesQuery.data?.result) && citiesQuery.data.result.map((c: any) => (
-                  <Select.Option key={c.code} value={c.code}>
-                    {c.name}
-                  </Select.Option>
-                ))}
+                {Array.isArray(citiesQuery.data?.result) &&
+                  citiesQuery.data.result.map((c: any) => (
+                    <Select.Option key={c.code} value={c.code}>
+                      {c.name}
+                    </Select.Option>
+                  ))}
               </Select>
             </Form.Item>
             <Form.Item label="Kecamatan" name="district">
@@ -306,11 +315,12 @@ console.log("isEdit",isEdit)
                   form.setFieldsValue({ village: undefined })
                 }}
               >
-                {Array.isArray(districtsQuery.data?.result) && districtsQuery.data.result.map((d: any) => (
-                  <Select.Option key={d.code} value={d.code}>
-                    {d.name}
-                  </Select.Option>
-                ))}
+                {Array.isArray(districtsQuery.data?.result) &&
+                  districtsQuery.data.result.map((d: any) => (
+                    <Select.Option key={d.code} value={d.code}>
+                      {d.name}
+                    </Select.Option>
+                  ))}
               </Select>
             </Form.Item>
             <Form.Item label="Desa/Kelurahan" name="village">
@@ -321,11 +331,12 @@ console.log("isEdit",isEdit)
                 loading={villagesQuery.isLoading}
                 disabled={!selectedDistrict}
               >
-                {Array.isArray(villagesQuery.data?.result) && villagesQuery.data.result.map((v: any) => (
-                  <Select.Option key={v.code} value={v.code}>
-                    {v.name}
-                  </Select.Option>
-                ))}
+                {Array.isArray(villagesQuery.data?.result) &&
+                  villagesQuery.data.result.map((v: any) => (
+                    <Select.Option key={v.code} value={v.code}>
+                      {v.name}
+                    </Select.Option>
+                  ))}
               </Select>
             </Form.Item>
             <Form.Item label="Kode Pos" name="postalCode">
@@ -351,13 +362,18 @@ console.log("isEdit",isEdit)
                 {(fields, { add, remove }) => (
                   <div className="space-y-3 p-4 border rounded-md bg-gray-50">
                     <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-semibold text-gray-700">Keluarga/Kerabat Terdekat</label>
+                      <label className="block text-sm font-semibold text-gray-700">
+                        Keluarga/Kerabat Terdekat
+                      </label>
                       <Button type="dashed" onClick={() => add()} size="small">
                         + Tambah Kerabat
                       </Button>
                     </div>
                     {fields.map(({ key, name, ...restField }) => (
-                      <div key={key} className="grid grid-cols-12 gap-2 items-start bg-white p-3 border rounded relative">
+                      <div
+                        key={key}
+                        className="grid grid-cols-12 gap-2 items-start bg-white p-3 border rounded relative"
+                      >
                         <Form.Item
                           {...restField}
                           name={[name, 'name']}
@@ -392,18 +408,16 @@ console.log("isEdit",isEdit)
                           </Select>
                         </Form.Item>
                         <div className="col-span-1 flex justify-end">
-                          <Button
-                            type="text"
-                            danger
-                            onClick={() => remove(name)}
-                          >
+                          <Button type="text" danger onClick={() => remove(name)}>
                             X
                           </Button>
                         </div>
                       </div>
                     ))}
                     {fields.length === 0 && (
-                      <div className="text-sm text-gray-500 italic text-center py-2">Belum ada kerabat ditambahkan</div>
+                      <div className="text-sm text-gray-500 italic text-center py-2">
+                        Belum ada kerabat ditambahkan
+                      </div>
                     )}
                   </div>
                 )}
@@ -432,9 +446,9 @@ console.log("isEdit",isEdit)
             onClick={() => {
               form.resetFields()
               if (onCancel) {
-                  onCancel()
+                onCancel()
               } else {
-                  navigate('/dashboard/patient')
+                navigate('/dashboard/patient')
               }
             }}
           >
@@ -447,9 +461,9 @@ console.log("isEdit",isEdit)
 }
 
 function PatientForm() {
-    const params = useParams<{ id: string }>()
-    console.log("IsHasId :",params?.id)
-    return <PatientFormComponent id={params.id} />
+  const params = useParams<{ id: string }>()
+  console.log('IsHasId :', params?.id)
+  return <PatientFormComponent id={params.id} />
 }
 
 export default PatientForm

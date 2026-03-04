@@ -1,5 +1,18 @@
 import React, { useState, useRef } from 'react'
-import { Form, Input, Radio, Card, Row, Col, Button, App, Modal, Select, InputNumber } from 'antd'
+import {
+  Form,
+  Input,
+  Radio,
+  Card,
+  Row,
+  Col,
+  Button,
+  App,
+  Modal,
+  Select,
+  InputNumber,
+  theme
+} from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import heartMapImage from '@renderer/assets/images/heart_anatomy_map.png'
@@ -14,6 +27,7 @@ export interface CardiologyFormProps {
 }
 
 export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, patientData }) => {
+  const { token } = theme.useToken()
   const [form] = Form.useForm()
   const { message } = App.useApp()
 
@@ -93,7 +107,7 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <div className="flex-1 overflow-y-auto pr-2">
+      <div className="flex-1 overflow-y-auto">
         <Form
           form={form}
           layout="vertical"
@@ -105,18 +119,29 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
             edema: 'Tidak',
             murmurPresence: 'Tidak Ada Murmur'
           }}
-          className="flex! flex-col! gap-4!"
+          className="flex flex-col gap-4 pb-4"
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
           <Card title="Peta Anatomi Jantung (Cardiovascular Map)" size="small" className="mb-4">
-            <div className="mb-2 bg-blue-50 p-3 rounded text-blue-700 text-xs">
+            <div
+              className="mb-2 p-3 rounded text-xs"
+              style={{
+                backgroundColor: token.colorInfoBg,
+                color: token.colorInfoText,
+                border: `1px solid ${token.colorInfoBorder}`
+              }}
+            >
               Klik pada gambar anatomi jantung untuk menandai kelainan spesifik seperti area murmur,
               iskemia, atau letak valve.
             </div>
             <div
-              className="relative w-full overflow-hidden border border-gray-200 rounded-lg bg-white mb-4 flex justify-center items-center py-4"
-              style={{ minHeight: '400px' }}
+              className="relative w-full overflow-hidden rounded-lg mb-4 flex justify-center items-center py-4"
+              style={{
+                minHeight: '400px',
+                border: `1px solid ${token.colorBorderSecondary}`,
+                background: '#fff'
+              }}
             >
               <div className="relative inline-block w-full max-w-lg mx-auto">
                 <img
@@ -137,17 +162,25 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
                     }}
                     className="group z-10"
                   >
-                    <div className="w-5 h-5 bg-red-500 rounded-full border border-white shadow flex items-center justify-center text-white text-xs font-bold cursor-pointer">
+                    <div
+                      className="w-5 h-5 rounded-full border shadow flex items-center justify-center text-xs font-bold cursor-pointer"
+                      style={{
+                        backgroundColor: token.colorError,
+                        borderColor: '#fff',
+                        color: '#fff'
+                      }}
+                    >
                       {index + 1}
                     </div>
                     <div
-                      className="absolute -top-8 left-1/2 transform -translate-x-1/2 hidden group-hover:flex bg-white rounded-full shadow p-1 cursor-pointer z-20"
+                      className="absolute -top-8 left-1/2 transform -translate-x-1/2 hidden group-hover:flex rounded-full shadow p-1 cursor-pointer z-20"
+                      style={{ background: token.colorBgContainer }}
                       onClick={(e) => {
                         e.stopPropagation()
                         removeMarker(marker.id)
                       }}
                     >
-                      <DeleteOutlined className="text-red-500" />
+                      <DeleteOutlined style={{ color: token.colorError }} />
                     </div>
                   </div>
                 ))}
@@ -273,7 +306,10 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
           <Card
             title="Diagnosis & Penatalaksanaan Kardiovaskular"
             size="small"
-            className="mb-4 bg-blue-50/30"
+            className="mb-4"
+            style={{
+              background: `linear-gradient(to right, ${token.colorInfoBg}, transparent)`
+            }}
           >
             <Form.Item
               label="Diagnosis Kerja Primer"
@@ -307,14 +343,11 @@ export const CardiologyForm: React.FC<CardiologyFormProps> = ({ encounterId, pat
         </Form>
       </div>
 
-      <div className="flex justify-end pt-4 border-t border-gray-200 mt-2 bg-white sticky bottom-0 z-10">
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={() => form.submit()}
-          size="large"
-          className="min-w-[150px]"
-        >
+      <div
+        className="flex justify-end pt-4 border-t mt-auto"
+        style={{ borderColor: token.colorBorderSecondary }}
+      >
+        <Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()} size="large">
           Simpan Data Kardiovaskular
         </Button>
       </div>

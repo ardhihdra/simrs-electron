@@ -79,9 +79,28 @@ function createWindow(): void {
 
     mainWindow.webContents.setWindowOpenHandler((details) => {
       const u = details.url
+
+      if (u.match(/#\/dashboard\/(doctor|nurse-calling\/medical-record)/)) {
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            width: 1280,
+            height: 800,
+            autoHideMenuBar: true,
+            ...(process.platform === 'linux' ? { icon } : {}),
+            webPreferences: {
+              preload: join(__dirname, '../preload/index.js'),
+              sandbox: false,
+              contextIsolation: true,
+              nodeIntegration: false
+            }
+          }
+        }
+      }
+
       const isCsvExport = /\/api\/[^/]+\/export\?/.test(u) && u.includes('export=csv')
       if (isCsvExport) {
-        ; (async () => {
+        ;(async () => {
           try {
             const res = await fetch(u)
             const buf = Buffer.from(await res.arrayBuffer())
@@ -107,6 +126,26 @@ function createWindow(): void {
       }
       shell.openExternal(u)
       return { action: 'deny' }
+    })
+
+    // Share session from main window to newly created windows
+    mainWindow.webContents.on('did-create-window', (newWindow) => {
+      const mainWindowId = mainWindow.webContents.id
+      const newWindowId = newWindow.webContents.id
+
+      const sessionObj = sessionStore.getWindowSession(mainWindowId)
+      if (sessionObj) {
+        sessionStore.authenticateWindow(newWindowId, sessionObj.token)
+        const backendToken = sessionStore.getBackendTokenForWindow(mainWindowId)
+        if (backendToken) {
+          sessionStore.setBackendTokenForWindow(newWindowId, backendToken)
+        }
+      }
+
+      // Optional: Open DevTools in dev mode for the new window
+      if (is.dev) {
+        newWindow.webContents.openDevTools()
+      }
     })
 
     // Add error handling for window loading

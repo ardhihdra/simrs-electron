@@ -55,7 +55,10 @@ function PegawaiForm() {
         namaLengkap: String(payload.namaLengkap),
         email: String(payload.email),
         nik: String(payload.nik),
-        tanggalLahir: payload.tanggalLahir instanceof Date ? payload.tanggalLahir : new Date(String(payload.tanggalLahir)),
+        tanggalLahir:
+          payload.tanggalLahir instanceof Date
+            ? payload.tanggalLahir
+            : new Date(String(payload.tanggalLahir)),
         jenisKelamin: payload.jenisKelamin,
         alamat: payload.alamat ?? null,
         nomorTelepon: payload.nomorTelepon ?? null,
@@ -143,19 +146,35 @@ function PegawaiForm() {
     <div className="my-4">
       <Form form={form} layout="vertical" onFinish={onFinish} className="w-full">
         <div className="grid grid-cols-2 gap-4">
-          <Form.Item label="Nama Lengkap" name="namaLengkap" rules={[{ required: true, message: 'Nama lengkap wajib' }]}>
+          <Form.Item
+            label="Nama Lengkap"
+            name="namaLengkap"
+            rules={[{ required: true, message: 'Nama lengkap wajib' }]}
+          >
             <Input placeholder="Nama Lengkap" />
           </Form.Item>
-          <Form.Item label="Email" name="email" rules={[{ required: true, type: 'email', message: 'Email wajib' }]}>
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[{ required: true, type: 'email', message: 'Email wajib' }]}
+          >
             <Input placeholder="Email" />
           </Form.Item>
           <Form.Item label="NIK" name="nik" rules={[{ required: true, message: 'NIK wajib' }]}>
             <Input placeholder="NIK" />
           </Form.Item>
-          <Form.Item label="Tanggal Lahir" name="tanggalLahir" rules={[{ required: true, message: 'Tanggal lahir wajib' }]}>
+          <Form.Item
+            label="Tanggal Lahir"
+            name="tanggalLahir"
+            rules={[{ required: true, message: 'Tanggal lahir wajib' }]}
+          >
             <DatePicker className="w-full" />
           </Form.Item>
-          <Form.Item label="Jenis Kelamin" name="jenisKelamin" rules={[{ required: true, message: 'Jenis kelamin wajib' }]}>
+          <Form.Item
+            label="Jenis Kelamin"
+            name="jenisKelamin"
+            rules={[{ required: true, message: 'Jenis kelamin wajib' }]}
+          >
             <Select placeholder="Pilih jenis kelamin">
               <Select.Option value={JenisKelaminEnum.Laki}>Laki-Laki</Select.Option>
               <Select.Option value={JenisKelaminEnum.Perempuan}>Perempuan</Select.Option>

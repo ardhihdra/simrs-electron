@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { Form, Input, InputNumber, Radio, Divider, Card, Row, Col, Button, App, Modal } from 'antd'
+import { Form, Input, InputNumber, Radio, Card, Row, Col, Button, App, Modal, theme } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import eyeMapImage from '@renderer/assets/images/eye_anatomy_map.png'
@@ -17,6 +17,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
   encounterId,
   patientData
 }) => {
+  const { token } = theme.useToken()
   const [form] = Form.useForm()
   const { message } = App.useApp()
 
@@ -77,7 +78,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <div className="flex-1 overflow-y-auto pr-2">
+      <div className="flex-1 overflow-y-auto">
         <Form
           form={form}
           layout="vertical"
@@ -96,16 +97,27 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               rapd: 'no'
             }
           }}
-          className="flex! flex-col! gap-4!"
+          className="flex flex-col gap-4 pb-4"
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <Card title="Peta Mata (Eye Map)" size="small" className="mb-4">
-            <div className="mb-2 bg-blue-50 p-3 rounded text-blue-700 text-xs">
+            <div
+              className="mb-2 p-3 rounded text-xs"
+              style={{
+                backgroundColor: token.colorInfoBg,
+                color: token.colorInfoText,
+                border: `1px solid ${token.colorInfoBorder}`
+              }}
+            >
               Klik pada gambar mata untuk menandai lokasi lesi/temuan.
             </div>
             <div
-              className="relative w-full overflow-hidden border border-gray-200 rounded-lg bg-white mb-4 flex justify-center items-center"
-              style={{ minHeight: '300px' }}
+              className="relative w-full overflow-hidden rounded-lg mb-4 flex justify-center items-center"
+              style={{
+                minHeight: '300px',
+                border: `1px solid ${token.colorBorderSecondary}`,
+                background: '#fff'
+              }}
             >
               <div className="relative inline-block w-full max-w-lg mx-auto">
                 <img
@@ -126,17 +138,25 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
                     }}
                     className="group z-10"
                   >
-                    <div className="w-5 h-5 bg-red-500 rounded-full border border-white shadow flex items-center justify-center text-white text-xs font-bold cursor-pointer">
+                    <div
+                      className="w-5 h-5 rounded-full border shadow flex items-center justify-center text-xs font-bold cursor-pointer"
+                      style={{
+                        backgroundColor: token.colorError,
+                        borderColor: '#fff',
+                        color: '#fff'
+                      }}
+                    >
                       {index + 1}
                     </div>
                     <div
-                      className="absolute -top-8 left-1/2 transform -translate-x-1/2 hidden group-hover:flex bg-white rounded-full shadow p-1 cursor-pointer z-20"
+                      className="absolute -top-8 left-1/2 transform -translate-x-1/2 hidden group-hover:flex rounded-full shadow p-1 cursor-pointer z-20"
+                      style={{ background: token.colorBgContainer }}
                       onClick={(e) => {
                         e.stopPropagation()
                         removeMarker(marker.id)
                       }}
                     >
-                      <DeleteOutlined className="text-red-500" />
+                      <DeleteOutlined style={{ color: token.colorError }} />
                     </div>
                   </div>
                 ))}
@@ -146,12 +166,16 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
           <Card title="Visual Acuity" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
-                <Divider
-                  orientation="left"
-                  className="m-0 mb-4 text-blue-600 border-blue-200 text-sm"
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
                 >
                   Oculus Dexter (OD) / Kanan
-                </Divider>
+                </div>
                 <Form.Item
                   label="Visus OD"
                   name={['visualAcuity', 'od', 'value']}
@@ -167,12 +191,16 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <Divider
-                  orientation="left"
-                  className="m-0 mb-4 text-blue-600 border-blue-200 text-sm"
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
                 >
                   Oculus Sinister (OS) / Kiri
-                </Divider>
+                </div>
                 <Form.Item
                   label="Visus OS"
                   name={['visualAcuity', 'os', 'value']}
@@ -192,9 +220,16 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
           <Card title="Refraction" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
-                <Divider orientation="left" className="m-0 mb-4 text-blue-600 text-sm">
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
+                >
                   OD (Kanan)
-                </Divider>
+                </div>
                 <Row gutter={16}>
                   <Col span={8}>
                     <Form.Item label="Sphere" name={['refraction', 'od', 'sphere']}>
@@ -214,9 +249,16 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
                 </Row>
               </Col>
               <Col xs={24} md={12}>
-                <Divider orientation="left" className="m-0 mb-4 text-blue-600 text-sm">
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
+                >
                   OS (Kiri)
-                </Divider>
+                </div>
                 <Row gutter={16}>
                   <Col span={8}>
                     <Form.Item label="Sphere" name={['refraction', 'os', 'sphere']}>
@@ -302,7 +344,14 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
           <Card title="Slit Lamp Examination (Segmen Anterior)" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
-                <div className="font-semibold mb-3 bg-gray-50 border border-gray-200 p-2 rounded text-blue-600 text-center">
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
+                >
                   OD (Kanan)
                 </div>
                 <Form.Item label="Conjunctiva" name={['slitLamp', 'od', 'conjunctiva']}>
@@ -319,7 +368,14 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <div className="font-semibold mb-3 bg-gray-50 border border-gray-200 p-2 rounded text-blue-600 text-center">
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
+                >
                   OS (Kiri)
                 </div>
                 <Form.Item label="Conjunctiva" name={['slitLamp', 'os', 'conjunctiva']}>
@@ -340,7 +396,14 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
           <Card title="Fundus Examination (Segmen Posterior)" size="small" className="mb-4">
             <Row gutter={24}>
               <Col xs={24} md={12}>
-                <div className="font-semibold mb-3 bg-gray-50 border border-gray-200 p-2 rounded text-blue-600 text-center">
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
+                >
                   OD (Kanan)
                 </div>
                 <Form.Item label="Optic Disc" name={['fundus', 'od', 'opticDisc']}>
@@ -357,7 +420,14 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
                 </Form.Item>
               </Col>
               <Col xs={24} md={12}>
-                <div className="font-semibold mb-3 bg-gray-50 border border-gray-200 p-2 rounded text-blue-600 text-center">
+                <div
+                  className="font-semibold mb-3 border p-2 rounded text-center"
+                  style={{
+                    backgroundColor: token.colorFillAlter,
+                    borderColor: token.colorBorderSecondary,
+                    color: token.colorPrimary
+                  }}
+                >
                   OS (Kiri)
                 </div>
                 <Form.Item label="Optic Disc" name={['fundus', 'os', 'opticDisc']}>
@@ -375,11 +445,7 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
               </Col>
             </Row>
           </Card>
-          <Card
-            title="Kesimpulan & Rencana Tindak Lanjut"
-            size="small"
-            className="mb-4 bg-blue-50/30"
-          >
+          <Card title="Kesimpulan & Rencana Tindak Lanjut" size="small" className="mb-4">
             <Form.Item
               label="Diagnosis Mata"
               name="diagnosis"
@@ -414,14 +480,11 @@ export const OphthalmologyForm: React.FC<OphthalmologyFormProps> = ({
         </Form>
       </div>
 
-      <div className="flex justify-end pt-4 border-t border-gray-200 mt-2 bg-white sticky bottom-0 z-10">
-        <Button
-          type="primary"
-          icon={<SaveOutlined />}
-          onClick={() => form.submit()}
-          size="large"
-          className="min-w-[150px]"
-        >
+      <div
+        className="flex justify-end pt-4 border-t mt-auto"
+        style={{ borderColor: token.colorBorderSecondary }}
+      >
+        <Button type="primary" icon={<SaveOutlined />} onClick={() => form.submit()} size="large">
           Simpan Data
         </Button>
       </div>

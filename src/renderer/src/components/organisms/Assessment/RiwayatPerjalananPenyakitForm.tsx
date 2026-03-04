@@ -116,7 +116,13 @@ export const RiwayatPerjalananPenyakitForm: React.FC<RiwayatPerjalananPenyakitFo
         </Form.Item>
       </Card>
       <Form.Item className="mb-0 text-right">
-        <Button type="primary" htmlType="submit" icon={<SaveOutlined />} loading={isSubmitting}>
+        <Button
+          type="primary"
+          htmlType="submit"
+          size="large"
+          icon={<SaveOutlined />}
+          loading={isSubmitting}
+        >
           Simpan Riwayat Perjalanan Penyakit
         </Button>
       </Form.Item>

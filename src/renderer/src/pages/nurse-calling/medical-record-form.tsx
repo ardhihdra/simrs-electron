@@ -29,9 +29,7 @@ const MedicalRecordForm = () => {
   const [encounterType, setEncounterType] = useState<string>('')
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('initial-assessment')
-  const {
-    token: { colorBgContainer }
-  } = theme.useToken()
+  const { token } = theme.useToken()
 
   const loadPatientData = useCallback(async () => {
     if (!encounterId) return
@@ -173,7 +171,13 @@ const MedicalRecordForm = () => {
             onCollapse={(value) => setCollapsed(value)}
             theme="light"
             trigger={
-              <div className="flex items-center justify-center h-12 border-t border-white/10 text-gray-500 hover:text-blue-600 transition-colors cursor-pointer">
+              <div
+                className="flex items-center justify-center h-12 cursor-pointer transition-colors"
+                style={{
+                  borderTop: `1px solid ${token.colorBorderSecondary}`,
+                  color: token.colorTextTertiary
+                }}
+              >
                 {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               </div>
             }
@@ -199,7 +203,7 @@ const MedicalRecordForm = () => {
                       ? [
                           {
                             key: 'triage',
-                            icon: <AlertOutlined style={{ color: '#ef4444' }} />,
+                            icon: <AlertOutlined style={{ color: token.colorError }} />,
                             label: 'Data Triase'
                           }
                         ]

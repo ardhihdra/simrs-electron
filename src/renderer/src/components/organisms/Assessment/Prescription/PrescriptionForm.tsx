@@ -385,27 +385,27 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
   ]
 
   return (
-    <div className="flex justify-center p-4">
-      <Card
-        className="w-full max-w-6xl rounded-xl"
-        title="Buat Resep Obat"
-        extra={
-          <Space>
-            <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalOpen(true)}>
-              Riwayat ({medicationHistory?.result?.length || 0})
-            </Button>
-            <Button onClick={() => navigate('/dashboard/doctor')}>Kembali</Button>
-          </Space>
-        }
+    <div className="">
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmitPrescription}
+        initialValues={{ assessment_date: dayjs() }}
+        className="space-y-4!"
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleSubmitPrescription}
-          initialValues={{ assessment_date: dayjs() }}
-          className="space-y-4!"
+        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        <Card
+          className="w-full "
+          title="Buat Resep Obat"
+          extra={
+            <Space>
+              <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalOpen(true)}>
+                Riwayat ({medicationHistory?.result?.length || 0})
+              </Button>
+              <Button onClick={() => navigate('/dashboard/doctor')}>Kembali</Button>
+            </Space>
+          }
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <Tabs defaultActiveKey="1" type="card" className="mt-4">
             <TabPane tab="Obat & Barang" key="1">
               <ItemPrescriptionForm itemOptions={itemOptions} loading={rawMaterialLoading} />
@@ -419,23 +419,22 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
               />
             </TabPane>
           </Tabs>
-
-          <div className="flex justify-end mt-6 pt-4">
-            <Space>
-              <Button onClick={() => navigate('/dashboard/doctor')}>Batal</Button>
-              <Button
-                type="primary"
-                icon={<SaveOutlined />}
-                loading={submitting}
-                onClick={handleSubmitPrescription}
-                size="large"
-              >
-                Buat Resep
-              </Button>
-            </Space>
-          </div>
-        </Form>
-      </Card>
+        </Card>
+        <div className="flex justify-end">
+          <Space>
+            <Button onClick={() => navigate('/dashboard/doctor')}>Batal</Button>
+            <Button
+              type="primary"
+              icon={<SaveOutlined />}
+              loading={submitting}
+              onClick={handleSubmitPrescription}
+              size="large"
+            >
+              Buat Resep
+            </Button>
+          </Space>
+        </div>
+      </Form>
       <Modal
         title="Riwayat Resep Pasien"
         open={isHistoryModalOpen}
