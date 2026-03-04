@@ -10,7 +10,8 @@ import {
   Select,
   Spin,
   Modal,
-  Input
+  Input,
+  theme
 } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -42,6 +43,7 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
   encounterId,
   patientData
 }) => {
+  const { token } = theme.useToken()
   const [form] = Form.useForm()
   const { message } = App.useApp()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -197,16 +199,24 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
           className="flex flex-col gap-4 pb-4"
         >
           <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-
           <div className="flex flex-col gap-4">
-            {/* Uterus Map Form (Peta Rahim) */}
             <Card title="Peta Anatomi Rahim (Uterus Map)" size="small">
-              <div className="mb-2 bg-pink-50 p-3 rounded text-pink-700 text-xs">
+              <div
+                className="mb-2 p-3 rounded text-xs"
+                style={{
+                  backgroundColor: token.colorErrorBg,
+                  color: token.colorErrorText,
+                  border: `1px solid ${token.colorErrorBorder}`
+                }}
+              >
                 Klik pada gambar anatomi rahim untuk menandai lokasi spesifik atau temuan.
               </div>
               <div
-                className="relative w-full overflow-hidden border border-gray-200 rounded-lg bg-white mb-4 flex justify-center items-center"
-                style={{ minHeight: '350px' }}
+                className="relative w-full overflow-hidden rounded-lg bg-white mb-4 flex justify-center items-center"
+                style={{
+                  minHeight: '350px',
+                  border: `1px solid ${token.colorBorderSecondary}`
+                }}
               >
                 <div className="relative inline-block w-full max-w-2xl mx-auto">
                   <img
@@ -227,25 +237,31 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
                       }}
                       className="group z-10"
                     >
-                      <div className="w-5 h-5 bg-red-500 rounded-full border border-white shadow flex items-center justify-center text-white text-xs font-bold cursor-pointer">
+                      <div
+                        className="w-5 h-5 rounded-full border shadow flex items-center justify-center text-xs font-bold cursor-pointer"
+                        style={{
+                          backgroundColor: token.colorError,
+                          borderColor: token.colorBgContainer,
+                          color: '#fff'
+                        }}
+                      >
                         {index + 1}
                       </div>
                       <div
-                        className="absolute -top-8 left-1/2 transform -translate-x-1/2 hidden group-hover:flex bg-white rounded-full shadow p-1 cursor-pointer z-20"
+                        className="absolute -top-8 left-1/2 transform -translate-x-1/2 hidden group-hover:flex rounded-full shadow p-1 cursor-pointer z-20"
+                        style={{ background: token.colorBgContainer }}
                         onClick={(e) => {
                           e.stopPropagation()
                           removeMarker(marker.id)
                         }}
                       >
-                        <DeleteOutlined className="text-red-500" />
+                        <DeleteOutlined style={{ color: token.colorError }} />
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
             </Card>
-
-            {/* Section: Status Obstetri & Kunjungan */}
             <Card title="Status Obstetri & Data Kunjungan" size="small">
               <Row gutter={12}>
                 <Col span={8}>
@@ -312,9 +328,7 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
                 </Col>
               </Row>
             </Card>
-
-            {/* Section: Pemeriksaan Spesifik & Janin */}
-            <Card title="Pemeriksaan Ibu (Obstetri) & Janin" size="small">
+            <Card title="Pemeriksaan Ibu (Obstetri)" size="small">
               <Row gutter={12}>
                 <Col span={12}>
                   <Form.Item name={['maternalExam', 'lila']} label="Lingkar Lengan Atas (LiLA)">
@@ -348,78 +362,79 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
                   </Form.Item>
                 </Col>
               </Row>
-
-              <div className="font-semibold mb-2 mt-4 text-gray-700">Pemeriksaan Janin</div>
-              <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100">
-                <Row gutter={12}>
-                  <Col span={12}>
-                    <Form.Item
-                      name={['fetalExam', 'djj']}
-                      label="Denyut Jantung Janin (DJJ)"
-                      className="mb-3"
-                    >
-                      <InputNumber min={0} addonAfter="bpm" className="w-full" />
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      name={['fetalExam', 'tbj']}
-                      label="Taksiran Berat Janin (TBJ)"
-                      className="mb-3"
-                    >
-                      <InputNumber min={0} addonAfter="gram" className="w-full" />
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Row gutter={12}>
-                  <Col span={12}>
-                    <Form.Item
-                      name={['fetalExam', 'presentasi']}
-                      label="Letak / Presentasi Janin"
-                      className="mb-3"
-                    >
-                      <Select placeholder="Pilih Presentasi">
-                        {Object.entries(PRESENTATION_CODES).map(([code, label]) => (
-                          <Option key={code} value={code}>
-                            {label}
-                          </Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                  <Col span={12}>
-                    <Form.Item
-                      name={['fetalExam', 'kepala_terhadap_pap']}
-                      label="Kepala Thdp Pintu Atas Panggul"
-                      className="mb-3"
-                    >
-                      <Select placeholder="Pilih Status PAP">
-                        {Object.entries(ENGAGEMENT_CODES).map(([code, label]) => (
-                          <Option key={code} value={code}>
-                            {label}
-                          </Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                </Row>
-                <Row gutter={12}>
-                  <Col span={12}>
-                    <Form.Item
-                      name={['fetalExam', 'jumlah_janin']}
-                      label="Jumlah Janin"
-                      className="mb-0"
-                    >
-                      <InputNumber min={1} className="w-full" />
-                    </Form.Item>
-                  </Col>
-                </Row>
-              </div>
+            </Card>
+            <Card title="Pemeriksaan Janin" size="small">
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item
+                    name={['fetalExam', 'djj']}
+                    label="Denyut Jantung Janin (DJJ)"
+                    className="mb-3"
+                  >
+                    <InputNumber min={0} addonAfter="bpm" className="w-full" />
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name={['fetalExam', 'tbj']}
+                    label="Taksiran Berat Janin (TBJ)"
+                    className="mb-3"
+                  >
+                    <InputNumber min={0} addonAfter="gram" className="w-full" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item
+                    name={['fetalExam', 'presentasi']}
+                    label="Letak / Presentasi Janin"
+                    className="mb-3"
+                  >
+                    <Select placeholder="Pilih Presentasi">
+                      {Object.entries(PRESENTATION_CODES).map(([code, label]) => (
+                        <Option key={code} value={code}>
+                          {label}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+                <Col span={12}>
+                  <Form.Item
+                    name={['fetalExam', 'kepala_terhadap_pap']}
+                    label="Kepala Thdp Pintu Atas Panggul"
+                    className="mb-3"
+                  >
+                    <Select placeholder="Pilih Status PAP">
+                      {Object.entries(ENGAGEMENT_CODES).map(([code, label]) => (
+                        <Option key={code} value={code}>
+                          {label}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                </Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Form.Item
+                    name={['fetalExam', 'jumlah_janin']}
+                    label="Jumlah Janin"
+                    className="mb-0"
+                  >
+                    <InputNumber min={1} className="w-full" />
+                  </Form.Item>
+                </Col>
+              </Row>
             </Card>
           </div>
         </Form>
       </div>
-      <div className="flex justify-end pt-4 border-t border-white/10 mt-auto">
+      <div
+        className="flex justify-end pt-4 border-t mt-auto"
+        style={{ borderColor: token.colorBorderSecondary }}
+      >
         <Button
           type="primary"
           icon={<SaveOutlined />}
@@ -430,7 +445,6 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
           Simpan Form ANC
         </Button>
       </div>
-
       <Modal
         title="Tambah Penanda"
         open={isModalOpen}

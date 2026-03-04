@@ -431,23 +431,12 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         </Row>
       </Card>
 
-      <div className="flex justify-end pt-4 pb-8">
+      <div className="flex justify-end">
         <Space size="middle">
-          <Button
-            size="large"
-            icon={<PrinterOutlined />}
-            onClick={handlePreviewPrint}
-            className="px-8 h-12 rounded-lg"
-          >
+          <Button size="large" icon={<PrinterOutlined />} onClick={handlePreviewPrint}>
             Preview & Print
           </Button>
-          <Button
-            type="primary"
-            size="large"
-            icon={<SaveOutlined />}
-            className="px-8 h-12 rounded-lg shadow-lg"
-            onClick={() => form.submit()}
-          >
+          <Button type="primary" size="large" icon={<SaveOutlined />} onClick={() => form.submit()}>
             Simpan Final
           </Button>
         </Space>

@@ -6,6 +6,7 @@ import {
   MedicineBoxOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
+  SearchOutlined,
   MonitorOutlined,
   SolutionOutlined,
   UserOutlined
@@ -34,7 +35,7 @@ import { CardiologyForm } from '../../components/organisms/Assessment/Cardiology
 import { ENTForm } from '../../components/organisms/Assessment/ENT/ENTForm'
 import { ReferralForm } from '../../components/organisms/ReferralForm'
 import { VitalSignsMonitoringForm } from '../../components/organisms/Assessment/VitalSignsMonitoring/VitalSignsMonitoringForm'
-import { Empty, Input, Layout, Menu, theme } from 'antd'
+import { Empty, Input, Layout, Menu, Modal, theme } from 'antd'
 import { useMemo, useState } from 'react'
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
@@ -57,11 +58,11 @@ export const DoctorEmergencyWorkspace = ({
   onEditStatus
 }: DoctorEmergencyWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
-  const [selectedKey, setSelectedKey] = useState('overview')
+  const [selectedKey, setSelectedKey] = useState('info')
   const [searchText, setSearchText] = useState('')
-  const {
-    token: { colorBgContainer }
-  } = theme.useToken()
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalSearch, setModalSearch] = useState('')
+  const { token } = theme.useToken()
 
   const items = useMemo(
     () => [
@@ -187,6 +188,33 @@ export const DoctorEmergencyWorkspace = ({
       .filter(Boolean) as any[]
   }, [items, searchText])
 
+  const filteredModalItems = useMemo(() => {
+    if (!modalSearch) return items
+
+    const lowerSearch = modalSearch.toLowerCase()
+
+    return items
+      .map((item) => {
+        const isParentMatch = item.label?.toLowerCase().includes(lowerSearch)
+
+        if (item.children && Array.isArray(item.children)) {
+          const matchingChildren = item.children.filter((child: any) =>
+            child.label.toLowerCase().includes(lowerSearch)
+          )
+
+          if (matchingChildren.length > 0) {
+            return { ...item, children: matchingChildren }
+          } else if (isParentMatch) {
+            return item
+          }
+          return null
+        }
+
+        return isParentMatch ? item : null
+      })
+      .filter(Boolean) as any[]
+  }, [items, modalSearch])
+
   const renderContent = () => {
     switch (selectedKey) {
       case 'info':
@@ -260,61 +288,136 @@ export const DoctorEmergencyWorkspace = ({
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <Layout className="rounded-lg overflow-hidden flex-1 border border-white/10">
+      <Modal
+        open={modalOpen}
+        onCancel={() => {
+          setModalOpen(false)
+          setModalSearch('')
+        }}
+        footer={null}
+        title={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertOutlined style={{ color: token.colorError }} />
+            <span>IGD — Pilih Form</span>
+          </div>
+        }
+        width={500}
+        styles={{ body: { padding: 0, maxHeight: '70vh', overflowY: 'auto' } }}
+        centered
+      >
+        <div
+          className="px-4 py-3"
+          style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+        >
+          <Input.Search
+            placeholder="Cari menu/form..."
+            allowClear
+            autoFocus
+            value={modalSearch}
+            onChange={(e) => setModalSearch(e.target.value)}
+          />
+        </div>
+        {filteredModalItems.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-32">
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                <span style={{ fontSize: 14, color: token.colorTextTertiary }}>
+                  Form tidak ditemukan
+                </span>
+              }
+            />
+          </div>
+        ) : (
+          <Menu
+            className="custom-menu"
+            mode="inline"
+            selectedKeys={[selectedKey]}
+            defaultOpenKeys={
+              modalSearch
+                ? filteredModalItems.map((item) => item.key)
+                : ['emergency', 'screening', 'assessment']
+            }
+            style={{ borderRight: 0 }}
+            items={filteredModalItems}
+            onSelect={({ key }) => {
+              setSelectedKey(key)
+              setModalOpen(false)
+              setModalSearch('')
+            }}
+          />
+        )}
+      </Modal>
+
+      <Layout
+        className="rounded-lg overflow-hidden flex-1"
+        style={{ border: `1px solid ${token.colorBorderSecondary}` }}
+      >
         <Sider
           width={265}
           collapsible
           collapsed={collapsed}
           onCollapse={(value) => setCollapsed(value)}
           theme="light"
-          className="border-r border-gray-200 dark:border-white/10"
+          className=""
           trigger={
-            <div className="flex items-center justify-center h-12 border-t border-gray-200 dark:border-white/10 text-gray-500 hover:text-red-600 transition-colors cursor-pointer">
+            <div className="flex items-center justify-center h-12 cursor-pointer transition-colors">
               {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
             </div>
           }
         >
           <div className="h-full flex flex-col">
-            <div className={`p-4 ${collapsed ? 'text-center' : ''} border-b border-gray-100`}>
+            <div
+              className={`p-4 ${collapsed ? 'text-center' : ''}`}
+              style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+            >
               {collapsed ? (
-                <AlertOutlined className="text-xl text-red-600" />
+                <SearchOutlined
+                  style={{ fontSize: 18, color: token.colorError, cursor: 'pointer' }}
+                  onClick={() => setModalOpen(true)}
+                />
               ) : (
-                <div className="font-bold flex items-center gap-2">
-                  <AlertOutlined className="text-red-600" />
-                  IGD
+                <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <AlertOutlined style={{ color: token.colorError }} />
+                  <span style={{ color: token.colorText }}>IGD</span>
                 </div>
               )}
             </div>
 
-            {!collapsed && (
-              <div className="p-4 bg-gray-50/50 border-b border-gray-100 flex-none hidden overflow-hidden md:block">
-                <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
-              </div>
-            )}
-
             <div className="flex flex-col flex-1 overflow-hidden mt-2">
-              <div className="px-4 pb-2">
-                <Input.Search
-                  placeholder="Cari menu/form..."
-                  allowClear
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="w-full"
-                />
-              </div>
+              {!collapsed && (
+                <div
+                  className="px-4 pb-2"
+                  style={{
+                    borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                    paddingBottom: 10
+                  }}
+                >
+                  <Input.Search
+                    placeholder="Cari menu/form..."
+                    allowClear
+                    onChange={(e) => setSearchText(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto pb-4">
                 {filteredItems.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-32 mt-10">
                     <Empty
                       image={Empty.PRESENTED_IMAGE_SIMPLE}
                       description={
-                        <span className="text-gray-400 text-sm">Form tidak ditemukan</span>
+                        <span style={{ fontSize: 14, color: token.colorTextTertiary }}>
+                          Form tidak ditemukan
+                        </span>
                       }
                     />
                   </div>
                 ) : (
                   <Menu
+                    className="custom-menu"
                     mode="inline"
-                    defaultSelectedKeys={['info']}
+                    selectedKeys={[selectedKey]}
                     defaultOpenKeys={
                       searchText
                         ? filteredItems.map((item) => item.key)
@@ -331,12 +434,7 @@ export const DoctorEmergencyWorkspace = ({
         </Sider>
 
         <Layout>
-          <Content
-            className="p-6 overflow-y-auto h-full"
-            style={{ background: colorBgContainer, minHeight: 280 }}
-          >
-            {renderContent()}
-          </Content>
+          <Content className="p-6 overflow-y-auto h-full">{renderContent()}</Content>
         </Layout>
       </Layout>
     </div>

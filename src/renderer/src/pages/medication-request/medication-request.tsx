@@ -1,11 +1,11 @@
 import { Outlet } from 'react-router'
 
-function Expense() {
+const MedicationRequest = () => {
   return (
-    <div className="">
+    <div>
       <Outlet />
     </div>
   )
 }
 
-export default Expense
+export default MedicationRequest

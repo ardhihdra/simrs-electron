@@ -221,13 +221,15 @@ export const NutritionOrderForm = ({
   ]
 
   return (
-    <div className="flex flex-col gap-6">
+    <>
       <Form
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
         initialValues={{ assessment_date: dayjs() }}
+        className="flex! flex-col! gap-4"
       >
+        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
         <Card
           title="Formulir Diet & Nutrisi"
           extra={
@@ -236,7 +238,6 @@ export const NutritionOrderForm = ({
             </Button>
           }
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
           <Divider style={{ marginTop: 0 }} />
           <Row gutter={[16, 16]}>
             <Col span={12}>
@@ -297,19 +298,18 @@ export const NutritionOrderForm = ({
               placeholder="Contoh: Pasien alergi udang, mohon makanan disajikan hangat."
             />
           </Form.Item>
-
-          <div className="flex justify-end mt-4">
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
-              loading={createMutation.isPending}
-              size="large"
-            >
-              Kirim Order Diet
-            </Button>
-          </div>
         </Card>
+        <div className="flex justify-end">
+          <Button
+            type="primary"
+            htmlType="submit"
+            icon={<SaveOutlined />}
+            loading={createMutation.isPending}
+            size="large"
+          >
+            Kirim Order Diet
+          </Button>
+        </div>
       </Form>
 
       <Modal
@@ -332,6 +332,6 @@ export const NutritionOrderForm = ({
           scroll={{ x: 1000 }}
         />
       </Modal>
-    </div>
+    </>
   )
 }

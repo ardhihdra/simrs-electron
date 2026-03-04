@@ -605,27 +605,6 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
           </Col>
         </Row>
 
-        <div className="flex justify-end pt-4 pb-12 gap-4">
-          <Button
-            size="large"
-            icon={<PrinterOutlined />}
-            className="px-8 h-12 rounded-xl"
-            onClick={handlePreviewPrint}
-          >
-            Preview Cetak
-          </Button>
-          <Button
-            type="primary"
-            size="large"
-            icon={<SaveOutlined />}
-            className="px-12 h-12 rounded-xl shadow-lg bg-indigo-600 hover:bg-indigo-700"
-            onClick={() => form.submit()}
-            loading={isSaving}
-          >
-            Simpan Resume Medis Tubuh
-          </Button>
-        </div>
-
         <SignaturePadModal
           title={sigModal.title}
           visible={sigModal.visible}
@@ -680,6 +659,20 @@ export const DischargeSummaryForm = ({ encounterId, patientData }: DischargeSumm
           </div>
         </Modal>
       </Card>
+      <div className="flex justify-end gap-4">
+        <Button size="large" icon={<PrinterOutlined />} onClick={handlePreviewPrint}>
+          Preview Cetak
+        </Button>
+        <Button
+          type="primary"
+          size="large"
+          icon={<SaveOutlined />}
+          onClick={() => form.submit()}
+          loading={isSaving}
+        >
+          Simpan Resume Medis Tubuh
+        </Button>
+      </div>
     </div>
   )
 }
