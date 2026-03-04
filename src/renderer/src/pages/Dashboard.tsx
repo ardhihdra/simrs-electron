@@ -19,7 +19,7 @@ import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 
 import type { MenuProps } from 'antd'
-import { Menu } from 'antd'
+import { Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
@@ -131,11 +131,6 @@ const items = [
         icon: <CalendarOutlined />
       },
       {
-        label: 'Data Jaminan',
-        key: '/dashboard/registration/insurance',
-        icon: <CalendarOutlined />
-      },
-      {
         label: 'Jadwal Praktek Petugas Medis',
         key: '/dashboard/registration/medical-staff-schedule',
         icon: <CalendarOutlined />
@@ -163,51 +158,26 @@ const items = [
     ]
   },
   {
-    label: 'Pelayanan Rumah Sakit',
-    key: '/dashboard/services',
-    icon: <WalletOutlined />,
-    children: [
-      {
-        label: 'Diagnosa',
-        key: '/dashboard/diagnostic',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Pemeriksaan Utama',
-        key: '/dashboard/services/pemeriksaan-utama',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Pemeriksaan Umum',
-        key: '/dashboard/services/general-checkup',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Pemeriksaan Khusus',
-        key: '/dashboard/services/special-checkup',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Tindakan Medis',
-        key: '/dashboard/services/medical-action',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Resep Obat',
-        key: '/dashboard/services/prescription',
-        icon: <WalletOutlined />
-      }
-    ]
-  },
-  {
     label: 'Obat',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
-      { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <FileAddOutlined /> },
-      { label: 'Penyerahan Obat ', key: '/dashboard/medicine/medication-dispenses', icon: <MedicineBoxOutlined /> },
-      { label: 'Kategori Item', key: '/dashboard/medicine/medicine-categories', icon: <UnorderedListOutlined /> },
+      {
+        label: 'Permintaan Obat (Resep)',
+        key: '/dashboard/medicine/medication-requests',
+        icon: <FileAddOutlined />
+      },
+      {
+        label: 'Penyerahan Obat ',
+        key: '/dashboard/medicine/medication-dispenses',
+        icon: <MedicineBoxOutlined />
+      },
+      {
+        label: 'Kategori Item',
+        key: '/dashboard/medicine/medicine-categories',
+        icon: <UnorderedListOutlined />
+      },
       { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
       { label: 'Obat dan Barang', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
       {
@@ -336,6 +306,7 @@ const items = [
 ]
 
 function Dashboard() {
+  const { token } = theme.useToken()
   const location = useLocation()
   const registeredPrefixes = [
     '/dashboard/expense',
@@ -359,7 +330,8 @@ function Dashboard() {
     '/dashboard/laboratory-management',
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
-    '/dashboard/doctor'
+    '/dashboard/doctor',
+    '/dashboard/nurse-calling'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === '/dashboard') return true
@@ -438,15 +410,40 @@ function Dashboard() {
 
     setActiveSide(match || (children[0]?.key as string))
   }, [location.pathname])
+
+  const isWorkspaceRoute =
+    location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+
+  if (isWorkspaceRoute) {
+    return (
+      <div
+        className="h-screen w-screen overflow-hidden"
+        style={{ backgroundColor: token.colorBgLayout }}
+      >
+        <Outlet />
+      </div>
+    )
+  }
+
   return (
     <div className="h-screen flex overflow-hidden">
       <aside
-        className={`${collapsed ? 'w-20' : 'w-64'} bg-white dark:bg-[#141414] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-all duration-300`}
+        style={{
+          backgroundColor: token.colorBgContainer,
+          borderRight: `1px solid ${token.colorBorderSecondary}`
+        }}
+        className={`${collapsed ? 'w-20' : 'w-64'} flex flex-col transition-all duration-300`}
       >
-        <div className="h-14 px-4 flex items-center justify-center border-b border-gray-200 dark:border-gray-800">
+        <div
+          style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+          className="h-14 px-4 flex items-center justify-center"
+        >
           <div className="flex items-center justify-center gap-2">
             <img src={logoUrl} alt="Logo" className="w-8 h-8" />
-            <span className={`${collapsed ? 'hidden' : 'font-semibold text-lg dark:text-white'}`}>
+            <span
+              style={{ color: token.colorText }}
+              className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}
+            >
               SIMRS
             </span>
           </div>
@@ -457,13 +454,18 @@ function Dashboard() {
           mode="inline"
           inlineCollapsed={collapsed}
           items={sideItems}
-          className="dark:bg-[#141414]"
-          style={{ borderInlineEnd: 0 }}
+          style={{ borderInlineEnd: 0, backgroundColor: 'transparent' }}
         />
         <div className="mt-auto px-4 py-3 flex justify-center">
           <button
             aria-label="Toggle sidebar"
-            className="p-2 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 shadow transition-colors"
+            className="p-2 rounded-full transition-colors flex items-center justify-center border-none cursor-pointer"
+            style={{
+              backgroundColor: token.colorBgLayout,
+              color: token.colorPrimary,
+              width: 36,
+              height: 36
+            }}
             onClick={() => setCollapsed((p) => !p)}
           >
             {collapsed ? <RightCircleFilled /> : <LeftCircleFilled />}
@@ -473,25 +475,41 @@ function Dashboard() {
       <div
         className={`flex-1 transition-all duration-300 flex flex-col overflow-y-auto h-full ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
       >
-        <header className="sticky top-0 z-50 bg-white dark:bg-[#141414] border-b border-gray-200 dark:border-gray-800 h-14 px-4 flex items-center justify-between gap-4 transition-colors">
+        <header
+          className="sticky top-0 z-50 px-4 flex items-center justify-between gap-4 transition-colors"
+          style={{
+            height: 56,
+            minHeight: 56,
+            maxHeight: 56,
+            backgroundColor: token.colorBgContainer,
+            borderBottom: `1px solid ${token.colorBorderSecondary}`
+          }}
+        >
           <Menu
             mode="horizontal"
             onClick={onTopClick}
             selectedKeys={[activeTop]}
             items={topItems}
-            className="dark:bg-[#141414] border-none"
-            style={{ minWidth: 0, flex: 'auto' }}
+            style={{
+              minWidth: 0,
+              flex: 'auto',
+              height: 55,
+              lineHeight: '55px',
+              overflow: 'hidden',
+              backgroundColor: 'transparent',
+              borderBottom: 'none'
+            }}
           />
           {/* <SendNotificationButton /> */}
           <NotificationBell />
           <ProfileMenu />
         </header>
-        <div className="p-4 flex-1 bg-gray-50 dark:bg-[#000000]">
+        <div className="p-4 flex-1" style={{ backgroundColor: token.colorBgLayout }}>
           {isRegisteredPath(location.pathname) ? (
             <Outlet />
           ) : (
             <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-              <div className="text-base md:text-lg font-medium dark:text-gray-200">
+              <div className="text-base md:text-lg font-medium" style={{ color: token.colorText }}>
                 {findLabelByPath(location.pathname)}
               </div>
             </div>

@@ -1,5 +1,42 @@
 import { PatientQueue, VitalSigns, Anamnesis, PhysicalExamination } from './nurse.types'
 
+export interface PatientInfo {
+    id: string;
+    name: string;
+    medicalRecordNumber: string;
+    gender: string;
+    birthDate: string;
+    age?: number;
+    phone?: string;
+    address?: string;
+    identityNumber?: string;
+}
+
+export interface PoliInfo {
+    id: string;
+    code: string;
+    name: string;
+}
+
+export interface DoctorInfo {
+    id: string;
+    name: string;
+    specialization: string;
+    sipNumber?: string;
+}
+
+export interface PatientData {
+    id: string;
+    encounterId: string;
+    queueNumber?: number;
+    patient: PatientInfo;
+    poli?: PoliInfo;
+    doctor?: DoctorInfo;
+    status?: string;
+    paymentMethod?: string;
+    registrationDate?: string;
+}
+
 export interface DiagnosisCode {
     id: string
     code: string

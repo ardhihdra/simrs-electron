@@ -1,7 +1,8 @@
-import { Card, Col, Form, Input, Radio, Row } from 'antd'
+import { Card, Col, Form, Input, Radio, Row, theme } from 'antd'
 import React from 'react'
 
 export const ScreeningSection: React.FC = () => {
+  const { token } = theme.useToken()
   return (
     <Card title="Pemeriksaan & Skrining" className="py-4">
       <div className="mb-6">
@@ -25,7 +26,7 @@ export const ScreeningSection: React.FC = () => {
           </Col>
         </Row>
       </div>
-      <div className="py-6 border-t border-white/10">
+      <div className="py-6 border-t" style={{ borderColor: token.colorBorderSecondary }}>
         <Row gutter={24}>
           <Col span={6}>
             <h4 className="font-semibold text-base">Risiko Jatuh</h4>
@@ -59,7 +60,7 @@ export const ScreeningSection: React.FC = () => {
           </Col>
         </Row>
       </div>
-      <div className="py-6 border-t border-gray-100">
+      <div className="py-6 border-t" style={{ borderColor: token.colorBorderSecondary }}>
         <Row gutter={24}>
           <Col span={6}>
             <h4 className="font-semibold text-base">Skrining Nyeri</h4>
@@ -83,7 +84,13 @@ export const ScreeningSection: React.FC = () => {
                   <Radio.Group className="w-full">
                     <div className="flex w-full gap-2 overflow-x-auto pb-2">
                       {/* 0-1: No Pain */}
-                      <div className="flex flex-col items-center flex-1 bg-gray-50 rounded-lg pb-2 relative overflow-hidden border border-gray-100">
+                      <div
+                        className="flex flex-col items-center flex-1 rounded-lg pb-2 relative overflow-hidden border"
+                        style={{
+                          backgroundColor: token.colorFillAlter,
+                          borderColor: token.colorBorderSecondary
+                        }}
+                      >
                         <div className="flex w-full h-10 mb-2">
                           <div className="flex-1 bg-emerald-300 rounded-tl-lg"></div>
                           <div className="flex-1 bg-emerald-500 rounded-tr-lg"></div>
@@ -105,7 +112,13 @@ export const ScreeningSection: React.FC = () => {
                       </div>
 
                       {/* 2-3: Mild */}
-                      <div className="flex flex-col items-center flex-1 bg-gray-50 rounded-lg pb-2 relative overflow-hidden border border-gray-100">
+                      <div
+                        className="flex flex-col items-center flex-1 rounded-lg pb-2 relative overflow-hidden border"
+                        style={{
+                          backgroundColor: token.colorFillAlter,
+                          borderColor: token.colorBorderSecondary
+                        }}
+                      >
                         <div className="flex w-full h-10 mb-2">
                           <div className="flex-1 bg-lime-300 rounded-tl-lg"></div>
                           <div className="flex-1 bg-lime-500 rounded-tr-lg"></div>
@@ -125,7 +138,13 @@ export const ScreeningSection: React.FC = () => {
                       </div>
 
                       {/* 4-5: Moderate */}
-                      <div className="flex flex-col items-center flex-1 bg-gray-50 rounded-lg pb-2 relative overflow-hidden border border-gray-100">
+                      <div
+                        className="flex flex-col items-center flex-1 rounded-lg pb-2 relative overflow-hidden border"
+                        style={{
+                          backgroundColor: token.colorFillAlter,
+                          borderColor: token.colorBorderSecondary
+                        }}
+                      >
                         <div className="flex w-full h-10 mb-2">
                           <div className="flex-1 bg-yellow-300 rounded-tl-lg"></div>
                           <div className="flex-1 bg-yellow-500 rounded-tr-lg"></div>
@@ -147,7 +166,13 @@ export const ScreeningSection: React.FC = () => {
                       </div>
 
                       {/* 6-7: Severe */}
-                      <div className="flex flex-col items-center flex-1 bg-gray-50 rounded-lg pb-2 relative overflow-hidden border border-gray-100">
+                      <div
+                        className="flex flex-col items-center flex-1 rounded-lg pb-2 relative overflow-hidden border"
+                        style={{
+                          backgroundColor: token.colorFillAlter,
+                          borderColor: token.colorBorderSecondary
+                        }}
+                      >
                         <div className="flex w-full h-10 mb-2">
                           <div className="flex-1 bg-orange-300 rounded-tl-lg"></div>
                           <div className="flex-1 bg-orange-500 rounded-tr-lg"></div>
@@ -169,7 +194,13 @@ export const ScreeningSection: React.FC = () => {
                       </div>
 
                       {/* 8-9: Very Severe */}
-                      <div className="flex flex-col items-center flex-1 bg-gray-50 rounded-lg pb-2 relative overflow-hidden border border-gray-100">
+                      <div
+                        className="flex flex-col items-center flex-1 rounded-lg pb-2 relative overflow-hidden border"
+                        style={{
+                          backgroundColor: token.colorFillAlter,
+                          borderColor: token.colorBorderSecondary
+                        }}
+                      >
                         <div className="flex w-full h-10 mb-2">
                           <div className="flex-1 bg-red-400 rounded-tl-lg"></div>
                           <div className="flex-1 bg-red-600 rounded-tr-lg"></div>
@@ -191,7 +222,13 @@ export const ScreeningSection: React.FC = () => {
                       </div>
 
                       {/* 10: Worst */}
-                      <div className="flex flex-col items-center flex-1 bg-gray-50 rounded-lg pb-2 relative overflow-hidden border border-gray-100">
+                      <div
+                        className="flex flex-col items-center flex-1 rounded-lg pb-2 relative overflow-hidden border"
+                        style={{
+                          backgroundColor: token.colorFillAlter,
+                          borderColor: token.colorBorderSecondary
+                        }}
+                      >
                         <div className="w-full h-10 bg-red-800 mb-2 rounded-t-lg"></div>
                         <div className="text-7xl grayscale hover:grayscale-0 transition-all cursor-pointer mb-1 transform hover:scale-110 duration-200">
                           😫
@@ -217,7 +254,7 @@ export const ScreeningSection: React.FC = () => {
         </Row>
       </div>
 
-      <div className="py-6 border-t border-white/10">
+      <div className="py-6 border-t" style={{ borderColor: token.colorBorderSecondary }}>
         <Row gutter={24}>
           <Col span={6}>
             <h4 className="font-semibold text-base">Skrining Batuk</h4>

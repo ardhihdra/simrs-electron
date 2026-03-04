@@ -56,12 +56,74 @@ export const schemas = {
         satuSehatSyncStatus: z.object({
           encounterSynced: z.boolean(),
           allSynced: z.boolean(),
+          encounterLog: z.object({
+            internalResourceId: z.string(),
+            status: z.string(),
+            attemptCount: z.number(),
+            lastAttemptAt: z.string().nullable().optional(),
+            errorMessage: z.string().nullable().optional(),
+          }).nullable().optional(),
           resources: z.object({
-            observation: z.object({ total: z.number(), synced: z.number() }),
-            condition: z.object({ total: z.number(), synced: z.number() }),
-            procedure: z.object({ total: z.number(), synced: z.number() }),
-            allergyIntolerance: z.object({ total: z.number(), synced: z.number() }),
-            composition: z.object({ total: z.number(), synced: z.number() }),
+            observation: z.object({
+              total: z.number(), synced: z.number(),
+              logSummary: z.object({
+                success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+                lastFailedLog: z.object({
+                  internalResourceId: z.string(), status: z.string(),
+                  attemptCount: z.number(),
+                  lastAttemptAt: z.string().nullable().optional(),
+                  errorMessage: z.string().nullable().optional(),
+                }).nullable()
+              }).nullable()
+            }),
+            condition: z.object({
+              total: z.number(), synced: z.number(),
+              logSummary: z.object({
+                success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+                lastFailedLog: z.object({
+                  internalResourceId: z.string(), status: z.string(),
+                  attemptCount: z.number(),
+                  lastAttemptAt: z.string().nullable().optional(),
+                  errorMessage: z.string().nullable().optional(),
+                }).nullable()
+              }).nullable()
+            }),
+            procedure: z.object({
+              total: z.number(), synced: z.number(),
+              logSummary: z.object({
+                success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+                lastFailedLog: z.object({
+                  internalResourceId: z.string(), status: z.string(),
+                  attemptCount: z.number(),
+                  lastAttemptAt: z.string().nullable().optional(),
+                  errorMessage: z.string().nullable().optional(),
+                }).nullable()
+              }).nullable()
+            }),
+            allergyIntolerance: z.object({
+              total: z.number(), synced: z.number(),
+              logSummary: z.object({
+                success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+                lastFailedLog: z.object({
+                  internalResourceId: z.string(), status: z.string(),
+                  attemptCount: z.number(),
+                  lastAttemptAt: z.string().nullable().optional(),
+                  errorMessage: z.string().nullable().optional(),
+                }).nullable()
+              }).nullable()
+            }),
+            composition: z.object({
+              total: z.number(), synced: z.number(),
+              logSummary: z.object({
+                success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+                lastFailedLog: z.object({
+                  internalResourceId: z.string(), status: z.string(),
+                  attemptCount: z.number(),
+                  lastAttemptAt: z.string().nullable().optional(),
+                  errorMessage: z.string().nullable().optional(),
+                }).nullable()
+              }).nullable()
+            }),
           })
         }).optional().nullable()
       })),
@@ -145,6 +207,14 @@ export const schemas = {
       count: z.number().optional(),
       error: z.string().optional()
     })
+  },
+  exportData: {
+    args: z.any().optional(),
+    result: z.object({
+      success: z.boolean(),
+      base64Data: z.string().optional(),
+      error: z.string().optional()
+    })
   }
 } as const
 
@@ -211,12 +281,74 @@ export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
       satuSehatSyncStatus: z.object({
         encounterSynced: z.boolean().optional(),
         allSynced: z.boolean().optional(),
+        encounterLog: z.object({
+          internalResourceId: z.string(),
+          status: z.string(),
+          attemptCount: z.number(),
+          lastAttemptAt: z.string().nullable().optional(),
+          errorMessage: z.string().nullable().optional(),
+        }).nullable().optional(),
         resources: z.object({
-          observation: z.object({ total: z.number(), synced: z.number() }).optional(),
-          condition: z.object({ total: z.number(), synced: z.number() }).optional(),
-          procedure: z.object({ total: z.number(), synced: z.number() }).optional(),
-          allergyIntolerance: z.object({ total: z.number(), synced: z.number() }).optional(),
-          composition: z.object({ total: z.number(), synced: z.number() }).optional(),
+          observation: z.object({
+            total: z.number(), synced: z.number(),
+            logSummary: z.object({
+              success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+              lastFailedLog: z.object({
+                internalResourceId: z.string(), status: z.string(),
+                attemptCount: z.number(),
+                lastAttemptAt: z.string().nullable().optional(),
+                errorMessage: z.string().nullable().optional(),
+              }).nullable()
+            }).nullable()
+          }).optional(),
+          condition: z.object({
+            total: z.number(), synced: z.number(),
+            logSummary: z.object({
+              success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+              lastFailedLog: z.object({
+                internalResourceId: z.string(), status: z.string(),
+                attemptCount: z.number(),
+                lastAttemptAt: z.string().nullable().optional(),
+                errorMessage: z.string().nullable().optional(),
+              }).nullable()
+            }).nullable()
+          }).optional(),
+          procedure: z.object({
+            total: z.number(), synced: z.number(),
+            logSummary: z.object({
+              success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+              lastFailedLog: z.object({
+                internalResourceId: z.string(), status: z.string(),
+                attemptCount: z.number(),
+                lastAttemptAt: z.string().nullable().optional(),
+                errorMessage: z.string().nullable().optional(),
+              }).nullable()
+            }).nullable()
+          }).optional(),
+          allergyIntolerance: z.object({
+            total: z.number(), synced: z.number(),
+            logSummary: z.object({
+              success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+              lastFailedLog: z.object({
+                internalResourceId: z.string(), status: z.string(),
+                attemptCount: z.number(),
+                lastAttemptAt: z.string().nullable().optional(),
+                errorMessage: z.string().nullable().optional(),
+              }).nullable()
+            }).nullable()
+          }).optional(),
+          composition: z.object({
+            total: z.number(), synced: z.number(),
+            logSummary: z.object({
+              success: z.number(), failed: z.number(), retry: z.number(), pending: z.number(),
+              lastFailedLog: z.object({
+                internalResourceId: z.string(), status: z.string(),
+                attemptCount: z.number(),
+                lastAttemptAt: z.string().nullable().optional(),
+                errorMessage: z.string().nullable().optional(),
+              }).nullable()
+            }).nullable()
+          }).optional(),
         }).optional()
       }).optional().nullable(),
       labServiceRequests: z.array(z.any()).optional()
@@ -511,6 +643,42 @@ export const bulkSyncSatusehat = async (
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ENCOUNTER BULK SYNC] Error:', msg)
+    return { success: false, error: msg }
+  }
+}
+
+export const exportData = async (
+  ctx: IpcContext,
+  args?: Record<string, unknown>
+) => {
+  try {
+    const client = getClient(ctx)
+
+    const queryParams = new URLSearchParams()
+    if (args) {
+      Object.entries(args).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+
+    // Call the export endpoint
+    const response = await client.get(`/api/module/encounter/export?${queryParams.toString()}`) as any;
+    if (!response.ok) {
+      throw new Error(`Gagal memuat dokumen: HTTP ${response.status}`);
+    }
+
+    // Extract the raw ArrayBuffer from fetch response
+    const arrayBuffer = await response.arrayBuffer();
+
+    // Convert to Base64 to safely transmit over IPC
+    const base64Data = Buffer.from(arrayBuffer).toString('base64');
+
+    return { success: true, base64Data }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[ENCOUNTER EXPORT] Error:', msg)
     return { success: false, error: msg }
   }
 }

@@ -7,12 +7,28 @@ import {
   ReloadOutlined,
   SyncOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  MedicineBoxOutlined,
+  SearchOutlined
 } from '@ant-design/icons'
 import { queryClient } from '@renderer/query-client'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import type { MenuProps } from 'antd'
-import { Button, Dropdown, Form, Input, InputNumber, Modal, Select, Table, Tag, message } from 'antd'
+import {
+  Button,
+  Dropdown,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Table,
+  Tag,
+  message,
+  Card,
+  Spin,
+  theme
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -68,12 +84,9 @@ type InventoryStockResponse = {
   message?: string
 }
 
-
-
 const formatRupiah = (value: number | string | null | undefined): string => {
   if (value === null || value === undefined) return '-'
-  const raw =
-    typeof value === 'number' ? value : Number(String(value).replace(/[^0-9-]/g, ''))
+  const raw = typeof value === 'number' ? value : Number(String(value).replace(/[^0-9-]/g, ''))
   if (!Number.isFinite(raw)) return '-'
   const formatted = new Intl.NumberFormat('id-ID', {
     minimumFractionDigits: 0,
@@ -228,8 +241,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
   const [stockForm] = Form.useForm<StockAdjustmentFormValues>()
 
   const api = (window.api?.query as { item?: ItemApi }).item
-  const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
-    .inventoryStock
+  const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi }).inventoryStock
   const [syncingSatusehat, setSyncingSatusehat] = useState(false)
 
   const updateStockAndMinimumStockMutation = useMutation({
@@ -371,9 +383,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
       icon: <EditOutlined />,
       onClick: () => {
         const currentStock =
-          typeof record.stock === 'number' && Number.isFinite(record.stock)
-            ? record.stock
-            : 0
+          typeof record.stock === 'number' && Number.isFinite(record.stock) ? record.stock : 0
         stockForm.setFieldsValue({
           currentStock,
           physicalStock: currentStock,
@@ -431,13 +441,9 @@ function RowActions({ record }: { record: ItemAttributes }) {
           layout="vertical"
           initialValues={{
             currentStock:
-              typeof record.stock === 'number' && Number.isFinite(record.stock)
-                ? record.stock
-                : 0,
+              typeof record.stock === 'number' && Number.isFinite(record.stock) ? record.stock : 0,
             physicalStock:
-              typeof record.stock === 'number' && Number.isFinite(record.stock)
-                ? record.stock
-                : 0,
+              typeof record.stock === 'number' && Number.isFinite(record.stock) ? record.stock : 0,
             reason: '',
             note: ''
           }}
@@ -458,9 +464,7 @@ function RowActions({ record }: { record: ItemAttributes }) {
                     return Promise.reject(new Error('Nilai stok fisik harus berupa angka'))
                   }
                   if (value < 0) {
-                    return Promise.reject(
-                      new Error('Stok fisik tidak boleh bernilai negatif')
-                    )
+                    return Promise.reject(new Error('Stok fisik tidak boleh bernilai negatif'))
                   }
                   return Promise.resolve()
                 }
@@ -491,13 +495,14 @@ function RowActions({ record }: { record: ItemAttributes }) {
 }
 
 export function ItemTable() {
+  const { token } = theme.useToken()
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyRows, setHistoryRows] = useState<ItemAdjustmentRow[]>([])
 
-  const { data, refetch, isError } = useQuery<ItemListResponse>({
+  const { data, refetch, isError, isLoading } = useQuery<ItemListResponse>({
     queryKey: ['item', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.item?.list
@@ -507,9 +512,7 @@ export function ItemTable() {
   })
 
   const itemCategoryNameById = useMemo(() => {
-    const items: ItemAttributes[] = Array.isArray(data?.result)
-      ? data.result
-      : []
+    const items: ItemAttributes[] = Array.isArray(data?.result) ? data.result : []
     const map = new Map<number, string>()
     for (const item of items) {
       const id =
@@ -519,10 +522,7 @@ export function ItemTable() {
             ? item.category.id
             : undefined
       if (typeof id !== 'number') continue
-      const rawName =
-        typeof item.category?.name === 'string'
-          ? item.category.name
-          : undefined
+      const rawName = typeof item.category?.name === 'string' ? item.category.name : undefined
       const name = rawName ? rawName.trim() : ''
       if (!name) continue
       if (!map.has(id)) {
@@ -627,9 +627,13 @@ export function ItemTable() {
       render: (v: string | null | undefined) => {
         const ok = typeof v === 'string' && v.trim().length > 0
         return ok ? (
-          <Tag icon={<CheckCircleOutlined />} color="success">Tersinkron</Tag>
+          <Tag icon={<CheckCircleOutlined />} color="success">
+            Tersinkron
+          </Tag>
         ) : (
-          <Tag icon={<CloseCircleOutlined />} color="error">Belum</Tag>
+          <Tag icon={<CloseCircleOutlined />} color="error">
+            Belum
+          </Tag>
         )
       }
     },
@@ -716,9 +720,11 @@ export function ItemTable() {
       dataIndex: 'itemCategoryId',
       key: 'itemCategoryId',
       render: (_: ItemAttributes['itemCategoryId'], record: ItemAttributes) => {
-        const directName = typeof record.category?.name === 'string' ? record.category.name.trim() : ''
+        const directName =
+          typeof record.category?.name === 'string' ? record.category.name.trim() : ''
         if (directName.length > 0) return directName
-        const idFromRecord = typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
+        const idFromRecord =
+          typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
         if (typeof idFromRecord === 'number') {
           const mapped = itemCategoryNameById.get(idFromRecord)
           if (typeof mapped === 'string' && mapped.length > 0) return mapped
@@ -737,145 +743,246 @@ export function ItemTable() {
   ]
 
   return (
-    <div>
-      <h2 className="text-4xl font-bold mb-4 justify-center flex">Data Master Item</h2>
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <Input
-          type="text"
-          placeholder="Cari"
-          className="w-full md:max-w-sm"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-        <div className="flex gap-2 flex-wrap md:justify-end">
-          <Button icon={<ReloadOutlined />} onClick={() => refetch()}>
-            Refresh
-          </Button>
-          <Button icon={<HistoryOutlined />} onClick={handleOpenHistory}>
-            History Penyesuaian
-          </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => navigate('/dashboard/medicine/items/create')}
-          >
-            Tambah
-          </Button>
-        </div>
-      </div>
-      {(isError || data?.success === false) && (
-        <div className="text-red-500 mt-2">
-          {typeof data?.message === 'string' && data.message.length > 0
-            ? data.message
-            : 'Gagal memuat data item'}
-        </div>
-      )}
+    <div className="flex flex-col gap-4 h-full">
+      {/* 1. Header Card */}
+      <Card
+        styles={{ body: { padding: '20px 24px' } }}
+        variant="borderless"
+        style={{
+          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
+        }}
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+                  <MedicineBoxOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+                </div>
+                <h1 className="text-xl font-bold text-white m-0 leading-tight">Data Master Item</h1>
+              </div>
+              <p className="text-sm text-blue-200 m-0 ml-12">
+                Manajemen data obat, alat pelayan kesehatan, bahan medis, dan umum
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={() => refetch()}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+                ghost
+              >
+                Refresh
+              </Button>
+              <Button
+                icon={<HistoryOutlined />}
+                onClick={handleOpenHistory}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+                ghost
+              >
+                History Penyesuaian
+              </Button>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={() => navigate('/dashboard/medicine/items/create')}
+                style={{
+                  background: '#fff',
+                  borderColor: '#fff',
+                  color: token.colorPrimaryActive
+                }}
+              >
+                Tambah
+              </Button>
+            </div>
+          </div>
 
-      <div className="mt-4 bg-white dark:bg-[#141414] rounded-lg shadow border border-gray-200 dark:border-gray-800">
-        <style>{`
-          .item-table-nama-cell {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-            word-break: break-word;
-          }
-        `}</style>
-        <Modal
-          title="History Penyesuaian Stok"
-          open={isHistoryOpen}
-          onCancel={() => setIsHistoryOpen(false)}
-          footer={null}
-          width={800}
-        >
-          <Table
-            dataSource={historyRows}
-            loading={historyLoading}
-            rowKey={(row) => row.id}
-            size="small"
-            pagination={{ pageSize: 10 }}
-            columns={[
-              {
-                title: 'Tanggal',
-                dataIndex: 'createdAt',
-                key: 'createdAt',
-                render: (value: string) => {
-                  const date = new Date(value)
-                  if (Number.isNaN(date.getTime())) return value
-                  return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
-                }
-              },
-              {
-                title: 'Jenis',
-                dataIndex: 'type',
-                key: 'type',
-                render: (value: number) => (value === 1 ? 'Masuk' : 'Keluar')
-              },
-              {
-                title: 'Stok Sebelum',
-                dataIndex: 'previousStock',
-                key: 'previousStock'
-              },
-              {
-                title: 'Stok Adjustment',
-                dataIndex: 'qty',
-                key: 'stockAdjustment',
-                render: (_: number, row: ItemAdjustmentRow) => {
-                  const base = typeof row.qty === 'number' ? row.qty : 0
-                  const signed = row.type === 1 ? base : -base
-                  const colorClass =
-                    signed > 0 ? 'text-green-600' : signed < 0 ? 'text-red-600' : ''
-                  const label =
-                    signed > 0 ? `+${signed}` : signed < 0 ? String(signed) : '0'
-                  return <span className={colorClass}>{label}</span>
-                }
-              },
-              {
-                title: 'Stok Sesudah',
-                dataIndex: 'newStock',
-                key: 'newStock'
-              },
-              {
-                title: 'Alasan',
-                dataIndex: 'adjustReason',
-                key: 'adjustReason',
-                render: (value: string | null) => value ?? '-'
-              },
-              {
-                title: 'Catatan',
-                dataIndex: 'note',
-                key: 'note',
-                render: (value: string | null) => value ?? '-'
-              },
-              {
-                title: 'User',
-                dataIndex: 'createdByName',
-                key: 'createdByName',
-                render: (_: string | null, row: ItemAdjustmentRow) => {
-                  if (row.createdByName && row.createdByName.length > 0) {
-                    return row.createdByName
-                  }
-                  if (row.createdBy && row.createdBy.length > 0) {
-                    return row.createdBy
-                  }
-                  return '-'
-                }
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(255,255,255,0.10)' }}
+              >
+                <MedicineBoxOutlined style={{ color: '#fff', fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {filtered.length}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Total Data
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* 2. Search Filter Card */}
+      <Card styles={{ body: { padding: '16px 20px' } }} variant="borderless">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: token.colorTextTertiary,
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              Pencarian
+            </div>
+            <Input
+              placeholder="Cari item, kode, satuan..."
+              prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              allowClear
+            />
+          </div>
+        </div>
+      </Card>
+
+      {/* 3. Main Data Table Card */}
+      <Card className="flex-1 overflow-hidden flex flex-col" variant="borderless">
+        <Spin spinning={isLoading}>
+          <div className="flex-1" style={{ background: token.colorBgContainer }}>
+            {(isError || data?.success === false) && (
+              <div style={{ color: token.colorErrorText }} className="p-4">
+                {typeof data?.message === 'string' && data.message.length > 0
+                  ? data.message
+                  : 'Gagal memuat data item'}
+              </div>
+            )}
+
+            <style>{`
+              .item-table-nama-cell {
+                display: -webkit-box;
+                -webkit-line-clamp: 3;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+                word-break: break-word;
               }
-            ]}
-          />
-        </Modal>
-        <Table
-          dataSource={filtered}
-          columns={columns}
-          size="small"
-          className="mt-4 rounded-xl shadow-sm"
-          rowKey={(r) => String(r.id ?? r.kode)}
-          scroll={{ x: 'max-content' }}
-        />
-      </div>
-      <div className="mt-3 text-xs text-gray-600">
-        Catatan: Item selain obat tidak memerlukan sinkronisasi Satu Sehat maupun Kode KFA.
-      </div>
+            `}</style>
+
+            <Modal
+              title="History Penyesuaian Stok"
+              open={isHistoryOpen}
+              onCancel={() => setIsHistoryOpen(false)}
+              footer={null}
+              width={800}
+            >
+              <Table
+                dataSource={historyRows}
+                loading={historyLoading}
+                rowKey={(row) => row.id}
+                size="small"
+                pagination={{ pageSize: 10 }}
+                columns={[
+                  {
+                    title: 'Tanggal',
+                    dataIndex: 'createdAt',
+                    key: 'createdAt',
+                    render: (value: string) => {
+                      const date = new Date(value)
+                      if (Number.isNaN(date.getTime())) return value
+                      return `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`
+                    }
+                  },
+                  {
+                    title: 'Jenis',
+                    dataIndex: 'type',
+                    key: 'type',
+                    render: (value: number) => (value === 1 ? 'Masuk' : 'Keluar')
+                  },
+                  {
+                    title: 'Stok Sebelum',
+                    dataIndex: 'previousStock',
+                    key: 'previousStock'
+                  },
+                  {
+                    title: 'Stok Adjustment',
+                    dataIndex: 'qty',
+                    key: 'stockAdjustment',
+                    render: (_: number, row: ItemAdjustmentRow) => {
+                      const base = typeof row.qty === 'number' ? row.qty : 0
+                      const signed = row.type === 1 ? base : -base
+                      const colorClass =
+                        signed > 0 ? 'text-green-600' : signed < 0 ? 'text-red-600' : ''
+                      const label = signed > 0 ? `+${signed}` : signed < 0 ? String(signed) : '0'
+                      return <span className={colorClass}>{label}</span>
+                    }
+                  },
+                  {
+                    title: 'Stok Sesudah',
+                    dataIndex: 'newStock',
+                    key: 'newStock'
+                  },
+                  {
+                    title: 'Alasan',
+                    dataIndex: 'adjustReason',
+                    key: 'adjustReason',
+                    render: (value: string | null) => value ?? '-'
+                  },
+                  {
+                    title: 'Catatan',
+                    dataIndex: 'note',
+                    key: 'note',
+                    render: (value: string | null) => value ?? '-'
+                  },
+                  {
+                    title: 'User',
+                    dataIndex: 'createdByName',
+                    key: 'createdByName',
+                    render: (_: string | null, row: ItemAdjustmentRow) => {
+                      if (row.createdByName && row.createdByName.length > 0) {
+                        return row.createdByName
+                      }
+                      if (row.createdBy && row.createdBy.length > 0) {
+                        return row.createdBy
+                      }
+                      return '-'
+                    }
+                  }
+                ]}
+              />
+            </Modal>
+
+            <Table
+              dataSource={filtered}
+              columns={columns}
+              size="middle"
+              className="flex-1 h-full"
+              rowKey={(r) => String(r.id ?? r.kode)}
+              scroll={{ x: 800, y: 'calc(100vh - 460px)' }}
+              pagination={{
+                pageSize: 10,
+                showTotal: (total) => `Total ${total} data`,
+                showSizeChanger: true
+              }}
+            />
+          </div>
+
+          <div className="mt-3 text-xs" style={{ color: token.colorTextTertiary }}>
+            Catatan: Item selain obat tidak memerlukan sinkronisasi Satu Sehat maupun Kode KFA.
+          </div>
+        </Spin>
+      </Card>
     </div>
   )
 }

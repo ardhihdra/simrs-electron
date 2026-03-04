@@ -54,7 +54,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (isLoading)
     return (
-      <Card className="mb-4  border-gray-200" size="small">
+      <Card className="mb-4 " size="small">
         <div className="p-8 text-center">
           <Spin tip="Memuat riwayat harian..." />
         </div>
@@ -63,8 +63,8 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
 
   if (!timelineData || timelineData.length === 0)
     return (
-      <Card className="mb-4  border-gray-200" size="small">
-        <Empty description="Belum ada riwayat pemeriksaan" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+      <Card className="mb-4 min-h-[85vh] flex items-center justify-center" size="small">
+        <Empty description="Belum ada riwayat pemeriksaan" image={Empty.PRESENTED_IMAGE_DEFAULT} />
       </Card>
     )
 
@@ -76,7 +76,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
       width: 200,
       render: (text: string) => (
         <Space>
-          <CalendarOutlined className="text-gray-400" />
+          <CalendarOutlined className="" />
           <Text strong>{dayjs(text).format('dddd, DD MMMM YYYY')}</Text>
         </Space>
       )
@@ -92,10 +92,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         return (
           <Space wrap size={4}>
             {Array.from(performers).map((doc, i) => (
-              <Tag
-                key={i}
-                className="m-0 bg-gray-50 border-gray-200 text-gray-600 rounded-full px-3"
-              >
+              <Tag key={i} className="m-0 px-3">
                 {doc}
               </Tag>
             ))}
@@ -123,9 +120,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
         key: 'time',
         width: 80,
         render: (text: string) => (
-          <span className="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
-            {text}
-          </span>
+          <span className="font-mono font-bold px-2 py-1 rounded">{text}</span>
         )
       },
       {
@@ -136,7 +131,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
           const name = session.performer || 'Petugas Medis'
           return (
             <Space>
-              <Avatar size="small" icon={<UserOutlined />} className="bg-slate-300" />
+              <Avatar size="small" icon={<UserOutlined />} />
               <span className=" font-medium">{name}</span>
             </Space>
           )
@@ -179,7 +174,6 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
           <Button
             type="text"
             size="small"
-            className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100"
             icon={<EyeOutlined />}
             onClick={() =>
               handleOpenDetail(`${record.date} ${session.time}`, [
@@ -204,7 +198,6 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
           pagination={false}
           size="small"
           rowKey="time"
-          rowClassName="bg-white hover:bg-gray-50"
           bordered={false}
         />
       </div>
@@ -257,7 +250,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
             <div className="p-2 rounded border border-white/10 ">
               {record.soapSubjective && (
                 <div className="mb-2">
-                  <Text strong className="text-xs text-blue-600 block">
+                  <Text strong className="text-xs block">
                     S (SUBJECTIVE)
                   </Text>
                   <Text>{record.soapSubjective}</Text>
@@ -265,7 +258,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
               )}
               {record.soapObjective && (
                 <div className="mb-2">
-                  <Text strong className="text-xs text-blue-600 block">
+                  <Text strong className="text-xs block">
                     O (OBJECTIVE)
                   </Text>
                   <Text>{record.soapObjective}</Text>
@@ -273,7 +266,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
               )}
               {record.soapAssessment && (
                 <div className="mb-2">
-                  <Text strong className="text-xs text-blue-600 block">
+                  <Text strong className="text-xs block">
                     A (ASSESSMENT)
                   </Text>
                   <Text>{record.soapAssessment}</Text>
@@ -281,7 +274,7 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
               )}
               {record.soapPlan && (
                 <div className="">
-                  <Text strong className="text-xs text-blue-600 block">
+                  <Text strong className="text-xs block">
                     P (PLAN)
                   </Text>
                   <Text>{record.soapPlan}</Text>
@@ -327,7 +320,6 @@ export const EncounterTimeline = ({ encounterId, onViewDetail }: EncounterTimeli
                 size="small"
                 icon={<CaretRightOutlined rotate={expanded ? 90 : 0} />}
                 onClick={(e) => onExpand(record, e)}
-                className="text-gray-400 hover:text-blue-600"
               />
             ),
             columnTitle: ' '

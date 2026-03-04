@@ -1,20 +1,17 @@
 import { useEffect, useState, ReactNode } from 'react'
 import { ConfigProvider, theme } from 'antd'
 import { ThemeContext, type ThemeMode } from './theme-context'
+import { THEME_REGISTRY, DEFAULT_THEME_KEY } from '@renderer/themes/index'
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('theme-mode')
-    return saved === 'dark' ? 'dark' : 'light'
+    return (saved && saved in THEME_REGISTRY ? saved : DEFAULT_THEME_KEY) as ThemeMode
   })
 
   useEffect(() => {
     localStorage.setItem('theme-mode', themeMode)
-    if (themeMode === 'dark') {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
+    document.documentElement.classList.toggle('dark', themeMode === 'dark')
   }, [themeMode])
 
   const toggleTheme = () => {
@@ -22,12 +19,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   const { defaultAlgorithm, darkAlgorithm } = theme
+  const activeTheme = THEME_REGISTRY[themeMode] ?? THEME_REGISTRY[DEFAULT_THEME_KEY]
 
   return (
-    <ThemeContext.Provider value={{ themeMode, toggleTheme }}>
+    <ThemeContext.Provider value={{ themeMode, toggleTheme, setThemeMode }}>
       <ConfigProvider
         theme={{
-          algorithm: themeMode === 'dark' ? darkAlgorithm : defaultAlgorithm,
+          algorithm: activeTheme.algorithm === 'dark' ? darkAlgorithm : defaultAlgorithm,
+          token: activeTheme.token
         }}
       >
         {children}
