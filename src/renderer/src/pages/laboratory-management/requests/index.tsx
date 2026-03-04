@@ -1,4 +1,5 @@
 import { ExperimentOutlined, FileTextOutlined } from '@ant-design/icons'
+import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
@@ -154,6 +155,45 @@ console.log("patientGroups",patientGroups)
                 title="Daftar Permintaan Laboratorium"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
+                action={
+                  <ExportButton
+                    data={patientGroups as any}
+                    fileName="permintaan-lab"
+                    title="Daftar Permintaan Laboratorium"
+                    columns={[
+                      { key: 'queueNumber',  label: 'No. Antrian' },
+                      { key: 'patient.mrn',  label: 'MRN' },
+                      { key: 'patient.name', label: 'Nama Pasien' },
+                      {
+                        key: 'requests',
+                        label: 'Jumlah Permintaan',
+                        render: (v) => `${(v as unknown[]).length}`
+                      },
+                      {
+                        key: 'requests',
+                        label: 'Selesai',
+                        render: (v) => {
+                          const reqs = v as { status: string }[]
+                          const done = reqs.filter((r) => r.status === 'COMPLETED').length
+                          return `${done} / ${reqs.length}`
+                        }
+                      }
+                    ]}
+                    nestedTable={{
+                      getChildren: (parent) => parent.requests as Record<string, unknown>[],
+                      columns: [
+                        {
+                          key: 'requestedAt',
+                          label: 'Tgl. Order',
+                          render: (v) => v ? dayjs(v as string).format('DD/MM/YYYY HH:mm') : '-'
+                        },
+                        { key: 'test.display', label: 'Pemeriksaan' },
+                        { key: 'priority',     label: 'Prioritas' },
+                        { key: 'status',       label: 'Status' }
+                      ]
+                    }}
+                  />
+                }
             >
                 <div className="flex gap-4">
                     <Form.Item name="date" label="Tanggal" initialValue={dayjs()}>

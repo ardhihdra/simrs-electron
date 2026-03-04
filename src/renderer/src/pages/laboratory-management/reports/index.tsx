@@ -1,4 +1,5 @@
 import { PrinterOutlined } from '@ant-design/icons'
+import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
@@ -104,6 +105,36 @@ export default function LaboratoryReports() {
                 title="Laporan Diagnostik"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
+                action={
+                  <ExportButton
+                    data={reportList as any}
+                    fileName="laporan-diagnostik"
+                    title="Laporan Diagnostik Laboratorium"
+                    columns={[
+                      { key: 'medicalRecordNumber', label: 'No. RM' },
+                      { key: 'patient.mrn',         label: 'MRN' },
+                      { key: 'patient.name',        label: 'Nama Pasien' },
+                      {
+                        key: 'lastUpdate',
+                        label: 'Tanggal',
+                        render: (v) => v ? dayjs(v as string).format('DD/MM/YYYY') : '-'
+                      },
+                      {
+                        key: 'requestCount',
+                        label: 'Jumlah Pemeriksaan',
+                        render: (v) => `${v} Item`
+                      },
+                      { key: 'status', label: 'Status', render: () => 'Finalized' }
+                    ]}
+                    nestedTable={{
+                      getChildren: (parent) => parent.items as Record<string, unknown>[],
+                      columns: [
+                        { key: 'testDisplay', label: 'Pemeriksaan' },
+                        { key: 'status',      label: 'Status' }
+                      ]
+                    }}
+                  />
+                }
             >
                 <div className="flex gap-4">
                     <Form.Item name="dateRange" label="Tanggal" initialValue={[dayjs().subtract(7, 'days'), dayjs()]}>

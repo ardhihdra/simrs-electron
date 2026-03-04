@@ -1,2 +1,5 @@
+onlyBuiltDependencies:
+  - core-js
+
 overrides:
   simrs-types: link:../../shared

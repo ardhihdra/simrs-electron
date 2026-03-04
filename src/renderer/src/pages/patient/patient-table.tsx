@@ -1,4 +1,5 @@
-import { PlusOutlined, SearchOutlined, EditOutlined } from '@ant-design/icons'
+import { EditOutlined } from '@ant-design/icons'
+import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { useQuery } from '@tanstack/react-query'
@@ -73,6 +74,14 @@ const PatientTable = () => {
         onCreate={() => navigate('/dashboard/patient/register')}
         createLabel="Pasien Baru"
         loading={isLoading || isRefetching}
+        action={<ExportButton data={dataSource} fileName="daftar-pasien" columns={[
+          { key: 'medicalRecordNumber', label: 'RM' },
+          { key: 'nik', label: 'NIK' },
+          { key: 'name', label: 'Nama' },
+          { key: 'gender', label: 'Gender' },
+          { key: 'birthDate', label: 'Tgl Lahir' },
+          { key: 'address', label: 'Alamat' }
+        ]} />}
       >
         <Col span={12}>
           <Form.Item name="nik" label="NIK">

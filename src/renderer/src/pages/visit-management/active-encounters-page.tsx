@@ -1,13 +1,14 @@
-import { message, Tag, Form, Input } from 'antd'
-import { client, rpc } from '@renderer/utils/client'
+import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
+import { client, rpc } from '@renderer/utils/client'
+import { Form, Input, message, Tag } from 'antd'
 import dayjs from 'dayjs'
-import { useState, useMemo } from 'react'
-import { TransferBedFormValues, TransferBedModal } from '../encounter-transition/components/TransferBedModal'
+import { useMemo, useState } from 'react'
 import { DischargeModal } from '../encounter-transition/components/DischargeModal'
 import { MpdnDischargeModal } from '../encounter-transition/components/MpdnDischargeModal'
 import { RujukanModal } from '../encounter-transition/components/RujukanModal'
+import { TransferBedFormValues, TransferBedModal } from '../encounter-transition/components/TransferBedModal'
 
 
 // Mock type if not available in simrs-types yet
@@ -214,13 +215,20 @@ export default function ActiveEncountersPage() {
       item.patientMrNo?.toLowerCase().includes(searchText)
     )
   }, [encounters, searchText])
-console.log(encounters)
+
   return (
     <div className="p-4">
       <TableHeader
         title="Active Encounters"
         loading={isLoading}
         onSearch={onSearch}
+        action={<ExportButton data={filteredData.map((item: any) => ({
+          MRN: item.patientMrNo,
+          Name: item.patientName,
+          Unit: item.encounter?.queueTicket?.serviceUnit?.display,
+          Poli: item.encounter?.queueTicket?.poli?.name,
+          Status: item.status,
+        }))} fileName="daftar-kunjungan"  />}
       >
         <div className="flex gap-4">
           <Form.Item name="patientName" label="Pasien" className="mb-0">

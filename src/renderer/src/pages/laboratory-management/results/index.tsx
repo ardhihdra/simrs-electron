@@ -1,4 +1,5 @@
 import { FileSearchOutlined } from '@ant-design/icons'
+import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
@@ -122,6 +123,35 @@ export default function LaboratoryResults() {
                 title="Daftar Hasil Pemeriksaan"
                 onSearch={onSearch}
                 loading={isLoading || isRefetching}
+                action={
+                  <ExportButton
+                    data={groupedData as any}
+                    fileName="daftar-hasil-pemeriksaan"
+                    title="Daftar Hasil Pemeriksaan Laboratorium"
+                    columns={[
+                      { key: 'queueNumber',  label: 'No. Antrian' },
+                      { key: 'patient.mrn',  label: 'MRN' },
+                      { key: 'patient.name', label: 'Nama Pasien' },
+                      {
+                        key: 'requestedAt',
+                        label: 'Tgl. Selesai',
+                        render: (v) => v ? dayjs(v as string).format('DD/MM/YYYY HH:mm') : '-'
+                      },
+                      {
+                        key: 'tests',
+                        label: 'Total Pemeriksaan',
+                        render: (v) => `${(v as unknown[]).length} Pemeriksaan`
+                      }
+                    ]}
+                    nestedTable={{
+                      getChildren: (parent) => parent.tests as Record<string, unknown>[],
+                      columns: [
+                        { key: 'testDisplay', label: 'Pemeriksaan' },
+                        { key: 'status',      label: 'Status' }
+                      ]
+                    }}
+                  />
+                }
             >
                 <div className="flex gap-4">
                     <Form.Item name="dateRange" label="Tanggal" initialValue={[dayjs().subtract(7, 'days'), dayjs()]}>
