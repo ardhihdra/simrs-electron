@@ -1,3 +1,5 @@
+import {  Tag, Form, Input, App } from 'antd'
+import { client, rpc } from '@renderer/utils/client'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
@@ -22,11 +24,13 @@ interface GetActiveEncountersResult {
     patientMrNo: string
     serviceUnitId: string
     serviceUnitName: string
+    encounter:any
 }
 
 
 export default function ActiveEncountersPage() {
   const { data: encounters, isLoading, refetch } = client.visitManagement.getActiveEncounters.useQuery({})
+  const { message } = App.useApp()
   
   const [transitionModalVisible, setTransitionModalVisible] = useState(false)
   const [dischargeModalVisible, setDischargeModalVisible] = useState(false)
@@ -142,7 +146,7 @@ export default function ActiveEncountersPage() {
     
     try {
         setIsSubmitting(true)
-        const input = { encounterId: selectedEncounter.id, dischargeDisposition: selectedDisposition }
+        const input = { encounterId: selectedEncounter.encounter.id, dischargeDisposition: selectedDisposition }
         await rpc.visitManagement.dischargeEncounter(input as any)
         message.success('Pasien dipulangkan')
         setDischargeModalVisible(false)
@@ -198,6 +202,19 @@ export default function ActiveEncountersPage() {
     } catch (error: any) {
         console.error(error)
         message.error(error.message || 'Gagal merujuk pasien')
+    } finally {
+        setIsSubmitting(false)
+    }
+  }
+
+  const syncSatusehat = async (id:string) => {
+    try {
+        setIsSubmitting(true)
+        await rpc.encounter.syncExtracted({id})
+        message.success('Sync Satusehat berhasil')
+    } catch (error: any) {
+        console.error(error)
+        message.error(error.message || 'Gagal sync Satusehat')
     } finally {
         setIsSubmitting(false)
     }
@@ -267,6 +284,10 @@ export default function ActiveEncountersPage() {
                       {
                           label: 'Rujuk',
                           onClick: () => handleRujukanClick(record)
+                      },
+                      {
+                        label: 'Sync Satusehat',
+                        onClick: () => syncSatusehat(record?.encounter?.id)
                       },
                       {
                           label: 'Cancel',

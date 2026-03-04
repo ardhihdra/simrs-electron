@@ -1,6 +1,6 @@
 import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
-import { Button, Card, Col, Form, Modal, Row, Select, Table, message } from 'antd'
+import { Button, Card, Col, Form, Modal, Row, Select, Table, App } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useState } from 'react'
 
@@ -26,7 +26,7 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
   const [form] = Form.useForm()
   const [selectedItems, setSelectedItems] = useState<LabRequestItem[]>([])
   const [searchTerm, setSearchTerm] = useState('')
-
+  const { message } = App.useApp()
   const category = Form.useWatch('category', form)
   
   // Fetch Categories

@@ -1,7 +1,7 @@
 import { PlusOutlined } from '@ant-design/icons'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
-import { Button, Descriptions, Form, Modal, Space, message } from 'antd'
+import { Button, Descriptions, Form, Modal, Space, App } from 'antd'
 import { useEffect, useState } from 'react'
 import CreatePatientModal from './CreatePatientModal'
 
@@ -16,7 +16,7 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
   const [form] = Form.useForm()
   const confirmMutation = client.visitManagement.confirmAttendance.useMutation()
   const [createPatientModalOpen, setCreatePatientModalOpen] = useState(false)
-  
+  const { message } = App.useApp()
   // Track manually selected patient to force update SelectAsync if needed
   // (SelectAsync primarily relies on its internal query, but we can pass value prop)
 

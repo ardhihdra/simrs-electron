@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
-import { Button, Card, Form, Select, Typography, message } from 'antd'
+import { Button, Card, Form, Select, Typography, App } from 'antd'
 import { useLocation, useNavigate } from 'react-router'
 
 
@@ -11,7 +11,7 @@ export default function CollectSpecimenPage() {
     const location = useLocation()
     const record = location.state as any
     const [form] = Form.useForm()
-
+const { message } = App.useApp()
     const { handleCollectSpecimen, loading } = useLaboratoryActions(() => {
         message.success('Specimen collected successfully')
         navigate('/dashboard/laboratory-management/requests')

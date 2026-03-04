@@ -2,7 +2,7 @@ import { CheckCircleOutlined, SoundOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { Button, DatePicker, Form, Input, Modal, Tag, message } from 'antd'
+import { DatePicker, Form, Tag, App, Input, Modal, Button, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -11,6 +11,7 @@ import ConfirmQueueModal from './components/ConfirmQueueModal'
 export default function RegistrationQueue() {
     const [searchParams, setSearchParams] = useState({ queueDate: dayjs().format('YYYY-MM-DD'), queueNumber: '' })
     const [confirmModal, setConfirmModal] = useState<{ open: boolean; queue?: any }>({ open: false })
+    const { message } = App.useApp()
 
     const { data: queueData, isLoading, isRefetching, refetch } = client.visitManagement.getActiveQueues.useQuery({
         queueDate: searchParams.queueDate,
