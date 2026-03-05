@@ -93,6 +93,8 @@ interface TableRow {
 	unitStok?: string | null
 	quantityDiambil?: number
 	medicationRequestId?: number
+	batch?: string
+	expiryDate?: string
 	children?: TableRow[]
 }
 
@@ -651,6 +653,16 @@ export default function MedicationDispenseFromRequest() {
 				medicationRequestId
 			}
 
+			// Extract batch info for non-compound items
+			if (isItem && !isCompound && Array.isArray(record.supportingInformation)) {
+				const batchInfo = (record.supportingInformation as Array<Record<string, unknown>>)
+					.find((info) => info.resourceType === 'StockBatch')
+				if (batchInfo) {
+					if (typeof batchInfo.batchNumber === 'string') row.batch = batchInfo.batchNumber
+					if (typeof batchInfo.expiryDate === 'string') row.expiryDate = batchInfo.expiryDate
+				}
+			}
+
 			if (isCompound && Array.isArray(record.supportingInformation)) {
 				const ingredients = record.supportingInformation.filter(
 					(info: any) =>
@@ -685,7 +697,8 @@ export default function MedicationDispenseFromRequest() {
 							stokSaatIni: undefined,
 							unitStok: undefined,
 							quantityDiambil: undefined,
-							medicationRequestId: undefined
+							medicationRequestId: undefined,
+							batch: typeof ing.batchNumber === 'string' && ing.batchNumber.trim().length > 0 ? ing.batchNumber.trim() : undefined
 						}
 					})
 				}
@@ -745,6 +758,17 @@ export default function MedicationDispenseFromRequest() {
 	const columns = [
 		{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
 		{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
+		{
+			title: 'Batch / Expire',
+			key: 'batchExpire',
+			render: (_: unknown, row: TableRow) => {
+				if (!row.batch && !row.expiryDate) return '-'
+				const parts: string[] = []
+				if (row.batch) parts.push(`Batch: ${row.batch}`)
+				if (row.expiryDate) parts.push(`Exp: ${row.expiryDate}`)
+				return <Tag color="orange">{parts.join(' | ')}</Tag>
+			}
+		},
 		{ title: 'Qty Diminta', dataIndex: 'quantityDiminta', key: 'quantityDiminta' },
 		{ title: 'Satuan', dataIndex: 'unitDiminta', key: 'unitDiminta' },
 		{ title: 'Stok Saat Ini', dataIndex: 'stokSaatIni', key: 'stokSaatIni' },

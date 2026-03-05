@@ -77,6 +77,8 @@ interface MedicationItemRow {
 	quantity?: number
 	unit?: string
 	instruksi?: string
+	batch?: string
+	expiryDate?: string
 	children?: MedicationItemRow[]
 }
 
@@ -566,6 +568,17 @@ export function MedicationRequestTable() {
 				instruksi: getInstructionText(record.dosageInstruction)
 			}
 
+			// Extract batch info from supportingInformation for non-compound items
+			if (!compound && Array.isArray(record.supportingInformation)) {
+				const batchInfo = record.supportingInformation.find(
+					(info: Record<string, unknown>) => info.resourceType === 'StockBatch'
+				) as Record<string, unknown> | undefined
+				if (batchInfo) {
+					item.batch = typeof batchInfo.batchNumber === 'string' ? batchInfo.batchNumber : undefined
+					item.expiryDate = typeof batchInfo.expiryDate === 'string' ? batchInfo.expiryDate : undefined
+				}
+			}
+
 			if (compound && Array.isArray(record.supportingInformation)) {
 				const ingredients = record.supportingInformation.filter(
 					(info: any) =>
@@ -575,10 +588,10 @@ export function MedicationRequestTable() {
 						info.item_id ||
 						info.medication_id
 				)
-				item.children = ingredients.map((ing: any, idx: number) => {
+				item.children = ingredients.map((ing: Record<string, unknown>, idx: number) => {
 					const medId = ing.medicationId || ing.medication_id
 					const itemId = ing.itemId || ing.item_id
-					let ingredientName = ing.name
+					let ingredientName = ing.name as string | undefined
 
 					if (!ingredientName) {
 						if (medId && medicineMap.has(Number(medId))) {
@@ -591,10 +604,11 @@ export function MedicationRequestTable() {
 					return {
 						key: `${key}-${record.id ?? ''}-ing-${idx}`,
 						jenis: 'Komposisi',
-						namaObat: ingredientName ?? (ing.note ? `Komposisi (${ing.note})` : 'Komposisi'),
-						quantity: ing.quantity,
-						unit: ing.unitCode,
-						instruksi: ing.note || ing.instruction
+						namaObat: (ingredientName ?? (ing.note ? `Komposisi (${ing.note as string})` : 'Komposisi')) as string,
+						quantity: ing.quantity as number | undefined,
+						unit: ing.unitCode as string | undefined,
+						instruksi: (ing.note || ing.instruction) as string | undefined,
+						batch: typeof ing.batchNumber === 'string' ? ing.batchNumber : undefined
 					}
 				})
 			}
@@ -679,7 +693,18 @@ export function MedicationRequestTable() {
 							{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
 							{ title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
 							{ title: 'Satuan', dataIndex: 'unit', key: 'unit' },
-							{ title: 'Kekuatan', dataIndex: 'instruksi', key: 'instruksi' }
+							{ title: 'Kekuatan', dataIndex: 'instruksi', key: 'instruksi' },
+							{
+								title: 'Batch / Expire',
+								key: 'batchExpire',
+								render: (_: unknown, row: MedicationItemRow) => {
+									if (!row.batch && !row.expiryDate) return '-'
+									const parts: string[] = []
+									if (row.batch) parts.push(`Batch: ${row.batch}`)
+									if (row.expiryDate) parts.push(`Exp: ${row.expiryDate}`)
+									return <Tag color="orange">{parts.join(' | ')}</Tag>
+								}
+							}
 						]
 
 						return (

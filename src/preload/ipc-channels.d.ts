@@ -222,6 +222,8 @@ type Args_Mod_query_inventoryStock_itemAdjustments = InferArgs<typeof Mod_query_
 type Result_Mod_query_inventoryStock_itemAdjustments = InferResult<typeof Mod_query_inventoryStock, 'itemAdjustments'>
 type Args_Mod_query_inventoryStock_list = InferArgs<typeof Mod_query_inventoryStock, 'list'>
 type Result_Mod_query_inventoryStock_list = InferResult<typeof Mod_query_inventoryStock, 'list'>
+type Args_Mod_query_inventoryStock_listBatches = InferArgs<typeof Mod_query_inventoryStock, 'listBatches'>
+type Result_Mod_query_inventoryStock_listBatches = InferResult<typeof Mod_query_inventoryStock, 'listBatches'>
 type Args_Mod_query_item_create = InferArgs<typeof Mod_query_item, 'create'>
 type Result_Mod_query_item_create = InferResult<typeof Mod_query_item, 'create'>
 type Args_Mod_query_item_deleteById = InferArgs<typeof Mod_query_item, 'deleteById'>
@@ -634,6 +636,7 @@ declare global {
           expirySummary: Invoke<Args_Mod_query_inventoryStock_expirySummary, Result_Mod_query_inventoryStock_expirySummary>
           itemAdjustments: Invoke<Args_Mod_query_inventoryStock_itemAdjustments, Result_Mod_query_inventoryStock_itemAdjustments>
           list: Invoke<Args_Mod_query_inventoryStock_list, Result_Mod_query_inventoryStock_list>
+          listBatches: Invoke<Args_Mod_query_inventoryStock_listBatches, Result_Mod_query_inventoryStock_listBatches>
         }
         item: {
           create: Invoke<Args_Mod_query_item_create, Result_Mod_query_item_create>

@@ -1,8 +1,8 @@
-import { Button, Form, Input, InputNumber, Select, DatePicker, Card, Tooltip, App as AntdApp } from 'antd'
+import { Button, Form, Input, InputNumber, Select, Switch, DatePicker, Card, Tooltip, Tag, App as AntdApp } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { queryClient } from '@renderer/query-client'
 import dayjs from 'dayjs'
 import { PatientAttributes } from 'simrs-types'
@@ -79,6 +79,8 @@ interface FormData {
     quantity?: number
     instruction?: string
     note?: string
+    batchNumber?: string
+    expiryDate?: string
   }>
 }
 
@@ -151,6 +153,44 @@ export function MedicationRequestForm() {
   const [session, setSession] = useState<any>(null)
   const [originalGroupRecords, setOriginalGroupRecords] = useState<MedicationRequestRecordForEdit[]>([])
   const { message, modal } = AntdApp.useApp()
+
+  // Batch options per item row: key = `otherItem-{index}` or `compound-{compIdx}-ing-{ingIdx}`
+  type BatchOption = { batchNumber: string; expiryDate: string | null; availableStock: number }
+  const [batchOptionsMap, setBatchOptionsMap] = useState<Map<string, BatchOption[]>>(new Map())
+  const [batchLoadingMap, setBatchLoadingMap] = useState<Map<string, boolean>>(new Map())
+  const [batchSortModeMap, setBatchSortModeMap] = useState<Map<string, boolean>>(new Map())
+
+  const sortBatches = useCallback((batches: BatchOption[], rowKey: string): BatchOption[] => {
+    const isFefo = batchSortModeMap.get(rowKey) ?? true // default FEFO
+    return [...batches].sort((a, b) => {
+      if (isFefo) {
+        // FEFO: earliest expiry first
+        if (a.expiryDate && b.expiryDate) return a.expiryDate < b.expiryDate ? -1 : a.expiryDate > b.expiryDate ? 1 : 0
+        if (a.expiryDate) return -1
+        if (b.expiryDate) return 1
+        return 0
+      }
+      // FIFO: sort by batch number (oldest first)
+      return a.batchNumber < b.batchNumber ? -1 : a.batchNumber > b.batchNumber ? 1 : 0
+    })
+  }, [batchSortModeMap])
+
+  const fetchBatchesForItem = useCallback(async (kodeItem: string, rowKey: string) => {
+    setBatchLoadingMap((prev) => new Map(prev).set(rowKey, true))
+    try {
+      const api = window.api?.query as { inventoryStock?: { listBatches?: (args: { kodeItem: string }) => Promise<{ success: boolean; result?: BatchOption[] }> } }
+      const fn = api?.inventoryStock?.listBatches
+      if (!fn) return
+      const res = await fn({ kodeItem })
+      if (res?.success && Array.isArray(res.result)) {
+        setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
+      }
+    } catch {
+      // ignore
+    } finally {
+      setBatchLoadingMap((prev) => new Map(prev).set(rowKey, false))
+    }
+  }, [])
 
   const buildDispenseRequest = (quantity?: number, unit?: string) => {
     if (!quantity) return null
@@ -453,6 +493,17 @@ export function MedicationRequestForm() {
     },
     [itemSource?.result, itemCategoryMap]
   )
+
+  const itemKodeMap = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    source.forEach((item) => {
+      if (typeof item.id === 'number' && typeof item.kode === 'string') {
+        map.set(item.id, item.kode.trim().toUpperCase())
+      }
+    })
+    return map
+  }, [itemSource?.result])
 
   type EncounterOptionSource = {
     id: string
@@ -1220,7 +1271,9 @@ export function MedicationRequestForm() {
                 : null,
             category: null,
             identifier: null,
-            supportingInformation: null
+            supportingInformation: input.batchNumber
+              ? [{ resourceType: 'StockBatch', batchNumber: input.batchNumber, expiryDate: input.expiryDate ?? null }]
+              : null
           })
         }
       }
@@ -1324,7 +1377,8 @@ export function MedicationRequestForm() {
               instruction: item.note || '',
               quantity: typeof item.quantity === 'number' ? item.quantity : 0,
               unitCode: item.unit || null,
-              name
+              name,
+              batchNumber: (item as Record<string, unknown>).batchNumber || null
             }
           })
 
@@ -1372,7 +1426,10 @@ export function MedicationRequestForm() {
             dispenseRequest:
               typeof it.quantity === 'number' && unitCode
                 ? buildDispenseRequest(it.quantity, unitCode)
-                : null
+                : null,
+            supportingInformation: it.batchNumber
+              ? [{ resourceType: 'StockBatch', batchNumber: it.batchNumber, expiryDate: it.expiryDate ?? null }]
+              : null
           }
         })
 
@@ -1571,6 +1628,57 @@ export function MedicationRequestForm() {
                                 showSearch
                                 optionFilterProp="label"
                                 loading={itemLoading}
+                                onChange={(itemId: number) => {
+                                  const kode = itemKodeMap.get(itemId)
+                                  if (kode) {
+                                    fetchBatchesForItem(kode, `otherItem-${name}`)
+                                  }
+                                  // reset batch selection
+                                  const otherItems = form.getFieldValue('otherItems') || []
+                                  if (otherItems[name]) {
+                                    otherItems[name].batchNumber = undefined
+                                    otherItems[name].expiryDate = undefined
+                                    form.setFieldsValue({ otherItems })
+                                  }
+                                }}
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'batchNumber']}
+                              label={
+                                <div className="flex items-center gap-2">
+                                  <span>Expire Date</span>
+                                  <Switch
+                                    size="small"
+                                    checked={batchSortModeMap.get(`otherItem-${name}`) ?? true}
+                                    onChange={(checked) => {
+                                      setBatchSortModeMap(prev => new Map(prev).set(`otherItem-${name}`, checked))
+                                    }}
+                                    checkedChildren="FEFO"
+                                    unCheckedChildren="FIFO"
+                                  />
+                                </div>
+                              }
+                              className="mb-0"
+                            >
+                              <Select
+                                placeholder="Pilih Expire Date"
+                                loading={batchLoadingMap.get(`otherItem-${name}`) ?? false}
+                                allowClear
+                                onChange={(val: string | undefined) => {
+                                  const batches = batchOptionsMap.get(`otherItem-${name}`) ?? []
+                                  const found = batches.find((b) => b.batchNumber === val)
+                                  const otherItems = form.getFieldValue('otherItems') || []
+                                  if (otherItems[name]) {
+                                    otherItems[name].expiryDate = found?.expiryDate ?? undefined
+                                    form.setFieldsValue({ otherItems })
+                                  }
+                                }}
+                                options={sortBatches(batchOptionsMap.get(`otherItem-${name}`) ?? [], `otherItem-${name}`).map((b) => ({
+                                  label: `${b.expiryDate ?? ''} | Stok: ${b.availableStock}`,
+                                  value: b.batchNumber
+                                }))}
                               />
                             </Form.Item>
                             <Form.Item
@@ -1590,14 +1698,25 @@ export function MedicationRequestForm() {
                               <Input placeholder="Instruksi penggunaan" />
                             </Form.Item>
                           </div>
-                          <Form.Item
-                            {...restField}
-                            name={[name, 'note']}
-                            label="Catatan"
-                            className="mb-0"
-                          >
-                            <Input placeholder="Catatan tambahan" />
-                          </Form.Item>
+                          <div className="flex items-center gap-4">
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'note']}
+                              label="Catatan"
+                              className="mb-0 flex-1"
+                            >
+                              <Input placeholder="Catatan tambahan" />
+                            </Form.Item>
+                            <Form.Item name={[name, 'expiryDate']} hidden>
+                              <Input />
+                            </Form.Item>
+                            {(() => {
+                              const otherItems = form.getFieldValue('otherItems') || []
+                              const exp = otherItems[name]?.expiryDate
+                              if (!exp) return null
+                              return <Tag color="orange" className="mt-5">Expire: {exp}</Tag>
+                            })()}
+                          </div>
                         </div>
                         {fields.length > 0 && (
                           <Button
@@ -1681,13 +1800,15 @@ export function MedicationRequestForm() {
                               <div className="space-y-2">
                                 {subFields.map((subField) => {
                                   const { key: subKey, ...subRestField } = subField
+                                  const compoundBatchKey = `compound-${name}-ing-${subRestField.name}`
 
                                   return (
-                                    <div key={`compoundItem-${subKey}`} className="flex gap-2 items-start">
+                                    <div key={`compoundItem-${subKey}`} className="flex gap-2 items-start flex-wrap">
                                       <Form.Item
                                         {...subRestField}
                                         name={[subRestField.name, 'itemId']}
                                         className="mb-0 flex-1"
+                                        label="Nama Obat"
                                         rules={[{ required: true, message: 'Pilih obat' }]}
                                       >
                                         <Select
@@ -1696,12 +1817,48 @@ export function MedicationRequestForm() {
                                           showSearch
                                           optionFilterProp="label"
                                           loading={itemLoading}
+                                          onChange={(itemId: number) => {
+                                            const kode = itemKodeMap.get(itemId)
+                                            if (kode) {
+                                              fetchBatchesForItem(kode, compoundBatchKey)
+                                            }
+                                          }}
+                                        />
+                                      </Form.Item>
+                                      <Form.Item
+                                        {...subRestField}
+                                        name={[subRestField.name, 'batchNumber']}
+                                        className="mb-0 w-56"
+                                        label={
+                                          <div className="flex items-center gap-2">
+                                            <span>Expire Date</span>
+                                            <Switch
+                                              size="small"
+                                              checked={batchSortModeMap.get(compoundBatchKey) ?? true}
+                                              onChange={(checked) => {
+                                                setBatchSortModeMap(prev => new Map(prev).set(compoundBatchKey, checked))
+                                              }}
+                                              checkedChildren="FEFO"
+                                              unCheckedChildren="FIFO"
+                                            />
+                                          </div>
+                                        }
+                                      >
+                                        <Select
+                                          placeholder="Pilih Expire Date"
+                                          loading={batchLoadingMap.get(compoundBatchKey) ?? false}
+                                          allowClear
+                                          options={sortBatches(batchOptionsMap.get(compoundBatchKey) ?? [], compoundBatchKey).map((b) => ({
+                                            label: `${b.expiryDate ?? ''} | Stok: ${b.availableStock}`,
+                                            value: b.batchNumber
+                                          }))}
                                         />
                                       </Form.Item>
                                       <Form.Item
                                         {...subRestField}
                                         name={[subRestField.name, 'quantity']}
                                         className="mb-0 w-24"
+                                        label="Jumlah"
                                         rules={[{ required: true, message: 'Wajib' }]}
                                       >
                                         <InputNumber placeholder="Jml" min={0} className="w-full" />
