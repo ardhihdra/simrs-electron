@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query"
 interface ConditionInput {
     diagnosisCodeId?: number
     isPrimary?: boolean
-    category?: string
+    categories?: Array<{ code?: string, display?: string, system?: string }>
     notes?: string
 }
 

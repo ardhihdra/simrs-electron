@@ -118,18 +118,19 @@ export function PermintaanLabTable({ data, isLoading }: PermintaanLabTableProps)
     <div>
       <TableHeader
         title="Daftar Permintaan Laboratorium"
+        subtitle="Manajemen permintaan laboratorium"
         onSearch={(values) => setFilter(values)}
         onReset={() => setFilter({ name: '', medicalRecordNumber: '' })}
         loading={isLoading}
       >
         <Col span={12}>
           <Form.Item name="name" label="Nama Pasien">
-            <Input placeholder="Cari Nama Pasien" allowClear />
+            <Input placeholder="Cari Nama Pasien" allowClear size="large"/>
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item name="medicalRecordNumber" label="MRN">
-            <Input placeholder="Cari MRN" allowClear />
+            <Input placeholder="Cari MRN" allowClear size="large"/>
           </Form.Item>
         </Col>
       </TableHeader>

@@ -8,6 +8,8 @@ import type * as Mod_notification from '@main/routes/notification'
 import type * as Mod_query_allergyIntolerance from '@main/routes/query/allergyIntolerance'
 import type * as Mod_query_backofficeDOReceivedItem from '@main/routes/query/backofficeDOReceivedItem'
 import type * as Mod_query_bodymarker from '@main/routes/query/bodymarker'
+import type * as Mod_query_carePlan from '@main/routes/query/carePlan'
+import type * as Mod_query_clinicalImpression from '@main/routes/query/clinicalImpression'
 import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
 import type * as Mod_query_composition from '@main/routes/query/composition'
 import type * as Mod_query_condition from '@main/routes/query/condition'
@@ -22,6 +24,7 @@ import type * as Mod_query_expense from '@main/routes/query/expense'
 import type * as Mod_query_expenseHead from '@main/routes/query/expenseHead'
 import type * as Mod_query_export from '@main/routes/query/export'
 import type * as Mod_query_familyMemberHistory from '@main/routes/query/familyMemberHistory'
+import type * as Mod_query_goal from '@main/routes/query/goal'
 import type * as Mod_query_hakAkses from '@main/routes/query/hakAkses'
 import type * as Mod_query_inventoryStock from '@main/routes/query/inventoryStock'
 import type * as Mod_query_item from '@main/routes/query/item'
@@ -120,6 +123,24 @@ type Args_Mod_query_bodymarker_deleteById = InferArgs<typeof Mod_query_bodymarke
 type Result_Mod_query_bodymarker_deleteById = InferResult<typeof Mod_query_bodymarker, 'deleteById'>
 type Args_Mod_query_bodymarker_getByEncounter = InferArgs<typeof Mod_query_bodymarker, 'getByEncounter'>
 type Result_Mod_query_bodymarker_getByEncounter = InferResult<typeof Mod_query_bodymarker, 'getByEncounter'>
+type Args_Mod_query_carePlan_create = InferArgs<typeof Mod_query_carePlan, 'create'>
+type Result_Mod_query_carePlan_create = InferResult<typeof Mod_query_carePlan, 'create'>
+type Args_Mod_query_carePlan_deleteById = InferArgs<typeof Mod_query_carePlan, 'deleteById'>
+type Result_Mod_query_carePlan_deleteById = InferResult<typeof Mod_query_carePlan, 'deleteById'>
+type Args_Mod_query_carePlan_getByEncounter = InferArgs<typeof Mod_query_carePlan, 'getByEncounter'>
+type Result_Mod_query_carePlan_getByEncounter = InferResult<typeof Mod_query_carePlan, 'getByEncounter'>
+type Args_Mod_query_clinicalImpression_create = InferArgs<typeof Mod_query_clinicalImpression, 'create'>
+type Result_Mod_query_clinicalImpression_create = InferResult<typeof Mod_query_clinicalImpression, 'create'>
+type Args_Mod_query_clinicalImpression_deleteById = InferArgs<typeof Mod_query_clinicalImpression, 'deleteById'>
+type Result_Mod_query_clinicalImpression_deleteById = InferResult<typeof Mod_query_clinicalImpression, 'deleteById'>
+type Args_Mod_query_clinicalImpression_getByEncounter = InferArgs<typeof Mod_query_clinicalImpression, 'getByEncounter'>
+type Result_Mod_query_clinicalImpression_getByEncounter = InferResult<typeof Mod_query_clinicalImpression, 'getByEncounter'>
+type Args_Mod_query_clinicalImpression_getById = InferArgs<typeof Mod_query_clinicalImpression, 'getById'>
+type Result_Mod_query_clinicalImpression_getById = InferResult<typeof Mod_query_clinicalImpression, 'getById'>
+type Args_Mod_query_clinicalImpression_list = InferArgs<typeof Mod_query_clinicalImpression, 'list'>
+type Result_Mod_query_clinicalImpression_list = InferResult<typeof Mod_query_clinicalImpression, 'list'>
+type Args_Mod_query_clinicalImpression_update = InferArgs<typeof Mod_query_clinicalImpression, 'update'>
+type Result_Mod_query_clinicalImpression_update = InferResult<typeof Mod_query_clinicalImpression, 'update'>
 type Args_Mod_query_clinicalNote_create = InferArgs<typeof Mod_query_clinicalNote, 'create'>
 type Result_Mod_query_clinicalNote_create = InferResult<typeof Mod_query_clinicalNote, 'create'>
 type Args_Mod_query_clinicalNote_getByEncounter = InferArgs<typeof Mod_query_clinicalNote, 'getByEncounter'>
@@ -178,6 +199,8 @@ type Args_Mod_query_encounter_create = InferArgs<typeof Mod_query_encounter, 'cr
 type Result_Mod_query_encounter_create = InferResult<typeof Mod_query_encounter, 'create'>
 type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter, 'deleteById'>
 type Result_Mod_query_encounter_deleteById = InferResult<typeof Mod_query_encounter, 'deleteById'>
+type Args_Mod_query_encounter_exportData = InferArgs<typeof Mod_query_encounter, 'exportData'>
+type Result_Mod_query_encounter_exportData = InferResult<typeof Mod_query_encounter, 'exportData'>
 type Args_Mod_query_encounter_getTimeline = InferArgs<typeof Mod_query_encounter, 'getTimeline'>
 type Result_Mod_query_encounter_getTimeline = InferResult<typeof Mod_query_encounter, 'getTimeline'>
 type Args_Mod_query_encounter_list = InferArgs<typeof Mod_query_encounter, 'list'>
@@ -212,6 +235,12 @@ type Args_Mod_query_familyMemberHistory_list = InferArgs<typeof Mod_query_family
 type Result_Mod_query_familyMemberHistory_list = InferResult<typeof Mod_query_familyMemberHistory, 'list'>
 type Args_Mod_query_familyMemberHistory_update = InferArgs<typeof Mod_query_familyMemberHistory, 'update'>
 type Result_Mod_query_familyMemberHistory_update = InferResult<typeof Mod_query_familyMemberHistory, 'update'>
+type Args_Mod_query_goal_create = InferArgs<typeof Mod_query_goal, 'create'>
+type Result_Mod_query_goal_create = InferResult<typeof Mod_query_goal, 'create'>
+type Args_Mod_query_goal_deleteById = InferArgs<typeof Mod_query_goal, 'deleteById'>
+type Result_Mod_query_goal_deleteById = InferResult<typeof Mod_query_goal, 'deleteById'>
+type Args_Mod_query_goal_getByEncounter = InferArgs<typeof Mod_query_goal, 'getByEncounter'>
+type Result_Mod_query_goal_getByEncounter = InferResult<typeof Mod_query_goal, 'getByEncounter'>
 type Args_Mod_query_hakAkses_getByCode = InferArgs<typeof Mod_query_hakAkses, 'getByCode'>
 type Result_Mod_query_hakAkses_getByCode = InferResult<typeof Mod_query_hakAkses, 'getByCode'>
 type Args_Mod_query_inventoryStock_adjustItemStock = InferArgs<typeof Mod_query_inventoryStock, 'adjustItemStock'>
@@ -554,6 +583,19 @@ declare global {
           deleteById: Invoke<Args_Mod_query_bodymarker_deleteById, Result_Mod_query_bodymarker_deleteById>
           getByEncounter: Invoke<Args_Mod_query_bodymarker_getByEncounter, Result_Mod_query_bodymarker_getByEncounter>
         }
+        carePlan: {
+          create: Invoke<Args_Mod_query_carePlan_create, Result_Mod_query_carePlan_create>
+          deleteById: Invoke<Args_Mod_query_carePlan_deleteById, Result_Mod_query_carePlan_deleteById>
+          getByEncounter: Invoke<Args_Mod_query_carePlan_getByEncounter, Result_Mod_query_carePlan_getByEncounter>
+        }
+        clinicalImpression: {
+          create: Invoke<Args_Mod_query_clinicalImpression_create, Result_Mod_query_clinicalImpression_create>
+          deleteById: Invoke<Args_Mod_query_clinicalImpression_deleteById, Result_Mod_query_clinicalImpression_deleteById>
+          getByEncounter: Invoke<Args_Mod_query_clinicalImpression_getByEncounter, Result_Mod_query_clinicalImpression_getByEncounter>
+          getById: Invoke<Args_Mod_query_clinicalImpression_getById, Result_Mod_query_clinicalImpression_getById>
+          list: Invoke<Args_Mod_query_clinicalImpression_list, Result_Mod_query_clinicalImpression_list>
+          update: Invoke<Args_Mod_query_clinicalImpression_update, Result_Mod_query_clinicalImpression_update>
+        }
         clinicalNote: {
           create: Invoke<Args_Mod_query_clinicalNote_create, Result_Mod_query_clinicalNote_create>
           getByEncounter: Invoke<Args_Mod_query_clinicalNote_getByEncounter, Result_Mod_query_clinicalNote_getByEncounter>
@@ -602,6 +644,7 @@ declare global {
           bulkSyncSatusehat: Invoke<Args_Mod_query_encounter_bulkSyncSatusehat, Result_Mod_query_encounter_bulkSyncSatusehat>
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
           deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>
+          exportData: Invoke<Args_Mod_query_encounter_exportData, Result_Mod_query_encounter_exportData>
           getTimeline: Invoke<Args_Mod_query_encounter_getTimeline, Result_Mod_query_encounter_getTimeline>
           list: Invoke<Args_Mod_query_encounter_list, Result_Mod_query_encounter_list>
           read: Invoke<Args_Mod_query_encounter_read, Result_Mod_query_encounter_read>
@@ -627,6 +670,11 @@ declare global {
           deleteById: Invoke<Args_Mod_query_familyMemberHistory_deleteById, Result_Mod_query_familyMemberHistory_deleteById>
           list: Invoke<Args_Mod_query_familyMemberHistory_list, Result_Mod_query_familyMemberHistory_list>
           update: Invoke<Args_Mod_query_familyMemberHistory_update, Result_Mod_query_familyMemberHistory_update>
+        }
+        goal: {
+          create: Invoke<Args_Mod_query_goal_create, Result_Mod_query_goal_create>
+          deleteById: Invoke<Args_Mod_query_goal_deleteById, Result_Mod_query_goal_deleteById>
+          getByEncounter: Invoke<Args_Mod_query_goal_getByEncounter, Result_Mod_query_goal_getByEncounter>
         }
         hakAkses: {
           getByCode: Invoke<Args_Mod_query_hakAkses_getByCode, Result_Mod_query_hakAkses_getByCode>

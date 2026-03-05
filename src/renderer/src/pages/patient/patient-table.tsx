@@ -1,14 +1,16 @@
-import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { EditOutlined, SyncOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { useQuery } from '@tanstack/react-query'
-import { Col, Form, Input } from 'antd'
+import { Form, Input, message } from 'antd'
+import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { PatientAttributes } from 'simrs-types'
 import RegistrationSheet from './components/RegistrationSheet'
+import { rpc } from '@renderer/utils/client'
 
 const PatientTable = () => {
   const navigate = useNavigate()
@@ -58,32 +60,47 @@ const PatientTable = () => {
   const dataSource = (queryData?.data || []).map((item, idx) => ({ ...item, no: idx + 1 }))
 
   const onFinish = async (values: any) => {
-    console.log('Registration Values:', values)
-    // TODO: Implement actual registration logic here
-    // window.api.query.queue.create(values)
     setOpenRegistration(false)
   }
-
+  const handleSyncPatient = async (patientId: string) => {
+    try {
+        await rpc.visitManagement.patientSync({ patientId })
+        message.success('Sync Satusehat berhasil')
+    } catch (error: any) {
+        console.error(error)
+        message.error(error.message || 'Gagal sync Satusehat')
+    } finally {
+        message.destroy()
+    }
+  }
   return (
     <div>
       <TableHeader
         title="Daftar Pasien"
+        subtitle='Manajemen pelayanan pasien'
         onSearch={(values) => setFilter(values)}
         onReset={() => setFilter({ nik: '', name: '' })}
         onCreate={() => navigate('/dashboard/patient/register')}
         createLabel="Pasien Baru"
         loading={isLoading || isRefetching}
+        action={<ExportButton data={dataSource} fileName="daftar-pasien" columns={[
+          { key: 'medicalRecordNumber', label: 'RM' },
+          { key: 'nik', label: 'NIK' },
+          { key: 'name', label: 'Nama' },
+          { key: 'gender', label: 'Gender' },
+          { key: 'birthDate', label: 'Tgl Lahir' },
+          { key: 'address', label: 'Alamat' }
+        ]} />}
       >
-        <Col span={12}>
-          <Form.Item name="nik" label="NIK">
-            <Input placeholder="Cari NIK" allowClear />
+        <Form.Item name="medicalRecordNumber" style={{ width: '100%' }} >
+            <Input placeholder="Cari MRN" allowClear size='large' />
           </Form.Item>
-        </Col>
-        <Col span={12}>
-          <Form.Item name="name" label="Nama">
-            <Input placeholder="Cari Nama" allowClear />
+          <Form.Item name="nik"  style={{ width: '100%' }} >
+            <Input placeholder="Cari NIK" allowClear size='large' />
           </Form.Item>
-        </Col>
+          <Form.Item name="name" style={{ width: '100%' }}>
+            <Input placeholder="Cari Nama" allowClear size='large' />
+          </Form.Item>
       </TableHeader>
 
       <div className="mt-4">
@@ -96,17 +113,14 @@ const PatientTable = () => {
             items(record) {
               return [
                 {
-                  label: 'Detail',
-                  icon: <SearchOutlined />,
-                  onClick: () => console.log(record)
-                },
+                label:'Sync Satusehat',
+                icon:<SyncOutlined />,
+                onClick:()=>handleSyncPatient(record.id)
+                                },
                 {
-                  label: 'Daftar',
-                  icon: <PlusOutlined />,
-                  onClick: () => {
-                    setSelectedPatient(record)
-                    setOpenRegistration(true)
-                  }
+                  label: 'Ubah Data',
+                  icon: <EditOutlined />,
+                  onClick: () => navigate(`/dashboard/patient/edit/${record.id}`)
                 }
               ]
             }

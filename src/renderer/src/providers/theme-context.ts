@@ -1,10 +1,12 @@
 import { createContext, useContext } from 'react'
+import type { ThemeMode } from '@renderer/themes/index'
 
-export type ThemeMode = 'light' | 'dark'
+export type { ThemeMode }
 
 export interface ThemeContextType {
   themeMode: ThemeMode
   toggleTheme: () => void
+  setThemeMode: (mode: ThemeMode) => void
 }
 
 export const ThemeContext = createContext<ThemeContextType | undefined>(undefined)

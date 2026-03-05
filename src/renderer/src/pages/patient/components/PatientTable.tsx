@@ -1,12 +1,11 @@
-
-import { PlusOutlined } from '@ant-design/icons';
-import { Button, Table } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import type { PatientAttributes } from 'simrs-types';
+import { PlusOutlined } from '@ant-design/icons'
+import { Button, Table } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import type { PatientAttributes } from 'simrs-types'
 interface PatientTableProps {
-  dataSource: PatientAttributes[];
-  loading?: boolean;
-  onRegister?: (patient: PatientAttributes) => void;
+  dataSource: PatientAttributes[]
+  loading?: boolean
+  onRegister?: (patient: PatientAttributes) => void
 }
 
 export const PatientTable = ({ dataSource, loading, onRegister }: PatientTableProps) => {
@@ -14,49 +13,49 @@ export const PatientTable = ({ dataSource, loading, onRegister }: PatientTablePr
     {
       title: 'No. RM',
       dataIndex: 'medicalRecordNumber',
-      key: 'medicalRecordNumber',
+      key: 'medicalRecordNumber'
     },
     {
       title: 'NIK',
       dataIndex: 'nik',
-      key: 'nik',
+      key: 'nik'
     },
     {
       title: 'Nama',
       dataIndex: 'name',
-      key: 'name',
+      key: 'name'
     },
     {
       title: 'Jenis Kelamin',
       dataIndex: 'gender',
-      key: 'gender',
+      key: 'gender'
     },
     {
       title: 'Tanggal Lahir',
       dataIndex: 'birthDate',
-      key: 'birthDate',
+      key: 'birthDate'
     },
     {
       title: 'Alamat',
       dataIndex: 'address',
-      key: 'address',
+      key: 'address'
     },
     {
-        title:'Aksi',
-        dataIndex:'action',
-        key:'action',
-        render:(_,record)=>(
-            <Button 
-                type="primary" 
-                size='small' 
-                icon={<PlusOutlined />}
-                onClick={() => onRegister?.(record)}
-            >
-                Antrian
-            </Button>
-        )
+      title: 'Aksi',
+      dataIndex: 'action',
+      key: 'action',
+      render: (_, record) => (
+        <Button
+          type="primary"
+          size="small"
+          icon={<PlusOutlined />}
+          onClick={() => onRegister?.(record)}
+        >
+          Antrian
+        </Button>
+      )
     }
-  ];
+  ]
 
   return (
     <Table
@@ -69,5 +68,5 @@ export const PatientTable = ({ dataSource, loading, onRegister }: PatientTablePr
         showSizeChanger: false
       }}
     />
-  );
-};
+  )
+}

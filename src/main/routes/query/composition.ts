@@ -7,7 +7,7 @@ import {
 export const requireSession = true
 
 const CompositionSchema = z.object({
-    id: z.number().optional(),
+    id: z.string().optional(),
     identifier: z.string().optional(),
     status: z.string(),
     subjectPatientId: z.string(),
@@ -38,7 +38,7 @@ const CompositionSchema = z.object({
 export const schemas = {
     create: {
         args: z.object({
-            id: z.number().optional(),
+            id: z.string().optional(),
             encounterId: z.string(),
             patientId: z.string(),
             doctorId: z.number(),

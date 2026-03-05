@@ -74,5 +74,22 @@ export const encounterRpc = {
     .mutation(async ({ client }, input) => {
       const data = await client.post('/api/module/encounter/create-ambulatory', input)
       return await data.json()
+    }),
+
+
+    syncSatusehat: t
+    .input(z.any())
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, input) => {
+      const data = await client.post(`/api/module/encounter/${input.id}/sync`, input)
+      return await data.json()
+    }),
+
+    syncExtracted: t
+    .input(z.any())
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, input) => {
+      const data = await client.post(`/api/module/encounter/${input.id}/sync-extracted`, input)
+      return await data.json()
     })
 }

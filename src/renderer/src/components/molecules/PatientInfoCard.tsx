@@ -1,5 +1,15 @@
-import { Card, Row, Col, Tag, Button } from 'antd'
-import { EditOutlined } from '@ant-design/icons'
+import React from 'react'
+import { Card, Tag, Button, theme } from 'antd'
+import {
+  EditOutlined,
+  UserOutlined,
+  IdcardOutlined,
+  CalendarOutlined,
+  MedicineBoxOutlined,
+  CreditCardOutlined,
+  WarningFilled,
+  SafetyCertificateOutlined
+} from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 interface PatientInfoCardProps {
@@ -25,103 +35,261 @@ interface PatientInfoCardProps {
   onEditStatus?: () => void
 }
 
-export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardProps) => {
-  const { patient, poli, doctor, visitDate, paymentMethod, status, allergies } = patientData
-
-  const getStatusColor = (status?: string) => {
-    switch (status?.toLowerCase()) {
-      case 'arrived':
-      case 'examining':
-      case 'in_progress':
-        return 'blue'
-      case 'planned':
-        return 'default'
-      case 'finished':
-        return 'success'
-      case 'cancelled':
-        return 'error'
-      default:
-        return 'default'
-    }
+const getStatusColor = (status?: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'arrived':
+    case 'examining':
+    case 'in_progress':
+      return 'warning'
+    case 'planned':
+      return 'processing'
+    case 'finished':
+      return 'success'
+    case 'cancelled':
+      return 'error'
+    default:
+      return 'default'
   }
+}
+
+const getStatusLabel = (status?: string): string => {
+  switch (status?.toLowerCase()) {
+    case 'arrived':
+    case 'planned':
+      return 'Menunggu'
+    case 'examining':
+    case 'in_progress':
+      return 'Sedang Diperiksa'
+    case 'finished':
+      return 'Selesai'
+    case 'cancelled':
+      return 'Dibatalkan'
+    default:
+      return status ? status.toUpperCase() : 'UNKNOWN'
+  }
+}
+
+const InfoItem = ({
+  icon,
+  label,
+  children
+}: {
+  icon: React.ReactNode
+  label: string
+  children: React.ReactNode
+}) => {
+  const { token } = theme.useToken()
 
   return (
-    <Card className="mb-4 pb-4">
-      <div className="flex justify-between items-start mb-4">
-        <h3 className="text-lg font-semibold m-0">Informasi Pasien</h3>
+    <div>
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span style={{ color: token.colorTextTertiary, fontSize: token.fontSizeSM }}>{icon}</span>
+        <span
+          style={{
+            color: token.colorTextTertiary,
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase'
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      <div
+        style={{
+          fontSize: token.fontSizeSM,
+          fontWeight: 600,
+          color: token.colorText
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  )
+}
+
+export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardProps) => {
+  const { token } = theme.useToken()
+
+  const { patient, poli, doctor, visitDate, paymentMethod, status, allergies } = patientData
+
+  const hasAllergy = allergies && allergies !== '-'
+  const genderLabel =
+    patient.gender === 'MALE' || patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'
+
+  return (
+    <Card
+      styles={{ body: { padding: 0 } }}
+      className="overflow-hidden rounded-xl"
+      variant="borderless"
+    >
+      <div
+        className="px-6 py-4 flex justify-between items-center"
+        style={{
+          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
+        }}
+      >
+        <div className="flex items-center gap-4">
+          <div
+            className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+            style={{
+              background: token.colorPrimaryBg,
+              border: `1px solid ${token.colorPrimaryBorder}`
+            }}
+          >
+            <span style={{ color: token.colorPrimary, fontSize: 20, fontWeight: 700 }}>
+              {(patient.name || 'U').charAt(0).toUpperCase()}
+            </span>
+          </div>
+
+          <div>
+            <h2
+              className="text-lg font-bold m-0 leading-tight tracking-tight"
+              style={{ color: token.colorTextLightSolid }}
+            >
+              {patient.name || 'Unknown'}
+            </h2>
+            <div className="flex items-center gap-2 mt-1">
+              <span
+                className="font-mono text-[10px] font-medium px-2 py-0.5 rounded"
+                style={{
+                  background: 'rgba(255,255,255,0.15)',
+                  border: '1px solid rgba(255,255,255,0.20)',
+                  color: 'rgba(255,255,255,0.90)'
+                }}
+              >
+                RM: {patient.medicalRecordNumber || '-'}
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>•</span>
+              <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
+                {genderLabel}, {patient.age} th
+              </span>
+            </div>
+          </div>
+        </div>
         {status && (
-          <div className="flex items-center gap-2">
-            <span className="text-gray-500">Status:</span>
-            <Tag color={getStatusColor(status)} className="mr-0">
-              {status.toUpperCase()}
+          <div className="flex flex-col items-end gap-2">
+            <Tag
+              color={getStatusColor(status)}
+              bordered={false}
+              className="m-0 font-bold px-3 py-1 text-xs rounded-lg uppercase tracking-wider"
+            >
+              {getStatusLabel(status)}
             </Tag>
             {onEditStatus && (
               <Button
-                type="text"
-                icon={<EditOutlined />}
-                onClick={onEditStatus}
+                type="link"
                 size="small"
-                title="Ubah Status"
-              />
+                onClick={onEditStatus}
+                icon={<EditOutlined />}
+                className="text-xs p-0 m-0 h-auto"
+                style={{ color: 'rgba(255,255,255,0.60)' }}
+              >
+                Ubah Status
+              </Button>
             )}
           </div>
         )}
       </div>
-      <Row gutter={[16, 16]}>
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">No. Rekam Medis</div>
-          <div className="text-lg font-semibold">{patient.medicalRecordNumber || '-'}</div>
-        </Col>
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">Nama Pasien</div>
-          <div className="text-lg font-semibold">{patient.name || 'Unknown'}</div>
-        </Col>
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">Jenis Kelamin / Umur</div>
-          <div className="text-lg">
-            {patient.gender === 'MALE' || patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'} /{' '}
-            {patient.age} tahun
+
+      {/* ─── Body: menggunakan colorBgContainer dari token ─── */}
+      <div className="px-6 py-4" style={{ background: token.colorBgContainer }}>
+        {/* Primary Info Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+          <InfoItem icon={<MedicineBoxOutlined />} label="Poliklinik / Unit">
+            {poli?.name || '-'}
+          </InfoItem>
+
+          <InfoItem icon={<UserOutlined />} label="Dokter Pemeriksa">
+            {doctor?.name || '-'}
+          </InfoItem>
+
+          <InfoItem icon={<CalendarOutlined />} label="Tgl Kunjungan">
+            {visitDate ? dayjs(visitDate).format('DD MMM YYYY, HH:mm') : '-'}
+          </InfoItem>
+
+          <InfoItem icon={<CreditCardOutlined />} label="Penjamin">
+            <Tag
+              color="cyan"
+              bordered={false}
+              className="m-0 font-semibold rounded-md text-xs px-2.5"
+            >
+              {paymentMethod || 'Umum'}
+            </Tag>
+          </InfoItem>
+        </div>
+
+        {/* Divider: menggunakan colorBorderSecondary dari token */}
+        <div
+          className="my-4 rounded"
+          style={{ height: 1, background: token.colorBorderSecondary }}
+        />
+
+        {/* Secondary Info Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+          <InfoItem icon={<IdcardOutlined />} label="NIK">
+            <span className="font-mono text-sm">{patient.identityNumber || '-'}</span>
+          </InfoItem>
+
+          <div className="col-span-1 md:col-span-3">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+                {hasAllergy ? (
+                  <WarningFilled style={{ color: token.colorError }} />
+                ) : (
+                  <SafetyCertificateOutlined style={{ color: token.colorSuccess }} />
+                )}
+              </span>
+              <span
+                style={{
+                  color: token.colorTextTertiary,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase'
+                }}
+              >
+                Riwayat Alergi
+              </span>
+            </div>
+            <div>
+              {hasAllergy ? (
+                <div
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5"
+                  style={{
+                    background: token.colorErrorBg,
+                    border: `1px solid ${token.colorErrorBorder}`
+                  }}
+                >
+                  <WarningFilled
+                    style={{ color: token.colorError, fontSize: token.fontSizeSM }}
+                    className="shrink-0"
+                  />
+                  <span
+                    className="text-sm font-semibold leading-relaxed"
+                    style={{ color: token.colorErrorText }}
+                  >
+                    {allergies}
+                  </span>
+                </div>
+              ) : (
+                <span
+                  className="text-xs italic px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 font-medium"
+                  style={{
+                    background: token.colorSuccessBg,
+                    border: `1px solid ${token.colorSuccessBorder}`,
+                    color: token.colorSuccessText
+                  }}
+                >
+                  <SafetyCertificateOutlined />
+                  Aman, tidak ada catatan alergi
+                </span>
+              )}
+            </div>
           </div>
-        </Col>
-        {visitDate && (
-          <Col span={6}>
-            <div className="text-gray-500 text-sm">Tanggal Kunjungan</div>
-            <div className="text-lg">{dayjs(visitDate).format('DD MMM YYYY, HH:mm')}</div>
-          </Col>
-        )}
-      </Row>
-      <Row gutter={[16, 16]} className="mt-4">
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">Poli</div>
-          <div className="text-lg">{poli?.name || '-'}</div>
-        </Col>
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">Dokter</div>
-          <div className="text-lg">{doctor?.name || '-'}</div>
-        </Col>
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">Penjamin</div>
-          <Tag color="green" className="mt-1">
-            {paymentMethod || 'Umum'}
-          </Tag>
-        </Col>
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">Alergi</div>
-          <div className="text-lg">
-            {allergies && allergies !== '-' ? (
-              <Tag color="red">{allergies}</Tag>
-            ) : (
-              <span className="text-gray-400">Tidak ada</span>
-            )}
-          </div>
-        </Col>
-      </Row>
-      <Row gutter={[16, 16]} className="mt-4">
-        <Col span={6}>
-          <div className="text-gray-500 text-sm">NIK</div>
-          <div className="text-lg">{patient.identityNumber || '-'}</div>
-        </Col>
-      </Row>
+        </div>
+      </div>
     </Card>
   )
 }

@@ -1,8 +1,9 @@
-import { Button, Checkbox, Form, Select, TimePicker } from 'antd'
+import { Button, Card, Checkbox, Divider, Form, Select, Tag, TimePicker } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { useEffect } from 'react'
 import { queryClient } from '@renderer/query-client'
+import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
 interface DaySchedule {
@@ -58,7 +59,6 @@ export function MedicalStaffScheduleForm() {
       return fn()
     }
   })
-  console.log(pegawaiData)
 
   const { data: departemenData } = useQuery({
     queryKey: ['departemen', 'list'],
@@ -68,7 +68,6 @@ export function MedicalStaffScheduleForm() {
       return fn()
     }
   })
-  console.log('data', departemenData)
 
   useEffect(() => {
     if (isEdit && detailData?.success && detailData.result) {
@@ -179,117 +178,180 @@ export function MedicalStaffScheduleForm() {
     const enabled = Form.useWatch([name, 'enabled'], form)
 
     return (
-      <div className="flex items-center h-full justify-between ml-32">
-        <Form.Item name={[name, 'enabled']} valuePropName="checked" className="mb-0 min-w-[100px]">
-          <Checkbox>{label}</Checkbox>
-        </Form.Item>
-        {enabled && (
-          <>
-            <div className="flex items-center w-full justify-start gap-10">
+      <div className="flex items-center gap-4 py-2 border-b border-gray-100 last:border-0">
+        <div className="w-24 shrink-0">
+          <Form.Item name={[name, 'enabled']} valuePropName="checked" className="mb-0">
+            <Checkbox>
+              <span className="font-medium text-gray-700">{label}</span>
+            </Checkbox>
+          </Form.Item>
+        </div>
+        <div className="flex items-center gap-3 flex-1">
+          {enabled ? (
+            <>
               <Form.Item
                 name={[name, 'startTime']}
                 className="mb-0"
                 rules={[{ required: enabled, message: 'Waktu mulai harus diisi' }]}
               >
-                <TimePicker format="HH:mm" placeholder="Mulai" className="w-42" />
+                <TimePicker format="HH:mm" placeholder="Mulai" className="w-32" />
               </Form.Item>
-              <div className="-mt-7">s/d</div>
+              <span className="text-gray-400 text-sm">s/d</span>
               <Form.Item
                 name={[name, 'endTime']}
                 className="mb-0"
                 rules={[{ required: enabled, message: 'Waktu selesai harus diisi' }]}
               >
-                <TimePicker format="HH:mm" placeholder="Selesai" className="w-42" />
+                <TimePicker format="HH:mm" placeholder="Selesai" className="w-32" />
               </Form.Item>
-            </div>
-          </>
-        )}
+            </>
+          ) : (
+            <span className="text-gray-400 text-sm italic">— Libur / Tidak Bertugas —</span>
+          )}
+        </div>
       </div>
     )
   }
 
+  const isLoading = createMutation.isPending || updateMutation.isPending
+
   return (
-    <div className="flex justify-center">
-      <div className="w-full max-w-3xl">
-        <h2 className="text-2xl font-bold mb-6 text-center">
-          {isEdit ? 'Edit Jadwal Praktek' : 'Tambah Jadwal Praktek'}
-        </h2>
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          initialValues={{
-            senin: defaultDaySchedule,
-            selasa: defaultDaySchedule,
-            rabu: defaultDaySchedule,
-            kamis: defaultDaySchedule,
-            jumat: defaultDaySchedule,
-            sabtu: defaultDaySchedule,
-            minggu: defaultDaySchedule,
-            status: 'active'
-          }}
-        >
-          <Form.Item
-            label="Nama Petugas"
-            name="idPegawai"
-            rules={[{ required: true, message: 'Nama petugas harus diisi' }]}
+    <div className="flex flex-col gap-4 h-full">
+      {/* Header Card */}
+      <Card bodyStyle={{ padding: '20px 24px' }} className="border-none">
+        <div className="flex justify-between items-start">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <button
+                type="button"
+                onClick={() => navigate('/dashboard/registration/medical-staff-schedule')}
+                className="text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 text-sm"
+              >
+                <ArrowLeftOutlined />
+                <span>Jadwal Praktek Petugas Medis</span>
+              </button>
+            </div>
+            <h1 className="text-2xl font-bold mb-0">
+              {isEdit ? 'Edit Jadwal Praktek' : 'Tambah Jadwal Praktek'}
+            </h1>
+            <p className="text-sm text-gray-400 m-0">
+              {isEdit
+                ? 'Perbarui data jadwal praktik petugas medis'
+                : 'Isi formulir berikut untuk mendaftarkan jadwal praktik petugas medis baru'}
+            </p>
+          </div>
+          <Tag color={isEdit ? 'blue' : 'green'} className="px-3 py-1 text-sm m-0">
+            {isEdit ? 'Mode Edit' : 'Jadwal Baru'}
+          </Tag>
+        </div>
+      </Card>
+
+      {/* Form */}
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        initialValues={{
+          senin: defaultDaySchedule,
+          selasa: defaultDaySchedule,
+          rabu: defaultDaySchedule,
+          kamis: defaultDaySchedule,
+          jumat: defaultDaySchedule,
+          sabtu: defaultDaySchedule,
+          minggu: defaultDaySchedule,
+          status: 'active'
+        }}
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Informasi Dasar */}
+          <Card
+            bodyStyle={{ padding: '20px 24px' }}
+            className="border-none"
+            title="Informasi Dasar"
           >
-            <Select
-              placeholder="Pilih nama petugas"
-              showSearch
-              optionFilterProp="children"
-              loading={!pegawaiData}
+            <Form.Item
+              label={<span className="font-medium">Nama Petugas</span>}
+              name="idPegawai"
+              rules={[{ required: true, message: 'Nama petugas harus diisi' }]}
             >
-              {pegawaiData?.success &&
-                pegawaiData.result?.map(
-                  (pegawai: { email: string; id: number; namaLengkap: string }) => (
-                    <Select.Option key={pegawai.id} value={pegawai.id}>
-                      {pegawai.namaLengkap}
+              <Select
+                placeholder="Pilih nama petugas"
+                showSearch
+                optionFilterProp="children"
+                loading={!pegawaiData}
+                size="large"
+              >
+                {pegawaiData?.success &&
+                  pegawaiData.result?.map(
+                    (pegawai: { email: string; id: number; namaLengkap: string }) => (
+                      <Select.Option key={pegawai.id} value={pegawai.id}>
+                        {pegawai.namaLengkap}
+                      </Select.Option>
+                    )
+                  )}
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label={<span className="font-medium">Kategori</span>}
+              name="kategori"
+              rules={[{ required: true, message: 'Kategori harus diisi' }]}
+            >
+              <Select placeholder="Pilih kategori" size="large">
+                <Select.Option value="Perawat">Perawat</Select.Option>
+                <Select.Option value="Bidan">Bidan</Select.Option>
+                <Select.Option value="Apoteker">Apoteker</Select.Option>
+                <Select.Option value="Analis">Analis</Select.Option>
+                <Select.Option value="Radiografer">Radiografer</Select.Option>
+                <Select.Option value="Fisioterapis">Fisioterapis</Select.Option>
+                <Select.Option value="Ahli Gizi">Ahli Gizi</Select.Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item
+              label={<span className="font-medium">Nama Poli / Departemen</span>}
+              name="kodeDepartemen"
+              rules={[{ required: true, message: 'Poli/Departemen harus diisi' }]}
+            >
+              <Select
+                placeholder="Pilih poli/departemen"
+                showSearch
+                optionFilterProp="children"
+                loading={!departemenData}
+                size="large"
+              >
+                {departemenData?.success &&
+                  departemenData.result?.map((dept: { kode: string; nama: string }) => (
+                    <Select.Option key={dept.kode} value={dept.kode}>
+                      {dept.nama}
                     </Select.Option>
-                  )
-                )}
-            </Select>
-          </Form.Item>
+                  ))}
+              </Select>
+            </Form.Item>
 
-          <Form.Item
-            label="Kategori"
-            name="kategori"
-            rules={[{ required: true, message: 'Kategori harus diisi' }]}
-          >
-            <Select placeholder="Pilih kategori">
-              <Select.Option value="Perawat">Perawat</Select.Option>
-              <Select.Option value="Bidan">Bidan</Select.Option>
-              <Select.Option value="Apoteker">Apoteker</Select.Option>
-              <Select.Option value="Analis">Analis</Select.Option>
-              <Select.Option value="Radiografer">Radiografer</Select.Option>
-              <Select.Option value="Fisioterapis">Fisioterapis</Select.Option>
-              <Select.Option value="Ahli Gizi">Ahli Gizi</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item
-            label="Nama Poli/Departemen"
-            name="kodeDepartemen"
-            rules={[{ required: true, message: 'Poli/Departemen harus diisi' }]}
-          >
-            <Select
-              placeholder="Pilih poli/departemen"
-              showSearch
-              optionFilterProp="children"
-              loading={!departemenData}
+            <Form.Item
+              label={<span className="font-medium">Status</span>}
+              name="status"
+              rules={[{ required: true, message: 'Status harus dipilih' }]}
             >
-              {departemenData?.success &&
-                departemenData.result?.map((dept: { kode: string; nama: string }) => (
-                  <Select.Option key={dept.kode} value={dept.kode}>
-                    {dept.nama}
-                  </Select.Option>
-                ))}
-            </Select>
-          </Form.Item>
+              <Select placeholder="Pilih status" size="large">
+                <Select.Option value="active">Aktif</Select.Option>
+                <Select.Option value="inactive">Tidak Aktif</Select.Option>
+              </Select>
+            </Form.Item>
+          </Card>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-3">Jadwal Praktek</label>
-            <div className="space-y-3">
+          {/* Jadwal Harian */}
+          <Card
+            bodyStyle={{ padding: '20px 24px' }}
+            className="border-none"
+            title="Jadwal Praktek Harian"
+          >
+            <div className="text-xs text-gray-400 mb-3 uppercase tracking-tight font-semibold">
+              Centang hari yang aktif lalu tentukan jam mulai dan selesai
+            </div>
+            <Divider className="my-2" />
+            <div>
               <DayScheduleField name="senin" label="Senin" />
               <DayScheduleField name="selasa" label="Selasa" />
               <DayScheduleField name="rabu" label="Rabu" />
@@ -298,35 +360,31 @@ export function MedicalStaffScheduleForm() {
               <DayScheduleField name="sabtu" label="Sabtu" />
               <DayScheduleField name="minggu" label="Minggu" />
             </div>
+          </Card>
+        </div>
+
+        {/* Action Footer */}
+        <Card bodyStyle={{ padding: '16px 24px' }} className="border-none mt-4">
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              size="large"
+              onClick={() => navigate('/dashboard/registration/medical-staff-schedule')}
+              icon={<ArrowLeftOutlined />}
+            >
+              Batal
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              htmlType="submit"
+              loading={isLoading}
+              icon={<SaveOutlined />}
+            >
+              {isEdit ? 'Update Jadwal' : 'Simpan Jadwal'}
+            </Button>
           </div>
-
-          <Form.Item
-            label="Status"
-            name="status"
-            rules={[{ required: true, message: 'Status harus dipilih' }]}
-          >
-            <Select placeholder="Pilih status">
-              <Select.Option value="active">Aktif</Select.Option>
-              <Select.Option value="inactive">Tidak Aktif</Select.Option>
-            </Select>
-          </Form.Item>
-
-          <Form.Item>
-            <div className="flex gap-2 justify-center">
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={createMutation.isPending || updateMutation.isPending}
-              >
-                {isEdit ? 'Update' : 'Simpan'}
-              </Button>
-              <Button onClick={() => navigate('/dashboard/registration/medical-staff-schedule')}>
-                Batal
-              </Button>
-            </div>
-          </Form.Item>
-        </Form>
-      </div>
+        </Card>
+      </Form>
     </div>
   )
 }

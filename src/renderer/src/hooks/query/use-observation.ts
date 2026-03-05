@@ -1,14 +1,34 @@
 import { queryClient } from "@renderer/query-client"
 import { useMutation, useQuery } from "@tanstack/react-query"
 
-interface ObservationInput {
+export interface ObservationInput {
     category: string
     code: string
     display?: string
     system?: string
-    valueQuantity?: any
+    codeCoding?: Array<{ code: string; display: string; system?: string }>
+    effectiveDateTime?: string
+    issued?: string
+    valueQuantity?: { value: number; unit: string; system?: string; code?: string }
     valueString?: string
     valueBoolean?: boolean
+    valueInteger?: number
+    valueDateTime?: string
+    valueCodeableConcept?: { coding?: Array<{ code: string; display: string; system: string }> }
+    interpretations?: Array<{ code: string; display: string; system?: string }>
+    components?: Array<{
+        code: string
+        display: string
+        system?: string
+        valueQuantity?: { value: number; unit: string; system?: string; code?: string }
+        valueString?: string
+    }>
+    referenceRange?: Array<{ low?: unknown; high?: unknown; text?: string }>
+    bodySite?: {
+        coding?: Array<{ code: string; display: string; system: string }>
+        text?: string
+    }
+    hasMember?: Array<{ reference: string }>
 }
 
 interface BulkCreateObservationPayload {

@@ -23,18 +23,20 @@ function toCsv(rows: KepegawaianAttributes[]): string {
     return needQuote ? `"${escaped}"` : escaped
   }
   const headerLine = headers.join(',')
-  const lines = rows.map((r) => [
-    escape(r.id),
-    escape(r.namaLengkap),
-    escape(r.nik),
-    escape(r.tanggalLahir instanceof Date ? r.tanggalLahir.toISOString() : r.tanggalLahir),
-    escape(r.jenisKelamin),
-    escape(r.email),
-    escape(r.nomorTelepon),
-    escape(r.hakAkses),
-    escape(r.kodeHakAkses),
-    escape(r.hakAksesId)
-  ].join(','))
+  const lines = rows.map((r) =>
+    [
+      escape(r.id),
+      escape(r.namaLengkap),
+      escape(r.nik),
+      escape(r.tanggalLahir instanceof Date ? r.tanggalLahir.toISOString() : r.tanggalLahir),
+      escape(r.jenisKelamin),
+      escape(r.email),
+      escape(r.nomorTelepon),
+      escape(r.hakAkses),
+      escape(r.kodeHakAkses),
+      escape(r.hakAksesId)
+    ].join(',')
+  )
   return [headerLine, ...lines].join('\n')
 }
 
@@ -69,7 +71,9 @@ function PegawaiReport() {
         <h2 className="text-2xl font-bold">Lap Data Petugas Medis</h2>
         <div className="flex gap-2">
           <Button onClick={() => refetch()}>Refresh</Button>
-          <Button type="primary" onClick={onExport}>Export CSV</Button>
+          <Button type="primary" onClick={onExport}>
+            Export CSV
+          </Button>
         </div>
       </div>
       <div className="text-sm text-gray-600">Total baris: {rows.length}</div>

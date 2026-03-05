@@ -2,7 +2,7 @@ import { Link, Route, Routes, useLocation } from 'react-router'
 
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
-import DashboardHome from './pages/DashboardHome'
+import IframeView from './pages/IframeView'
 import LaboratoryPage from './pages/Laboratory'
 import CollectSpecimenPage from './pages/Laboratory/CollectSpecimenPage'
 import { LabReportPage } from './pages/Laboratory/LabReport'
@@ -12,10 +12,16 @@ import LabSpecimenPage from './pages/Laboratory/LabSpecimenPage'
 import { ListDiagnosticReport } from './pages/Laboratory/ListDiagnosticReport'
 import RecordResultPage from './pages/Laboratory/RecordResultPage'
 import PermintaanLab from './pages/PermintaanLab'
+import DashboardHome from './pages/dashboard/DashboardHome'
 import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
-import ItemPurchasePage from './pages/item-purchase/item-purchase'
 import DiagnosticTable from './pages/diagnostic/diagnostic-table'
+import DoctorEMR from './pages/doctor-emr/doctor-emr'
+import PatientList from './pages/doctor-emr/doctor-patient-list'
+import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
+import DoctorLeave from './pages/doctor-leave/DoctorLeave'
+import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
+import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
 import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
 import ReferralRequestPage from './pages/encounter-transition/ReferralRequestPage'
@@ -30,12 +36,33 @@ import ExpenseTable from './pages/expense/expense-table'
 import HomePage from './pages/home'
 import Income from './pages/income/income'
 import IncomeTable from './pages/income/income-table'
+import MedicineCategoryForm from './pages/item-category/medicine-category-form'
+import MedicineCategoryTable from './pages/item-category/medicine-category-table'
+import ItemPurchasePage from './pages/item-purchase/item-purchase'
+import ItemForm from './pages/item/item-form'
+import ItemTable from './pages/item/item-table'
 import Jaminan from './pages/jaminan/Jaminan'
 import JaminanForm from './pages/jaminan/jaminan-form'
 import JaminanTable from './pages/jaminan/jaminan-table'
+import KfaCodeForm from './pages/kfa-code/kfa-code-form'
+import KfaCodeTable from './pages/kfa-code/kfa-code-table'
+import LaboratoryQueue from './pages/laboratory-management/queue'
+import LaboratoryReports from './pages/laboratory-management/reports'
+import LaboratoryRequests from './pages/laboratory-management/requests'
+import LaboratorySpecimenRequest from './pages/laboratory-management/requests/specimen'
+import LaboratoryResults from './pages/laboratory-management/results'
+import LaboratoryResultEntry from './pages/laboratory-management/results/entry'
 import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
 import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
 import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
+import MedicationDispenseReport from './pages/medication-dispense/component/medication-dispense-report'
+import MedicationDispenseFromRequest from './pages/medication-dispense/medication-dispense-from-request'
+import MedicationDispenseTable from './pages/medication-dispense/medication-dispense-table'
+import MedicationRequestForm from './pages/medication-request/medication-request-form'
+import MedicationRequestTable from './pages/medication-request/medication-request-table'
+import NurseCalling from './pages/nurse-calling/NurseCalling'
+import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
+import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
 import Patient from './pages/patient/Patient'
 import PatientForm from './pages/patient/patient-form'
 import PatientTable from './pages/patient/patient-table'
@@ -44,19 +71,8 @@ import PegawaiForm from './pages/pegawai/pegawai-form'
 import PegawaiReport from './pages/pegawai/pegawai-report'
 import PegawaiTable from './pages/pegawai/pegawai-table'
 import Pendaftaran from './pages/pendaftaran'
-import ItemForm from './pages/item/item-form'
-import ItemTable from './pages/item/item-table'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import ReportPage from './pages/pharmacy/ReportPage'
-import MedicationDispenseFromRequest from './pages/medication-dispense/medication-dispense-from-request'
-import MedicationDispenseReport from './pages/medication-dispense/component/medication-dispense-report'
-import MedicationDispenseTable from './pages/medication-dispense/medication-dispense-table'
-import MedicationRequestForm from './pages/medication-request/medication-request-form'
-import MedicationRequestTable from './pages/medication-request/medication-request-table'
-import MedicineCategoryForm from './pages/item-category/medicine-category-form'
-import MedicineCategoryTable from './pages/item-category/medicine-category-table'
-import KfaCodeForm from './pages/kfa-code/kfa-code-form'
-import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
 import QueueList from './pages/queue/queue-list'
 import ServiceRequest from './pages/service-request/ServiceRequest'
@@ -66,20 +82,16 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
-import DoctorLeave from './pages/doctor-leave/DoctorLeave'
-import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
-import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
-import NurseCalling from './pages/nurse-calling/NurseCalling'
-import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
-import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
-import DoctorEMR from './pages/doctor-emr/doctor-emr'
-import PatientList from './pages/doctor-emr/doctor-patient-list'
-import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
+import ActiveEncountersPage from './pages/visit-management/active-encounters-page'
+import InitialTriage from './pages/visit-management/initial-triage'
+import RegistrationPage from './pages/visit-management/registration-page'
+import RegistrationQueue from './pages/visit-management/registration-queue'
 
 function MainRoute() {
   const location = useLocation()
   return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
+      <Route path="/iframe-view" element={<IframeView />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
@@ -87,6 +99,12 @@ function MainRoute() {
           <Route path="expense" element={<Expense />}>
             <Route index element={<ExpenseTable />} />
             <Route path="create" element={<ExpenseForm />} />
+          </Route>
+          <Route path="registration">
+            <Route index element={<RegistrationPage />} />
+            <Route path="queue" element={<RegistrationQueue />} />
+            <Route path="triage" element={<InitialTriage />} />
+            <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
           <Route path="patient" element={<Patient />}>
             <Route index element={<PatientTable />} />
@@ -214,6 +232,15 @@ function MainRoute() {
             <Route path="report" element={<LabReportPage />} />
             <Route path="report/:id" element={<LabReportDetailPage />} />
             <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
+          </Route>
+          <Route path="laboratory-management">
+            <Route index element={<LaboratoryQueue />} />
+            <Route path="queue" element={<LaboratoryQueue />} />
+            <Route path="requests" element={<LaboratoryRequests />} />
+            <Route path="requests/specimen" element={<LaboratorySpecimenRequest />} />
+            <Route path="results" element={<LaboratoryResults />} />
+            <Route path="results/entry" element={<LaboratoryResultEntry />} />
+            <Route path="reports" element={<LaboratoryReports />} />
           </Route>
         </Route>
         <Route
