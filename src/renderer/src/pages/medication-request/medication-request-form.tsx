@@ -98,6 +98,33 @@ interface DispenseRequestInfo {
   quantity?: DispenseQuantityInfo
 }
 
+const SIGNA_OPTIONS = [
+  { label: '3 x 1 Tablet', value: '3 x 1 Tablet' },
+  { label: '2 x 1 Tablet', value: '2 x 1 Tablet' },
+  { label: '1 x 1 Tablet', value: '1 x 1 Tablet' },
+  { label: '3 x 1 Bungkus', value: '3 x 1 Bungkus' },
+  { label: '2 x 1 Bungkus', value: '2 x 1 Bungkus' },
+  { label: '1 x 1 Bungkus', value: '1 x 1 Bungkus' },
+  { label: '3 x 1 Sendok Makan', value: '3 x 1 Sendok Makan' },
+  { label: '3 x 1 Sendok Teh', value: '3 x 1 Sendok Teh' },
+  { label: '3 x 5 ml', value: '3 x 5 ml' },
+  { label: '3 x 2,5 ml', value: '3 x 2,5 ml' },
+  { label: 'Sesudah Makan', value: 'Sesudah Makan' },
+  { label: 'Sebelum Makan', value: 'Sebelum Makan' },
+  { label: 'Bersama Makan', value: 'Bersama Makan' },
+  { label: 'Pagi', value: 'Pagi' },
+  { label: 'Siang', value: 'Siang' },
+  { label: 'Sore', value: 'Sore' },
+  { label: 'Malam', value: 'Malam' },
+  { label: 'Sebelum Tidur', value: 'Sebelum Tidur' },
+  { label: 'Tetes Mata Kanan', value: 'Tetes Mata Kanan' },
+  { label: 'Tetes Mata Kiri', value: 'Tetes Mata Kiri' },
+  { label: 'Tetes Mata Kanan & Kiri', value: 'Tetes Mata Kanan & Kiri' },
+  { label: 'Tetes Telinga Kanan', value: 'Tetes Telinga Kanan' },
+  { label: 'Tetes Telinga Kiri', value: 'Tetes Telinga Kiri' },
+  { label: 'Oleskan', value: 'Oleskan' },
+].sort((a, b) => a.label.localeCompare(b.label))
+
 interface DosageInstructionInfo {
   text?: string
 }
@@ -181,7 +208,9 @@ export function MedicationRequestForm() {
       const api = window.api?.query as { inventoryStock?: { listBatches?: (args: { kodeItem: string }) => Promise<{ success: boolean; result?: BatchOption[] }> } }
       const fn = api?.inventoryStock?.listBatches
       if (!fn) return
+      console.log(`Fetching batches for ${kodeItem} (row: ${rowKey})...`)
       const res = await fn({ kodeItem })
+      console.log(`Batches result for ${kodeItem}:`, res)
       if (res?.success && Array.isArray(res.result)) {
         setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
       }
@@ -496,12 +525,16 @@ export function MedicationRequestForm() {
 
   const itemKodeMap = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    console.log('Building itemKodeMap from source size:', source.length)
     const map = new Map<number, string>()
     source.forEach((item) => {
       if (typeof item.id === 'number' && typeof item.kode === 'string') {
         map.set(item.id, item.kode.trim().toUpperCase())
+      } else if (typeof item.id === 'number') {
+        console.warn(`Item ID ${item.id} is missing "kode" property! Full item:`, item)
       }
     })
+    console.log('Final itemKodeMap size:', map.size)
     return map
   }, [itemSource?.result])
 
@@ -1547,7 +1580,12 @@ export function MedicationRequestForm() {
                               }
                               className="mb-0"
                             >
-                              <Input placeholder="Dosis..." />
+                              <Select
+                                placeholder="Pilih Dosis..."
+                                options={SIGNA_OPTIONS}
+                                showSearch
+                                mode="tags"
+                              />
                             </Form.Item>
                             <Form.Item
                               {...restField}
@@ -1676,7 +1714,7 @@ export function MedicationRequestForm() {
                                   }
                                 }}
                                 options={sortBatches(batchOptionsMap.get(`otherItem-${name}`) ?? [], `otherItem-${name}`).map((b) => ({
-                                  label: `${b.expiryDate ?? ''} | Stok: ${b.availableStock}`,
+                                  label: `${b.expiryDate ? b.expiryDate : 'Tanpa Exp'} | Stok: ${b.availableStock}`,
                                   value: b.batchNumber
                                 }))}
                               />
@@ -1692,10 +1730,15 @@ export function MedicationRequestForm() {
                             <Form.Item
                               {...restField}
                               name={[name, 'instruction']}
-                              label="Instruksi"
+                              label="Signa / Dosis Racikan"
                               className="mb-0"
                             >
-                              <Input placeholder="Instruksi penggunaan" />
+                              <Select
+                                placeholder="3x1 Bungkus"
+                                options={SIGNA_OPTIONS}
+                                showSearch
+                                mode="tags"
+                              />
                             </Form.Item>
                           </div>
                           <div className="flex items-center gap-4">
@@ -1773,7 +1816,12 @@ export function MedicationRequestForm() {
                             rules={[{ required: true, message: 'Dosis racikan wajib diisi' }]}
                             className="mb-0"
                           >
-                            <Input placeholder="Contoh: 3x1 Bungkus" />
+                            <Select
+                              placeholder="Contoh: 3x1 Bungkus"
+                              options={SIGNA_OPTIONS}
+                              showSearch
+                              mode="tags"
+                            />
                           </Form.Item>
                           <Form.Item
                             {...restField}
@@ -1848,12 +1896,34 @@ export function MedicationRequestForm() {
                                           placeholder="Pilih Expire Date"
                                           loading={batchLoadingMap.get(compoundBatchKey) ?? false}
                                           allowClear
+                                          onChange={(val: string | undefined) => {
+                                            const batches = batchOptionsMap.get(compoundBatchKey) ?? []
+                                            const found = batches.find((b) => b.batchNumber === val)
+                                            const compounds = form.getFieldValue('compounds') || []
+                                            if (compounds[name]?.items?.[subRestField.name]) {
+                                              compounds[name].items[subRestField.name].expiryDate = found?.expiryDate ?? undefined
+                                              form.setFieldsValue({ compounds })
+                                            }
+                                          }}
                                           options={sortBatches(batchOptionsMap.get(compoundBatchKey) ?? [], compoundBatchKey).map((b) => ({
-                                            label: `${b.expiryDate ?? ''} | Stok: ${b.availableStock}`,
+                                            label: `${b.expiryDate ? b.expiryDate : 'Tanpa Exp'} | Stok: ${b.availableStock}`,
                                             value: b.batchNumber
                                           }))}
                                         />
                                       </Form.Item>
+                                      <Form.Item
+                                        {...subRestField}
+                                        name={[subRestField.name, 'expiryDate']}
+                                        hidden
+                                      >
+                                        <Input />
+                                      </Form.Item>
+                                      {(() => {
+                                        const compounds = form.getFieldValue('compounds') || []
+                                        const exp = compounds[name]?.items?.[subRestField.name]?.expiryDate
+                                        if (!exp) return null
+                                        return <Tag color="orange" className="mt-5">Exp: {exp}</Tag>
+                                      })()}
                                       <Form.Item
                                         {...subRestField}
                                         name={[subRestField.name, 'quantity']}
