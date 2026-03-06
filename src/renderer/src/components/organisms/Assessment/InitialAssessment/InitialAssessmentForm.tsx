@@ -111,7 +111,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8480-6',
-            display: 'Systolic blood pressure',
+            display: 'Tekanan Darah Sistolik',
             valueQuantity: {
               value: vitalSigns.systolicBloodPressure,
               unit: 'mm[Hg]',
@@ -142,7 +142,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8462-4',
-            display: 'Diastolic blood pressure',
+            display: 'Tekanan Darah Diastolik',
             valueQuantity: {
               value: vitalSigns.diastolicBloodPressure,
               unit: 'mm[Hg]',

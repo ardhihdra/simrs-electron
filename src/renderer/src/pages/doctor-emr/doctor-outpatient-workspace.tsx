@@ -44,8 +44,10 @@ import { ENTForm } from '@renderer/components/organisms/Assessment/ENT/ENTForm'
 import { FallRiskAssessmentForm } from '@renderer/components/organisms/Assessment/FallRiskAssessment/FallRiskAssessmentForm'
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
+import { PatientMedicalHistoryTab } from './patient-medical-history-tab'
 
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
+import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
 
 interface DoctorOutpatientWorkspaceProps {
   encounterId: string
@@ -80,21 +82,27 @@ export const DoctorOutpatientWorkspace = ({
         label: 'Ringkasan & Timeline'
       },
       {
+        key: 'medical-history',
+        icon: <FileTextOutlined />,
+        label: 'Riwayat Rekam Medis'
+      },
+      {
         key: 'assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Pasien',
         children: [
           { key: 'anamnesis', label: 'Anamnesis' },
           { key: 'past-disease', label: 'Riwayat Penyakit Terdahulu' },
-          { key: 'clinical-course', label: 'Riwayat Perjalanan Penyakit' },
-          { key: 'clinical-rationale', label: 'Rasional Klinis' },
           { key: 'allergy', label: 'Alergi' },
           { key: 'medication', label: 'Riwayat Pengobatan' },
           { key: 'family-history', label: 'Riwayat Keluarga' },
           { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
           { key: 'functional-assessment', label: 'Pemeriksaan Fungsional' },
+          { key: 'clinical-course', label: 'Riwayat Perjalanan Penyakit' },
           { key: 'care-goal', label: 'Tujuan Perawatan' },
           { key: 'care-plan', label: 'Rencana Rawat Pasien' },
+          { key: 'instruksi-medik', label: 'Instruksi Medik' },
+          { key: 'clinical-rationale', label: 'Rasional Klinis' },
           { key: 'prognosis', label: 'Prognosis' }
         ]
       },
@@ -361,6 +369,8 @@ export const DoctorOutpatientWorkspace = ({
                       onEditStatus={onEditStatus}
                     />
                   )
+                case 'medical-history':
+                  return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
                 case 'overview':
                   return <EncounterTimeline encounterId={encounterId || ''} />
                 case 'anamnesis':
@@ -397,6 +407,8 @@ export const DoctorOutpatientWorkspace = ({
                   return <GoalForm encounterId={encounterId || ''} patientData={patientData} />
                 case 'care-plan':
                   return <CarePlanForm encounterId={encounterId || ''} patientData={patientData} />
+                case 'instruksi-medik':
+                  return <InstruksiMedikForm encounterId={encounterId} patientData={patientData} />
                 case 'prognosis':
                   return <PrognosisForm encounterId={encounterId || ''} patientData={patientData} />
                 case 'dental-assessment':

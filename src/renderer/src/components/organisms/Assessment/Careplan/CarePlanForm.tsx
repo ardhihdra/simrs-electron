@@ -15,7 +15,7 @@ import {
   Tooltip,
   Typography
 } from 'antd'
-import { PlusOutlined, DeleteOutlined, FileProtectOutlined, SaveOutlined } from '@ant-design/icons'
+import { PlusOutlined, DeleteOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
@@ -24,8 +24,10 @@ import {
   useCarePlansByEncounter,
   useCreateCarePlan,
   useDeleteCarePlan,
-  CarePlanActivityInput
+  CarePlanActivityInput,
+  CarePlanGoalInput
 } from '@renderer/hooks/query/use-care-plan'
+import { useGoalsByEncounter } from '@renderer/hooks/query/use-goal'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -94,13 +96,31 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
   const [modalOpen, setModalOpen] = useState(false)
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
-  const { data: carePlans = [], isLoading } = useCarePlansByEncounter(encounterId)
+  const { data: carePlansRaw, isLoading } = useCarePlansByEncounter(encounterId)
+  const carePlans: any[] = ((carePlansRaw as any)?.result ?? []).filter(
+    (cp: any) => cp.title !== 'Instruksi Medik dan Keperawatan Pasien'
+  )
+
+  // Ambil daftar goals untuk referensi
+  const { data: goalsRaw } = useGoalsByEncounter(encounterId)
+  const goalOptions = ((goalsRaw as any)?.result ?? []).map((g: any) => ({
+    value: g.id,
+    label: g.description?.text ?? g.id?.slice(0, 8)
+  }))
+
   const createCarePlan = useCreateCarePlan()
   const deleteCarePlan = useDeleteCarePlan(encounterId)
 
   const handleSubmit = async (values: Record<string, any>) => {
     const performer = performersData?.find((p: any) => p.id === values.performerId)
     try {
+      // Transform selected goalIds → CarePlanGoalInput[]
+      const selectedGoalIds: string[] = values.goalIds ?? []
+      const goals: CarePlanGoalInput[] = selectedGoalIds.map((id) => {
+        const found = ((goalsRaw as any)?.result ?? []).find((g: any) => g.id === id)
+        return { goalId: id, display: found?.description?.text }
+      })
+
       await createCarePlan.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
@@ -112,6 +132,7 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
         description: values.description,
         periodStart: values.periodStart?.toISOString(),
         periodEnd: values.periodEnd?.toISOString(),
+        goals: goals.length ? goals : undefined,
         activities: (values.activities ?? []).map((a: CarePlanActivityInput) => ({
           ...a,
           scheduledPeriodStart:
@@ -129,52 +150,80 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
 
   // Kolom tabel expansion untuk activities
   const expandedRowRender = (record: any) => {
-    const activities: any[] = record.activities ?? []
-    if (!activities.length) return <Text type="secondary">Tidak ada aktivitas tercatat</Text>
+    const goals: any[] = record.goals ?? []
+
     return (
-      <Table
-        size="small"
-        pagination={false}
-        rowKey={(_, i) => `${record.id}-act-${i}`}
-        dataSource={activities}
-        columns={[
-          {
-            title: 'Jenis',
-            dataIndex: 'kind',
-            key: 'kind',
-            width: 160,
-            render: (v: string) => v || '-'
-          },
-          {
-            title: 'Aktivitas',
-            dataIndex: 'description',
-            key: 'description',
-            render: (v: string) => v || '-'
-          },
-          {
-            title: 'Status',
-            dataIndex: 'status',
-            key: 'status',
-            width: 120,
-            render: (v: string) => <Tag color={ACTIVITY_STATUS_COLOR[v]}>{v}</Tag>
-          },
-          {
-            title: 'Jadwal',
-            key: 'schedule',
-            width: 180,
-            render: (_: any, act: any) => {
-              const start = act.scheduledPeriodStart
-                ? dayjs(act.scheduledPeriodStart).format('DD/MM/YYYY')
-                : null
-              const end = act.scheduledPeriodEnd
-                ? dayjs(act.scheduledPeriodEnd).format('DD/MM/YYYY')
-                : null
-              if (!start && !end) return '-'
-              return `${start ?? '?'} — ${end ?? '?'}`
-            }
-          }
-        ]}
-      />
+      <div className="space-y-3 p-1">
+        {/* Goals */}
+        {goals.length > 0 && (
+          <div>
+            <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
+              Tujuan Perawatan (Goals)
+            </Text>
+            <div className="flex flex-wrap gap-1">
+              {goals.map((g: any, i: number) => (
+                <Tag key={i} color="purple" className="text-xs">
+                  {g.display ?? g.goalId?.slice(0, 8)}
+                </Tag>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Activities
+        {activities.length > 0 ? (
+          <div>
+            <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide block mb-1">
+              Aktivitas Perawatan
+            </Text>
+            <Table
+              size="small"
+              pagination={false}
+              rowKey={(_, i) => `${record.id}-act-${i}`}
+              dataSource={activities}
+              columns={[
+                {
+                  title: 'Jenis',
+                  dataIndex: 'kind',
+                  key: 'kind',
+                  width: 160,
+                  render: (v: string) => v || '-'
+                },
+                {
+                  title: 'Aktivitas',
+                  dataIndex: 'description',
+                  key: 'description',
+                  render: (v: string) => v || '-'
+                },
+                {
+                  title: 'Status',
+                  dataIndex: 'status',
+                  key: 'status',
+                  width: 120,
+                  render: (v: string) => <Tag color={ACTIVITY_STATUS_COLOR[v]}>{v}</Tag>
+                },
+                {
+                  title: 'Jadwal',
+                  key: 'schedule',
+                  width: 180,
+                  render: (_: any, act: any) => {
+                    const start = act.scheduledPeriodStart
+                      ? dayjs(act.scheduledPeriodStart).format('DD/MM/YYYY')
+                      : null
+                    const end = act.scheduledPeriodEnd
+                      ? dayjs(act.scheduledPeriodEnd).format('DD/MM/YYYY')
+                      : null
+                    if (!start && !end) return '-'
+                    return `${start ?? '?'} — ${end ?? '?'}`
+                  }
+                }
+              ]}
+            />
+          </div>
+        ) : (
+          !goals.length && <Text type="secondary">Tidak ada detail tercatat</Text>
+        )} */}
+      </div>
     )
   }
 
@@ -204,6 +253,30 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
       render: (v: string) => <Tag color="geekblue">{v}</Tag>
     },
     {
+      title: 'Tujuan (Goals)',
+      key: 'goals',
+      width: 160,
+      render: (_: any, r: any) => {
+        const goals: any[] = r.goals ?? []
+        if (!goals.length)
+          return (
+            <Text type="secondary" className="text-xs">
+              -
+            </Text>
+          )
+        return (
+          <div className="flex flex-wrap gap-1">
+            {goals.slice(0, 2).map((g: any, i: number) => (
+              <Tag key={i} color="purple" className="text-xs m-0">
+                {g.display ?? g.goalId?.slice(0, 8)}
+              </Tag>
+            ))}
+            {goals.length > 2 && <Tag className="text-xs m-0">+{goals.length - 2}</Tag>}
+          </div>
+        )
+      }
+    },
+    {
       title: 'Periode',
       key: 'period',
       width: 160,
@@ -214,12 +287,12 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
         return `${start ?? '?'} — ${end ?? '?'}`
       }
     },
-    {
-      title: 'Aktivitas',
-      key: 'activitiesCount',
-      width: 90,
-      render: (_: any, r: any) => <Tag>{(r.activities ?? []).length} item</Tag>
-    },
+    // {
+    //   title: 'Aktivitas',
+    //   key: 'activitiesCount',
+    //   width: 90,
+    //   render: (_: any, r: any) => <Tag>{(r.activities ?? []).length} item</Tag>
+    // },
     {
       title: 'Aksi',
       key: 'action',
@@ -301,6 +374,24 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
             <TextArea rows={3} placeholder="Jelaskan rencana perawatan secara ringkas..." />
           </Form.Item>
 
+          {/* ── Referensi Goals ── */}
+          <Form.Item
+            name="goalIds"
+            label="Tujuan Perawatan yang Dirujuk (Goals)"
+            tooltip="Pilih satu atau lebih Goal yang sudah dibuat untuk encounter ini"
+          >
+            <Select
+              mode="multiple"
+              allowClear
+              placeholder={
+                goalOptions.length ? 'Pilih tujuan perawatan...' : 'Belum ada Goal yang dibuat'
+              }
+              options={goalOptions}
+              disabled={!goalOptions.length}
+              optionFilterProp="label"
+            />
+          </Form.Item>
+
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item name="status" label="Status" rules={[{ required: true }]}>
@@ -326,7 +417,7 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
               </Form.Item>
             </Col>
           </Row>
-          <Card title="Aktivitas Perawatan" size="small" className="">
+          {/* <Card title="Aktivitas Perawatan" size="small" className="">
             <Form.List name="activities">
               {(fields, { add, remove }) => (
                 <div className="flex flex-col gap-3">
@@ -404,7 +495,7 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
                 </div>
               )}
             </Form.List>
-          </Card>
+          </Card> */}
 
           <Form.Item>
             <Space className="flex justify-end w-full">

@@ -47,6 +47,7 @@ import { RasionalKlinisForm } from '../../components/organisms/Assessment/Rasion
 import { Layout, Menu, theme, Input, Empty, Modal } from 'antd'
 import { useState, useMemo } from 'react'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
+import { PatientMedicalHistoryTab } from './patient-medical-history-tab'
 
 const { Sider, Content } = Layout
 
@@ -84,6 +85,11 @@ export const DoctorInpatientWorkspace = ({
         key: 'overview',
         icon: <MonitorOutlined />,
         label: 'Ringkasan Pasien'
+      },
+      {
+        key: 'medical-history',
+        icon: <FileTextOutlined />,
+        label: 'Riwayat Rekam Medis'
       },
       {
         key: 'assessment',
@@ -231,6 +237,8 @@ export const DoctorInpatientWorkspace = ({
     switch (selectedKey) {
       case 'info':
         return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
+      case 'medical-history':
+        return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
         return (
           <div className="space-y-4">

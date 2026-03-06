@@ -45,11 +45,11 @@ export const VitalSignsMonitoringForm = ({
           codeCoding: [
             {
               code: '8480-6',
-              display: 'Systolic blood pressure',
+              display: 'Tekanan Darah Sistolik',
               system: OBSERVATION_SYSTEMS.LOINC
             }
           ],
-          display: 'Systolic blood pressure',
+          display: 'Tekanan Darah Sistolik',
           valueQuantity: {
             value: values.vitalSigns.systolicBloodPressure,
             unit: 'mm[Hg]',
@@ -63,11 +63,11 @@ export const VitalSignsMonitoringForm = ({
           codeCoding: [
             {
               code: '8462-4',
-              display: 'Diastolic blood pressure',
+              display: 'Tekanan Darah Diastolik',
               system: OBSERVATION_SYSTEMS.LOINC
             }
           ],
-          display: 'Diastolic blood pressure',
+          display: 'Tekanan Darah Diastolik',
           valueQuantity: {
             value: values.vitalSigns.diastolicBloodPressure,
             unit: 'mm[Hg]',

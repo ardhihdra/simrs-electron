@@ -62,7 +62,7 @@ function DiagnosticForm() {
   })
 
   const formattedEncounters =
-    (encountersQuery.data?.data as any[])?.map((e) => ({
+    ((encountersQuery.data as any)?.data as any[])?.map((e) => ({
       label: `Encounter: ${e.visitDate ? dayjs(e.visitDate).format('YYYY-MM-DD HH:mm') : ''} - ${e.status} (${e.serviceType})`,
       value: e.id
     })) || []
@@ -196,7 +196,9 @@ function DiagnosticForm() {
               options={formattedEncounters}
               loading={encountersQuery.isLoading}
               onChange={(value) => {
-                const encounter = (encountersQuery.data?.data as any[])?.find((e) => e.id === value)
+                const encounter = ((encountersQuery.data as any)?.data as any[])?.find(
+                  (e) => e.id === value
+                )
                 if (encounter && encounter.patientId) {
                   form.setFieldsValue({ subjectId: encounter.patientId })
                 }

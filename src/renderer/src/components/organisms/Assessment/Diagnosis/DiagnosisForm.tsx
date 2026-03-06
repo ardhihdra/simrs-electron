@@ -7,7 +7,7 @@ import { PatientDiagnosis, PatientWithMedicalRecord } from '../../../../types/do
 import { saveDiagnosisAndProcedures } from '../../../../services/doctor.service'
 import { useConditionByEncounter } from '../../../../hooks/query/use-condition'
 import { useDiagnosisCodeList } from '../../../../hooks/query/use-diagnosis-code'
-import { ANAMNESIS_MAP, DIAGNOSIS_MAP } from '../../../../config/maps/condition-maps'
+import { DIAGNOSIS_MAP } from '../../../../config/maps/condition-maps'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 
@@ -63,12 +63,10 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
 
   useEffect(() => {
     if (conditionsData?.result && Array.isArray(conditionsData.result)) {
-      const anamnesisCategories = Object.keys(ANAMNESIS_MAP)
-
       const mappedDiagnoses: DiagnosisTableData[] = conditionsData.result
         .filter((cond: any) => {
           const category = cond.categories?.[0]?.code
-          return !anamnesisCategories.includes(category)
+          return category === 'problem-list-item'
         })
         .map((cond: any) => {
           const codeCoding = cond.codeCoding?.[0]
@@ -180,12 +178,6 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
       title: 'Nama Diagnosis',
       dataIndex: ['diagnosisCode', 'name'],
       key: 'name'
-    },
-    {
-      title: 'Kategori',
-      dataIndex: ['diagnosisCode', 'category'],
-      key: 'category',
-      width: 150
     },
     {
       title: 'Primary',

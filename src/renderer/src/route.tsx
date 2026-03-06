@@ -17,7 +17,6 @@ import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
 import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
-import PatientList from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
@@ -86,6 +85,7 @@ import ActiveEncountersPage from './pages/visit-management/active-encounters-pag
 import InitialTriage from './pages/visit-management/initial-triage'
 import RegistrationPage from './pages/visit-management/registration-page'
 import RegistrationQueue from './pages/visit-management/registration-queue'
+import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
 
 function MainRoute() {
   const location = useLocation()
@@ -208,7 +208,7 @@ function MainRoute() {
             <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />
           </Route>
           <Route path="doctor" element={<DoctorEMR />}>
-            <Route index element={<PatientList />} />
+            <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
           </Route>
           <Route path="services" element={<Services />}>

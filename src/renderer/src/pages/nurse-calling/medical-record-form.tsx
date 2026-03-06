@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Button, App, Spin, Layout, Menu, theme } from 'antd'
+import { App, Spin, Layout, Menu, theme } from 'antd'
 import {
-  ArrowLeftOutlined,
   MonitorOutlined,
   SolutionOutlined,
   FormOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   MedicineBoxOutlined,
-  AlertOutlined
+  AlertOutlined,
+  UserOutlined
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
 import { PatientQueue } from '@renderer/types/nurse.types'
@@ -99,11 +99,13 @@ const MedicalRecordForm = () => {
     if (!patientData || !encounterId) return null
 
     switch (selectedKey) {
+      case 'patient-info':
+        return <PatientInfoCard patientData={patientData} />
       case 'initial-assessment':
         return (
           <InitialAssessmentForm
             encounterId={encounterId}
-            patientData={patientData}
+            patientData={patientData as any}
             mode="outpatient"
             role="nurse"
           />
@@ -142,26 +144,6 @@ const MedicalRecordForm = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <div className="px-4 pt-4 flex justify-between items-center">
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/dashboard/nurse-calling')}
-          className="mb-4"
-        >
-          Kembali ke Daftar Pasien
-        </Button>
-      </div>
-
-      <div className="px-4 py-4">
-        <PatientInfoCard
-          patientData={{
-            ...patientData,
-            visitDate: patientData.registrationDate,
-            status: String(patientData.status)
-          }}
-        />
-      </div>
-
       <div className="flex-1 px-4 pb-4 overflow-hidden relative flex flex-col min-h-0">
         <Layout className="rounded-lg overflow-hidden h-full ">
           <Layout.Sider
@@ -199,6 +181,11 @@ const MedicalRecordForm = () => {
                   defaultSelectedKeys={['initial-assessment']}
                   style={{ borderRight: 0 }}
                   items={[
+                    {
+                      key: 'patient-info',
+                      icon: <UserOutlined />,
+                      label: 'Informasi Pasien'
+                    },
                     ...(encounterType === 'EMER'
                       ? [
                           {

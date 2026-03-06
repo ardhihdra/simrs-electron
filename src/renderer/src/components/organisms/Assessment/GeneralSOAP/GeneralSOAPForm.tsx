@@ -16,7 +16,6 @@ import {
 import {
   SaveOutlined,
   PlusOutlined,
-  HistoryOutlined,
   CheckCircleOutlined,
   CopyOutlined,
   FormOutlined

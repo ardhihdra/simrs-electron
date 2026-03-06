@@ -233,7 +233,7 @@ export const getPatientMedicalRecord = async (
                 anamnesis,
                 physicalExamination,
                 examinationDate: encounter.period?.start ? String(encounter.period.start) : new Date().toISOString(),
-                nurseName: 'Perawat Jaga' // TODO: Get from creator ID
+                nurseName: 'Perawat Jaga'
             }
         }
 
@@ -270,7 +270,7 @@ export const getPatientMedicalRecord = async (
                 sipNumber: ''
             },
             nurseRecord,
-            doctorRecord: undefined // TODO: Fetch conditions and procedures when API is ready
+            doctorRecord: undefined
         }
 
         return patientWithRecord
@@ -359,7 +359,7 @@ export const saveDiagnosisAndProcedures = async (
             const conditionsPayload = diagnoses.map((d) => ({
                 diagnosisCodeId: parseInt(d.diagnosisCode.id),
                 isPrimary: d.isPrimary,
-                category: d.diagnosisCode.category,
+                categories: d.diagnosisCode.category ? [{ code: d.diagnosisCode.category }] : [],
                 notes: d.notes,
                 recordedDate: effectiveDate
             }))
