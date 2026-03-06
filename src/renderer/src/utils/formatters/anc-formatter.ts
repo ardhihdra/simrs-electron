@@ -106,7 +106,7 @@ export const buildAncObservations = (
                 valueQuantity: { value: obstetrics.tinggi_badan, unit: 'cm' },
                 category: 'vital-signs',
                 codeCoding: [
-                    { system: 'http://loinc.org', code: '8302-2', display: 'Body height' },
+                    { system: 'http://loinc.org', code: '8302-2', display: 'Tinggi Badan' },
                     { system: 'http://fhir.org/guides/who/anc-cds/CodeSystem/anc-custom-codes', code: 'ANC.B8.DE1', display: 'Height' }
                 ]
             }))

@@ -129,7 +129,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
         obsToCreate.push({
           category: OBSERVATION_CATEGORIES.EXAM,
           code: 'general-condition',
-          display: 'General condition',
+          display: 'Kondisi Umum',
           valueString: values.physicalExamination.generalCondition
         })
       }
@@ -144,17 +144,22 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       }
 
       const anthropometryConfig = [
-        { code: '8302-2', value: values.anthropometry?.height, display: 'Body height', unit: 'cm' },
+        {
+          code: '8302-2',
+          value: values.anthropometry?.height,
+          display: 'Tinggi Badan',
+          unit: 'cm'
+        },
         {
           code: '29463-7',
           value: values.anthropometry?.weight,
-          display: 'Body weight',
+          display: 'Berat Badan',
           unit: 'kg'
         },
         {
           code: '8277-6',
           value: values.anthropometry?.bsa,
-          display: 'Body surface area',
+          display: 'Luas Permukaan Tubuh',
           unit: 'm2'
         }
       ]
@@ -184,7 +189,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
           const obsPayload: any = {
             category: OBSERVATION_CATEGORIES.EXAM,
             code: key,
-            display: `Physical findings of ${label.split('(')[0].trim()} Narrative`,
+            display: `Pemeriksaan ${label.split('(')[0].trim()}`,
             system: 'http://loinc.org',
             valueString: textValue || (isNormal ? 'Dalam batas normal' : 'Abnormal'),
             valueBoolean: isNormal,

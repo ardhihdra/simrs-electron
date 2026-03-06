@@ -13,7 +13,7 @@ export const VITAL_SIGNS_MAP: Record<string, string> = {
     '29463-7': 'weight',
     '8277-6': 'bsa',
     '39156-5': 'bmi',
-    '2708-6': 'oxygenSaturation'
+    '59408-5': 'oxygenSaturation'
 }
 
 export const PHYSICAL_EXAM_MAP: Record<string, string> = {

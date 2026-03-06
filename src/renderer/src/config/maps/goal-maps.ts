@@ -79,42 +79,42 @@ export const GOAL_MEASURE_LOINC_MAP: Record<string, GoalMeasureEntry> = {
     },
     '8310-5': {
         code: '8310-5',
-        display: 'Body temperature',
+        display: 'Suhu Tubuh',
         system: 'http://loinc.org',
         label: '[Vital] Suhu Tubuh',
         unit: 'Cel'
     },
     '8867-4': {
         code: '8867-4',
-        display: 'Heart rate',
+        display: 'Denyut Nadi',
         system: 'http://loinc.org',
         label: '[Vital] Frekuensi Nadi',
         unit: '/min'
     },
     '9279-1': {
         code: '9279-1',
-        display: 'Respiratory rate',
+        display: 'Frekuensi Napas',
         system: 'http://loinc.org',
         label: '[Vital] Frekuensi Napas',
         unit: '/min'
     },
-    '2708-6': {
-        code: '2708-6',
-        display: 'Oxygen saturation',
+    '59408-5': {
+        code: '59408-5',
+        display: 'Saturasi Oksigen',
         system: 'http://loinc.org',
         label: '[Vital] Saturasi Oksigen (SpO2)',
         unit: '%'
     },
     '29463-7': {
         code: '29463-7',
-        display: 'Body weight',
+        display: 'Berat Badan',
         system: 'http://loinc.org',
         label: '[Vital] Berat Badan',
         unit: 'kg'
     },
     '8302-2': {
         code: '8302-2',
-        display: 'Body height',
+        display: 'Tinggi Badan',
         system: 'http://loinc.org',
         label: '[Vital] Tinggi Badan',
         unit: 'cm'

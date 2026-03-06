@@ -117,7 +117,7 @@ export const formatVitalSigns = (observations: ObservationData[]): FormattedVita
         weight: extractQuantityValue(g('29463-7')),
         bmi: extractQuantityValue(g('39156-5')),
         bmiCategory: getInterpretationDisplay(g('39156-5')),
-        oxygenSaturation: extractQuantityValue(g('2708-6')),
+        oxygenSaturation: extractQuantityValue(g('59408-5')),
         gcsEye: extractQuantityValue(g('9267-5')),
         gcsVerbal: extractQuantityValue(g('9270-9')),
         gcsMotor: extractQuantityValue(g('9268-3'))

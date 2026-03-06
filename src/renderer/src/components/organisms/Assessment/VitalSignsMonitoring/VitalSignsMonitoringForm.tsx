@@ -79,9 +79,9 @@ export const VitalSignsMonitoringForm = ({
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
           code: '8867-4',
           codeCoding: [
-            { code: '8867-4', display: 'Heart rate', system: OBSERVATION_SYSTEMS.LOINC }
+            { code: '8867-4', display: 'Denyut Nadi', system: OBSERVATION_SYSTEMS.LOINC }
           ],
-          display: 'Heart rate',
+          display: 'Denyut Nadi',
           valueQuantity: {
             value: values.vitalSigns.pulseRate,
             unit: '{beats}/min',
@@ -93,9 +93,9 @@ export const VitalSignsMonitoringForm = ({
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
           code: '9279-1',
           codeCoding: [
-            { code: '9279-1', display: 'Respiratory rate', system: OBSERVATION_SYSTEMS.LOINC }
+            { code: '9279-1', display: 'Frekuensi Napas', system: OBSERVATION_SYSTEMS.LOINC }
           ],
-          display: 'Respiratory rate',
+          display: 'Frekuensi Napas',
           valueQuantity: {
             value: values.vitalSigns.respiratoryRate,
             unit: 'breaths/min',
@@ -107,9 +107,9 @@ export const VitalSignsMonitoringForm = ({
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
           code: '8310-5',
           codeCoding: [
-            { code: '8310-5', display: 'Body temperature', system: OBSERVATION_SYSTEMS.LOINC }
+            { code: '8310-5', display: 'Suhu Tubuh', system: OBSERVATION_SYSTEMS.LOINC }
           ],
-          display: 'Body temperature',
+          display: 'Suhu Tubuh',
           valueQuantity: {
             value: values.vitalSigns.temperature,
             unit: 'Cel',
@@ -119,11 +119,11 @@ export const VitalSignsMonitoringForm = ({
         },
         {
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
-          code: '2708-6',
+          code: '59408-5',
           codeCoding: [
-            { code: '2708-6', display: 'Oxygen saturation', system: OBSERVATION_SYSTEMS.LOINC }
+            { code: '59408-5', display: 'Saturasi Oksigen', system: OBSERVATION_SYSTEMS.LOINC }
           ],
-          display: 'Oxygen saturation',
+          display: 'Saturasi Oksigen',
           valueQuantity: { value: values.vitalSigns.oxygenSaturation, unit: '%' }
         }
       ]
@@ -135,11 +135,11 @@ export const VitalSignsMonitoringForm = ({
           codeCoding: [
             {
               code: '67775-7',
-              display: 'Level of responsiveness',
+              display: 'Tingkat Kesadaran',
               system: OBSERVATION_SYSTEMS.LOINC
             }
           ],
-          display: 'Level of responsiveness',
+          display: 'Tingkat Kesadaran',
           valueString: values.consciousness,
           valueCodeableConcept: {
             coding: [

@@ -185,7 +185,7 @@ export const getPatientMedicalRecord = async (
                 pulseRate: getNumberVal(observations?.vitalSigns || [], ['pulse-rate', 'heart-rate', '8867-4']),
                 respiratoryRate: getNumberVal(observations?.vitalSigns || [], ['respiratory-rate', '9279-1']),
                 temperature: getNumberVal(observations?.vitalSigns || [], ['body-temperature', '8310-5']),
-                oxygenSaturation: getNumberVal(observations?.vitalSigns || [], ['oxygen-saturation', '2708-6', '59408-5']),
+                oxygenSaturation: getNumberVal(observations?.vitalSigns || [], ['oxygen-saturation', '59408-5', '59408-5']),
                 height: getNumberVal(observations?.vitalSigns || [], ['body-height', '8302-2']),
                 weight: getNumberVal(observations?.vitalSigns || [], ['body-weight', '29463-7']),
                 bmi: getNumberVal(observations?.vitalSigns || [], ['bmi', 'body-mass-index', '39156-5']),
