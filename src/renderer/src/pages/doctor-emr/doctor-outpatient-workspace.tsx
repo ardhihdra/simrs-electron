@@ -133,8 +133,7 @@ export const DoctorOutpatientWorkspace = ({
           { key: 'procedures', label: 'Tindakan Medis (ICD-9-CM)' },
           { key: 'education', label: 'Edukasi' },
           { key: 'nutrition-order', label: 'Order Diet (Gizi)' },
-          { key: 'prescription', label: 'E-Resep' },
-          { key: 'risk-assessment', label: 'Penilaian Risiko' }
+          { key: 'prescription', label: 'E-Resep' }
         ]
       },
       {
@@ -444,13 +443,6 @@ export const DoctorOutpatientWorkspace = ({
                 case 'prescription':
                   return (
                     <PrescriptionForm encounterId={encounterId || ''} patientData={patientData} />
-                  )
-                case 'risk-assessment':
-                  return (
-                    <FallRiskAssessmentForm
-                      encounterId={encounterId || ''}
-                      patientId={patientData?.patient?.id}
-                    />
                   )
                 case 'lab-rad-order':
                   return (

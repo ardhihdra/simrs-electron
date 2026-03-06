@@ -59,17 +59,36 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
         (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       )
 
-      Object.keys(HEAD_TO_TOE_MAP).forEach((key) => {
-        const found = examObservations.find((obs: any) =>
-          obs.codeCoding?.some((coding: any) => coding.code === key)
-        )
+      HEAD_TO_TOE_MAP.forEach((item) => {
+        const fieldKey = item.bodySite ? `${item.code}_${item.bodySite.code}` : item.code
+
+        const found = examObservations.find((obs: any) => {
+          const hasBaseCode = obs.codeCoding?.some((coding: any) => coding.code === item.code)
+          if (!hasBaseCode) return false
+
+          const obsBodySiteCode = obs.bodySites?.[0]?.code
+
+          if (item.bodySite) {
+            // Must match specific bodySite
+            return obsBodySiteCode === item.bodySite.code
+          } else {
+            // Must NOT have any bodySite that belongs to other sub-items under the same code
+            const siblingsWithBodySite = HEAD_TO_TOE_MAP.filter(
+              (mapItem) => mapItem.code === item.code && mapItem.bodySite
+            )
+            const knownSiblingCodes = siblingsWithBodySite.map((sibling) => sibling.bodySite!.code)
+
+            return !obsBodySiteCode || !knownSiblingCodes.includes(obsBodySiteCode)
+          }
+        })
+
         if (found) {
-          initialValues[key] = found.valueString
+          initialValues[fieldKey] = found.valueString
           const isAbnormal =
             found.valueBoolean === false || found.interpretations?.some((i: any) => i.code === 'A')
-          initialValues[`${key}_NORMAL`] = !isAbnormal
+          initialValues[`${fieldKey}_NORMAL`] = !isAbnormal
         } else {
-          initialValues[`${key}_NORMAL`] = true
+          initialValues[`${fieldKey}_NORMAL`] = true
         }
       })
 
@@ -85,15 +104,16 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
 
     const observationsToSave: any[] = []
 
-    Object.entries(HEAD_TO_TOE_MAP).forEach(([key, label]) => {
-      const textValue = values[key]
-      const isNormal = values[`${key}_NORMAL`]
+    HEAD_TO_TOE_MAP.forEach((item) => {
+      const fieldKey = item.bodySite ? `${item.code}_${item.bodySite.code}` : item.code
+      const textValue = values[fieldKey]
+      const isNormal = values[`${fieldKey}_NORMAL`]
 
       if (textValue || !isNormal) {
-        observationsToSave.push({
+        const obsPayload: any = {
           category: 'exam',
-          code: key,
-          display: `Physical findings of ${label.split('(')[0].trim()} Narrative`,
+          code: item.code,
+          display: `Physical findings of ${item.label.split('(')[0].trim()} Narrative`,
           system: 'http://loinc.org',
           valueString: textValue || (isNormal ? 'Dalam batas normal' : 'Abnormal'),
           valueBoolean: isNormal,
@@ -103,15 +123,20 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
               display: isNormal ? 'Normal' : 'Abnormal',
               system: 'http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation'
             }
-          ],
-          bodySites: [
+          ]
+        }
+
+        if (item.bodySite) {
+          obsPayload.bodySites = [
             {
-              code: key,
-              display: label,
+              code: item.bodySite.code,
+              display: item.bodySite.display,
               system: 'http://snomed.info/sct'
             }
           ]
-        })
+        }
+
+        observationsToSave.push(obsPayload)
       }
     })
 
@@ -147,32 +172,38 @@ export const HeadToToeForm = ({ encounterId, patientId }: HeadToToeFormProps) =>
         ) : (
           <Form form={form} layout="vertical" onFinish={handleSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {Object.entries(HEAD_TO_TOE_MAP).map(([key, label]) => (
-                <Card
-                  key={key}
-                  size="small"
-                  title={label}
-                  className="bg-gray-50 border-gray-200"
-                  extra={
-                    <Form.Item
-                      name={`${key}_NORMAL`}
-                      valuePropName="checked"
-                      noStyle
-                      initialValue={true}
-                    >
-                      <Switch
-                        checkedChildren="Normal"
-                        unCheckedChildren="Abnormal"
-                        defaultChecked
+              {HEAD_TO_TOE_MAP.map((item) => {
+                const fieldKey = item.bodySite ? `${item.code}_${item.bodySite.code}` : item.code
+                return (
+                  <Card
+                    key={fieldKey}
+                    size="small"
+                    title={item.label}
+                    className="bg-gray-50 border-gray-200"
+                    extra={
+                      <Form.Item
+                        name={`${fieldKey}_NORMAL`}
+                        valuePropName="checked"
+                        noStyle
+                        initialValue={true}
+                      >
+                        <Switch
+                          checkedChildren="Normal"
+                          unCheckedChildren="Abnormal"
+                          defaultChecked
+                        />
+                      </Form.Item>
+                    }
+                  >
+                    <Form.Item name={fieldKey} className="mb-0">
+                      <TextArea
+                        rows={2}
+                        placeholder={`Deskripsi hasil pemeriksaan ${item.label}...`}
                       />
                     </Form.Item>
-                  }
-                >
-                  <Form.Item name={key} className="mb-0">
-                    <TextArea rows={2} placeholder={`Deskripsi hasil pemeriksaan ${label}...`} />
-                  </Form.Item>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
             </div>
           </Form>
         )}

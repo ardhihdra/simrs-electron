@@ -6,9 +6,9 @@ import { getClient } from '@main/utils/backendClient'
 export const requireSession = true
 
 const ConditionCategorySchema = z.object({
-    code: z.string().optional(),
-    display: z.string().optional(),
-    system: z.string().optional()
+    code: z.string().optional().nullable(),
+    display: z.string().optional().nullable(),
+    system: z.string().optional().nullable()
 })
 
 const ConditionCodeCodingSchema = z.object({

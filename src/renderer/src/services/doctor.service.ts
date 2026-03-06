@@ -359,7 +359,11 @@ export const saveDiagnosisAndProcedures = async (
             const conditionsPayload = diagnoses.map((d) => ({
                 diagnosisCodeId: parseInt(d.diagnosisCode.id),
                 isPrimary: d.isPrimary,
-                categories: d.diagnosisCode.category ? [{ code: d.diagnosisCode.category }] : [],
+                categories: d.diagnosisCode.category ? [{
+                    code: d.diagnosisCode.category,
+                    display: d.diagnosisCode.category,
+                    system: 'http://terminology.hl7.org/CodeSystem/condition-category'
+                }] : [],
                 notes: d.notes,
                 recordedDate: effectiveDate
             }))
