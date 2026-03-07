@@ -41,10 +41,9 @@ import { OphthalmologyForm } from '@renderer/components/organisms/Assessment/Oph
 import { DermatologyForm } from '@renderer/components/organisms/Assessment/Dermatology/DermatologyForm'
 import { CardiologyForm } from '@renderer/components/organisms/Assessment/Cardiology/CardiologyForm'
 import { ENTForm } from '@renderer/components/organisms/Assessment/ENT/ENTForm'
-import { FallRiskAssessmentForm } from '@renderer/components/organisms/Assessment/FallRiskAssessment/FallRiskAssessmentForm'
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
-import { PatientMedicalHistoryTab } from './patient-medical-history-tab'
+import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
 
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'

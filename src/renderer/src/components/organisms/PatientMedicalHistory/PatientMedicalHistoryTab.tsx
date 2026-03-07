@@ -1,8 +1,8 @@
 import React from 'react'
 
-import { EncounterHistoryTable } from './components/EncounterHistoryTable'
+import { EncounterHistoryTable } from './EncounterHistoryTable'
 
-import { EncounterDetailDrawer } from './components/EncounterDetailDrawer'
+import { EncounterDetailDrawer } from './EncounterDetailDrawer'
 
 interface PatientMedicalHistoryTabProps {
   patientId: string
