@@ -1,9 +1,9 @@
-import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Form, Input, Spin } from 'antd'
-import React, { useEffect, useState } from 'react'
+import { PlusOutlined, SaveOutlined } from '@ant-design/icons'
+import { App, Button, Card, Form, Input, Modal, Spin, Table, Tag, Typography } from 'antd'
+import React, { useState } from 'react'
+import dayjs from 'dayjs'
 import { PatientData } from '@renderer/types/doctor.types'
 import { AssessmentHeader } from './AssesmentHeader/AssessmentHeader'
-import { formatClinicalImpression } from '@renderer/utils/formatters/clinical-impression-formatter'
 import {
   useClinicalImpressionByEncounter,
   useSaveClinicalImpression
@@ -13,11 +13,23 @@ import { CLINICAL_IMPRESSION_CATEGORIES } from '@renderer/config/maps/clinical-i
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 
 const { TextArea } = Input
+const { Text } = Typography
 
 export interface RiwayatPerjalananPenyakitFormProps {
   encounterId: string
   patientData: PatientData
 }
+
+const QUICK_TEMPLATES = [
+  'Pasien datang dengan keluhan utama demam',
+  'Keluhan disertai sakit kepala dan mual',
+  'Pasien memiliki riwayat diabetes mellitus tipe 2',
+  'Pernah menderita asma',
+  'Riwayat keluarga: ibu dengan DM tipe 2',
+  'Belum pernah berobat sebelumnya untuk keluhan ini',
+  'Keluhan sudah berlangsung selama ... hari',
+  'Tidak ada alergi obat yang diketahui'
+]
 
 export const RiwayatPerjalananPenyakitForm: React.FC<RiwayatPerjalananPenyakitFormProps> = ({
   encounterId,
@@ -25,107 +37,178 @@ export const RiwayatPerjalananPenyakitForm: React.FC<RiwayatPerjalananPenyakitFo
 }) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
 
   const patientId = patientData.patient.id
   const patientIdStr = patientId ? String(patientId) : undefined
 
-  const { data: impressionResponse, isLoading: isLoadingImpressions } =
-    useClinicalImpressionByEncounter(encounterId)
+  const { data: impressionResponse, isLoading } = useClinicalImpressionByEncounter(encounterId)
   const saveImpression = useSaveClinicalImpression()
-
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'
   ])
 
-  const [existingId, setExistingId] = useState<string | undefined>()
+  const riwayatList = (impressionResponse?.data ?? []).filter(
+    (i) => i.description === CLINICAL_IMPRESSION_CATEGORIES.CLINICAL_COURSE
+  )
 
-  useEffect(() => {
-    const impressions = impressionResponse?.data
-
-    if (impressionResponse?.success && impressions && impressions.length > 0) {
-      const formatted = formatClinicalImpression(impressions)
-
-      const clinicalCourseRecord = impressions.find(
-        (i) => i.description === CLINICAL_IMPRESSION_CATEGORIES.CLINICAL_COURSE
-      )
-      if (clinicalCourseRecord?.id) setExistingId(clinicalCourseRecord.id)
-
-      if (formatted.riwayatPerjalananPenyakit) {
-        form.setFieldsValue({
-          riwayatPerjalananPenyakit: formatted.riwayatPerjalananPenyakit
-        })
-      }
-    }
-  }, [impressionResponse, form])
-
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: Record<string, string>) => {
     if (!patientIdStr) {
-      message.error('Data Pasien tidak valid.')
+      message.error('Data pasien tidak valid.')
       return
     }
 
-    setIsSubmitting(true)
+    const performerId = form.getFieldValue('performerId')
 
     try {
-      const summaryText = values.riwayatPerjalananPenyakit
-
       const payload = createClinicalImpression({
         patientId: patientIdStr,
         patientName: patientData.patient?.name,
-        encounterId: encounterId,
-        practitionerId: patientData.doctor?.id?.toString(),
-        summary: summaryText,
+        encounterId,
+        practitionerId: performerId?.toString() ?? patientData.doctor?.id?.toString(),
+        summary: values.summary,
         category: CLINICAL_IMPRESSION_CATEGORIES.CLINICAL_COURSE
       })
 
-      if (existingId) {
-        ;(payload as any).id = existingId
-      }
-
       await saveImpression.mutateAsync(payload)
-      message.success('Riwayat Perjalanan Penyakit berhasil disimpan')
+      message.success('Riwayat perjalanan penyakit berhasil disimpan')
+      form.resetFields()
+      setModalOpen(false)
     } catch (error: any) {
-      console.error('Error saving Riwayat Perjalanan Penyakit:', error)
-      message.error(error.message || 'Gagal menyimpan Riwayat Perjalanan Penyakit')
-    } finally {
-      setIsSubmitting(false)
+      message.error(error.message || 'Gagal menyimpan riwayat perjalanan penyakit')
     }
   }
 
+  // ─── Kolom tabel ──────────────────────────────────────────────────────────
+  const columns = [
+    {
+      title: 'Riwayat Perjalanan Penyakit',
+      dataIndex: 'summary',
+      key: 'summary',
+      render: (v: string) => <Text className="text-sm whitespace-pre-wrap">{v || '-'}</Text>
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 110,
+      render: (v: string) => (
+        <Tag color={v === 'completed' ? 'green' : v === 'in-progress' ? 'processing' : 'default'}>
+          {v?.toUpperCase()}
+        </Tag>
+      )
+    },
+    {
+      title: 'Tanggal',
+      dataIndex: 'effectiveDateTime',
+      key: 'effectiveDateTime',
+      width: 140,
+      render: (v: string) => (v ? dayjs(v).format('DD/MM/YYYY HH:mm') : '-')
+    }
+  ]
+
   return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={onFinish}
-      className="flex! flex-col! gap-4!"
-      initialValues={{
-        riwayatPerjalananPenyakit: ''
-      }}
-    >
-      <Spin spinning={isLoadingImpressions || isLoadingPerformers}></Spin>
-      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-      <Card title="Riwayat Perjalanan Penyakit">
-        <Form.Item
-          label="Riwayat Perjalanan Penyakit"
-          name="riwayatPerjalananPenyakit"
-          rules={[{ required: true, message: 'Harap isi Riwayat Perjalanan Penyakit' }]}
-        >
-          <TextArea rows={6} placeholder="Ketik detail riwayat perjalanan penyakit di sini..." />
-        </Form.Item>
+    <div className="flex flex-col gap-4">
+      <Card
+        title="Riwayat Perjalanan Penyakit"
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            Tambah Riwayat
+          </Button>
+        }
+      >
+        <Spin spinning={isLoading}>
+          <Table
+            columns={columns}
+            dataSource={riwayatList}
+            rowKey="id"
+            loading={isLoading}
+            pagination={{ pageSize: 10 }}
+            className="border-none"
+            locale={{ emptyText: 'Belum ada riwayat perjalanan penyakit yang dicatat' }}
+            size="small"
+          />
+        </Spin>
       </Card>
-      <Form.Item className="mb-0 text-right">
-        <Button
-          type="primary"
-          htmlType="submit"
-          size="large"
-          icon={<SaveOutlined />}
-          loading={isSubmitting}
+
+      <Modal
+        title="Input Riwayat Perjalanan Penyakit Baru"
+        open={modalOpen}
+        onCancel={() => {
+          form.resetFields()
+          setModalOpen(false)
+        }}
+        footer={[
+          <Button
+            key="back"
+            onClick={() => {
+              form.resetFields()
+              setModalOpen(false)
+            }}
+          >
+            Batal
+          </Button>,
+          <Button
+            key="submit"
+            type="primary"
+            icon={<SaveOutlined />}
+            loading={saveImpression.isPending}
+            onClick={() => form.submit()}
+          >
+            Simpan Riwayat
+          </Button>
+        ]}
+        width={900}
+        destroyOnClose
+      >
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          className="pt-4 space-y-4! flex! flex-col!"
         >
-          Simpan Riwayat Perjalanan Penyakit
-        </Button>
-      </Form.Item>
-    </Form>
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+
+          {/* Info resource FHIR */}
+          <div className="bg-blue-50 border border-blue-100 rounded px-3 py-2 mb-4 text-xs text-blue-700">
+            <span className="font-semibold">Resource:</span> ClinicalImpression &nbsp;|&nbsp;
+            <span className="font-semibold">Status:</span> completed &nbsp;|&nbsp;
+            <span className="font-semibold">SNOMED:</span> 312850006 — History of disorder
+          </div>
+
+          <Form.Item
+            name="summary"
+            label="Isi Riwayat Perjalanan Penyakit"
+            rules={[{ required: true, message: 'Riwayat perjalanan penyakit wajib diisi' }]}
+          >
+            <TextArea
+              rows={6}
+              placeholder="Contoh: Pasien datang dengan keluhan utama demam menggigil disertai sakit kepala. Pasien memiliki riwayat diabetes mellitus tipe 2..."
+            />
+          </Form.Item>
+
+          {/* Pilihan cepat */}
+          <div className="mb-4">
+            <Text className="text-xs text-gray-500 block mb-1">Klik untuk menambah ke teks:</Text>
+            <div className="flex flex-wrap gap-1">
+              {QUICK_TEMPLATES.map((t) => (
+                <Tag
+                  key={t}
+                  className="cursor-pointer hover:bg-blue-50 text-xs"
+                  onClick={() => {
+                    const current = form.getFieldValue('summary') ?? ''
+                    const separator = current ? '\n' : ''
+                    form.setFieldValue('summary', `${current}${separator}${t}`)
+                  }}
+                >
+                  + {t}
+                </Tag>
+              ))}
+            </div>
+          </div>
+        </Form>
+      </Modal>
+    </div>
   )
 }

@@ -17,7 +17,7 @@ export interface ConditionBuilderOptions {
     category: string
     notes?: string
     diagnosisCodeId?: string | number
-    clinicalStatus?: 'active' | 'recurrence' | 'relapse' | 'inactive' | 'remission' | 'resolved'
+    clinicalStatus?: 'ACTIVE' | 'RECURRENCE' | 'RELAPSE' | 'INACTIVE' | 'REMISSION' | 'RESOLVED' | 'active' | 'recurrence' | 'relapse' | 'inactive' | 'remission' | 'resolved'
     verificationStatus?:
     | 'unconfirmed'
     | 'provisional'

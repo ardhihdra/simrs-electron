@@ -129,7 +129,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
         obsToCreate.push({
           category: OBSERVATION_CATEGORIES.EXAM,
           code: 'general-condition',
-          display: 'General condition',
+          display: 'Kondisi Umum',
           valueString: values.physicalExamination.generalCondition
         })
       }
@@ -144,17 +144,22 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       }
 
       const anthropometryConfig = [
-        { code: '8302-2', value: values.anthropometry?.height, display: 'Body height', unit: 'cm' },
+        {
+          code: '8302-2',
+          value: values.anthropometry?.height,
+          display: 'Tinggi Badan',
+          unit: 'cm'
+        },
         {
           code: '29463-7',
           value: values.anthropometry?.weight,
-          display: 'Body weight',
+          display: 'Berat Badan',
           unit: 'kg'
         },
         {
           code: '8277-6',
           value: values.anthropometry?.bsa,
-          display: 'Body surface area',
+          display: 'Luas Permukaan Tubuh',
           unit: 'm2'
         }
       ]
@@ -176,15 +181,16 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
         }
       })
 
-      Object.entries(HEAD_TO_TOE_MAP).forEach(([key, label]) => {
-        const textValue = values[key]
-        const isNormal = values[`${key}_NORMAL`]
+      HEAD_TO_TOE_MAP.forEach((item) => {
+        const fieldKey = item.bodySite ? `${item.code}_${item.bodySite.code}` : item.code
+        const textValue = values[fieldKey]
+        const isNormal = values[`${fieldKey}_NORMAL`]
 
         if (textValue || !isNormal) {
           const obsPayload: any = {
             category: OBSERVATION_CATEGORIES.EXAM,
-            code: key,
-            display: `Physical findings of ${label.split('(')[0].trim()} Narrative`,
+            code: item.code,
+            display: `Pemeriksaan ${item.label.split('(')[0].trim()}`,
             system: 'http://loinc.org',
             valueString: textValue || (isNormal ? 'Dalam batas normal' : 'Abnormal'),
             valueBoolean: isNormal,
@@ -196,107 +202,14 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
             ]
           }
 
-          if (key === '10201-2') {
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '72914001',
-                  display: 'Palatal structure'
-                }
-              ]
-            }
-          }
-
-          if (key === '10201-2_tonsil') {
-            obsPayload.code = '10201-2'
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '91636008',
-                  display: 'Bilateral palatine tonsils'
-                }
-              ]
-            }
-          }
-
-          if (key === '11388-6_anus') {
-            obsPayload.code = '11388-6'
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '53505006',
-                  display: 'Anal structure'
-                }
-              ]
-            }
-          }
-
-          if (key === '11404-1_finger') {
-            obsPayload.code = '11404-1'
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '7569003',
-                  display: 'Finger structure'
-                }
-              ]
-            }
-          }
-
-          if (key === '32456-6_hand') {
-            obsPayload.code = '32456-6'
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '770812000',
-                  display: 'Entire nail unit of finger'
-                }
-              ]
-            }
-          }
-
-          if (key === '11385-2_ankle') {
-            obsPayload.code = '11385-2'
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '26552008',
-                  display: 'Foot joint structure'
-                }
-              ]
-            }
-          }
-
-          if (key === '11397-7_toe') {
-            obsPayload.code = '11397-7'
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '29707007',
-                  display: 'Toe structure'
-                }
-              ]
-            }
-          }
-
-          if (key === '32456-6_foot') {
-            obsPayload.code = '32456-6'
-            obsPayload.bodySite = {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '770805009',
-                  display: 'Structure of nail unit of toe'
-                }
-              ]
-            }
+          if (item.bodySite) {
+            obsPayload.bodySites = [
+              {
+                code: item.bodySite.code,
+                display: item.bodySite.display,
+                system: 'http://snomed.info/sct'
+              }
+            ]
           }
 
           obsToCreate.push(obsPayload)
@@ -377,17 +290,34 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
         bsa: getVitalSign('8277-6')
       }
 
-      Object.keys(HEAD_TO_TOE_MAP).forEach((key) => {
-        const found = sortedObs.find((obs: any) =>
-          obs.codeCoding?.some((coding: any) => coding.code === key)
-        )
+      HEAD_TO_TOE_MAP.forEach((item) => {
+        const fieldKey = item.bodySite ? `${item.code}_${item.bodySite.code}` : item.code
+
+        const found = sortedObs.find((obs: any) => {
+          const hasBaseCode = obs.codeCoding?.some((coding: any) => coding.code === item.code)
+          if (!hasBaseCode) return false
+
+          const obsBodySiteCode = obs.bodySites?.[0]?.code
+
+          if (item.bodySite) {
+            return obsBodySiteCode === item.bodySite.code
+          } else {
+            const siblingsWithBodySite = HEAD_TO_TOE_MAP.filter(
+              (mapItem) => mapItem.code === item.code && mapItem.bodySite
+            )
+            const knownSiblingCodes = siblingsWithBodySite.map((sibling) => sibling.bodySite!.code)
+
+            return !obsBodySiteCode || !knownSiblingCodes.includes(obsBodySiteCode)
+          }
+        })
+
         if (found) {
-          initialValues[key] = found.valueString
+          initialValues[fieldKey] = found.valueString
           const isAbnormal =
             found.valueBoolean === false || found.interpretations?.some((i: any) => i.code === 'A')
-          initialValues[`${key}_NORMAL`] = !isAbnormal
+          initialValues[`${fieldKey}_NORMAL`] = !isAbnormal
         } else {
-          initialValues[`${key}_NORMAL`] = true
+          initialValues[`${fieldKey}_NORMAL`] = true
         }
       })
 
@@ -532,32 +462,38 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
           </Card>
           <Card title="Pemeriksaan Head to Toe" size="small">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {Object.entries(HEAD_TO_TOE_MAP).map(([key, label]) => (
-                <Card
-                  key={key}
-                  size="small"
-                  title={label}
-                  className="bg-gray-50 border-gray-200"
-                  extra={
-                    <Form.Item
-                      name={`${key}_NORMAL`}
-                      valuePropName="checked"
-                      noStyle
-                      initialValue={true}
-                    >
-                      <Switch
-                        checkedChildren="Normal"
-                        unCheckedChildren="Abnormal"
-                        defaultChecked
+              {HEAD_TO_TOE_MAP.map((item) => {
+                const fieldKey = item.bodySite ? `${item.code}_${item.bodySite.code}` : item.code
+                return (
+                  <Card
+                    key={fieldKey}
+                    size="small"
+                    title={item.label}
+                    className="bg-gray-50 border-gray-200"
+                    extra={
+                      <Form.Item
+                        name={`${fieldKey}_NORMAL`}
+                        valuePropName="checked"
+                        noStyle
+                        initialValue={true}
+                      >
+                        <Switch
+                          checkedChildren="Normal"
+                          unCheckedChildren="Abnormal"
+                          defaultChecked
+                        />
+                      </Form.Item>
+                    }
+                  >
+                    <Form.Item name={fieldKey} className="mb-0">
+                      <TextArea
+                        rows={2}
+                        placeholder={`Deskripsi hasil pemeriksaan ${item.label}...`}
                       />
                     </Form.Item>
-                  }
-                >
-                  <Form.Item name={key} className="mb-0">
-                    <TextArea rows={2} placeholder={`Deskripsi hasil pemeriksaan ${label}...`} />
-                  </Form.Item>
-                </Card>
-              ))}
+                  </Card>
+                )
+              })}
             </div>
           </Card>
         </Form>

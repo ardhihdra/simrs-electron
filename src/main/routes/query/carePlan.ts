@@ -5,63 +5,63 @@ import { getClient } from '@main/utils/backendClient'
 export const requireSession = true
 
 const CarePlanActivitySchema = z.object({
-    kind: z.string().optional(),
-    code: z.string().optional(),
-    codeDisplay: z.string().optional(),
-    codeSystem: z.string().optional(),
+    kind: z.string().nullish(),
+    code: z.string().nullish(),
+    codeDisplay: z.string().nullish(),
+    codeSystem: z.string().nullish(),
     status: z.string(),
-    description: z.string().optional(),
-    scheduledPeriodStart: z.string().optional(),
-    scheduledPeriodEnd: z.string().optional(),
-    performerId: z.string().optional(),
-    performerName: z.string().optional(),
+    description: z.string().nullish(),
+    scheduledPeriodStart: z.string().nullish(),
+    scheduledPeriodEnd: z.string().nullish(),
+    performerId: z.string().nullish(),
+    performerName: z.string().nullish(),
 })
 
 const CarePlanNoteSchema = z.object({
-    authorId: z.string().optional(),
-    authorName: z.string().optional(),
-    time: z.string().optional(),
+    authorId: z.string().nullish(),
+    authorName: z.string().nullish(),
+    time: z.string().nullish(),
     text: z.string(),
 })
 
 const CarePlanCategorySchema = z.object({
-    code: z.string().optional(),
-    display: z.string().optional(),
-    system: z.string().optional(),
-    text: z.string().optional(),
+    code: z.string().nullish(),
+    display: z.string().nullish(),
+    system: z.string().nullish(),
+    text: z.string().nullish(),
 })
 
 const CarePlanAddressSchema = z.object({
-    referenceType: z.string().optional(),
-    referenceId: z.string().optional(),
-    display: z.string().optional(),
+    referenceType: z.string().nullish(),
+    referenceId: z.string().nullish(),
+    display: z.string().nullish(),
 })
 
 const CarePlanGoalSchema = z.object({
-    goalId: z.string().optional(),
-    display: z.string().optional(),
+    goalId: z.string().nullish(),
+    display: z.string().nullish(),
 })
 
 const CarePlanSchema = z.object({
-    id: z.string().optional(),
-    encounterId: z.string().optional(),
-    subjectId: z.string().optional(),
-    status: z.string().optional(),
-    intent: z.string().optional(),
-    title: z.string().optional(),
-    description: z.string().optional(),
-    periodStart: z.string().optional(),
-    periodEnd: z.string().optional(),
-    created: z.string().optional(),
-    authorId: z.string().optional(),
-    authorType: z.string().optional(),
-    activities: z.array(CarePlanActivitySchema).optional(),
-    notes: z.array(CarePlanNoteSchema).optional(),
-    categories: z.array(CarePlanCategorySchema).optional(),
-    addresses: z.array(CarePlanAddressSchema).optional(),
-    goals: z.array(CarePlanGoalSchema).optional(),
-    createdAt: z.string().optional(),
-    updatedAt: z.string().optional(),
+    id: z.string().nullish(),
+    encounterId: z.string().nullish(),
+    subjectId: z.string().nullish(),
+    status: z.string().nullish(),
+    intent: z.string().nullish(),
+    title: z.string().nullish(),
+    description: z.string().nullish(),
+    periodStart: z.string().nullish(),
+    periodEnd: z.string().nullish(),
+    created: z.string().nullish(),
+    authorId: z.string().nullish(),
+    authorType: z.string().nullish(),
+    activities: z.array(CarePlanActivitySchema).nullish(),
+    notes: z.array(CarePlanNoteSchema).nullish(),
+    categories: z.array(CarePlanCategorySchema).nullish(),
+    addresses: z.array(CarePlanAddressSchema).nullish(),
+    goals: z.array(CarePlanGoalSchema).nullish(),
+    createdAt: z.string().nullish(),
+    updatedAt: z.string().nullish(),
 }).passthrough()
 
 export const schemas = {

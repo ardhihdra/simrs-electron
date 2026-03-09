@@ -13,6 +13,11 @@ export interface CarePlanActivityInput {
     performerName?: string
 }
 
+export interface CarePlanGoalInput {
+    goalId: string
+    display?: string
+}
+
 export interface CreateCarePlanInput {
     encounterId: string
     patientId: string
@@ -26,6 +31,7 @@ export interface CreateCarePlanInput {
     periodEnd?: string
     activities?: CarePlanActivityInput[]
     categories?: { code?: string; display?: string; system?: string; text?: string }[]
+    goals?: CarePlanGoalInput[]
 }
 
 export const useCarePlansByEncounter = (encounterId?: string) => {
@@ -34,8 +40,7 @@ export const useCarePlansByEncounter = (encounterId?: string) => {
         queryFn: async () => {
             const fn = window.api?.query?.carePlan?.getByEncounter
             if (!fn || !encounterId) throw new Error('API tidak tersedia')
-            const res = await fn({ encounterId })
-            return res?.result ?? []
+            return fn({ encounterId })
         },
         enabled: !!encounterId,
     })

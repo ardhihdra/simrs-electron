@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Button, App, Spin, Layout, Menu, theme } from 'antd'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { App, Spin, Layout, Menu, theme, Input, Modal, Empty } from 'antd'
+import type { MenuProps } from 'antd'
 import {
-  ArrowLeftOutlined,
   MonitorOutlined,
   SolutionOutlined,
   FormOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   MedicineBoxOutlined,
-  AlertOutlined
+  AlertOutlined,
+  UserOutlined,
+  SearchOutlined
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
 import { PatientQueue } from '@renderer/types/nurse.types'
@@ -20,6 +22,8 @@ import { VitalSignsMonitoringForm } from '@renderer/components/organisms/Assessm
 import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 
+type MenuItem = Required<MenuProps>['items'][number]
+
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -29,6 +33,9 @@ const MedicalRecordForm = () => {
   const [encounterType, setEncounterType] = useState<string>('')
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('initial-assessment')
+  const [searchText, setSearchText] = useState('')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalSearch, setModalSearch] = useState('')
   const { token } = theme.useToken()
 
   const loadPatientData = useCallback(async () => {
@@ -95,15 +102,114 @@ const MedicalRecordForm = () => {
     loadPatientData()
   }, [encounterId, loadPatientData])
 
+  const menuItems: MenuItem[] = useMemo(
+    () => [
+      {
+        key: 'patient-info',
+        icon: <UserOutlined />,
+        label: 'Informasi Pasien'
+      },
+      ...(encounterType === 'EMER'
+        ? [
+          {
+            key: 'triage',
+            icon: <AlertOutlined style={{ color: token.colorError }} />,
+            label: 'Data Triase'
+          }
+        ]
+        : []),
+      {
+        key: 'initial-assessment',
+        icon: <SolutionOutlined />,
+        label: 'Asesmen Awal'
+      },
+      {
+        key: 'monitoring-ttv',
+        icon: <MonitorOutlined />,
+        label: 'Monitoring TTV'
+      },
+      {
+        key: 'general-soap',
+        icon: <FormOutlined />,
+        label: 'SOAP Umum'
+      },
+      ...(patientData?.poli?.name?.includes('RAWAT_INAP') ||
+        patientData?.poli?.code === 'RAWAT_INAP'
+        ? [
+          {
+            key: 'cppt',
+            icon: <SolutionOutlined />,
+            label: 'Catatan Perkembangan (CPPT)'
+          }
+        ]
+        : [])
+    ],
+    [encounterType, patientData, token.colorError]
+  )
+
+  const filteredItems = useMemo(() => {
+    if (!searchText) return menuItems
+    const lowerSearch = searchText.toLowerCase()
+
+    return menuItems
+      .map((item: any) => {
+        const isParentMatch = item?.label?.toString().toLowerCase().includes(lowerSearch)
+
+        if (item?.children && Array.isArray(item.children)) {
+          const matchingChildren = item.children.filter((child: any) =>
+            child?.label?.toString().toLowerCase().includes(lowerSearch)
+          )
+
+          if (matchingChildren.length > 0) {
+            return { ...item, children: matchingChildren }
+          } else if (isParentMatch) {
+            return item
+          }
+          return null
+        }
+
+        return isParentMatch ? item : null
+      })
+      .filter(Boolean) as MenuItem[]
+  }, [menuItems, searchText])
+
+  const filteredModalItems = useMemo(() => {
+    if (!modalSearch) return menuItems
+    const lowerSearch = modalSearch.toLowerCase()
+
+    return menuItems
+      .map((item: any) => {
+        const isParentMatch = item?.label?.toString().toLowerCase().includes(lowerSearch)
+
+        if (item?.children && Array.isArray(item.children)) {
+          const matchingChildren = item.children.filter((child: any) =>
+            child?.label?.toString().toLowerCase().includes(lowerSearch)
+          )
+
+          if (matchingChildren.length > 0) {
+            return { ...item, children: matchingChildren }
+          } else if (isParentMatch) {
+            return item
+          }
+          return null
+        }
+
+        return isParentMatch ? item : null
+      })
+      .filter(Boolean) as MenuItem[]
+  }, [menuItems, modalSearch])
+
   const renderContent = () => {
     if (!patientData || !encounterId) return null
 
     switch (selectedKey) {
+      case 'patient-info':
+        return <PatientInfoCard patientData={patientData} />
       case 'initial-assessment':
         return (
           <InitialAssessmentForm
             encounterId={encounterId}
-            patientData={patientData}
+            patientData={patientData as any}
             mode="outpatient"
             role="nurse"
           />
@@ -142,100 +248,140 @@ const MedicalRecordForm = () => {
 
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      <div className="px-4 pt-4 flex justify-between items-center">
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/dashboard/nurse-calling')}
-          className="mb-4"
-        >
-          Kembali ke Daftar Pasien
-        </Button>
-      </div>
-
-      <div className="px-4 py-4">
-        <PatientInfoCard
-          patientData={{
-            ...patientData,
-            visitDate: patientData.registrationDate,
-            status: String(patientData.status)
-          }}
-        />
-      </div>
-
       <div className="flex-1 px-4 pb-4 overflow-hidden relative flex flex-col min-h-0">
-        <Layout className="rounded-lg overflow-hidden h-full ">
+        <Modal
+          open={modalOpen}
+          onCancel={() => {
+            setModalOpen(false)
+            setModalSearch('')
+          }}
+          footer={null}
+          title={
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <MedicineBoxOutlined style={{ color: token.colorPrimary }} />
+              <span>Perawat — Pilih Form</span>
+            </div>
+          }
+          width={500}
+          styles={{ body: { padding: 0, maxHeight: '70vh', overflowY: 'auto' } }}
+          centered
+        >
+          <div
+            className="px-4 py-3"
+            style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+          >
+            <Input.Search
+              placeholder="Cari menu/form..."
+              allowClear
+              autoFocus
+              value={modalSearch}
+              onChange={(e) => setModalSearch(e.target.value)}
+            />
+          </div>
+          {filteredModalItems.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-32">
+              <Empty
+                image={Empty.PRESENTED_IMAGE_SIMPLE}
+                description={
+                  <span style={{ fontSize: 14, color: token.colorTextTertiary }}>
+                    Form tidak ditemukan
+                  </span>
+                }
+              />
+            </div>
+          ) : (
+            <Menu
+              className="custom-menu"
+              mode="inline"
+              selectedKeys={[selectedKey]}
+              defaultOpenKeys={modalSearch ? filteredModalItems.map((item) => item?.key as string).filter(Boolean) : []}
+              style={{ borderRight: 0 }}
+              items={filteredModalItems}
+              onSelect={({ key }) => {
+                setSelectedKey(key)
+                setModalOpen(false)
+                setModalSearch('')
+              }}
+            />
+          )}
+        </Modal>
+
+        <Layout
+          className="rounded-lg overflow-hidden h-full"
+          style={{ border: `1px solid ${token.colorBorderSecondary}` }}
+        >
           <Layout.Sider
             width={260}
             collapsible
             collapsed={collapsed}
             onCollapse={(value) => setCollapsed(value)}
             theme="light"
+            className=""
             trigger={
-              <div
-                className="flex items-center justify-center h-12 cursor-pointer transition-colors"
-                style={{
-                  borderTop: `1px solid ${token.colorBorderSecondary}`,
-                  color: token.colorTextTertiary
-                }}
-              >
+              <div className="flex items-center justify-center h-12 cursor-pointer transition-colors">
                 {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
               </div>
             }
           >
             <div className="h-full flex flex-col">
-              <div className={`p-4 ${collapsed ? 'text-center' : ''}`}>
+              <div
+                className={`p-4 ${collapsed ? 'text-center' : ''}`}
+                style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+              >
                 {collapsed ? (
-                  <MedicineBoxOutlined className="text-xl" />
+                  <SearchOutlined
+                    style={{ fontSize: 18, color: token.colorPrimary, cursor: 'pointer' }}
+                    onClick={() => setModalOpen(true)}
+                  />
                 ) : (
-                  <div className="font-bold flex items-center gap-2">
-                    <MedicineBoxOutlined />
-                    Perawat
+                  <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <MedicineBoxOutlined style={{ color: token.colorPrimary }} />
+                    <span style={{ color: token.colorText }}>Perawat</span>
                   </div>
                 )}
               </div>
-              <div className="flex-1 overflow-y-auto">
-                <Menu
-                  mode="inline"
-                  defaultSelectedKeys={['initial-assessment']}
-                  style={{ borderRight: 0 }}
-                  items={[
-                    ...(encounterType === 'EMER'
-                      ? [
-                          {
-                            key: 'triage',
-                            icon: <AlertOutlined style={{ color: token.colorError }} />,
-                            label: 'Data Triase'
-                          }
-                        ]
-                      : []),
-                    {
-                      key: 'initial-assessment',
-                      icon: <SolutionOutlined />,
-                      label: 'Asesmen Awal'
-                    },
-                    {
-                      key: 'monitoring-ttv',
-                      icon: <MonitorOutlined />,
-                      label: 'Monitoring TTV'
-                    },
-                    {
-                      key: 'general-soap',
-                      icon: <FormOutlined />,
-                      label: 'SOAP Umum'
-                    },
-                    ...(patientData?.poli?.name?.includes('RAWAT_INAP') ||
-                    patientData?.poli?.code === 'RAWAT_INAP'
-                      ? [
-                          {
-                            key: 'cppt',
-                            icon: <SolutionOutlined />,
-                            label: 'Catatan Perkembangan (CPPT)'
-                          }
-                        ]
-                      : [])
-                  ]}
-                  onSelect={({ key }) => setSelectedKey(key)}
-                />
+              <div className="flex flex-col flex-1 overflow-hidden mt-2">
+                {!collapsed && (
+                  <div
+                    className="px-4 pb-2"
+                    style={{
+                      borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                      paddingBottom: 10
+                    }}
+                  >
+                    <Input.Search
+                      placeholder="Cari menu/form..."
+                      allowClear
+                      onChange={(e) => setSearchText(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
+                <div className="flex-1 overflow-y-auto pb-4">
+                  {filteredItems.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-32 mt-10">
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description={
+                          <span style={{ fontSize: 14, color: token.colorTextTertiary }}>
+                            Form tidak ditemukan
+                          </span>
+                        }
+                      />
+                    </div>
+                  ) : (
+                    <Menu
+                      className="custom-menu"
+                      mode="inline"
+                      selectedKeys={[selectedKey]}
+                      defaultSelectedKeys={['initial-assessment']}
+                      defaultOpenKeys={searchText ? filteredItems.map((item) => item?.key as string).filter(Boolean) : []}
+                      style={{ borderRight: 0 }}
+                      items={filteredItems}
+                      onSelect={({ key }) => setSelectedKey(key)}
+                    />
+                  )}
+                </div>
               </div>
             </div>
           </Layout.Sider>

@@ -4,12 +4,9 @@ import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import { PatientProcedure, PatientWithMedicalRecord } from '../../../../types/doctor.types'
-import { saveDiagnosisAndProcedures } from '../../../../services/doctor.service'
-import { useConditionByEncounter } from '../../../../hooks/query/use-condition'
+import { PROCEDURE_MAP } from '../../../../config/maps/procedure-maps'
 import { useProcedureByEncounter } from '../../../../hooks/query/use-procedure'
 import { useMasterProcedureList } from '../../../../hooks/query/use-master-procedure'
-import { PROCEDURE_MAP } from '../../../../config/maps/procedure-maps'
-import { DIAGNOSIS_MAP } from '../../../../config/maps/condition-maps'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 
@@ -38,7 +35,6 @@ export const ProceduresForm = ({ encounterId, patientData }: ProceduresFormProps
   const [form] = Form.useForm()
   const [submitting, setSubmitting] = useState(false)
 
-  const { data: conditionsData } = useConditionByEncounter(encounterId)
   const { data: proceduresData, isLoading: isLoadingProcedures } =
     useProcedureByEncounter(encounterId)
 
@@ -129,41 +125,27 @@ export const ProceduresForm = ({ encounterId, patientData }: ProceduresFormProps
     setSelectedProcedures(selectedProcedures.map((p) => (p.key === key ? { ...p, notes } : p)))
   }
 
-  // Ambil diagnosis yang ada untuk dikirim bersamaan (agar tidak ditimpa kosong)
-  const getCurrentDiagnoses = () => {
-    if (!conditionsData?.result || !Array.isArray(conditionsData.result)) return []
-    return conditionsData.result
-      .filter((cond: any) => {
-        const category = cond.categories?.[0]?.code
-        return !['complaint', 'history', 'anamnesis'].includes(category)
-      })
-      .map((cond: any) => {
-        const codeCoding = cond.codeCoding?.[0]
-        const diagnosisCode = codeCoding?.diagnosisCode
-        return {
-          key: `dx-${cond.id}`,
-          diagnosisCode: {
-            id: diagnosisCode?.id ? String(diagnosisCode.id) : '',
-            code: diagnosisCode?.code || codeCoding?.code || '',
-            name: diagnosisCode?.name || diagnosisCode?.display || '',
-            category: DIAGNOSIS_MAP[cond.categories?.[0]?.code] || cond.categories?.[0]?.code || ''
-          },
-          isPrimary: codeCoding?.isPrimary || false,
-          diagnosedAt: cond.recordedDate || new Date().toISOString()
-        }
-      })
-  }
-
   const onFinish = async (values: any) => {
     setSubmitting(true)
     try {
-      const response = await saveDiagnosisAndProcedures({
+      if (!patientData?.patient?.id) {
+        throw new Error('Patient ID is required')
+      }
+
+      const doctorId = values.performerId || 1
+      const effectiveDate = values.assessment_date?.toISOString() || new Date().toISOString()
+
+      const proceduresPayload = selectedProcedures.map((p) => ({
+        procedureCodeId: parseInt(p.procedure.id),
+        notes: p.notes,
+        performedAt: effectiveDate
+      }))
+
+      const response = await window.api.query.procedure.bulkCreate({
         encounterId,
-        patientId: patientData?.patient.id,
-        diagnoses: getCurrentDiagnoses(),
-        procedures: selectedProcedures,
-        assessmentDate: values.assessment_date?.toISOString(),
-        doctorId: values.performerId
+        patientId: patientData.patient.id,
+        doctorId,
+        procedures: proceduresPayload
       })
 
       if (response.success) {
@@ -173,10 +155,10 @@ export const ProceduresForm = ({ encounterId, patientData }: ProceduresFormProps
         queryClient.invalidateQueries({ queryKey: ['encounter', 'detail', encounterId] })
         form.setFieldValue('assessment_date', dayjs())
       } else {
-        message.error(response.message)
+        message.error(response.error || response.message || 'Gagal menyimpan tindakan medis')
       }
-    } catch (error) {
-      message.error('Gagal menyimpan tindakan medis')
+    } catch (error: any) {
+      message.error(error.message || 'Gagal menyimpan tindakan medis')
       console.error(error)
     } finally {
       setSubmitting(false)

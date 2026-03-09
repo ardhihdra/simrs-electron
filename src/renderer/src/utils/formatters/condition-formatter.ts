@@ -65,7 +65,7 @@ export const formatAnamnesisFromConditions = (
         c.categories?.some((cc) => cc.code === 'chief-complaint')
     )
     const associatedCond = conditions.find((c) =>
-        c.categories?.some((cc) => cc.code === 'associated-symptoms')
+        c.categories?.some((cc) => cc.code === 'problem-list-item')
     )
 
     const chiefCoding = chiefCond?.codeCoding?.[0]

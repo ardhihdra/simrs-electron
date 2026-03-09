@@ -213,8 +213,8 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patie
                 placeholder="Cari kode ICD-10/SNOMED untuk keluhan utama..."
                 className="w-full mb-2"
                 notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
-                onSelect={(_, option: { label: string }) => {
-                  form.setFieldValue(['anamnesis', 'chiefComplaint'], option.label)
+                onSelect={(_, option: any) => {
+                  form.setFieldValue(['anamnesis', 'chiefComplaint'], option['data-display'])
                 }}
                 allowClear
               >
@@ -223,6 +223,7 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patie
                     key={d.id}
                     value={d.id}
                     label={`${d.code} - ${d.id_display || d.display}`}
+                    data-display={d.id_display || d.display}
                   >
                     {d.code} - {d.id_display || d.display}
                   </Option>
@@ -255,9 +256,8 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patie
                 onSearch={handleDiagnosisSearch}
                 placeholder="Cari kode ICD-10/SNOMED untuk keluhan penyerta..."
                 className="w-full mb-2"
-                notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
-                onSelect={(_, option: { label: string }) => {
-                  form.setFieldValue(['anamnesis', 'associatedSymptoms'], option.label)
+                onSelect={(_, option: any) => {
+                  form.setFieldValue(['anamnesis', 'associatedSymptoms'], option['data-display'])
                 }}
                 allowClear
               >
@@ -266,6 +266,7 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patie
                     key={d.id}
                     value={d.id}
                     label={`${d.code} - ${d.id_display || d.display}`}
+                    data-display={d.id_display || d.display}
                   >
                     {d.code} - {d.id_display || d.display}
                   </Option>

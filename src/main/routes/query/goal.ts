@@ -5,57 +5,57 @@ import { getClient } from '@main/utils/backendClient'
 export const requireSession = true
 
 const GoalTargetSchema = z.object({
-    measureCode: z.string().optional(),
-    measureDisplay: z.string().optional(),
-    measureSystem: z.string().optional(),
-    detailQuantityValue: z.number().optional(),
-    detailQuantityUnit: z.string().optional(),
-    detailQuantityCode: z.string().optional(),
-    detailQuantitySystem: z.string().optional(),
-    detailString: z.string().optional(),
-    detailBoolean: z.boolean().optional(),
-    dueDate: z.string().optional(),
+    measureCode: z.string().nullish(),
+    measureDisplay: z.string().nullish(),
+    measureSystem: z.string().nullish(),
+    detailQuantityValue: z.number().nullish(),
+    detailQuantityUnit: z.string().nullish(),
+    detailQuantityCode: z.string().nullish(),
+    detailQuantitySystem: z.string().nullish(),
+    detailString: z.string().nullish(),
+    detailBoolean: z.boolean().nullish(),
+    dueDate: z.string().nullish(),
 })
 
 const GoalNoteSchema = z.object({
-    authorId: z.string().optional(),
-    authorName: z.string().optional(),
-    time: z.string().optional(),
+    authorId: z.string().nullish(),
+    authorName: z.string().nullish(),
+    time: z.string().nullish(),
     text: z.string(),
 })
 
 const GoalCategorySchema = z.object({
-    code: z.string().optional(),
-    display: z.string().optional(),
-    system: z.string().optional(),
-    text: z.string().optional(),
+    code: z.string().nullish(),
+    display: z.string().nullish(),
+    system: z.string().nullish(),
+    text: z.string().nullish(),
 })
 
 const GoalAddressSchema = z.object({
-    referenceType: z.string().optional(),
-    referenceId: z.string().optional(),
-    display: z.string().optional(),
+    referenceType: z.string().nullish(),
+    referenceId: z.string().nullish(),
+    display: z.string().nullish(),
 })
 
 const GoalSchema = z.object({
-    id: z.string().optional(),
-    encounterId: z.string().optional(),
-    subjectId: z.string().optional(),
-    lifecycleStatus: z.string().optional(),
-    description: z.any().optional(),
-    achievementStatus: z.any().optional(),
-    priority: z.any().optional(),
-    startDate: z.string().optional(),
-    statusDate: z.string().optional(),
-    statusReason: z.string().optional(),
-    expressedByType: z.string().optional(),
-    expressedById: z.string().optional(),
-    targets: z.array(GoalTargetSchema).optional(),
-    notes: z.array(GoalNoteSchema).optional(),
-    categories: z.array(GoalCategorySchema).optional(),
-    addresses: z.array(GoalAddressSchema).optional(),
-    createdAt: z.string().optional(),
-    updatedAt: z.string().optional(),
+    id: z.string().nullish(),
+    encounterId: z.string().nullish(),
+    subjectId: z.string().nullish(),
+    lifecycleStatus: z.string().nullish(),
+    description: z.any().nullish(),
+    achievementStatus: z.any().nullish(),
+    priority: z.any().nullish(),
+    startDate: z.string().nullish(),
+    statusDate: z.string().nullish(),
+    statusReason: z.string().nullish(),
+    expressedByType: z.string().nullish(),
+    expressedById: z.string().nullish(),
+    targets: z.array(GoalTargetSchema).nullish(),
+    notes: z.array(GoalNoteSchema).nullish(),
+    categories: z.array(GoalCategorySchema).nullish(),
+    addresses: z.array(GoalAddressSchema).nullish(),
+    createdAt: z.string().nullish(),
+    updatedAt: z.string().nullish(),
 }).passthrough()
 
 export const schemas = {

@@ -130,9 +130,9 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, p
 
       const isInactive = values.diseaseType === 'inactive'
 
-      let onsetPeriodStart = undefined
-      let onsetPeriodEnd = undefined
-      let onsetAge = undefined
+      let onsetPeriodStart: string | undefined = undefined
+      let onsetPeriodEnd: string | undefined = undefined
+      let onsetAge: number | undefined = undefined
 
       if (!isInactive && values.onsetPeriod && values.onsetPeriod.length === 2) {
         onsetPeriodStart = values.onsetPeriod[0].toISOString()
@@ -149,14 +149,12 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, p
             ? Number(values.historyOfPresentIllness_codeId)
             : undefined,
           recordedDate: dayjs().toISOString(),
-          clinicalStatus: isInactive ? 'inactive' : 'active',
+          clinicalStatus: isInactive ? 'INACTIVE' : 'ACTIVE',
           onsetPeriod:
             onsetPeriodStart && onsetPeriodEnd
               ? { start: onsetPeriodStart, end: onsetPeriodEnd }
               : undefined,
           onsetAge: onsetAge
-            ? { value: onsetAge, unit: 'years', system: 'http://unitsofmeasure.org', code: 'a' }
-            : undefined
         }
       ]
 
@@ -248,8 +246,8 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, p
                       placeholder="Cari kode ICD-10/SNOMED..."
                       className="w-full"
                       notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
-                      onSelect={(_, option: { label: string }) => {
-                        form.setFieldValue('historyOfPresentIllness', option.label)
+                      onSelect={(_, option: any) => {
+                        form.setFieldValue('historyOfPresentIllness', option['data-display'])
                       }}
                       allowClear
                     >
@@ -258,6 +256,7 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, p
                           key={d.id}
                           value={String(d.id)}
                           label={`${d.code} - ${d.id_display || d.display}`}
+                          data-display={d.id_display || d.display}
                         >
                           {d.code} - {d.id_display || d.display}
                         </Option>

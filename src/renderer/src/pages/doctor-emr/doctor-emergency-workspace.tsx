@@ -4,6 +4,7 @@ import {
   ExportOutlined,
   FormOutlined,
   MedicineBoxOutlined,
+  FileTextOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   SearchOutlined,
@@ -22,12 +23,10 @@ import { CoughScreeningForm } from '../../components/organisms/CoughScreeningFor
 import { PastDiseaseForm } from '../../components/organisms/Assessment/PastDisease/PastDiseaseForm'
 import { PhysicalAssessmentForm } from '../../components/organisms/Assessment/PhysicalAssessment/PhysicalAssessmentForm'
 import { ClinicalNoteForm } from '../../components/organisms/Assessment/ClinicalNote/ClinicalNoteForm'
-import { ConditionDiagnosisForm } from '../../components/organisms/ConditionDiagnosisForm'
 import { DiagnosticResultViewer } from '../../components/organisms/DiagnosticResultViewer'
 import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
 import { GCSAssessmentForm } from '../../components/organisms/Assessment/GCSAssessment/GCSAssessmentForm'
 import { LabRadOrderForm } from '../../components/organisms/LabRadOrderForm'
-import { EKGDiagnosticForm } from '../../components/organisms/EKGDiagnosticForm'
 import { PrescriptionForm } from '../../components/organisms/Assessment/Prescription/PrescriptionForm'
 import { OphthalmologyForm } from '../../components/organisms/Assessment/Ophthalmology/OphthalmologyForm'
 import { DermatologyForm } from '../../components/organisms/Assessment/Dermatology/DermatologyForm'
@@ -39,6 +38,18 @@ import { Empty, Input, Layout, Menu, Modal, theme } from 'antd'
 import { useMemo, useState } from 'react'
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
+import { FunctionalAssessmentForm } from '@renderer/components/organisms/Assessment/FunctionalAssessment/FunctionalAssessmentForm'
+import { GoalForm } from '@renderer/components/organisms/Assessment/Goal/GoalForm'
+import { CarePlanForm } from '@renderer/components/organisms/Assessment/Careplan/CarePlanForm'
+import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
+import { RasionalKlinisForm } from '../../components/organisms/Assessment/RasionalKlinisForm'
+import { PrognosisForm } from '@renderer/components/organisms/Assessment/Prognosis/PrognosisForm'
+import { DiagnosisForm } from '@renderer/components/organisms/Assessment/Diagnosis/DiagnosisForm'
+import { ProceduresForm } from '@renderer/components/organisms/Assessment/Procedure/ProceduresForm'
+import { NutritionOrderForm } from '@renderer/components/organisms/Assessment/NutritionOrder/NutritionOrderForm'
+import EducationForm from '@renderer/components/organisms/Assessment/Education/EducationForm'
+
+import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
 
 const { Sider, Content } = Layout
 
@@ -77,6 +88,11 @@ export const DoctorEmergencyWorkspace = ({
         label: 'Ringkasan & Timeline'
       },
       {
+        key: 'medical-history',
+        icon: <FileTextOutlined />,
+        label: 'Riwayat Rekam Medis'
+      },
+      {
         key: 'emergency',
         icon: <AlertOutlined />,
         label: 'Triase & Gawat Darurat',
@@ -102,21 +118,24 @@ export const DoctorEmergencyWorkspace = ({
         label: 'Asesmen Pasien',
         children: [
           { key: 'anamnesis', label: 'Anamnesis' },
-          { key: 'riwayat-perjalanan-penyakit', label: 'Riwayat Perjalanan Penyakit' },
           { key: 'past-disease', label: 'Riwayat Penyakit Terdahulu' },
-          { key: 'medication', label: 'Riwayat Pengobatan' },
           { key: 'allergy', label: 'Alergi' },
-          { key: 'family-history', label: 'Riwayat Keluarga' }
+          { key: 'medication', label: 'Riwayat Pengobatan' },
+          { key: 'family-history', label: 'Riwayat Keluarga' },
+          { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
+          { key: 'functional-assessment', label: 'Pemeriksaan Fungsional' },
+          { key: 'clinical-course', label: 'Riwayat Perjalanan Penyakit' },
+          { key: 'care-goal', label: 'Tujuan Perawatan' },
+          { key: 'care-plan', label: 'Rencana Rawat Pasien' },
+          { key: 'instruksi-medik', label: 'Instruksi Medik' },
+          { key: 'clinical-rationale', label: 'Rasional Klinis' },
+          { key: 'prognosis', label: 'Prognosis' }
         ]
       },
       {
-        key: 'physical',
+        key: 'monitoring-ttv',
         icon: <MonitorOutlined />,
-        label: 'Pemeriksaan Fisik & Monitoring',
-        children: [
-          { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
-          { key: 'monitoring-ttv', label: 'Monitoring TTV' }
-        ]
+        label: 'Monitoring Harian'
       },
       {
         key: 'polyclinic-form',
@@ -132,10 +151,12 @@ export const DoctorEmergencyWorkspace = ({
       {
         key: 'orders',
         icon: <MedicineBoxOutlined />,
-        label: 'Tatalaksana & Prosedur',
+        label: 'Tindakan & Terapi',
         children: [
-          { key: 'condition-diagnosis', label: 'Diagnosis (Awal/Kerja/Banding)' },
-          { key: 'ekg-diagnostic', label: 'Prosedur Diagnostik EKG' },
+          { key: 'diagnosis', label: 'Diagnosis (ICD-10)' },
+          { key: 'procedures', label: 'Tindakan Medis (ICD-9-CM)' },
+          { key: 'education', label: 'Edukasi' },
+          { key: 'nutrition-order', label: 'Order Diet (Gizi)' },
           { key: 'prescription', label: 'E-Resep' }
         ]
       },
@@ -219,6 +240,8 @@ export const DoctorEmergencyWorkspace = ({
     switch (selectedKey) {
       case 'info':
         return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
+      case 'medical-history':
+        return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
         return <EncounterTimeline encounterId={encounterId} />
       case 'triage':
@@ -249,6 +272,22 @@ export const DoctorEmergencyWorkspace = ({
         return <FamilyHistoryForm encounterId={encounterId} patientData={patientData} />
       case 'physical-assessment':
         return <PhysicalAssessmentForm encounterId={encounterId} patientData={patientData} />
+      case 'functional-assessment':
+        return <FunctionalAssessmentForm encounterId={encounterId} patientData={patientData} />
+      case 'clinical-course':
+        return (
+          <RiwayatPerjalananPenyakitForm encounterId={encounterId} patientData={patientData} />
+        )
+      case 'care-goal':
+        return <GoalForm encounterId={encounterId || ''} patientData={patientData} />
+      case 'care-plan':
+        return <CarePlanForm encounterId={encounterId || ''} patientData={patientData} />
+      case 'instruksi-medik':
+        return <InstruksiMedikForm encounterId={encounterId} patientData={patientData} />
+      case 'clinical-rationale':
+        return <RasionalKlinisForm encounterId={encounterId} patientData={patientData} />
+      case 'prognosis':
+        return <PrognosisForm encounterId={encounterId || ''} patientData={patientData} />
       case 'monitoring-ttv':
         return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
       case 'ophthalmology':
@@ -259,12 +298,16 @@ export const DoctorEmergencyWorkspace = ({
         return <CardiologyForm encounterId={encounterId} patientData={patientData} />
       case 'ent':
         return <ENTForm encounterId={encounterId} patientData={patientData} />
-      case 'condition-diagnosis':
-        return <ConditionDiagnosisForm encounterId={encounterId} patientData={patientData} />
+      case 'diagnosis':
+        return <DiagnosisForm encounterId={encounterId} patientData={patientData} />
+      case 'procedures':
+        return <ProceduresForm encounterId={encounterId} patientData={patientData} />
+      case 'education':
+        return <EducationForm encounterId={encounterId} patientData={patientData} />
+      case 'nutrition-order':
+        return <NutritionOrderForm encounterId={encounterId} patientData={patientData} />
       case 'prescription':
         return <PrescriptionForm encounterId={encounterId} patientData={patientData} />
-      case 'ekg-diagnostic':
-        return <EKGDiagnosticForm encounterId={encounterId} patientData={patientData} />
       case 'lab-rad-order':
         return <LabRadOrderForm encounterId={encounterId} patientData={patientData} />
       case 'results':

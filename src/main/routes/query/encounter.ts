@@ -190,6 +190,15 @@ export const schemas = {
       error: z.string().optional()
     })
   },
+  getPatientTimeline: {
+    args: z.object({ patientId: z.string() }),
+    result: z.object({
+      success: z.boolean(),
+      result: z.array(z.any()).optional(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
+  },
   syncSatusehat: {
     args: z.object({ id: z.string() }),
     result: z.object({
@@ -214,6 +223,73 @@ export const schemas = {
       success: z.boolean(),
       base64Data: z.string().optional(),
       error: z.string().optional()
+    })
+  },
+  getHistorySummary: {
+    args: z.object({ patientId: z.string() }),
+    result: z.object({
+      success: z.boolean(),
+      result: z.object({
+        patient: z.object({
+          id: z.string(),
+          name: z.string(),
+          medicalRecordNumber: z.string().optional().nullable(),
+          birthDate: z.string().optional().nullable(),
+          gender: z.string().optional().nullable(),
+          bloodType: z.string().optional().nullable(),
+        }),
+        alerts: z.array(z.object({
+          type: z.enum(["ALLERGY", "PROBLEM", "LAB_ABNORMAL"] as const),
+          message: z.string(),
+          severity: z.enum(["LOW", "MEDIUM", "HIGH"] as const),
+        })).optional(),
+        snapshot: z.object({
+          activeProblemsCount: z.number(),
+          activeMedicationsCount: z.number(),
+          allergiesCount: z.number(),
+          lastVisitDate: z.string().nullable().optional(),
+          lastLabResult: z.string().nullable().optional(),
+          lastUpdated: z.string(),
+        })
+      }).optional().nullable(),
+      error: z.string().optional().nullable(),
+    })
+  },
+  getPatientEncountersPg: {
+    args: z.object({
+      patientId: z.string(),
+      page: z.string().optional(),
+      pageSize: z.string().optional(),
+      type: z.string().optional(),
+      doctorId: z.string().optional(),
+      dateFrom: z.string().optional(),
+      dateTo: z.string().optional(),
+    }),
+    result: z.object({
+      success: z.boolean(),
+      result: z.object({
+        data: z.array(z.object({
+          id: z.string(),
+          date: z.string(),
+          serviceUnit: z.string(),
+          doctorName: z.string(),
+          type: z.string(),
+          primaryDiagnosis: z.string(),
+          soapSummary: z.string().optional().nullable(),
+          clinicals: z.object({
+            compositions: z.array(z.any()),
+            conditions: z.array(z.any()),
+            allergies: z.array(z.any()),
+            medications: z.array(z.any()),
+            procedures: z.array(z.any()),
+            observations: z.array(z.any())
+          }).optional().nullable()
+        })),
+        page: z.number(),
+        pageSize: z.number(),
+        total: z.number(),
+      }).optional().nullable(),
+      error: z.string().optional().nullable(),
     })
   }
 } as const
@@ -356,6 +432,7 @@ export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
 
     const ListSchema = BackendListSchema(EncounterWithPatientSchema)
     const Result = await parseBackendResponse(res, ListSchema)
+    console.log('Result', Result)
 
     const transformedResult = Array.isArray(Result)
       ? Result.map((encounter: any) => ({
@@ -625,8 +702,7 @@ export const syncSatusehat = async (
 }
 
 export const bulkSyncSatusehat = async (
-  ctx: IpcContext,
-  args?: z.infer<typeof schemas.bulkSyncSatusehat.args>
+  ctx: IpcContext
 ) => {
   try {
     const client = getClient(ctx)
@@ -680,5 +756,83 @@ export const exportData = async (
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[ENCOUNTER EXPORT] Error:', msg)
     return { success: false, error: msg }
+  }
+}
+
+
+export const getPatientTimeline = async (
+  ctx: IpcContext,
+  args: z.infer<typeof schemas.getPatientTimeline.args>
+) => {
+  try {
+    const client = getClient(ctx)
+    // The backend route is /api/encounter/patient/:patientId/timeline
+    const res = await client.get(`/api/encounter/patient/${args.patientId}/timeline`)
+
+    const TimelineSchema = z.object({
+      success: z.boolean(),
+      result: z.array(z.any()).optional(),
+      message: z.string().optional(),
+      error: z.string().optional()
+    })
+
+    const parsedResult = await parseBackendResponse(res, TimelineSchema)
+    return { success: true, result: parsedResult }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.error('[PATIENT TIMELINE] Error:', msg)
+    return { success: false, error: msg }
+  }
+}
+
+export const getHistorySummary = async (ctx: IpcContext, args: z.infer<typeof schemas.getHistorySummary.args>) => {
+  try {
+    const client = getClient(ctx);
+    const res = await client.get(`/api/module/encounter/patient/${args.patientId}/history-summary`);
+
+    const schema = z.object({
+      success: z.boolean(),
+      result: schemas.getHistorySummary.result.shape.result,
+      message: z.string().optional(),
+      error: z.any().optional()
+    });
+
+    const parsedResult = await parseBackendResponse(res, schema) as any;
+    return { success: true, result: parsedResult };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[PATIENT HISTORY SUMMARY] Error:', msg);
+    return { success: false, error: msg };
+  }
+}
+
+export const getPatientEncountersPg = async (ctx: IpcContext, args: z.infer<typeof schemas.getPatientEncountersPg.args>) => {
+  try {
+    const client = getClient(ctx);
+
+    const queryParams = new URLSearchParams()
+    if (args) {
+      Object.entries(args).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          queryParams.append(key, String(value))
+        }
+      })
+    }
+
+    const res = await client.get(`/api/module/encounter/patient/${args.patientId}/encounters?${queryParams.toString()}`);
+
+    const schema = z.object({
+      success: z.boolean(),
+      result: schemas.getPatientEncountersPg.result.shape.result,
+      message: z.string().optional(),
+      error: z.any().optional()
+    });
+
+    const parsedResult = await parseBackendResponse(res, schema) as any;
+    return { success: true, result: parsedResult };
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[PATIENT ENCOUNTERS PG] Error:', msg);
+    return { success: false, error: msg };
   }
 }
