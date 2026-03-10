@@ -98,32 +98,7 @@ interface DispenseRequestInfo {
   quantity?: DispenseQuantityInfo
 }
 
-const SIGNA_OPTIONS = [
-  { label: '3 x 1 Tablet', value: '3 x 1 Tablet' },
-  { label: '2 x 1 Tablet', value: '2 x 1 Tablet' },
-  { label: '1 x 1 Tablet', value: '1 x 1 Tablet' },
-  { label: '3 x 1 Bungkus', value: '3 x 1 Bungkus' },
-  { label: '2 x 1 Bungkus', value: '2 x 1 Bungkus' },
-  { label: '1 x 1 Bungkus', value: '1 x 1 Bungkus' },
-  { label: '3 x 1 Sendok Makan', value: '3 x 1 Sendok Makan' },
-  { label: '3 x 1 Sendok Teh', value: '3 x 1 Sendok Teh' },
-  { label: '3 x 5 ml', value: '3 x 5 ml' },
-  { label: '3 x 2,5 ml', value: '3 x 2,5 ml' },
-  { label: 'Sesudah Makan', value: 'Sesudah Makan' },
-  { label: 'Sebelum Makan', value: 'Sebelum Makan' },
-  { label: 'Bersama Makan', value: 'Bersama Makan' },
-  { label: 'Pagi', value: 'Pagi' },
-  { label: 'Siang', value: 'Siang' },
-  { label: 'Sore', value: 'Sore' },
-  { label: 'Malam', value: 'Malam' },
-  { label: 'Sebelum Tidur', value: 'Sebelum Tidur' },
-  { label: 'Tetes Mata Kanan', value: 'Tetes Mata Kanan' },
-  { label: 'Tetes Mata Kiri', value: 'Tetes Mata Kiri' },
-  { label: 'Tetes Mata Kanan & Kiri', value: 'Tetes Mata Kanan & Kiri' },
-  { label: 'Tetes Telinga Kanan', value: 'Tetes Telinga Kanan' },
-  { label: 'Tetes Telinga Kiri', value: 'Tetes Telinga Kiri' },
-  { label: 'Oleskan', value: 'Oleskan' },
-].sort((a, b) => a.label.localeCompare(b.label))
+// signa options are now dynamically loaded from backend via API
 
 interface DosageInstructionInfo {
   text?: string
@@ -182,7 +157,12 @@ export function MedicationRequestForm() {
   const { message, modal } = AntdApp.useApp()
 
   // Batch options per item row: key = `otherItem-{index}` or `compound-{compIdx}-ing-{ingIdx}`
-  type BatchOption = { batchNumber: string; expiryDate: string | null; availableStock: number }
+  type BatchOption = {
+    batchNumber: string;
+    expiryDate: string | null;
+    availableStock: number;
+    firstReceivedDate?: string;
+  }
   const [batchOptionsMap, setBatchOptionsMap] = useState<Map<string, BatchOption[]>>(new Map())
   const [batchLoadingMap, setBatchLoadingMap] = useState<Map<string, boolean>>(new Map())
   const [batchSortModeMap, setBatchSortModeMap] = useState<Map<string, boolean>>(new Map())
@@ -192,13 +172,17 @@ export function MedicationRequestForm() {
     return [...batches].sort((a, b) => {
       if (isFefo) {
         // FEFO: earliest expiry first
-        if (a.expiryDate && b.expiryDate) return a.expiryDate < b.expiryDate ? -1 : a.expiryDate > b.expiryDate ? 1 : 0
+        if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate)
         if (a.expiryDate) return -1
         if (b.expiryDate) return 1
+        // If neither has expiry, fallback to FIFO (received date)
+        if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
         return 0
       }
-      // FIFO: sort by batch number (oldest first)
-      return a.batchNumber < b.batchNumber ? -1 : a.batchNumber > b.batchNumber ? 1 : 0
+      // FIFO: oldest received date first
+      if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
+      // Fallback to batch number if received date missing
+      return a.batchNumber.localeCompare(b.batchNumber)
     })
   }, [batchSortModeMap])
 
@@ -411,6 +395,28 @@ export function MedicationRequestForm() {
     queryKey: ['kepegawaian', 'list'],
     queryFn: () => window.api?.query?.kepegawaian?.list()
   })
+
+  // Dynamic Signa Options
+  const { data: signaData, isLoading: signaLoading } = useQuery({
+    queryKey: ['mastersigna', 'listAll'],
+    queryFn: () => {
+      const api = window.api?.query as any
+      if (api?.mastersigna?.listAll) {
+        return api.mastersigna.listAll()
+      }
+      return api?.mastersigna?.list({ limit: 500 })
+    }
+  })
+
+  const signaOptions = useMemo(() => {
+    const source = Array.isArray(signaData?.result) ? signaData!.result : []
+    return source
+      .filter((s: any) => s.isActive !== false)
+      .map((s: any) => ({
+        label: s.signaName,
+        value: s.signaName
+      }))
+  }, [signaData])
 
   const patientOptions = useMemo(() => {
     const patients = (patientData?.data || []) as PatientAttributes[]
@@ -1582,7 +1588,8 @@ export function MedicationRequestForm() {
                             >
                               <Select
                                 placeholder="Pilih Dosis..."
-                                options={SIGNA_OPTIONS}
+                                options={signaOptions}
+                                loading={signaLoading}
                                 showSearch
                                 mode="tags"
                               />
@@ -1735,7 +1742,8 @@ export function MedicationRequestForm() {
                             >
                               <Select
                                 placeholder="3x1 Bungkus"
-                                options={SIGNA_OPTIONS}
+                                options={signaOptions}
+                                loading={signaLoading}
                                 showSearch
                                 mode="tags"
                               />
@@ -1818,7 +1826,8 @@ export function MedicationRequestForm() {
                           >
                             <Select
                               placeholder="Contoh: 3x1 Bungkus"
-                              options={SIGNA_OPTIONS}
+                              options={signaOptions}
+                              loading={signaLoading}
                               showSearch
                               mode="tags"
                             />

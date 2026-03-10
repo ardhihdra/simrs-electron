@@ -32,6 +32,7 @@ import type * as Mod_query_jaminan from '@main/routes/query/jaminan'
 import type * as Mod_query_kepegawaian from '@main/routes/query/kepegawaian'
 import type * as Mod_query_kfaCode from '@main/routes/query/kfaCode'
 import type * as Mod_query_masterProcedure from '@main/routes/query/masterProcedure'
+import type * as Mod_query_mastersigna from '@main/routes/query/mastersigna'
 import type * as Mod_query_medicalStaffSchedule from '@main/routes/query/medicalStaffSchedule'
 import type * as Mod_query_medicationDispense from '@main/routes/query/medicationDispense'
 import type * as Mod_query_medicationRequest from '@main/routes/query/medicationRequest'
@@ -305,6 +306,10 @@ type Args_Mod_query_masterProcedure_getById = InferArgs<typeof Mod_query_masterP
 type Result_Mod_query_masterProcedure_getById = InferResult<typeof Mod_query_masterProcedure, 'getById'>
 type Args_Mod_query_masterProcedure_list = InferArgs<typeof Mod_query_masterProcedure, 'list'>
 type Result_Mod_query_masterProcedure_list = InferResult<typeof Mod_query_masterProcedure, 'list'>
+type Args_Mod_query_mastersigna_list = InferArgs<typeof Mod_query_mastersigna, 'list'>
+type Result_Mod_query_mastersigna_list = InferResult<typeof Mod_query_mastersigna, 'list'>
+type Args_Mod_query_mastersigna_listAll = InferArgs<typeof Mod_query_mastersigna, 'listAll'>
+type Result_Mod_query_mastersigna_listAll = InferResult<typeof Mod_query_mastersigna, 'listAll'>
 type Args_Mod_query_medicalStaffSchedule_create = InferArgs<typeof Mod_query_medicalStaffSchedule, 'create'>
 type Result_Mod_query_medicalStaffSchedule_create = InferResult<typeof Mod_query_medicalStaffSchedule, 'create'>
 type Args_Mod_query_medicalStaffSchedule_deleteById = InferArgs<typeof Mod_query_medicalStaffSchedule, 'deleteById'>
@@ -721,6 +726,10 @@ declare global {
         masterProcedure: {
           getById: Invoke<Args_Mod_query_masterProcedure_getById, Result_Mod_query_masterProcedure_getById>
           list: Invoke<Args_Mod_query_masterProcedure_list, Result_Mod_query_masterProcedure_list>
+        }
+        mastersigna: {
+          list: Invoke<Args_Mod_query_mastersigna_list, Result_Mod_query_mastersigna_list>
+          listAll: Invoke<Args_Mod_query_mastersigna_listAll, Result_Mod_query_mastersigna_listAll>
         }
         medicalStaffSchedule: {
           create: Invoke<Args_Mod_query_medicalStaffSchedule_create, Result_Mod_query_medicalStaffSchedule_create>
