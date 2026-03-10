@@ -185,7 +185,7 @@ export const getPatientMedicalRecord = async (
                 pulseRate: getNumberVal(observations?.vitalSigns || [], ['pulse-rate', 'heart-rate', '8867-4']),
                 respiratoryRate: getNumberVal(observations?.vitalSigns || [], ['respiratory-rate', '9279-1']),
                 temperature: getNumberVal(observations?.vitalSigns || [], ['body-temperature', '8310-5']),
-                oxygenSaturation: getNumberVal(observations?.vitalSigns || [], ['oxygen-saturation', '2708-6', '59408-5']),
+                oxygenSaturation: getNumberVal(observations?.vitalSigns || [], ['oxygen-saturation', '59408-5', '59408-5']),
                 height: getNumberVal(observations?.vitalSigns || [], ['body-height', '8302-2']),
                 weight: getNumberVal(observations?.vitalSigns || [], ['body-weight', '29463-7']),
                 bmi: getNumberVal(observations?.vitalSigns || [], ['bmi', 'body-mass-index', '39156-5']),
@@ -233,7 +233,7 @@ export const getPatientMedicalRecord = async (
                 anamnesis,
                 physicalExamination,
                 examinationDate: encounter.period?.start ? String(encounter.period.start) : new Date().toISOString(),
-                nurseName: 'Perawat Jaga' // TODO: Get from creator ID
+                nurseName: 'Perawat Jaga'
             }
         }
 
@@ -270,7 +270,7 @@ export const getPatientMedicalRecord = async (
                 sipNumber: ''
             },
             nurseRecord,
-            doctorRecord: undefined // TODO: Fetch conditions and procedures when API is ready
+            doctorRecord: undefined
         }
 
         return patientWithRecord
@@ -359,7 +359,11 @@ export const saveDiagnosisAndProcedures = async (
             const conditionsPayload = diagnoses.map((d) => ({
                 diagnosisCodeId: parseInt(d.diagnosisCode.id),
                 isPrimary: d.isPrimary,
-                category: d.diagnosisCode.category,
+                categories: d.diagnosisCode.category ? [{
+                    code: d.diagnosisCode.category,
+                    display: d.diagnosisCode.category,
+                    system: 'http://terminology.hl7.org/CodeSystem/condition-category'
+                }] : [],
                 notes: d.notes,
                 recordedDate: effectiveDate
             }))

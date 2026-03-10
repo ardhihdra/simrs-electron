@@ -20,7 +20,6 @@ import { ProceduresForm } from '@renderer/components/organisms/Assessment/Proced
 import { NutritionOrderForm } from '@renderer/components/organisms/Assessment/NutritionOrder/NutritionOrderForm'
 import { DiagnosticResultViewer } from '@renderer/components/organisms/DiagnosticResultViewer'
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
-import { InitialAssessmentForm } from '../../components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
 import DentalPage from '../../components/organisms/Assessment/Dental'
 import { AntenatalCareForm } from '@renderer/components/organisms/Assessment/AntenatalCare/AntenatalCareForm'
 import { OphthalmologyForm } from '@renderer/components/organisms/Assessment/Ophthalmology/OphthalmologyForm'
@@ -44,9 +43,15 @@ import { PastDiseaseForm } from '../../components/organisms/Assessment/PastDisea
 import { FamilyHistoryForm } from '../../components/organisms/Assessment/FamilyHistory/FamilyHistoryForm'
 import { RiwayatPerjalananPenyakitForm } from '../../components/organisms/Assessment/RiwayatPerjalananPenyakitForm'
 import { RasionalKlinisForm } from '../../components/organisms/Assessment/RasionalKlinisForm'
+import { GoalForm } from '@renderer/components/organisms/Assessment/Goal/GoalForm'
+import { CarePlanForm } from '@renderer/components/organisms/Assessment/Careplan/CarePlanForm'
+import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
+import { PrognosisForm } from '@renderer/components/organisms/Assessment/Prognosis/PrognosisForm'
+import { FunctionalAssessmentForm } from '@renderer/components/organisms/Assessment/FunctionalAssessment/FunctionalAssessmentForm'
 import { Layout, Menu, theme, Input, Empty, Modal } from 'antd'
 import { useState, useMemo } from 'react'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
+import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
 
 const { Sider, Content } = Layout
 
@@ -83,25 +88,31 @@ export const DoctorInpatientWorkspace = ({
       {
         key: 'overview',
         icon: <MonitorOutlined />,
-        label: 'Ringkasan Pasien'
+        label: 'Ringkasan & Timeline'
+      },
+      {
+        key: 'medical-history',
+        icon: <FileTextOutlined />,
+        label: 'Riwayat Rekam Medis'
       },
       {
         key: 'assessment',
         icon: <SolutionOutlined />,
-        label: 'Asesmen',
+        label: 'Asesmen Pasien',
         children: [
-          { key: 'initial-assessment', label: 'Skrining Perawat' },
           { key: 'anamnesis', label: 'Anamnesis' },
           { key: 'past-disease', label: 'Riwayat Penyakit Terdahulu' },
-          { key: 'clinical-course', label: 'Riwayat Perjalanan Penyakit' },
-          { key: 'clinical-rationale', label: 'Rasional Klinis' },
           { key: 'allergy', label: 'Alergi' },
           { key: 'medication', label: 'Riwayat Pengobatan' },
           { key: 'family-history', label: 'Riwayat Keluarga' },
           { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
-          { key: 'risiko-jatuh', label: 'Risiko Jatuh' },
-          { key: 'skrining-gizi', label: 'Skrining Gizi' },
-          { key: 'gcs', label: 'GCS (Glasgow Coma Scale)' }
+          { key: 'functional-assessment', label: 'Pemeriksaan Fungsional' },
+          { key: 'clinical-course', label: 'Riwayat Perjalanan Penyakit' },
+          { key: 'care-goal', label: 'Tujuan Perawatan' },
+          { key: 'care-plan', label: 'Rencana Rawat Pasien' },
+          { key: 'instruksi-medik', label: 'Instruksi Medik' },
+          { key: 'clinical-rationale', label: 'Rasional Klinis' },
+          { key: 'prognosis', label: 'Prognosis' }
         ]
       },
       {
@@ -118,10 +129,9 @@ export const DoctorInpatientWorkspace = ({
         ]
       },
       {
-        key: 'monitoring',
+        key: 'monitoring-ttv',
         icon: <MonitorOutlined />,
-        label: 'Monitoring Harian',
-        children: [{ key: 'monitoring-ttv', label: 'Monitoring TTV' }]
+        label: 'Monitoring Harian'
       },
       {
         key: 'general-soap',
@@ -231,20 +241,13 @@ export const DoctorInpatientWorkspace = ({
     switch (selectedKey) {
       case 'info':
         return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
+      case 'medical-history':
+        return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
         return (
           <div className="space-y-4">
             <EncounterTimeline encounterId={encounterId} />
           </div>
-        )
-      case 'initial-assessment':
-        return (
-          <InitialAssessmentForm
-            encounterId={encounterId!}
-            patientData={patientData}
-            mode="inpatient"
-            role="nurse"
-          />
         )
       case 'anamnesis':
         return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
@@ -264,6 +267,8 @@ export const DoctorInpatientWorkspace = ({
         return <FamilyHistoryForm encounterId={encounterId!} patientData={patientData} />
       case 'physical-assessment':
         return <PhysicalAssessmentForm encounterId={encounterId!} patientData={patientData} />
+      case 'functional-assessment':
+        return <FunctionalAssessmentForm encounterId={encounterId!} patientData={patientData} />
       case 'dental-assessment':
         return <DentalPage encounterId={encounterId!} patientId={patientData.patient.id} />
       case 'anc-assessment':
@@ -286,6 +291,14 @@ export const DoctorInpatientWorkspace = ({
         )
       case 'gcs':
         return <GCSAssessmentForm encounterId={encounterId} patientData={patientData} />
+      case 'care-goal':
+        return <GoalForm encounterId={encounterId || ''} patientData={patientData} />
+      case 'care-plan':
+        return <CarePlanForm encounterId={encounterId || ''} patientData={patientData} />
+      case 'instruksi-medik':
+        return <InstruksiMedikForm encounterId={encounterId} patientData={patientData} />
+      case 'prognosis':
+        return <PrognosisForm encounterId={encounterId || ''} patientData={patientData} />
       case 'monitoring-ttv':
         return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
       case 'general-soap':

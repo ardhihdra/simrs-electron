@@ -30,7 +30,6 @@ import {
   ExceptionOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { getPolis } from '@renderer/services/nurse.service'
@@ -418,7 +417,7 @@ const STATUS_CONFIG: Record<
   CANCELLED: { label: 'Dibatalkan', color: 'red', antColor: 'error', dotColor: '#ef4444' }
 }
 
-const PatientList = () => {
+export const DoctorPatientList = () => {
   const { modal: appModal } = App.useApp()
   const { token } = theme.useToken()
   const [polis, setPolis] = useState<any[]>([])
@@ -1258,5 +1257,3 @@ const PatientList = () => {
     </div>
   )
 }
-
-export default PatientList

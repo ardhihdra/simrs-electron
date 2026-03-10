@@ -111,7 +111,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8480-6',
-            display: 'Systolic blood pressure',
+            display: 'Tekanan Darah Sistolik',
             valueQuantity: {
               value: vitalSigns.systolicBloodPressure,
               unit: 'mm[Hg]',
@@ -142,7 +142,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8462-4',
-            display: 'Diastolic blood pressure',
+            display: 'Tekanan Darah Diastolik',
             valueQuantity: {
               value: vitalSigns.diastolicBloodPressure,
               unit: 'mm[Hg]',
@@ -155,7 +155,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8867-4',
-            display: 'Heart rate',
+            display: 'Denyut Nadi',
             valueQuantity: {
               value: vitalSigns.heartRate,
               unit: '{beats}/min',
@@ -168,7 +168,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8867-4',
-            display: 'Heart rate',
+            display: 'Denyut Nadi',
             valueQuantity: {
               value: vitalSigns.pulseRate,
               unit: '{beats}/min',
@@ -184,7 +184,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '9279-1',
-            display: 'Respiratory rate',
+            display: 'Frekuensi Napas',
             valueQuantity: {
               value: vitalSigns.respiratoryRate,
               unit: 'breaths/min',
@@ -197,7 +197,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8310-5',
-            display: 'Body temperature',
+            display: 'Suhu Tubuh',
             valueQuantity: {
               value: vitalSigns.temperature,
               unit: 'Cel',
@@ -212,8 +212,8 @@ export const InitialAssessmentForm = ({
         if (vitalSigns?.oxygenSaturation) {
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
-            code: '2708-6',
-            display: 'Oxygen saturation',
+            code: '59408-5',
+            display: 'Saturasi Oksigen',
             valueQuantity: { value: vitalSigns.oxygenSaturation, unit: '%' }
           })
         }
@@ -221,7 +221,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '8302-2',
-            display: 'Body height',
+            display: 'Tinggi Badan',
             valueQuantity: { value: vitalSigns.height, unit: 'cm' }
           })
         }
@@ -229,7 +229,7 @@ export const InitialAssessmentForm = ({
           obsToCreate.push({
             category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
             code: '29463-7',
-            display: 'Body weight',
+            display: 'Berat Badan',
             valueQuantity: { value: vitalSigns.weight, unit: 'kg' }
           })
         }
@@ -254,7 +254,7 @@ export const InitialAssessmentForm = ({
         obsToCreate.push({
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
           code: '67775-7',
-          display: 'Level of responsiveness',
+          display: 'Tingkat Kesadaran',
           valueString: values.consciousness,
           valueCodeableConcept: snomedMap
             ? {

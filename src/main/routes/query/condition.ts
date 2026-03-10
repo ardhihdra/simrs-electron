@@ -6,9 +6,9 @@ import { getClient } from '@main/utils/backendClient'
 export const requireSession = true
 
 const ConditionCategorySchema = z.object({
-    code: z.string().optional(),
-    display: z.string().optional(),
-    system: z.string().optional()
+    code: z.string().optional().nullable(),
+    display: z.string().optional().nullable(),
+    system: z.string().optional().nullable()
 })
 
 const ConditionCodeCodingSchema = z.object({
@@ -23,20 +23,20 @@ const ConditionCodeCodingSchema = z.object({
 
 const ConditionSchema = z.object({
     id: z.string().optional(),
-    clinicalStatus: z.string().optional(),
-    verificationStatus: z.string().optional(),
+    clinicalStatus: z.string().optional().nullable(),
+    verificationStatus: z.string().optional().nullable(),
     subjectId: z.string(),
-    encounterId: z.string().optional(),
-    recordedDate: z.union([z.string(), z.date()]).optional(),
-    recorder: z.number().optional(),
+    encounterId: z.string().optional().nullable(),
+    recordedDate: z.union([z.string(), z.date()]).optional().nullable(),
+    recorder: z.number().optional().nullable(),
     note: z.string().optional().nullable(),
-    categories: z.array(ConditionCategorySchema).optional(),
-    codeCoding: z.array(ConditionCodeCodingSchema).optional(),
-    onsetPeriodStart: z.union([z.string(), z.date()]).optional(),
-    onsetPeriodEnd: z.union([z.string(), z.date()]).optional(),
-    onsetAge: z.number().optional(),
-    createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
+    categories: z.array(ConditionCategorySchema).optional().nullable(),
+    codeCoding: z.array(ConditionCodeCodingSchema).optional().nullable(),
+    onsetPeriodStart: z.union([z.string(), z.date()]).optional().nullable(),
+    onsetPeriodEnd: z.union([z.string(), z.date()]).optional().nullable(),
+    onsetAge: z.number().optional().nullable(),
+    createdAt: z.union([z.string(), z.date()]).optional().nullable(),
+    updatedAt: z.union([z.string(), z.date()]).optional().nullable()
 })
 
 const BulkCreateConditionInputSchema = z.object({
@@ -47,12 +47,12 @@ const BulkCreateConditionInputSchema = z.object({
         display: z.string().optional(),
         system: z.string().optional()
     })).optional(),
-    notes: z.string().optional(),
-    recordedDate: z.union([z.string(), z.date()]).optional(),
-    onsetPeriodStart: z.union([z.string(), z.date()]).optional(),
-    onsetPeriodEnd: z.union([z.string(), z.date()]).optional(),
-    onsetAge: z.number().optional(),
-    clinicalStatus: z.string().optional()
+    notes: z.string().optional().nullable(),
+    recordedDate: z.union([z.string(), z.date()]).optional().nullable(),
+    onsetPeriodStart: z.union([z.string(), z.date()]).optional().nullable(),
+    onsetPeriodEnd: z.union([z.string(), z.date()]).optional().nullable(),
+    onsetAge: z.number().optional().nullable(),
+    clinicalStatus: z.string().optional().nullable()
 })
 
 const BackendConditionResponseSchema = z.object({

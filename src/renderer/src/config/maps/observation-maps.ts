@@ -13,7 +13,7 @@ export const VITAL_SIGNS_MAP: Record<string, string> = {
     '29463-7': 'weight',
     '8277-6': 'bsa',
     '39156-5': 'bmi',
-    '2708-6': 'oxygenSaturation'
+    '59408-5': 'oxygenSaturation'
 }
 
 export const PHYSICAL_EXAM_MAP: Record<string, string> = {
@@ -39,39 +39,39 @@ export const PHYSICAL_EXAM_MAP: Record<string, string> = {
     'tindak-lanjut-keputusan': 'decision'
 }
 
-export const HEAD_TO_TOE_MAP: Record<string, string> = {
-    '10199-8': 'Kepala (Head)',
-    '10197-2': 'Mata (Eye)',
-    '10195-6': 'Telinga (Ear)',
-    '10203-8': 'Hidung (Nose)',
-    '32436-8': 'Rambut (Hair)',
-    '32446-7': 'Bibir (Lips)',
-    '85910-8': 'Gigi Geligi (Teeth & Gums)',
-    '32483-0': 'Lidah (Tongue)',
-    '10201-2': 'Langit-Langit (Palate)',
-    '10201-2_tonsil': 'Tonsil',
-    '56867-5': 'Tenggorokan (Throat)',
-    '11411-6': 'Leher (Neck)',
-    '11391-0': 'Dada (Chest)',
-    '10193-1': 'Payudara (Breasts)',
-    '10192-3': 'Punggung (Back)',
-    '10207-9': 'Paru / Jantung (Thorax)',
-    '10191-5': 'Perut (Abdomen)',
-    '11400-9': 'Genital (Genitalia)',
-    '11388-6_anus': 'Anus / Dubur',
-    '11386-0': 'Lengan Atas (Upper Arm)',
-    '11398-5': 'Lengan Bawah (Forearm)',
-    '11415-7': 'Persendian Tangan (Hand / Wrist Joints)',
-    '11404-1_finger': 'Jari Tangan (Fingers)',
-    '32456-6_hand': 'Kuku Tangan (Fingernails)',
-    '11414-0': 'Tungkai Atas (Thigh)',
-    '11389-4': 'Tungkai Bawah (Calf)',
-    '11385-2_ankle': 'Persendian Kaki (Foot / Ankle Joints)',
-    '11397-7_toe': 'Jari Kaki (Toes)',
-    '32456-6_foot': 'Kuku Kaki (Toenails)',
-    '10205-3': 'Neurologis',
-    '10206-1': 'Kulit (Skin)'
-}
+export const HEAD_TO_TOE_MAP = [
+    { code: '10199-8', label: 'Kepala (Head)' },
+    { code: '10197-2', label: 'Mata (Eye)' },
+    { code: '10195-6', label: 'Telinga (Ear)' },
+    { code: '10203-8', label: 'Hidung (Nose)' },
+    { code: '32436-8', label: 'Rambut (Hair)' },
+    { code: '32446-7', label: 'Bibir (Lips)' },
+    { code: '85910-8', label: 'Gigi Geligi (Teeth & Gums)' },
+    { code: '32483-0', label: 'Lidah (Tongue)' },
+    { code: '10201-2', label: 'Langit-Langit (Palate)', bodySite: { code: '72914001', display: 'Palatal structure' } },
+    { code: '10201-2', label: 'Tonsil', bodySite: { code: '91636008', display: 'Bilateral palatine tonsils' } },
+    { code: '56867-5', label: 'Tenggorokan (Throat)' },
+    { code: '11411-6', label: 'Leher (Neck)' },
+    { code: '11391-0', label: 'Dada (Chest)' },
+    { code: '10193-1', label: 'Payudara (Breasts)' },
+    { code: '10192-3', label: 'Punggung (Back)' },
+    { code: '10207-9', label: 'Paru / Jantung (Thorax)' },
+    { code: '10191-5', label: 'Perut (Abdomen)' },
+    { code: '11400-9', label: 'Genital (Genitalia)' },
+    { code: '11388-6', label: 'Anus / Dubur', bodySite: { code: '53505006', display: 'Anal structure' } },
+    { code: '11386-0', label: 'Lengan Atas (Upper Arm)' },
+    { code: '11398-5', label: 'Lengan Bawah (Forearm)' },
+    { code: '11415-7', label: 'Persendian Tangan (Hand / Wrist Joints)' },
+    { code: '11404-1', label: 'Jari Tangan (Fingers)', bodySite: { code: '7569003', display: 'Finger structure' } },
+    { code: '32456-6', label: 'Kuku Tangan (Fingernails)', bodySite: { code: '770812000', display: 'Entire nail unit of finger' } },
+    { code: '11414-0', label: 'Tungkai Atas (Thigh)' },
+    { code: '11389-4', label: 'Tungkai Bawah (Calf)' },
+    { code: '11385-2', label: 'Persendian Kaki (Foot / Ankle Joints)', bodySite: { code: '26552008', display: 'Foot joint structure' } },
+    { code: '11397-7', label: 'Jari Kaki (Toes)', bodySite: { code: '29707007', display: 'Toe structure' } },
+    { code: '32456-6', label: 'Kuku Kaki (Toenails)', bodySite: { code: '770805009', display: 'Structure of nail unit of toe' } },
+    { code: '10205-3', label: 'Neurologis' },
+    { code: '10206-1', label: 'Kulit (Skin)' }
+]
 
 export const FALL_RISK_MAP: Record<string, string> = {
     history_falling: 'history_falling',

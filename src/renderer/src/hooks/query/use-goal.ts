@@ -6,8 +6,16 @@ export interface GoalTargetInput {
     measureSystem?: string
     detailQuantityValue?: number
     detailQuantityUnit?: string
+    detailQuantityCode?: string
+    detailQuantitySystem?: string
     detailString?: string
     dueDate?: string
+}
+
+export interface GoalCategoryInput {
+    code: string
+    display: string
+    system: string
 }
 
 export interface CreateGoalInput {
@@ -20,6 +28,8 @@ export interface CreateGoalInput {
     priority?: string
     startDate?: string
     targets?: GoalTargetInput[]
+    categories?: GoalCategoryInput[]
+    addresses?: { referenceType: string; referenceId: string; display?: string }[]
 }
 
 export const useGoalsByEncounter = (encounterId?: string) => {
@@ -28,8 +38,7 @@ export const useGoalsByEncounter = (encounterId?: string) => {
         queryFn: async () => {
             const fn = window.api?.query?.goal?.getByEncounter
             if (!fn || !encounterId) throw new Error('API tidak tersedia')
-            const res = await fn({ encounterId })
-            return res?.result ?? []
+            return fn({ encounterId })
         },
         enabled: !!encounterId
     })

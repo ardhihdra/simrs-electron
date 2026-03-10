@@ -4,10 +4,9 @@ import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 import { PatientDiagnosis, PatientWithMedicalRecord } from '../../../../types/doctor.types'
-import { saveDiagnosisAndProcedures } from '../../../../services/doctor.service'
 import { useConditionByEncounter } from '../../../../hooks/query/use-condition'
 import { useDiagnosisCodeList } from '../../../../hooks/query/use-diagnosis-code'
-import { ANAMNESIS_MAP, DIAGNOSIS_MAP } from '../../../../config/maps/condition-maps'
+import { DIAGNOSIS_MAP } from '../../../../config/maps/condition-maps'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 
@@ -37,6 +36,8 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
   const { data: conditionsData, isLoading: isLoadingConditions } =
     useConditionByEncounter(encounterId)
 
+  console.log('conditionsData.result', conditionsData)
+
   const [diagnosisOptions, setDiagnosisOptions] = useState<DiagnosisCode[]>([])
   const [selectedDiagnoses, setSelectedDiagnoses] = useState<DiagnosisTableData[]>([])
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
@@ -63,12 +64,10 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
 
   useEffect(() => {
     if (conditionsData?.result && Array.isArray(conditionsData.result)) {
-      const anamnesisCategories = Object.keys(ANAMNESIS_MAP)
-
       const mappedDiagnoses: DiagnosisTableData[] = conditionsData.result
         .filter((cond: any) => {
           const category = cond.categories?.[0]?.code
-          return !anamnesisCategories.includes(category)
+          return category === 'encounter-diagnosis'
         })
         .map((cond: any) => {
           const codeCoding = cond.codeCoding?.[0]
@@ -143,13 +142,32 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
 
     setSubmitting(true)
     try {
-      const response = await saveDiagnosisAndProcedures({
+      if (!patientData?.patient?.id) {
+        throw new Error('Patient ID is required')
+      }
+
+      const doctorId = values.performerId || 1
+      const effectiveDate = values.assessment_date?.toISOString() || new Date().toISOString()
+
+      const conditionsPayload = selectedDiagnoses.map((d) => ({
+        diagnosisCodeId: parseInt(d.diagnosisCode.id),
+        isPrimary: d.isPrimary,
+        categories: [
+          {
+            code: 'encounter-diagnosis',
+            display: 'Encounter Diagnosis',
+            system: 'http://terminology.hl7.org/CodeSystem/condition-category'
+          }
+        ],
+        notes: d.notes,
+        recordedDate: effectiveDate
+      }))
+
+      const response = await window.api.query.condition.create({
         encounterId,
-        patientId: patientData?.patient.id,
-        diagnoses: selectedDiagnoses,
-        procedures: [],
-        assessmentDate: values.assessment_date?.toISOString(),
-        doctorId: values.performerId
+        patientId: patientData.patient.id,
+        doctorId,
+        conditions: conditionsPayload
       })
 
       if (response.success) {
@@ -159,10 +177,10 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
         queryClient.invalidateQueries({ queryKey: ['encounter', 'detail', encounterId] })
         form.setFieldValue('assessment_date', dayjs())
       } else {
-        message.error(response.message)
+        message.error(response.error || response.message || 'Gagal menyimpan diagnosis')
       }
-    } catch (error) {
-      message.error('Gagal menyimpan diagnosis')
+    } catch (error: any) {
+      message.error(error.message || 'Gagal menyimpan diagnosis')
       console.error(error)
     } finally {
       setSubmitting(false)
@@ -180,12 +198,6 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
       title: 'Nama Diagnosis',
       dataIndex: ['diagnosisCode', 'name'],
       key: 'name'
-    },
-    {
-      title: 'Kategori',
-      dataIndex: ['diagnosisCode', 'category'],
-      key: 'category',
-      width: 150
     },
     {
       title: 'Primary',
@@ -234,7 +246,6 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
       initialValues={{ assessment_date: dayjs() }}
     >
       <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-
       <Card title="Diagnosis (ICD-10)">
         <Space direction="vertical" className="w-full" size="large">
           <Form.Item label="Cari dan Tambah Diagnosis" name="diagnosisSearch">
@@ -251,7 +262,6 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
               notFoundContent={isLoadingMasterDiagnosis ? <Spin size="small" /> : null}
             />
           </Form.Item>
-
           <Table
             columns={diagnosisColumns}
             dataSource={selectedDiagnoses}
@@ -260,7 +270,6 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
           />
         </Space>
       </Card>
-
       <Form.Item className="mb-0">
         <div className="flex justify-end">
           <Button

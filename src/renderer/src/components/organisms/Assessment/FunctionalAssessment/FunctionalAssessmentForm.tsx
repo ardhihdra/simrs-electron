@@ -5,13 +5,20 @@ import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { FunctionalStatusSection } from '../FunctionalStatus/FunctionalStatusSection'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
-  useCreateQuestionnaireResponse,
-  useQuestionnaireResponseByEncounter
-} from '@renderer/hooks/query/use-questionnaire-response'
+  useBulkCreateObservation,
+  useObservationByEncounter
+} from '@renderer/hooks/query/use-observation'
 import {
-  QuestionnaireResponseStatus,
-  type QuestionnaireResponseItem
-} from '@renderer/types/questionnaire.types'
+  createObservationBatch,
+  OBSERVATION_CATEGORIES
+} from '@renderer/utils/builders/observation-builder'
+import {
+  formatFunctionalStatus,
+  formatPsychosocialHistory
+} from '@renderer/utils/formatters/observation-formatter'
+import { PSYCHOLOGICAL_STATUS_SNOMED_MAP } from '@renderer/config/maps/observation-maps'
+import { PsychosocialSection } from '../PhysicalSection/PsychosocialSection'
+import dayjs from 'dayjs'
 
 interface FunctionalAssessmentFormProps {
   encounterId: string
@@ -24,54 +31,145 @@ export const FunctionalAssessmentForm = ({
 }: FunctionalAssessmentFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
-  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
+  const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
+    'doctor',
+    'nurse'
+  ])
 
-  const { data: existingData } = useQuestionnaireResponseByEncounter(encounterId)
-
-  const createQR = useCreateQuestionnaireResponse()
+  const { data: existingData } = useObservationByEncounter(encounterId)
+  const bulkCreateObservation = useBulkCreateObservation()
 
   useEffect(() => {
     if (!existingData?.result) return
-    const records: { questionnaire?: string; items?: QuestionnaireResponseItem[] }[] =
-      Array.isArray(existingData.result) ? existingData.result : []
 
-    const functionalRecord = records.find((r) => r.questionnaire === 'Status Fungsional')
-    if (!functionalRecord?.items) return
+    const formattedData = formatFunctionalStatus(existingData.result)
+    const psychoData = formatPsychosocialHistory(existingData.result)
 
-    const values: Record<string, string | undefined> = {}
-    functionalRecord.items.forEach((item) => {
-      values[item.linkId] = item.valueString ?? item.valueCoding?.code
+    form.setFieldsValue({
+      ...formattedData,
+      psychological_status: Array.isArray(psychoData.psychological_status)
+        ? psychoData.psychological_status
+        : psychoData.psychological_status?.split(', '),
+      family_relation_note: psychoData.family_relation_note,
+      living_with_note: psychoData.living_with_note,
+      religion: psychoData.religion,
+      culture_values: psychoData.culture_values,
+      daily_language: psychoData.daily_language
     })
-    form.setFieldsValue(values)
   }, [existingData, form])
 
-  const handleFinish = (values: Record<string, string>) => {
-    const items: QuestionnaireResponseItem[] = [
+  const handleFinish = (values: Record<string, any>) => {
+    const obsToCreate = [
       {
-        linkId: 'aids_check',
-        text: 'Alat Bantu',
+        category: OBSERVATION_CATEGORIES.SURVEY,
+        code: 'functional-status-aids',
+        display: 'Alat Bantu',
         valueString: values.aids_check
       },
       {
-        linkId: 'disability_check',
-        text: 'Cacat Tubuh',
+        category: OBSERVATION_CATEGORIES.SURVEY,
+        code: 'functional-status-disability',
+        display: 'Cacat Tubuh',
         valueString: values.disability_check
       },
       {
-        linkId: 'adl_check',
-        text: 'Aktivitas Sehari-hari',
+        category: OBSERVATION_CATEGORIES.SURVEY,
+        code: 'functional-status-adl',
+        display: 'Aktivitas Sehari-hari',
         valueString: values.adl_check
       }
-    ]
+    ].filter((obs) => obs.valueString) as any[]
 
-    createQR.mutate(
+    if (values.psychological_status && values.psychological_status.length > 0) {
+      const statuses = Array.isArray(values.psychological_status)
+        ? values.psychological_status
+        : [values.psychological_status]
+
+      const codings = statuses
+        .map((status: string) => {
+          const snomedMap = PSYCHOLOGICAL_STATUS_SNOMED_MAP[status]
+          if (snomedMap) {
+            return {
+              system: 'http://snomed.info/sct',
+              code: snomedMap.code,
+              display: snomedMap.display
+            }
+          }
+          return null
+        })
+        .filter(Boolean)
+
+      obsToCreate.push({
+        category: OBSERVATION_CATEGORIES.SURVEY,
+        code: '8693-4',
+        display: 'Mental Status',
+        valueString: statuses.join(', '),
+        valueCodeableConcept:
+          codings.length > 0
+            ? {
+                coding: codings
+              }
+            : undefined
+      } as any)
+    }
+
+    if (values.family_relation_note) {
+      obsToCreate.push({
+        category: 'social-history',
+        code: 'family-relation-note',
+        display: 'Hubungan Keluarga',
+        valueString: values.family_relation_note
+      } as any)
+    }
+    if (values.living_with_note) {
+      obsToCreate.push({
+        category: 'social-history',
+        code: 'living-with-note',
+        display: 'Tinggal Bersama',
+        valueString: values.living_with_note
+      } as any)
+    }
+    if (values.religion) {
+      obsToCreate.push({
+        category: 'social-history',
+        code: 'patient-religion',
+        display: 'Agama',
+        valueString: values.religion
+      } as any)
+    }
+    if (values.culture_values) {
+      obsToCreate.push({
+        category: 'social-history',
+        code: 'culture-values',
+        display: 'Nilai Budaya/Kepercayaan',
+        valueString: values.culture_values
+      } as any)
+    }
+    if (values.daily_language) {
+      obsToCreate.push({
+        category: 'social-history',
+        code: 'daily-language',
+        display: 'Bahasa Sehari-hari',
+        valueString: values.daily_language
+      } as any)
+    }
+
+    if (obsToCreate.length === 0) {
+      message.info('Tidak ada data fungsional maupun psikososial yang dilengkapi')
+      return
+    }
+
+    const observations = createObservationBatch(obsToCreate as any)
+    const performerName =
+      performersData?.find((p: any) => p.id === values.performerId)?.name || 'Unknown'
+
+    bulkCreateObservation.mutate(
       {
         encounterId,
-        subjectId: patientData.patient.id,
-        authorId: String(values.performerId),
-        questionnaire: 'Status Fungsional',
-        status: QuestionnaireResponseStatus.COMPLETED,
-        items
+        patientId: patientData.patient.id,
+        performerId: String(values.performerId),
+        performerName,
+        observations
       },
       {
         onSuccess: () => {
@@ -89,29 +187,28 @@ export const FunctionalAssessmentForm = ({
       form={form}
       layout="vertical"
       onFinish={handleFinish}
+      initialValues={{
+        assessment_date: dayjs()
+      }}
       onFinishFailed={() => message.error('Mohon lengkapi semua field yang wajib diisi')}
+      className="flex! flex-col! gap-4!"
     >
-      <div className="flex flex-col gap-4">
-        <Card title="Pemeriksaan Fungsional (Modul 05 SatuSehat)">
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-        </Card>
-
-        <FunctionalStatusSection />
-
-        <Form.Item>
-          <div className="flex justify-end">
-            <Button
-              type="primary"
-              size="large"
-              icon={<SaveOutlined />}
-              loading={createQR.isPending}
-              onClick={() => form.submit()}
-            >
-              Simpan Pemeriksaan Fungsional
-            </Button>
-          </div>
-        </Form.Item>
-      </div>
+      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+      <FunctionalStatusSection />
+      <PsychosocialSection />
+      <Form.Item>
+        <div className="flex justify-end">
+          <Button
+            type="primary"
+            size="large"
+            icon={<SaveOutlined />}
+            loading={bulkCreateObservation.isPending}
+            onClick={() => form.submit()}
+          >
+            Simpan Pemeriksaan Fungsional
+          </Button>
+        </div>
+      </Form.Item>
     </Form>
   )
 }
