@@ -56,6 +56,7 @@ import type * as Mod_query_rawMaterialCategory from '@main/routes/query/rawMater
 import type * as Mod_query_referencecode from '@main/routes/query/referencecode'
 import type * as Mod_query_referral from '@main/routes/query/referral'
 import type * as Mod_query_registration from '@main/routes/query/registration'
+import type * as Mod_query_room from '@main/routes/query/room'
 import type * as Mod_query_serviceRequest from '@main/routes/query/serviceRequest'
 import type * as Mod_query_suplier from '@main/routes/query/suplier'
 import type * as Mod_query_unit from '@main/routes/query/unit'
@@ -202,6 +203,12 @@ type Args_Mod_query_encounter_deleteById = InferArgs<typeof Mod_query_encounter,
 type Result_Mod_query_encounter_deleteById = InferResult<typeof Mod_query_encounter, 'deleteById'>
 type Args_Mod_query_encounter_exportData = InferArgs<typeof Mod_query_encounter, 'exportData'>
 type Result_Mod_query_encounter_exportData = InferResult<typeof Mod_query_encounter, 'exportData'>
+type Args_Mod_query_encounter_getHistorySummary = InferArgs<typeof Mod_query_encounter, 'getHistorySummary'>
+type Result_Mod_query_encounter_getHistorySummary = InferResult<typeof Mod_query_encounter, 'getHistorySummary'>
+type Args_Mod_query_encounter_getPatientEncountersPg = InferArgs<typeof Mod_query_encounter, 'getPatientEncountersPg'>
+type Result_Mod_query_encounter_getPatientEncountersPg = InferResult<typeof Mod_query_encounter, 'getPatientEncountersPg'>
+type Args_Mod_query_encounter_getPatientTimeline = InferArgs<typeof Mod_query_encounter, 'getPatientTimeline'>
+type Result_Mod_query_encounter_getPatientTimeline = InferResult<typeof Mod_query_encounter, 'getPatientTimeline'>
 type Args_Mod_query_encounter_getTimeline = InferArgs<typeof Mod_query_encounter, 'getTimeline'>
 type Result_Mod_query_encounter_getTimeline = InferResult<typeof Mod_query_encounter, 'getTimeline'>
 type Args_Mod_query_encounter_list = InferArgs<typeof Mod_query_encounter, 'list'>
@@ -528,6 +535,10 @@ type Args_Mod_query_registration_read = InferArgs<typeof Mod_query_registration,
 type Result_Mod_query_registration_read = InferResult<typeof Mod_query_registration, 'read'>
 type Args_Mod_query_registration_update = InferArgs<typeof Mod_query_registration, 'update'>
 type Result_Mod_query_registration_update = InferResult<typeof Mod_query_registration, 'update'>
+type Args_Mod_query_room_list = InferArgs<typeof Mod_query_room, 'list'>
+type Result_Mod_query_room_list = InferResult<typeof Mod_query_room, 'list'>
+type Args_Mod_query_room_listAll = InferArgs<typeof Mod_query_room, 'listAll'>
+type Result_Mod_query_room_listAll = InferResult<typeof Mod_query_room, 'listAll'>
 type Args_Mod_query_serviceRequest_create = InferArgs<typeof Mod_query_serviceRequest, 'create'>
 type Result_Mod_query_serviceRequest_create = InferResult<typeof Mod_query_serviceRequest, 'create'>
 type Args_Mod_query_serviceRequest_getByEncounter = InferArgs<typeof Mod_query_serviceRequest, 'getByEncounter'>
@@ -650,6 +661,9 @@ declare global {
           create: Invoke<Args_Mod_query_encounter_create, Result_Mod_query_encounter_create>
           deleteById: Invoke<Args_Mod_query_encounter_deleteById, Result_Mod_query_encounter_deleteById>
           exportData: Invoke<Args_Mod_query_encounter_exportData, Result_Mod_query_encounter_exportData>
+          getHistorySummary: Invoke<Args_Mod_query_encounter_getHistorySummary, Result_Mod_query_encounter_getHistorySummary>
+          getPatientEncountersPg: Invoke<Args_Mod_query_encounter_getPatientEncountersPg, Result_Mod_query_encounter_getPatientEncountersPg>
+          getPatientTimeline: Invoke<Args_Mod_query_encounter_getPatientTimeline, Result_Mod_query_encounter_getPatientTimeline>
           getTimeline: Invoke<Args_Mod_query_encounter_getTimeline, Result_Mod_query_encounter_getTimeline>
           list: Invoke<Args_Mod_query_encounter_list, Result_Mod_query_encounter_list>
           read: Invoke<Args_Mod_query_encounter_read, Result_Mod_query_encounter_read>
@@ -885,6 +899,10 @@ declare global {
           listAll: Invoke<Args_Mod_query_registration_listAll, Result_Mod_query_registration_listAll>
           read: Invoke<Args_Mod_query_registration_read, Result_Mod_query_registration_read>
           update: Invoke<Args_Mod_query_registration_update, Result_Mod_query_registration_update>
+        }
+        room: {
+          list: Invoke<Args_Mod_query_room_list, Result_Mod_query_room_list>
+          listAll: Invoke<Args_Mod_query_room_listAll, Result_Mod_query_room_listAll>
         }
         serviceRequest: {
           create: Invoke<Args_Mod_query_serviceRequest_create, Result_Mod_query_serviceRequest_create>

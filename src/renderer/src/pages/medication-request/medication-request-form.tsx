@@ -45,6 +45,7 @@ interface FormData {
   patientId: string
   encounterId?: string | null
   requesterId?: number | null
+  roomId?: string | null
   authoredOn?: any
   resepturId?: number | null
   resepturName?: string
@@ -137,6 +138,7 @@ interface MedicationRequestRecordForEdit {
   patientId: string
   encounterId?: string | null
   requesterId?: number | null
+  roomId?: string | null
   authoredOn?: string | Date
   medicationId?: number | null
   itemId?: number | null
@@ -784,6 +786,7 @@ export function MedicationRequestForm() {
           priority: baseRecord.priority,
           patientId: baseRecord.patientId,
           encounterId: baseRecord.encounterId ?? null,
+          roomId: baseRecord.roomId ?? null,
           requesterId: baseRecord.requesterId ?? null,
           authoredOn: baseRecord.authoredOn ? dayjs(baseRecord.authoredOn) : undefined,
           items: shouldUseFallbackSimpleItem
@@ -843,7 +846,7 @@ export function MedicationRequestForm() {
 
   const createMutation = useMutation({
     mutationKey: ['medicationRequest', 'create'],
-    mutationFn: (data) => {
+    mutationFn: (data: any) => {
       const fn = window.api?.query?.medicationRequest?.create
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
@@ -895,6 +898,7 @@ export function MedicationRequestForm() {
       priority: values.priority,
       patientId: values.patientId,
       encounterId: values.encounterId,
+      roomId: values.roomId,
       requesterId: values.requesterId,
       authoredOn: dayjs().format('YYYY-MM-DD HH:mm:ss')
     }
@@ -1554,6 +1558,15 @@ export function MedicationRequestForm() {
                   optionFilterProp="label"
                   loading={encounterLoading}
                   allowClear
+                />
+              </Form.Item>
+
+              <Form.Item label="Lokasi/Ruangan (Opsional)" name="roomId" tooltip="Diisi apabila pasien rawat inap untuk menentukan dimana obat akan di drop/diletakkan">
+                <SelectAsync
+                  entity="room"
+                  display="roomCodeId"
+                  output="id"
+                  placeHolder="Pilih Lokasi Ruangan (jika ada)"
                 />
               </Form.Item>
 
