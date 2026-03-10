@@ -101,6 +101,8 @@ interface ParentRow {
   intent: string
   priority?: string
   authoredOn?: string
+  dokterName?: string
+  resepturName?: string
   isPartial?: boolean
   isOnProcess?: boolean
   hasRemaining?: boolean
@@ -193,15 +195,29 @@ const columns = [
     }
   },
   {
-    title: 'Asal',
-    dataIndex: 'encounterType',
-    key: 'encounterType',
-    render: (val: string) => {
-      if (val === 'AMB') return <Tag color="green">Rawat Jalan</Tag>
-      if (val === 'EMER') return <Tag color="red">IGD</Tag>
-      if (val === 'IMP') return <Tag color="blue">Rawat Inap</Tag>
+    title: 'Ruangan',
+    dataIndex: 'roomName',
+    key: 'roomName',
+    render: (val: string | undefined, record: ParentRow) => {
+      if (val && val.length > 0) return val
+      const type = (record as any).encounterType as string | undefined
+      if (type === 'IMP') return 'Rawat Inap'
+      if (type === 'AMB') return 'Rawat Jalan'
+      if (type === 'EMER') return 'IGD'
       return '-'
     }
+  },
+  {
+    title: 'Dokter',
+    dataIndex: 'dokterName',
+    key: 'dokterName',
+    render: (val: string | undefined) => val || '-'
+  },
+  {
+    title: 'Reseptur',
+    dataIndex: 'resepturName',
+    key: 'resepturName',
+    render: (val: string | undefined) => val || '-'
   },
   {
     title: 'Status',
@@ -248,7 +264,7 @@ const columns = [
     render: (val: number | undefined) => (typeof val === 'number' ? val : '-')
   },
   {
-    title: 'Tanggal',
+    title: 'Di Buat ',
     dataIndex: 'authoredOn',
     key: 'authoredOn',
     render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
@@ -414,6 +430,14 @@ export function MedicationRequestTable() {
       return fn({ limit: 1000 })
     }
   })
+  const { data: employeeData } = useQuery({
+    queryKey: ['kepegawaian', 'list'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) return { success: false, result: [] }
+      return fn()
+    }
+  })
 
   const medicineMap = useMemo(() => {
     const map = new Map<number, string>()
@@ -428,12 +452,25 @@ export function MedicationRequestTable() {
   const itemMap = useMemo(() => {
     const map = new Map<number, string>()
     if (itemData?.success && Array.isArray(itemData.result)) {
-      itemData.result.forEach((i: any) => {
-        if (i.id && i.nama) map.set(i.id, i.nama)
+      itemData.result.forEach((i: { id?: number; nama?: string }) => {
+        if (typeof i.id === 'number' && typeof i.nama === 'string') map.set(i.id, i.nama)
       })
     }
     return map
   }, [itemData])
+  const employeeNameById = useMemo(() => {
+    const map = new Map<number, string>()
+    const source = Array.isArray(employeeData?.result)
+      ? (employeeData.result as Array<{ id?: number; namaLengkap?: string }>)
+      : []
+    source.forEach((e) => {
+      if (typeof e.id === 'number') {
+        const name = typeof e.namaLengkap === 'string' ? e.namaLengkap : String(e.id)
+        map.set(e.id, name)
+      }
+    })
+    return map
+  }, [employeeData])
 
   const itemCategoryNameById = useMemo(() => {
     const source: MedicationRequestAttributes[] = Array.isArray(data?.data)
@@ -648,6 +685,19 @@ export function MedicationRequestTable() {
         if (typeof item.quantity === 'number') {
           remainingTotal = item.quantity
         }
+        let resepturName: string | undefined
+        if (Array.isArray(record.supportingInformation)) {
+          const resepturEntry = record.supportingInformation.find((info: Record<string, unknown>) => {
+            const t1 = info.resourceType as string | undefined
+            const t2 = info.type as string | undefined
+            return t1 === 'Reseptur' || t2 === 'Reseptur'
+          }) as Record<string, unknown> | undefined
+          const ridRaw = resepturEntry?.itemId ?? resepturEntry?.item_id
+          const rid = typeof ridRaw === 'number' ? ridRaw : undefined
+          if (typeof rid === 'number') {
+            resepturName = employeeNameById.get(rid) ?? undefined
+          }
+        }
         groups.set(key, {
           key,
           baseId: record.id,
@@ -656,6 +706,8 @@ export function MedicationRequestTable() {
           intent: record.intent,
           priority: record.priority,
           authoredOn: record.authoredOn,
+           dokterName: record.requester?.name,
+           resepturName,
           isPartial,
           isOnProcess,
           hasRemaining: remainingTotal > 0,
@@ -686,7 +738,8 @@ export function MedicationRequestTable() {
     itemCategoryNameById,
     medicineMap,
     itemMap,
-    hasInProgressByRequestId
+    hasInProgressByRequestId,
+    employeeNameById
   ])
 
   return (
@@ -837,9 +890,7 @@ export function MedicationRequestTable() {
                     { title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
                     { title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
                     { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
-                    { title: 'Satuan', dataIndex: 'unit', key: 'unit' },
-                    { title: 'Kekuatan', dataIndex: 'instruksi', key: 'instruksi' },
-                    {
+                    { title: 'Satuan', dataIndex: 'unit', key: 'unit' },                    {
                       title: 'Batch / Expire',
                       key: 'batchExpire',
                       render: (_: unknown, row: MedicationItemRow) => {

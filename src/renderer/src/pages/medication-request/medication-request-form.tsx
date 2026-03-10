@@ -1,4 +1,5 @@
 import { Button, Form, Input, InputNumber, Select, Switch, DatePicker, Card, Tooltip, Tag, App as AntdApp } from 'antd'
+import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
@@ -45,6 +46,8 @@ interface FormData {
   encounterId?: string | null
   requesterId?: number | null
   authoredOn?: any
+  resepturId?: number | null
+  resepturName?: string
   // Single mode (Edit)
   medicationId?: number | null
   dosageInstruction?: string | null
@@ -601,14 +604,17 @@ export function MedicationRequestForm() {
 
   // Auto-fill Requester from Session (match NIK)
   useEffect(() => {
-    if (session?.user?.username && requesterData?.result && !isEdit) {
-      // session.user.username stores NIK based on main/routes/auth.ts logic
-      const currentNik = session.user.username
-      const employees = requesterData.result as { nik?: string; id: number }[]
-      const foundEmployee = employees.find(e => e.nik === currentNik)
-
+    if (session?.user && requesterData?.result && !isEdit) {
+      const employees = requesterData.result as { id: number; nik?: string; namaLengkap?: string }[]
+      const sessionId = Number(session.user.id)
+      const sessionUsername = String(session.user.username || '').trim()
+      const byId = Number.isFinite(sessionId) ? employees.find(e => e.id === sessionId) : undefined
+      const byNik = employees.find(e => typeof e.nik === 'string' && e.nik.trim() === sessionUsername)
+      const byName = employees.find(e => typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+      const foundEmployee = byId || byNik || byName
       if (foundEmployee) {
-        form.setFieldValue('requesterId', foundEmployee.id)
+        form.setFieldValue('resepturId', foundEmployee.id)
+        form.setFieldValue('resepturName', foundEmployee.namaLengkap || undefined)
       }
     }
   }, [session, requesterData, isEdit, form])
@@ -885,12 +891,20 @@ export function MedicationRequestForm() {
   const onFinish = async (values: FormData) => {
     const baseCommonPayload = {
       status: values.status,
-      intent: values.intent,
+      intent: MedicationRequestIntent.ORDER,
       priority: values.priority,
       patientId: values.patientId,
       encounterId: values.encounterId,
       requesterId: values.requesterId,
-      authoredOn: values.authoredOn ? values.authoredOn.format('YYYY-MM-DD HH:mm:ss') : null
+      authoredOn: dayjs().format('YYYY-MM-DD HH:mm:ss')
+    }
+
+    const supportingInformationCommon: SupportingInformationItemInfo[] = []
+    if (typeof values.resepturId === 'number') {
+      supportingInformationCommon.push({
+        type: 'Reseptur',
+        itemId: values.resepturId
+      })
     }
 
     if (isEdit) {
@@ -1024,7 +1038,10 @@ export function MedicationRequestForm() {
             ),
             category: record.category ?? null,
             identifier: record.identifier ?? null,
-            supportingInformation: record.supportingInformation ?? null
+            supportingInformation:
+              (record.supportingInformation && record.supportingInformation.length > 0)
+                ? [...record.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           }
         })
       }
@@ -1116,7 +1133,10 @@ export function MedicationRequestForm() {
                 ? record.category
                 : [{ text: 'racikan', code: 'compound' }],
             identifier: record.identifier ?? null,
-            supportingInformation: input.supportingInformation ?? null
+            supportingInformation:
+              (input.supportingInformation && input.supportingInformation.length > 0)
+                ? [...input.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           }
         })
       }
@@ -1157,7 +1177,10 @@ export function MedicationRequestForm() {
             dispenseRequest: newDispense,
             category: record.category ?? null,
             identifier: record.identifier ?? null,
-            supportingInformation: record.supportingInformation ?? null
+            supportingInformation:
+              (record.supportingInformation && record.supportingInformation.length > 0)
+                ? [...record.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           }
         })
       }
@@ -1234,7 +1257,7 @@ export function MedicationRequestForm() {
             ),
             category: null,
             identifier: null,
-            supportingInformation: null
+            supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
           })
         }
       }
@@ -1267,7 +1290,10 @@ export function MedicationRequestForm() {
             ),
             category: [{ text: 'racikan', code: 'compound' }],
             identifier: null,
-            supportingInformation: input.supportingInformation ?? null
+            supportingInformation:
+              (input.supportingInformation && input.supportingInformation.length > 0)
+                ? [...input.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           })
         }
       }
@@ -1310,9 +1336,14 @@ export function MedicationRequestForm() {
                 : null,
             category: null,
             identifier: null,
-            supportingInformation: input.batchNumber
-              ? [{ resourceType: 'StockBatch', batchNumber: input.batchNumber, expiryDate: input.expiryDate ?? null }]
-              : null
+            supportingInformation: (() => {
+              const original =
+                input.batchNumber
+                  ? [{ resourceType: 'StockBatch', batchNumber: input.batchNumber, expiryDate: input.expiryDate ?? null }]
+                  : []
+              const merged = [...original, ...supportingInformationCommon]
+              return merged.length > 0 ? merged : null
+            })()
           })
         }
       }
@@ -1330,6 +1361,7 @@ export function MedicationRequestForm() {
             firstItem?.quantity,
             firstItem?.quantityUnit
           ),
+          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null,
           id: baseId
         })
       } else {
@@ -1386,7 +1418,8 @@ export function MedicationRequestForm() {
           ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
           : null,
         note: item.note,
-        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)
+        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
+        supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
       }))
 
       const medicineList = (medicineData?.result || []) as MedicineAttributes[]
@@ -1433,7 +1466,10 @@ export function MedicationRequestForm() {
           note: `[Racikan: ${comp.name}]`,
           category: [{ text: 'racikan', code: 'compound' }],
           dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit),
-          supportingInformation: ingredients
+          supportingInformation: (() => {
+            const merged = [...ingredients, ...supportingInformationCommon]
+            return merged.length > 0 ? merged : null
+          })()
         }
       })
 
@@ -1466,9 +1502,14 @@ export function MedicationRequestForm() {
               typeof it.quantity === 'number' && unitCode
                 ? buildDispenseRequest(it.quantity, unitCode)
                 : null,
-            supportingInformation: it.batchNumber
-              ? [{ resourceType: 'StockBatch', batchNumber: it.batchNumber, expiryDate: it.expiryDate ?? null }]
-              : null
+            supportingInformation: (() => {
+              const original =
+                it.batchNumber
+                  ? [{ resourceType: 'StockBatch', batchNumber: it.batchNumber, expiryDate: it.expiryDate ?? null }]
+                  : []
+              const merged = [...original, ...supportingInformationCommon]
+              return merged.length > 0 ? merged : null
+            })()
           }
         })
 
@@ -1505,7 +1546,7 @@ export function MedicationRequestForm() {
                 />
               </Form.Item>
 
-              <Form.Item label="Kunjungan (Encounter)" name="encounterId" rules={[{ required: true, message: 'Kunjungan wajib diisi' }]}>
+              <Form.Item label="Data Ruangan" name="encounterId" rules={[{ required: true, message: 'Kunjungan wajib diisi' }]}>
                 <Select
                   options={encounterOptions}
                   placeholder="Pilih Kunjungan"
@@ -1524,16 +1565,30 @@ export function MedicationRequestForm() {
                 <Select options={Object.values(MedicationRequestStatus).map(v => ({ label: v, value: v }))} />
               </Form.Item>
 
-              <Form.Item label="Tujuan (Intent)" name="intent" rules={[{ required: true }]}>
-                <Select options={Object.values(MedicationRequestIntent).map(v => ({ label: v, value: v }))} />
-              </Form.Item>
-
               <Form.Item label="Prioritas" name="priority">
                 <Select options={Object.values(MedicationRequestPriority).map(v => ({ label: v, value: v }))} />
               </Form.Item>
 
-              <Form.Item label="Tanggal Penulisan" name="authoredOn">
-                <DatePicker showTime className="w-full" />
+              <Form.Item
+                label="Dokter"
+                name="requesterId"
+                rules={[{ required: true, message: 'Dokter wajib dipilih' }]}
+              >
+                <SelectAsync
+                  display="namaLengkap"
+                  entity="kepegawaian"
+                  output="id"
+                  filters={{ hakAksesId: 'doctor' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label="Reseptur"
+              >
+                <Input disabled value={form.getFieldValue('resepturName')} placeholder="Mengikuti pengguna login" />
+              </Form.Item>
+              <Form.Item name="resepturId" hidden>
+                <Input />
               </Form.Item>
             </div>
           </div>
@@ -1741,7 +1796,7 @@ export function MedicationRequestForm() {
                               className="mb-0"
                             >
                               <Select
-                                placeholder="3x1 Bungkus"
+                                placeholder="Pilih Signa / Dosis Racikan"
                                 options={signaOptions}
                                 loading={signaLoading}
                                 showSearch
@@ -1825,7 +1880,7 @@ export function MedicationRequestForm() {
                             className="mb-0"
                           >
                             <Select
-                              placeholder="Contoh: 3x1 Bungkus"
+                              placeholder="Pilih Signa / Dosis Racikan"
                               options={signaOptions}
                               loading={signaLoading}
                               showSearch
