@@ -10,18 +10,18 @@ import {
   PhoneOutlined,
   RightCircleFilled,
   UnorderedListOutlined,
-  UserAddOutlined,
   UserOutlined,
   WalletOutlined
 } from '@ant-design/icons'
 import logoUrl from '@renderer/assets/logo.png'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
 
 import type { MenuProps } from 'antd'
 import { Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 
 // const SendNotificationButton = () => {
@@ -47,16 +47,30 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 //   )
 // }
 
-const items = [
+type DashboardMenuChild = {
+  label: string
+  key: string
+  icon: ReactNode
+}
+
+type DashboardMenuItem = DashboardMenuChild & {
+  moduleKey?: string
+  children?: DashboardMenuChild[]
+}
+
+const DASHBOARD_ROOT_KEY = '/dashboard'
+
+const items: DashboardMenuItem[] = [
   {
     label: 'Dashboard',
-    key: '/dashboard',
+    key: DASHBOARD_ROOT_KEY,
     icon: <DashboardOutlined />
   },
   {
     label: 'Master Rumah Sakit',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
+    moduleKey: 'administrator',
     children: [
       {
         label: 'Data Petugas Medis',
@@ -74,6 +88,7 @@ const items = [
     label: 'Pendaftaran Rumah Sakit',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
+    moduleKey: 'registration',
     children: [
       {
         label: 'Pasien',
@@ -85,74 +100,72 @@ const items = [
         key: '/dashboard/registration',
         icon: <DashboardOutlined />
       },
-      {
-        label: 'Antrian',
-        key: '/dashboard/registration/queue',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Pemeriksaan Awal',
-        key: '/dashboard/registration/triage',
-        icon: <DashboardOutlined />
-      },
+      // {
+      //   label: 'Antrian',
+      //   key: '/dashboard/registration/queue',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Pemeriksaan Awal',
+      //   key: '/dashboard/registration/triage',
+      //   icon: <DashboardOutlined />
+      // },
       {
         label: 'Daftar kunjungan',
         key: '/dashboard/registration/active-encounters',
         icon: <UnorderedListOutlined />
       },
       // {
-      //   label: 'Daftar Antrian',
-      //   key: '/dashboard/encounter',
-      //   icon: <UserAddOutlined />
-      // // },
+      //   label: 'Data Jaminan',
+      //   key: '/dashboard/registration/jaminan',
+      //   icon: <DashboardOutlined />
+      // },
       // {
-      //   label: 'Kunjungan Pasien',
-      //   key: '/dashboard/encounter/transition',
+      //   label: 'Jadwal Praktek Dokter',
+      //   key: '/dashboard/registration/doctor-schedule',
       //   icon: <CalendarOutlined />
       // },
       // {
-      //   label: 'Triage',
-      //   key: '/dashboard/encounter/triage',
-      //   icon: <MedicineBoxOutlined />
+      //   label: 'Jadwal Libur Dokter',
+      //   key: '/dashboard/registration/doctor-leave',
+      //   icon: <CalendarOutlined />
       // },
+      // {
+      //   label: 'Jadwal Praktek Petugas Medis',
+      //   key: '/dashboard/registration/medical-staff-schedule',
+      //   icon: <CalendarOutlined />
+      // },
+      // {
+      //   label: 'Lap Data Jaminan',
+      //   key: '/dashboard/registration/report-insurance',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Lap Data Registrasi Pasien',
+      //   key: '/dashboard/registration/report-patient',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Lap Data Jadwal Praktek',
+      //   key: '/dashboard/registration/report-schedule',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Lap Data Kunjungan Pasien',
+      //   key: '/dashboard/registration/report-visit',
+      //   icon: <DashboardOutlined />
+      // }
+    ]
+  },
+  {
+    label: 'Antrian',
+    key: '/dashboard/queue',
+    icon: <CalendarOutlined />,
+    moduleKey: 'registration',
+    children: [
       {
-        label: 'Data Jaminan',
-        key: '/dashboard/registration/jaminan',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Jadwal Praktek Dokter',
-        key: '/dashboard/registration/doctor-schedule',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Jadwal Libur Dokter',
-        key: '/dashboard/registration/doctor-leave',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Jadwal Praktek Petugas Medis',
-        key: '/dashboard/registration/medical-staff-schedule',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Lap Data Jaminan',
-        key: '/dashboard/registration/report-insurance',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Lap Data Registrasi Pasien',
-        key: '/dashboard/registration/report-patient',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Lap Data Jadwal Praktek',
-        key: '/dashboard/registration/report-schedule',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Lap Data Kunjungan Pasien',
-        key: '/dashboard/registration/report-visit',
+        label: 'Antrian',
+        key: '/dashboard/registration/queue',
         icon: <DashboardOutlined />
       }
     ]
@@ -161,6 +174,7 @@ const items = [
     label: 'Obat',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
+    moduleKey: 'medicine',
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
       {
@@ -192,6 +206,7 @@ const items = [
     label: 'Laboratorium',
     key: '/dashboard/laboratory-management',
     icon: <ExperimentOutlined />,
+    moduleKey: 'laboratory',
     children: [
       {
         label: 'Antrian',
@@ -256,6 +271,7 @@ const items = [
     label: 'Perawat',
     key: '/dashboard/nurse-calling',
     icon: <UserOutlined />,
+    moduleKey: 'nurse',
     children: [
       {
         label: 'Pemanggilan Pasien',
@@ -268,6 +284,7 @@ const items = [
     label: 'Dokter',
     key: '/dashboard/doctor',
     icon: <UserOutlined />,
+    moduleKey: 'doctor',
     children: [
       {
         label: 'Rekam Medis',
@@ -280,6 +297,7 @@ const items = [
     label: 'Sistem Antrian',
     key: '/dashboard/queue',
     icon: <UserOutlined />,
+    moduleKey: 'queue',
     children: [
       {
         label: 'Antrian Pendaftaran',
@@ -305,9 +323,24 @@ const items = [
   }
 ]
 
+const filterItemsBySelectedModule = (
+  menuItems: DashboardMenuItem[],
+  selectedModule: string | null
+) => {
+  if (!selectedModule) return menuItems
+
+  const filteredItems = menuItems.filter(
+    (item) => item.key === DASHBOARD_ROOT_KEY || item.moduleKey === selectedModule
+  )
+
+  return  filteredItems
+}
+
 function Dashboard() {
   const { token } = theme.useToken()
   const location = useLocation()
+  const selectedModule = useSelectedModuleStore((state) => state.selectedModule)
+  const visibleItems = filterItemsBySelectedModule(items, selectedModule)
   const registeredPrefixes = [
     '/dashboard/expense',
     '/dashboard/patient',
@@ -334,33 +367,38 @@ function Dashboard() {
     '/dashboard/nurse-calling'
   ]
   const isRegisteredPath = (path: string): boolean => {
-    if (path === '/dashboard') return true
+    if (path === DASHBOARD_ROOT_KEY) return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))
   }
   const findLabelByPath = (path: string): string => {
-    const top = items.find((i) => path.startsWith(i.key))
+    const top = visibleItems.find((i) => path.startsWith(i.key))
     if (top && path === top.key) return top.label
-    for (const i of items) {
+    for (const i of visibleItems) {
       const child = (i.children || []).find((c) => path.startsWith(c.key))
       if (child) return child.label
     }
     return top ? top.label : path
   }
   const getTopKeyFromPath = (path: string): string => {
-    if (path.startsWith('/dashboard/doctor')) return '/dashboard/doctor'
-    for (const top of items) {
+    if (
+      path.startsWith('/dashboard/doctor') &&
+      visibleItems.some((item) => item.key === '/dashboard/doctor')
+    ) {
+      return '/dashboard/doctor'
+    }
+    for (const top of visibleItems) {
       const children = Array.isArray(top.children) ? top.children : []
       const match = children.find((c) => path.startsWith(c.key))
       if (match) return top.key
     }
-    const sorted = [...items].sort((a, b) => b.key.length - a.key.length)
+    const sorted = [...visibleItems].sort((a, b) => b.key.length - a.key.length)
     const found = sorted.find((item) => path.startsWith(item.key))
-    return found?.key || items[0].key
+    return found?.key || visibleItems[0]?.key || DASHBOARD_ROOT_KEY
   }
   const initialTop = getTopKeyFromPath(location.pathname)
   const [activeTop, setActiveTop] = useState<string>(initialTop)
   const childrenOfTop = (key: string) => {
-    const top = items.find((i) => i.key === key)
+    const top = visibleItems.find((i) => i.key === key)
     if (!top) return [] as ItemType[]
     if (Array.isArray(top.children) && top.children.length > 0) {
       return top.children.map((c) => ({ label: c.label, key: c.key, icon: c.icon })) as ItemType[]
@@ -368,7 +406,7 @@ function Dashboard() {
     return [{ label: top.label, key: top.key, icon: top.icon } as ItemType]
   }
   const childKeysOfTop = (key: string): string[] => {
-    const top = items.find((i) => i.key === key)
+    const top = visibleItems.find((i) => i.key === key)
     if (!top) return []
     if (Array.isArray(top.children) && top.children.length > 0)
       return top.children.map((c) => c.key)
@@ -387,7 +425,11 @@ function Dashboard() {
     navigate(key)
     setActiveSide(key)
   }
-  const topItems = items.map((i) => ({ label: i.label, key: i.key, icon: i.icon })) as ItemType[]
+  const topItems = visibleItems.map((i) => ({
+    label: i.label,
+    key: i.key,
+    icon: i.icon
+  })) as ItemType[]
   const onTopClick: MenuProps['onClick'] = (e) => {
     const key = String(e.key)
     setActiveTop(key)
@@ -409,7 +451,7 @@ function Dashboard() {
       .sort((a, b) => b.length - a.length)[0]
 
     setActiveSide(match || (children[0]?.key as string))
-  }, [location.pathname])
+  }, [location.pathname, selectedModule])
 
   const isWorkspaceRoute =
     location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null

@@ -16,7 +16,7 @@ export type Session = {
 
 export type SessionUser = {
   id: number
-  nik: string
+ username:string
   hakAksesId?: string
 }
 

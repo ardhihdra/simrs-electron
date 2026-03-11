@@ -1,13 +1,13 @@
-import React, { useState } from 'react'
-import type { FormProps } from 'antd'
-import { Button, Checkbox, Form, Input, Carousel } from 'antd'
-import { useNavigate } from 'react-router'
-import Alert from 'antd/es/alert/Alert'
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
-import logoUrl from '@renderer/assets/logo.png'
 import slide1Url from '@renderer/assets/image/Slide1.jpeg'
 import slide2Url from '@renderer/assets/image/Slide2.jpeg'
 import slide3Url from '@renderer/assets/image/Slide3.jpeg'
+import logoUrl from '@renderer/assets/logo.png'
+import type { FormProps } from 'antd'
+import { Button, Carousel, Checkbox, Form, Input } from 'antd'
+import Alert from 'antd/es/alert/Alert'
+import React, { useState } from 'react'
+import { useNavigate } from 'react-router'
 
 type FieldType = {
   username: string
@@ -31,7 +31,7 @@ const LoginForm: React.FC = () => {
       password: values.password
     })) as LoginResult
     if (res.success) {
-      navigate('/dashboard')
+      navigate('/module-selection')
       setErrorInfo(undefined)
     } else {
       setErrorInfo(res.error ?? 'Gagal login')
@@ -42,18 +42,24 @@ const LoginForm: React.FC = () => {
   }
 
   return (
-    <div className="w-full">
-      {errorInfo && <Alert message={errorInfo} type="error" className="mb-4" />}
+    <div className="relative h-screen overflow-hidden bg-linear-to-br from-slate-50 via-blue-50 to-cyan-100 px-6 py-10 flex items-center justify-center">
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -left-16 top-12 h-56 w-56 rounded-full bg-blue-300/20 blur-3xl" />
+        <div className="absolute bottom-10 right-0 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
+      </div>
+      
 
-      <div className="max-w-5xl w-full mx-auto h-full">
-        <div className="grid grid-cols-1 md:grid-cols-2 border border-white/10 backdrop-blur rounded-2xl shadow-lg overflow-hidden h-full">
+      <div className="max-w-5xl w-full mx-auto h-full max-h-[630px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 border border-white/10 backdrop-blur rounded-2xl shadow-lg overflow-hidden h-full bg-white">
+      
           <div className="p-8 h-full flex flex-col justify-center">
+            
             <div className="mb-6 text-center">
               <div className="w-12 h-12 rounded-xl items-center justify-center mb-3 overflow-hidden mx-auto">
                 <img src={logoUrl} alt="Logo" className="w-12 h-12 object-contain" />
               </div>
               <h2 className="text-2xl font-semibold">Login to your account!</h2>
-              <p className="text-gray-500">Enter your registered NIK and password to login!</p>
+              <p className="text-gray-500">Enter your registered Username and password to login!</p>
             </div>
 
             <Form
@@ -64,14 +70,14 @@ const LoginForm: React.FC = () => {
               autoComplete="off"
             >
               <Form.Item<FieldType>
-                label="NIK"
+                label="Username"
                 name="username"
-                rules={[{ required: true, message: 'Please input your NIK!' }]}
+                rules={[{ required: true, message: 'Please input your username!' }]}
               >
                 <Input
                   size="large"
                   placeholder="eg. 3212010101010001"
-                  defaultValue={'3201010101900001'}
+                  defaultValue={'admin1'}
                   prefix={<UserOutlined className="text-gray-400 px-1" />}
                 />
               </Form.Item>
@@ -107,6 +113,7 @@ const LoginForm: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
+              {errorInfo && <Alert message={errorInfo} type="error" className="mb-4" />}
           </div>
 
           <div className="p-8 bg-linear-to-br from-blue-50 to-blue-100 flex items-center justify-center h-full">

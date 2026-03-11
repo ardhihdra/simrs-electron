@@ -17,6 +17,7 @@ import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
 import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
+import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
@@ -59,6 +60,7 @@ import MedicationDispenseFromRequest from './pages/medication-dispense/medicatio
 import MedicationDispenseTable from './pages/medication-dispense/medication-dispense-table'
 import MedicationRequestForm from './pages/medication-request/medication-request-form'
 import MedicationRequestTable from './pages/medication-request/medication-request-table'
+import ModuleSelection from './pages/module-selection/page'
 import NurseCalling from './pages/nurse-calling/NurseCalling'
 import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
@@ -85,7 +87,6 @@ import ActiveEncountersPage from './pages/visit-management/active-encounters-pag
 import InitialTriage from './pages/visit-management/initial-triage'
 import RegistrationPage from './pages/visit-management/registration-page'
 import RegistrationQueue from './pages/visit-management/registration-queue'
-import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
 
 function MainRoute() {
   const location = useLocation()
@@ -94,6 +95,7 @@ function MainRoute() {
       <Route path="/iframe-view" element={<IframeView />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path='/module-selection' element={<ModuleSelection />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
           <Route index element={<DashboardHome />} />
           <Route path="expense" element={<Expense />}>

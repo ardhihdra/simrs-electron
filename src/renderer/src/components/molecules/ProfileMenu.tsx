@@ -1,5 +1,6 @@
 import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
+import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
 import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -19,6 +20,7 @@ function ProfileMenu() {
   const [open, setOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const navigate = useNavigate()
+  const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
 
   useEffect(() => {
     let mounted = true
@@ -68,6 +70,7 @@ function ProfileMenu() {
       onClick: async () => {
         const res = (await window.api.auth.logout()) as LogoutResult
         if (res.success) {
+          clearSelectedModule()
           navigate('/')
         }
       }
@@ -104,6 +107,7 @@ function ProfileMenu() {
             onClick={async () => {
               const res = (await window.api.auth.logout()) as LogoutResult
               if (res.success) {
+                clearSelectedModule()
                 setOpen(false)
                 navigate('/')
               }
