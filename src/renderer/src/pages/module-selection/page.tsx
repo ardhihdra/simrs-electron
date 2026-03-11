@@ -3,6 +3,7 @@ import logoUrl from '@renderer/assets/logo.png'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
 import { client } from '@renderer/utils/client'
 import { Button, Empty, Spin } from 'antd'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
 type LogoutResult = { success: boolean }
@@ -10,13 +11,18 @@ type LogoutResult = { success: boolean }
 export default function ModuleSelection() {
   const navigation = useNavigate()
   const { data, isLoading } = client.module.my.useQuery({})
+  const [parentModule, setParentModule] = useState<number | undefined>(undefined)
   const setSelectedModule = useSelectedModuleStore((state) => state.setSelectedModule)
   const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
 
-  const modules = data?.result ?? []
+  const modules = data?.result.configs ?? []
+  const selectedParent = modules.find((item) => item.id === parentModule)
+  const filteredAllowedModules = selectedParent?.allowedModules ?? []
 
-  const handleClick = (item: string) => {
+  const handleClick = async (item: string) => {
     setSelectedModule(item)
+    // Ini Di Set Kalau Mau Pake Settingan Dari Module Config Database, bukan per Module
+    // await rpc.module.scope({})
     navigation('/dashboard')
   }
 
@@ -57,7 +63,9 @@ export default function ModuleSelection() {
             <div className="mt-10 space-y-4">
               <div className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur">
                 <p className="text-sm text-blue-50/85">Jumlah modul tersedia</p>
-                <p className="mt-2 text-4xl font-semibold">{modules.length}</p>
+                <p className="mt-2 text-4xl font-semibold">
+                  {modules.flatMap((m) => m.allowedModules).length}
+                </p>
                 <p className="mt-3 text-sm text-blue-50/80">
                   Klik salah satu kartu modul untuk melanjutkan ke dashboard.
                 </p>
@@ -84,7 +92,8 @@ export default function ModuleSelection() {
                 Choose your workspace
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">
-                Silahkan pilih module yang tersedia, module dibawah ini merupakan module yang bisa kamu akses.
+                Silahkan pilih module yang tersedia, module dibawah ini merupakan module yang
+                bisa kamu akses.
               </p>
             </div>
 
@@ -96,29 +105,95 @@ export default function ModuleSelection() {
                 </div>
               </div>
             ) : modules.length > 0 ? (
-              <div className="grid gap-4 grid-cols-3">
-                {modules.map((item) => (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => handleClick(item)}
-                    className="group flex aspect-square min-h-36 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 cursor-pointer m-0.5"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-xl font-semibold text-blue-600 transition-colors group-hover:bg-blue-600 group-hover:text-white">
-                        {item.slice(0, 2).toUpperCase()}
-                      </div>
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-500 transition-colors group-hover:bg-blue-100 group-hover:text-blue-700">
-                        Open
-                      </span>
-                    </div>
-
+              <div className="space-y-6">
+                <section className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm">
+                  <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="text-xl font-semibold text-slate-900">{item}</h3>
-                     
+                      <h3 className="text-lg font-semibold text-slate-900">Pilih Instalasi</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        Tentukan instalasi terlebih dahulu untuk menampilkan module yang tersedia.
+                      </p>
                     </div>
-                  </button>
-                ))}
+                    <div className="rounded-lg text-center bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+                      {modules.length} instalasi
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    {modules.map((item) => {
+                      const isSelected = item.id === parentModule
+
+                      return (
+                        <Button
+                          key={item.id}
+                          size="large"
+                          onClick={() => setParentModule(parentModule === item.id ? undefined : item.id)}
+                          className={[
+                            '!h-auto !rounded-xl !border !px-4 !py-4 !text-left !shadow-none transition-all',
+                            isSelected
+                              ? '!border-blue-500 !bg-linear-to-r !from-blue-500 !to-cyan-500 !text-white hover:!border-blue-500 hover:!bg-linear-to-r hover:!from-blue-500 hover:!to-cyan-500 hover:!text-white'
+                              : '!border-slate-200 !bg-slate-50/80 !text-slate-700 hover:!border-blue-300 hover:!bg-blue-50 hover:!text-blue-700',
+                          ].join(' ')}
+                        >
+                          <div className="flex w-full items-center justify-between gap-3">
+                            <div>
+                              <div className="text-sm font-semibold">{item.label}</div>
+                              <div
+                                className={`mt-1 text-xs ${isSelected ? 'text-blue-50' : 'text-slate-500'}`}
+                              >
+                                {item.allowedModules.length} module tersedia
+                              </div>
+                            </div>
+                            <div
+                              className={`absolute right-4 top-1/2 -translate-y-1/2 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                                isSelected
+                                  ? 'bg-white/20 text-white'
+                                  : 'bg-white text-slate-500'
+                              }`}
+                            >
+                              {isSelected ? 'Dipilih' : 'Pilih'}
+                            </div>
+                          </div>
+                        </Button>
+                      )
+                    })}
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm">
+                  <div className="mb-4 flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">Pilih Module</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {selectedParent
+                          ? `Module untuk instalasi ${selectedParent.label}`
+                          : 'Pilih instalasi untuk menampilkan daftar module yang bisa diakses.'}
+                      </p>
+                    </div>
+                    <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                      {filteredAllowedModules.length} module
+                    </div>
+                  </div>
+
+                  {filteredAllowedModules.length === 0 ? (
+                    <div className="flex min-h-[80px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 px-6 text-center text-sm text-slate-500">
+                      Silahkan pilih instalasi terlebih dahulu.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+                      {filteredAllowedModules.map((item) => (
+                        <Button
+                          key={item}
+                          size="large"
+                          onClick={() => handleClick(item)}
+                          className="!flex !aspect-square !h-auto !items-center !justify-center !rounded-3xl !border !border-slate-200 !bg-linear-to-br !from-white !to-slate-50 !p-4 !text-center !text-base !font-semibold !capitalize !text-slate-700 !shadow-none transition-all hover:!-translate-y-0.5 hover:!border-blue-300 hover:!from-blue-50 hover:!to-cyan-50 hover:!text-blue-700"
+                        >
+                          <span className="leading-snug">{item}</span>
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </section>
               </div>
             ) : (
               <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/70">
