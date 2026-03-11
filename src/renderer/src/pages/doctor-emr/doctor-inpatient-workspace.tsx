@@ -10,7 +10,26 @@ import {
   ReconciliationOutlined,
   SafetyCertificateOutlined,
   SolutionOutlined,
-  UserOutlined
+  UserOutlined,
+  HeartOutlined,
+  AlertOutlined,
+  ApiOutlined,
+  AuditOutlined,
+  CalendarOutlined,
+  ClusterOutlined,
+  CompassOutlined,
+  ContainerOutlined,
+  DeploymentUnitOutlined,
+  DisconnectOutlined,
+  FundOutlined,
+  HistoryOutlined,
+  HomeOutlined,
+  OrderedListOutlined,
+  ReadOutlined,
+  ScheduleOutlined,
+  SmileOutlined,
+  TeamOutlined,
+  ToolOutlined
 } from '@ant-design/icons'
 import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
 import { GeneralSOAPForm } from '@renderer/components/organisms/Assessment/GeneralSOAP/GeneralSOAPForm'
@@ -57,6 +76,10 @@ const { Sider, Content } = Layout
 
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import EducationForm from '@renderer/components/organisms/Assessment/Education/EducationForm'
+import { MedicalCertificateForm } from '@renderer/components/organisms/Assessment/MedicalCertificate/MedicalCertificateForm'
+import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
+import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
+import { UnifiedAssessmentTab } from '@renderer/components/organisms/Assessment/UnifiedAssessment/UnifiedAssessmentTab'
 
 interface InpatientWorkspaceProps {
   encounterId: string
@@ -96,23 +119,36 @@ export const DoctorInpatientWorkspace = ({
         label: 'Riwayat Rekam Medis'
       },
       {
+        key: 'unified-assessment',
+        icon: <SolutionOutlined />,
+        label: 'Custom Asesmen'
+      },
+      {
         key: 'assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Pasien',
         children: [
-          { key: 'anamnesis', label: 'Anamnesis' },
-          { key: 'past-disease', label: 'Riwayat Penyakit Terdahulu' },
-          { key: 'allergy', label: 'Alergi' },
-          { key: 'medication', label: 'Riwayat Pengobatan' },
-          { key: 'family-history', label: 'Riwayat Keluarga' },
-          { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
-          { key: 'functional-assessment', label: 'Pemeriksaan Fungsional' },
-          { key: 'clinical-course', label: 'Riwayat Perjalanan Penyakit' },
-          { key: 'care-goal', label: 'Tujuan Perawatan' },
-          { key: 'care-plan', label: 'Rencana Rawat Pasien' },
-          { key: 'instruksi-medik', label: 'Instruksi Medik' },
-          { key: 'clinical-rationale', label: 'Rasional Klinis' },
-          { key: 'prognosis', label: 'Prognosis' }
+          { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
+          { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
+          { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
+          { key: 'medication', icon: <MedicineBoxOutlined />, label: 'Riwayat Pengobatan' },
+          { key: 'family-history', icon: <TeamOutlined />, label: 'Riwayat Keluarga' },
+          { key: 'physical-assessment', icon: <AuditOutlined />, label: 'Pemeriksaan Fisik' },
+          {
+            key: 'functional-assessment',
+            icon: <SmileOutlined />,
+            label: 'Pemeriksaan Fungsional'
+          },
+          {
+            key: 'clinical-course',
+            icon: <CompassOutlined />,
+            label: 'Riwayat Perjalanan Penyakit'
+          },
+          { key: 'care-goal', icon: <FundOutlined />, label: 'Tujuan Perawatan' },
+          { key: 'care-plan', icon: <ScheduleOutlined />, label: 'Rencana Rawat Pasien' },
+          { key: 'instruksi-medik', icon: <OrderedListOutlined />, label: 'Instruksi Medik' },
+          { key: 'clinical-rationale', icon: <DeploymentUnitOutlined />, label: 'Rasional Klinis' },
+          { key: 'prognosis', icon: <ClusterOutlined />, label: 'Prognosis' }
         ]
       },
       {
@@ -120,12 +156,16 @@ export const DoctorInpatientWorkspace = ({
         icon: <FormOutlined />,
         label: 'Form Poli',
         children: [
-          { key: 'dental-assessment', label: 'Pemeriksaan Gigi' },
-          { key: 'anc-assessment', label: 'Pemeriksaan Kehamilan (ANC)' },
-          { key: 'ophthalmology', label: 'Pemeriksaan Mata' },
-          { key: 'dermatology', label: 'Pemeriksaan Kulit (Dermatologi)' },
-          { key: 'cardiology', label: 'Pemeriksaan Jantung (Kardiologi)' },
-          { key: 'ent', label: 'Pemeriksaan THT' }
+          { key: 'dental-assessment', icon: <SmileOutlined />, label: 'Pemeriksaan Gigi' },
+          { key: 'anc-assessment', icon: <HeartOutlined />, label: 'Pemeriksaan Kehamilan (ANC)' },
+          { key: 'ophthalmology', icon: <CompassOutlined />, label: 'Pemeriksaan Mata' },
+          {
+            key: 'dermatology',
+            icon: <SolutionOutlined />,
+            label: 'Pemeriksaan Kulit (Dermatologi)'
+          },
+          { key: 'cardiology', icon: <HeartOutlined />, label: 'Pemeriksaan Jantung (Kardiologi)' },
+          { key: 'ent', icon: <ApiOutlined />, label: 'Pemeriksaan THT' }
         ]
       },
       {
@@ -148,11 +188,12 @@ export const DoctorInpatientWorkspace = ({
         icon: <MedicineBoxOutlined />,
         label: 'Tindakan & Terapi',
         children: [
-          { key: 'diagnosis', label: 'Diagnosis (ICD-10)' },
-          { key: 'procedures', label: 'Tindakan Medis (ICD-9-CM)' },
-          { key: 'education', label: 'Edukasi' },
-          { key: 'nutrition-order', label: 'Order Diet (Gizi)' },
-          { key: 'prescription', label: 'E-Resep' }
+          { key: 'diagnosis', icon: <ContainerOutlined />, label: 'Diagnosis (ICD-10)' },
+          { key: 'procedures', icon: <ToolOutlined />, label: 'Tindakan Medis (ICD-9-CM)' },
+          { key: 'procedure-detail', icon: <AuditOutlined />, label: 'Detail Tindakan' },
+          { key: 'education', icon: <ReadOutlined />, label: 'Edukasi' },
+          { key: 'nutrition-order', icon: <HomeOutlined />, label: 'Order Diet (Gizi)' },
+          { key: 'prescription', icon: <FormOutlined />, label: 'E-Resep' }
         ]
       },
       {
@@ -160,8 +201,8 @@ export const DoctorInpatientWorkspace = ({
         icon: <ExperimentOutlined />,
         label: 'Penunjang Medis',
         children: [
-          { key: 'lab-rad-order', label: 'Order Lab & Rad' },
-          { key: 'results', label: 'Hasil Penunjang' }
+          { key: 'lab-rad-order', icon: <ExperimentOutlined />, label: 'Order Lab & Rad' },
+          { key: 'results', icon: <ScheduleOutlined />, label: 'Hasil Penunjang' }
         ]
       },
       {
@@ -169,15 +210,21 @@ export const DoctorInpatientWorkspace = ({
         icon: <ReconciliationOutlined />,
         label: 'Administrasi',
         children: [
-          { key: 'informed-consent', label: 'Informed Consent' },
-          { key: 'rujukan', label: 'Rujukan' },
-          { key: 'resume', label: 'Resume Medis Tubuh' }
+          {
+            key: 'informed-consent',
+            icon: <SafetyCertificateOutlined />,
+            label: 'Informed Consent'
+          },
+          { key: 'referral', icon: <DisconnectOutlined />, label: 'Rujukan' },
+          { key: 'discharge-summary', icon: <ContainerOutlined />, label: 'Resume Medis' },
+          { key: 'medical-certificate', icon: <FileTextOutlined />, label: 'Surat Keterangan' },
+          { key: 'follow-up', icon: <CalendarOutlined />, label: 'Surat Kontrol' },
+          {
+            key: 'notes',
+            icon: <FormOutlined />,
+            label: 'Catatan Tambahan'
+          }
         ]
-      },
-      {
-        key: 'notes',
-        icon: <FormOutlined />,
-        label: 'Catatan Tambahan'
       }
     ],
     []
@@ -239,6 +286,8 @@ export const DoctorInpatientWorkspace = ({
 
   const renderContent = () => {
     switch (selectedKey) {
+      case 'unified-assessment':
+        return <UnifiedAssessmentTab encounterId={encounterId} patientData={patientData} />
       case 'info':
         return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
       case 'medical-history':
@@ -313,6 +362,8 @@ export const DoctorInpatientWorkspace = ({
         return <DiagnosisForm encounterId={encounterId} patientData={patientData} />
       case 'procedures':
         return <ProceduresForm encounterId={encounterId} patientData={patientData} />
+      case 'procedure-detail':
+        return <DetailTindakanForm encounterId={encounterId} patientData={patientData} />
       case 'education':
         return <EducationForm encounterId={encounterId} patientData={patientData} />
       case 'lab-rad-order':
@@ -323,7 +374,7 @@ export const DoctorInpatientWorkspace = ({
         )
       case 'informed-consent':
         return <InformedConsentForm encounterId={encounterId} patientData={patientData} />
-      case 'rujukan':
+      case 'referral':
         return (
           <ReferralForm
             encounterId={encounterId}
@@ -331,8 +382,12 @@ export const DoctorInpatientWorkspace = ({
             patientData={patientData}
           />
         )
-      case 'resume':
+      case 'discharge-summary':
         return <DischargeSummaryForm encounterId={encounterId} patientData={patientData} />
+      case 'medical-certificate':
+        return <MedicalCertificateForm encounterId={encounterId || ''} patientData={patientData} />
+      case 'follow-up':
+        return <FollowUpForm encounterId={encounterId} patientData={patientData} />
       case 'notes':
         return <ClinicalNoteForm encounterId={encounterId} doctorId={patientData?.doctorId || 1} />
       default:

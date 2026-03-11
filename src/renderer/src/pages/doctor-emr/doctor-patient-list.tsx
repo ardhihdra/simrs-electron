@@ -901,6 +901,7 @@ export const DoctorPatientList = () => {
               icon={<EyeOutlined />}
               onClick={() => handleViewRecord(record)}
               size="small"
+              style={{ background: '#f97316', borderColor: '#f97316' }}
             >
               Periksa
             </Button>

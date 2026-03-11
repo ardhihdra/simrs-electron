@@ -32,13 +32,6 @@ const ClinicalImpressionPropsSchema = z.object({
     note: z.array(z.any()).nullish(),
 }).passthrough()
 
-const PaginationSchema = z.object({
-    page: z.number(),
-    pages: z.number(),
-    count: z.number(),
-    limit: z.number()
-}).passthrough()
-
 export const schemas = {
     getByEncounter: {
         args: z.object({

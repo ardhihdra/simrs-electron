@@ -18,11 +18,15 @@ const { TextArea } = Input
 export interface FamilyHistoryFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
   encounterId,
-  patientData
+  patientData,
+  hideHeader = false,
+  globalPerformerId
 }) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -104,8 +108,14 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
   const handleFinish = async (values: any) => {
     if (!encounterId || !patientIdStr) return
 
-    if (!values.performerId) {
-      message.error('Mohon pilih pemeriksa')
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = Number(globalPerformerId)
+    }
+
+    if (!hideHeader && !performerId) {
+      // Only validate performerId if header is visible
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
       return
     }
 
@@ -159,7 +169,9 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
         tip="Memuat Form Riwayat Keluarga..."
         size="large"
       >
-        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        {!hideHeader && (
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        )}
 
         <Card title="Riwayat Penyakit Keluarga" className="mt-4!">
           <Form.List name="familyHistoryList">

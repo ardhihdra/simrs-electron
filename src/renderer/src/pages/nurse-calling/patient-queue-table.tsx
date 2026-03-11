@@ -22,10 +22,10 @@ import {
   TeamOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  UserAddOutlined
+  UserAddOutlined,
+  MedicineBoxOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useNavigate } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
 import { PatientQueue, Poli, Gender } from '../../types/nurse.types'
@@ -35,8 +35,9 @@ import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
 const { Option } = Select
 const { RangePicker } = DatePicker
 
-interface PatientQueueTableData extends PatientQueue {
+interface PatientQueueTableData extends Omit<PatientQueue, 'status'> {
   key: string
+  status: string
   encounterType?: string
 }
 
@@ -49,7 +50,6 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: st
 }
 
 const PatientQueueTable = () => {
-  const navigate = useNavigate()
   const { message } = App.useApp()
   const { token } = theme.useToken()
   const [calling, setCalling] = useState<string | null>(null)
@@ -166,9 +166,9 @@ const PatientQueueTable = () => {
       })
 
       if (response.success) {
-        message.success('Pasien berhasil dipanggil')
+        message.success('Pasien berhasil dipanggil — klik Periksa untuk membuka form')
         refetch()
-        window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
+        // Tidak redirect; dokter klik Periksa sendiri saat siap
       } else {
         message.error(response.error || 'Gagal memanggil pasien')
       }
@@ -178,6 +178,10 @@ const PatientQueueTable = () => {
     } finally {
       setCalling(null)
     }
+  }
+
+  const handleExaminePatient = (record: PatientQueueTableData) => {
+    window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
   }
 
   const getStatusTag = (status: string) => {
@@ -346,23 +350,54 @@ const PatientQueueTable = () => {
     {
       title: 'Aksi',
       key: 'action',
-      width: 120,
+      width: 200,
       align: 'center',
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          <Button
-            type="primary"
-            icon={<PhoneOutlined />}
-            onClick={(e) => {
-              e.stopPropagation()
-              handleCallPatient(record)
-            }}
-            loading={calling === record.id}
-            size="small"
-          >
-            Panggil
-          </Button>
+          {record.status === 'PLANNED' && (
+            <Button
+              type="primary"
+              icon={<PhoneOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleCallPatient(record)
+              }}
+              loading={calling === record.id}
+              size="small"
+            >
+              Panggil
+            </Button>
+          )}
+          {record.status === 'IN_PROGRESS' && (
+            <>
+              <Button
+                type="primary"
+                icon={<PhoneOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleCallPatient(record)
+                }}
+                loading={calling === record.id}
+                size="small"
+                ghost
+              >
+                Panggil Ulang
+              </Button>
+              <Button
+                type="primary"
+                icon={<MedicineBoxOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleExaminePatient(record)
+                }}
+                size="small"
+                style={{ background: '#f97316', borderColor: '#f97316' }}
+              >
+                Periksa
+              </Button>
+            </>
+          )}
         </Space>
       )
     }

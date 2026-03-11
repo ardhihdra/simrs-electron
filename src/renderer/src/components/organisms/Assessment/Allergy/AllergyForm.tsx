@@ -15,9 +15,16 @@ const { TextArea } = Input
 export interface AllergyFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
-export const AllergyForm: React.FC<AllergyFormProps> = ({ encounterId, patientData }) => {
+export const AllergyForm: React.FC<AllergyFormProps> = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -147,8 +154,14 @@ export const AllergyForm: React.FC<AllergyFormProps> = ({ encounterId, patientDa
   const handleFinish = async (values: any) => {
     if (!encounterId || !patientIdStr) return
 
-    if (!values.performerId) {
-      message.error('Mohon pilih pemeriksa')
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = Number(globalPerformerId)
+    }
+
+    if (!performerId && !hideHeader) {
+      // Only validate performerId if header is not hidden
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
       return
     }
 
@@ -203,7 +216,9 @@ export const AllergyForm: React.FC<AllergyFormProps> = ({ encounterId, patientDa
       }}
     >
       <Spin spinning={isSubmitting || isLoadingAllergy} tip="Memuat Form Alergi..." size="large">
-        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        {!hideHeader && (
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        )}
 
         <Card title="Riwayat Alergi" className="mt-4!">
           <Row gutter={16} className="mb-2">

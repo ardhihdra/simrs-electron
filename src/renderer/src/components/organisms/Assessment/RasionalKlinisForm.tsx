@@ -24,11 +24,15 @@ const DUMMY_INVESTIGATIONS = [
 export interface RasionalKlinisFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 export const RasionalKlinisForm: React.FC<RasionalKlinisFormProps> = ({
   encounterId,
-  patientData
+  patientData,
+  hideHeader = false,
+  globalPerformerId
 }) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -87,11 +91,16 @@ export const RasionalKlinisForm: React.FC<RasionalKlinisFormProps> = ({
             DUMMY_INVESTIGATIONS.find((opt) => opt.value === id)?.label || 'Pemeriksaan Penunjang'
         })) || []
 
+      let practitionerId = patientData.doctor?.id?.toString()
+      if (hideHeader && globalPerformerId) {
+        practitionerId = globalPerformerId.toString()
+      }
+
       const payload = createClinicalImpression({
         patientId: patientIdStr,
         patientName: patientData.patient?.name,
         encounterId: encounterId,
-        practitionerId: patientData.doctor?.id?.toString(),
+        practitionerId,
         summary: summaryText,
         category: CLINICAL_IMPRESSION_CATEGORIES.CLINICAL_RATIONALE,
         investigations
@@ -122,7 +131,9 @@ export const RasionalKlinisForm: React.FC<RasionalKlinisFormProps> = ({
       }}
     >
       <Spin spinning={isLoadingImpressions || isLoadingPerformers}></Spin>
-      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+      {!hideHeader && (
+        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+      )}
       <Card title="Rasional Klinis">
         <Form.Item
           label="Pemeriksaan Penunjang Terkait (Laboratorium & Radiologi)"

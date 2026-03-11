@@ -3,8 +3,6 @@ import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { createBackendClient, parseBackendResponse } from '@main/utils/backendClient'
 
-const API_BASE_URL = 'http://localhost:8810/api'
-
 export const schemas = {
     list: {
         result: z.object({
