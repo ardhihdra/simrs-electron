@@ -3,13 +3,13 @@ import { t } from "..";
 
 const MySchema = z.object({
     success:z.boolean().optional(),
-    result:z.object({
+    result:z.array(z.object({
         configs:z.array(z.object({
             allowedModules:z.array(z.string()),
             id:z.number(),
             label:z.string()
         })).optional()
-    })
+    })).optional()
 })
 
 export const mmoduleRpc = {
