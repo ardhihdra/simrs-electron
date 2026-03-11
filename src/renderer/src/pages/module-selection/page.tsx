@@ -1,8 +1,8 @@
 import { LogoutOutlined } from '@ant-design/icons'
 import logoUrl from '@renderer/assets/logo.png'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
-import { client } from '@renderer/utils/client'
-import { Button, Empty, Spin } from 'antd'
+import { client, rpc } from '@renderer/utils/client'
+import { App, Button, Empty, Spin } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -10,6 +10,7 @@ type LogoutResult = { success: boolean }
 
 export default function ModuleSelection() {
   const navigation = useNavigate()
+  const {message} = App.useApp()
   const { data, isLoading } = client.module.my.useQuery({})
   const [parentModule, setParentModule] = useState<number | undefined>(undefined)
   const setSelectedModule = useSelectedModuleStore((state) => state.setSelectedModule)
@@ -22,8 +23,17 @@ export default function ModuleSelection() {
   const handleClick = async (item: string) => {
     setSelectedModule(item)
     // Ini Di Set Kalau Mau Pake Settingan Dari Module Config Database, bukan per Module
-    // await rpc.module.scope({})
+    try{
+    await rpc.module.scope({
+      configId:selectedParent?.id
+    })
+    message.success("Berhasil Mengaktifkan Modul")
     navigation('/dashboard')
+    return
+  }catch(err){
+console.log(err)
+message.error("Gagal Mengaktifkan Modul")
+  }
   }
 
   const handleSignOut = async () => {
