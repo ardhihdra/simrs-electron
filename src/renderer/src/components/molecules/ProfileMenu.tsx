@@ -1,8 +1,10 @@
 import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { clearModuleScopeSession } from '@renderer/services/ModuleScope/module-scope'
+import { queryClient } from '@renderer/query-client'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
-import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
+import { client } from '@renderer/utils/client'
+import { App, Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import SettingsModal from '../SettingsModal'
@@ -15,12 +17,19 @@ type GetSessionResult = {
   error?: string
 }
 type LogoutResult = { success: boolean }
+type ModuleSignOutResult = {
+  success?: boolean
+  message?: string
+  error?: string
+}
 
 function ProfileMenu() {
   const [profile, setProfile] = useState<SessionUser | undefined>(undefined)
   const [open, setOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const { message } = App.useApp()
   const navigate = useNavigate()
+  const moduleSignOutMutation = client.module.signout.useMutation()
   const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
 
   useEffect(() => {
@@ -47,6 +56,40 @@ function ProfileMenu() {
     return (a + b).toUpperCase() || a.toUpperCase() || 'U'
   }, [profile?.username])
 
+  const clearModuleClientState = () => {
+    clearModuleScopeSession()
+    clearSelectedModule()
+    queryClient.removeQueries({ queryKey: ['module'] })
+  }
+
+  const handleModuleSignOut = async () => {
+    try {
+      const result = (await moduleSignOutMutation.mutateAsync({})) as ModuleSignOutResult
+
+      if (result.success === false) {
+        throw new Error(result.error || result.message || 'Module sign out failed')
+      }
+
+      clearModuleClientState()
+      message.success(result.message || 'Module sign out berhasil')
+      setOpen(false)
+      navigate('/module-selection')
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Gagal melakukan module sign out'
+      message.error(errorMessage)
+    }
+  }
+
+  const handleLogout = async () => {
+    const res = (await window.api.auth.logout()) as LogoutResult
+    if (res.success) {
+      clearModuleClientState()
+      setOpen(false)
+      navigate('/')
+    }
+  }
+
   const items: MenuProps['items'] = [
     {
       key: 'profile',
@@ -64,17 +107,20 @@ function ProfileMenu() {
       type: 'divider'
     },
     {
+      key: 'module-signout',
+      label: 'Module Sign out',
+      icon: <LogoutOutlined />,
+      onClick: () => {
+        void handleModuleSignOut()
+      }
+    },
+    {
       key: 'logout',
       danger: true,
       label: 'Logout',
       icon: <LogoutOutlined />,
-      onClick: async () => {
-        const res = (await window.api.auth.logout()) as LogoutResult
-        if (res.success) {
-          clearModuleScopeSession()
-          clearSelectedModule()
-          navigate('/')
-        }
+      onClick: () => {
+        void handleLogout()
       }
     }
   ]
@@ -103,21 +149,14 @@ function ProfileMenu() {
           </div>
         </div>
         <div className="text-right">
-          <Button
-            danger
-            icon={<LogoutOutlined />}
-            onClick={async () => {
-              const res = (await window.api.auth.logout()) as LogoutResult
-              if (res.success) {
-                clearModuleScopeSession()
-                clearSelectedModule()
-                setOpen(false)
-                navigate('/')
-              }
-            }}
-          >
-            Logout
-          </Button>
+          <Space>
+            <Button icon={<LogoutOutlined />} onClick={() => void handleModuleSignOut()}>
+              Module Sign out
+            </Button>
+            <Button danger icon={<LogoutOutlined />} onClick={() => void handleLogout()}>
+              Logout
+            </Button>
+          </Space>
         </div>
       </Modal>
 

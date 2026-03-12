@@ -30,6 +30,14 @@ const ScopeActivationSchema = z
   })
   .passthrough()
 
+const ScopeSignOutSchema = z
+  .object({
+    success: z.boolean().optional(),
+    message: z.string().optional(),
+    error: z.string().optional()
+  })
+  .passthrough()
+
 const ScopeSessionOutputSchema = z
   .union([
     ScopeSessionSchema,
@@ -114,6 +122,18 @@ export const mmoduleRpc = {
         }
       }
       console.log('SCOPE:', result)
+      return result
+    }),
+  signout: t
+    .input(z.object({}).passthrough())
+    .output(ScopeSignOutSchema)
+    .mutation(async ({ client, senderId, sessionStore }) => {
+      const data = await client.post('/api/module/signout')
+      const result = await data.json().catch(() => ({ success: data.ok }))
+      if (typeof senderId === 'number') {
+        sessionStore?.clearScopeTokenForWindow?.(senderId)
+      }
+      console.log('MODULE_SIGNOUT:', result)
       return result
     }),
   getSession: t
