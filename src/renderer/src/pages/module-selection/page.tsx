@@ -1,5 +1,10 @@
+import {
+  clearModuleScopeSession,
+  normalizeModuleCode,
+  setModuleScopeSession
+} from '@renderer/services/ModuleScope/module-scope'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
-import { client, rpc } from '@renderer/utils/client'
+import { client } from '@renderer/utils/client'
 import { App } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -40,6 +45,15 @@ export default function ModuleSelection() {
   const navigation = useNavigate()
   const { message } = App.useApp()
   const { data, isLoading } = client.module.my.useQuery({})
+  const scopeMutation = client.module.scope.useMutation()
+  const sessionQuery = client.module.getSession.useQuery(
+    {},
+    {
+      enabled: false,
+      queryKey: ['module', { session: true }],
+      retry: false
+    }
+  )
   const [selectedInstallationKey, setSelectedInstallationKey] = useState<string | undefined>()
   const setSelectedModule = useSelectedModuleStore((state) => state.setSelectedModule)
   const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
@@ -64,16 +78,26 @@ export default function ModuleSelection() {
       return
     }
 
-    try {
-      await rpc.module.scope({
-        configId: selectedInstallation.configId
-      })
+    const selectedModuleCode = normalizeModuleCode(moduleName)
 
+    try {
+      await scopeMutation.mutateAsync({
+        configId: selectedInstallation.configId,
+        allowedModules: [selectedModuleCode]
+      })
+      const sessionResult = await sessionQuery.refetch()
+
+      if (!sessionResult.data) {
+        throw new Error('Module session is empty')
+      }
+
+      setModuleScopeSession(sessionResult.data)
       setSelectedModule(moduleName)
       message.success('Berhasil Mengaktifkan Modul')
       navigation('/dashboard')
     } catch (err) {
       console.log(err)
+      clearModuleScopeSession()
       message.error('Gagal Mengaktifkan Modul')
     }
   }
@@ -81,6 +105,7 @@ export default function ModuleSelection() {
   const handleSignOut = async () => {
     const res = (await window.api.auth.logout()) as LogoutResult
     if (res.success) {
+      clearModuleScopeSession()
       clearSelectedModule()
       navigation('/')
     }

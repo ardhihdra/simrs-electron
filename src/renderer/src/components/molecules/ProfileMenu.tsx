@@ -1,5 +1,6 @@
 import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
+import { clearModuleScopeSession } from '@renderer/services/ModuleScope/module-scope'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
 import { Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
@@ -70,6 +71,7 @@ function ProfileMenu() {
       onClick: async () => {
         const res = (await window.api.auth.logout()) as LogoutResult
         if (res.success) {
+          clearModuleScopeSession()
           clearSelectedModule()
           navigate('/')
         }
@@ -107,6 +109,7 @@ function ProfileMenu() {
             onClick={async () => {
               const res = (await window.api.auth.logout()) as LogoutResult
               if (res.success) {
+                clearModuleScopeSession()
                 clearSelectedModule()
                 setOpen(false)
                 navigate('/')

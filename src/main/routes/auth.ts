@@ -24,6 +24,7 @@ export type Session = {
   user: {
     id: number
     username: string
+    hakAksesId?: string
   }
 }
 
@@ -35,7 +36,8 @@ export const schemas = {
       user: z
         .object({
           id: z.union([z.string(), z.number()]),
-          username: z.string()
+          username: z.string(),
+          hakAksesId: z.string().optional()
         })
         .optional()
     })
@@ -140,12 +142,20 @@ export async function getSession(ctx: IpcContext) {
   const storedUser = store.getUser();
   if (!storedUser) return { success: false, error: 'no user found' }
   try {
-    const [user] = await User.findOrCreate({ 
+    await User.findOrCreate({ 
       where: { id: Number(s.userId) }, 
       defaults: { id: Number(s.userId), username: storedUser.username, password: 'admin123' },
       raw: true 
     })
-    return { success: true, session: s, user }
+    return {
+      success: true,
+      session: s,
+      user: {
+        id: Number(s.userId),
+        username: storedUser.username,
+        hakAksesId: storedUser.hakAksesId
+      }
+    }
   } catch (error) {
     console.error('Error finding or creating user:', error)
     return { success: false, error: 'Failed to retrieve user data' }

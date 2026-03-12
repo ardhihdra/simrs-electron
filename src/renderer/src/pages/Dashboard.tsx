@@ -16,7 +16,13 @@ import {
 import logoUrl from '@renderer/assets/logo.png'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
-import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
+import { workspaceModuleCodes } from '@renderer/services/ModuleScope/constant'
+import {
+  getModuleScopeState,
+  moduleScopePermission
+} from '@renderer/services/ModuleScope/module-scope'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
+import type { ModuleCode, ScopeSession } from '@renderer/services/ModuleScope/type'
 
 import type { MenuProps } from 'antd'
 import { Menu, theme } from 'antd'
@@ -51,10 +57,11 @@ type DashboardMenuChild = {
   label: string
   key: string
   icon: ReactNode
+  moduleKey?: ModuleCode
 }
 
 type DashboardMenuItem = DashboardMenuChild & {
-  moduleKey?: string
+  moduleKey?: ModuleCode
   children?: DashboardMenuChild[]
 }
 
@@ -70,7 +77,7 @@ const items: DashboardMenuItem[] = [
     label: 'Master Rumah Sakit',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
-    moduleKey: 'administrator',
+    moduleKey: workspaceModuleCodes.administrator,
     children: [
       {
         label: 'Data Petugas Medis',
@@ -85,10 +92,36 @@ const items: DashboardMenuItem[] = [
     ]
   },
   {
+    label: 'Poli Umum',
+    key: '/dashboard/registration',
+    icon: <CalendarOutlined />,
+    moduleKey: 'rawat_jalan.poli.umum'
+  },
+  {
+    label: 'Rawat Inap',
+    key: '/dashboard/rawat-inap',
+    icon: <CalendarOutlined />,
+    moduleKey: 'rawat_inap',
+    children: [
+      {
+        label: 'Rawat Inap 1',
+        key: '/dashboard/rawat-inap/ranap-1/class-1',
+        icon: <CalendarOutlined />,
+        moduleKey: 'rawat_inap.ranap_1.class_1'
+      },
+      {
+        label: 'Rawat Inap 2',
+        key: '/dashboard/rawat-inap/ranap-2/class1',
+        icon: <CalendarOutlined />,
+        moduleKey: 'rawat_inap.ranap_2.class_1'
+      }
+    ]
+  },
+  {
     label: 'Pendaftaran Rumah Sakit',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
-    moduleKey: 'registration',
+    moduleKey: 'rekam_medis.registration',
     children: [
       {
         label: 'Pasien',
@@ -114,7 +147,7 @@ const items: DashboardMenuItem[] = [
         label: 'Daftar kunjungan',
         key: '/dashboard/registration/active-encounters',
         icon: <UnorderedListOutlined />
-      },
+      }
       // {
       //   label: 'Data Jaminan',
       //   key: '/dashboard/registration/jaminan',
@@ -161,7 +194,7 @@ const items: DashboardMenuItem[] = [
     label: 'Antrian',
     key: '/dashboard/queue',
     icon: <CalendarOutlined />,
-    moduleKey: 'registration',
+    moduleKey: workspaceModuleCodes.registration,
     children: [
       {
         label: 'Antrian',
@@ -174,7 +207,7 @@ const items: DashboardMenuItem[] = [
     label: 'Obat',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
-    moduleKey: 'medicine',
+    moduleKey: workspaceModuleCodes.medicine,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
       {
@@ -206,7 +239,7 @@ const items: DashboardMenuItem[] = [
     label: 'Laboratorium',
     key: '/dashboard/laboratory-management',
     icon: <ExperimentOutlined />,
-    moduleKey: 'laboratory',
+    moduleKey: workspaceModuleCodes.laboratory,
     children: [
       {
         label: 'Antrian',
@@ -271,7 +304,7 @@ const items: DashboardMenuItem[] = [
     label: 'Perawat',
     key: '/dashboard/nurse-calling',
     icon: <UserOutlined />,
-    moduleKey: 'nurse',
+    moduleKey: workspaceModuleCodes.nurse,
     children: [
       {
         label: 'Pemanggilan Pasien',
@@ -284,7 +317,7 @@ const items: DashboardMenuItem[] = [
     label: 'Dokter',
     key: '/dashboard/doctor',
     icon: <UserOutlined />,
-    moduleKey: 'doctor',
+    moduleKey: workspaceModuleCodes.doctor,
     children: [
       {
         label: 'Rekam Medis',
@@ -297,7 +330,7 @@ const items: DashboardMenuItem[] = [
     label: 'Sistem Antrian',
     key: '/dashboard/queue',
     icon: <UserOutlined />,
-    moduleKey: 'queue',
+    moduleKey: workspaceModuleCodes.queue,
     children: [
       {
         label: 'Antrian Pendaftaran',
@@ -323,24 +356,66 @@ const items: DashboardMenuItem[] = [
   }
 ]
 
-const filterItemsBySelectedModule = (
-  menuItems: DashboardMenuItem[],
-  selectedModule: string | null
-) => {
-  if (!selectedModule) return menuItems
+const isSessionModuleVisible = (session: ScopeSession, moduleCode: ModuleCode): boolean => {
+  try {
+    return moduleScopePermission.isVisibleForClient(session, moduleCode)
+  } catch {
+    return false
+  }
+}
 
-  const filteredItems = menuItems.filter(
-    (item) => item.key === DASHBOARD_ROOT_KEY || item.moduleKey === selectedModule
-  )
+const filterChildrenBySession = (
+  children: DashboardMenuChild[] | undefined,
+  session: ScopeSession | null
+): DashboardMenuChild[] => {
+  if (!children?.length) {
+    return []
+  }
 
-  return  filteredItems
+  return children.filter((child) => {
+    if (!child.moduleKey) {
+      return false
+    }
+
+    if (!session) {
+      return false
+    }
+
+    return isSessionModuleVisible(session, child.moduleKey)
+  })
+}
+
+const filterItemsBySession = (menuItems: DashboardMenuItem[], session: ScopeSession | null) => {
+  return menuItems.reduce<DashboardMenuItem[]>((result, item) => {
+    if (item.key === DASHBOARD_ROOT_KEY) {
+      result.push({
+        ...item,
+        ...(item.children ? { children: filterChildrenBySession(item.children, session) } : {})
+      })
+      return result
+    }
+
+    const visibleChildren = filterChildrenBySession(item.children, session)
+    const isParentVisible =
+      !!session && !!item.moduleKey && isSessionModuleVisible(session, item.moduleKey)
+
+    if (isParentVisible || visibleChildren.length > 0) {
+      result.push({
+        ...item,
+        ...(item.children ? { children: visibleChildren } : {})
+      })
+    }
+
+    return result
+  }, [])
 }
 
 function Dashboard() {
   const { token } = theme.useToken()
   const location = useLocation()
-  const selectedModule = useSelectedModuleStore((state) => state.selectedModule)
-  const visibleItems = filterItemsBySelectedModule(items, selectedModule)
+  const session = useModuleScopeStore((state) => state.session)
+  const visibleModuleState = getModuleScopeState(session)
+  const visibleItems = filterItemsBySession(items, session)
   const registeredPrefixes = [
     '/dashboard/expense',
     '/dashboard/patient',
@@ -364,7 +439,8 @@ function Dashboard() {
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
     '/dashboard/doctor',
-    '/dashboard/nurse-calling'
+    '/dashboard/nurse-calling',
+    '/dashboard/rawat-inap'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === DASHBOARD_ROOT_KEY) return true
@@ -451,7 +527,7 @@ function Dashboard() {
       .sort((a, b) => b.length - a.length)[0]
 
     setActiveSide(match || (children[0]?.key as string))
-  }, [location.pathname, selectedModule])
+  }, [location.pathname, session, visibleModuleState.visibleModules.join('|')])
 
   const isWorkspaceRoute =
     location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
