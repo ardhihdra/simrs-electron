@@ -117,6 +117,9 @@ const PatientTable = () => {
         <Form.Item name="name" style={{ width: '100%' }}>
           <Input placeholder="Cari Nama" allowClear size="large" />
         </Form.Item>
+        <Form.Item name="address" style={{ width: '100%' }}>
+          <Input placeholder="Cari Alamat" allowClear size="large" />
+        </Form.Item>
       </TableHeader>
 
       <div className="mt-4">
