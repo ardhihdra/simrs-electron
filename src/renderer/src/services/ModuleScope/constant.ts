@@ -24,7 +24,7 @@ const domainModules: ModuleNodeInput[] = [
       },
       {
         code: 'registration',
-        children: [{ code: 'pendaftaran' }, { code: 'penjadwalan' }]
+        children: [{ code: 'pendaftaran' }, { code: 'penjadwalan' }, { code: 'patient' }]
       },
       {
         code: 'queue'

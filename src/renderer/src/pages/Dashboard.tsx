@@ -74,6 +74,42 @@ const items: DashboardMenuItem[] = [
     icon: <DashboardOutlined />
   },
   {
+    label: 'Pendaftaran Rumah Sakit',
+    key: '/dashboard/regist',
+    icon: <CalendarOutlined />,
+    moduleKey: 'rekam_medis.registration',
+    children: [
+      {
+        label: 'Pasien',
+        key: '/dashboard/patient',
+        icon: <UserOutlined />,
+        moduleKey: 'rekam_medis.registration.patient'
+      },
+      {
+        label: 'Pendaftaran',
+        key: '/dashboard/registration',
+        icon: <DashboardOutlined />,
+        moduleKey: 'rekam_medis.registration.pendaftaran'
+      }
+      // {
+      //   label: 'Antrian',
+      //   key: '/dashboard/registration/queue',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Pemeriksaan Awal',
+      //   key: '/dashboard/registration/triage',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Daftar kunjungan',
+      //   key: '/dashboard/registration/active-encounters',
+      //   icon: <UnorderedListOutlined />,
+      //   moduleKey: 'rekam_medis.registration.active_encounters'
+      // }
+    ]
+  },
+  {
     label: 'Master Rumah Sakit',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
@@ -93,7 +129,7 @@ const items: DashboardMenuItem[] = [
   },
   {
     label: 'Poli Umum',
-    key: '/dashboard/registration',
+    key: '/dashboard/poli/umum',
     icon: <CalendarOutlined />,
     moduleKey: 'rawat_jalan.poli.umum'
   },
@@ -115,79 +151,6 @@ const items: DashboardMenuItem[] = [
         icon: <CalendarOutlined />,
         moduleKey: 'rawat_inap.ranap_2.class_1'
       }
-    ]
-  },
-  {
-    label: 'Pendaftaran Rumah Sakit',
-    key: '/dashboard/registration',
-    icon: <CalendarOutlined />,
-    moduleKey: 'rekam_medis.registration',
-    children: [
-      {
-        label: 'Pasien',
-        key: '/dashboard/patient',
-        icon: <UserOutlined />
-      },
-      {
-        label: 'Pendaftaran',
-        key: '/dashboard/registration',
-        icon: <DashboardOutlined />
-      },
-      // {
-      //   label: 'Antrian',
-      //   key: '/dashboard/registration/queue',
-      //   icon: <DashboardOutlined />
-      // },
-      // {
-      //   label: 'Pemeriksaan Awal',
-      //   key: '/dashboard/registration/triage',
-      //   icon: <DashboardOutlined />
-      // },
-      {
-        label: 'Daftar kunjungan',
-        key: '/dashboard/registration/active-encounters',
-        icon: <UnorderedListOutlined />
-      }
-      // {
-      //   label: 'Data Jaminan',
-      //   key: '/dashboard/registration/jaminan',
-      //   icon: <DashboardOutlined />
-      // },
-      // {
-      //   label: 'Jadwal Praktek Dokter',
-      //   key: '/dashboard/registration/doctor-schedule',
-      //   icon: <CalendarOutlined />
-      // },
-      // {
-      //   label: 'Jadwal Libur Dokter',
-      //   key: '/dashboard/registration/doctor-leave',
-      //   icon: <CalendarOutlined />
-      // },
-      // {
-      //   label: 'Jadwal Praktek Petugas Medis',
-      //   key: '/dashboard/registration/medical-staff-schedule',
-      //   icon: <CalendarOutlined />
-      // },
-      // {
-      //   label: 'Lap Data Jaminan',
-      //   key: '/dashboard/registration/report-insurance',
-      //   icon: <DashboardOutlined />
-      // },
-      // {
-      //   label: 'Lap Data Registrasi Pasien',
-      //   key: '/dashboard/registration/report-patient',
-      //   icon: <DashboardOutlined />
-      // },
-      // {
-      //   label: 'Lap Data Jadwal Praktek',
-      //   key: '/dashboard/registration/report-schedule',
-      //   icon: <DashboardOutlined />
-      // },
-      // {
-      //   label: 'Lap Data Kunjungan Pasien',
-      //   key: '/dashboard/registration/report-visit',
-      //   icon: <DashboardOutlined />
-      // }
     ]
   },
   {
