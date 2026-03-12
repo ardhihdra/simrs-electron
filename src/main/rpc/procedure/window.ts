@@ -14,7 +14,7 @@ export const windowRpc = {
       })
     )
     .output(z.boolean())
-    .mutation(async ({ client },input) => {
+    .mutation(async (_c, input) => {
       try {
         const newWindow = new BrowserWindow({
           width: 1280,
@@ -38,7 +38,7 @@ export const windowRpc = {
         // Build the URL to our renderer, pointing to the #/iframe-view route
         // We pass the target iframe URL as a query param or hash param
         // Using query param in hash url: #/iframe-view?url=xyz
-        
+
         const route = `#/iframe-view?url=${encodeURIComponent(input.url)}`
 
         let rendererPath = join(__dirname, '../renderer/index.html')
