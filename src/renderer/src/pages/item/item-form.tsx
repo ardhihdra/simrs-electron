@@ -82,6 +82,16 @@ type ItemCategoryListResponse = {
 	  message?: string
 }
 
+type ItemListRow = {
+  kode?: string
+  itemCategoryId?: number | null
+}
+type ItemListResponse = {
+  success: boolean
+  result?: ItemListRow[]
+  message?: string
+}
+
 export function ItemForm() {
 	  const navigate = useNavigate()
     const location = useLocation()
@@ -119,6 +129,7 @@ export function ItemForm() {
 		  const itemCategoryApi = window.api?.query as {
 			  medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
 		  } | undefined
+      const itemApiList = (window.api?.query as { item?: { list: () => Promise<ItemListResponse> } })?.item
 
 		  const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
 		    queryKey: ['itemCategory', 'list', 'for-item-form'],
@@ -128,6 +139,14 @@ export function ItemForm() {
 		      return fn()
 		    }
 		  })
+      const { data: itemListSource } = useQuery<ItemListResponse>({
+        queryKey: ['item', 'list', 'for-item-form-code'],
+        queryFn: () => {
+          const fn = itemApiList?.list
+          if (!fn) throw new Error('API item tidak tersedia.')
+          return fn()
+        }
+      })
 
 		  const unitOptions = useMemo(() => {
 	    const entries: UnitListEntry[] = Array.isArray(unitSource?.result) ? unitSource.result : []
@@ -209,14 +228,107 @@ export function ItemForm() {
       const currentKode = form.getFieldValue('kode')
       if (!currentKode || String(currentKode).trim().length === 0) {
         const now = new Date()
-        const mm = String(now.getMonth() + 1).padStart(2, '0')
-        const dd = String(now.getDate()).padStart(2, '0')
-        const prefix = bpjsOnly ? 'B' : 'I'
-        const kodeAuto = `${prefix}${mm}${dd}`.toUpperCase()
-        form.setFieldValue('kode', kodeAuto)
+        const y = String(now.getFullYear())
+        const m = String(now.getMonth() + 1).padStart(2, '0')
+        const d = String(now.getDate()).padStart(2, '0')
+        const dateStr = `${y}${m}${d}`
+        const catId: number | null | undefined = form.getFieldValue('itemCategoryId')
+        const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+          ? itemCategorySource.result
+          : []
+        const cat = entries.find((c) => typeof c.id === 'number' && c.id === catId)
+        const ct = (cat?.categoryType || '').toLowerCase()
+        const toPrefix = (categoryType: string): string => {
+          switch (categoryType) {
+            case 'bpjs': return 'BP'
+            case 'obat': return 'OB'
+            case 'non-obat': return 'NO'
+            case 'alkes': return 'AK'
+            case 'bmhp': return 'BM'
+            case 'reagen': return 'RG'
+            case 'umum': return 'UM'
+            case 'kosmetik': return 'KO'
+            case 'rumahtangga': return 'RT'
+            case 'makanan': return 'MK'
+            case 'minuman': return 'MN'
+            case 'bahan_baku': return 'BB'
+            default: return bpjsOnly ? 'BP' : 'IT'
+          }
+        }
+        const prefix = toPrefix(ct)
+        const list: ItemListRow[] = Array.isArray(itemListSource?.result) ? itemListSource.result : []
+        const pattern = new RegExp(`^${prefix}-${dateStr}-([0-9]{4})$`)
+        let maxSeq = 0
+        for (const row of list) {
+          const raw = typeof row.kode === 'string' ? row.kode : ''
+          const m = raw.match(pattern)
+          if (m && m[1]) {
+            const num = Number(m[1])
+            if (Number.isFinite(num) && num > maxSeq) {
+              maxSeq = num
+            }
+          }
+        }
+        const next = String(maxSeq + 1).padStart(4, '0')
+        const kodeAuto = `${prefix}-${dateStr}-${next}`
+        form.setFieldValue('kode', kodeAuto.toUpperCase())
       }
     }
-  }, [isEdit, bpjsOnly, form])
+  }, [isEdit, bpjsOnly, form, itemCategorySource?.result, itemListSource?.result])
+
+  useEffect(() => {
+    if (!isEdit) {
+      const catId: number | null | undefined = form.getFieldValue('itemCategoryId')
+      const currentKode = String(form.getFieldValue('kode') || '')
+      // Regenerate when category changes if currentKode doesn't match target prefix
+      const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+        ? itemCategorySource.result
+        : []
+      const cat = entries.find((c) => typeof c.id === 'number' && c.id === catId)
+      const ct = (cat?.categoryType || '').toLowerCase()
+      const toPrefix = (categoryType: string): string => {
+        switch (categoryType) {
+          case 'bpjs': return 'BP'
+          case 'obat': return 'OB'
+          case 'non-obat': return 'NO'
+          case 'alkes': return 'AK'
+          case 'bmhp': return 'BM'
+          case 'reagen': return 'RG'
+          case 'umum': return 'UM'
+          case 'kosmetik': return 'KO'
+          case 'rumahtangga': return 'RT'
+          case 'makanan': return 'MK'
+          case 'minuman': return 'MN'
+          case 'bahan_baku': return 'BB'
+          default: return bpjsOnly ? 'BP' : 'IT'
+        }
+      }
+      const expectedPrefix = toPrefix(ct)
+      if (!currentKode.startsWith(expectedPrefix)) {
+        const now = new Date()
+        const y = String(now.getFullYear())
+        const m = String(now.getMonth() + 1).padStart(2, '0')
+        const d = String(now.getDate()).padStart(2, '0')
+        const dateStr = `${y}${m}${d}`
+        const list: ItemListRow[] = Array.isArray(itemListSource?.result) ? itemListSource.result : []
+        const pattern = new RegExp(`^${expectedPrefix}-${dateStr}-([0-9]{4})$`)
+        let maxSeq = 0
+        for (const row of list) {
+          const raw = typeof row.kode === 'string' ? row.kode : ''
+          const m = raw.match(pattern)
+          if (m && m[1]) {
+            const num = Number(m[1])
+            if (Number.isFinite(num) && num > maxSeq) {
+              maxSeq = num
+            }
+          }
+        }
+        const next = String(maxSeq + 1).padStart(4, '0')
+        const kodeAuto = `${expectedPrefix}-${dateStr}-${next}`
+        form.setFieldValue('kode', kodeAuto.toUpperCase())
+      }
+    }
+  }, [isEdit, bpjsOnly, form, itemCategorySource?.result, itemListSource?.result, form.getFieldValue('itemCategoryId')])
 
 	  const createMutation = useMutation({
     mutationKey: ['item', 'create'],
