@@ -180,6 +180,7 @@ const items = [
       },
       { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
       { label: 'Obat dan Barang', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
+      { label: 'Item BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
       {
         label: 'Transaksi Penjualan Barang',
         key: '/dashboard/medicine/item-purchase',

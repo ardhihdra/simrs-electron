@@ -192,8 +192,11 @@ function MainRoute() {
             <Route path="medication-requests/create" element={<MedicationRequestForm />} />
             <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
             <Route path="items" element={<ItemTable />} />
+            <Route path="items-bpjs" element={<ItemTable />} />
             <Route path="items/create" element={<ItemForm />} />
+            <Route path="items-bpjs/create" element={<ItemForm />} />
             <Route path="items/edit/:id" element={<ItemForm />} />
+            <Route path="items-bpjs/edit/:id" element={<ItemForm />} />
             <Route
               path="medication-requests/dispense/:id"
               element={<MedicationDispenseFromRequest />}
