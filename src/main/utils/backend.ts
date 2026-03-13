@@ -24,14 +24,31 @@ function joinPath(base: string, path: string): string {
   return `${b}${p}`
 }
 
+function getCookieHeader(ctx: IpcContext): string | undefined {
+  const senderId = ctx?.senderId
+  if (typeof senderId !== 'number') {
+    return undefined
+  }
+
+  const scopeToken = ctx.sessionStore?.getScopeTokenForWindow?.(senderId)
+  if (!scopeToken) {
+    return undefined
+  }
+
+  return `scopeToken=${scopeToken}`
+}
+
 export function createBackendClient(ctx: IpcContext): { ok: boolean; error?: string; client?: BackendClient } {
   const base = normalizeBase(process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810')
   const token = ctx?.sessionStore?.getBackendTokenForWindow?.(ctx.senderId)
   if (!token) return { ok: false, error: 'Token backend tidak ditemukan. Silakan login terlebih dahulu.' }
+  const cookieHeader = getCookieHeader(ctx)
+
   const headers: HeadersMap = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
-    'x-access-token': token
+    'x-access-token': token,
+    ...(cookieHeader ? { Cookie: cookieHeader } : {})
   }
   const client: BackendClient = {
     base,

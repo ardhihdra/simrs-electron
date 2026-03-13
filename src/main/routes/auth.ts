@@ -1,9 +1,9 @@
-import z from 'zod'
 import { withError } from '@main/ipc/middleware'
 import { Session as SessionStore } from '@main/ipc/protected/session-store'
 import { IpcContext } from '@main/ipc/router'
 import { User } from '@main/models/user'
 import { notificationService } from '@main/services/notification-service'
+import z from 'zod'
 
 type LoginArgs = { username: string; password: string }
 type BackendLoginSuccess = {
@@ -12,7 +12,7 @@ type BackendLoginSuccess = {
     id: number
     email?: string
     namaLengkap?: string
-    nik: string
+    username: string
     hakAksesId?: string
   }
   message?: string
@@ -24,6 +24,7 @@ export type Session = {
   user: {
     id: number
     username: string
+    hakAksesId?: string
   }
 }
 
@@ -35,7 +36,8 @@ export const schemas = {
       user: z
         .object({
           id: z.union([z.string(), z.number()]),
-          username: z.string()
+          username: z.string(),
+          hakAksesId: z.string().optional()
         })
         .optional()
     })
@@ -53,7 +55,7 @@ export async function login(ctx: IpcContext, data: LoginArgs) {
   const url = String(base).endsWith('/')
     ? `${String(base).slice(0, -1)}/api/login`
     : `${String(base)}/api/login`
-  const body = JSON.stringify({ nik: data.username, password: data.password })
+  const body = JSON.stringify({ username: data.username, password: data.password })
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -92,8 +94,8 @@ export async function login(ctx: IpcContext, data: LoginArgs) {
   }
   
   const userId = json.result.id
-  const username = json.result.nik
-  store.setUser({ id: userId, nik: username, hakAksesId: json.result.hakAksesId });
+  const username = json.result.username
+  store.setUser({ id: userId,  username, hakAksesId: json.result.hakAksesId });
   const session = store.create(String(userId))
   if (typeof ctx.senderId === 'number') {
     store.authenticateWindow(ctx.senderId, session.token)
@@ -140,12 +142,20 @@ export async function getSession(ctx: IpcContext) {
   const storedUser = store.getUser();
   if (!storedUser) return { success: false, error: 'no user found' }
   try {
-    const [user] = await User.findOrCreate({ 
+    await User.findOrCreate({ 
       where: { id: Number(s.userId) }, 
-      defaults: { id: Number(s.userId), username: storedUser.nik, password: 'admin123' },
+      defaults: { id: Number(s.userId), username: storedUser.username, password: 'admin123' },
       raw: true 
     })
-    return { success: true, session: s, user }
+    return {
+      success: true,
+      session: s,
+      user: {
+        id: Number(s.userId),
+        username: storedUser.username,
+        hakAksesId: storedUser.hakAksesId
+      }
+    }
   } catch (error) {
     console.error('Error finding or creating user:', error)
     return { success: false, error: 'Failed to retrieve user data' }

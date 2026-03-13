@@ -1,5 +1,16 @@
-import { Form, Input, Select, Radio, DatePicker, Tabs, Card, Typography } from 'antd'
 import type { FormInstance } from 'antd'
+import {
+  Card,
+  Checkbox,
+  DatePicker,
+  Divider,
+  Form,
+  Input,
+  Radio,
+  Select,
+  Tabs,
+  Typography
+} from 'antd'
 import type { Dayjs } from 'dayjs'
 import { useEffect } from 'react'
 
@@ -130,7 +141,7 @@ export function GeneralConsentForm({ form, patientData }: GeneralConsentFormProp
                     </Paragraph>
                   </div>
 
-                  <div>
+                  <div className="pb-8">
                     <Text strong>2. PERSETUJUAN PELEPASAN INFORMASI</Text>
                     <Paragraph className="mt-2 text-justify">
                       Saya memahami informasi di dalam diri saya, termasuk diagnosa, hasil
@@ -143,6 +154,19 @@ export function GeneralConsentForm({ form, patientData }: GeneralConsentFormProp
                   </div>
 
                   {/* Add more sections as per the screenshot if needed, but these seem to be the visible ones */}
+                  <Divider />
+                  <div className="flex items-end justify-end">
+                    <div className="w-sm">
+                      <Form.Item
+                        label="Boleh Kirim Ke Satusehat?"
+                        name="allowSendToSatusehat"
+                        valuePropName="checked"
+                        initialValue={true}
+                      >
+                        <Checkbox>Ya, Boleh</Checkbox>
+                      </Form.Item>
+                    </div>
+                  </div>
                 </div>
               </>
             )

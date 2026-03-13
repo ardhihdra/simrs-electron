@@ -1,6 +1,7 @@
 import { encounterRpc } from './encounter'
 import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
+import { mmoduleRpc } from './module'
 import { patientRpc } from './patient'
 import { practitionerRpc } from './practitioner'
 import { roomRpc } from './room'
@@ -19,7 +20,8 @@ export const rpcRouter = {
   visitManagement: visitManagementRpc,
   laboratoryManagement: laboratoryManagementRpc,
   wilayah: wilayahRpc,
-  window: windowRpc
+  window: windowRpc,
+  module: mmoduleRpc
 }
 
 export type AppRouter = typeof rpcRouter
