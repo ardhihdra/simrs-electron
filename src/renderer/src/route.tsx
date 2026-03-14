@@ -1,7 +1,7 @@
-import { ModuleScopeGuard } from './services/ModuleScope/guard'
-import { workspaceModuleCodes } from './services/ModuleScope/constant'
-import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
 import type { ReactNode } from 'react'
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
+import { workspaceModuleCodes } from './services/ModuleScope/constant'
+import { ModuleScopeGuard } from './services/ModuleScope/guard'
 
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
@@ -32,6 +32,7 @@ import EncounterTransitionPage from './pages/encounter-transition/encounter-tran
 import Encounter from './pages/encounter/Encounter'
 import EncounterForm from './pages/encounter/encounter-form'
 import EncounterTable from './pages/encounter/encounter-table'
+import DoctorQueueMonitor from './pages/encounter/monitor/doctor-queue-monitor'
 import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
 import Expense from './pages/expense/Expense'
 import { default as ExpenseForm, default as IncomeForm } from './pages/expense/expense-form'
@@ -74,7 +75,6 @@ import Pegawai from './pages/pegawai/Pegawai'
 import PegawaiForm from './pages/pegawai/pegawai-form'
 import PegawaiReport from './pages/pegawai/pegawai-report'
 import PegawaiTable from './pages/pegawai/pegawai-table'
-import Pendaftaran from './pages/pendaftaran'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import ReportPage from './pages/pharmacy/ReportPage'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
@@ -102,7 +102,7 @@ function MainRoute() {
       <Route path="/iframe-view" element={<IframeView />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path='/module-selection' element={<ModuleSelection />} />
+        <Route path="/module-selection" element={<ModuleSelection />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
           <Route index element={<DashboardHome />} />
           <Route
@@ -130,12 +130,6 @@ function MainRoute() {
             <Route path="edit/:id" element={<PatientForm />} />
           </Route>
           <Route
-            path="pendaftaran"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Pendaftaran />)}
-          >
-            <Route index element={<div>Daftar</div>} />
-          </Route>
-          <Route
             path="encounter"
             element={withModuleGuard(workspaceModuleCodes.registration, <Encounter />)}
           >
@@ -155,12 +149,10 @@ function MainRoute() {
             <Route path="create" element={<ServiceRequestForm />} />
             <Route path="edit/:id" element={<ServiceRequestForm />} />
           </Route>
-          <Route
-            path="queue"
-            element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}
-          >
+          <Route path="queue" element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
+            <Route path="monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
             <Route
               path="registration"
               element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />}

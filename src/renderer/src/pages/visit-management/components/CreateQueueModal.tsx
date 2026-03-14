@@ -1,9 +1,9 @@
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
 import { PatientAttributes } from '@shared/patient'
-import { Button, DatePicker, Drawer, Form, App, Space } from 'antd'
+import { App, Button, DatePicker, Drawer, Form, Input, Select, Space } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 
 export type CreateQueueModalProps = {
   open: boolean
@@ -15,12 +15,73 @@ export type CreateQueueModalProps = {
 const CreateQueueModal = ({ open, onClose, patient, onSuccess }: CreateQueueModalProps) => {
   const [form] = Form.useForm()
   const createQueue = client.visitManagement.register.useMutation()
+  const visitDate = Form.useWatch('visitDate', form)
+  const poliId = Form.useWatch('poliId', form)
+  const paymentMethod = Form.useWatch('paymentMethod', form)
+  const needsMitra = paymentMethod === 'ASURANSI' || paymentMethod === 'COMPANY'
+
+  const doctorQueryInput = useMemo(
+    () => ({
+      date: visitDate ? dayjs(visitDate).format('YYYY-MM-DD') : undefined,
+      poliId: poliId ? Number(poliId) : undefined
+    }),
+    [visitDate, poliId]
+  )
+
+  const doctorsQuery = client.visitManagement.getAvailableDoctors.useQuery(doctorQueryInput, {
+    enabled: !!doctorQueryInput.date && !!doctorQueryInput.poliId,
+    queryKey: ['availableDoctors', { date: doctorQueryInput.date, poliId: doctorQueryInput.poliId }]
+  })
+
+  const availableDoctors = useMemo(() => {
+    const data = doctorsQuery.data as any
+    return data?.result?.doctors || data?.data?.doctors || data?.doctors || []
+  }, [doctorsQuery.data])
+
+  const doctorOptions = useMemo(() => {
+    return availableDoctors.map((doctor: any) => {
+      const timeLabel =
+        doctor.timeSlot?.startTime && doctor.timeSlot?.endTime
+          ? ` (${doctor.timeSlot.startTime} - ${doctor.timeSlot.endTime})`
+          : ''
+
+      return {
+        value: doctor.doctorScheduleId,
+        label: `${doctor.doctorName || 'Dokter'}${timeLabel}`
+      }
+    })
+  }, [availableDoctors])
+
+  const mitraQueryInput = useMemo(
+    () => ({
+      type: paymentMethod === 'COMPANY' ? ('company' as const) : ('insurance' as const),
+      status: 'active'
+    }),
+    [paymentMethod]
+  )
+
+  const mitraQuery = client.visitManagement.getMitra.useQuery(mitraQueryInput, {
+    enabled: needsMitra,
+    queryKey: ['mitra', mitraQueryInput]
+  })
+
+  const mitraOptions = useMemo(() => {
+    const data = mitraQuery.data as any
+    const rows = data?.result || data?.data || []
+
+    return rows.map((item: any) => ({
+      value: item.id,
+      label: item.name || item.nama || `Mitra ${item.id}`
+    }))
+  }, [mitraQuery.data])
+
   const { message } = App.useApp()
+
   useEffect(() => {
     if (open) {
       form.setFieldsValue({
-        queueDate: dayjs(),
-        isOnline: !patient // If no patient, default to PRE_RESERVED (isOnline=true)
+        visitDate: dayjs(),
+        paymentMethod: 'CASH'
       })
     } else {
       form.resetFields()
@@ -28,29 +89,69 @@ const CreateQueueModal = ({ open, onClose, patient, onSuccess }: CreateQueueModa
     }
   }, [open, form, patient])
 
+  useEffect(() => {
+    if (needsMitra) return
+    form.setFieldsValue({
+      mitraId: undefined,
+      mitraCodeNumber: undefined,
+      mitraCodeExpiredDate: undefined
+    })
+  }, [needsMitra, form])
+
+  useEffect(() => {
+    form.setFieldValue('doctorScheduleId', undefined)
+  }, [visitDate, poliId, form])
+
   const handleSubmit = async (values: any) => {
     try {
-      const formattedValues = {
-        ...values,
-        queueDate: values.queueDate ? dayjs(values.queueDate).format('YYYY-MM-DD') : undefined,
-        patientId: patient?.id,
-        isOnline: !patient ? true : values.isOnline // Ensure PRE_RESERVED if no patient
+      const selectedDoctor = availableDoctors.find(
+        (doctor: any) => Number(doctor.doctorScheduleId) === Number(values.doctorScheduleId)
+      )
+
+      if (!selectedDoctor) {
+        throw new Error('Dokter jadwal tidak ditemukan. Silakan pilih ulang dokter.')
       }
-      
-      await createQueue.mutateAsync(formattedValues)
+
+      const formattedVisitDate = dayjs(values.visitDate).format('YYYY-MM-DD')
+      const mitraCodeExpiredDate = values.mitraCodeExpiredDate
+        ? dayjs(values.mitraCodeExpiredDate).format('YYYY-MM-DD')
+        : undefined
+
+      const payload = {
+        queueDate: formattedVisitDate,
+        visitDate: formattedVisitDate,
+        practitionerId: Number(selectedDoctor.doctorId),
+        doctorScheduleId: Number(values.doctorScheduleId),
+        registrationType: 'OFFLINE' as const,
+        patientId: patient?.id,
+        paymentMethod: values.paymentMethod,
+        mitraId: needsMitra ? Number(values.mitraId) : undefined,
+        mitraCodeNumber: needsMitra ? values.mitraCodeNumber || undefined : undefined,
+        mitraCodeExpiredDate: needsMitra ? mitraCodeExpiredDate : undefined,
+        mitraCode: needsMitra ? values.mitraCodeNumber || undefined : undefined,
+        mitraExpiredAt: needsMitra ? mitraCodeExpiredDate : undefined,
+        reason: values.reason || undefined,
+        notes: values.notes || undefined
+      }
+
+      const response = await createQueue.mutateAsync(payload)
+      if ((response as any)?.success === false) {
+        throw new Error((response as any)?.message || 'Gagal membuat antrian')
+      }
+
       message.success('Antrian berhasil dibuat')
       onSuccess?.()
       onClose()
     } catch (error: any) {
-        // Error handling is managed by react-query/client usually, but we can show message here too
-        console.error(error)
-        message.error(error.message || 'Gagal membuat antrian')
+      // Error handling is managed by react-query/client usually, but we can show message here too
+      console.error(error)
+      message.error(error.message || 'Gagal membuat antrian')
     }
   }
 
   return (
     <Drawer
-      title={patient ? `Pendaftaran Pasien: ${patient.name}` : 'Buat Antrian (Pre-Reserved)'}
+      title={patient ? `Pendaftaran Pasien: ${patient.name}` : 'Buat Antrian'}
       width={600}
       open={open}
       onClose={onClose}
@@ -60,7 +161,7 @@ const CreateQueueModal = ({ open, onClose, patient, onSuccess }: CreateQueueModa
         <Space>
           <Button onClick={onClose}>Cancel</Button>
           <Button type="primary" onClick={() => form.submit()} loading={createQueue.isPending}>
-            {patient ? 'Daftar' : 'Buat Antrian'}
+            Daftar
           </Button>
         </Space>
       }
@@ -70,80 +171,119 @@ const CreateQueueModal = ({ open, onClose, patient, onSuccess }: CreateQueueModa
         layout="vertical"
         onFinish={handleSubmit}
         initialValues={{
-          queueDate: dayjs(),
-          registrationChannelCodeId: 'OFFLINE'
+          visitDate: dayjs(),
+          paymentMethod: 'CASH'
         }}
       >
         <Form.Item
-          name="queueDate"
-          label="Tanggal Antrian"
+          name="visitDate"
+          label="Tanggal Kunjungan"
           rules={[{ required: true, message: 'Harap pilih tanggal' }]}
         >
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>
 
         <Form.Item
-          name="serviceUnitCodeId"
-          label="Unit Layanan"
-          rules={[{ required: true, message: 'Harap pilih unit layanan' }]}
+          name="poliId"
+          label="Poli"
+          rules={[{ required: true, message: 'Harap pilih poli' }]}
         >
-          <SelectAsync
-            entity="referencecode"
-            display="display"
-            output="code"
-            filters={{ category: 'SERVICE_UNIT' }}
+          <SelectAsync entity="poli" output="id" />
+        </Form.Item>
+
+        <Form.Item
+          name="paymentMethod"
+          label="Metode Pembayaran"
+          rules={[{ required: true, message: 'Harap pilih metode pembayaran' }]}
+        >
+          <Select
+            options={[
+              { value: 'CASH', label: 'Tunai' },
+              { value: 'ASURANSI', label: 'Asuransi/BPJS' },
+              { value: 'COMPANY', label: 'Perusahaan' }
+            ]}
           />
         </Form.Item>
 
-        <Form.Item
-          name="poliCodeId"
-          label="Sub-Poli / Ruangan"
-          rules={[{ required: true, message: 'Harap pilih sub-poli' }]}
-        >
-          <SelectAsync entity="poli" />
-        </Form.Item>
+        {needsMitra && (
+          <>
+            <Form.Item
+              name="mitraId"
+              label="Mitra"
+              rules={[{ required: true, message: 'Harap pilih mitra' }]}
+            >
+              <Select
+                options={mitraOptions}
+                loading={mitraQuery.isLoading || mitraQuery.isRefetching}
+                placeholder="Pilih mitra"
+                showSearch
+                optionFilterProp="label"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="mitraCodeNumber"
+              label="Mitra Code"
+              rules={[{ required: true, message: 'Harap isi mitra code' }]}
+            >
+              <Input placeholder="Nomor kartu/nomor mitra" />
+            </Form.Item>
+
+            <Form.Item
+              name="mitraCodeExpiredDate"
+              label="Expired At"
+              rules={[{ required: true, message: 'Harap pilih tanggal expired' }]}
+            >
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          </>
+        )}
+
+        {needsMitra &&
+          !mitraQuery.isLoading &&
+          !mitraQuery.isRefetching &&
+          mitraOptions.length === 0 && (
+            <div style={{ color: '#a8071a' }}>
+              Data mitra tidak ditemukan untuk metode pembayaran ini.
+            </div>
+          )}
 
         <Form.Item
-          name="registrationChannelCodeId"
-          label="Registrasi"
-          rules={[{ required: true, message: 'Harap pilih registrasi' }]}
-        >
-          <SelectAsync
-            entity="referencecode"
-            display="display"
-            output="code"
-            filters={{ category: 'REGISTRATION_CHANNEL' }}
-            disabled
-          />
-        </Form.Item>
-
-        <Form.Item
-          name="assuranceCodeId"
-          label="Asuransi"
-          rules={[{ required: true, message: 'Harap pilih asuransi' }]}
-        >
-          <SelectAsync
-            entity={'referencecode'}
-            display="display"
-            output="code"
-            filters={{ category: 'ASSURANCE' }}
-          />
-        </Form.Item>
-
-        <Form.Item
-          name="practitionerId"
+          name="doctorScheduleId"
           label="Dokter"
           rules={[{ required: true, message: 'Harap pilih dokter' }]}
         >
-          <SelectAsync
-            display="namaLengkap"
-            entity="kepegawaian"
-            output="id"
-            filters={{
-              hakAksesId: 'doctor'
-            }}
+          <Select
+            options={doctorOptions}
+            loading={doctorsQuery.isLoading || doctorsQuery.isRefetching}
+            disabled={!doctorQueryInput.date || !doctorQueryInput.poliId}
+            placeholder={
+              !doctorQueryInput.date || !doctorQueryInput.poliId
+                ? 'Pilih tanggal dan poli terlebih dahulu'
+                : 'Pilih dokter'
+            }
+            showSearch
+            optionFilterProp="label"
           />
         </Form.Item>
+
+        <Form.Item name="reason" label="Alasan Kunjungan">
+          <Input placeholder="Contoh: Kontrol rutin" />
+        </Form.Item>
+
+        <Form.Item name="notes" label="Catatan">
+          <Input.TextArea rows={3} placeholder="Catatan tambahan (opsional)" />
+        </Form.Item>
+
+        {!doctorsQuery.isLoading &&
+          !doctorsQuery.isRefetching &&
+          doctorQueryInput.date &&
+          doctorQueryInput.poliId &&
+          doctorOptions.length === 0 && (
+            <div style={{ color: '#a8071a' }}>
+              Tidak ada dokter tersedia untuk tanggal dan poli yang dipilih.
+            </div>
+          )}
       </Form>
     </Drawer>
   )

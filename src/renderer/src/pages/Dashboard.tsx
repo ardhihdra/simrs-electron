@@ -90,12 +90,12 @@ const items: DashboardMenuItem[] = [
         key: '/dashboard/registration',
         icon: <DashboardOutlined />,
         moduleKey: 'rekam_medis.registration.pendaftaran'
+      },
+      {
+        label: 'Antrian',
+        key: '/dashboard/registration/queue',
+        icon: <DashboardOutlined />
       }
-      // {
-      //   label: 'Antrian',
-      //   key: '/dashboard/registration/queue',
-      //   icon: <DashboardOutlined />
-      // },
       // {
       //   label: 'Pemeriksaan Awal',
       //   key: '/dashboard/registration/triage',
@@ -163,6 +163,12 @@ const items: DashboardMenuItem[] = [
         label: 'Antrian',
         key: '/dashboard/registration/queue',
         icon: <DashboardOutlined />
+      },
+      {
+        label: 'Monitor Antrian Dokter',
+        key: '/dashboard/queue/monitor',
+        icon: <UnorderedListOutlined />,
+        moduleKey: workspaceModuleCodes.queue
       }
     ]
   },
@@ -288,35 +294,35 @@ const items: DashboardMenuItem[] = [
         icon: <FileTextOutlined />
       }
     ]
-  },
-  {
-    label: 'Sistem Antrian',
-    key: '/dashboard/queue',
-    icon: <UserOutlined />,
-    moduleKey: workspaceModuleCodes.queue,
-    children: [
-      {
-        label: 'Antrian Pendaftaran',
-        key: '/dashboard/queue/registration',
-        icon: <UserOutlined />
-      },
-      {
-        label: 'Antrian Poli',
-        key: '/dashboard/queue/poli',
-        icon: <UserOutlined />
-      },
-      {
-        label: 'Antrian Laboratorium',
-        key: '/dashboard/queue/laboratory',
-        icon: <UserOutlined />
-      },
-      {
-        label: 'Monitor Antrian',
-        key: '/dashboard/queue/monitor',
-        icon: <UserOutlined />
-      }
-    ]
   }
+  // {
+  //   label: 'Sistem Antrian',
+  //   key: '/dashboard/queue',
+  //   icon: <UserOutlined />,
+  //   moduleKey: workspaceModuleCodes.queue,
+  //   children: [
+  //     {
+  //       label: 'Antrian Pendaftaran',
+  //       key: '/dashboard/queue/registration',
+  //       icon: <UserOutlined />
+  //     },
+  //     {
+  //       label: 'Antrian Poli',
+  //       key: '/dashboard/queue/poli',
+  //       icon: <UserOutlined />
+  //     },
+  //     {
+  //       label: 'Antrian Laboratorium',
+  //       key: '/dashboard/queue/laboratory',
+  //       icon: <UserOutlined />
+  //     },
+  //     {
+  //       label: 'Monitor Antrian',
+  //       key: '/dashboard/queue/monitor',
+  //       icon: <UserOutlined />
+  //     }
+  //   ]
+  // }
 ]
 
 const isSessionModuleVisible = (session: ScopeSession, moduleCode: ModuleCode): boolean => {
@@ -337,7 +343,7 @@ const filterChildrenBySession = (
 
   return children.filter((child) => {
     if (!child.moduleKey) {
-      return false
+      return true
     }
 
     if (!session) {
@@ -359,8 +365,9 @@ const filterItemsBySession = (menuItems: DashboardMenuItem[], session: ScopeSess
     }
 
     const visibleChildren = filterChildrenBySession(item.children, session)
-    const isParentVisible =
-      !!session && !!item.moduleKey && isSessionModuleVisible(session, item.moduleKey)
+    const isParentVisible = !item.moduleKey
+      ? true
+      : !!session && isSessionModuleVisible(session, item.moduleKey)
 
     if (isParentVisible || visibleChildren.length > 0) {
       result.push({
