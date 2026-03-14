@@ -30,7 +30,7 @@ export default function RegistrationPage() {
     data: patientData,
     isLoading,
     isRefetching
-  } = client.patient.list.useQuery({
+  } = client.visitManagement.getPatientList.useQuery({
     nik: debouncedNik,
     name: debouncedName
   })

@@ -2,6 +2,31 @@ import z from 'zod'
 import { t } from '..'
 
 export const visitManagementRpc = {
+  getPatientList: t
+    .input(
+      z.object({
+        nik: z.string().optional(),
+        name: z.string().optional(),
+        address: z.string().optional(),
+        medicalRecordNumber: z.string().optional()
+      })
+    )
+    .output(z.any())
+    .query(async ({ client }, input) => {
+      const params = new URLSearchParams()
+      if (input.nik) params.append('nik', input.nik)
+      if (input.name) params.append('name', input.name)
+      if (input.address) params.append('address', input.address)
+      if (input.medicalRecordNumber) params.append('medicalRecordNumber', input.medicalRecordNumber)
+
+      try {
+        const data = await client.get(`/api/module/visit-management/patients?${params.toString()}`)
+        return await data.json()
+      } catch (error) {
+        console.error(error)
+        throw error
+      }
+    }),
   list: t
     .input(
       z.object({
