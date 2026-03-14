@@ -10,18 +10,24 @@ import {
   PhoneOutlined,
   RightCircleFilled,
   UnorderedListOutlined,
-  UserAddOutlined,
   UserOutlined,
   WalletOutlined
 } from '@ant-design/icons'
 import logoUrl from '@renderer/assets/logo.png'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import { workspaceModuleCodes } from '@renderer/services/ModuleScope/constant'
+import {
+  getModuleScopeState,
+  moduleScopePermission
+} from '@renderer/services/ModuleScope/module-scope'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
+import type { ModuleCode, ScopeSession } from '@renderer/services/ModuleScope/type'
 
 import type { MenuProps } from 'antd'
 import { Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 
 // const SendNotificationButton = () => {
@@ -47,16 +53,67 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 //   )
 // }
 
-const items = [
+type DashboardMenuChild = {
+  label: string
+  key: string
+  icon: ReactNode
+  moduleKey?: ModuleCode
+}
+
+type DashboardMenuItem = DashboardMenuChild & {
+  moduleKey?: ModuleCode
+  children?: DashboardMenuChild[]
+}
+
+const DASHBOARD_ROOT_KEY = '/dashboard'
+
+const items: DashboardMenuItem[] = [
   {
     label: 'Dashboard',
-    key: '/dashboard',
+    key: DASHBOARD_ROOT_KEY,
     icon: <DashboardOutlined />
+  },
+  {
+    label: 'Pendaftaran Rumah Sakit',
+    key: '/dashboard/regist',
+    icon: <CalendarOutlined />,
+    moduleKey: 'rekam_medis.registration',
+    children: [
+      {
+        label: 'Pasien',
+        key: '/dashboard/patient',
+        icon: <UserOutlined />,
+        moduleKey: 'rekam_medis.registration.patient'
+      },
+      {
+        label: 'Pendaftaran',
+        key: '/dashboard/registration',
+        icon: <DashboardOutlined />,
+        moduleKey: 'rekam_medis.registration.pendaftaran'
+      }
+      // {
+      //   label: 'Antrian',
+      //   key: '/dashboard/registration/queue',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Pemeriksaan Awal',
+      //   key: '/dashboard/registration/triage',
+      //   icon: <DashboardOutlined />
+      // },
+      // {
+      //   label: 'Daftar kunjungan',
+      //   key: '/dashboard/registration/active-encounters',
+      //   icon: <UnorderedListOutlined />,
+      //   moduleKey: 'rekam_medis.registration.active_encounters'
+      // }
+    ]
   },
   {
     label: 'Master Rumah Sakit',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
+    moduleKey: workspaceModuleCodes.administrator,
     children: [
       {
         label: 'Data Petugas Medis',
@@ -71,88 +128,40 @@ const items = [
     ]
   },
   {
-    label: 'Pendaftaran Rumah Sakit',
-    key: '/dashboard/registration',
+    label: 'Poli Umum',
+    key: '/dashboard/poli/umum',
     icon: <CalendarOutlined />,
+    moduleKey: 'rawat_jalan.poli.umum'
+  },
+  {
+    label: 'Rawat Inap',
+    key: '/dashboard/rawat-inap',
+    icon: <CalendarOutlined />,
+    moduleKey: 'rawat_inap',
     children: [
       {
-        label: 'Pasien',
-        key: '/dashboard/patient',
-        icon: <UserOutlined />
+        label: 'Rawat Inap 1',
+        key: '/dashboard/rawat-inap/ranap-1/class-1',
+        icon: <CalendarOutlined />,
+        moduleKey: 'rawat_inap.ranap_1.class_1'
       },
       {
-        label: 'Pendaftaran',
-        key: '/dashboard/registration',
-        icon: <DashboardOutlined />
-      },
+        label: 'Rawat Inap 2',
+        key: '/dashboard/rawat-inap/ranap-2/class1',
+        icon: <CalendarOutlined />,
+        moduleKey: 'rawat_inap.ranap_2.class_1'
+      }
+    ]
+  },
+  {
+    label: 'Antrian',
+    key: '/dashboard/queue',
+    icon: <CalendarOutlined />,
+    moduleKey: workspaceModuleCodes.registration,
+    children: [
       {
         label: 'Antrian',
         key: '/dashboard/registration/queue',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Pemeriksaan Awal',
-        key: '/dashboard/registration/triage',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Daftar kunjungan',
-        key: '/dashboard/registration/active-encounters',
-        icon: <UnorderedListOutlined />
-      },
-      // {
-      //   label: 'Daftar Antrian',
-      //   key: '/dashboard/encounter',
-      //   icon: <UserAddOutlined />
-      // // },
-      // {
-      //   label: 'Kunjungan Pasien',
-      //   key: '/dashboard/encounter/transition',
-      //   icon: <CalendarOutlined />
-      // },
-      // {
-      //   label: 'Triage',
-      //   key: '/dashboard/encounter/triage',
-      //   icon: <MedicineBoxOutlined />
-      // },
-      {
-        label: 'Data Jaminan',
-        key: '/dashboard/registration/jaminan',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Jadwal Praktek Dokter',
-        key: '/dashboard/registration/doctor-schedule',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Jadwal Libur Dokter',
-        key: '/dashboard/registration/doctor-leave',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Jadwal Praktek Petugas Medis',
-        key: '/dashboard/registration/medical-staff-schedule',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Lap Data Jaminan',
-        key: '/dashboard/registration/report-insurance',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Lap Data Registrasi Pasien',
-        key: '/dashboard/registration/report-patient',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Lap Data Jadwal Praktek',
-        key: '/dashboard/registration/report-schedule',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Lap Data Kunjungan Pasien',
-        key: '/dashboard/registration/report-visit',
         icon: <DashboardOutlined />
       }
     ]
@@ -161,6 +170,7 @@ const items = [
     label: 'Obat',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
+    moduleKey: workspaceModuleCodes.medicine,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
       {
@@ -193,6 +203,7 @@ const items = [
     label: 'Laboratorium',
     key: '/dashboard/laboratory-management',
     icon: <ExperimentOutlined />,
+    moduleKey: workspaceModuleCodes.laboratory,
     children: [
       {
         label: 'Antrian',
@@ -257,6 +268,7 @@ const items = [
     label: 'Perawat',
     key: '/dashboard/nurse-calling',
     icon: <UserOutlined />,
+    moduleKey: workspaceModuleCodes.nurse,
     children: [
       {
         label: 'Pemanggilan Pasien',
@@ -269,6 +281,7 @@ const items = [
     label: 'Dokter',
     key: '/dashboard/doctor',
     icon: <UserOutlined />,
+    moduleKey: workspaceModuleCodes.doctor,
     children: [
       {
         label: 'Rekam Medis',
@@ -281,6 +294,7 @@ const items = [
     label: 'Sistem Antrian',
     key: '/dashboard/queue',
     icon: <UserOutlined />,
+    moduleKey: workspaceModuleCodes.queue,
     children: [
       {
         label: 'Antrian Pendaftaran',
@@ -306,9 +320,66 @@ const items = [
   }
 ]
 
+const isSessionModuleVisible = (session: ScopeSession, moduleCode: ModuleCode): boolean => {
+  try {
+    return moduleScopePermission.isVisibleForClient(session, moduleCode)
+  } catch {
+    return false
+  }
+}
+
+const filterChildrenBySession = (
+  children: DashboardMenuChild[] | undefined,
+  session: ScopeSession | null
+): DashboardMenuChild[] => {
+  if (!children?.length) {
+    return []
+  }
+
+  return children.filter((child) => {
+    if (!child.moduleKey) {
+      return false
+    }
+
+    if (!session) {
+      return false
+    }
+
+    return isSessionModuleVisible(session, child.moduleKey)
+  })
+}
+
+const filterItemsBySession = (menuItems: DashboardMenuItem[], session: ScopeSession | null) => {
+  return menuItems.reduce<DashboardMenuItem[]>((result, item) => {
+    if (item.key === DASHBOARD_ROOT_KEY) {
+      result.push({
+        ...item,
+        ...(item.children ? { children: filterChildrenBySession(item.children, session) } : {})
+      })
+      return result
+    }
+
+    const visibleChildren = filterChildrenBySession(item.children, session)
+    const isParentVisible =
+      !!session && !!item.moduleKey && isSessionModuleVisible(session, item.moduleKey)
+
+    if (isParentVisible || visibleChildren.length > 0) {
+      result.push({
+        ...item,
+        ...(item.children ? { children: visibleChildren } : {})
+      })
+    }
+
+    return result
+  }, [])
+}
+
 function Dashboard() {
   const { token } = theme.useToken()
   const location = useLocation()
+  const session = useModuleScopeStore((state) => state.session)
+  const visibleModuleState = getModuleScopeState(session)
+  const visibleItems = filterItemsBySession(items, session)
   const registeredPrefixes = [
     '/dashboard/expense',
     '/dashboard/patient',
@@ -332,36 +403,42 @@ function Dashboard() {
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
     '/dashboard/doctor',
-    '/dashboard/nurse-calling'
+    '/dashboard/nurse-calling',
+    '/dashboard/rawat-inap'
   ]
   const isRegisteredPath = (path: string): boolean => {
-    if (path === '/dashboard') return true
+    if (path === DASHBOARD_ROOT_KEY) return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))
   }
   const findLabelByPath = (path: string): string => {
-    const top = items.find((i) => path.startsWith(i.key))
+    const top = visibleItems.find((i) => path.startsWith(i.key))
     if (top && path === top.key) return top.label
-    for (const i of items) {
+    for (const i of visibleItems) {
       const child = (i.children || []).find((c) => path.startsWith(c.key))
       if (child) return child.label
     }
     return top ? top.label : path
   }
   const getTopKeyFromPath = (path: string): string => {
-    if (path.startsWith('/dashboard/doctor')) return '/dashboard/doctor'
-    for (const top of items) {
+    if (
+      path.startsWith('/dashboard/doctor') &&
+      visibleItems.some((item) => item.key === '/dashboard/doctor')
+    ) {
+      return '/dashboard/doctor'
+    }
+    for (const top of visibleItems) {
       const children = Array.isArray(top.children) ? top.children : []
       const match = children.find((c) => path.startsWith(c.key))
       if (match) return top.key
     }
-    const sorted = [...items].sort((a, b) => b.key.length - a.key.length)
+    const sorted = [...visibleItems].sort((a, b) => b.key.length - a.key.length)
     const found = sorted.find((item) => path.startsWith(item.key))
-    return found?.key || items[0].key
+    return found?.key || visibleItems[0]?.key || DASHBOARD_ROOT_KEY
   }
   const initialTop = getTopKeyFromPath(location.pathname)
   const [activeTop, setActiveTop] = useState<string>(initialTop)
   const childrenOfTop = (key: string) => {
-    const top = items.find((i) => i.key === key)
+    const top = visibleItems.find((i) => i.key === key)
     if (!top) return [] as ItemType[]
     if (Array.isArray(top.children) && top.children.length > 0) {
       return top.children.map((c) => ({ label: c.label, key: c.key, icon: c.icon })) as ItemType[]
@@ -369,7 +446,7 @@ function Dashboard() {
     return [{ label: top.label, key: top.key, icon: top.icon } as ItemType]
   }
   const childKeysOfTop = (key: string): string[] => {
-    const top = items.find((i) => i.key === key)
+    const top = visibleItems.find((i) => i.key === key)
     if (!top) return []
     if (Array.isArray(top.children) && top.children.length > 0)
       return top.children.map((c) => c.key)
@@ -388,7 +465,11 @@ function Dashboard() {
     navigate(key)
     setActiveSide(key)
   }
-  const topItems = items.map((i) => ({ label: i.label, key: i.key, icon: i.icon })) as ItemType[]
+  const topItems = visibleItems.map((i) => ({
+    label: i.label,
+    key: i.key,
+    icon: i.icon
+  })) as ItemType[]
   const onTopClick: MenuProps['onClick'] = (e) => {
     const key = String(e.key)
     setActiveTop(key)
@@ -410,7 +491,7 @@ function Dashboard() {
       .sort((a, b) => b.length - a.length)[0]
 
     setActiveSide(match || (children[0]?.key as string))
-  }, [location.pathname])
+  }, [location.pathname, session, visibleModuleState.visibleModules.join('|')])
 
   const isWorkspaceRoute =
     location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null

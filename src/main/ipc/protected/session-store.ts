@@ -16,7 +16,7 @@ export type Session = {
 
 export type SessionUser = {
   id: number
-  nik: string
+ username:string
   hakAksesId?: string
 }
 
@@ -27,6 +27,7 @@ export class SessionStore {
   private windowTokens = new Map<number, string>()
 
   private backendTokens = new Map<number, string>()
+  private scopeTokens = new Map<number, string>()
   private defaultTtlMs: number
 
   constructor(opts?: { defaultTtlMs?: number }) {
@@ -114,6 +115,18 @@ export class SessionStore {
     return this.backendTokens.get(windowId)
   }
 
+  setScopeTokenForWindow(windowId: number, token: string): void {
+    this.scopeTokens.set(windowId, token)
+  }
+
+  getScopeTokenForWindow(windowId: number): string | undefined {
+    return this.scopeTokens.get(windowId)
+  }
+
+  clearScopeTokenForWindow(windowId: number): void {
+    this.scopeTokens.delete(windowId)
+  }
+
   /**
    * Get the current session for a window (if any), validating TTL.
    */
@@ -129,6 +142,7 @@ export class SessionStore {
   clearWindow(windowId: number): void {
     this.windowTokens.delete(windowId)
     this.backendTokens.delete(windowId)
+    this.scopeTokens.delete(windowId)
   }
 
   setUser(user: SessionUser): void {
