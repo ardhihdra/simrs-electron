@@ -338,7 +338,7 @@ const filterChildrenBySession = (
 
   return children.filter((child) => {
     if (!child.moduleKey) {
-      return false
+      return true
     }
 
     if (!session) {
