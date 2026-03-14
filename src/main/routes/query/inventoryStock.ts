@@ -45,6 +45,14 @@ const ItemAdjustmentSchema = z.object({
 	updatedBy: z.string().nullable()
 })
 
+const BatchItemSchema = z.object({
+	batchNumber: z.string(),
+	expiryDate: z.string().nullable(),
+	stockIn: z.number(),
+	stockOut: z.number(),
+	availableStock: z.number()
+})
+
 export const schemas = {
 	list: {
 		args: z
@@ -58,44 +66,54 @@ export const schemas = {
 			message: z.string().optional()
 		})
 	},
-		expirySummary: {
+	expirySummary: {
 		args: z
 			.object({
 				itemType: z.enum(['item', 'substance', 'medicine']).optional(),
 				limit: z.number().optional()
 			})
 			.optional(),
-			result: z.object({
-				success: z.boolean(),
-				result: InventoryExpiryItemSchema.array().optional(),
-				message: z.string().optional()
+		result: z.object({
+			success: z.boolean(),
+			result: InventoryExpiryItemSchema.array().optional(),
+			message: z.string().optional()
+		})
+	},
+	adjustItemStock: {
+		args: z.object({
+			itemId: z.number(),
+			newStock: z.number(),
+			adjustReason: z.string().optional(),
+			note: z.string().optional()
+		}),
+		result: z.object({
+			success: z.boolean(),
+			result: AdjustItemStockResultSchema.optional(),
+			message: z.string().optional()
+		})
+	},
+	itemAdjustments: {
+		args: z
+			.object({
+				itemId: z.number().optional()
 			})
-		},
-		adjustItemStock: {
-			args: z.object({
-				itemId: z.number(),
-				newStock: z.number(),
-				adjustReason: z.string().optional(),
-				note: z.string().optional()
-			}),
-			result: z.object({
-				success: z.boolean(),
-				result: AdjustItemStockResultSchema.optional(),
-				message: z.string().optional()
-			})
-		},
-		itemAdjustments: {
-			args: z
-				.object({
-					itemId: z.number().optional()
-				})
-				.optional(),
-			result: z.object({
-				success: z.boolean(),
-				result: ItemAdjustmentSchema.array().nullable().optional(),
-				message: z.string().optional()
-			})
-		}
+			.optional(),
+		result: z.object({
+			success: z.boolean(),
+			result: ItemAdjustmentSchema.array().nullable().optional(),
+			message: z.string().optional()
+		})
+	},
+	listBatches: {
+		args: z.object({
+			kodeItem: z.string()
+		}),
+		result: z.object({
+			success: z.boolean(),
+			result: BatchItemSchema.array().optional(),
+			message: z.string().optional()
+		})
+	}
 } as const
 
 type ListArgs = z.infer<typeof schemas.list.args>
@@ -103,6 +121,7 @@ type ListArgs = z.infer<typeof schemas.list.args>
 type ExpirySummaryArgs = z.infer<typeof schemas.expirySummary.args>
 type AdjustItemStockArgs = z.infer<typeof schemas.adjustItemStock.args>
 type ItemAdjustmentsArgs = z.infer<typeof schemas.itemAdjustments.args>
+type ListBatchesArgs = z.infer<typeof schemas.listBatches.args>
 
 export const list = async (ctx: IpcContext, args?: ListArgs) => {
 	const client = createBackendClient(ctx)
@@ -180,3 +199,20 @@ export const itemAdjustments = async (ctx: IpcContext, args?: ItemAdjustmentsArg
 	const result = await parseBackendResponse(res, BackendSchema)
 	return { success: true, result }
 }
+
+export const listBatches = async (ctx: IpcContext, args: ListBatchesArgs) => {
+	const client = createBackendClient(ctx)
+	const params = new URLSearchParams()
+	params.append('kodeItem', args.kodeItem)
+
+	const url = `/api/inventorystock/batches?${params.toString()}`
+	const res = await client.get(url)
+	const BackendSchema = z.object({
+		success: z.boolean(),
+		result: BatchItemSchema.array().optional(),
+		message: z.string().optional()
+	})
+	const result = await parseBackendResponse(res, BackendSchema)
+	return { success: true, result }
+}
+

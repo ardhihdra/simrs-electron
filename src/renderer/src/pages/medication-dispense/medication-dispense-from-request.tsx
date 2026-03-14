@@ -1,8 +1,9 @@
-import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App } from 'antd'
+import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App, Space, Alert } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import dayjs from 'dayjs'
+import { TelaahAdministrasiForm, defaultTelaahResults, TelaahResults } from './component/telaah-administrasi-form'
 
 type PatientNameEntry = {
 	text?: string
@@ -93,6 +94,8 @@ interface TableRow {
 	unitStok?: string | null
 	quantityDiambil?: number
 	medicationRequestId?: number
+	batch?: string
+	expiryDate?: string
 	children?: TableRow[]
 }
 
@@ -203,6 +206,7 @@ export default function MedicationDispenseFromRequest() {
 	const idParam = params.id
 	const requestId = typeof idParam === 'string' ? Number(idParam) : NaN
 	const [quantityOverrides, setQuantityOverrides] = useState<Record<number, number>>({})
+	const [telaahResults, setTelaahResults] = useState<TelaahResults>(defaultTelaahResults)
 
 	const { data, isLoading } = useQuery({
 		queryKey: ['medicationRequest', 'detail', requestId],
@@ -385,13 +389,28 @@ export default function MedicationDispenseFromRequest() {
 		return map
 	}, [inventoryStockData?.result])
 
+	const isInternalRequest = useMemo(() => {
+		if (!detail) return false
+		// Internal requests usually have an encounter and a requester from our staff
+		// Also medicine request from external/manual entry might not have encounterId
+		return !!detail.supportingInformation?.some(info => 
+			info.resourceType === 'Encounter' || 
+			(info.type === 'Encounter' && info.itemId)
+		) || !!baseDetail?.groupIdentifier?.value
+	}, [detail, baseDetail])
+
+	const allCriteriaMet = useMemo(() => {
+		return Object.values(telaahResults).every(v => v === true)
+	}, [telaahResults])
+
 	const createDispenseMutation = useMutation({
 		mutationKey: ['medicationDispense', 'createFromRequest', requestId],
 		mutationFn: async (): Promise<DispenseCreateResult> => {
-			if (!Number.isFinite(requestId)) {
-				throw new Error('ID resep tidak valid')
-			}
-			if (!detail) {
+			const res = await window.api.query.medicationDispense.createFromRequest({
+				medicationRequestId: requestId,
+				telaahResults: telaahResults
+			})
+			if (!res.success) {
 				throw new Error('Detail resep belum tersedia')
 			}
 			const api = window.api?.query as {
@@ -651,6 +670,16 @@ export default function MedicationDispenseFromRequest() {
 				medicationRequestId
 			}
 
+			// Extract batch info for non-compound items
+			if (isItem && !isCompound && Array.isArray(record.supportingInformation)) {
+				const batchInfo = (record.supportingInformation as Array<Record<string, unknown>>)
+					.find((info) => info.resourceType === 'StockBatch')
+				if (batchInfo) {
+					if (typeof batchInfo.batchNumber === 'string') row.batch = batchInfo.batchNumber
+					if (typeof batchInfo.expiryDate === 'string') row.expiryDate = batchInfo.expiryDate
+				}
+			}
+
 			if (isCompound && Array.isArray(record.supportingInformation)) {
 				const ingredients = record.supportingInformation.filter(
 					(info: any) =>
@@ -685,7 +714,8 @@ export default function MedicationDispenseFromRequest() {
 							stokSaatIni: undefined,
 							unitStok: undefined,
 							quantityDiambil: undefined,
-							medicationRequestId: undefined
+							medicationRequestId: undefined,
+							batch: typeof ing.batchNumber === 'string' && ing.batchNumber.trim().length > 0 ? ing.batchNumber.trim() : undefined
 						}
 					})
 				}
@@ -730,7 +760,7 @@ export default function MedicationDispenseFromRequest() {
 	}, [detail, groupListData, completedQuantityByRequestId])
 
 	const isCreateDisabled =
-		isPrescriptionFulfilled || isOutOfStockForCurrentQuantity
+		isPrescriptionFulfilled || isOutOfStockForCurrentQuantity || !allCriteriaMet
 
 	const createDisabledReason = (() => {
 		if (isPrescriptionFulfilled) {
@@ -739,12 +769,26 @@ export default function MedicationDispenseFromRequest() {
 		if (isOutOfStockForCurrentQuantity) {
 			return 'Stok obat tidak cukup untuk Qty Diambil yang dipilih.'
 		}
+		if (!allCriteriaMet) {
+			return 'Harap selesaikan Telaah Administrasi terlebih dahulu.'
+		}
 		return undefined
 	})()
 
 	const columns = [
 		{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
 		{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
+		{
+			title: 'Batch / Expire',
+			key: 'batchExpire',
+			render: (_: unknown, row: TableRow) => {
+				if (!row.batch && !row.expiryDate) return '-'
+				const parts: string[] = []
+				if (row.batch) parts.push(`Batch: ${row.batch}`)
+				if (row.expiryDate) parts.push(`Exp: ${row.expiryDate}`)
+				return <Tag color="orange">{parts.join(' | ')}</Tag>
+			}
+		},
 		{ title: 'Qty Diminta', dataIndex: 'quantityDiminta', key: 'quantityDiminta' },
 		{ title: 'Satuan', dataIndex: 'unitDiminta', key: 'unitDiminta' },
 		{ title: 'Stok Saat Ini', dataIndex: 'stokSaatIni', key: 'stokSaatIni' },
@@ -811,7 +855,15 @@ export default function MedicationDispenseFromRequest() {
 					rowKey="key"
 					size="small"
 				/>
-				<div className="mt-4 flex justify-end gap-2">
+			</Card>
+
+			<TelaahAdministrasiForm 
+				isInternal={isInternalRequest}
+				results={telaahResults}
+				onChange={setTelaahResults}
+			/>
+
+			<div className="mt-4 flex justify-end gap-2">
 					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
 						Kembali ke Daftar Resep
 					</Button>
@@ -838,7 +890,6 @@ export default function MedicationDispenseFromRequest() {
 						Resep ini sudah terpenuhi, tidak dapat membuat dispense baru.
 					</div>
 				)}
-			</Card>
 		</div>
 	)
 }

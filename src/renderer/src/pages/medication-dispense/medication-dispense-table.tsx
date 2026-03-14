@@ -84,6 +84,7 @@ interface AuthorizingPrescriptionInfo {
     system?: string
     value?: string
   } | null
+  requester?: { name?: string }
 }
 
 interface MedicationDispenseAttributes {
@@ -172,6 +173,8 @@ interface DispenseItemRow {
   instruksi?: string
   availableStock?: number
   fhirId?: string
+  batch?: string
+  expiryDate?: string
   children?: DispenseItemRow[]
 }
 
@@ -182,6 +185,8 @@ interface ParentRow {
   paymentStatus?: string
   handedOverAt?: string
   encounterType?: string
+  dokterName?: string
+  resepturName?: string
   items: DispenseItemRow[]
 }
 
@@ -509,6 +514,18 @@ const columns = [
     }
   },
   {
+    title: 'Dokter',
+    dataIndex: 'dokterName',
+    key: 'dokterName',
+    render: (val: string | undefined) => val || '-'
+  },
+  {
+    title: 'Reseptur',
+    dataIndex: 'resepturName',
+    key: 'resepturName',
+    render: (val: string | undefined) => val || '-'
+  },
+  {
     title: 'Asal',
     dataIndex: 'encounterType',
     key: 'encounterType',
@@ -625,6 +642,27 @@ export function MedicationDispenseTable() {
     }
   })
 
+  const { data: employeeData } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'for-medication-dispense'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) return { success: false, result: [] }
+      return fn()
+    }
+  })
+  const employeeNameById = useMemo(() => {
+    const map = new Map<number, string>()
+    const source = Array.isArray(employeeData?.result)
+      ? (employeeData.result as Array<{ id?: number; namaLengkap?: string }>)
+      : []
+    source.forEach((e) => {
+      if (typeof e.id === 'number') {
+        const name = typeof e.namaLengkap === 'string' ? e.namaLengkap : String(e.id)
+        map.set(e.id, name)
+      }
+    })
+    return map
+  }, [employeeData])
   const itemApi = (
     window.api?.query as {
       item?: { list: () => Promise<ItemListResponse> }
@@ -941,9 +979,35 @@ export function MedicationDispenseTable() {
             : undefined,
         children
       }
+      // Extract batch info for non-compound items from prescription supportingInformation
+      if (isItem && Array.isArray(prescription?.supportingInformation)) {
+        const batchInfo = (prescription.supportingInformation as Array<Record<string, unknown>>)
+          .find((info) => info.resourceType === 'StockBatch')
+        if (batchInfo) {
+          const bn = batchInfo.batchNumber as string | undefined
+          const exp = batchInfo.expiryDate as string | undefined
+          if (bn && bn.trim().length > 0) (rowItem as any).batch = bn.trim()
+          if (exp && exp.trim().length > 0) (rowItem as any).expiryDate = exp.trim()
+        }
+      }
 
       const existing = groups.get(key)
       if (!existing) {
+        let resepturName: string | undefined
+        if (Array.isArray(prescription?.supportingInformation)) {
+          const resepturEntry = (prescription.supportingInformation as Array<Record<string, unknown>>)
+            .find((info) => {
+              const t1 = info.resourceType as string | undefined
+              const t2 = info.type as string | undefined
+              return t1 === 'Reseptur' || t2 === 'Reseptur'
+            })
+          const ridRaw = resepturEntry?.itemId ?? (resepturEntry as any)?.item_id
+          const rid = typeof ridRaw === 'number' ? ridRaw : undefined
+          if (typeof rid === 'number') {
+            resepturName = employeeNameById.get(rid) ?? undefined
+          }
+        }
+        const dokterName = (prescription as any)?.requester?.name as string | undefined
         groups.set(key, {
           key,
           patient: item.patient,
@@ -951,6 +1015,8 @@ export function MedicationDispenseTable() {
           paymentStatus: item.paymentStatus,
           handedOverAt,
           encounterType: item.encounter?.encounterType,
+          dokterName,
+          resepturName,
           items: [rowItem]
         })
       } else {
@@ -963,7 +1029,7 @@ export function MedicationDispenseTable() {
     })
 
     return Array.from(groups.values())
-  }, [filtered, itemNameById])
+  }, [filtered, itemNameById, employeeNameById])
 
   const groupedDataForTable: ParentRow[] = useMemo(() => {
     if (!showOnlyPending) return groupedData
@@ -1179,6 +1245,19 @@ export function MedicationDispenseTable() {
                     { title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
                     { title: 'Satuan', dataIndex: 'unit', key: 'unit' },
                     { title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
+                    {
+                      title: 'Batch / Expire',
+                      key: 'batchExpire',
+                      render: (_: unknown, row: DispenseItemRow) => {
+                        const batch = (row as any).batch as string | undefined
+                        const expiryDate = (row as any).expiryDate as string | undefined
+                        if (!batch && !expiryDate) return '-'
+                        const parts: string[] = []
+                        if (batch) parts.push(`Batch: ${batch}`)
+                        if (expiryDate) parts.push(`Exp: ${expiryDate}`)
+                        return <Tag color="orange">{parts.join(' | ')}</Tag>
+                      }
+                    },
                     {
                       title: 'Status',
                       dataIndex: 'status',

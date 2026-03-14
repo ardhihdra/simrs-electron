@@ -64,7 +64,16 @@ export const schemas = {
           value: z.number().optional(),
           unit: z.string().optional()
         })
-        .optional()
+        .optional(),
+      telaahResults: z.object({
+        kejelasanResep: z.boolean(),
+        tepatPasien: z.boolean(),
+        tepatObat: z.boolean(),
+        tepatDosis: z.boolean(),
+        tepatWaktu: z.boolean(),
+        tepatRute: z.boolean(),
+        identitasDokter: z.boolean()
+      }).optional()
     }),
     result: z.object({
       success: z.boolean(),
@@ -628,9 +637,16 @@ export const createFromRequest = async (
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
-        note: typeof request.note === 'string' && request.note.trim().length > 0
-          ? [{ text: request.note.trim() }]
-          : null
+        note: (() => {
+          const notes: any[] = []
+          if (typeof request.note === 'string' && request.note.trim().length > 0) {
+            notes.push({ text: request.note.trim() })
+          }
+          if (args.telaahResults) {
+            notes.push({ text: `Telaah Administrasi: ${JSON.stringify(args.telaahResults)}` })
+          }
+          return notes.length > 0 ? notes : null
+        })()
       }
 
       const createRes = await client.post(
@@ -693,9 +709,16 @@ export const createFromRequest = async (
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
-        note: typeof request.note === 'string' && request.note.trim().length > 0
-          ? [{ text: request.note.trim() }]
-          : null
+        note: (() => {
+          const notes: any[] = []
+          if (typeof request.note === 'string' && request.note.trim().length > 0) {
+            notes.push({ text: request.note.trim() })
+          }
+          if (args.telaahResults) {
+            notes.push({ text: `Telaah Administrasi: ${JSON.stringify(args.telaahResults)}` })
+          }
+          return notes.length > 0 ? notes : null
+        })()
       }
 
       const createRes = await client.post(

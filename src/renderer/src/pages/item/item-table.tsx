@@ -31,7 +31,7 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useLocation } from 'react-router'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
@@ -81,6 +81,19 @@ interface InventoryStockItem {
 type InventoryStockResponse = {
   success: boolean
   result?: InventoryStockItem[]
+  message?: string
+}
+
+interface ItemCategoryAttributes {
+  id?: number
+  name?: string
+  status?: boolean
+  categoryType?: string | null
+}
+
+type ItemCategoryListResponse = {
+  success: boolean
+  result?: ItemCategoryAttributes[]
   message?: string
 }
 
@@ -237,6 +250,8 @@ interface StockAdjustmentFormValues {
 
 function RowActions({ record }: { record: ItemAttributes }) {
   const navigate = useNavigate()
+  const location = useLocation()
+  const bpjsOnly = location.pathname.includes('/dashboard/medicine/items-bpjs')
   const [isEditStockOpen, setIsEditStockOpen] = useState(false)
   const [stockForm] = Form.useForm<StockAdjustmentFormValues>()
 
@@ -337,7 +352,10 @@ function RowActions({ record }: { record: ItemAttributes }) {
       label: 'Edit',
       icon: <EditOutlined />,
       onClick: () => {
-        if (typeof record.id === 'number') navigate(`/dashboard/medicine/items/edit/${record.id}`)
+        if (typeof record.id === 'number') {
+          if (bpjsOnly) navigate(`/dashboard/medicine/items-bpjs/edit/${record.id}`)
+          else navigate(`/dashboard/medicine/items/edit/${record.id}`)
+        }
       }
     },
     {
@@ -497,7 +515,9 @@ function RowActions({ record }: { record: ItemAttributes }) {
 export function ItemTable() {
   const { token } = theme.useToken()
   const navigate = useNavigate()
+  const location = useLocation()
   const [search, setSearch] = useState('')
+  const bpjsOnly = location.pathname.includes('/dashboard/medicine/items-bpjs')
   const [isHistoryOpen, setIsHistoryOpen] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(false)
   const [historyRows, setHistoryRows] = useState<ItemAdjustmentRow[]>([])
@@ -511,26 +531,35 @@ export function ItemTable() {
     }
   })
 
-  const itemCategoryNameById = useMemo(() => {
-    const items: ItemAttributes[] = Array.isArray(data?.result) ? data.result : []
-    const map = new Map<number, string>()
-    for (const item of items) {
-      const id =
-        typeof item.itemCategoryId === 'number'
-          ? item.itemCategoryId
-          : typeof item.category?.id === 'number'
-            ? item.category.id
-            : undefined
-      if (typeof id !== 'number') continue
-      const rawName = typeof item.category?.name === 'string' ? item.category.name : undefined
-      const name = rawName ? rawName.trim() : ''
-      if (!name) continue
+  const itemCategoryApi = window.api?.query as
+    | { medicineCategory?: { list: () => Promise<ItemCategoryListResponse> } }
+    | undefined
+
+  const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
+    queryKey: ['itemCategory', 'list', 'for-item-table'],
+    queryFn: () => {
+      const fn = itemCategoryApi?.medicineCategory?.list
+      if (!fn) throw new Error('API kategori item tidak tersedia.')
+      return fn()
+    }
+  })
+
+  const categoryMapById = useMemo(() => {
+    const map = new Map<number, { name: string; categoryType?: string | null }>()
+    const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+      ? itemCategorySource.result
+      : []
+    for (const cat of entries) {
+      const id = typeof cat.id === 'number' ? cat.id : undefined
+      const rawName = typeof cat.name === 'string' ? cat.name : ''
+      const name = rawName.trim()
+      if (id === undefined || !name) continue
       if (!map.has(id)) {
-        map.set(id, name)
+        map.set(id, { name, categoryType: cat.categoryType ?? null })
       }
     }
     return map
-  }, [data?.result])
+  }, [itemCategorySource?.result])
 
   const { data: stockData } = useQuery<InventoryStockResponse>({
     queryKey: ['inventoryStock', 'list'],
@@ -567,14 +596,49 @@ export function ItemTable() {
       return { ...item, stock: stockValue }
     })
 
-    const q = search.trim().toLowerCase()
-    if (!q) return withStock
-    return withStock.filter((item) => {
-      const unitName = item.unit?.nama ?? ''
-      const stockText = typeof item.stock === 'number' ? String(item.stock) : ''
-      return [item.nama, item.kode, unitName, stockText].join(' ').toLowerCase().includes(q)
+    const bySearch = (() => {
+      const q = search.trim().toLowerCase()
+      if (!q) return withStock
+      return withStock.filter((item) => {
+        const unitName = item.unit?.nama ?? ''
+        const stockText = typeof item.stock === 'number' ? String(item.stock) : ''
+        return [item.nama, item.kode, unitName, stockText].join(' ').toLowerCase().includes(q)
+      })
+    })()
+
+    const isBpjsByNameType = (
+      nameRaw: string | null | undefined,
+      categoryTypeRaw: string | null | undefined
+    ): boolean => {
+      const ct = (categoryTypeRaw || '').toLowerCase()
+      if (ct === 'bpjs') return true
+      const n = (nameRaw || '').toLowerCase()
+      if (n.includes('non_bpjs') || n.includes('non bpjs')) return false
+      return n.includes('bpjs')
+    }
+    if (bpjsOnly) {
+      return bySearch.filter((item) => {
+        const directName = typeof item.category?.name === 'string' ? item.category.name : null
+        const catInfo =
+          typeof item.itemCategoryId === 'number'
+            ? categoryMapById.get(item.itemCategoryId)
+            : undefined
+        const name = directName ?? catInfo?.name ?? ''
+        const categoryType = catInfo?.categoryType ?? null
+        return isBpjsByNameType(name, categoryType)
+      })
+    }
+    return bySearch.filter((item) => {
+      const directName = typeof item.category?.name === 'string' ? item.category.name : null
+      const catInfo =
+        typeof item.itemCategoryId === 'number'
+          ? categoryMapById.get(item.itemCategoryId)
+          : undefined
+      const name = directName ?? catInfo?.name ?? ''
+      const categoryType = catInfo?.categoryType ?? null
+      return !isBpjsByNameType(name, categoryType)
     })
-  }, [data?.result, stockData?.result, search])
+  }, [data?.result, stockData?.result, search, bpjsOnly, categoryMapById])
 
   const handleOpenHistory = async () => {
     const inventoryApi = (window.api?.query as { inventoryStock?: InventoryStockApi })
@@ -726,7 +790,7 @@ export function ItemTable() {
         const idFromRecord =
           typeof record.itemCategoryId === 'number' ? record.itemCategoryId : undefined
         if (typeof idFromRecord === 'number') {
-          const mapped = itemCategoryNameById.get(idFromRecord)
+          const mapped = categoryMapById.get(idFromRecord)?.name
           if (typeof mapped === 'string' && mapped.length > 0) return mapped
         }
         return '-'
@@ -792,7 +856,11 @@ export function ItemTable() {
               </Button>
               <Button
                 icon={<PlusOutlined />}
-                onClick={() => navigate('/dashboard/medicine/items/create')}
+                onClick={() =>
+                  bpjsOnly
+                    ? navigate('/dashboard/medicine/items-bpjs/create')
+                    : navigate('/dashboard/medicine/items/create')
+                }
                 style={{
                   background: '#fff',
                   borderColor: '#fff',
