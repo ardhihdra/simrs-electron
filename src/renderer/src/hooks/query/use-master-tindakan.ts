@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 
 export interface MasterTindakanItem {
     id: number
-    kode: string
-    nama: string
-    kategori?: string | null
+    kodeTindakan: string
+    namaTindakan: string
+    kategoriTindakan?: string | null
+    aktif?: boolean
     satuan?: string | null
     deskripsi?: string | null
-    status?: string
 }
 
 export const useMasterTindakanList = (params?: {
@@ -25,6 +25,6 @@ export const useMasterTindakanList = (params?: {
             if (!res.success) throw new Error(res.error ?? 'Gagal mengambil data master tindakan')
             return (res.result ?? []) as MasterTindakanItem[]
         },
-        staleTime: 5 * 60 * 1000 // cache 5 menit — master data jarang berubah
+        staleTime: 5 * 60 * 1000
     })
 }

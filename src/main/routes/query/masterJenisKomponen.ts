@@ -4,12 +4,12 @@ import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/
 
 export const requireSession = true
 
-const MasterTindakanSchema = z.object({
+const MasterJenisKomponenSchema = z.object({
     id: z.number(),
-    kodeTindakan: z.string(),
-    namaTindakan: z.string(),
-    kategoriTindakan: z.string().optional().nullable(),
-    deskripsi: z.string().optional().nullable(),
+    kode: z.string(),
+    label: z.string(),
+    isUntukMedis: z.boolean(),
+    keterangan: z.string().optional().nullable(),
     aktif: z.boolean().optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional()
@@ -22,19 +22,11 @@ export const schemas = {
             items: z.number().optional(),
             q: z.string().optional(),
             kode: z.string().optional(),
-            nama: z.string().optional(),
-            kategori: z.string().optional(),
+            label: z.string().optional(),
+            isUntukMedis: z.boolean().optional(),
             status: z.string().optional()
         }).optional(),
         result: z.any()
-    },
-    getById: {
-        args: z.object({ id: z.number() }),
-        result: z.object({
-            success: z.boolean(),
-            result: MasterTindakanSchema.optional(),
-            error: z.string().optional()
-        })
     }
 } as const
 
@@ -47,35 +39,17 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         if (args?.items) params.append('items', args.items.toString())
         if (args?.q) params.append('q', args.q)
         if (args?.kode) params.append('kode', args.kode)
-        if (args?.nama) params.append('nama', args.nama)
-        if (args?.kategori) params.append('kategori', args.kategori)
+        if (args?.label) params.append('label', args.label)
+        if (args?.isUntukMedis !== undefined) params.append('isUntukMedis', args.isUntukMedis.toString())
         if (args?.status) params.append('status', args.status)
 
         const queryString = params.toString()
-        const url = `/api/mastertindakan${queryString ? `?${queryString}` : ''}`
+        const url = `/api/masterjeniskomponen${queryString ? `?${queryString}` : ''}`
         const res = await client.get(url)
 
-        const ListSchema = BackendListSchema(MasterTindakanSchema)
+        const ListSchema = BackendListSchema(MasterJenisKomponenSchema)
         const result = await parseBackendResponse(res, ListSchema)
         return { success: true, result: result ?? [] }
-    } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        return { success: false, error: msg }
-    }
-}
-
-export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
-    try {
-        const client = getClient(ctx)
-        const res = await client.get(`/api/mastertindakan/${args.id}/read`)
-        const BackendReadSchema = z.object({
-            success: z.boolean(),
-            result: MasterTindakanSchema.optional().nullable(),
-            message: z.string().optional(),
-            error: z.any().optional()
-        })
-        const result = await parseBackendResponse(res, BackendReadSchema)
-        return { success: true, result }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         return { success: false, error: msg }

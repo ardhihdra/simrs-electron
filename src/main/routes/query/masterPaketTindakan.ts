@@ -4,16 +4,38 @@ import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/
 
 export const requireSession = true
 
-const MasterTindakanSchema = z.object({
+const MasterTindakanSimpleSchema = z.object({
     id: z.number(),
     kodeTindakan: z.string(),
     namaTindakan: z.string(),
-    kategoriTindakan: z.string().optional().nullable(),
+    kategoriTindakan: z.string().optional().nullable()
+}).passthrough()
+
+const PaketDetailItemSchema = z.object({
+    id: z.number(),
+    paketId: z.number(),
+    masterTindakanId: z.number(),
+    qty: z.union([z.number(), z.string()]).optional(),
+    satuan: z.string().optional().nullable(),
+    createdAt: z.union([z.string(), z.date()]).optional(),
+    updatedAt: z.union([z.string(), z.date()]).optional(),
+    masterTindakan: MasterTindakanSimpleSchema.optional().nullable()
+}).passthrough()
+
+const MasterPaketTindakanSchema = z.object({
+    id: z.number(),
+    kodePaket: z.string(),
+    namaPaket: z.string(),
+    kategoriPaket: z.string().optional().nullable(),
     deskripsi: z.string().optional().nullable(),
+    tarifPaket: z.union([z.number(), z.string()]).optional().nullable(),
     aktif: z.boolean().optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
-})
+    updatedAt: z.union([z.string(), z.date()]).optional(),
+    detailItems: z.array(PaketDetailItemSchema).optional().nullable(),
+    tarifList: z.array(z.any()).optional().nullable(),
+    tindakanPasienList: z.array(z.any()).optional().nullable()
+}).passthrough()
 
 export const schemas = {
     list: {
@@ -21,10 +43,7 @@ export const schemas = {
             page: z.number().optional(),
             items: z.number().optional(),
             q: z.string().optional(),
-            kode: z.string().optional(),
-            nama: z.string().optional(),
-            kategori: z.string().optional(),
-            status: z.string().optional()
+            aktif: z.boolean().optional()
         }).optional(),
         result: z.any()
     },
@@ -32,7 +51,7 @@ export const schemas = {
         args: z.object({ id: z.number() }),
         result: z.object({
             success: z.boolean(),
-            result: MasterTindakanSchema.optional(),
+            result: MasterPaketTindakanSchema.optional().nullable(),
             error: z.string().optional()
         })
     }
@@ -46,16 +65,13 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         if (args?.page) params.append('page', args.page.toString())
         if (args?.items) params.append('items', args.items.toString())
         if (args?.q) params.append('q', args.q)
-        if (args?.kode) params.append('kode', args.kode)
-        if (args?.nama) params.append('nama', args.nama)
-        if (args?.kategori) params.append('kategori', args.kategori)
-        if (args?.status) params.append('status', args.status)
+        if (args?.aktif !== undefined) params.append('aktif', String(args.aktif))
 
         const queryString = params.toString()
-        const url = `/api/mastertindakan${queryString ? `?${queryString}` : ''}`
+        const url = `/api/masterpakettindakan${queryString ? `?${queryString}` : ''}`
         const res = await client.get(url)
 
-        const ListSchema = BackendListSchema(MasterTindakanSchema)
+        const ListSchema = BackendListSchema(MasterPaketTindakanSchema)
         const result = await parseBackendResponse(res, ListSchema)
         return { success: true, result: result ?? [] }
     } catch (err) {
@@ -67,10 +83,10 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.get(`/api/mastertindakan/${args.id}/read`)
+        const res = await client.get(`/api/masterpakettindakan/${args.id}/read`)
         const BackendReadSchema = z.object({
             success: z.boolean(),
-            result: MasterTindakanSchema.optional().nullable(),
+            result: MasterPaketTindakanSchema.optional().nullable(),
             message: z.string().optional(),
             error: z.any().optional()
         })

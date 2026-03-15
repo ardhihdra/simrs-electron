@@ -1,5 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
+export interface TindakanPelaksanaItem {
+    id: number
+    tindakanPasienId: number
+    pegawaiId: number
+    roleTenaga: string
+    jasa?: number | string | null
+    pegawai?: { id: number; namaLengkap?: string | null; nik?: string | null } | null
+}
+
 export interface DetailTindakanPasienItem {
     id: number
     encounterId: string
@@ -8,41 +17,36 @@ export interface DetailTindakanPasienItem {
     tanggalTindakan: string
     jumlah: number | string
     satuan?: string | null
+    tarif?: number | string | null
     cyto?: boolean | null
     catatanTambahan?: string | null
-    dokterPemeriksaId?: number | null
-    dokterDelegasiId?: number | null
-    dokterAnestesiId?: number | null
-    perawatId?: number | null
-    perawat2Id?: number | null
-    perawat3Id?: number | null
     status?: string
     createdAt?: string
-    // Joined associations
-    masterTindakan?: { id: number; kode: string; nama: string; kategori?: string | null } | null
-    dokterPemeriksa?: { id: number; namaLengkap?: string | null } | null
-    dokterDelegasi?: { id: number; namaLengkap?: string | null } | null
-    dokterAnestesi?: { id: number; namaLengkap?: string | null } | null
-    perawat?: { id: number; namaLengkap?: string | null } | null
-    perawat2?: { id: number; namaLengkap?: string | null } | null
-    perawat3?: { id: number; namaLengkap?: string | null } | null
+    masterTindakan?: { id: number; kodeTindakan: string; namaTindakan: string; kategoriTindakan?: string | null } | null
+    tindakanPelaksanaList?: TindakanPelaksanaItem[] | null
 }
 
-export interface CreateDetailTindakanInput {
+export interface PetugasInput {
+    pegawaiId: number
+    roleTenaga: string
+}
+
+export interface CreateDetailTindakanItem {
+    masterTindakanId: number
     encounterId: string
     patientId: string
-    masterTindakanId: number
+    paketId?: number | null
+    paketDetailId?: number | null
     tanggalTindakan: string | Date
     jumlah: number
     satuan?: string
     cyto?: boolean
     catatanTambahan?: string
-    dokterPemeriksaId?: number | null
-    dokterDelegasiId?: number | null
-    dokterAnestesiId?: number | null
-    perawatId?: number | null
-    perawat2Id?: number | null
-    perawat3Id?: number | null
+    petugasList: PetugasInput[]
+}
+
+export interface CreateDetailTindakanInput {
+    tindakanData: CreateDetailTindakanItem[]
 }
 
 export const useDetailTindakanByEncounter = (encounterId: string | undefined) => {
@@ -66,7 +70,7 @@ export const useCreateDetailTindakan = (encounterId: string | undefined) => {
             const fn = window.api?.query?.detailTindakanPasien?.create
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
             const res = await fn(input)
-            if (!res.success) throw new Error(res.error ?? 'Gagal menyimpan detail tindakan')
+            if (!res.success) throw new Error((res as any).error ?? 'Gagal menyimpan detail tindakan')
             return res
         },
         onSuccess: () => {
@@ -84,7 +88,7 @@ export const useVoidDetailTindakan = (encounterId: string | undefined) => {
             const fn = window.api?.query?.detailTindakanPasien?.update
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
             const res = await fn({ id, status: 'void' })
-            if (!res.success) throw new Error(res.error ?? 'Gagal membatalkan tindakan')
+            if (!res.success) throw new Error((res as any).error ?? 'Gagal membatalkan tindakan')
             return res
         },
         onSuccess: () => {

@@ -12,9 +12,18 @@ const KepegawaianSimpleSchema = z.object({
 
 const MasterTindakanSimpleSchema = z.object({
     id: z.number(),
-    kode: z.string(),
-    nama: z.string(),
-    kategori: z.string().optional().nullable()
+    kodeTindakan: z.string(),
+    namaTindakan: z.string(),
+    kategoriTindakan: z.string().optional().nullable()
+})
+
+const tindakanPelaksanaListSchema = z.object({
+    id: z.number(),
+    tindakanPasienId: z.number(),
+    pegawaiId: z.number(),
+    roleTenaga: z.string(),
+    nominalJasa: z.union([z.number(), z.string()]).optional().nullable(),
+    pegawai: KepegawaianSimpleSchema.optional().nullable()
 })
 
 const DetailTindakanPasienSchema = z.object({
@@ -25,41 +34,38 @@ const DetailTindakanPasienSchema = z.object({
     tanggalTindakan: z.union([z.string(), z.date()]),
     jumlah: z.union([z.number(), z.string()]),
     satuan: z.string().optional().nullable(),
+    tarif: z.union([z.number(), z.string()]).optional().nullable(),
+    subtotal: z.union([z.number(), z.string()]).optional().nullable(),
     cyto: z.boolean().optional().nullable(),
     catatanTambahan: z.string().optional().nullable(),
-    dokterPemeriksaId: z.number().optional().nullable(),
-    dokterDelegasiId: z.number().optional().nullable(),
-    dokterAnestesiId: z.number().optional().nullable(),
-    perawatId: z.number().optional().nullable(),
-    perawat2Id: z.number().optional().nullable(),
-    perawat3Id: z.number().optional().nullable(),
     status: z.string().optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional(),
     masterTindakan: MasterTindakanSimpleSchema.optional().nullable(),
-    dokterPemeriksa: KepegawaianSimpleSchema.optional().nullable(),
-    dokterDelegasi: KepegawaianSimpleSchema.optional().nullable(),
-    dokterAnestesi: KepegawaianSimpleSchema.optional().nullable(),
-    perawat: KepegawaianSimpleSchema.optional().nullable(),
-    perawat2: KepegawaianSimpleSchema.optional().nullable(),
-    perawat3: KepegawaianSimpleSchema.optional().nullable()
+    tindakanPelaksanaList: z.array(tindakanPelaksanaListSchema).optional().nullable()
 })
 
-const CreateDetailTindakanSchema = z.object({
+const PetugasInputSchema = z.object({
+    pegawaiId: z.number(),
+    roleTenaga: z.string()
+})
+
+const CreateDetailTindakanItemSchema = z.object({
+    masterTindakanId: z.number(),
     encounterId: z.string(),
     patientId: z.string(),
-    masterTindakanId: z.number(),
+    paketId: z.number().optional().nullable(),
+    paketDetailId: z.number().optional().nullable(),
     tanggalTindakan: z.union([z.string(), z.date()]),
     jumlah: z.number().min(0.01),
     satuan: z.string().optional(),
     cyto: z.boolean().optional().default(false),
     catatanTambahan: z.string().optional(),
-    dokterPemeriksaId: z.number().optional().nullable(),
-    dokterDelegasiId: z.number().optional().nullable(),
-    dokterAnestesiId: z.number().optional().nullable(),
-    perawatId: z.number().optional().nullable(),
-    perawat2Id: z.number().optional().nullable(),
-    perawat3Id: z.number().optional().nullable()
+    petugasList: z.array(PetugasInputSchema).min(1)
+})
+
+const CreateDetailTindakanSchema = z.object({
+    tindakanData: z.array(CreateDetailTindakanItemSchema).min(1)
 })
 
 export const schemas = {
@@ -145,6 +151,7 @@ export const byEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
     try {
         const client = getClient(ctx)
+        // Payload dikirim dalam format { tindakanData: [...] } ke backend custom controller
         const res = await client.post('/api/detailtindakanpasien', args)
         const ResponseSchema = z.object({
             success: z.boolean(),
