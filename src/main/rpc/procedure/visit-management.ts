@@ -60,7 +60,7 @@ export const visitManagementRpc = {
 
       const query = params.toString()
       const data = await client.get(
-        `/api/module/registration-v2/doctor-schedules/available-doctors${query ? `?${query}` : ''}`
+        `/api/module/registration-v2/available-doctors${query ? `?${query}` : ''}`
       )
 
       return await data.json()
@@ -103,7 +103,7 @@ export const visitManagementRpc = {
     )
     .output(z.any())
     .mutation(async ({ client }, input) => {
-      const data = await client.post('/api/module/registration-v2/doctor-schedules/register', input)
+      const data = await client.post('/api/module/registration-v2/register', input)
       return await data.json()
     }),
   confirmAttendance: t
@@ -166,22 +166,18 @@ export const visitManagementRpc = {
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()
       if (input.poliCodeId) params.append('poliCodeId', input.poliCodeId)
-      //   if (input.serviceUnitCodeId) params.append('serviceUnitCodeId', input.serviceUnitCodeId)
-
       if (input.queueDate) params.append('queueDate', input.queueDate)
       if (input.queueNumber) params.append('queueNumber', String(input.queueNumber))
 
-      if (input.status) {
-        if (Array.isArray(input.status)) {
-          input.status.forEach((s) => params.append('status', s))
-        } else {
-          params.append('status', input.status)
-        }
-      }
+      // if (input.status) {
+      //   if (Array.isArray(input.status)) {
+      //     input.status.forEach((s) => params.append('status', s))
+      //   } else {
+      //     params.append('status', input.status)
+      //   }
+      // }
 
-      const data = await client.get(
-        `/api/module/visit-management/queues/active?${params.toString()}`
-      )
+      const data = await client.get(`/api/module/registration-v2/queues?${params.toString()}`)
       return await data.json()
     }),
 

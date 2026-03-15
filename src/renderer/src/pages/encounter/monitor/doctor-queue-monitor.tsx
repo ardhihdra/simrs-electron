@@ -1,6 +1,14 @@
-import { useMemo } from 'react'
+import {
+  ArrowRightOutlined,
+  CalendarOutlined,
+  CheckCircleFilled,
+  ClockCircleOutlined,
+  MedicineBoxOutlined,
+  SoundOutlined
+} from '@ant-design/icons'
+import { ReactNode, useMemo } from 'react'
 
-import { Alert, Card, Empty, Spin, Tag, Typography } from 'antd'
+import { Alert, Card, Empty, Spin, Typography, theme } from 'antd'
 import dayjs from 'dayjs'
 import { useParams } from 'react-router'
 
@@ -18,7 +26,8 @@ type QueueTicket = {
   formattedQueueNumber?: string | null
   practitionerId?: string | number
   patient?: { name?: string | null } | null
-  poli?: { name?: string | null } | null
+  poliName?: string
+  doctorName?: string
   serviceUnit?: { name?: string | null; display?: string | null } | null
   practitioner?: { name?: string | null; display?: string | null; fullName?: string | null } | null
 }
@@ -65,7 +74,7 @@ const getQueueLabel = (ticket?: QueueTicket) => {
 const getPatientName = (ticket?: QueueTicket) => ticket?.patient?.name?.trim() || '-'
 
 const getPoliName = (ticket: QueueTicket) =>
-  ticket.poli?.name?.trim() ||
+  ticket.poliName?.trim() ||
   ticket.serviceUnit?.name?.trim() ||
   ticket.serviceUnit?.display?.trim() ||
   'Poli belum ditentukan'
@@ -74,6 +83,7 @@ const getDoctorName = (ticket?: QueueTicket) =>
   ticket?.practitioner?.name?.trim() ||
   ticket?.practitioner?.fullName?.trim() ||
   ticket?.practitioner?.display?.trim() ||
+  ticket?.doctorName?.trim() ||
   'Dokter belum ditentukan'
 
 const sortByQueueNumber = (a: QueueTicket, b: QueueTicket) => {
@@ -87,9 +97,97 @@ const sortByQueueNumber = (a: QueueTicket, b: QueueTicket) => {
   return aNumber - bNumber
 }
 
+function QueueStripCard({
+  title,
+  subtitle,
+  queues,
+  icon,
+  surface,
+  borderColor,
+  accentColor,
+  iconSurface
+}: {
+  title: string
+  subtitle: string
+  queues: QueueTicket[]
+  icon: ReactNode
+  surface: string
+  borderColor: string
+  accentColor: string
+  iconSurface: string
+}) {
+  const { token } = theme.useToken()
+
+  return (
+    <Card
+      variant="borderless"
+      styles={{ body: { padding: '20px 24px' } }}
+      style={{
+        background: surface,
+        border: `1px solid ${borderColor}`,
+        borderRadius: 24,
+        boxShadow: token.boxShadowTertiary
+      }}
+    >
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex items-center gap-4">
+          <div
+            className="flex h-14 w-14 items-center justify-center rounded-full text-2xl"
+            style={{
+              background: iconSurface,
+              color: accentColor
+            }}
+          >
+            {icon}
+          </div>
+          <div>
+            <div className="text-lg font-semibold uppercase tracking-wide" style={{ color: accentColor }}>
+              {title}
+            </div>
+            <div className="text-base" style={{ color: token.colorTextSecondary }}>
+              {subtitle}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          {queues.length > 0 ? (
+            queues.map((queue) => (
+              <div
+                key={queue.id || `${title}-${getQueueLabel(queue)}`}
+                className="min-w-28 rounded-2xl px-5 py-3 text-center text-2xl font-bold"
+                style={{
+                  background: token.colorBgContainer,
+                  color: accentColor,
+                  boxShadow: token.boxShadowSecondary
+                }}
+              >
+                {getQueueLabel(queue)}
+              </div>
+            ))
+          ) : (
+            <div
+              className="min-w-28 rounded-2xl px-5 py-3 text-center text-2xl font-bold"
+              style={{
+                background: token.colorBgContainer,
+                color: token.colorTextTertiary,
+                boxShadow: token.boxShadowSecondary
+              }}
+            >
+              -
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  )
+}
+
 export default function DoctorQueueMonitor() {
+  const { token } = theme.useToken()
   const { practitionerId = '' } = useParams()
-  const queueDate = dayjs().format('YYYY-MM-DD')
+  // const queueDate = dayjs().format('YYYY-MM-DD')
+  const queueDate = '2026-03-17'
 
   const queueQuery = client.visitManagement.getActiveQueues.useQuery(
     {
@@ -97,13 +195,14 @@ export default function DoctorQueueMonitor() {
     },
     {
       refetchInterval: 5000,
-      staleTime: 5000
+      staleTime: 5000,
+      queryKey: ['queue-monitor', { queueDate }]
     }
   )
 
   const allTickets = useMemo<QueueTicket[]>(() => {
-    if (!Array.isArray(queueQuery.data?.data)) return []
-    return queueQuery.data.data as QueueTicket[]
+    if (!Array.isArray(queueQuery.data?.result)) return []
+    return queueQuery.data.result as QueueTicket[]
   }, [queueQuery.data])
 
   const doctorTickets = useMemo(
@@ -124,16 +223,25 @@ export default function DoctorQueueMonitor() {
     [doctorTickets]
   )
 
-  const nextTicket = waitingTickets[0]
-  const remainingTickets = waitingTickets.slice(nextTicket ? 1 : 0)
+  const completedTickets = useMemo(() => {
+    const activeTicketId = activeTicket?.id
 
+    return doctorTickets.filter((ticket) => {
+      if (activeTicketId && ticket.id === activeTicketId) return false
+      return !WAITING_STATUSES.has(normalizeStatus(ticket.status))
+    })
+  }, [activeTicket?.id, doctorTickets])
+
+  const nextTickets = waitingTickets.slice(0, 2)
+  const lastCalledTickets = completedTickets.slice(-2)
   const doctorName =
     getDoctorName(doctorTickets[0]) || (practitionerId ? `Dokter ${practitionerId}` : 'Dokter')
-
-  const poliNames = useMemo(
-    () => Array.from(new Set(doctorTickets.map((ticket) => getPoliName(ticket)))).filter(Boolean),
-    [doctorTickets]
-  )
+  const poliNames = Array.from(new Set(doctorTickets.map((ticket) => getPoliName(ticket)))).filter(Boolean)
+  const poliLabel = poliNames.join(', ') || 'Poli belum ditentukan'
+  const lastUpdatedLabel = queueQuery.dataUpdatedAt
+    ? dayjs(queueQuery.dataUpdatedAt).format('HH:mm:ss')
+    : '-'
+  const currentInstruction = activeTicket ? 'Harap menuju ruang pemeriksaan' : 'Menunggu panggilan berikutnya'
 
   if (!practitionerId) {
     return <Alert type="warning" showIcon message="Dokter tidak ditemukan pada URL." />
@@ -152,7 +260,13 @@ export default function DoctorQueueMonitor() {
 
   if (queueQuery.isLoading) {
     return (
-      <Card className="border-0 shadow-sm">
+      <Card
+        variant="borderless"
+        style={{
+          background: token.colorBgContainer,
+          border: `1px solid ${token.colorBorderSecondary}`
+        }}
+      >
         <div className="flex items-center justify-center py-16">
           <Spin size="large" />
         </div>
@@ -162,66 +276,153 @@ export default function DoctorQueueMonitor() {
 
   if (doctorTickets.length === 0) {
     return (
-      <Card className="border-0 shadow-sm">
-        <Empty description={`Belum ada antrian untuk dokter ${practitionerId} hari ini`} />
+      <Card
+        variant="borderless"
+        style={{
+          background: token.colorBgContainer,
+          border: `1px solid ${token.colorBorderSecondary}`
+        }}
+      >
+        <Empty
+          description={`Belum ada antrian untuk dokter ${practitionerId} pada ${dayjs(queueDate).format('DD MMM YYYY')}`}
+        />
       </Card>
     )
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <Card className="border-0 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <Text type="secondary">Monitor Dokter</Text>
-            <Title level={3} className="!mb-1 !mt-0">
-              {doctorName}
-            </Title>
-            <Text type="secondary">ID Dokter: {practitionerId}</Text>
+    <div
+      className="mx-auto w-full min-h-[calc(100vh-6rem)] h-full px-4 py-6 md:px-8 flex flex-col justify-between"
+      style={{
+        background: `linear-gradient(180deg, ${token.colorBgContainer} 0%, ${token.colorPrimaryBg} 100%)`
+      }}
+    >
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex items-start gap-4">
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-full text-2xl"
+              style={{
+                background: token.colorPrimaryBg,
+                color: token.colorPrimary
+              }}
+            >
+              <MedicineBoxOutlined />
+            </div>
+            <div>
+              <Title level={2} className="!mb-1" style={{ color: token.colorTextHeading }}>
+                {poliLabel}
+              </Title>
+              <Text className="text-xl" style={{ color: token.colorTextSecondary }}>
+                {doctorName}
+              </Text>
+            </div>
           </div>
-          <Tag color="processing">Update {dayjs().format('HH:mm:ss')}</Tag>
-        </div>
 
-        <div className="mt-4">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Poli Bertugas</div>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {poliNames.map((poli) => (
-              <Tag key={poli} color="blue">
-                {poli}
-              </Tag>
-            ))}
+          <div className="self-start lg:text-right">
+            <Card
+              variant="borderless"
+              styles={{ body: { padding: '16px 20px' } }}
+              style={{
+                background: token.colorBgContainer,
+                border: `1px solid ${token.colorBorderSecondary}`,
+                borderRadius: 20,
+                boxShadow: token.boxShadowTertiary
+              }}
+            >
+              <div className="flex items-center gap-5">
+                <div className="flex items-center gap-3">
+                  <CalendarOutlined style={{ color: token.colorPrimary, fontSize: 22 }} />
+                  <Text className="text-2xl" style={{ color: token.colorTextHeading }}>
+                    {dayjs(queueDate).format('DD MMM YYYY')}
+                  </Text>
+                </div>
+                <div className="h-10 w-px" style={{ background: token.colorBorderSecondary }} />
+                <div className="flex items-center gap-3">
+                  <ClockCircleOutlined style={{ color: token.colorPrimary, fontSize: 22 }} />
+                  <Text className="text-2xl" style={{ color: token.colorTextHeading }}>
+                    {lastUpdatedLabel}
+                  </Text>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
-      </Card>
 
-      <Card className="border-0 bg-slate-900 text-center shadow-sm">
-        <div className="text-xs font-medium uppercase tracking-wider text-slate-300">
-          Antrian Sedang Dipanggil
-        </div>
-        <div className="mt-2 text-7xl font-bold leading-none text-white md:text-8xl">
-          {getQueueLabel(activeTicket)}
-        </div>
-        <div className="mt-4 text-sm text-slate-200">{getPatientName(activeTicket)}</div>
-      </Card>
+        <div className="h-px" style={{ background: token.colorBorderSecondary }} />
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card className="border-0 shadow-sm">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Next Queue</div>
-          <div className="mt-2 text-4xl font-bold text-slate-900">{getQueueLabel(nextTicket)}</div>
-          <div className="mt-2 text-sm text-slate-600">{getPatientName(nextTicket)}</div>
+      <div className="flex justify-center">
+        <Card
+          variant="borderless"
+          styles={{ body: { padding: '48px 56px' } }}
+          style={{
+            width: '100%',
+            maxWidth: 1120,
+            background: `
+              radial-gradient(circle at top right, ${token.colorPrimaryBg} 0%, ${token.colorBgContainer} 34%),
+              radial-gradient(circle at bottom left, ${token.colorPrimaryBg} 0%, ${token.colorBgContainer} 24%)
+            `,
+            border: `1px solid ${token.colorBorderSecondary}`,
+            borderRadius: 32,
+            boxShadow: token.boxShadowSecondary
+          }}
+        >
+          <div className="text-center">
+            <div
+              className="text-4xl font-semibold uppercase tracking-[0.18em] md:text-5xl"
+              style={{ color: token.colorTextSecondary }}
+            >
+              Antrian Sekarang
+            </div>
+            <div className="my-8 h-px" style={{ background: token.colorBorderSecondary }} />
+            <div
+              className="text-[92px] font-black leading-none md:text-[160px]"
+              style={{ color: token.colorPrimary }}
+            >
+              {getQueueLabel(activeTicket)}
+            </div>
+            <div className="mt-6 text-3xl md:text-5xl" style={{ color: token.colorTextHeading }}>
+              {activeTicket ? getPatientName(activeTicket) : 'Belum ada antrian aktif'}
+            </div>
+            <div className="my-8 h-px" style={{ background: token.colorBorderSecondary }} />
+            <div className="flex justify-center">
+              <div
+                className="inline-flex items-center gap-3 rounded-full px-8 py-4 text-2xl font-medium"
+                style={{
+                  background: token.colorPrimaryBg,
+                  color: token.colorPrimary
+                }}
+              >
+                <SoundOutlined />
+                <span>{currentInstruction}</span>
+              </div>
+            </div>
+          </div>
         </Card>
+      </div>
 
-        <Card className="border-0 shadow-sm">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
-            Remaining Queue
-          </div>
-          <div className="mt-2 text-4xl font-bold text-slate-900">{remainingTickets.length}</div>
-          <div className="mt-2 text-sm text-slate-600">
-            {remainingTickets.length > 0
-              ? remainingTickets.map((ticket) => getQueueLabel(ticket)).join(', ')
-              : 'Tidak ada antrian tersisa'}
-          </div>
-        </Card>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <QueueStripCard
+          title="Antrian Selesai"
+          subtitle="Finished"
+          queues={lastCalledTickets}
+          icon={<CheckCircleFilled />}
+          surface={token.colorSuccessBg}
+          borderColor={token.colorBorderSecondary}
+          accentColor={token.colorSuccessText}
+          iconSurface={token.colorBgContainer}
+        />
+        <QueueStripCard
+          title="Antrian Berikutnya"
+          subtitle="Next Queue"
+          queues={nextTickets}
+          icon={<ArrowRightOutlined />}
+          surface={token.colorPrimaryBg}
+          borderColor={token.colorBorderSecondary}
+          accentColor={token.colorPrimary}
+          iconSurface={token.colorBgContainer}
+        />
       </div>
     </div>
   )

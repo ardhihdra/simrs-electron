@@ -92,21 +92,22 @@ const items: DashboardMenuItem[] = [
         moduleKey: 'rekam_medis.registration.pendaftaran'
       },
       {
-        label: 'Antrian',
+        label: 'Antrian Pasien',
         key: '/dashboard/registration/queue',
+        icon: <DashboardOutlined />,
+        moduleKey: 'rekam_medis.registration.queue'
+      },
+      {
+        label: 'Pemeriksaan Awal',
+        key: '/dashboard/registration/triage',
         icon: <DashboardOutlined />
+      },
+      {
+        label: 'Daftar kunjungan',
+        key: '/dashboard/registration/active-encounters',
+        icon: <UnorderedListOutlined />,
+        moduleKey: 'rekam_medis.registration.active_encounters'
       }
-      // {
-      //   label: 'Pemeriksaan Awal',
-      //   key: '/dashboard/registration/triage',
-      //   icon: <DashboardOutlined />
-      // },
-      // {
-      //   label: 'Daftar kunjungan',
-      //   key: '/dashboard/registration/active-encounters',
-      //   icon: <UnorderedListOutlined />,
-      //   moduleKey: 'rekam_medis.registration.active_encounters'
-      // }
     ]
   },
   {
@@ -161,7 +162,7 @@ const items: DashboardMenuItem[] = [
     children: [
       {
         label: 'Antrian',
-        key: '/dashboard/registration/queue',
+        key: '/dashboard/queue',
         icon: <DashboardOutlined />
       },
       {

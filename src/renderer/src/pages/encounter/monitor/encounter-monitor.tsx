@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-import { Alert, Button, Card, Empty, Select, Spin, Tag, Typography } from 'antd'
+import { Alert, Button, Card, DatePicker, Empty, Select, Spin, Tag, Typography } from 'antd'
 import dayjs from 'dayjs'
 import { Link } from 'react-router'
 
@@ -22,7 +22,7 @@ type QueueTicket = {
   serviceUnitCodeId?: string
   doctorName?: string
   patient?: { name?: string | null } | null
-  poli?: { id?: string | number; name?: string | null } | null
+  poliName?: string
   serviceUnit?: { id?: string | number; name?: string | null; display?: string | null } | null
   practitioner?: { name?: string | null; display?: string | null; fullName?: string | null } | null
 }
@@ -86,8 +86,7 @@ const getQueueLabel = (ticket?: QueueTicket) => {
 const getPatientName = (ticket?: QueueTicket) => ticket?.patient?.name?.trim() || '-'
 
 const getPoliName = (ticket: QueueTicket) =>
-  ticket.poli?.name?.trim() ||
-  ticket.serviceUnit?.name?.trim() ||
+  ticket.poliName?.trim() ||
   ticket.serviceUnit?.display?.trim() ||
   'Poli belum ditentukan'
 
@@ -189,7 +188,8 @@ function MonitorMetric({
 
 export default function EncounterMonitor() {
   const [selectedDoctor, setSelectedDoctor] = useState<string | undefined>(undefined)
-  const queueDate = dayjs().format('YYYY-MM-DD')
+  const [selectedDate, setSelectedDate] = useState(() => dayjs())
+  const queueDate = selectedDate.format('YYYY-MM-DD')
 
   const queueQuery = client.visitManagement.getActiveQueues.useQuery(
     {
@@ -197,13 +197,14 @@ export default function EncounterMonitor() {
     },
     {
       refetchInterval: 5000,
-      staleTime: 5000
+      staleTime: 5000,
+      queryKey: ['queue-monitor', { queueDate }]
     }
   )
 
   const tickets = useMemo<QueueTicket[]>(() => {
-    if (!Array.isArray(queueQuery.data?.data)) return []
-    return queueQuery.data.data as QueueTicket[]
+    if (!Array.isArray(queueQuery.data?.result)) return []
+    return queueQuery.data.result as QueueTicket[]
   }, [queueQuery.data])
 
   const summaries = useMemo(() => createQueueSummary(tickets), [tickets])
@@ -255,7 +256,7 @@ export default function EncounterMonitor() {
       />
     )
   }
-
+console.log(queueQuery.data)
   return (
     <div className="space-y-4">
       <Card className="border-0 shadow-sm">
@@ -265,10 +266,17 @@ export default function EncounterMonitor() {
               Monitor Antrian Poli Dokter
             </Title>
             <Text type="secondary">
-              Update otomatis setiap 5 detik • {dayjs().format('DD MMM YYYY HH:mm')}
+              Tanggal antrian {selectedDate.format('DD MMM YYYY')} • update otomatis setiap 5 detik
             </Text>
           </div>
           <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
+            <DatePicker
+              allowClear={false}
+              className="min-w-[260px]"
+              format="DD MMM YYYY"
+              value={selectedDate}
+              onChange={(value) => setSelectedDate(value ?? dayjs())}
+            />
             <Select
               allowClear
               showSearch
@@ -303,7 +311,7 @@ export default function EncounterMonitor() {
             description={
               selectedDoctor
                 ? 'Tidak ada antrian untuk dokter yang dipilih'
-                : 'Belum ada antrian aktif untuk hari ini'
+                : `Belum ada antrian aktif untuk ${selectedDate.format('DD MMM YYYY')}`
             }
           />
         </Card>

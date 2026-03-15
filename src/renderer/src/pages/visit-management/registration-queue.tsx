@@ -2,7 +2,7 @@ import { CheckCircleOutlined, SoundOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { DatePicker, Form, Tag, App, Input, Modal, Button, message } from 'antd'
+import { App, Button, DatePicker, Form, Input, Modal, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -35,18 +35,17 @@ export default function RegistrationQueue() {
 
         try {
             // Always call first to announce
-            await callMutation.mutateAsync({ queueId: record.id })
+            await callMutation.mutateAsync({ queueId: record.queueId })
             
             if (withTriage) {
                 // Status becomes CALLED (default behavior of callPatient)
                 message.success(`Antrian ${record.formattedQueueNumber} dipanggil ke Triage`)
             } else {
                 // Skip Triage -> Start Encounter (Status IN_PROGRESS)
+                // TODO: adjust to new method
                 await startEncounterMutation.mutateAsync({
-                    queueId: record.id,
+                    queueId: record.queueId,
                     patientId: record.patientId,
-                    serviceUnitId: record.serviceUnit?.id || record.serviceUnitCodeId, // Fallback if id missing
-                    serviceUnitCodeId: record.serviceUnitCodeId,
                     encounterType: 'AMB', // Default
                     arrivalType: 'WALK_IN' // Default
                 })
@@ -55,6 +54,7 @@ export default function RegistrationQueue() {
             refetch()
             setCallModal({ open: false, record: undefined })
         } catch (error: any) {
+            console.log(error)
              message.error(error.message || 'Gagal memproses antrian')
         }
     }
@@ -134,7 +134,7 @@ console.log(queueData)
 
             <div className='mt-4'><GenericTable
                 columns={columns}
-                dataSource={queueData?.data || []}
+                dataSource={queueData?.result || []}
                 rowKey="id"
                 loading={isLoading || isRefetching}
                 action={{
