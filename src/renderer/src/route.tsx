@@ -100,6 +100,7 @@ function MainRoute() {
   return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
       <Route path="/iframe-view" element={<IframeView />} />
+       <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/module-selection" element={<ModuleSelection />} />
@@ -152,7 +153,7 @@ function MainRoute() {
           <Route path="queue" element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
-            <Route path="monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
+           
             <Route
               path="registration"
               element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />}

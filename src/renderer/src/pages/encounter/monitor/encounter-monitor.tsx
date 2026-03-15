@@ -329,7 +329,7 @@ console.log(queueQuery.data)
                     {summary.currentTicket ? 'Sedang berjalan' : 'Menunggu giliran'}
                   </Tag>
                   {summary.practitionerId ? (
-                    <Link to={`/dashboard/queue/monitor/doctor/${summary.practitionerId}`}>
+                    <Link to={`/monitor/doctor/${summary.practitionerId}`}>
                       <Button size="small" type="default">
                         Lihat Antrian Dokter
                       </Button>

@@ -292,7 +292,7 @@ export default function DoctorQueueMonitor() {
 
   return (
     <div
-      className="mx-auto w-full min-h-[calc(100vh-6rem)] h-full px-4 py-6 md:px-8 flex flex-col justify-between"
+      className="mx-auto w-full min-h-[calc(100vh-6rem)] h-screen px-4 py-6 md:px-8 flex flex-col justify-between"
       style={{
         background: `linear-gradient(180deg, ${token.colorBgContainer} 0%, ${token.colorPrimaryBg} 100%)`
       }}
