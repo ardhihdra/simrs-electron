@@ -175,7 +175,7 @@ export function MedicationRequestForm() {
   const sortBatches = useCallback((batches: BatchOption[], rowKey: string): BatchOption[] => {
     const isFefo = batchSortModeMap.get(rowKey) ?? true // default FEFO
     try {
-      console.log('[MR] sortBatches', { rowKey, mode: isFefo ? 'FEFO' : 'FIFO', count: batches.length })
+      // batches count check
     } catch {}
     return [...batches].sort((a, b) => {
       if (isFefo) {
@@ -205,17 +205,13 @@ export function MedicationRequestForm() {
       }
       const useByLocation = api?.inventoryStock?.listBatchesByLocation
       if (!useByLocation) {
-        console.warn(`[MR] api.inventoryStock.listBatchesByLocation NOT FOUND for ${rowKey}, falling back to listBatches`)
+        // fallback to listBatches if needed
       }
-      console.log(`Fetching batches for ${kodeItem} (row: ${rowKey})...`)
       const res = useByLocation
         ? await useByLocation({ kodeItem, kodeLokasi: 'FARM' })
         : await api?.inventoryStock?.listBatches?.({ kodeItem })
-      console.log(`Batches result for ${kodeItem} (row: ${rowKey}):`, res)
       if (res?.success && Array.isArray(res.result)) {
         setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
-      } else {
-        console.warn(`[MR] No batches found or success false for ${kodeItem} (row: ${rowKey})`, res)
       }
     } catch (err) {
       console.error(`[MR] Fetch batches error for ${kodeItem} (row: ${rowKey})`, err)
@@ -391,7 +387,6 @@ export function MedicationRequestForm() {
       const kode = (it.kodeItem || '').trim().toUpperCase()
       if (kode && it.availableStock > 0) set.add(kode)
     }
-    console.log('[MR] FARM available items count:', set.size, Array.from(set))
     return set
   }, [inventoryByLocation?.result])
 
@@ -555,10 +550,8 @@ export function MedicationRequestForm() {
       const filteredByLocation = source.filter((item) => {
         const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
         if (!code) return false
-        if (farmKodeSet.size === 0) return true
         return farmKodeSet.has(code)
       })
-      console.log('[MR] itemOptions source size:', source.length, 'filtered by FARM size:', filteredByLocation.length)
 
       return filteredByLocation
         .filter((item) => typeof item.id === 'number')
@@ -603,16 +596,12 @@ export function MedicationRequestForm() {
 
   const itemKodeMap = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
-    console.log('Building itemKodeMap from source size:', source.length)
     const map = new Map<number, string>()
     source.forEach((item) => {
       if (typeof item.id === 'number' && typeof item.kode === 'string') {
         map.set(item.id, item.kode.trim().toUpperCase())
-      } else if (typeof item.id === 'number') {
-        console.warn(`Item ID ${item.id} is missing "kode" property! Full item:`, item)
       }
     })
-    console.log('Final itemKodeMap size:', map.size)
     return map
   }, [itemSource?.result])
 
@@ -1151,7 +1140,9 @@ export function MedicationRequestForm() {
               itemId: (item.itemId as number) || null,
               note: item.note || '',
               instruction: item.note || '',
-              name
+              name,
+              batchNumber: (item as Record<string, unknown>).batchNumber || null,
+              expiryDate: (item as Record<string, unknown>).expiryDate || null
             }
             return ingredient
           })
@@ -1521,7 +1512,8 @@ export function MedicationRequestForm() {
               quantity: typeof item.quantity === 'number' ? item.quantity : 0,
               unitCode: item.unit || null,
               name,
-              batchNumber: (item as Record<string, unknown>).batchNumber || null
+              batchNumber: (item as Record<string, unknown>).batchNumber || null,
+              expiryDate: (item as Record<string, unknown>).expiryDate || null
             }
           })
 
@@ -1809,10 +1801,8 @@ export function MedicationRequestForm() {
                                 optionFilterProp="label"
                                 loading={itemLoading}
                                 onChange={(itemId: number) => {
-                                  console.log('[MR] Dropdown Item dipilih', { itemId, rowKey: `otherItem-${name}` })
                                   const kode = itemKodeMap.get(itemId)
                                   if (kode) {
-                                    console.log('[MR] Fetch batch by lokasi FARM untuk item', { kode, rowKey: `otherItem-${name}` })
                                     fetchBatchesForItem(kode, `otherItem-${name}`)
                                   }
                                   // reset batch selection
@@ -1852,13 +1842,6 @@ export function MedicationRequestForm() {
                                   const batches = batchOptionsMap.get(`otherItem-${name}`) ?? []
                                   const found = batches.find((b) => b.batchNumber === val)
                                   const otherItems = form.getFieldValue('otherItems') || []
-                                  try {
-                                    console.log('[MR] Batch dipilih (otherItems)', {
-                                      rowKey: `otherItem-${name}`,
-                                      batchNumber: val,
-                                      foundExpiry: found?.expiryDate
-                                    })
-                                  } catch {}
                                   if (otherItems[name]) {
                                     if (val && val.toUpperCase() === 'NO-BATCH') {
                                       otherItems[name].batchNumber = undefined
