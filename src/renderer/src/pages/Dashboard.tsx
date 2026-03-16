@@ -75,7 +75,7 @@ const items: DashboardMenuItem[] = [
   },
   {
     label: 'Pendaftaran Rumah Sakit',
-    key: '/dashboard/regist',
+    key: '/dashboard/registration',
     icon: <CalendarOutlined />,
     moduleKey: 'rekam_medis.registration',
     children: [
@@ -93,20 +93,20 @@ const items: DashboardMenuItem[] = [
       },
       {
         label: 'Antrian Pasien',
-        key: '/dashboard/registration/queue',
-        icon: <DashboardOutlined />,
-        moduleKey: 'rekam_medis.registration.queue'
-      },
-      {
-        label: 'Pemeriksaan Awal',
-        key: '/dashboard/registration/triage',
+        key: '/dashboard/registration/select',
         icon: <DashboardOutlined />
+        // moduleKey: 'rekam_medis.registration.select'
       },
+      // {
+      //   label: 'Pemeriksaan Awal',
+      //   key: '/dashboard/registration/triage',
+      //   icon: <DashboardOutlined />
+      // },
       {
         label: 'Daftar kunjungan',
         key: '/dashboard/registration/active-encounters',
-        icon: <UnorderedListOutlined />,
-        moduleKey: 'rekam_medis.registration.active_encounters'
+        icon: <UnorderedListOutlined />
+        // moduleKey: 'rekam_medis.registration.active_encounters'
       }
     ]
   },
@@ -129,10 +129,22 @@ const items: DashboardMenuItem[] = [
     ]
   },
   {
-    label: 'Poli Umum',
-    key: '/dashboard/poli/umum',
+    label: 'Poli',
+    key: '/dashboard/poli',
     icon: <CalendarOutlined />,
-    moduleKey: 'rawat_jalan.poli.umum'
+
+    children: [
+      {
+        label: 'Poli',
+        key: '/dashboard/poli',
+        icon: <CalendarOutlined />
+      },
+      {
+        label: 'Poli Umum',
+        key: '/dashboard/poli/umum',
+        icon: <CalendarOutlined />
+      }
+    ]
   },
   {
     label: 'Rawat Inap',
@@ -411,7 +423,8 @@ function Dashboard() {
     '/dashboard/registration/doctor-leave',
     '/dashboard/doctor',
     '/dashboard/nurse-calling',
-    '/dashboard/rawat-inap'
+    '/dashboard/rawat-inap',
+    '/dashboard/poli'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === DASHBOARD_ROOT_KEY) return true

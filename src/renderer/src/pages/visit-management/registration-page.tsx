@@ -11,7 +11,7 @@ import { TableHeaderStats } from '@renderer/components/TableHeaderStats'
 import { useDebounce } from '@renderer/hooks/useDebounce'
 import { client, rpc } from '@renderer/utils/client'
 import { PatientAttributes } from '@shared/patient'
-import { App, Form, Input } from 'antd'
+import { App, Button, Form, Input } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -20,6 +20,7 @@ import CreateQueueModal from './components/CreateQueueModal'
 export default function RegistrationPage() {
   const [searchParams, setSearchParams] = useState({ nik: '', name: '' })
   const [openModal, setOpenModal] = useState(false)
+  const [showDate, setShowDate] = useState(true)
   const { message } = App.useApp()
   const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>(undefined)
 
@@ -57,12 +58,14 @@ export default function RegistrationPage() {
 
   const dataSource = (patientData?.result || []).map((item, idx) => ({ ...item, no: idx + 1 }))
 
-  const handleCreateEmptyQueue = () => {
+  const handleCreateEmptyQueue = (showDate = true) => {
+    setShowDate(showDate)
     setSelectedPatient(undefined)
     setOpenModal(true)
   }
 
   const handleRegisterPatient = (patient: PatientAttributes) => {
+    setShowDate(false)
     setSelectedPatient(patient)
     setOpenModal(true)
   }
@@ -84,9 +87,14 @@ export default function RegistrationPage() {
         subtitle="Manajemen pendaftaran pasien"
         onSearch={(values) => setSearchParams(values)}
         onReset={() => setSearchParams({ nik: '', name: '' })}
-        onCreate={handleCreateEmptyQueue}
+        onCreate={() => handleCreateEmptyQueue(false)}
         createLabel="Buat Antrian (Tanpa Pasien)"
         loading={isLoading || isRefetching}
+        action={
+          <Button type="primary" onClick={() => handleCreateEmptyQueue(true)}>
+            Buat Janji
+          </Button>
+        }
         stats={
           <div className="grid grid-cols-4 gap-2 w-full">
             <TableHeaderStats
@@ -162,6 +170,7 @@ export default function RegistrationPage() {
         open={openModal}
         onClose={() => setOpenModal(false)}
         patient={selectedPatient}
+        showDate={showDate}
         onSuccess={() => {
           // Refresh logic if needed, e.g. refetch active queues or something
           // Currently this page searches patients, so maybe not much to refresh unless we show active queues too

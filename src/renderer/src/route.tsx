@@ -78,6 +78,7 @@ import PegawaiTable from './pages/pegawai/pegawai-table'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import ReportPage from './pages/pharmacy/ReportPage'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
+import PoliSelect from './pages/poli/PoliSelect'
 import QueueList from './pages/queue/queue-list'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
@@ -90,6 +91,7 @@ import ActiveEncountersPage from './pages/visit-management/active-encounters-pag
 import InitialTriage from './pages/visit-management/initial-triage'
 import RegistrationPage from './pages/visit-management/registration-page'
 import RegistrationQueue from './pages/visit-management/registration-queue'
+import RegistrationSelect from './pages/visit-management/registration-select'
 
 const withModuleGuard = (module: string, element: ReactNode) => (
   <ModuleScopeGuard module={module}>{element}</ModuleScopeGuard>
@@ -100,7 +102,7 @@ function MainRoute() {
   return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
       <Route path="/iframe-view" element={<IframeView />} />
-       <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
+      <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/module-selection" element={<ModuleSelection />} />
@@ -118,7 +120,8 @@ function MainRoute() {
             element={withModuleGuard(workspaceModuleCodes.registration, <Outlet />)}
           >
             <Route index element={<RegistrationPage />} />
-            <Route path="queue" element={<RegistrationQueue />} />
+            <Route path="select" element={<RegistrationSelect />} />
+            <Route path="queue/:practitionerId" element={<RegistrationQueue />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
@@ -153,7 +156,7 @@ function MainRoute() {
           <Route path="queue" element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
-           
+
             <Route
               path="registration"
               element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />}
@@ -227,13 +230,9 @@ function MainRoute() {
             <Route path="create" element={<DiagnosticForm />} />
             <Route path="edit/:id" element={<DiagnosticForm />} />
           </Route>
-          <Route
-            path="services"
-            element={withModuleGuard(workspaceModuleCodes.doctor, <Services />)}
-          >
-            <Route index element={<PemeriksaanUtamaPage />} />
-            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
-            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          <Route path="poli" element={<Outlet />}>
+            <Route index element={<PoliSelect />} />
+            <Route path="umum" element={<div>Poli Umum Workspace Placeholder</div>} />
           </Route>
           <Route
             path="medicine"

@@ -2,6 +2,13 @@ import z from 'zod'
 import { t } from '..'
 
 export const visitManagementRpc = {
+  poli: t
+    .input(z.any())
+    .output(z.any())
+    .query(async ({ client }, input) => {
+      const data = await client.get(`/api/poli/listAll`)
+      return await data.json()
+    }),
   getPatientList: t
     .input(
       z.object({
@@ -159,15 +166,16 @@ export const visitManagementRpc = {
         assuranceCodeId: z.string().optional(),
         queueDate: z.string().optional(),
         queueNumber: z.coerce.number().optional(),
-        status: z.union([z.string(), z.array(z.string())]).optional()
+        status: z.union([z.string(), z.array(z.string())]).optional(),
+        practitionerId: z.string().optional()
       })
     )
     .output(z.any())
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()
-      if (input.poliCodeId) params.append('poliCodeId', input.poliCodeId)
       if (input.queueDate) params.append('queueDate', input.queueDate)
       if (input.queueNumber) params.append('queueNumber', String(input.queueNumber))
+      if (input.practitionerId) params.append('practitionerId', input.practitionerId)
 
       // if (input.status) {
       //   if (Array.isArray(input.status)) {

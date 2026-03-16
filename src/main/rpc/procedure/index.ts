@@ -4,6 +4,7 @@ import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
 import { patientRpc } from './patient'
 import { practitionerRpc } from './practitioner'
+import { queryProcedure } from './query'
 import { roomRpc } from './room'
 import { triageRpc } from './triage'
 import { visitManagementRpc } from './visit-management'
@@ -21,7 +22,8 @@ export const rpcRouter = {
   laboratoryManagement: laboratoryManagementRpc,
   wilayah: wilayahRpc,
   window: windowRpc,
-  module: mmoduleRpc
+  module: mmoduleRpc,
+  query: queryProcedure
 }
 
 export type AppRouter = typeof rpcRouter

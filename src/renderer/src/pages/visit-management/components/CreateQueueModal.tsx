@@ -10,9 +10,16 @@ export type CreateQueueModalProps = {
   onClose: () => void
   patient?: PatientAttributes
   onSuccess?: () => void
+  showDate?: boolean
 }
 
-const CreateQueueModal = ({ open, onClose, patient, onSuccess }: CreateQueueModalProps) => {
+const CreateQueueModal = ({
+  open,
+  onClose,
+  patient,
+  onSuccess,
+  showDate = true
+}: CreateQueueModalProps) => {
   const [form] = Form.useForm()
   const createQueue = client.visitManagement.register.useMutation()
   const visitDate = Form.useWatch('visitDate', form)
@@ -179,6 +186,7 @@ const CreateQueueModal = ({ open, onClose, patient, onSuccess }: CreateQueueModa
           name="visitDate"
           label="Tanggal Kunjungan"
           rules={[{ required: true, message: 'Harap pilih tanggal' }]}
+          hidden={!showDate}
         >
           <DatePicker style={{ width: '100%' }} />
         </Form.Item>
