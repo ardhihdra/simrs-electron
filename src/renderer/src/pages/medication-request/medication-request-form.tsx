@@ -87,6 +87,8 @@ interface FormData {
     batchNumber?: string
     expiryDate?: string
   }>
+  manualPatientName?: string
+  manualMedicalRecordNumber?: string
 }
 
 interface GroupIdentifierInfo {
@@ -739,11 +741,48 @@ export function MedicationRequestForm() {
   })
 
   const onFinish = async (values: FormData) => {
+    let finalPatientId = values.patientId
+
+    if (values.patientId === 'MANUAL' && values.manualPatientName) {
+      try {
+        const createPatientFn = window.api?.query?.patient?.create
+        if (!createPatientFn) throw new Error('API pendaftaran pasien tidak tersedia.')
+
+        const regRes = await createPatientFn({
+          name: values.manualPatientName,
+          medicalRecordNumber: values.manualMedicalRecordNumber || `L-MRN-${Date.now()}`,
+          nik: '0000000000000000',
+          gender: 'male' as const,
+          birthDate: '1900-01-01',
+          maritalStatus: 'single' as const,
+          phone: '-',
+          email: 'luar@k.com',
+          address: '-',
+          city: '-',
+          province: '-',
+          postalCode: '-',
+          country: 'Indonesia',
+          relatedPerson: [],
+          active: true
+        } as any)
+
+        if (!regRes?.success || !regRes.data?.id) {
+          throw new Error('Gagal mendaftarkan pasien luar otomatis.')
+        }
+
+        finalPatientId = regRes.data.id
+      } catch (err) {
+        console.error('Manual patient registration failed', err)
+        modal.error({ title: 'Gagal', content: err instanceof Error ? err.message : 'Gagal registrasi pasien luar' })
+        return
+      }
+    }
+
     const baseCommonPayload = {
       status: values.status,
       intent: MedicationRequestIntent.ORDER,
       priority: values.priority,
-      patientId: values.patientId,
+      patientId: finalPatientId,
       encounterId: values.encounterId,
       roomId: values.roomId,
       requesterId: values.requesterId,
@@ -1402,12 +1441,16 @@ export function MedicationRequestForm() {
                       if (val) {
                         setFieldsValue({
                           patientId: val.patientId,
-                          encounterId: val.encounterId
+                          encounterId: val.encounterId,
+                          manualPatientName: val.patientName,
+                          manualMedicalRecordNumber: val.medicalRecordNumber
                         })
                       } else {
                         setFieldsValue({
                           patientId: undefined,
-                          encounterId: undefined
+                          encounterId: undefined,
+                          manualPatientName: undefined,
+                          manualMedicalRecordNumber: undefined
                         })
                       }
                     }}
@@ -1417,6 +1460,8 @@ export function MedicationRequestForm() {
               {/* Hidden fields to keep Form compatibility */}
               <Form.Item name="patientId" hidden><Input /></Form.Item>
               <Form.Item name="encounterId" hidden><Input /></Form.Item>
+              <Form.Item name="manualPatientName" hidden><Input /></Form.Item>
+              <Form.Item name="manualMedicalRecordNumber" hidden><Input /></Form.Item>
             </div>
 
             <div className="space-y-2">
