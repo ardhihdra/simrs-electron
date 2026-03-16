@@ -571,18 +571,7 @@ export default function MedicationDispenseFromRequest() {
 		return map
 	}, [dispenseListData?.data])
 
-	const isOutOfStockForCurrentQuantity = useMemo(() => {
-		const checkRow = (row: TableRow): boolean => {
-			if (typeof row.quantityDiambil === 'number' && typeof row.stokSaatIni === 'number') {
-				if (row.quantityDiambil > row.stokSaatIni) return true
-			}
-			if (row.children) {
-				return row.children.some(checkRow)
-			}
-			return false
-		}
-		return tableData.some(checkRow)
-	}, [tableData])
+
 
 	const tableData: TableRow[] = useMemo(() => {
 		if (!detail) return []
@@ -781,6 +770,19 @@ export default function MedicationDispenseFromRequest() {
 
 		return rows
 	}, [detail, groupListData, stockMapFromInventory, quantityOverrides, completedQuantityByRequestId, medicineMap, itemMap])
+
+	const isOutOfStockForCurrentQuantity = useMemo(() => {
+		const checkRow = (row: TableRow): boolean => {
+			if (typeof row.quantityDiambil === 'number' && typeof row.stokSaatIni === 'number') {
+				if (row.quantityDiambil > row.stokSaatIni) return true
+			}
+			if (row.children) {
+				return row.children.some(checkRow)
+			}
+			return false
+		}
+		return tableData.some(checkRow)
+	}, [tableData])
 
 	const isPrescriptionFulfilled = useMemo(() => {
 		const records: MedicationRequestDetail[] =

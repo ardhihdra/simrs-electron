@@ -745,10 +745,10 @@ export function MedicationRequestForm() {
 
     if (values.patientId === 'MANUAL' && values.manualPatientName) {
       try {
-        const createPatientFn = window.api?.query?.patient?.create
+        const createPatientFn = window.api?.query?.registration?.create
         if (!createPatientFn) throw new Error('API pendaftaran pasien tidak tersedia.')
 
-        const regRes = await createPatientFn({
+        const regRes = (await createPatientFn({
           name: values.manualPatientName,
           medicalRecordNumber: values.manualMedicalRecordNumber || `L-MRN-${Date.now()}`,
           nik: '0000000000000000',
@@ -764,16 +764,24 @@ export function MedicationRequestForm() {
           country: 'Indonesia',
           relatedPerson: [],
           active: true
-        } as any)
+        }) as any)
 
-        if (!regRes?.success || !regRes.data?.id) {
-          throw new Error('Gagal mendaftarkan pasien luar otomatis.')
+        if (!regRes?.success) {
+          throw new Error(regRes.error || 'Gagal mendaftarkan pasien luar otomatis (Response Success False).')
+        }
+
+        if (!regRes.data?.id) {
+          console.error('[MR] Manual registration response data invalid:', regRes)
+          throw new Error('Gagal mendaftarkan pasien luar otomatis (ID tidak ditemukan di response).')
         }
 
         finalPatientId = regRes.data.id
       } catch (err) {
-        console.error('Manual patient registration failed', err)
-        modal.error({ title: 'Gagal', content: err instanceof Error ? err.message : 'Gagal registrasi pasien luar' })
+        console.error('[MR] Manual patient registration failed:', err)
+        modal.error({ 
+          title: 'Gagal Registrasi Pasien Luar', 
+          content: err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftarkan pasien luar.' 
+        })
         return
       }
     }
@@ -947,8 +955,8 @@ export function MedicationRequestForm() {
         supportingInformation?: SupportingInformationItemInfo[]
       }
 
-      const medicineList = (medicineData?.result || []) as MedicineAttributes[]
       const itemList = (itemSource?.result || []) as ItemAttributes[]
+      const medicineList = itemList as any[]
 
       const compoundInputs: CompoundInputItem[] = compounds.map((compound) => {
         const compoundItems = compound.items ?? []
@@ -1313,9 +1321,8 @@ export function MedicationRequestForm() {
         dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
         supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
       }))
-
-      const medicineList = (medicineData?.result || []) as MedicineAttributes[]
       const itemList = (itemSource?.result || []) as ItemAttributes[]
+      const medicineList = itemList as any[]
 
       const compoundPayloads = compounds.map((comp, idx) => {
         const compoundId = `${Date.now()}-comp-${idx}`
@@ -1489,7 +1496,6 @@ export function MedicationRequestForm() {
               <Form.Item
                 label="Dokter"
                 name="requesterId"
-                rules={[{ required: true, message: 'Dokter wajib dipilih' }]}
               >
                 <SelectAsync
                   display="namaLengkap"
