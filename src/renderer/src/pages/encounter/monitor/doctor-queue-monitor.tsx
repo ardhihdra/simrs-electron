@@ -8,9 +8,9 @@ import {
 } from '@ant-design/icons'
 import { ReactNode, useMemo } from 'react'
 
-import { Alert, Card, Empty, Spin, Typography, theme } from 'antd'
+import { Alert, Button, Card, Empty, Spin, Typography, theme } from 'antd'
 import dayjs from 'dayjs'
-import { useParams } from 'react-router'
+import { useNavigate, useParams } from 'react-router'
 
 import { client } from '@renderer/utils/client'
 
@@ -117,7 +117,7 @@ function QueueStripCard({
   iconSurface: string
 }) {
   const { token } = theme.useToken()
-
+  const navigate = useNavigate()
   return (
     <Card
       variant="borderless"
@@ -130,6 +130,11 @@ function QueueStripCard({
       }}
     >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <div className="fixed top-0 left-0 z-50">
+          <Button type="default" onClick={() => navigate(-1)}>
+            Back
+          </Button>
+        </div>
         <div className="flex items-center gap-4">
           <div
             className="flex h-14 w-14 items-center justify-center rounded-full text-2xl"
@@ -141,7 +146,10 @@ function QueueStripCard({
             {icon}
           </div>
           <div>
-            <div className="text-lg font-semibold uppercase tracking-wide" style={{ color: accentColor }}>
+            <div
+              className="text-lg font-semibold uppercase tracking-wide"
+              style={{ color: accentColor }}
+            >
               {title}
             </div>
             <div className="text-base" style={{ color: token.colorTextSecondary }}>
@@ -186,8 +194,8 @@ function QueueStripCard({
 export default function DoctorQueueMonitor() {
   const { token } = theme.useToken()
   const { practitionerId = '' } = useParams()
-  // const queueDate = dayjs().format('YYYY-MM-DD')
-  const queueDate = '2026-03-17'
+  const queueDate = dayjs().format('YYYY-MM-DD')
+  // const queueDate = '2026-03-17'
 
   const queueQuery = client.visitManagement.getActiveQueues.useQuery(
     {
@@ -236,12 +244,16 @@ export default function DoctorQueueMonitor() {
   const lastCalledTickets = completedTickets.slice(-2)
   const doctorName =
     getDoctorName(doctorTickets[0]) || (practitionerId ? `Dokter ${practitionerId}` : 'Dokter')
-  const poliNames = Array.from(new Set(doctorTickets.map((ticket) => getPoliName(ticket)))).filter(Boolean)
+  const poliNames = Array.from(new Set(doctorTickets.map((ticket) => getPoliName(ticket)))).filter(
+    Boolean
+  )
   const poliLabel = poliNames.join(', ') || 'Poli belum ditentukan'
   const lastUpdatedLabel = queueQuery.dataUpdatedAt
     ? dayjs(queueQuery.dataUpdatedAt).format('HH:mm:ss')
     : '-'
-  const currentInstruction = activeTicket ? 'Harap menuju ruang pemeriksaan' : 'Menunggu panggilan berikutnya'
+  const currentInstruction = activeTicket
+    ? 'Harap menuju ruang pemeriksaan'
+    : 'Menunggu panggilan berikutnya'
 
   if (!practitionerId) {
     return <Alert type="warning" showIcon message="Dokter tidak ditemukan pada URL." />

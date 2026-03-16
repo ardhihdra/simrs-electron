@@ -86,9 +86,7 @@ const getQueueLabel = (ticket?: QueueTicket) => {
 const getPatientName = (ticket?: QueueTicket) => ticket?.patient?.name?.trim() || '-'
 
 const getPoliName = (ticket: QueueTicket) =>
-  ticket.poliName?.trim() ||
-  ticket.serviceUnit?.display?.trim() ||
-  'Poli belum ditentukan'
+  ticket.poliName?.trim() || ticket.serviceUnit?.display?.trim() || 'Poli belum ditentukan'
 
 const getDoctorName = (ticket: QueueTicket) =>
   ticket.practitioner?.name?.trim() ||
@@ -97,8 +95,12 @@ const getDoctorName = (ticket: QueueTicket) =>
   ticket.doctorName?.trim() ||
   'Dokter belum ditentukan'
 
-const getPractitionerId = (ticket?: QueueTicket) =>
-  ticket?.practitionerId !== undefined ? String(ticket.practitionerId) : undefined
+const getPractitionerId = (ticket?: QueueTicket) => {
+  if (ticket?.practitionerId === null || ticket?.practitionerId === undefined) {
+    return undefined
+  }
+  return String(ticket.practitionerId)
+}
 
 const compareTicketByNumber = (a: QueueTicket, b: QueueTicket) => {
   const aNumber = getQueueNumber(a)
@@ -216,7 +218,9 @@ export default function EncounterMonitor() {
       if (!optionsMap.has(value)) {
         optionsMap.set(value, {
           value,
-          label: summary.practitionerId ? `${summary.doctor} (${summary.practitionerId})` : summary.doctor
+          label: summary.practitionerId
+            ? `${summary.doctor} (${summary.practitionerId})`
+            : summary.doctor
         })
       }
     })
@@ -256,7 +260,7 @@ export default function EncounterMonitor() {
       />
     )
   }
-console.log(queueQuery.data)
+  console.log(queueQuery.data)
   return (
     <div className="space-y-4">
       <Card className="border-0 shadow-sm">
@@ -331,7 +335,7 @@ console.log(queueQuery.data)
                   {summary.practitionerId ? (
                     <Link to={`/monitor/doctor/${summary.practitionerId}`}>
                       <Button size="small" type="default">
-                        Lihat Antrian Dokter
+                        Lihat Antrian Dokter {summary.practitionerId}
                       </Button>
                     </Link>
                   ) : null}
