@@ -572,8 +572,17 @@ export default function MedicationDispenseFromRequest() {
 	}, [dispenseListData?.data])
 
 	const isOutOfStockForCurrentQuantity = useMemo(() => {
-		return false
-	}, [])
+		const checkRow = (row: TableRow): boolean => {
+			if (typeof row.quantityDiambil === 'number' && typeof row.stokSaatIni === 'number') {
+				if (row.quantityDiambil > row.stokSaatIni) return true
+			}
+			if (row.children) {
+				return row.children.some(checkRow)
+			}
+			return false
+		}
+		return tableData.some(checkRow)
+	}, [tableData])
 
 	const tableData: TableRow[] = useMemo(() => {
 		if (!detail) return []
@@ -736,6 +745,20 @@ export default function MedicationDispenseFromRequest() {
 							}
 						}
 
+						let ingStock: number | undefined
+						let ingUnit: string | undefined
+						if (itemId) {
+							const item = Array.isArray(itemData?.result) ? (itemData.result as any[]).find(it => it.id === Number(itemId)) : null
+							const kode = (item?.kode || '').trim().toUpperCase()
+							if (kode) {
+								const s = stockMapFromInventory.get(kode)
+								if (s) {
+									ingStock = s.availableStock
+									ingUnit = s.unit
+								}
+							}
+						}
+
 						return {
 							key: `${record.id ?? ''}-ing-${idx}`,
 							jenis: 'Komposisi',
@@ -743,9 +766,9 @@ export default function MedicationDispenseFromRequest() {
 							quantityDiminta: ing.quantity,
 							unitDiminta: ing.unitCode,
 							instruksi: ing.note || ing.instruction,
-							stokSaatIni: undefined,
-							unitStok: undefined,
-							quantityDiambil: undefined,
+							stokSaatIni: ingStock,
+							unitStok: ingUnit,
+							quantityDiambil: ing.quantity,
 							medicationRequestId: undefined,
 							batch: typeof ing.batchNumber === 'string' && ing.batchNumber.trim().length > 0 ? ing.batchNumber.trim() : undefined
 						}
@@ -823,7 +846,19 @@ export default function MedicationDispenseFromRequest() {
 		},
 		{ title: 'Qty Diminta', dataIndex: 'quantityDiminta', key: 'quantityDiminta' },
 		{ title: 'Satuan', dataIndex: 'unitDiminta', key: 'unitDiminta' },
-		{ title: 'Stok Saat Ini', dataIndex: 'stokSaatIni', key: 'stokSaatIni' },
+		{ 
+			title: 'Stok Saat Ini', 
+			dataIndex: 'stokSaatIni', 
+			key: 'stokSaatIni',
+			render: (val: number | undefined, row: TableRow) => {
+				const isLow = typeof val === 'number' && typeof row.quantityDiambil === 'number' && row.quantityDiambil > val
+				return (
+					<span style={{ color: isLow ? 'red' : 'inherit', fontWeight: isLow ? 'bold' : 'normal' }}>
+						{val ?? '-'} {row.unitStok ?? ''}
+					</span>
+				)
+			}
+		},
 		{ title: 'Instruksi / Kekuatan', dataIndex: 'instruksi', key: 'instruksi' },
 		{
 			title: 'Qty Diambil',
@@ -879,6 +914,14 @@ export default function MedicationDispenseFromRequest() {
 					<Descriptions.Item label="Tanggal Resep">{authoredOnText}</Descriptions.Item>
 				</Descriptions>
 			</Card>
+			{isOutOfStockForCurrentQuantity && (
+				<Alert 
+					type="error" 
+					showIcon 
+					message="Stok Tidak Cukup" 
+					description="Terdapat item atau bahan obat yang stoknya tidak mencukupi untuk jumlah yang akan diambil." 
+				/>
+			)}
 			<Card title="Obat dalam Resep">
 				<Table<TableRow>
 					dataSource={tableData}
