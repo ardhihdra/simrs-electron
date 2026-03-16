@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App, Space, Alert } from 'antd'
+import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App, Alert, Tag } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -58,6 +58,7 @@ interface MedicationRequestDetail {
 	intent: string
 	priority?: string
 	patientId: string
+	encounterId?: string | null
 	authoredOn?: string
 	patient?: PatientInfo
 	medication?: MedicationInfo
@@ -423,13 +424,13 @@ export default function MedicationDispenseFromRequest() {
 
 	const isInternalRequest = useMemo(() => {
 		if (!detail) return false
-		// Internal requests usually have an encounter and a requester from our staff
-		// Also medicine request from external/manual entry might not have encounterId
-		return !!detail.supportingInformation?.some(info => 
-			info.resourceType === 'Encounter' || 
-			(info.type === 'Encounter' && info.itemId)
-		) || !!baseDetail?.groupIdentifier?.value
-	}, [detail, baseDetail])
+		const patientMrn = detail.patient?.mrNo || ''
+		const isExternalPatient = patientMrn.startsWith('L-MRN-')
+		const hasEncounter = !!detail.encounterId
+		
+		// Internal if has encounter AND is not explicitly an external-style MRN
+		return hasEncounter && !isExternalPatient
+	}, [detail])
 
 	const allCriteriaMet = useMemo(() => {
 		return Object.values(telaahResults).every(v => v === true)
@@ -462,9 +463,9 @@ export default function MedicationDispenseFromRequest() {
 				throw new Error('API MedicationDispense tidak tersedia.')
 			}
 			const recordsForGroup: MedicationRequestDetail[] =
-				Array.isArray(groupListData) && groupListData.length > 0
+				(Array.isArray(groupListData) && groupListData.length > 0
 					? groupListData
-					: [detail]
+					: [detail]).filter((r): r is MedicationRequestDetail => !!r)
 
 			const toProcess: { record: MedicationRequestDetail; quantityValue: number; unit?: string }[] = []
 			for (const record of recordsForGroup) {

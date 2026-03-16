@@ -77,13 +77,14 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
 			) : (
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-3 gap-x-8 p-2">
 					{telaahCriteria.map(c => (
-						<Checkbox 
-							key={c.key} 
-							checked={results[c.key as keyof TelaahResults]}
-							onChange={(e) => onChange({ ...results, [c.key]: e.target.checked })}
-						>
-							{c.label}
-						</Checkbox>
+						<div key={c.key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+							<Checkbox 
+								checked={results[c.key as keyof TelaahResults]}
+								onChange={(e) => onChange({ ...results, [c.key]: e.target.checked })}
+							>
+								<span className="text-gray-700">{c.label}</span>
+							</Checkbox>
+						</div>
 					))}
 				</div>
 			)}
