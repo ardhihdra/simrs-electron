@@ -50,7 +50,26 @@ const BatchItemSchema = z.object({
 	expiryDate: z.string().nullable(),
 	stockIn: z.number(),
 	stockOut: z.number(),
+	availableStock: z.number(),
+	firstReceivedDate: z.string().optional()
+})
+
+const LocationItemStockSchema = z.object({
+	kodeItem: z.string(),
+	namaItem: z.string(),
+	unit: z.string(),
+	stockIn: z.number(),
+	stockOut: z.number(),
 	availableStock: z.number()
+})
+
+const LocationStockSummarySchema = z.object({
+	id: z.string(),
+	kodeLokasi: z.string(),
+	stockIn: z.number(),
+	stockOut: z.number(),
+	availableStock: z.number(),
+	items: LocationItemStockSchema.array()
 })
 
 export const schemas = {
@@ -63,6 +82,18 @@ export const schemas = {
 		result: z.object({
 			success: z.boolean(),
 			result: InventoryStockItemSchema.array().optional(),
+			message: z.string().optional()
+		})
+	},
+	listByLocation: {
+		args: z.object({
+			kodeLokasi: z.string(),
+			items: z.number().optional(),
+			depth: z.number().optional()
+		}),
+		result: z.object({
+			success: z.boolean(),
+			result: LocationStockSummarySchema.array().optional(),
 			message: z.string().optional()
 		})
 	},
@@ -113,10 +144,22 @@ export const schemas = {
 			result: BatchItemSchema.array().optional(),
 			message: z.string().optional()
 		})
+	},
+	listBatchesByLocation: {
+		args: z.object({
+			kodeItem: z.string(),
+			kodeLokasi: z.string()
+		}),
+		result: z.object({
+			success: z.boolean(),
+			result: BatchItemSchema.array().optional(),
+			message: z.string().optional()
+		})
 	}
 } as const
 
 type ListArgs = z.infer<typeof schemas.list.args>
+type ListByLocationArgs = z.infer<typeof schemas.listByLocation.args>
 
 type ExpirySummaryArgs = z.infer<typeof schemas.expirySummary.args>
 type AdjustItemStockArgs = z.infer<typeof schemas.adjustItemStock.args>
@@ -200,6 +243,37 @@ export const itemAdjustments = async (ctx: IpcContext, args?: ItemAdjustmentsArg
 	return { success: true, result }
 }
 
+export const listBatchesByLocation = async (ctx: IpcContext, args: { kodeItem: string; kodeLokasi: string }) => {
+	const client = createBackendClient(ctx)
+	const params = new URLSearchParams()
+	params.append('kodeItem', args.kodeItem)
+	params.append('kodeLokasi', args.kodeLokasi)
+
+	const url = `/api/inventorystock/batches-by-location?${params.toString()}`
+	const res = await client.get(url)
+	const BackendSchema = z.object({
+		success: z.boolean(),
+		result: BatchItemSchema.array().optional(),
+		message: z.string().optional()
+	})
+	const result = await parseBackendResponse(res, BackendSchema)
+	return { success: true, result }
+}
+export const listByLocation = async (ctx: IpcContext, args: ListByLocationArgs) => {
+	const client = createBackendClient(ctx)
+	const params = new URLSearchParams()
+	const items = typeof args.items === 'number' && Number.isFinite(args.items) ? args.items : 1000
+	params.append('items', String(items))
+	params.append('depth', String(args.depth ?? 1))
+	params.append('kodeLokasi', args.kodeLokasi)
+
+	const url = `/api/inventorystock/by-location?${params.toString()}`
+	const res = await client.get(url)
+	const ListSchema = BackendListSchema(LocationStockSummarySchema)
+	const result = await parseBackendResponse(res, ListSchema)
+	return { success: true, result }
+}
+
 export const listBatches = async (ctx: IpcContext, args: ListBatchesArgs) => {
 	const client = createBackendClient(ctx)
 	const params = new URLSearchParams()
@@ -215,4 +289,3 @@ export const listBatches = async (ctx: IpcContext, args: ListBatchesArgs) => {
 	const result = await parseBackendResponse(res, BackendSchema)
 	return { success: true, result }
 }
-

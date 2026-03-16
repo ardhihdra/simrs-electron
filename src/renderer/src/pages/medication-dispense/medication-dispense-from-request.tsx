@@ -138,6 +138,30 @@ interface InventoryStockResponse {
 	message?: string
 }
 
+interface LocationItemStock {
+	kodeItem: string
+	namaItem: string
+	unit: string
+	stockIn: number
+	stockOut: number
+	availableStock: number
+}
+
+interface LocationStockSummary {
+	id: string
+	kodeLokasi: string
+	stockIn: number
+	stockOut: number
+	availableStock: number
+	items: LocationItemStock[]
+}
+
+interface InventoryStockByLocationResponse {
+	success: boolean
+	result?: LocationStockSummary[]
+	message?: string
+}
+
 interface ItemCategoryAttributes {
 	id?: number
 	name?: string | null
@@ -266,15 +290,21 @@ export default function MedicationDispenseFromRequest() {
 		}
 	})
 
-	const { data: inventoryStockData } = useQuery<InventoryStockResponse>({
-		queryKey: ['inventoryStock', 'list'],
+	const { data: inventoryStockByLocation } = useQuery<InventoryStockByLocationResponse>({
+		queryKey: ['inventoryStock', 'by-location', 'FARM'],
 		queryFn: () => {
 			const api = window.api?.query as {
-				inventoryStock?: { list: () => Promise<InventoryStockResponse> }
+				inventoryStock?: {
+					listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
+						success: boolean
+						result?: LocationStockSummary[]
+						message?: string
+					}>
+				}
 			}
-			const fn = api?.inventoryStock?.list
-			if (!fn) throw new Error('API stok inventory tidak tersedia.')
-			return fn()
+			const fn = api?.inventoryStock?.listByLocation
+			if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
+			return fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
 		}
 	})
 
@@ -376,18 +406,20 @@ export default function MedicationDispenseFromRequest() {
 
 	const stockMapFromInventory = useMemo(() => {
 		const map = new Map<string, { availableStock: number; unit: string }>()
-		const stockList: InventoryStockItem[] = Array.isArray(inventoryStockData?.result)
-			? inventoryStockData.result
+		const byLocation: LocationStockSummary[] = Array.isArray(inventoryStockByLocation?.result)
+			? inventoryStockByLocation.result!
 			: []
-		for (const s of stockList) {
-			const kodeItem = s.kodeItem.trim().toUpperCase()
+		const farm = byLocation.find((l) => l.kodeLokasi === 'FARM')
+		const items = farm?.items ?? []
+		for (const it of items) {
+			const kodeItem = it.kodeItem.trim().toUpperCase()
 			if (!kodeItem) continue
-			const availableStock = typeof s.availableStock === 'number' ? s.availableStock : 0
-			const unit = s.unit
+			const availableStock = typeof it.availableStock === 'number' ? it.availableStock : 0
+			const unit = it.unit
 			map.set(kodeItem, { availableStock, unit })
 		}
 		return map
-	}, [inventoryStockData?.result])
+	}, [inventoryStockByLocation?.result])
 
 	const isInternalRequest = useMemo(() => {
 		if (!detail) return false

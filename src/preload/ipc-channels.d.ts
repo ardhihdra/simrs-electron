@@ -261,6 +261,10 @@ type Args_Mod_query_inventoryStock_list = InferArgs<typeof Mod_query_inventorySt
 type Result_Mod_query_inventoryStock_list = InferResult<typeof Mod_query_inventoryStock, 'list'>
 type Args_Mod_query_inventoryStock_listBatches = InferArgs<typeof Mod_query_inventoryStock, 'listBatches'>
 type Result_Mod_query_inventoryStock_listBatches = InferResult<typeof Mod_query_inventoryStock, 'listBatches'>
+type Args_Mod_query_inventoryStock_listBatchesByLocation = InferArgs<typeof Mod_query_inventoryStock, 'listBatchesByLocation'>
+type Result_Mod_query_inventoryStock_listBatchesByLocation = InferResult<typeof Mod_query_inventoryStock, 'listBatchesByLocation'>
+type Args_Mod_query_inventoryStock_listByLocation = InferArgs<typeof Mod_query_inventoryStock, 'listByLocation'>
+type Result_Mod_query_inventoryStock_listByLocation = InferResult<typeof Mod_query_inventoryStock, 'listByLocation'>
 type Args_Mod_query_item_create = InferArgs<typeof Mod_query_item, 'create'>
 type Result_Mod_query_item_create = InferResult<typeof Mod_query_item, 'create'>
 type Args_Mod_query_item_deleteById = InferArgs<typeof Mod_query_item, 'deleteById'>
@@ -704,6 +708,8 @@ declare global {
           itemAdjustments: Invoke<Args_Mod_query_inventoryStock_itemAdjustments, Result_Mod_query_inventoryStock_itemAdjustments>
           list: Invoke<Args_Mod_query_inventoryStock_list, Result_Mod_query_inventoryStock_list>
           listBatches: Invoke<Args_Mod_query_inventoryStock_listBatches, Result_Mod_query_inventoryStock_listBatches>
+          listBatchesByLocation: Invoke<Args_Mod_query_inventoryStock_listBatchesByLocation, Result_Mod_query_inventoryStock_listBatchesByLocation>
+          listByLocation: Invoke<Args_Mod_query_inventoryStock_listByLocation, Result_Mod_query_inventoryStock_listByLocation>
         }
         item: {
           create: Invoke<Args_Mod_query_item_create, Result_Mod_query_item_create>

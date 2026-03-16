@@ -174,6 +174,9 @@ export function MedicationRequestForm() {
 
   const sortBatches = useCallback((batches: BatchOption[], rowKey: string): BatchOption[] => {
     const isFefo = batchSortModeMap.get(rowKey) ?? true // default FEFO
+    try {
+      console.log('[MR] sortBatches', { rowKey, mode: isFefo ? 'FEFO' : 'FIFO', count: batches.length })
+    } catch {}
     return [...batches].sort((a, b) => {
       if (isFefo) {
         // FEFO: earliest expiry first
@@ -194,17 +197,28 @@ export function MedicationRequestForm() {
   const fetchBatchesForItem = useCallback(async (kodeItem: string, rowKey: string) => {
     setBatchLoadingMap((prev) => new Map(prev).set(rowKey, true))
     try {
-      const api = window.api?.query as { inventoryStock?: { listBatches?: (args: { kodeItem: string }) => Promise<{ success: boolean; result?: BatchOption[] }> } }
-      const fn = api?.inventoryStock?.listBatches
-      if (!fn) return
+      const api = window.api?.query as {
+        inventoryStock?: {
+          listBatchesByLocation?: (args: { kodeItem: string; kodeLokasi: string }) => Promise<{ success: boolean; result?: BatchOption[] }>,
+          listBatches?: (args: { kodeItem: string }) => Promise<{ success: boolean; result?: BatchOption[] }>
+        }
+      }
+      const useByLocation = api?.inventoryStock?.listBatchesByLocation
+      if (!useByLocation) {
+        console.warn(`[MR] api.inventoryStock.listBatchesByLocation NOT FOUND for ${rowKey}, falling back to listBatches`)
+      }
       console.log(`Fetching batches for ${kodeItem} (row: ${rowKey})...`)
-      const res = await fn({ kodeItem })
-      console.log(`Batches result for ${kodeItem}:`, res)
+      const res = useByLocation
+        ? await useByLocation({ kodeItem, kodeLokasi: 'FARM' })
+        : await api?.inventoryStock?.listBatches?.({ kodeItem })
+      console.log(`Batches result for ${kodeItem} (row: ${rowKey}):`, res)
       if (res?.success && Array.isArray(res.result)) {
         setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
+      } else {
+        console.warn(`[MR] No batches found or success false for ${kodeItem} (row: ${rowKey})`, res)
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error(`[MR] Fetch batches error for ${kodeItem} (row: ${rowKey})`, err)
     } finally {
       setBatchLoadingMap((prev) => new Map(prev).set(rowKey, false))
     }
@@ -335,6 +349,51 @@ export function MedicationRequestForm() {
       return fn()
     }
   })
+
+  const { data: inventoryByLocation } = useQuery({
+    queryKey: ['inventoryStock', 'by-location', 'FARM', 'for-medication-request'],
+    queryFn: async () => {
+      const api = window.api?.query as {
+        inventoryStock?: {
+          listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
+            success: boolean
+            result?: Array<{
+              id: string
+              kodeLokasi: string
+              stockIn: number
+              stockOut: number
+              availableStock: number
+              items: Array<{
+                kodeItem: string
+                namaItem: string
+                unit: string
+                stockIn: number
+                stockOut: number
+                availableStock: number
+              }>
+            }>
+            message?: string
+          }>
+        }
+      }
+      const fn = api?.inventoryStock?.listByLocation
+      if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
+      return fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+    }
+  })
+
+  const farmKodeSet = useMemo(() => {
+    const arr = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
+    const farm = arr.find(l => l.kodeLokasi === 'FARM')
+    const items = farm?.items ?? []
+    const set = new Set<string>()
+    for (const it of items) {
+      const kode = (it.kodeItem || '').trim().toUpperCase()
+      if (kode && it.availableStock > 0) set.add(kode)
+    }
+    console.log('[MR] FARM available items count:', set.size, Array.from(set))
+    return set
+  }, [inventoryByLocation?.result])
 
   const { data: itemCategoryData } = useQuery({
     queryKey: ['itemCategory', 'list'],
@@ -493,7 +552,15 @@ export function MedicationRequestForm() {
         ? itemSource.result
         : []
 
-      return source
+      const filteredByLocation = source.filter((item) => {
+        const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+        if (!code) return false
+        if (farmKodeSet.size === 0) return true
+        return farmKodeSet.has(code)
+      })
+      console.log('[MR] itemOptions source size:', source.length, 'filtered by FARM size:', filteredByLocation.length)
+
+      return filteredByLocation
         .filter((item) => typeof item.id === 'number')
         .map((item) => {
           const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
@@ -531,7 +598,7 @@ export function MedicationRequestForm() {
         })
         .filter((entry) => entry.unitCode.length > 0)
     },
-    [itemSource?.result, itemCategoryMap]
+    [itemSource?.result, itemCategoryMap, farmKodeSet]
   )
 
   const itemKodeMap = useMemo(() => {
@@ -1742,8 +1809,10 @@ export function MedicationRequestForm() {
                                 optionFilterProp="label"
                                 loading={itemLoading}
                                 onChange={(itemId: number) => {
+                                  console.log('[MR] Dropdown Item dipilih', { itemId, rowKey: `otherItem-${name}` })
                                   const kode = itemKodeMap.get(itemId)
                                   if (kode) {
+                                    console.log('[MR] Fetch batch by lokasi FARM untuk item', { kode, rowKey: `otherItem-${name}` })
                                     fetchBatchesForItem(kode, `otherItem-${name}`)
                                   }
                                   // reset batch selection
@@ -1783,8 +1852,20 @@ export function MedicationRequestForm() {
                                   const batches = batchOptionsMap.get(`otherItem-${name}`) ?? []
                                   const found = batches.find((b) => b.batchNumber === val)
                                   const otherItems = form.getFieldValue('otherItems') || []
+                                  try {
+                                    console.log('[MR] Batch dipilih (otherItems)', {
+                                      rowKey: `otherItem-${name}`,
+                                      batchNumber: val,
+                                      foundExpiry: found?.expiryDate
+                                    })
+                                  } catch {}
                                   if (otherItems[name]) {
-                                    otherItems[name].expiryDate = found?.expiryDate ?? undefined
+                                    if (val && val.toUpperCase() === 'NO-BATCH') {
+                                      otherItems[name].batchNumber = undefined
+                                      otherItems[name].expiryDate = undefined
+                                    } else {
+                                      otherItems[name].expiryDate = found?.expiryDate ?? undefined
+                                    }
                                     form.setFieldsValue({ otherItems })
                                   }
                                 }}
@@ -1943,8 +2024,10 @@ export function MedicationRequestForm() {
                                           optionFilterProp="label"
                                           loading={itemLoading}
                                           onChange={(itemId: number) => {
+                                            console.log('[MR] Dropdown Komposisi Racikan dipilih', { itemId, batchKey: compoundBatchKey })
                                             const kode = itemKodeMap.get(itemId)
                                             if (kode) {
+                                              console.log('[MR] Fetch batch by lokasi FARM untuk komposisi', { kode, batchKey: compoundBatchKey })
                                               fetchBatchesForItem(kode, compoundBatchKey)
                                             }
                                           }}
@@ -1977,8 +2060,20 @@ export function MedicationRequestForm() {
                                             const batches = batchOptionsMap.get(compoundBatchKey) ?? []
                                             const found = batches.find((b) => b.batchNumber === val)
                                             const compounds = form.getFieldValue('compounds') || []
+                                            try {
+                                              console.log('[MR] Batch dipilih (racikan)', {
+                                                batchKey: compoundBatchKey,
+                                                batchNumber: val,
+                                                foundExpiry: found?.expiryDate
+                                              })
+                                            } catch {}
                                             if (compounds[name]?.items?.[subRestField.name]) {
-                                              compounds[name].items[subRestField.name].expiryDate = found?.expiryDate ?? undefined
+                                              if (val && val.toUpperCase() === 'NO-BATCH') {
+                                                compounds[name].items[subRestField.name].batchNumber = undefined
+                                                compounds[name].items[subRestField.name].expiryDate = undefined
+                                              } else {
+                                                compounds[name].items[subRestField.name].expiryDate = found?.expiryDate ?? undefined
+                                              }
                                               form.setFieldsValue({ compounds })
                                             }
                                           }}
