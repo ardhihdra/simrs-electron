@@ -26,6 +26,18 @@ const tindakanPelaksanaListSchema = z.object({
     pegawai: KepegawaianSimpleSchema.optional().nullable()
 })
 
+const DetailTindakanBhpSchema = z.object({
+    id: z.number().optional(),
+    tindakanPasienId: z.number().optional(),
+    itemId: z.number(),
+    namaItem: z.string().optional().nullable(),
+    jumlah: z.union([z.number(), z.string()]),
+    satuan: z.string().optional().nullable(),
+    hargaSatuan: z.union([z.number(), z.string()]).optional().nullable(),
+    subtotal: z.union([z.number(), z.string()]).optional().nullable(),
+    includedInPaket: z.boolean().optional().nullable()
+})
+
 const DetailTindakanPasienSchema = z.object({
     id: z.number(),
     encounterId: z.string(),
@@ -42,12 +54,20 @@ const DetailTindakanPasienSchema = z.object({
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional(),
     masterTindakan: MasterTindakanSimpleSchema.optional().nullable(),
-    tindakanPelaksanaList: z.array(tindakanPelaksanaListSchema).optional().nullable()
+    tindakanPelaksanaList: z.array(tindakanPelaksanaListSchema).optional().nullable(),
+    bhpList: z.array(DetailTindakanBhpSchema).optional().nullable()
 })
 
 const PetugasInputSchema = z.object({
     pegawaiId: z.number(),
     roleTenaga: z.string()
+})
+
+const BHPInputSchema = z.object({
+    itemId: z.number(),
+    jumlah: z.number().int().min(1),
+    satuan: z.string().optional().nullable(),
+    includedInPaket: z.boolean().optional()
 })
 
 const CreateDetailTindakanItemSchema = z.object({
@@ -61,7 +81,8 @@ const CreateDetailTindakanItemSchema = z.object({
     satuan: z.string().optional(),
     cyto: z.boolean().optional().default(false),
     catatanTambahan: z.string().optional(),
-    petugasList: z.array(PetugasInputSchema).min(1)
+    petugasList: z.array(PetugasInputSchema).min(1),
+    bhpList: z.array(BHPInputSchema).optional()
 })
 
 const CreateDetailTindakanSchema = z.object({

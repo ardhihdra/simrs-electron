@@ -9,6 +9,18 @@ export interface TindakanPelaksanaItem {
     pegawai?: { id: number; namaLengkap?: string | null; nik?: string | null } | null
 }
 
+export interface DetailTindakanBhpItem {
+    id?: number
+    tindakanPasienId?: number
+    itemId: number
+    namaItem?: string | null
+    jumlah: number | string
+    satuan?: string | null
+    hargaSatuan?: number | string | null
+    subtotal?: number | string | null
+    includedInPaket?: boolean | null
+}
+
 export interface DetailTindakanPasienItem {
     id: number
     encounterId: string
@@ -24,6 +36,7 @@ export interface DetailTindakanPasienItem {
     createdAt?: string
     masterTindakan?: { id: number; kodeTindakan: string; namaTindakan: string; kategoriTindakan?: string | null } | null
     tindakanPelaksanaList?: TindakanPelaksanaItem[] | null
+    bhpList?: DetailTindakanBhpItem[] | null
 }
 
 export interface PetugasInput {
@@ -43,6 +56,12 @@ export interface CreateDetailTindakanItem {
     cyto?: boolean
     catatanTambahan?: string
     petugasList: PetugasInput[]
+    bhpList?: {
+        itemId: number
+        jumlah: number
+        satuan?: string | null
+        includedInPaket?: boolean
+    }[]
 }
 
 export interface CreateDetailTindakanInput {

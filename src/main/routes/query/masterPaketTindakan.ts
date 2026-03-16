@@ -11,6 +11,26 @@ const MasterTindakanSimpleSchema = z.object({
     kategoriTindakan: z.string().optional().nullable()
 }).passthrough()
 
+const PaketBhpItemSchema = z.object({
+    id: z.number().optional(),
+    paketDetailId: z.number().optional(),
+    itemId: z.number(),
+    jumlahDefault: z.union([z.number(), z.string()]).optional(),
+    satuan: z.string().optional().nullable(),
+    includedInPaket: z.boolean().optional(),
+    keterangan: z.string().optional().nullable(),
+    item: z
+        .object({
+            id: z.number(),
+            kode: z.string().optional().nullable(),
+            nama: z.string().optional().nullable(),
+            kind: z.string().optional().nullable(),
+            sellingPrice: z.union([z.number(), z.string()]).optional().nullable()
+        })
+        .optional()
+        .nullable()
+}).passthrough()
+
 const PaketDetailItemSchema = z.object({
     id: z.number(),
     paketId: z.number(),
@@ -19,7 +39,9 @@ const PaketDetailItemSchema = z.object({
     satuan: z.string().optional().nullable(),
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional(),
-    masterTindakan: MasterTindakanSimpleSchema.optional().nullable()
+    tindakan: MasterTindakanSimpleSchema.optional().nullable(),
+    masterTindakan: MasterTindakanSimpleSchema.optional().nullable(),
+    bhpList: z.array(PaketBhpItemSchema).optional().nullable()
 }).passthrough()
 
 const MasterPaketTindakanSchema = z.object({
@@ -33,9 +55,40 @@ const MasterPaketTindakanSchema = z.object({
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional(),
     detailItems: z.array(PaketDetailItemSchema).optional().nullable(),
+    listTindakan: z.array(PaketDetailItemSchema).optional().nullable(),
+    listBHP: z.array(PaketBhpItemSchema).optional().nullable(),
     tarifList: z.array(z.any()).optional().nullable(),
     tindakanPasienList: z.array(z.any()).optional().nullable()
 }).passthrough()
+
+const normalizeMasterPaket = (raw: z.infer<typeof MasterPaketTindakanSchema>) => {
+    const detailItemsRaw = Array.isArray(raw?.detailItems) ? raw.detailItems : []
+    const listTindakan = Array.isArray(raw?.listTindakan)
+        ? raw.listTindakan
+        : detailItemsRaw.map((detail) => {
+            const rest = { ...detail } as Record<string, unknown>
+            delete rest.bhpList
+            return rest
+        })
+
+    const listBHP = Array.isArray(raw?.listBHP)
+        ? raw.listBHP
+        : detailItemsRaw.flatMap((detail) => {
+            const bhpList = Array.isArray(detail?.bhpList) ? detail.bhpList : []
+            return bhpList.map((bhp) => ({
+                ...bhp,
+                paketDetailId: bhp?.paketDetailId ?? detail?.id,
+                masterTindakanId: detail?.masterTindakanId,
+                tindakan: detail?.tindakan ?? detail?.masterTindakan ?? null
+            }))
+        })
+
+    return {
+        ...raw,
+        listTindakan,
+        listBHP
+    }
+}
 
 export const schemas = {
     list: {
@@ -73,7 +126,8 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 
         const ListSchema = BackendListSchema(MasterPaketTindakanSchema)
         const result = await parseBackendResponse(res, ListSchema)
-        return { success: true, result: result ?? [] }
+        const normalized = (result ?? []).map((item) => normalizeMasterPaket(item))
+        return { success: true, result: normalized }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         return { success: false, error: msg }
@@ -91,7 +145,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
             error: z.any().optional()
         })
         const result = await parseBackendResponse(res, BackendReadSchema)
-        return { success: true, result }
+        return { success: true, result: result ? normalizeMasterPaket(result) : result }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         return { success: false, error: msg }

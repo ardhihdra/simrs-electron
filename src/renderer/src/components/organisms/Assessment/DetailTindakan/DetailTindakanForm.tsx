@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Form,
   Input,
@@ -40,7 +41,8 @@ import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useMasterTindakanList } from '@renderer/hooks/query/use-master-tindakan'
 import {
   useMasterPaketTindakanList,
-  type PaketDetailItem
+  type PaketDetailItem,
+  type PaketBhpItem
 } from '@renderer/hooks/query/use-master-paket-tindakan'
 import {
   useDetailTindakanByEncounter,
@@ -58,6 +60,22 @@ interface DetailTindakanFormProps {
   patientData: any
 }
 
+interface ItemListResponse {
+  success: boolean
+  result?: ConsumableItem[]
+  message?: string
+  error?: string
+}
+
+interface ConsumableItem {
+  id: number
+  kode: string
+  nama: string
+  kodeUnit?: string | null
+  kind?: 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL' | null
+  sellingPrice?: number | null
+}
+
 export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanFormProps) => {
   const { message } = App.useApp()
   const { token } = theme.useToken()
@@ -66,6 +84,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const [mode, setMode] = useState<'non-paket' | 'paket'>('non-paket')
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
+  const [paketCache, setPaketCache] = useState<Record<number, any>>({})
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
 
@@ -86,6 +105,38 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     items: 10
   })
 
+  useEffect(() => {
+    if (!Array.isArray(paketList) || paketList.length === 0) return
+
+    setPaketCache((prev) => {
+      const next = { ...prev }
+      paketList.forEach((paket) => {
+        const id = Number(paket?.id)
+        if (Number.isFinite(id) && id > 0) {
+          next[id] = paket
+        }
+      })
+      return next
+    })
+  }, [paketList])
+
+  const { data: consumableItems = [], isLoading: isLoadingConsumableItems } = useQuery({
+    queryKey: ['item', 'consumable-list'],
+    queryFn: async (): Promise<ConsumableItem[]> => {
+      const fn = window.api?.query?.item?.list as (() => Promise<ItemListResponse>) | undefined
+      if (!fn) throw new Error('API master item tidak tersedia')
+
+      const res = await fn()
+      if (!res.success) {
+        throw new Error(res.message || res.error || 'Gagal mengambil data item')
+      }
+
+      const list = Array.isArray(res.result) ? res.result : []
+      return list.filter((item) => item?.kind === 'CONSUMABLE')
+    },
+    staleTime: 5 * 60 * 1000
+  })
+
   // Ambil rujukan jenis komponen untuk role nakes (Filter: isUntukMedis = true)
   const { data: listJenisKomponen = [], isLoading: isLoadingRoles } = useMasterJenisKomponenList({
     isUntukMedis: true,
@@ -100,6 +151,40 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }, [listJenisKomponen])
 
   const currentTindakanList = Form.useWatch('tindakanList', modalForm)
+  const paketEntriesWatcher = Form.useWatch('paketEntries', modalForm)
+  const getDetailMasterTindakan = (detail: any) => detail?.masterTindakan ?? detail?.tindakan ?? null
+  const getPaketTindakanItems = (paket: any): PaketDetailItem[] => {
+    if (Array.isArray(paket?.listTindakan)) return paket.listTindakan
+    if (Array.isArray(paket?.detailItems)) return paket.detailItems
+    return []
+  }
+  const getPaketBhpItems = (paket: any): PaketBhpItem[] => {
+    if (Array.isArray(paket?.listBHP)) return paket.listBHP
+
+    return getPaketTindakanItems(paket).flatMap((detail) => {
+      const bhpList = Array.isArray(detail?.bhpList) ? detail.bhpList : []
+      return bhpList.map((bhp) => ({
+        ...bhp,
+        paketDetailId: bhp?.paketDetailId ?? detail?.id,
+        masterTindakanId: detail?.masterTindakanId,
+        tindakan: detail?.tindakan ?? detail?.masterTindakan ?? null
+      }))
+    })
+  }
+  const consumableItemMap = useMemo(
+    () => new Map(consumableItems.map((item) => [Number(item.id), item])),
+    [consumableItems]
+  )
+
+  const consumableItemOptions = useMemo(
+    () =>
+      consumableItems.map((item) => ({
+        value: item.id,
+        label: `[${item.kode}] ${item.nama}`,
+        searchLabel: `${item.kode} ${item.nama}`.toLowerCase()
+      })),
+    [consumableItems]
+  )
 
   const tindakanOptions = useMemo(() => {
     const list = masterTindakanList.map((t) => ({
@@ -109,10 +194,11 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
     if (currentTindakanList) {
       currentTindakanList.forEach((item: any) => {
-        if (item?.masterTindakan && !list.some((opt) => opt.value === item.masterTindakanId)) {
+        const tindakan = getDetailMasterTindakan(item)
+        if (tindakan && !list.some((opt) => opt.value === item.masterTindakanId)) {
           list.push({
             value: item.masterTindakanId,
-            label: `[${item.masterTindakan.kodeTindakan}] ${item.masterTindakan.namaTindakan}${item.masterTindakan.kategoriTindakan ? ` — ${item.masterTindakan.kategoriTindakan}` : ''}`
+            label: `[${tindakan.kodeTindakan}] ${tindakan.namaTindakan}${tindakan.kategoriTindakan ? ` — ${tindakan.kategoriTindakan}` : ''}`
           })
         }
       })
@@ -120,11 +206,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
     if (paketList) {
       paketList.forEach((paket) => {
-        paket.detailItems?.forEach((detail) => {
-          if (detail.masterTindakan && !list.some((opt) => opt.value === detail.masterTindakanId)) {
+        getPaketTindakanItems(paket).forEach((detail) => {
+          const tindakan = getDetailMasterTindakan(detail)
+          if (tindakan && !list.some((opt) => opt.value === detail.masterTindakanId)) {
             list.push({
               value: detail.masterTindakanId,
-              label: `[${detail.masterTindakan.kodeTindakan}] ${detail.masterTindakan.namaTindakan}${detail.masterTindakan.kategoriTindakan ? ` — ${detail.masterTindakan.kategoriTindakan}` : ''}`
+              label: `[${tindakan.kodeTindakan}] ${tindakan.namaTindakan}${tindakan.kategoriTindakan ? ` — ${tindakan.kategoriTindakan}` : ''}`
             })
           }
         })
@@ -133,10 +220,26 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     return list
   }, [masterTindakanList, paketList, currentTindakanList])
 
-  const paketOptions = paketList.map((p) => ({
-    value: p.id,
-    label: `[${p.kodePaket}] ${p.namaPaket}${p.kategoriPaket ? ` — ${p.kategoriPaket}` : ''}`
-  }))
+  const paketOptions = useMemo(() => {
+    const optionMap = new Map<number, any>()
+    paketList.forEach((paket) => {
+      optionMap.set(Number(paket.id), paket)
+    })
+
+    if (Array.isArray(paketEntriesWatcher)) {
+      paketEntriesWatcher.forEach((entry: any) => {
+        const numId = Number(entry?.paketId)
+        if (!Number.isFinite(numId) || numId <= 0) return
+        const cached = paketCache[numId]
+        if (cached) optionMap.set(numId, cached)
+      })
+    }
+
+    return Array.from(optionMap.values()).map((p) => ({
+      value: p.id,
+      label: `[${p.kodePaket}] ${p.namaPaket}${p.kategoriPaket ? ` — ${p.kategoriPaket}` : ''}`
+    }))
+  }, [paketList, paketCache, paketEntriesWatcher])
 
   const { data: tindakanList = [], isLoading: isLoadingList } =
     useDetailTindakanByEncounter(encounterId)
@@ -144,17 +247,182 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const createMutation = useCreateDetailTindakan(encounterId)
   const voidMutation = useVoidDetailTindakan(encounterId)
 
+  const mergeBhpList = (existingBhpList: any[], incomingBhpList: any[]) => {
+    const merged = new Map<
+      string,
+      { itemId: number; jumlah: number; satuan?: string; includedInPaket: boolean }
+    >()
+
+    const pushBhp = (raw: any) => {
+      const itemId = Number(raw?.itemId)
+      if (!Number.isFinite(itemId) || itemId <= 0) return
+
+      const rawJumlah = Number(raw?.jumlah ?? raw?.jumlahDefault ?? 1)
+      const jumlah = Math.max(1, Math.round(rawJumlah || 1))
+
+      const selectedItem = consumableItemMap.get(itemId)
+      const satuan = raw?.satuan ?? selectedItem?.kodeUnit ?? undefined
+      const includedInPaket =
+        typeof raw?.includedInPaket === 'boolean' ? raw.includedInPaket : false
+      const key = `${itemId}__${includedInPaket ? 1 : 0}__${String(satuan ?? '').toUpperCase()}`
+
+      const current = merged.get(key)
+      if (current) {
+        current.jumlah += jumlah
+        return
+      }
+
+      merged.set(key, { itemId, jumlah, satuan, includedInPaket })
+    }
+
+    ;(existingBhpList || []).forEach(pushBhp)
+    ;(incomingBhpList || []).forEach(pushBhp)
+
+    return Array.from(merged.values())
+  }
+
+  const handlePaketEntryChange = (entryIndex: number, rawPaketId?: number) => {
+    const paketId = Number(rawPaketId)
+    if (!Number.isFinite(paketId) || paketId <= 0) {
+      modalForm.setFieldsValue({
+        paketEntries: (modalForm.getFieldValue('paketEntries') || []).map((entry: any, idx: number) =>
+          idx === entryIndex
+            ? {
+                ...entry,
+                paketId: undefined,
+                tindakanList: [],
+                bhpList: []
+              }
+            : entry
+        )
+      })
+      return
+    }
+
+    const selected = paketCache[paketId] ?? paketList.find((p) => Number(p.id) === paketId)
+    if (!selected) {
+      message.warning('Data paket belum termuat. Coba cari ulang paket lalu pilih lagi.')
+      return
+    }
+
+    const cytoGlobal = Boolean(
+      modalForm.getFieldValue(['paketEntries', entryIndex, 'paketCytoGlobal']) ?? false
+    )
+    const tindakanItems = getPaketTindakanItems(selected)
+    const bhpItems = getPaketBhpItems(selected)
+
+    const mappedTindakan = tindakanItems.map((d) => {
+      const tindakan = getDetailMasterTindakan(d)
+      return {
+        masterTindakanId: d.masterTindakanId,
+        paketId: Number(selected.id),
+        paketDetailId: d.id,
+        jumlah: Number(d.qty ?? 1),
+        satuan: d.satuan,
+        masterTindakan: tindakan,
+        cyto: cytoGlobal
+      }
+    })
+
+    const mappedBhp = mergeBhpList(
+      [],
+      bhpItems
+        .filter((bhp) => Number(bhp?.itemId) > 0)
+        .map((bhp) => ({
+          itemId: Number(bhp.itemId),
+          jumlah: Number(bhp.jumlahDefault ?? 1),
+          satuan: bhp.satuan ?? consumableItemMap.get(Number(bhp.itemId))?.kodeUnit ?? undefined,
+          includedInPaket: typeof bhp.includedInPaket === 'boolean' ? bhp.includedInPaket : true
+        }))
+    )
+
+    const currentEntries = modalForm.getFieldValue('paketEntries') || []
+    currentEntries[entryIndex] = {
+      ...(currentEntries[entryIndex] || {}),
+      paketId: Number(selected.id),
+      tindakanList: mappedTindakan,
+      bhpList: mappedBhp
+    }
+    modalForm.setFieldValue('paketEntries', [...currentEntries])
+    message.success(
+      `Paket dimuat: ${mappedTindakan.length} tindakan dan ${mappedBhp.length} BHP`
+    )
+  }
+
   const buildTindakanData = (values: any) => {
-    const petugasList = (values.petugasList ?? []).filter((p: any) => p?.pegawaiId && p?.roleTenaga)
     const tanggal = values.assessment_date
       ? values.assessment_date.format('YYYY-MM-DD')
       : dayjs().format('YYYY-MM-DD')
+    const mapBhpList = (rawBhpList: any[], defaultIncludedInPaket: boolean) =>
+      (Array.isArray(rawBhpList) ? rawBhpList : [])
+        .filter((bhp: any) => bhp?.itemId && Number(bhp?.jumlah) > 0)
+        .map((bhp: any) => {
+          const selectedItem = consumableItemMap.get(Number(bhp.itemId))
+          return {
+            itemId: Number(bhp.itemId),
+            jumlah: Number(bhp.jumlah),
+            satuan: bhp.satuan ?? selectedItem?.kodeUnit ?? undefined,
+            includedInPaket:
+              typeof bhp.includedInPaket === 'boolean'
+                ? bhp.includedInPaket
+                : defaultIncludedInPaket
+          }
+        })
+
+    if (Array.isArray(values?.paketEntries) && values.paketEntries.length > 0) {
+      return values.paketEntries.flatMap((entry: any) => {
+        const entryPetugasList = (entry?.petugasList ?? []).filter(
+          (p: any) => p?.pegawaiId && p?.roleTenaga
+        )
+        const entryItems = Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
+        const entryBhpList = mapBhpList(entry?.bhpList, true)
+
+        const entryTindakanData = entryItems
+          .filter((item: any) => item?.masterTindakanId)
+          .map((item: any) => ({
+            bhpList: [] as {
+              itemId: number
+              jumlah: number
+              satuan?: string | null
+              includedInPaket: boolean
+            }[],
+            masterTindakanId: item.masterTindakanId,
+            paketId: item.paketId,
+            paketDetailId: item.paketDetailId,
+            encounterId,
+            patientId,
+            tanggalTindakan: tanggal,
+            jumlah: item.jumlah ?? 1,
+            satuan: item.satuan,
+            cyto: item.cyto ?? false,
+            catatanTambahan: entry?.catatanTambahan,
+            petugasList: entryPetugasList
+          }))
+
+        if (entryBhpList.length > 0 && entryTindakanData.length > 0) {
+          entryTindakanData[0].bhpList = entryBhpList
+        }
+
+        return entryTindakanData
+      })
+    }
+
+    const petugasList = (values.petugasList ?? []).filter((p: any) => p?.pegawaiId && p?.roleTenaga)
+    const hasSelectedPaket =
+      Boolean(values?.paketId) ||
+      (Array.isArray(values?.paketIds) && values.paketIds.length > 0)
 
     const items = values.tindakanList || []
-
-    return items
+    const globalBhpList = mapBhpList(values?.bhpList, hasSelectedPaket)
+    const tindakanData = items
       .filter((item: any) => item?.masterTindakanId)
       .map((item: any) => ({
+        bhpList: [] as {
+          itemId: number
+          jumlah: number
+          satuan?: string | null
+          includedInPaket: boolean
+        }[],
         masterTindakanId: item.masterTindakanId,
         paketId: item.paketId,
         paketDetailId: item.paketDetailId,
@@ -167,16 +435,65 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         catatanTambahan: values.catatanTambahan,
         petugasList
       }))
+
+    if (globalBhpList.length > 0 && tindakanData.length > 0) {
+      tindakanData[0].bhpList = globalBhpList
+    }
+
+    return tindakanData
   }
 
   const handleSubmit = async (values: any) => {
     try {
-      const petugasList = (values.petugasList ?? []).filter(
-        (p: any) => p?.pegawaiId && p?.roleTenaga
-      )
-      if (petugasList.length === 0) {
-        message.error('Minimal harus ada 1 tenaga medis pelaksana')
-        return
+      if (Array.isArray(values?.paketEntries) && values.paketEntries.length > 0) {
+        const missingPetugasIdx = values.paketEntries.findIndex((entry: any) => {
+          const hasEntryTindakan = (Array.isArray(entry?.tindakanList) ? entry.tindakanList : []).some(
+            (item: any) => item?.masterTindakanId
+          )
+          if (!hasEntryTindakan) return false
+          const entryPetugas = (entry?.petugasList ?? []).filter(
+            (p: any) => p?.pegawaiId && p?.roleTenaga
+          )
+          return entryPetugas.length === 0
+        })
+        if (missingPetugasIdx >= 0) {
+          message.error(`Minimal 1 tenaga medis pelaksana wajib diisi pada Paket #${missingPetugasIdx + 1}`)
+          return
+        }
+
+        const invalidBhpIdx = values.paketEntries.findIndex((entry: any) =>
+          (Array.isArray(entry?.bhpList) ? entry.bhpList : []).some(
+            (bhp: any) =>
+              bhp?.itemId &&
+              (!Number.isFinite(Number(bhp?.jumlah)) ||
+                Number(bhp.jumlah) <= 0 ||
+                !Number.isInteger(Number(bhp.jumlah)))
+          )
+        )
+        if (invalidBhpIdx >= 0) {
+          message.error(`Jumlah BHP pada Paket #${invalidBhpIdx + 1} harus bilangan bulat (1, 2, 3, ...).`)
+          return
+        }
+      } else {
+        const petugasList = (values.petugasList ?? []).filter(
+          (p: any) => p?.pegawaiId && p?.roleTenaga
+        )
+        if (petugasList.length === 0) {
+          message.error('Minimal harus ada 1 tenaga medis pelaksana')
+          return
+        }
+
+        const invalidBhpQty = (Array.isArray(values?.bhpList) ? values.bhpList : []).some(
+          (bhp: any) =>
+            bhp?.itemId &&
+            (!Number.isFinite(Number(bhp?.jumlah)) ||
+              Number(bhp.jumlah) <= 0 ||
+              !Number.isInteger(Number(bhp.jumlah)))
+        )
+        if (invalidBhpQty) {
+          message.error('Jumlah BHP harus bilangan bulat (1, 2, 3, ...).')
+          return
+        }
       }
 
       const tindakanData = buildTindakanData(values)
@@ -200,7 +517,11 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     modalForm.setFieldsValue({
       assessment_date: dayjs(),
       petugasList: [{}],
-      tindakanList: [{ jumlah: 1, cyto: false }]
+      tindakanList: [{ jumlah: 1, cyto: false }],
+      bhpList: [],
+      paketCytoGlobal: false,
+      paketIds: [],
+      paketEntries: []
     })
     setIsModalOpen(true)
   }
@@ -429,8 +750,18 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             <Radio.Group
               value={mode}
               onChange={(e) => {
-                setMode(e.target.value)
-                modalForm.resetFields(['masterTindakanId', 'paketId'])
+                const nextMode = e.target.value as 'non-paket' | 'paket'
+                setMode(nextMode)
+                modalForm.setFieldsValue({
+                  paketIds: [],
+                  tindakanList: nextMode === 'non-paket' ? [{ jumlah: 1, cyto: false }] : [],
+                  bhpList: [],
+                  paketCytoGlobal: false,
+                  paketEntries:
+                    nextMode === 'paket'
+                      ? [{ paketCytoGlobal: false, tindakanList: [], bhpList: [], petugasList: [{}] }]
+                      : []
+                })
               }}
               optionType="button"
               buttonStyle="solid"
@@ -453,55 +784,376 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
           <Divider style={{ margin: '0' }} />
 
-          {/* Pilihan Khusus Mode Paket */}
           {mode === 'paket' && (
-            <Form.Item
-              name="paketId"
-              label={<span className="font-bold">Salin dari Paket Tindakan</span>}
-              extra="Tindakan dari paket yang dipilih akan ditambahkan ke daftar di bawah."
-            >
-              <Select
-                showSearch
-                allowClear
-                placeholder="Cari dan pilih paket tindakan..."
-                filterOption={false}
-                onSearch={(val) => setSearchPaket(val)}
-                loading={isLoadingPaket}
-                options={paketOptions}
-                onChange={(val) => {
-                  if (!val) return
-
-                  const selected = paketList.find((p) => p.id === val)
-                  if (selected?.detailItems) {
-                    const mappedItems = selected.detailItems.map((d: PaketDetailItem) => ({
-                      masterTindakanId: d.masterTindakanId,
-                      paketId: val, // Simpan referensi paket
-                      paketDetailId: d.id, // Simpan referensi detail item paket
-                      jumlah: Number(d.qty ?? 1),
-                      satuan: d.satuan,
-                      masterTindakan: d.masterTindakan, // store full label mapping locally
-                      cyto: true // Masuk dari paket otomatis Cyto
-                    }))
-
-                    const currentActions = modalForm.getFieldValue('tindakanList') || []
-                    const filteredCurrent = currentActions.filter(
-                      (item: any) => item?.masterTindakanId
-                    )
-
-                    modalForm.setFieldValue('tindakanList', [...filteredCurrent, ...mappedItems])
-                    message.success(`${mappedItems.length} tindakan ditambahkan dari paket`)
+            <Card
+              size="small"
+              title={<span className="font-semibold">List Tindakan Paket</span>}
+              extra={
+                <Button
+                  type="dashed"
+                  size="small"
+                  icon={<PlusCircleOutlined />}
+                  onClick={() =>
+                    (modalForm.getFieldValue('paketEntries') || []).length === 0
+                      ? modalForm.setFieldValue('paketEntries', [
+                          { paketCytoGlobal: false, tindakanList: [], bhpList: [], petugasList: [{}] }
+                        ])
+                      : modalForm.setFieldValue('paketEntries', [
+                          ...(modalForm.getFieldValue('paketEntries') || []),
+                          { paketCytoGlobal: false, tindakanList: [], bhpList: [], petugasList: [{}] }
+                        ])
                   }
-                }}
-                notFoundContent={isLoadingPaket ? <Spin size="small" /> : 'Paket tidak ditemukan'}
-              />
-            </Form.Item>
+                >
+                  Tambah Tindakan Paket
+                </Button>
+              }
+            >
+              <Form.List name="paketEntries">
+                {(paketFields, { remove: removePaket }) => (
+                  <div className="flex flex-col gap-4">
+                    {paketFields.map((paketField, paketIndex) => (
+                      <Card
+                        key={paketField.key}
+                        size="small"
+                        className="border border-slate-200"
+                        title={<span className="font-semibold">Paket #{paketIndex + 1}</span>}
+                        extra={
+                          paketFields.length > 1 ? (
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              icon={<MinusCircleOutlined />}
+                              onClick={() => removePaket(paketField.name)}
+                            >
+                              Hapus Paket
+                            </Button>
+                          ) : null
+                        }
+                      >
+                        <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[2fr_1fr] md:items-end">
+                          <Form.Item
+                            {...paketField}
+                            name={[paketField.name, 'paketId']}
+                            label={<span className="font-bold">Pilih Paket Tindakan</span>}
+                            rules={[{ required: true, message: 'Pilih paket tindakan' }]}
+                          >
+                            <Select
+                              showSearch
+                              allowClear
+                              placeholder="Pilih paket tindakan..."
+                              filterOption={false}
+                              onSearch={(val) => setSearchPaket(val)}
+                              loading={isLoadingPaket}
+                              options={paketOptions}
+                              onChange={(val) => handlePaketEntryChange(paketField.name, Number(val))}
+                              notFoundContent={isLoadingPaket ? <Spin size="small" /> : 'Paket tidak ditemukan'}
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            {...paketField}
+                            name={[paketField.name, 'paketCytoGlobal']}
+                            label={<span className="font-bold">Cyto Global</span>}
+                            valuePropName="checked"
+                          >
+                            <Switch
+                              checkedChildren="Cyto"
+                              unCheckedChildren="Tidak"
+                              onChange={(checked) => {
+                                const currentList =
+                                  modalForm.getFieldValue([
+                                    'paketEntries',
+                                    paketField.name,
+                                    'tindakanList'
+                                  ]) || []
+                                modalForm.setFieldValue(
+                                  ['paketEntries', paketField.name, 'tindakanList'],
+                                  currentList.map((item: any) => ({
+                                    ...item,
+                                    cyto: checked
+                                  }))
+                                )
+                              }}
+                            />
+                          </Form.Item>
+                        </div>
+
+                        <Card
+                          size="small"
+                          className="mt-3"
+                          title={<span className="font-semibold">Daftar Tindakan Paket</span>}
+                        >
+                          <Form.List name={[paketField.name, 'tindakanList']}>
+                            {(tindakanFields) => (
+                              <div className="flex flex-col gap-2">
+                                {tindakanFields.length === 0 && (
+                                  <div className="text-xs" style={{ color: token.colorTextSecondary }}>
+                                    Pilih paket untuk memuat daftar tindakan paket.
+                                  </div>
+                                )}
+                                {tindakanFields.map(({ key, name, ...restField }) => (
+                                  <Row key={key} gutter={8} align="middle">
+                                    <Col span={12}>
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'masterTindakanId']}
+                                        label={name === 0 ? <span className="font-bold">Tindakan</span> : undefined}
+                                        rules={[{ required: true, message: 'Pilih tindakan' }]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <Select
+                                          showSearch
+                                          disabled
+                                          options={tindakanOptions}
+                                          placeholder="Tindakan paket"
+                                        />
+                                      </Form.Item>
+                                    </Col>
+                                    <Col span={4}>
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'jumlah']}
+                                        label={name === 0 ? <span className="font-bold">Jml</span> : undefined}
+                                        rules={[{ required: true, message: 'Wajib' }]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <InputNumber min={0.01} step={1} className="w-full" />
+                                      </Form.Item>
+                                    </Col>
+                                    <Col span={6}>
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'satuan']}
+                                        label={name === 0 ? <span className="font-bold">Satuan</span> : undefined}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <Input placeholder="cth: kali" />
+                                      </Form.Item>
+                                    </Col>
+                                    <Col span={2} className="flex items-end pb-0.5 justify-center">
+                                      {name === 0 && <div className="h-[22px]" />}
+                                    </Col>
+                                  </Row>
+                                ))}
+                              </div>
+                            )}
+                          </Form.List>
+                        </Card>
+
+                        <Card size="small" className="mt-3" title={<span className="font-semibold">BHP</span>}>
+                          <Form.List name={[paketField.name, 'bhpList']}>
+                            {(fields, { add }) => (
+                              <div className="flex flex-col gap-2">
+                                {fields.length === 0 && (
+                                  <div className="text-xs" style={{ color: token.colorTextTertiary }}>
+                                    Belum ada BHP. Isi jika tindakan paket membutuhkan barang habis pakai.
+                                  </div>
+                                )}
+
+                                {fields.map(({ key, name, ...restField }) => (
+                                  <Row key={key} gutter={8} align="middle">
+                                    <Col span={13}>
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'itemId']}
+                                        rules={[{ required: true, message: 'Pilih item BHP' }]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <Select
+                                          showSearch
+                                          allowClear
+                                          placeholder="Pilih item BHP"
+                                          loading={isLoadingConsumableItems}
+                                          options={consumableItemOptions}
+                                          optionFilterProp="searchLabel"
+                                          filterOption={(input, option) =>
+                                            String(option?.searchLabel ?? '')
+                                              .toLowerCase()
+                                              .includes(input.toLowerCase())
+                                          }
+                                          notFoundContent={
+                                            isLoadingConsumableItems ? (
+                                              <Spin size="small" />
+                                            ) : (
+                                              'Item consumable tidak ditemukan'
+                                            )
+                                          }
+                                          onChange={(value) => {
+                                            if (!value) return
+                                            const selectedItem = consumableItemMap.get(Number(value))
+                                            if (!selectedItem) return
+
+                                            const currentSatuan = modalForm.getFieldValue([
+                                              'paketEntries',
+                                              paketField.name,
+                                              'bhpList',
+                                              name,
+                                              'satuan'
+                                            ])
+                                            if (!currentSatuan && selectedItem.kodeUnit) {
+                                              modalForm.setFieldValue(
+                                                ['paketEntries', paketField.name, 'bhpList', name, 'satuan'],
+                                                selectedItem.kodeUnit
+                                              )
+                                            }
+                                          }}
+                                        />
+                                      </Form.Item>
+                                    </Col>
+                                    <Col span={3}>
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'jumlah']}
+                                        rules={[
+                                          { required: true, message: 'Wajib' },
+                                          {
+                                            validator: async (_rule, value) => {
+                                              if (value === undefined || value === null) return
+                                              if (!Number.isInteger(Number(value)) || Number(value) <= 0) {
+                                                throw new Error('Harus bilangan bulat')
+                                              }
+                                            }
+                                          }
+                                        ]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <InputNumber min={1} step={1} precision={0} className="w-full" />
+                                      </Form.Item>
+                                    </Col>
+                                    <Col span={8}>
+                                      <Form.Item {...restField} name={[name, 'satuan']} style={{ marginBottom: 0 }}>
+                                        <Input placeholder="Satuan" />
+                                      </Form.Item>
+                                    </Col>
+                                  </Row>
+                                ))}
+
+                                <Button
+                                  type="dashed"
+                                  size="small"
+                                  icon={<PlusCircleOutlined />}
+                                  onClick={() => add({ jumlah: 1, includedInPaket: true })}
+                                  className="mt-1"
+                                >
+                                  Tambah BHP
+                                </Button>
+                              </div>
+                            )}
+                          </Form.List>
+                        </Card>
+
+                        <Card
+                          size="small"
+                          className="mt-3"
+                          title={<span className="font-semibold">Tenaga Medis Pelaksana</span>}
+                        >
+                          <Form.List name={[paketField.name, 'petugasList']}>
+                            {(fields, { add, remove }) => (
+                              <div className="flex flex-col gap-2">
+                                {fields.map(({ key, name, ...restField }) => (
+                                  <Row key={key} gutter={8} align="middle">
+                                    <Col span={12}>
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'pegawaiId']}
+                                        label={name === 0 ? <span className="font-bold">Nama Petugas</span> : undefined}
+                                        rules={[{ required: true, message: 'Pilih petugas' }]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <Select
+                                          showSearch
+                                          allowClear
+                                          placeholder="Pilih tenaga medis..."
+                                          loading={isLoadingPerformers}
+                                          optionFilterProp="children"
+                                          filterOption={(input, option) =>
+                                            (option?.children as unknown as string)
+                                              .toLowerCase()
+                                              .includes(input.toLowerCase())
+                                          }
+                                        >
+                                          {performers.map((p) => (
+                                            <Select.Option key={p.id} value={p.id}>
+                                              {p.name}
+                                            </Select.Option>
+                                          ))}
+                                        </Select>
+                                      </Form.Item>
+                                    </Col>
+                                    <Col span={9}>
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'roleTenaga']}
+                                        label={name === 0 ? <span className="font-bold">Role / Peran</span> : undefined}
+                                        rules={[{ required: true, message: 'Pilih role' }]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <Select
+                                          placeholder="Pilih role..."
+                                          options={roleOptions}
+                                          loading={isLoadingRoles}
+                                          allowClear
+                                        />
+                                      </Form.Item>
+                                    </Col>
+                                    <Col span={3} className="flex items-end pb-0.5">
+                                      {name === 0 && <div className="h-[22px]" />}
+                                      {fields.length > 1 && (
+                                        <Tooltip title="Hapus petugas">
+                                          <Button
+                                            type="text"
+                                            danger
+                                            size="small"
+                                            icon={<MinusCircleOutlined />}
+                                            onClick={() => remove(name)}
+                                          />
+                                        </Tooltip>
+                                      )}
+                                    </Col>
+                                  </Row>
+                                ))}
+                                <Button
+                                  type="dashed"
+                                  size="small"
+                                  icon={<PlusCircleOutlined />}
+                                  onClick={() => add()}
+                                  className="mt-1"
+                                >
+                                  Tambah Petugas
+                                </Button>
+                              </div>
+                            )}
+                          </Form.List>
+                        </Card>
+
+                        <Form.Item
+                          {...paketField}
+                          name={[paketField.name, 'catatanTambahan']}
+                          label={<span className="font-bold">Catatan</span>}
+                          className="mt-3 mb-0"
+                        >
+                          <TextArea rows={3} placeholder="Catatan tambahan tindakan paket..." />
+                        </Form.Item>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </Form.List>
+            </Card>
           )}
 
-          {/* Dynamic Form List untuk Tindakan */}
-          <Card size="small" title={<span className="font-semibold">Daftar Tindakan Medis</span>}>
-            <Form.List name="tindakanList">
-              {(fields, { add, remove }) => (
-                <div className="flex flex-col gap-2">
+          {mode !== 'paket' && (
+            <>
+              {/* Dynamic Form List untuk Tindakan */}
+              <Card
+                size="small"
+                title={
+                  <span className="font-semibold">Tindakan Non-Paket</span>
+                }
+              >
+                <Form.List name="tindakanList">
+                  {(fields, { add, remove }) => (
+                    <div className="flex flex-col gap-2">
                   {fields.map(({ key, name, ...restField }) => (
                     <Row key={key} gutter={8} align="middle">
                       <Col span={12}>
@@ -602,10 +1254,144 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                 </div>
               )}
             </Form.List>
-          </Card>
+              </Card>
 
-          {/* Tenaga Medis Pelaksana — Form.List */}
-          <Card size="small" title={<span className="font-semibold">Tenaga Medis Pelaksana</span>}>
+              <Card
+                size="small"
+                title={<span className="font-semibold">BHP</span>}
+              >
+            <Form.List name="bhpList">
+              {(fields, { add, remove }) => (
+                <div className="flex flex-col gap-2">
+                  {fields.length === 0 && (
+                    <div className="text-xs" style={{ color: token.colorTextTertiary }}>
+                      Belum ada BHP. Isi jika tindakan membutuhkan barang habis pakai.
+                    </div>
+                  )}
+
+                  {fields.map(({ key, name, ...restField }) => (
+                    <Row key={key} gutter={8} align="middle">
+                      <Col span={10}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'itemId']}
+                          rules={[{ required: true, message: 'Pilih item BHP' }]}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Select
+                            showSearch
+                            allowClear
+                            placeholder="Pilih item BHP"
+                            loading={isLoadingConsumableItems}
+                            options={consumableItemOptions}
+                            optionFilterProp="searchLabel"
+                            filterOption={(input, option) =>
+                              String(option?.searchLabel ?? '')
+                                .toLowerCase()
+                                .includes(input.toLowerCase())
+                            }
+                            notFoundContent={
+                              isLoadingConsumableItems ? (
+                                <Spin size="small" />
+                              ) : (
+                                'Item consumable tidak ditemukan'
+                              )
+                            }
+                            onChange={(value) => {
+                              if (!value) return
+                              const selectedItem = consumableItemMap.get(Number(value))
+                              if (!selectedItem) return
+
+                              const currentSatuan = modalForm.getFieldValue(['bhpList', name, 'satuan'])
+                              if (!currentSatuan && selectedItem.kodeUnit) {
+                                modalForm.setFieldValue(['bhpList', name, 'satuan'], selectedItem.kodeUnit)
+                              }
+                            }}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={3}>
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'jumlah']}
+                          rules={[
+                            { required: true, message: 'Wajib' },
+                            {
+                              validator: async (_rule, value) => {
+                                if (value === undefined || value === null) return
+                                if (!Number.isInteger(Number(value)) || Number(value) <= 0) {
+                                  throw new Error('Harus bilangan bulat')
+                                }
+                              }
+                            }
+                          ]}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <InputNumber
+                            min={1}
+                            step={1}
+                            precision={0}
+                            className="w-full"
+                            placeholder="Qty"
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={4}>
+                        <Form.Item {...restField} name={[name, 'satuan']} style={{ marginBottom: 0 }}>
+                          <Input placeholder="Satuan" />
+                        </Form.Item>
+                      </Col>
+                      <>
+                        <Col span={5}>
+                          <Tooltip
+                            title="Included = BHP sudah termasuk tarif paket, Terpisah = ditagih terpisah."
+                          >
+                            <Form.Item
+                              {...restField}
+                              name={[name, 'includedInPaket']}
+                              valuePropName="checked"
+                              style={{ marginBottom: 0 }}
+                            >
+                              <Switch
+                                size="small"
+                                checkedChildren="Included"
+                                unCheckedChildren="Terpisah"
+                              />
+                            </Form.Item>
+                          </Tooltip>
+                        </Col>
+                        <Col span={2} className="text-center">
+                          <Tooltip title="Hapus BHP">
+                            <Button
+                              type="text"
+                              danger
+                              size="small"
+                              icon={<MinusCircleOutlined />}
+                              onClick={() => remove(name)}
+                            />
+                          </Tooltip>
+                        </Col>
+                      </>
+                    </Row>
+                  ))}
+
+                  <Button
+                    type="dashed"
+                    size="small"
+                    icon={<PlusCircleOutlined />}
+                    onClick={() => add({ jumlah: 1, includedInPaket: false })}
+                    className="mt-1"
+                  >
+                    Tambah BHP
+                  </Button>
+
+                </div>
+              )}
+            </Form.List>
+              </Card>
+
+              {/* Tenaga Medis Pelaksana — Form.List */}
+              <Card size="small" title={<span className="font-semibold">Tenaga Medis Pelaksana</span>}>
             <Form.List name="petugasList">
               {(fields, { add, remove }) => (
                 <div className="flex flex-col gap-2">
@@ -687,11 +1473,13 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                 </div>
               )}
             </Form.List>
-          </Card>
+              </Card>
 
-          <Form.Item name="catatanTambahan" label={<span className="font-bold">Catatan</span>}>
-            <TextArea rows={3} placeholder="Catatan tambahan tindakan..." />
-          </Form.Item>
+              <Form.Item name="catatanTambahan" label={<span className="font-bold">Catatan</span>}>
+                <TextArea rows={3} placeholder="Catatan tambahan tindakan..." />
+              </Form.Item>
+            </>
+          )}
         </Form>
       </Modal>
     </div>

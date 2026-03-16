@@ -13,7 +13,43 @@ export interface PaketDetailItem {
     masterTindakanId: number
     qty?: number | string | null
     satuan?: string | null
+    bhpList?: {
+        id?: number
+        paketDetailId?: number
+        itemId: number
+        jumlahDefault?: number | string | null
+        satuan?: string | null
+        includedInPaket?: boolean
+        keterangan?: string | null
+        item?: {
+            id: number
+            kode?: string | null
+            nama?: string | null
+            kind?: string | null
+            sellingPrice?: number | string | null
+        } | null
+    }[] | null
+    tindakan?: MasterTindakanSimpleItem | null
     masterTindakan?: MasterTindakanSimpleItem | null
+}
+
+export interface PaketBhpItem {
+    id?: number
+    paketDetailId?: number
+    masterTindakanId?: number
+    itemId: number
+    jumlahDefault?: number | string | null
+    satuan?: string | null
+    includedInPaket?: boolean
+    keterangan?: string | null
+    tindakan?: MasterTindakanSimpleItem | null
+    item?: {
+        id: number
+        kode?: string | null
+        nama?: string | null
+        kind?: string | null
+        sellingPrice?: number | string | null
+    } | null
 }
 
 export interface MasterPaketTindakanItem {
@@ -25,6 +61,8 @@ export interface MasterPaketTindakanItem {
     tarifPaket: number | string
     aktif?: boolean
     detailItems?: PaketDetailItem[] | null
+    listTindakan?: PaketDetailItem[] | null
+    listBHP?: PaketBhpItem[] | null
 }
 
 export const useMasterPaketTindakanList = (params?: {
