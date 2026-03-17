@@ -5,6 +5,7 @@ import { mmoduleRpc } from './module'
 import { patientRpc } from './patient'
 import { practitionerRpc } from './practitioner'
 import { queryProcedure } from './query'
+import { registrationRpc } from './registration'
 import { roomRpc } from './room'
 import { triageRpc } from './triage'
 import { visitManagementRpc } from './visit-management'
@@ -23,6 +24,7 @@ export const rpcRouter = {
   wilayah: wilayahRpc,
   window: windowRpc,
   module: mmoduleRpc,
+  registration: registrationRpc,
   query: queryProcedure
 }
 
