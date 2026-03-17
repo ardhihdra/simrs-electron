@@ -11,7 +11,7 @@ export default function RegistrationSelect() {
   const { session } = useModuleScopeStore()
   const navigate = useNavigate()
 
-  const { data: practitionerData } = client.visitManagement.getAvailableDoctors.useQuery({
+  const { data: practitionerData } = client.registration.getAvailableDoctors.useQuery({
     date: dayjs().format('YYYY-MM-DD')
   })
 
@@ -64,7 +64,10 @@ export default function RegistrationSelect() {
                   <Title level={4} className="mb-0! group-hover:text-primary transition-colors">
                     {practitioner.doctorName}
                   </Title>
-                  <Text type="secondary" className="block text-sm uppercase tracking-wider font-medium">
+                  <Text
+                    type="secondary"
+                    className="block text-sm uppercase tracking-wider font-medium"
+                  >
                     {practitioner.poliName}
                   </Text>
                 </div>

@@ -9,6 +9,7 @@ export const visitManagementRpc = {
       const data = await client.get(`/api/poli/listAll`)
       return await data.json()
     }),
+  // Dipake
   getPatientList: t
     .input(
       z.object({
@@ -34,48 +35,48 @@ export const visitManagementRpc = {
         throw error
       }
     }),
-  list: t
-    .input(
-      z.object({
-        page: z.number().optional(),
-        limit: z.number().optional(),
-        search: z.string().optional(),
-        status: z.string().optional()
-      })
-    )
-    .output(z.any())
-    .query(async ({ client }, input) => {
-      const data = await client.get('/api/module/visit-management', input)
-      return await data.json()
-    }),
-  getAvailableDoctors: t
-    .input(
-      z.object({
-        date: z.string().optional(),
-        poliId: z.coerce.number().optional(),
-        doctorName: z.string().optional()
-      })
-    )
-    .output(z.any())
-    .query(async ({ client }, input) => {
-      const params = new URLSearchParams()
-      if (input.date) params.append('date', input.date)
-      if (typeof input.poliId === 'number' && !Number.isNaN(input.poliId)) {
-        params.append('poliId', String(input.poliId))
-      }
-      if (input.doctorName) params.append('doctorName', input.doctorName)
+  // list: t
+  //   .input(
+  //     z.object({
+  //       page: z.number().optional(),
+  //       limit: z.number().optional(),
+  //       search: z.string().optional(),
+  //       status: z.string().optional()
+  //     })
+  //   )
+  //   .output(z.any())
+  //   .query(async ({ client }, input) => {
+  //     const data = await client.get('/api/module/visit-management', input)
+  //     return await data.json()
+  //   }),
+  // getAvailableDoctors: t
+  //   .input(
+  //     z.object({
+  //       date: z.string().optional(),
+  //       poliId: z.coerce.number().optional(),
+  //       doctorName: z.string().optional()
+  //     })
+  //   )
+  //   .output(z.any())
+  //   .query(async ({ client }, input) => {
+  //     const params = new URLSearchParams()
+  //     if (input.date) params.append('date', input.date)
+  //     if (typeof input.poliId === 'number' && !Number.isNaN(input.poliId)) {
+  //       params.append('poliId', String(input.poliId))
+  //     }
+  //     if (input.doctorName) params.append('doctorName', input.doctorName)
 
-      const query = params.toString()
-      const data = await client.get(
-        `/api/module/registration-v2/available-doctors${query ? `?${query}` : ''}`
-      )
+  //     const query = params.toString()
+  //     const data = await client.get(
+  //       `/api/module/registration-v2/available-doctors${query ? `?${query}` : ''}`
+  //     )
 
-      return await data.json()
-    }),
+  //     return await data.json()
+  //   }),
   getMitra: t
     .input(
       z.object({
-        type: z.enum(['company', 'insurance']).optional(),
+        type: z.enum(['company', 'insurance', 'bpjs']).optional(),
         status: z.string().optional()
       })
     )

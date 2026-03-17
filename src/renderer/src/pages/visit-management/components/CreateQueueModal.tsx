@@ -25,7 +25,8 @@ const CreateQueueModal = ({
   const visitDate = Form.useWatch('visitDate', form)
   const poliId = Form.useWatch('poliId', form)
   const paymentMethod = Form.useWatch('paymentMethod', form)
-  const needsMitra = paymentMethod === 'ASURANSI' || paymentMethod === 'COMPANY'
+  const needsMitra =
+    paymentMethod === 'INSURANCE' || paymentMethod === 'COMPANY' || paymentMethod === 'BPJS'
 
   const doctorQueryInput = useMemo(
     () => ({
@@ -35,7 +36,7 @@ const CreateQueueModal = ({
     [visitDate, poliId]
   )
 
-  const doctorsQuery = client.visitManagement.getAvailableDoctors.useQuery(doctorQueryInput, {
+  const doctorsQuery = client.registration.getAvailableDoctors.useQuery(doctorQueryInput, {
     enabled: !!doctorQueryInput.date && !!doctorQueryInput.poliId,
     queryKey: ['availableDoctors', { date: doctorQueryInput.date, poliId: doctorQueryInput.poliId }]
   })
@@ -61,7 +62,12 @@ const CreateQueueModal = ({
 
   const mitraQueryInput = useMemo(
     () => ({
-      type: paymentMethod === 'COMPANY' ? ('company' as const) : ('insurance' as const),
+      type:
+        paymentMethod === 'COMPANY'
+          ? ('company' as const)
+          : paymentMethod === 'BPJS'
+            ? ('bpjs' as const)
+            : ('insurance' as const),
       status: 'active'
     }),
     [paymentMethod]
@@ -207,7 +213,8 @@ const CreateQueueModal = ({
           <Select
             options={[
               { value: 'CASH', label: 'Tunai' },
-              { value: 'ASURANSI', label: 'Asuransi/BPJS' },
+              { value: 'INSURANCE', label: 'Asuransi' },
+              { value: 'BPJS', label: 'BPJS' },
               { value: 'COMPANY', label: 'Perusahaan' }
             ]}
           />

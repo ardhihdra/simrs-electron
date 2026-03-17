@@ -31,7 +31,9 @@ const RegisterInputSchema = z.object({
 
 const GetQueuesInputSchema = z.object({
   practitionerId: z.number().optional(),
-  queueDate: z.string().optional()
+  queueDate: z.string().optional(),
+  status: z.union([z.string(), z.array(z.string())]).optional(),
+  queueNumber: z.number().optional()
 })
 
 const UpdateQueueStatusInputSchema = z.object({
@@ -43,6 +45,8 @@ const UpdateQueueStatusInputSchema = z.object({
     'CALL_PATIENT_WITH_NO_IDENTITY',
     'CREATE_SEP',
     'START_ENCOUNTER',
+    'CALL_TO_TRIAGE',
+    'TRIAGE_DONE',
     'FINISH'
   ]),
   patientId: z.string().uuid().optional()
@@ -56,7 +60,19 @@ const CancelEncounterInputSchema = z.object({
 const DischargeEncounterInputSchema = z.object({
   id: z.union([z.string(), z.number()]),
   endTime: z.string().optional(),
-  dischargeDisposition: z.string().optional(),
+  dischargeDisposition: z.enum([
+    'home',
+    'alt-home',
+    'other-hcf',
+    'hosp',
+    'long',
+    'aadvice',
+    'exp',
+    'psy',
+    'rehab',
+    'snf',
+    'oth'
+  ]).optional(),
   dischargeNote: z.string().optional()
 })
 
@@ -64,10 +80,14 @@ const CreateAncillaryEncounterInputSchema = z.object({
   patientId: z.string().uuid(),
   parentEncounterId: z.string().uuid(),
   serviceUnitId: z.string(),
-  serviceRequestId: z.string().optional(),
+  serviceRequestId: z.string().uuid().optional(),
   category: z.enum(['LABORATORY', 'RADIOLOGY']),
   practitionerId: z.number(),
-  requestedByPractitionerId: z.number()
+  requestedByPractitionerId: z.number(),
+  items: z.array(z.object({
+    testCodeId: z.string(),
+    priority: z.string()
+  })).optional()
 })
 
 const CreateSepInternalInputSchema = z.object({
@@ -131,6 +151,24 @@ const CreateSepExternalInputSchema = z.object({
   kdPenunjang: z.string().nullish(),
   assesmentPel: z.string().nullish(),
   createdBy: z.number().nullish()
+})
+const ReferPatientInputSchema = z.object({
+  encounterId: z.string().uuid(),
+  referringPractitionerId: z.number(),
+  referringPractitionerName: z.string(),
+  targetOrganizationId: z.string().optional(),
+  targetOrganizationName: z.string().optional(),
+  targetDepartemenId: z.number().optional(),
+  targetPractitionerId: z.string().optional(),
+  targetPractitionerName: z.string().optional(),
+  referralDate: z.string(),
+  diagnosisCode: z.string().optional(),
+  diagnosisText: z.string().optional(),
+  keadaanKirim: z.string().optional(),
+  reasonForReferral: z.string().optional(),
+  doctorScheduleId: z.number().optional(),
+  direction: z.enum(['incoming', 'outgoing']),
+  referralType: z.enum(['internal', 'external'])
 })
 
 const CreateScheduleInputSchema = z.object({
@@ -212,6 +250,14 @@ export const registrationRpc = {
       const params = new URLSearchParams()
       if (input.practitionerId) params.append('practitionerId', String(input.practitionerId))
       if (input.queueDate) params.append('queueDate', input.queueDate)
+      if (input.queueNumber) params.append('queueNumber', String(input.queueNumber))
+      if (input.status) {
+        if (Array.isArray(input.status)) {
+          input.status.forEach((s) => params.append('status', s))
+        } else {
+          params.append('status', input.status)
+        }
+      }
 
       const response = await client.get(`${BASE_URL}/queues?${params.toString()}`)
       return await response.json()
@@ -262,6 +308,14 @@ export const registrationRpc = {
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       const response = await client.post(`${BASE_URL}/sep/external`, input)
+      return await response.json()
+    }),
+
+  referPatient: t
+    .input(ReferPatientInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, { encounterId, ...input }) => {
+      const response = await client.post(`${BASE_URL}/encounters/${encounterId}/refer`, input)
       return await response.json()
     }),
 
