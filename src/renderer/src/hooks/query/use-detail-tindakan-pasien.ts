@@ -12,6 +12,7 @@ export interface TindakanPelaksanaItem {
 export interface DetailTindakanBhpItem {
     id?: number
     tindakanPasienId?: number
+    medicationDispenseId?: number | null
     itemId: number
     namaItem?: string | null
     jumlah: number | string
@@ -19,6 +20,20 @@ export interface DetailTindakanBhpItem {
     hargaSatuan?: number | string | null
     subtotal?: number | string | null
     includedInPaket?: boolean | null
+    item?: {
+        id: number
+        kode?: string | null
+        nama?: string | null
+        sellingPrice?: number | string | null
+        kind?: string | null
+    } | null
+    medicationDispense?: {
+        id: number
+        itemId?: number | null
+        status?: string | null
+        whenPrepared?: string | null
+        whenHandedOver?: string | null
+    } | null
 }
 
 export interface DetailTindakanPasienItem {
@@ -26,10 +41,12 @@ export interface DetailTindakanPasienItem {
     encounterId: string
     patientId: string
     masterTindakanId: number
+    paketId?: number | null
     tanggalTindakan: string
     jumlah: number | string
     satuan?: string | null
     tarif?: number | string | null
+    subtotal?: number | string | null
     cyto?: boolean | null
     catatanTambahan?: string | null
     status?: string
@@ -48,6 +65,7 @@ export interface CreateDetailTindakanItem {
     masterTindakanId: number
     encounterId: string
     patientId: string
+    kelas?: string | null
     paketId?: number | null
     paketDetailId?: number | null
     tanggalTindakan: string | Date

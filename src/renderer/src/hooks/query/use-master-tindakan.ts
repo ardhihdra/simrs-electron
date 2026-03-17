@@ -1,10 +1,32 @@
 import { useQuery } from '@tanstack/react-query'
 
+export const CATEGORY_BPJS_VALUES = [
+    'Prosedur Non Bedah',
+    'Prosedur Bedah',
+    'Tenaga Ahli',
+    'Keperawatan',
+    'Radiologi',
+    'Laboratorium',
+    'Rehabilitasi',
+    'Kamar / Akomodasi',
+    'Obat',
+    'Alkes',
+    'BMHP',
+    'Pelayanan Darah',
+    'Rawat Intensif',
+    'Konsultasi',
+    'Penunjang',
+    'Sewa Alat'
+] as const
+
+export type CategoryBpjs = typeof CATEGORY_BPJS_VALUES[number]
+
 export interface MasterTindakanItem {
     id: number
     kodeTindakan: string
     namaTindakan: string
     kategoriTindakan?: string | null
+    categoryBpjs?: CategoryBpjs | null
     aktif?: boolean
     satuan?: string | null
     deskripsi?: string | null
@@ -13,6 +35,7 @@ export interface MasterTindakanItem {
 export const useMasterTindakanList = (params?: {
     q?: string
     kategori?: string
+    categoryBpjs?: CategoryBpjs
     status?: string
     items?: number
 }) => {

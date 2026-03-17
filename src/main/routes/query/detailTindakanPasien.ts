@@ -74,6 +74,7 @@ const CreateDetailTindakanItemSchema = z.object({
     masterTindakanId: z.number(),
     encounterId: z.string(),
     patientId: z.string(),
+    kelas: z.string().optional().nullable(),
     paketId: z.number().optional().nullable(),
     paketDetailId: z.number().optional().nullable(),
     tanggalTindakan: z.union([z.string(), z.date()]),

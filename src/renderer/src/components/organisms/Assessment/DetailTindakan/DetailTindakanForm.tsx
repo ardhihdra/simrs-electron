@@ -1,27 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Form,
-  Input,
-  Select,
-  Button,
-  Card,
-  InputNumber,
-  App,
-  Modal,
-  Table,
-  Space,
-  Tooltip,
-  Popconfirm,
-  Popover,
-  Spin,
-  Tag,
-  Switch,
-  Row,
-  Col,
-  Radio,
-  Divider
-} from 'antd'
+import { Form, Button, Card, App, Modal, Table, Space, Tooltip, Popconfirm, Popover, Spin, Tag, Tabs } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   SaveOutlined,
@@ -29,11 +8,7 @@ import {
   ThunderboltOutlined,
   DeleteOutlined,
   HistoryOutlined,
-  CheckCircleOutlined,
-  PlusCircleOutlined,
-  MinusCircleOutlined,
-  AppstoreOutlined,
-  UnorderedListOutlined
+  CheckCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
@@ -52,8 +27,9 @@ import {
 } from '@renderer/hooks/query/use-detail-tindakan-pasien'
 import { useMasterJenisKomponenList } from '@renderer/hooks/query/use-master-jenis-komponen'
 import { theme } from 'antd'
-
-const { TextArea } = Input
+import PaketTindakanTab from './PaketTindakanTab'
+import TindakanNonPaketTab from './TindakanNonPaketTab'
+import PaketBhpTab from './PaketBhpTab'
 
 interface DetailTindakanFormProps {
   encounterId: string
@@ -76,15 +52,75 @@ interface ConsumableItem {
   sellingPrice?: number | null
 }
 
+const kelasOptions = [
+  { value: 'kelas_1', label: 'Kelas 1' },
+  { value: 'kelas_2', label: 'Kelas 2' },
+  { value: 'kelas_3', label: 'Kelas 3' },
+  { value: 'vip', label: 'VIP' },
+  { value: 'vvip', label: 'VVIP' },
+  { value: 'umum', label: 'Umum / Non Kelas' }
+]
+
+interface MasterTarifKomponenRef {
+  jenisKomponenId?: number | string | null
+  kode?: string | null
+  jenisKomponen?: {
+    id?: number
+    kode?: string | null
+    label?: string | null
+    isUntukMedis?: boolean | null
+  } | null
+}
+
+interface MasterTarifTindakanRef {
+  kelas?: string | null
+  effectiveFrom?: string | null
+  effectiveTo?: string | null
+  komponenList?: MasterTarifKomponenRef[] | null
+}
+
+interface MasterTindakanDetailRef {
+  id: number
+  tarifList?: MasterTarifTindakanRef[] | null
+}
+
+interface PaketTarifKomponenRef {
+  jenisKomponenId?: number | string | null
+  kode?: string | null
+  jenisKomponen?: {
+    id?: number
+    kode?: string | null
+    label?: string | null
+    isUntukMedis?: boolean | null
+  } | null
+}
+
+interface PaketTarifRincianRef {
+  paketDetailId?: number | string | null
+  komponenTarifList?: PaketTarifKomponenRef[] | null
+}
+
+interface PaketTarifHeaderRef {
+  kelas?: string | null
+  effectiveFrom?: string | null
+  effectiveTo?: string | null
+  rincianTarif?: PaketTarifRincianRef[] | null
+}
+
 export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanFormProps) => {
   const { message } = App.useApp()
   const { token } = theme.useToken()
   const [modalForm] = Form.useForm()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [mode, setMode] = useState<'non-paket' | 'paket'>('non-paket')
+  const [activeInputTab, setActiveInputTab] = useState<'paket' | 'non-paket' | 'paket-bhp'>(
+    'paket'
+  )
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
   const [paketCache, setPaketCache] = useState<Record<number, any>>({})
+  const [masterTindakanDetailCache, setMasterTindakanDetailCache] = useState<
+    Record<number, MasterTindakanDetailRef | null>
+  >({})
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
 
@@ -137,10 +173,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     staleTime: 5 * 60 * 1000
   })
 
-  // Ambil rujukan jenis komponen untuk role nakes (Filter: isUntukMedis = true)
-  const { data: listJenisKomponen = [], isLoading: isLoadingRoles } = useMasterJenisKomponenList({
+  const { data: listJenisKomponen = [] } = useMasterJenisKomponenList({
     isUntukMedis: true,
-    status: 'active'
+    items: 500
   })
 
   const roleOptions = useMemo(() => {
@@ -152,7 +187,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const currentTindakanList = Form.useWatch('tindakanList', modalForm)
   const paketEntriesWatcher = Form.useWatch('paketEntries', modalForm)
-  const getDetailMasterTindakan = (detail: any) => detail?.masterTindakan ?? detail?.tindakan ?? null
+  const nonPaketKelasWatcher = Form.useWatch('kelas', modalForm)
+  const assessmentDateWatcher = Form.useWatch('assessment_date', modalForm)
+  const getDetailMasterTindakan = (detail: any) =>
+    detail?.masterTindakan ?? detail?.tindakan ?? null
   const getPaketTindakanItems = (paket: any): PaketDetailItem[] => {
     if (Array.isArray(paket?.listTindakan)) return paket.listTindakan
     if (Array.isArray(paket?.detailItems)) return paket.detailItems
@@ -185,6 +223,292 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       })),
     [consumableItems]
   )
+
+  const roleByKomponenId = useMemo(
+    () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),
+    [listJenisKomponen]
+  )
+
+  const roleLabelByCode = useMemo(
+    () => new Map((listJenisKomponen || []).map((item) => [item.kode, item.label])),
+    [listJenisKomponen]
+  )
+
+  const normalizeKelas = (value: unknown) =>
+    String(value ?? '')
+      .trim()
+      .toLowerCase()
+
+  const isDateWithinPeriod = (tanggal: string, from?: string | null, to?: string | null) => {
+    const start = String(from || '')
+    const end = to ? String(to) : null
+    if (!start) return false
+    if (start > tanggal) return false
+    if (end && end < tanggal) return false
+    return true
+  }
+
+  const pickTarifForKelasAndDate = (
+    tarifList: MasterTarifTindakanRef[],
+    kelas: string,
+    tanggal: string
+  ) => {
+    const kelasTarget = normalizeKelas(kelas)
+    const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+
+    const candidates = (tarifList || [])
+      .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
+      .sort((a, b) => {
+        const kelasA = normalizeKelas(a?.kelas)
+        const kelasB = normalizeKelas(b?.kelas)
+        const rankA = kelasPriority.indexOf(kelasA)
+        const rankB = kelasPriority.indexOf(kelasB)
+        const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
+        const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
+        if (safeRankA !== safeRankB) return safeRankA - safeRankB
+
+        const fromA = String(a?.effectiveFrom ?? '')
+        const fromB = String(b?.effectiveFrom ?? '')
+        return fromB.localeCompare(fromA)
+      })
+
+    return candidates[0]
+  }
+
+  const resolveRolesFromTindakanItems = (items: any[], kelas?: string | null, tanggal?: string) => {
+    if (!Array.isArray(items) || items.length === 0 || !kelas || !tanggal) return []
+
+    const roleSet = new Set<string>()
+
+    items
+      .filter((item) => Number(item?.masterTindakanId) > 0)
+      .forEach((item) => {
+        const tindakanId = Number(item.masterTindakanId)
+        const detail = masterTindakanDetailCache[tindakanId]
+        if (!detail || !Array.isArray(detail?.tarifList)) return
+
+        const pickedTarif = pickTarifForKelasAndDate(detail.tarifList, kelas, tanggal)
+        const komponenList = Array.isArray(pickedTarif?.komponenList)
+          ? pickedTarif.komponenList
+          : []
+
+        komponenList.forEach((komponen) => {
+          const komponenId = Number(komponen?.jenisKomponenId)
+          const isUntukMedis = komponen?.jenisKomponen?.isUntukMedis === true
+          const fallbackKode = String(komponen?.kode || komponen?.jenisKomponen?.kode || '').trim()
+          const roleKode = roleByKomponenId.get(komponenId) || (isUntukMedis ? fallbackKode : '')
+          if (roleKode) roleSet.add(roleKode)
+        })
+      })
+
+    return Array.from(roleSet)
+  }
+
+  const resolveRolesFromPaketEntry = (entry: any, tanggal?: string) => {
+    if (!entry?.paketId || !entry?.kelas || !tanggal) return []
+
+    const paketId = Number(entry.paketId)
+    if (!Number.isFinite(paketId) || paketId <= 0) return []
+
+    const selectedPaket = paketCache[paketId] ?? paketList.find((p) => Number(p?.id) === paketId)
+    const tarifList = Array.isArray(selectedPaket?.tarifList)
+      ? (selectedPaket.tarifList as PaketTarifHeaderRef[])
+      : []
+    if (tarifList.length === 0) return []
+
+    const kelasTarget = normalizeKelas(entry?.kelas)
+    const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+    const pickedTarif = [...tarifList]
+      .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
+      .sort((a, b) => {
+        const kelasA = normalizeKelas(a?.kelas)
+        const kelasB = normalizeKelas(b?.kelas)
+        const rankA = kelasPriority.indexOf(kelasA)
+        const rankB = kelasPriority.indexOf(kelasB)
+        const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
+        const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
+        if (safeRankA !== safeRankB) return safeRankA - safeRankB
+
+        const fromA = String(a?.effectiveFrom ?? '')
+        const fromB = String(b?.effectiveFrom ?? '')
+        return fromB.localeCompare(fromA)
+      })[0]
+
+    if (!pickedTarif) return []
+
+    const entryDetailIds = new Set<number>(
+      (Array.isArray(entry?.tindakanList) ? entry.tindakanList : [])
+        .map((item: any) => Number(item?.paketDetailId))
+        .filter((id: number) => Number.isFinite(id) && id > 0)
+    )
+
+    const roleSet = new Set<string>()
+    const rincianList = Array.isArray(pickedTarif?.rincianTarif) ? pickedTarif.rincianTarif : []
+
+    rincianList.forEach((rincian) => {
+      const paketDetailId = Number(rincian?.paketDetailId)
+      if (
+        entryDetailIds.size > 0 &&
+        (!Number.isFinite(paketDetailId) || !entryDetailIds.has(paketDetailId))
+      ) {
+        return
+      }
+
+      const komponenList = Array.isArray(rincian?.komponenTarifList)
+        ? rincian.komponenTarifList
+        : []
+      komponenList.forEach((komponen) => {
+        const komponenId = Number(komponen?.jenisKomponenId)
+        const isUntukMedis = komponen?.jenisKomponen?.isUntukMedis === true
+        const fallbackKode = String(komponen?.kode || komponen?.jenisKomponen?.kode || '').trim()
+        const roleKode = roleByKomponenId.get(komponenId) || (isUntukMedis ? fallbackKode : '')
+        if (roleKode) roleSet.add(roleKode)
+      })
+    })
+
+    return Array.from(roleSet)
+  }
+
+  useEffect(() => {
+    const allIds = new Set<number>()
+
+    ;(Array.isArray(currentTindakanList) ? currentTindakanList : []).forEach((item: any) => {
+      const id = Number(item?.masterTindakanId)
+      if (Number.isFinite(id) && id > 0) allIds.add(id)
+    })
+    ;(Array.isArray(paketEntriesWatcher) ? paketEntriesWatcher : []).forEach((entry: any) => {
+      ;(Array.isArray(entry?.tindakanList) ? entry.tindakanList : []).forEach((item: any) => {
+        const id = Number(item?.masterTindakanId)
+        if (Number.isFinite(id) && id > 0) allIds.add(id)
+      })
+    })
+
+    const missingIds = Array.from(allIds).filter(
+      (id) => !Object.prototype.hasOwnProperty.call(masterTindakanDetailCache, id)
+    )
+    if (missingIds.length === 0) return
+
+    const fn = window.api?.query?.masterTindakan?.getById
+    if (!fn) return
+
+    let cancelled = false
+
+    ;(async () => {
+      const entries = await Promise.all(
+        missingIds.map(async (id) => {
+          try {
+            const res = await fn({ id })
+            if (!res?.success) return [id, null] as const
+            const payload = (res as any)?.result?.result ?? (res as any)?.result ?? null
+            return [id, payload as MasterTindakanDetailRef | null] as const
+          } catch {
+            return [id, null] as const
+          }
+        })
+      )
+
+      if (cancelled) return
+
+      setMasterTindakanDetailCache((prev) => {
+        const next = { ...prev }
+        entries.forEach(([id, data]) => {
+          next[id] = data
+        })
+        return next
+      })
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentTindakanList, masterTindakanDetailCache, paketEntriesWatcher])
+
+  useEffect(() => {
+    const tanggal = assessmentDateWatcher
+      ? dayjs(assessmentDateWatcher).format('YYYY-MM-DD')
+      : dayjs().format('YYYY-MM-DD')
+    const roles = resolveRolesFromTindakanItems(
+      Array.isArray(currentTindakanList) ? currentTindakanList : [],
+      nonPaketKelasWatcher,
+      tanggal
+    )
+    const existingPetugas = (modalForm.getFieldValue('petugasList') || []) as any[]
+
+    const nextPetugas = roles.map((roleKode) => ({
+      roleTenaga: roleKode,
+      pegawaiId: existingPetugas.find((p) => p?.roleTenaga === roleKode)?.pegawaiId
+    }))
+
+    const currentSignature = JSON.stringify(
+      existingPetugas.map((item) => ({ roleTenaga: item?.roleTenaga, pegawaiId: item?.pegawaiId }))
+    )
+    const nextSignature = JSON.stringify(
+      nextPetugas.map((item) => ({ roleTenaga: item?.roleTenaga, pegawaiId: item?.pegawaiId }))
+    )
+    if (currentSignature !== nextSignature) {
+      modalForm.setFieldValue('petugasList', nextPetugas)
+    }
+  }, [
+    assessmentDateWatcher,
+    currentTindakanList,
+    masterTindakanDetailCache,
+    modalForm,
+    nonPaketKelasWatcher,
+    roleByKomponenId
+  ])
+
+  useEffect(() => {
+    const entries = Array.isArray(paketEntriesWatcher) ? paketEntriesWatcher : []
+    if (entries.length === 0) return
+
+    const tanggal = assessmentDateWatcher
+      ? dayjs(assessmentDateWatcher).format('YYYY-MM-DD')
+      : dayjs().format('YYYY-MM-DD')
+    let hasChanges = false
+
+    const nextEntries = entries.map((entry: any) => {
+      const entryItems = Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
+      const rolesFromPaket = resolveRolesFromPaketEntry(entry, tanggal)
+      const rolesFromTindakan = resolveRolesFromTindakanItems(entryItems, entry?.kelas, tanggal)
+      const roles = Array.from(new Set([...rolesFromPaket, ...rolesFromTindakan]))
+      const existingPetugas = Array.isArray(entry?.petugasList) ? entry.petugasList : []
+
+      const nextPetugas = roles.map((roleKode) => ({
+        roleTenaga: roleKode,
+        pegawaiId: existingPetugas.find((p: any) => p?.roleTenaga === roleKode)?.pegawaiId
+      }))
+
+      const currentSignature = JSON.stringify(
+        existingPetugas.map((item: any) => ({
+          roleTenaga: item?.roleTenaga,
+          pegawaiId: item?.pegawaiId
+        }))
+      )
+      const nextSignature = JSON.stringify(
+        nextPetugas.map((item) => ({ roleTenaga: item?.roleTenaga, pegawaiId: item?.pegawaiId }))
+      )
+      if (currentSignature !== nextSignature) {
+        hasChanges = true
+        return {
+          ...entry,
+          petugasList: nextPetugas
+        }
+      }
+      return entry
+    })
+
+    if (hasChanges) {
+      modalForm.setFieldValue('paketEntries', nextEntries)
+    }
+  }, [
+    assessmentDateWatcher,
+    masterTindakanDetailCache,
+    modalForm,
+    paketCache,
+    paketList,
+    paketEntriesWatcher,
+    roleByKomponenId
+  ])
 
   const tindakanOptions = useMemo(() => {
     const list = masterTindakanList.map((t) => ({
@@ -282,10 +606,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }
 
   const handlePaketEntryChange = (entryIndex: number, rawPaketId?: number) => {
+    const currentEntries = modalForm.getFieldValue('paketEntries') || []
+    const entryKelas = currentEntries?.[entryIndex]?.kelas
     const paketId = Number(rawPaketId)
     if (!Number.isFinite(paketId) || paketId <= 0) {
       modalForm.setFieldsValue({
-        paketEntries: (modalForm.getFieldValue('paketEntries') || []).map((entry: any, idx: number) =>
+        paketEntries: currentEntries.map((entry: any, idx: number) =>
           idx === entryIndex
             ? {
                 ...entry,
@@ -315,6 +641,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const tindakan = getDetailMasterTindakan(d)
       return {
         masterTindakanId: d.masterTindakanId,
+        kelas: entryKelas ?? (d as any)?.kelas ?? undefined,
         paketId: Number(selected.id),
         paketDetailId: d.id,
         jumlah: Number(d.qty ?? 1),
@@ -336,7 +663,6 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         }))
     )
 
-    const currentEntries = modalForm.getFieldValue('paketEntries') || []
     currentEntries[entryIndex] = {
       ...(currentEntries[entryIndex] || {}),
       paketId: Number(selected.id),
@@ -344,15 +670,14 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       bhpList: mappedBhp
     }
     modalForm.setFieldValue('paketEntries', [...currentEntries])
-    message.success(
-      `Paket dimuat: ${mappedTindakan.length} tindakan dan ${mappedBhp.length} BHP`
-    )
+    message.success(`Paket dimuat: ${mappedTindakan.length} tindakan dan ${mappedBhp.length} BHP`)
   }
 
   const buildTindakanData = (values: any) => {
     const tanggal = values.assessment_date
       ? values.assessment_date.format('YYYY-MM-DD')
       : dayjs().format('YYYY-MM-DD')
+
     const mapBhpList = (rawBhpList: any[], defaultIncludedInPaket: boolean) =>
       (Array.isArray(rawBhpList) ? rawBhpList : [])
         .filter((bhp: any) => bhp?.itemId && Number(bhp?.jumlah) > 0)
@@ -369,52 +694,52 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           }
         })
 
-    if (Array.isArray(values?.paketEntries) && values.paketEntries.length > 0) {
-      return values.paketEntries.flatMap((entry: any) => {
-        const entryPetugasList = (entry?.petugasList ?? []).filter(
-          (p: any) => p?.pegawaiId && p?.roleTenaga
-        )
-        const entryItems = Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
-        const entryBhpList = mapBhpList(entry?.bhpList, true)
+    const paketTindakanData = (
+      Array.isArray(values?.paketEntries) ? values.paketEntries : []
+    ).flatMap((entry: any) => {
+      const entryPetugasList = (entry?.petugasList ?? []).filter(
+        (p: any) => p?.pegawaiId && p?.roleTenaga
+      )
+      const entryItems = Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
+      const entryBhpList = mapBhpList(entry?.bhpList, true)
 
-        const entryTindakanData = entryItems
-          .filter((item: any) => item?.masterTindakanId)
-          .map((item: any) => ({
-            bhpList: [] as {
-              itemId: number
-              jumlah: number
-              satuan?: string | null
-              includedInPaket: boolean
-            }[],
-            masterTindakanId: item.masterTindakanId,
-            paketId: item.paketId,
-            paketDetailId: item.paketDetailId,
-            encounterId,
-            patientId,
-            tanggalTindakan: tanggal,
-            jumlah: item.jumlah ?? 1,
-            satuan: item.satuan,
-            cyto: item.cyto ?? false,
-            catatanTambahan: entry?.catatanTambahan,
-            petugasList: entryPetugasList
-          }))
+      const entryTindakanData = entryItems
+        .filter((item: any) => item?.masterTindakanId)
+        .map((item: any) => ({
+          bhpList: [] as {
+            itemId: number
+            jumlah: number
+            satuan?: string | null
+            includedInPaket: boolean
+          }[],
+          masterTindakanId: item.masterTindakanId,
+          kelas: item?.kelas ?? entry?.kelas ?? null,
+          paketId: item.paketId,
+          paketDetailId: item.paketDetailId,
+          encounterId,
+          patientId,
+          tanggalTindakan: tanggal,
+          jumlah: item.jumlah ?? 1,
+          satuan: item.satuan,
+          cyto: item.cyto ?? false,
+          catatanTambahan: entry?.catatanTambahan,
+          petugasList: entryPetugasList
+        }))
 
-        if (entryBhpList.length > 0 && entryTindakanData.length > 0) {
-          entryTindakanData[0].bhpList = entryBhpList
-        }
+      if (entryBhpList.length > 0 && entryTindakanData.length > 0) {
+        entryTindakanData[0].bhpList = entryBhpList
+      }
 
-        return entryTindakanData
-      })
-    }
+      return entryTindakanData
+    })
 
-    const petugasList = (values.petugasList ?? []).filter((p: any) => p?.pegawaiId && p?.roleTenaga)
-    const hasSelectedPaket =
-      Boolean(values?.paketId) ||
-      (Array.isArray(values?.paketIds) && values.paketIds.length > 0)
+    const nonPaketPetugasList = (values.petugasList ?? []).filter(
+      (p: any) => p?.pegawaiId && p?.roleTenaga
+    )
 
-    const items = values.tindakanList || []
-    const globalBhpList = mapBhpList(values?.bhpList, hasSelectedPaket)
-    const tindakanData = items
+    const nonPaketItems = Array.isArray(values?.tindakanList) ? values.tindakanList : []
+    const nonPaketBhpList = mapBhpList(values?.bhpList, false)
+    const nonPaketTindakanData = nonPaketItems
       .filter((item: any) => item?.masterTindakanId)
       .map((item: any) => ({
         bhpList: [] as {
@@ -424,8 +749,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           includedInPaket: boolean
         }[],
         masterTindakanId: item.masterTindakanId,
-        paketId: item.paketId,
-        paketDetailId: item.paketDetailId,
+        kelas: item?.kelas ?? values?.kelas ?? null,
+        paketId: undefined,
+        paketDetailId: undefined,
         encounterId,
         patientId,
         tanggalTindakan: tanggal,
@@ -433,67 +759,101 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         satuan: item.satuan,
         cyto: item.cyto ?? false,
         catatanTambahan: values.catatanTambahan,
-        petugasList
+        petugasList: nonPaketPetugasList
       }))
 
-    if (globalBhpList.length > 0 && tindakanData.length > 0) {
-      tindakanData[0].bhpList = globalBhpList
+    if (nonPaketBhpList.length > 0 && nonPaketTindakanData.length > 0) {
+      nonPaketTindakanData[0].bhpList = nonPaketBhpList
     }
 
-    return tindakanData
+    return [...paketTindakanData, ...nonPaketTindakanData]
   }
 
   const handleSubmit = async (values: any) => {
     try {
-      if (Array.isArray(values?.paketEntries) && values.paketEntries.length > 0) {
-        const missingPetugasIdx = values.paketEntries.findIndex((entry: any) => {
-          const hasEntryTindakan = (Array.isArray(entry?.tindakanList) ? entry.tindakanList : []).some(
-            (item: any) => item?.masterTindakanId
-          )
-          if (!hasEntryTindakan) return false
-          const entryPetugas = (entry?.petugasList ?? []).filter(
-            (p: any) => p?.pegawaiId && p?.roleTenaga
-          )
-          return entryPetugas.length === 0
-        })
-        if (missingPetugasIdx >= 0) {
-          message.error(`Minimal 1 tenaga medis pelaksana wajib diisi pada Paket #${missingPetugasIdx + 1}`)
-          return
-        }
+      const paketEntries = Array.isArray(values?.paketEntries) ? values.paketEntries : []
+      const missingKelasIdx = paketEntries.findIndex((entry: any) => {
+        const hasEntryTindakan = (
+          Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
+        ).some((item: any) => item?.masterTindakanId)
+        if (!hasEntryTindakan) return false
+        return !entry?.kelas
+      })
+      if (missingKelasIdx >= 0) {
+        message.error(`Kelas wajib dipilih pada Paket #${missingKelasIdx + 1}`)
+        return
+      }
 
-        const invalidBhpIdx = values.paketEntries.findIndex((entry: any) =>
-          (Array.isArray(entry?.bhpList) ? entry.bhpList : []).some(
-            (bhp: any) =>
-              bhp?.itemId &&
-              (!Number.isFinite(Number(bhp?.jumlah)) ||
-                Number(bhp.jumlah) <= 0 ||
-                !Number.isInteger(Number(bhp.jumlah)))
-          )
-        )
-        if (invalidBhpIdx >= 0) {
-          message.error(`Jumlah BHP pada Paket #${invalidBhpIdx + 1} harus bilangan bulat (1, 2, 3, ...).`)
-          return
-        }
-      } else {
-        const petugasList = (values.petugasList ?? []).filter(
+      const missingPetugasIdx = paketEntries.findIndex((entry: any) => {
+        const hasEntryTindakan = (
+          Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
+        ).some((item: any) => item?.masterTindakanId)
+        if (!hasEntryTindakan) return false
+        const entryPetugas = (entry?.petugasList ?? []).filter(
           (p: any) => p?.pegawaiId && p?.roleTenaga
         )
-        if (petugasList.length === 0) {
-          message.error('Minimal harus ada 1 tenaga medis pelaksana')
-          return
-        }
+        return entryPetugas.length === 0
+      })
+      if (missingPetugasIdx >= 0) {
+        message.error(
+          `Role tenaga medis belum tersedia pada Paket #${missingPetugasIdx + 1}. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.`
+        )
+        return
+      }
 
-        const invalidBhpQty = (Array.isArray(values?.bhpList) ? values.bhpList : []).some(
+      const invalidBhpPaketIdx = paketEntries.findIndex((entry: any) =>
+        (Array.isArray(entry?.bhpList) ? entry.bhpList : []).some(
           (bhp: any) =>
             bhp?.itemId &&
             (!Number.isFinite(Number(bhp?.jumlah)) ||
               Number(bhp.jumlah) <= 0 ||
               !Number.isInteger(Number(bhp.jumlah)))
         )
-        if (invalidBhpQty) {
-          message.error('Jumlah BHP harus bilangan bulat (1, 2, 3, ...).')
+      )
+      if (invalidBhpPaketIdx >= 0) {
+        message.error(
+          `Jumlah BHP pada Paket #${invalidBhpPaketIdx + 1} harus bilangan bulat (1, 2, 3, ...).`
+        )
+        return
+      }
+
+      const nonPaketItems = Array.isArray(values?.tindakanList) ? values.tindakanList : []
+      const hasNonPaketTindakan = nonPaketItems.some((item: any) => item?.masterTindakanId)
+      const nonPaketBhp = Array.isArray(values?.bhpList) ? values.bhpList : []
+      const hasNonPaketBhp = nonPaketBhp.some((bhp: any) => bhp?.itemId)
+
+      if ((hasNonPaketTindakan || hasNonPaketBhp) && !values?.kelas) {
+        message.error('Kelas tindakan non-paket wajib dipilih')
+        return
+      }
+
+      if (hasNonPaketTindakan) {
+        const petugasList = (values.petugasList ?? []).filter(
+          (p: any) => p?.pegawaiId && p?.roleTenaga
+        )
+        if (petugasList.length === 0) {
+          message.error(
+            'Role tenaga medis non-paket belum tersedia. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.'
+          )
           return
         }
+      }
+
+      if (hasNonPaketBhp && !hasNonPaketTindakan) {
+        message.error('BHP non-paket hanya bisa disimpan jika ada minimal 1 tindakan non-paket')
+        return
+      }
+
+      const invalidBhpQty = nonPaketBhp.some(
+        (bhp: any) =>
+          bhp?.itemId &&
+          (!Number.isFinite(Number(bhp?.jumlah)) ||
+            Number(bhp.jumlah) <= 0 ||
+            !Number.isInteger(Number(bhp.jumlah)))
+      )
+      if (invalidBhpQty) {
+        message.error('Jumlah BHP non-paket harus bilangan bulat (1, 2, 3, ...).')
+        return
       }
 
       const tindakanData = buildTindakanData(values)
@@ -513,10 +873,11 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const handleOpenModal = () => {
     modalForm.resetFields()
-    setMode('non-paket')
+    setActiveInputTab('paket')
     modalForm.setFieldsValue({
       assessment_date: dayjs(),
-      petugasList: [{}],
+      kelas: undefined,
+      petugasList: [],
       tindakanList: [{ jumlah: 1, cyto: false }],
       bhpList: [],
       paketCytoGlobal: false,
@@ -533,6 +894,126 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     } catch (err: any) {
       message.error(err?.message ?? 'Gagal membatalkan tindakan')
     }
+  }
+
+  const toNumber = (value: unknown) => {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+
+  const formatCurrency = (value: unknown) =>
+    new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      maximumFractionDigits: 0
+    }).format(toNumber(value))
+
+  const renderExpandedBhp = (record: DetailTindakanPasienItem) => {
+    const bhpList = Array.isArray(record.bhpList) ? record.bhpList : []
+
+    if (bhpList.length === 0) {
+      return (
+        <div className="px-3 py-2 text-xs" style={{ color: token.colorTextTertiary }}>
+          Tidak ada data BHP pada tindakan ini.
+        </div>
+      )
+    }
+
+    const totalIncluded = bhpList
+      .filter((bhp) => Boolean(bhp?.includedInPaket))
+      .reduce((sum, bhp) => sum + toNumber(bhp?.subtotal), 0)
+    const totalNonIncluded = bhpList
+      .filter((bhp) => !Boolean(bhp?.includedInPaket))
+      .reduce((sum, bhp) => sum + toNumber(bhp?.subtotal), 0)
+    const totalAll = totalIncluded + totalNonIncluded
+
+    const bhpColumns: ColumnsType<(typeof bhpList)[number]> = [
+      {
+        title: 'Item BHP',
+        key: 'item',
+        render: (_, row) => {
+          const itemCode = row.item?.kode ? `[${row.item.kode}] ` : ''
+          const itemName = row.namaItem ?? row.item?.nama ?? `Item #${row.itemId}`
+          return (
+            <div className="flex flex-col">
+              <span className="text-sm font-medium">
+                {itemCode}
+                {itemName}
+              </span>
+            </div>
+          )
+        }
+      },
+      {
+        title: 'Qty',
+        key: 'qty',
+        width: 110,
+        render: (_, row) => `${toNumber(row.jumlah)} ${row.satuan ?? ''}`.trim()
+      },
+      {
+        title: 'Asal BHP',
+        key: 'asalBhp',
+        width: 120,
+        render: (_, row) =>
+          Boolean(row?.includedInPaket) ? (
+            <Tag color="green">Dari Paket</Tag>
+          ) : (
+            <Tag color="default">Non-Paket</Tag>
+          )
+      },
+      {
+        title: 'Harga Satuan',
+        key: 'hargaSatuan',
+        width: 130,
+        align: 'right',
+        render: (_, row) => formatCurrency(row?.hargaSatuan)
+      },
+      {
+        title: 'Subtotal',
+        key: 'subtotal',
+        width: 130,
+        align: 'right',
+        render: (_, row) => formatCurrency(row?.subtotal)
+      },
+      {
+        title: 'Status Dispense',
+        key: 'dispense',
+        width: 160,
+        render: (_, row) => {
+          const status = String(row?.medicationDispense?.status ?? '').toLowerCase()
+          if (!status) return <span style={{ color: token.colorTextTertiary }}>-</span>
+
+          const colorMap: Record<string, string> = {
+            completed: 'success',
+            preparation: 'processing',
+            cancelled: 'error',
+            declined: 'error',
+            in_progress: 'processing',
+            on_hold: 'warning'
+          }
+
+          return <Tag color={colorMap[status] ?? 'default'}>{status.replaceAll('_', ' ')}</Tag>
+        }
+      }
+    ]
+
+    return (
+      <div className="px-3 py-2">
+        <Table
+          size="small"
+          rowKey={(row, idx) => String(row.id ?? `${record.id}-${row.itemId}-${idx}`)}
+          dataSource={bhpList}
+          columns={bhpColumns}
+          pagination={false}
+          className="border border-slate-100 rounded"
+        />
+        <div className="mt-2 flex flex-wrap justify-end gap-2 text-xs">
+          <Tag color="green">Total Included: {formatCurrency(totalIncluded)}</Tag>
+          <Tag color="orange">Total Non-Included: {formatCurrency(totalNonIncluded)}</Tag>
+          <Tag color="blue">Total BHP: {formatCurrency(totalAll)}</Tag>
+        </div>
+      </div>
+    )
   }
 
   // --- Kolom tabel riwayat ---
@@ -566,6 +1047,17 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           </span>
         </div>
       )
+    },
+    {
+      title: 'Asal Tindakan',
+      key: 'asalTindakan',
+      width: 120,
+      render: (_, record) =>
+        Number(record?.paketId) > 0 ? (
+          <Tag color="geekblue">Paket</Tag>
+        ) : (
+          <Tag color="default">Non-Paket</Tag>
+        )
     },
     {
       title: 'Jumlah',
@@ -639,12 +1131,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       key: 'subtotal',
       width: 120,
       align: 'right',
-      render: (val) =>
-        new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          maximumFractionDigits: 0
-        }).format(Number(val || 0))
+      render: (val) => formatCurrency(val)
     },
     {
       title: 'Aksi',
@@ -697,6 +1184,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             rowKey="id"
             dataSource={tindakanList}
             columns={columns}
+            expandable={{
+              expandedRowRender: renderExpandedBhp
+            }}
             size="small"
             pagination={false}
             className="border-none"
@@ -742,744 +1232,56 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           layout="vertical"
           onFinish={handleSubmit}
           className="flex! flex-col! gap-4!"
-          initialValues={{ assessment_date: dayjs(), petugasList: [{}] }}
+          initialValues={{ assessment_date: dayjs(), petugasList: [] }}
         >
           <AssessmentHeader performers={performers || []} loading={isLoadingPerformers} />
-          <div className="flex items-center gap-3 mb-2">
-            <span className="font-semibold text-sm">Mode Input:</span>
-            <Radio.Group
-              value={mode}
-              onChange={(e) => {
-                const nextMode = e.target.value as 'non-paket' | 'paket'
-                setMode(nextMode)
-                modalForm.setFieldsValue({
-                  paketIds: [],
-                  tindakanList: nextMode === 'non-paket' ? [{ jumlah: 1, cyto: false }] : [],
-                  bhpList: [],
-                  paketCytoGlobal: false,
-                  paketEntries:
-                    nextMode === 'paket'
-                      ? [{ paketCytoGlobal: false, tindakanList: [], bhpList: [], petugasList: [{}] }]
-                      : []
-                })
-              }}
-              optionType="button"
-              buttonStyle="solid"
-              size="small"
-            >
-              <Radio.Button value="non-paket">
-                <Space size={4}>
-                  <UnorderedListOutlined />
-                  Non-Paket
-                </Space>
-              </Radio.Button>
-              <Radio.Button value="paket">
-                <Space size={4}>
-                  <AppstoreOutlined />
-                  Paket Tindakan
-                </Space>
-              </Radio.Button>
-            </Radio.Group>
-          </div>
-
-          <Divider style={{ margin: '0' }} />
-
-          {mode === 'paket' && (
-            <Card
-              size="small"
-              title={<span className="font-semibold">List Tindakan Paket</span>}
-              extra={
-                <Button
-                  type="dashed"
-                  size="small"
-                  icon={<PlusCircleOutlined />}
-                  onClick={() =>
-                    (modalForm.getFieldValue('paketEntries') || []).length === 0
-                      ? modalForm.setFieldValue('paketEntries', [
-                          { paketCytoGlobal: false, tindakanList: [], bhpList: [], petugasList: [{}] }
-                        ])
-                      : modalForm.setFieldValue('paketEntries', [
-                          ...(modalForm.getFieldValue('paketEntries') || []),
-                          { paketCytoGlobal: false, tindakanList: [], bhpList: [], petugasList: [{}] }
-                        ])
-                  }
-                >
-                  Tambah Tindakan Paket
-                </Button>
-              }
-            >
-              <Form.List name="paketEntries">
-                {(paketFields, { remove: removePaket }) => (
-                  <div className="flex flex-col gap-4">
-                    {paketFields.map((paketField, paketIndex) => (
-                      <Card
-                        key={paketField.key}
-                        size="small"
-                        className="border border-slate-200"
-                        title={<span className="font-semibold">Paket #{paketIndex + 1}</span>}
-                        extra={
-                          paketFields.length > 1 ? (
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              icon={<MinusCircleOutlined />}
-                              onClick={() => removePaket(paketField.name)}
-                            >
-                              Hapus Paket
-                            </Button>
-                          ) : null
-                        }
-                      >
-                        <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-[2fr_1fr] md:items-end">
-                          <Form.Item
-                            {...paketField}
-                            name={[paketField.name, 'paketId']}
-                            label={<span className="font-bold">Pilih Paket Tindakan</span>}
-                            rules={[{ required: true, message: 'Pilih paket tindakan' }]}
-                          >
-                            <Select
-                              showSearch
-                              allowClear
-                              placeholder="Pilih paket tindakan..."
-                              filterOption={false}
-                              onSearch={(val) => setSearchPaket(val)}
-                              loading={isLoadingPaket}
-                              options={paketOptions}
-                              onChange={(val) => handlePaketEntryChange(paketField.name, Number(val))}
-                              notFoundContent={isLoadingPaket ? <Spin size="small" /> : 'Paket tidak ditemukan'}
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            {...paketField}
-                            name={[paketField.name, 'paketCytoGlobal']}
-                            label={<span className="font-bold">Cyto Global</span>}
-                            valuePropName="checked"
-                          >
-                            <Switch
-                              checkedChildren="Cyto"
-                              unCheckedChildren="Tidak"
-                              onChange={(checked) => {
-                                const currentList =
-                                  modalForm.getFieldValue([
-                                    'paketEntries',
-                                    paketField.name,
-                                    'tindakanList'
-                                  ]) || []
-                                modalForm.setFieldValue(
-                                  ['paketEntries', paketField.name, 'tindakanList'],
-                                  currentList.map((item: any) => ({
-                                    ...item,
-                                    cyto: checked
-                                  }))
-                                )
-                              }}
-                            />
-                          </Form.Item>
-                        </div>
-
-                        <Card
-                          size="small"
-                          className="mt-3"
-                          title={<span className="font-semibold">Daftar Tindakan Paket</span>}
-                        >
-                          <Form.List name={[paketField.name, 'tindakanList']}>
-                            {(tindakanFields) => (
-                              <div className="flex flex-col gap-2">
-                                {tindakanFields.length === 0 && (
-                                  <div className="text-xs" style={{ color: token.colorTextSecondary }}>
-                                    Pilih paket untuk memuat daftar tindakan paket.
-                                  </div>
-                                )}
-                                {tindakanFields.map(({ key, name, ...restField }) => (
-                                  <Row key={key} gutter={8} align="middle">
-                                    <Col span={12}>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'masterTindakanId']}
-                                        label={name === 0 ? <span className="font-bold">Tindakan</span> : undefined}
-                                        rules={[{ required: true, message: 'Pilih tindakan' }]}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <Select
-                                          showSearch
-                                          disabled
-                                          options={tindakanOptions}
-                                          placeholder="Tindakan paket"
-                                        />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={4}>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'jumlah']}
-                                        label={name === 0 ? <span className="font-bold">Jml</span> : undefined}
-                                        rules={[{ required: true, message: 'Wajib' }]}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <InputNumber min={0.01} step={1} className="w-full" />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={6}>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'satuan']}
-                                        label={name === 0 ? <span className="font-bold">Satuan</span> : undefined}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <Input placeholder="cth: kali" />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={2} className="flex items-end pb-0.5 justify-center">
-                                      {name === 0 && <div className="h-[22px]" />}
-                                    </Col>
-                                  </Row>
-                                ))}
-                              </div>
-                            )}
-                          </Form.List>
-                        </Card>
-
-                        <Card size="small" className="mt-3" title={<span className="font-semibold">BHP</span>}>
-                          <Form.List name={[paketField.name, 'bhpList']}>
-                            {(fields, { add }) => (
-                              <div className="flex flex-col gap-2">
-                                {fields.length === 0 && (
-                                  <div className="text-xs" style={{ color: token.colorTextTertiary }}>
-                                    Belum ada BHP. Isi jika tindakan paket membutuhkan barang habis pakai.
-                                  </div>
-                                )}
-
-                                {fields.map(({ key, name, ...restField }) => (
-                                  <Row key={key} gutter={8} align="middle">
-                                    <Col span={13}>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'itemId']}
-                                        rules={[{ required: true, message: 'Pilih item BHP' }]}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <Select
-                                          showSearch
-                                          allowClear
-                                          placeholder="Pilih item BHP"
-                                          loading={isLoadingConsumableItems}
-                                          options={consumableItemOptions}
-                                          optionFilterProp="searchLabel"
-                                          filterOption={(input, option) =>
-                                            String(option?.searchLabel ?? '')
-                                              .toLowerCase()
-                                              .includes(input.toLowerCase())
-                                          }
-                                          notFoundContent={
-                                            isLoadingConsumableItems ? (
-                                              <Spin size="small" />
-                                            ) : (
-                                              'Item consumable tidak ditemukan'
-                                            )
-                                          }
-                                          onChange={(value) => {
-                                            if (!value) return
-                                            const selectedItem = consumableItemMap.get(Number(value))
-                                            if (!selectedItem) return
-
-                                            const currentSatuan = modalForm.getFieldValue([
-                                              'paketEntries',
-                                              paketField.name,
-                                              'bhpList',
-                                              name,
-                                              'satuan'
-                                            ])
-                                            if (!currentSatuan && selectedItem.kodeUnit) {
-                                              modalForm.setFieldValue(
-                                                ['paketEntries', paketField.name, 'bhpList', name, 'satuan'],
-                                                selectedItem.kodeUnit
-                                              )
-                                            }
-                                          }}
-                                        />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={3}>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'jumlah']}
-                                        rules={[
-                                          { required: true, message: 'Wajib' },
-                                          {
-                                            validator: async (_rule, value) => {
-                                              if (value === undefined || value === null) return
-                                              if (!Number.isInteger(Number(value)) || Number(value) <= 0) {
-                                                throw new Error('Harus bilangan bulat')
-                                              }
-                                            }
-                                          }
-                                        ]}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <InputNumber min={1} step={1} precision={0} className="w-full" />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={8}>
-                                      <Form.Item {...restField} name={[name, 'satuan']} style={{ marginBottom: 0 }}>
-                                        <Input placeholder="Satuan" />
-                                      </Form.Item>
-                                    </Col>
-                                  </Row>
-                                ))}
-
-                                <Button
-                                  type="dashed"
-                                  size="small"
-                                  icon={<PlusCircleOutlined />}
-                                  onClick={() => add({ jumlah: 1, includedInPaket: true })}
-                                  className="mt-1"
-                                >
-                                  Tambah BHP
-                                </Button>
-                              </div>
-                            )}
-                          </Form.List>
-                        </Card>
-
-                        <Card
-                          size="small"
-                          className="mt-3"
-                          title={<span className="font-semibold">Tenaga Medis Pelaksana</span>}
-                        >
-                          <Form.List name={[paketField.name, 'petugasList']}>
-                            {(fields, { add, remove }) => (
-                              <div className="flex flex-col gap-2">
-                                {fields.map(({ key, name, ...restField }) => (
-                                  <Row key={key} gutter={8} align="middle">
-                                    <Col span={12}>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'pegawaiId']}
-                                        label={name === 0 ? <span className="font-bold">Nama Petugas</span> : undefined}
-                                        rules={[{ required: true, message: 'Pilih petugas' }]}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <Select
-                                          showSearch
-                                          allowClear
-                                          placeholder="Pilih tenaga medis..."
-                                          loading={isLoadingPerformers}
-                                          optionFilterProp="children"
-                                          filterOption={(input, option) =>
-                                            (option?.children as unknown as string)
-                                              .toLowerCase()
-                                              .includes(input.toLowerCase())
-                                          }
-                                        >
-                                          {performers.map((p) => (
-                                            <Select.Option key={p.id} value={p.id}>
-                                              {p.name}
-                                            </Select.Option>
-                                          ))}
-                                        </Select>
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={9}>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'roleTenaga']}
-                                        label={name === 0 ? <span className="font-bold">Role / Peran</span> : undefined}
-                                        rules={[{ required: true, message: 'Pilih role' }]}
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <Select
-                                          placeholder="Pilih role..."
-                                          options={roleOptions}
-                                          loading={isLoadingRoles}
-                                          allowClear
-                                        />
-                                      </Form.Item>
-                                    </Col>
-                                    <Col span={3} className="flex items-end pb-0.5">
-                                      {name === 0 && <div className="h-[22px]" />}
-                                      {fields.length > 1 && (
-                                        <Tooltip title="Hapus petugas">
-                                          <Button
-                                            type="text"
-                                            danger
-                                            size="small"
-                                            icon={<MinusCircleOutlined />}
-                                            onClick={() => remove(name)}
-                                          />
-                                        </Tooltip>
-                                      )}
-                                    </Col>
-                                  </Row>
-                                ))}
-                                <Button
-                                  type="dashed"
-                                  size="small"
-                                  icon={<PlusCircleOutlined />}
-                                  onClick={() => add()}
-                                  className="mt-1"
-                                >
-                                  Tambah Petugas
-                                </Button>
-                              </div>
-                            )}
-                          </Form.List>
-                        </Card>
-
-                        <Form.Item
-                          {...paketField}
-                          name={[paketField.name, 'catatanTambahan']}
-                          label={<span className="font-bold">Catatan</span>}
-                          className="mt-3 mb-0"
-                        >
-                          <TextArea rows={3} placeholder="Catatan tambahan tindakan paket..." />
-                        </Form.Item>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </Form.List>
-            </Card>
+          <Tabs
+            activeKey={activeInputTab}
+            onChange={(key) => setActiveInputTab(key as 'paket' | 'non-paket' | 'paket-bhp')}
+            size="small"
+            items={[
+              { key: 'paket', label: 'Paket Tindakan' },
+              { key: 'non-paket', label: 'Tindakan Non-Paket' },
+              { key: 'paket-bhp', label: 'Paket BHP' }
+            ]}
+          />
+          {activeInputTab === 'paket' && (
+            <PaketTindakanTab
+              modalForm={modalForm}
+              token={token}
+              setSearchPaket={setSearchPaket}
+              isLoadingPaket={isLoadingPaket}
+              paketOptions={paketOptions}
+              handlePaketEntryChange={handlePaketEntryChange}
+              kelasOptions={kelasOptions}
+              tindakanOptions={tindakanOptions}
+              consumableItemOptions={consumableItemOptions}
+              isLoadingConsumableItems={isLoadingConsumableItems}
+              consumableItemMap={consumableItemMap}
+              isLoadingPerformers={isLoadingPerformers}
+              performers={performers}
+              roleLabelByCode={roleLabelByCode}
+            />
           )}
 
-          {mode !== 'paket' && (
-            <>
-              {/* Dynamic Form List untuk Tindakan */}
-              <Card
-                size="small"
-                title={
-                  <span className="font-semibold">Tindakan Non-Paket</span>
-                }
-              >
-                <Form.List name="tindakanList">
-                  {(fields, { add, remove }) => (
-                    <div className="flex flex-col gap-2">
-                  {fields.map(({ key, name, ...restField }) => (
-                    <Row key={key} gutter={8} align="middle">
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'masterTindakanId']}
-                          label={
-                            name === 0 ? <span className="font-bold">Tindakan</span> : undefined
-                          }
-                          rules={[{ required: true, message: 'Pilih tindakan' }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <Select
-                            showSearch
-                            allowClear
-                            placeholder="Cari tindakan..."
-                            filterOption={false}
-                            onSearch={(val) => setSearchTindakan(val)}
-                            loading={isLoadingMaster}
-                            options={tindakanOptions}
-                            onChange={() => {
-                              // Jika user ganti tindakan manual, hapus referensi paket agar tidak salah harga
-                              const currentList = modalForm.getFieldValue('tindakanList') || []
-                              if (currentList[name]) {
-                                currentList[name].paketId = undefined
-                                currentList[name].paketDetailId = undefined
-                                modalForm.setFieldValue('tindakanList', [...currentList])
-                              }
-                            }}
-                            notFoundContent={
-                              isLoadingMaster ? <Spin size="small" /> : 'Tindakan tidak ditemukan'
-                            }
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={3}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'jumlah']}
-                          label={name === 0 ? <span className="font-bold">Jml</span> : undefined}
-                          rules={[{ required: true, message: 'Wajib' }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <InputNumber min={0.01} step={1} className="w-full" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={4}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'satuan']}
-                          label={name === 0 ? <span className="font-bold">Satuan</span> : undefined}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <Input placeholder="cth: kali" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={3}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'cyto']}
-                          valuePropName="checked"
-                          label={
-                            name === 0 ? (
-                              <span className="font-bold flex justify-center">Cyto</span>
-                            ) : undefined
-                          }
-                          style={{ marginBottom: 0 }}
-                          className="flex items-center justify-center w-full"
-                        >
-                          <Switch size="small" checkedChildren="Cyto" unCheckedChildren="Tidak" />
-                        </Form.Item>
-                      </Col>
-                      <Col span={2} className="flex items-end pb-0.5 justify-center">
-                        {name === 0 && <div className="h-[22px]" />}
-                        {fields.length > 1 && (
-                          <Tooltip title="Hapus tindakan">
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              icon={<MinusCircleOutlined />}
-                              onClick={() => remove(name)}
-                            />
-                          </Tooltip>
-                        )}
-                      </Col>
-                    </Row>
-                  ))}
-                  <Button
-                    type="dashed"
-                    size="small"
-                    icon={<PlusCircleOutlined />}
-                    onClick={() => add({ jumlah: 1 })}
-                    className="mt-2"
-                  >
-                    Tambah Tindakan
-                  </Button>
-                </div>
-              )}
-            </Form.List>
-              </Card>
-
-              <Card
-                size="small"
-                title={<span className="font-semibold">BHP</span>}
-              >
-            <Form.List name="bhpList">
-              {(fields, { add, remove }) => (
-                <div className="flex flex-col gap-2">
-                  {fields.length === 0 && (
-                    <div className="text-xs" style={{ color: token.colorTextTertiary }}>
-                      Belum ada BHP. Isi jika tindakan membutuhkan barang habis pakai.
-                    </div>
-                  )}
-
-                  {fields.map(({ key, name, ...restField }) => (
-                    <Row key={key} gutter={8} align="middle">
-                      <Col span={10}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'itemId']}
-                          rules={[{ required: true, message: 'Pilih item BHP' }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <Select
-                            showSearch
-                            allowClear
-                            placeholder="Pilih item BHP"
-                            loading={isLoadingConsumableItems}
-                            options={consumableItemOptions}
-                            optionFilterProp="searchLabel"
-                            filterOption={(input, option) =>
-                              String(option?.searchLabel ?? '')
-                                .toLowerCase()
-                                .includes(input.toLowerCase())
-                            }
-                            notFoundContent={
-                              isLoadingConsumableItems ? (
-                                <Spin size="small" />
-                              ) : (
-                                'Item consumable tidak ditemukan'
-                              )
-                            }
-                            onChange={(value) => {
-                              if (!value) return
-                              const selectedItem = consumableItemMap.get(Number(value))
-                              if (!selectedItem) return
-
-                              const currentSatuan = modalForm.getFieldValue(['bhpList', name, 'satuan'])
-                              if (!currentSatuan && selectedItem.kodeUnit) {
-                                modalForm.setFieldValue(['bhpList', name, 'satuan'], selectedItem.kodeUnit)
-                              }
-                            }}
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={3}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'jumlah']}
-                          rules={[
-                            { required: true, message: 'Wajib' },
-                            {
-                              validator: async (_rule, value) => {
-                                if (value === undefined || value === null) return
-                                if (!Number.isInteger(Number(value)) || Number(value) <= 0) {
-                                  throw new Error('Harus bilangan bulat')
-                                }
-                              }
-                            }
-                          ]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <InputNumber
-                            min={1}
-                            step={1}
-                            precision={0}
-                            className="w-full"
-                            placeholder="Qty"
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={4}>
-                        <Form.Item {...restField} name={[name, 'satuan']} style={{ marginBottom: 0 }}>
-                          <Input placeholder="Satuan" />
-                        </Form.Item>
-                      </Col>
-                      <>
-                        <Col span={5}>
-                          <Tooltip
-                            title="Included = BHP sudah termasuk tarif paket, Terpisah = ditagih terpisah."
-                          >
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'includedInPaket']}
-                              valuePropName="checked"
-                              style={{ marginBottom: 0 }}
-                            >
-                              <Switch
-                                size="small"
-                                checkedChildren="Included"
-                                unCheckedChildren="Terpisah"
-                              />
-                            </Form.Item>
-                          </Tooltip>
-                        </Col>
-                        <Col span={2} className="text-center">
-                          <Tooltip title="Hapus BHP">
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              icon={<MinusCircleOutlined />}
-                              onClick={() => remove(name)}
-                            />
-                          </Tooltip>
-                        </Col>
-                      </>
-                    </Row>
-                  ))}
-
-                  <Button
-                    type="dashed"
-                    size="small"
-                    icon={<PlusCircleOutlined />}
-                    onClick={() => add({ jumlah: 1, includedInPaket: false })}
-                    className="mt-1"
-                  >
-                    Tambah BHP
-                  </Button>
-
-                </div>
-              )}
-            </Form.List>
-              </Card>
-
-              {/* Tenaga Medis Pelaksana — Form.List */}
-              <Card size="small" title={<span className="font-semibold">Tenaga Medis Pelaksana</span>}>
-            <Form.List name="petugasList">
-              {(fields, { add, remove }) => (
-                <div className="flex flex-col gap-2">
-                  {fields.map(({ key, name, ...restField }) => (
-                    <Row key={key} gutter={8} align="middle">
-                      <Col span={12}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'pegawaiId']}
-                          label={
-                            name === 0 ? <span className="font-bold">Nama Petugas</span> : undefined
-                          }
-                          rules={[{ required: true, message: 'Pilih petugas' }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <Select
-                            showSearch
-                            allowClear
-                            placeholder="Pilih tenaga medis..."
-                            loading={isLoadingPerformers}
-                            optionFilterProp="children"
-                            filterOption={(input, option) =>
-                              (option?.children as unknown as string)
-                                .toLowerCase()
-                                .includes(input.toLowerCase())
-                            }
-                          >
-                            {performers.map((p) => (
-                              <Select.Option key={p.id} value={p.id}>
-                                {p.name}
-                              </Select.Option>
-                            ))}
-                          </Select>
-                        </Form.Item>
-                      </Col>
-                      <Col span={9}>
-                        <Form.Item
-                          {...restField}
-                          name={[name, 'roleTenaga']}
-                          label={
-                            name === 0 ? <span className="font-bold">Role / Peran</span> : undefined
-                          }
-                          rules={[{ required: true, message: 'Pilih role' }]}
-                          style={{ marginBottom: 0 }}
-                        >
-                          <Select
-                            placeholder="Pilih role..."
-                            options={roleOptions}
-                            loading={isLoadingRoles}
-                            allowClear
-                          />
-                        </Form.Item>
-                      </Col>
-                      <Col span={3} className="flex items-end pb-0.5">
-                        {name === 0 && <div className="h-[22px]" />}
-                        {fields.length > 1 && (
-                          <Tooltip title="Hapus petugas">
-                            <Button
-                              type="text"
-                              danger
-                              size="small"
-                              icon={<MinusCircleOutlined />}
-                              onClick={() => remove(name)}
-                            />
-                          </Tooltip>
-                        )}
-                      </Col>
-                    </Row>
-                  ))}
-                  <Button
-                    type="dashed"
-                    size="small"
-                    icon={<PlusCircleOutlined />}
-                    onClick={() => add()}
-                    className="mt-1"
-                  >
-                    Tambah Petugas
-                  </Button>
-                </div>
-              )}
-            </Form.List>
-              </Card>
-
-              <Form.Item name="catatanTambahan" label={<span className="font-bold">Catatan</span>}>
-                <TextArea rows={3} placeholder="Catatan tambahan tindakan..." />
-              </Form.Item>
-            </>
+          {activeInputTab === 'non-paket' && (
+            <TindakanNonPaketTab
+              modalForm={modalForm}
+              token={token}
+              kelasOptions={kelasOptions}
+              setSearchTindakan={setSearchTindakan}
+              isLoadingMaster={isLoadingMaster}
+              tindakanOptions={tindakanOptions}
+              isLoadingConsumableItems={isLoadingConsumableItems}
+              consumableItemOptions={consumableItemOptions}
+              consumableItemMap={consumableItemMap}
+              isLoadingPerformers={isLoadingPerformers}
+              performers={performers}
+              roleLabelByCode={roleLabelByCode}
+            />
           )}
+
+          {activeInputTab === 'paket-bhp' && <PaketBhpTab token={token} />}
         </Form>
       </Modal>
     </div>
