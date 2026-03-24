@@ -126,7 +126,8 @@ export function InstallationSection({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="max-h-56 overflow-y-auto pr-1">
+        <div className="grid grid-cols-2 gap-3">
         {installations.map((installation) => {
           const isSelected = installation.key === selectedInstallationKey
 
@@ -160,6 +161,7 @@ export function InstallationSection({
             </Button>
           )
         })}
+        </div>
       </div>
     </section>
   )
@@ -197,17 +199,19 @@ export function ModuleSection({
           Silahkan pilih instalasi terlebih dahulu.
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-          {modules.map((moduleName) => (
-            <Button
-              key={moduleName}
-              size="large"
-              onClick={() => onSelectModule(moduleName)}
-              className="!flex !aspect-square !h-auto !items-center !justify-center !rounded-3xl !border !border-slate-200 !bg-linear-to-br !from-white !to-slate-50 !p-4 !text-center !text-base !font-semibold !capitalize !text-slate-700 !shadow-none transition-all hover:!-translate-y-0.5 hover:!border-blue-300 hover:!from-blue-50 hover:!to-cyan-50 hover:!text-blue-700"
-            >
-              <span className="leading-snug">{moduleName}</span>
-            </Button>
-          ))}
+        <div className="max-h-56 overflow-y-auto pr-1">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+            {modules.map((moduleName) => (
+              <Button
+                key={moduleName}
+                size="large"
+                onClick={() => onSelectModule(moduleName)}
+                className="!flex !h-auto !min-h-42 !items-center !justify-center !rounded-3xl !border !border-slate-200 !bg-linear-to-br !from-white !to-slate-50 !p-4 !text-center !text-base !font-semibold !capitalize !text-slate-700 !shadow-none !whitespace-normal transition-all hover:!-translate-y-0.5 hover:!border-blue-300 hover:!from-blue-50 hover:!to-cyan-50 hover:!text-blue-700 mt-1"
+              >
+                <span className="line-clamp-4 break-words text-sm leading-snug">{moduleName}</span>
+              </Button>
+            ))}
+          </div>
         </div>
       )}
     </section>

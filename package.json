@@ -39,7 +39,7 @@
     "react-router": "^7.9.3",
     "react-to-print": "^3.2.0",
     "sequelize": "^6.37.7",
-    "simrs-types": "git+https://git.asmuldev.web.id/asmuldev/shared.git#develop",
+    "simrs-types": "git+https://git.asmuldev.web.id/asmuldev/shared.git#1.0.2",
     "sqlite3": "^5.1.7",
     "tailwindcss": "^4.1.14",
     "ws": "^8.18.3",
