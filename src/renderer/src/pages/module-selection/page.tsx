@@ -29,12 +29,19 @@ type ModuleGroup = {
   }[]
 }
 
+const formatModuleId = (moduleId: string): string =>
+  moduleId
+    .split('.')
+    .map((segment) => segment.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()))
+    .join(' › ')
+
 const uniqueModules = (modules: string[]) => Array.from(new Set(modules))
 
 const normalizeInstallations = (groups?: ModuleGroup[]): InstallationOption[] =>
   groups?.flatMap((group, groupIndex) =>
     (group.configs ?? []).map((config, configIndex) => ({
       allowedModules: uniqueModules(config.allowedModules),
+      allowedModulesDisplay: uniqueModules(config.allowedModules.map(formatModuleId)),
       configId: config.id,
       key: `${groupIndex}-${configIndex}-${config.id}`,
       label: config.label
@@ -60,7 +67,6 @@ export default function ModuleSelection() {
 
   const installations = normalizeInstallations(data?.result)
   const selectedInstallation = installations.find((item) => item.key === selectedInstallationKey)
-  const filteredAllowedModules = selectedInstallation?.allowedModules ?? []
   const totalModuleCount = installations.reduce(
     (total, installation) => total + installation.allowedModules.length,
     0
@@ -141,7 +147,8 @@ export default function ModuleSelection() {
                 />
                 <ModuleSection
                   installationLabel={selectedInstallation?.label}
-                  modules={filteredAllowedModules}
+                  modules={selectedInstallation?.allowedModulesDisplay ?? []}
+                  moduleCodes={selectedInstallation?.allowedModules ?? []}
                   onSelectModule={(moduleName) => {
                     void handleClick(moduleName)
                   }}

@@ -4,6 +4,7 @@ import { Button, Empty, Spin } from 'antd'
 
 export type InstallationOption = {
   allowedModules: string[]
+  allowedModulesDisplay: string[]
   configId: number
   key: string
   label: string
@@ -170,12 +171,14 @@ export function InstallationSection({
 type ModuleSectionProps = {
   installationLabel?: string
   modules: string[]
+  moduleCodes: string[]
   onSelectModule: (module: string) => void
 }
 
 export function ModuleSection({
   installationLabel,
   modules,
+  moduleCodes,
   onSelectModule
 }: ModuleSectionProps) {
   return (
@@ -201,12 +204,12 @@ export function ModuleSection({
       ) : (
         <div className="max-h-56 overflow-y-auto pr-1">
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-            {modules.map((moduleName) => (
+            {modules.map((moduleName, index) => (
               <Button
                 key={moduleName}
                 size="large"
-                onClick={() => onSelectModule(moduleName)}
-                className="!flex !h-auto !min-h-42 !items-center !justify-center !rounded-3xl !border !border-slate-200 !bg-linear-to-br !from-white !to-slate-50 !p-4 !text-center !text-base !font-semibold !capitalize !text-slate-700 !shadow-none !whitespace-normal transition-all hover:!-translate-y-0.5 hover:!border-blue-300 hover:!from-blue-50 hover:!to-cyan-50 hover:!text-blue-700 mt-1"
+                onClick={() => onSelectModule(moduleCodes[index])}
+                className="!flex !h-auto !min-h-32 !items-center !justify-center !rounded-3xl !border !border-slate-200 !bg-linear-to-br !from-white !to-slate-50 !p-4 !text-center !text-base !font-semibold !capitalize !text-slate-700 !shadow-none !whitespace-normal transition-all hover:!-translate-y-0.5 hover:!border-blue-300 hover:!from-blue-50 hover:!to-cyan-50 hover:!text-blue-700 mt-1"
               >
                 <span className="line-clamp-4 break-words text-sm leading-snug">{moduleName}</span>
               </Button>

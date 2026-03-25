@@ -16,18 +16,16 @@ import {
 import logoUrl from '@renderer/assets/logo.png'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import { client } from '@renderer/utils/client'
 import { workspaceModuleCodes } from '@renderer/services/ModuleScope/constant'
-import {
-  getModuleScopeState,
-  moduleScopePermission
-} from '@renderer/services/ModuleScope/module-scope'
+import { getModuleScopeState } from '@renderer/services/ModuleScope/module-scope'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { ModuleCode, ScopeSession } from '@renderer/services/ModuleScope/type'
 
 import type { MenuProps } from 'antd'
 import { Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 
 // const SendNotificationButton = () => {
@@ -90,6 +88,9 @@ const items: DashboardMenuItem[] = [
         key: '/dashboard/registration',
         icon: <DashboardOutlined />,
         moduleKey: 'rekam_medis.registration.pendaftaran'
+        // module: ['rekam_medis'],
+        // lokasi: ['lokasi_1', 'lokasi_2']
+        // hakAkses: []
       },
       {
         label: 'Antrian Pasien',
@@ -338,16 +339,14 @@ const items: DashboardMenuItem[] = [
   // }
 ]
 
-const isSessionModuleVisible = (session: ScopeSession, moduleCode: ModuleCode): boolean => {
-  try {
-    return moduleScopePermission.isVisibleForClient(session, moduleCode)
-  } catch {
-    return false
-  }
+const isSessionModuleVisible = (allowedModules: string[], session: ScopeSession): boolean => {
+  const isVisible = session.allowedModules.some((mod) => allowedModules.includes(mod))
+  return isVisible
 }
 
 const filterChildrenBySession = (
   children: DashboardMenuChild[] | undefined,
+  pageAccessMap: Record<string, string[]>,
   session: ScopeSession | null
 ): DashboardMenuChild[] => {
   if (!children?.length) {
@@ -355,7 +354,9 @@ const filterChildrenBySession = (
   }
 
   return children.filter((child) => {
-    if (!child.moduleKey) {
+    const allowedModules = pageAccessMap[child.key]
+    if (!allowedModules?.length) {
+      console.log('No modules set, defaulting to visible:', child.key)
       return true
     }
 
@@ -363,24 +364,26 @@ const filterChildrenBySession = (
       return false
     }
 
-    return isSessionModuleVisible(session, child.moduleKey)
+    return isSessionModuleVisible(allowedModules, session)
   })
 }
 
-const filterItemsBySession = (menuItems: DashboardMenuItem[], session: ScopeSession | null) => {
+const filterItemsBySession = (menuItems: DashboardMenuItem[], pageAccessMap: Record<string, string[]>, session: ScopeSession | null) => {
+  console.log('session', session)
   return menuItems.reduce<DashboardMenuItem[]>((result, item) => {
     if (item.key === DASHBOARD_ROOT_KEY) {
       result.push({
         ...item,
-        ...(item.children ? { children: filterChildrenBySession(item.children, session) } : {})
+        ...(item.children ? { children: filterChildrenBySession(item.children, pageAccessMap, session) } : {})
       })
       return result
     }
 
-    const visibleChildren = filterChildrenBySession(item.children, session)
-    const isParentVisible = !item.moduleKey
+    const allowedModules = pageAccessMap[item.key]
+    const visibleChildren = filterChildrenBySession(item.children, pageAccessMap, session)
+    const isParentVisible = !allowedModules?.length
       ? true
-      : !!session && isSessionModuleVisible(session, item.moduleKey)
+      : !!session && isSessionModuleVisible(allowedModules, session)
 
     if (isParentVisible || visibleChildren.length > 0) {
       result.push({
@@ -398,7 +401,16 @@ function Dashboard() {
   const location = useLocation()
   const session = useModuleScopeStore((state) => state.session)
   const visibleModuleState = getModuleScopeState(session)
-  const visibleItems = filterItemsBySession(items, session)
+
+  const { data: pageAccessData } = client.pageAccess.list.useQuery({})
+  const pageAccessMap = useMemo(() => {
+    const map: Record<string, string[]> = {}
+    for (const item of pageAccessData?.result ?? []) {
+      map[item.page_path] = item.allowedModules ?? []
+    }
+    return map
+  }, [pageAccessData])
+  const visibleItems = filterItemsBySession(items, pageAccessMap, session)
   const registeredPrefixes = [
     '/dashboard/expense',
     '/dashboard/patient',
