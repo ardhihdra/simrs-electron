@@ -1,171 +1,235 @@
-import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
+import { SaveOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
-import { App, Button, Card, Col, Form, Modal, Row, Select, Table } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
-import dayjs from 'dayjs'
+import { App, Button, Card, Col, Form, Input, Modal, Row, Select } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 
-interface ServiceUnitItem {
+interface PatientItem {
   id: string
-  name: string
-  codeId: string
+  name?: string
+  identifier?: string
+  mrn?: string
 }
 
-interface PractitionerItem {
-  practitionerId: string | number
-  doctorName: string
+interface ServiceRequestItem {
+  id: string | number
+  status?: string
+  categories?: Array<{ code?: string; display?: string }>
+  codes?: Array<{ code?: string; display?: string }>
 }
 
-interface LabRequestItem {
-  key: string
-  testCodeId: string
-  testName: string
-  priority: 'ROUTINE' | 'URGENT' | 'STAT'
+interface KepegawaianItem {
+  id: number
+  namaLengkap?: string
+  nik?: string
+  hakAksesId?: string
+  hakAkses?: {
+    kode?: string
+    nama?: string
+  }
 }
 
 interface CreateAncillaryModalProps {
   open: boolean
   onClose: () => void
-  patient: {
-    id: string
-    name: string
-    mrn: string
-  } | null
-  encounter: {
-    id: string
-    practitionerId?: string | number
-    serviceUnitName?: string
-    queueTicket?: {
-      practitionerId?: string | number
-      poli?: {
-        name: string
-      }
-    }
-  } | null
 }
 
-export default function CreateAncillaryModal({ open, onClose, patient, encounter }: CreateAncillaryModalProps) {
-  const [form] = Form.useForm()
-  const { message } = App.useApp()
-  const category = Form.useWatch('category', form)
-  const serviceUnitId = Form.useWatch('serviceUnitId', form)
-  
-  const [selectedItems, setSelectedItems] = useState<LabRequestItem[]>([])
-  const [searchTerm, setSearchTerm] = useState('')
+type EncounterCategory = 'LABORATORY' | 'RADIOLOGY'
+type ArrivalType = 'WALK_IN' | 'REFERRAL' | 'EMERGENCY' | 'APPOINTMENT' | 'INTERNAL_ORDER'
 
-  // Fetch Service Units (Poli/Units)
-  const { data: serviceUnitsData, isLoading: isLoadingUnits } = client.visitManagement.poli.useQuery({})
-  
-  // Fetch Categories
-  const { data: categories, isLoading: isLoadingCategories } = client.laboratoryManagement.getTerminologyCategories.useQuery()
+function normalizeList<T>(data: unknown): T[] {
+  const raw = data as any
+  return (raw?.result || raw?.data || raw || []) as T[]
+}
 
-  // Determine Domain
-  let domain: 'laboratory' | 'radiology' = 'laboratory'
-  if (category && categories?.result?.radiology?.includes(category)) {
-      domain = 'radiology'
+function isCategoryMatch(category: EncounterCategory, sr: ServiceRequestItem): boolean {
+  const categoryValues = (sr.categories || [])
+    .map((c) => `${c.code || ''} ${c.display || ''}`.toLowerCase())
+    .join(' ')
+
+  if (!categoryValues) return true
+
+  if (category === 'LABORATORY') {
+    return categoryValues.includes('laboratory') || categoryValues.includes('lab')
   }
 
-  // Terminology Search
-  const { data: searchResults, isFetching: isSearching } = client.laboratoryManagement.searchTerminology.useQuery(
+  return (
+    categoryValues.includes('radiology') ||
+    categoryValues.includes('imaging') ||
+    categoryValues.includes('rad')
+  )
+}
+
+function buildServiceRequestLabel(sr: ServiceRequestItem): string {
+  const codeLabel = (sr.codes || [])
+    .slice(0, 2)
+    .map((c) => c.display || c.code)
+    .filter(Boolean)
+    .join(', ')
+
+  const status = sr.status ? String(sr.status).toUpperCase() : 'UNKNOWN'
+  const requestCode = sr.id ? `SR#${sr.id}` : 'SR'
+  return `${requestCode} - ${codeLabel || 'No code'} (${status})`
+}
+
+function isDoctorPegawai(pegawai: KepegawaianItem): boolean {
+  const kode = String(pegawai.hakAkses?.kode || '').toLowerCase()
+  const nama = String(pegawai.hakAkses?.nama || '').toLowerCase()
+  const hakAksesId = String(pegawai.hakAksesId || '').toLowerCase()
+
+  return (
+    kode.includes('doctor') ||
+    nama.includes('doctor') ||
+    nama.includes('dokter') ||
+    hakAksesId.includes('doctor') ||
+    hakAksesId.includes('dokter')
+  )
+}
+
+export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryModalProps) {
+  const [form] = Form.useForm()
+  const { message } = App.useApp()
+
+  const [patientSearch, setPatientSearch] = useState('')
+  const [doctorSearch, setDoctorSearch] = useState('')
+  const category = Form.useWatch('category', form) as EncounterCategory | undefined
+  const patientId = Form.useWatch('patientId', form) as string | undefined
+
+  const patientParams = useMemo(() => {
+    const params: Record<string, string> = { page: '1', items: '30' }
+    if (patientSearch.trim()) {
+      params.q = patientSearch.trim()
+      params.fields = 'name,identifier,mrn'
+    }
+    return params
+  }, [patientSearch])
+
+  const { data: patientsData, isLoading: isLoadingPatients } = client.query.entity.useQuery(
     {
-      query: searchTerm,
-      domain: domain,
-      category: category,
-      limit: 20
+      model: 'patient',
+      method: 'get',
+      params: patientParams
     },
     {
-      enabled: !!category || searchTerm.length >= 3,
-      queryKey: ['search-terminology', { query: searchTerm, domain, category, limit: 20 }]
+      enabled: open,
+      queryKey: ['ancillary-patient-search', patientParams]
     } as any
   )
 
-  const serviceUnitOptions = useMemo(() => {
-    const rawData = serviceUnitsData as any
-    const units = (rawData?.data as ServiceUnitItem[]) || []
-    if (!category) return []
-    
-    return units.map((u) => ({
-      value: u.id,
-      label: u.name,
-      code: u.codeId
-    }))
-  }, [serviceUnitsData, category])
+  const serviceRequestParams = useMemo(() => {
+    const params: Record<string, string> = {
+      page: '1',
+      items: '100',
+      include: 'codes,categories'
+    }
 
-  // Fetch Available Doctors for the selected unit
-  const { data: doctorsData, isLoading: isLoadingDoctors } = client.registration.getAvailableDoctors.useQuery({
-    date: dayjs().format('YYYY-MM-DD'),
-    poliId: serviceUnitId ? Number(serviceUnitId) : undefined
-  }, {
-    enabled: !!serviceUnitId,
-    queryKey: ['availableDoctors', { date: dayjs().format('YYYY-MM-DD'), poliId: serviceUnitId }]
-  } as any)
+    if (patientId) {
+      params.subjectId = patientId
+    }
+
+    return params
+  }, [patientId])
+
+  const { data: serviceRequestsData, isLoading: isLoadingServiceRequests } = client.query.entity.useQuery(
+    {
+      model: 'serviceRequest',
+      method: 'get',
+      params: serviceRequestParams
+    },
+    {
+      enabled: open && !!patientId,
+      queryKey: ['ancillary-service-request', serviceRequestParams]
+    } as any
+  )
+
+  const doctorParams = useMemo(() => {
+    const params: Record<string, string> = {
+      page: '1',
+      items: '200',
+      include: 'hakAkses'
+    }
+
+    if (doctorSearch.trim()) {
+      params.q = doctorSearch.trim()
+      params.fields = 'namaLengkap,nik'
+    }
+
+    return params
+  }, [doctorSearch])
+
+  const { data: doctorsData, isLoading: isLoadingDoctors } = client.query.entity.useQuery(
+    {
+      model: 'kepegawaian',
+      method: 'get',
+      params: doctorParams
+    },
+    {
+      enabled: open,
+      queryKey: ['ancillary-kepegawaian-doctors', doctorParams]
+    } as any
+  )
+
+  const patientOptions = useMemo(() => {
+    const patients = normalizeList<PatientItem>(patientsData)
+    return patients.map((p) => ({
+      value: String(p.id),
+      label: `${p.name || 'Unknown Patient'} (${p.identifier || p.mrn || p.id})`
+    }))
+  }, [patientsData])
+
+  const selectedPatient = useMemo(() => {
+    const patients = normalizeList<PatientItem>(patientsData)
+    return patients.find((p) => String(p.id) === String(patientId)) || null
+  }, [patientsData, patientId])
+
+  const serviceRequestOptions = useMemo(() => {
+    const requests = normalizeList<ServiceRequestItem>(serviceRequestsData)
+
+    return requests
+      .filter((sr) => !category || isCategoryMatch(category, sr))
+      .map((sr) => ({
+        value: String(sr.id),
+        label: buildServiceRequestLabel(sr)
+      }))
+  }, [serviceRequestsData, category])
 
   const doctorOptions = useMemo(() => {
-    const rawData = doctorsData as any
-    const result = rawData?.result || rawData?.data || rawData
-    const doctors = (result?.doctors as PractitionerItem[]) || []
-    return doctors.map((d) => ({
-      value: Number(d.practitionerId),
-      label: d.doctorName
-    }))
+    const pegawai = normalizeList<KepegawaianItem>(doctorsData)
+
+    return pegawai
+      .filter((item) => isDoctorPegawai(item))
+      .map((item) => ({
+        value: Number(item.id),
+        label: `${item.namaLengkap || 'Dokter'} (${item.nik || item.id})`
+      }))
   }, [doctorsData])
 
-  const createAncillaryMutation = client.registration.createAncillaryEncounter.useMutation()
-
-  const handleAddItem = (values: any) => {
-    const test = searchResults?.result?.find((t: any) => t.name === values.testCodeId)
-    if (!test) return
-
-    const newItem: LabRequestItem = {
-      key: test.loinc || test.name,
-      testCodeId: test.loinc || test.name,
-      testName: test.name,
-      priority: values.priority
-    }
-
-    if (selectedItems.find((item) => item.key === newItem.key)) {
-      message.warning('Pemeriksaan ini sudah ada dalam daftar')
-      return
-    }
-
-    setSelectedItems([...selectedItems, newItem])
-    form.resetFields(['testCodeId', 'priority'])
-    setSearchTerm('')
-  }
-
-  const handleRemoveItem = (key: string) => {
-    setSelectedItems(selectedItems.filter((item) => item.key !== key))
-  }
+  const createLaboratoryMutation = client.registration.createLaboratoryEncounter.useMutation()
+  const createRadiologyMutation = client.registration.createRadiologyEncounter.useMutation()
 
   const handleSubmit = async (values: any) => {
-    if (!patient || !encounter) {
-      message.error('Data pasien atau encounter tidak valid')
-      return
-    }
+    const requestedBy = values.requestedByPractitionerId
+      ? Number(values.requestedByPractitionerId)
+      : undefined
+    const requestedByPractitionerId =
+      typeof requestedBy === 'number' && !Number.isNaN(requestedBy) ? requestedBy : undefined
 
-    if (selectedItems.length === 0) {
-      message.warning('Mohon pilih minimal satu pemeriksaan')
-      return
+    const payload = {
+      patientId: String(values.patientId),
+      serviceRequestId: values.serviceRequestId ? String(values.serviceRequestId) : undefined,
+      practitionerId: Number(values.practitionerId),
+      requestedByPractitionerId,
+      episodeOfCareId: values.episodeOfCareId ? String(values.episodeOfCareId) : undefined,
+      arrivalType: (values.arrivalType || 'WALK_IN') as ArrivalType
     }
 
     try {
-      const requestedByPractitionerId = Number(encounter.practitionerId || encounter.queueTicket?.practitionerId || 0)
-      
-      const payload = {
-        patientId: patient.id,
-        parentEncounterId: encounter.id,
-        serviceUnitId: String(values.serviceUnitId),
-        category: values.category as 'LABORATORY' | 'RADIOLOGY',
-        practitionerId: Number(values.practitionerId),
-        requestedByPractitionerId,
-        items: selectedItems.map(item => ({
-            testCodeId: item.testCodeId,
-            priority: item.priority
-        }))
+      if (values.category === 'LABORATORY') {
+        await createLaboratoryMutation.mutateAsync(payload)
+      } else {
+        await createRadiologyMutation.mutateAsync(payload)
       }
 
-      await createAncillaryMutation.mutateAsync(payload)
-      message.success(`Encounter ${values.category.toLowerCase()} berhasil dibuat`)
+      message.success(`Encounter ${String(values.category).toLowerCase()} berhasil dibuat`)
       handleClose()
     } catch (error: any) {
       console.error('Submit Error:', error)
@@ -175,57 +239,26 @@ export default function CreateAncillaryModal({ open, onClose, patient, encounter
 
   const handleClose = () => {
     form.resetFields()
-    setSelectedItems([])
-    setSearchTerm('')
+    setPatientSearch('')
+    setDoctorSearch('')
     onClose()
   }
 
   useEffect(() => {
-    if (open && encounter) {
+    if (open) {
       form.setFieldsValue({
-        category: 'LABORATORY'
+        category: 'LABORATORY',
+        arrivalType: 'WALK_IN'
       })
     }
-  }, [open, encounter, form])
-
-  const columns: ColumnsType<LabRequestItem> = [
-    {
-      title: 'Nama Pemeriksaan',
-      dataIndex: 'testName',
-      key: 'testName'
-    },
-    {
-      title: 'Prioritas',
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (priority) => {
-        let color = 'default'
-        if (priority === 'URGENT') color = 'orange'
-        if (priority === 'STAT') color = 'red'
-        return <span style={{ color: color === 'default' ? 'inherit' : color, fontWeight: 'bold' }}>{priority}</span>
-      }
-    },
-    {
-      title: 'Aksi',
-      key: 'action',
-      width: 60,
-      render: (_, record) => (
-        <Button
-          type="text"
-          danger
-          icon={<DeleteOutlined />}
-          onClick={() => handleRemoveItem(record.key)}
-        />
-      )
-    }
-  ]
+  }, [open, form])
 
   return (
     <Modal
-      title="Buat Encounter Penunjang (Lab / Rad)"
+      title="Registrasi Encounter Penunjang Baru"
       open={open}
       onCancel={handleClose}
-      width={1000}
+      width={900}
       footer={[
         <Button key="back" onClick={handleClose}>
           Batal
@@ -234,64 +267,81 @@ export default function CreateAncillaryModal({ open, onClose, patient, encounter
           key="submit"
           type="primary"
           icon={<SaveOutlined />}
-          loading={createAncillaryMutation.isPending}
+          loading={createLaboratoryMutation.isPending || createRadiologyMutation.isPending}
           onClick={() => form.submit()}
-          disabled={selectedItems.length === 0}
         >
           Simpan encounter
         </Button>
       ]}
     >
       <div className="py-2">
-        <Row gutter={24}>
-          <Col span={9}>
-            <Card title="Informasi & Tujuan" className="mb-4" size="small">
-              <div className="flex flex-col gap-2 mb-4 p-2 bg-gray-50 rounded">
-                <div>
-                  <label className="text-gray-500 text-xs">Pasien</label>
-                  <div className="font-semibold">{patient?.name} ({patient?.mrn})</div>
-                </div>
-                <div>
-                  <label className="text-gray-500 text-xs">Unit/Poli Asal</label>
-                  <div className="font-medium">
-                    {encounter?.serviceUnitName || encounter?.queueTicket?.poli?.name || '-'}
-                  </div>
-                </div>
-              </div>
+        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+          <Row gutter={24}>
+            <Col span={10}>
+              <Card title="Informasi Pasien" size="small">
+                <Form.Item
+                  name="patientId"
+                  label="Pasien"
+                  rules={[{ required: true, message: 'Harap pilih pasien' }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Cari pasien..."
+                    loading={isLoadingPatients}
+                    options={patientOptions}
+                    filterOption={false}
+                    onSearch={setPatientSearch}
+                    optionFilterProp="label"
+                  />
+                </Form.Item>
 
-              <Form form={form} layout="vertical" onFinish={handleSubmit}>
                 <Form.Item
                   name="category"
                   label="Kategori Penunjang"
-                  rules={[{ required: true }]}
+                  rules={[{ required: true, message: 'Harap pilih kategori' }]}
                 >
                   <Select
                     options={[
                       { value: 'LABORATORY', label: 'Laboratorium' },
                       { value: 'RADIOLOGY', label: 'Radiologi' }
                     ]}
-                    onChange={() => {
-                      form.setFieldsValue({ serviceUnitId: undefined, practitionerId: undefined, testCodeId: undefined })
-                      setSelectedItems([])
-                      setSearchTerm('')
-                    }}
                   />
                 </Form.Item>
 
-                <Form.Item
-                  name="serviceUnitId"
-                  label="Unit Penunjang Tujuan"
-                  rules={[{ required: true, message: 'Harap pilih unit' }]}
-                >
+                <Form.Item name="serviceRequestId" label="Service Request (opsional)">
                   <Select
                     showSearch
-                    placeholder="Pilih Unit (Lab/Rad)"
-                    loading={isLoadingUnits}
-                    options={serviceUnitOptions}
+                    allowClear
+                    placeholder={
+                      patientId ? 'Pilih service request (opsional)' : 'Pilih pasien terlebih dahulu'
+                    }
+                    loading={isLoadingServiceRequests}
+                    disabled={!patientId}
+                    options={serviceRequestOptions}
                     optionFilterProp="label"
                   />
                 </Form.Item>
 
+                <Form.Item
+                  name="arrivalType"
+                  label="Arrival Type"
+                  rules={[{ required: true, message: 'Harap pilih arrival type' }]}
+                >
+                  <Select
+                    options={[
+                      { value: 'WALK_IN', label: 'Walk In (default)' },
+                      { value: 'REFERRAL', label: 'Referral' },
+                      { value: 'EMERGENCY', label: 'Emergency' },
+                      { value: 'APPOINTMENT', label: 'Appointment' },
+                      { value: 'INTERNAL_ORDER', label: 'Internal Order' }
+                    ]}
+                  />
+                </Form.Item>
+              </Card>
+            </Col>
+
+            <Col span={14}>
+              <Card title="Dokter & Tambahan" size="small" className="mb-4">
                 <Form.Item
                   name="practitionerId"
                   label="Dokter Pemeriksa"
@@ -303,82 +353,43 @@ export default function CreateAncillaryModal({ open, onClose, patient, encounter
                     loading={isLoadingDoctors}
                     options={doctorOptions}
                     optionFilterProp="label"
-                    disabled={!serviceUnitId}
+                    filterOption={false}
+                    onSearch={setDoctorSearch}
+                    notFoundContent="Dokter tidak ditemukan"
                   />
                 </Form.Item>
 
-                <div className="mt-4 p-3 border-dashed border-2 border-gray-200 rounded">
-                  <div className="font-medium mb-2 text-sm">Tambah Pemeriksaan ({domain})</div>
-                  <Form.Item
-                    name="testCodeId"
-                    label="Nama Pemeriksaan"
-                    className="mb-2"
-                  >
-                    <Select
-                      showSearch
-                      placeholder={category ? "Ketik minimal 3 karakter..." : "Pilih kategori dulu"}
-                      filterOption={false}
-                      onSearch={(val) => setSearchTerm(val)}
-                      loading={isSearching}
-                      disabled={!category}
-                      notFoundContent={searchTerm.length < 3 ? 'Ketik minimal 3 karakter' : 'Tidak ditemukan'}
-                      style={{ width: '100%' }}
-                    >
-                      {searchResults?.result?.map((item: any) => (
-                        <Select.Option key={item.name} value={item.name}>
-                          {item.name}
-                        </Select.Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
+                <Form.Item
+                  name="requestedByPractitionerId"
+                  label="Requested By Practitioner ID (opsional)"
+                >
+                  <Input placeholder="Contoh: 123" />
+                </Form.Item>
 
-                  <Form.Item
-                    name="priority"
-                    label="Prioritas"
-                    initialValue="ROUTINE"
-                    className="mb-4"
-                  >
-                    <Select style={{ width: '100%' }}>
-                      <Select.Option value="ROUTINE">Routine</Select.Option>
-                      <Select.Option value="URGENT">Urgent</Select.Option>
-                      <Select.Option value="STAT">Cito (STAT)</Select.Option>
-                    </Select>
-                  </Form.Item>
+                <Form.Item name="episodeOfCareId" label="Episode Of Care ID (opsional)">
+                  <Input placeholder="UUID episode of care" />
+                </Form.Item>
+              </Card>
 
-                  <Button 
-                    type="dashed" 
-                    block 
-                    icon={<PlusOutlined />}
-                    onClick={() => {
-                      const val = form.getFieldValue('testCodeId')
-                      const prio = form.getFieldValue('priority')
-                      if (val) {
-                        handleAddItem({ testCodeId: val, priority: prio })
-                      } else {
-                        message.warning('Pilih pemeriksaan terlebih dahulu')
-                      }
-                    }}
-                  >
-                    Tambah ke Daftar
-                  </Button>
+              <Card title="Ringkasan" size="small">
+                <div className="text-sm text-gray-600 flex flex-col gap-2">
+                  <div>
+                    <span className="font-medium">Pasien:</span> {selectedPatient?.name || '-'} (
+                    {selectedPatient?.identifier || selectedPatient?.mrn || patientId || '-'})
+                  </div>
+                  <div>
+                    <span className="font-medium">Jumlah Service Request Tersedia:</span>{' '}
+                    {serviceRequestOptions.length}
+                  </div>
+                  <div>
+                    <span className="font-medium">Catatan:</span> Service Request dan unit tujuan tidak
+                    wajib saat pembuatan encounter.
+                  </div>
                 </div>
-              </Form>
-            </Card>
-          </Col>
-
-          <Col span={15}>
-            <Card title="Daftar Pemeriksaan yang Akan Dipesan" size="small" className="h-full">
-              <Table
-                dataSource={selectedItems}
-                columns={columns}
-                pagination={false}
-                locale={{ emptyText: 'Belum ada pemeriksaan dipilih' }}
-                size="small"
-                scroll={{ y: 560 }}
-              />
-            </Card>
-          </Col>
-        </Row>
+              </Card>
+            </Col>
+          </Row>
+        </Form>
       </div>
     </Modal>
   )

@@ -76,6 +76,8 @@ const DischargeEncounterInputSchema = z.object({
   dischargeNote: z.string().optional()
 })
 
+const AncillaryArrivalTypeSchema = z.enum(['WALK_IN', 'REFERRAL', 'EMERGENCY', 'APPOINTMENT', 'INTERNAL_ORDER'])
+
 const CreateAncillaryEncounterInputSchema = z.object({
   patientId: z.string().uuid(),
   parentEncounterId: z.string().uuid(),
@@ -88,6 +90,17 @@ const CreateAncillaryEncounterInputSchema = z.object({
     testCodeId: z.string(),
     priority: z.string()
   })).optional()
+})
+
+const CreateStandaloneAncillaryEncounterInputSchema = z.object({
+  patientId: z.string().uuid(),
+  serviceRequestId: z.string().min(1).optional(),
+  serviceUnitId: z.string().optional(),
+  practitionerId: z.number(),
+  requestedByPractitionerId: z.number().optional(),
+  episodeOfCareId: z.string().uuid().optional(),
+  createdBy: z.number().optional(),
+  arrivalType: AncillaryArrivalTypeSchema.optional()
 })
 
 const CreateSepInternalInputSchema = z.object({
@@ -292,6 +305,22 @@ export const registrationRpc = {
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       const response = await client.post(`${BASE_URL}/encounters/ancillary`, input)
+      return await response.json()
+    }),
+
+  createLaboratoryEncounter: t
+    .input(CreateStandaloneAncillaryEncounterInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, input) => {
+      const response = await client.post(`${BASE_URL}/encounters/laboratory`, input)
+      return await response.json()
+    }),
+
+  createRadiologyEncounter: t
+    .input(CreateStandaloneAncillaryEncounterInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, input) => {
+      const response = await client.post(`${BASE_URL}/encounters/radiology`, input)
       return await response.json()
     }),
 
