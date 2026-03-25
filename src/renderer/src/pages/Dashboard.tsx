@@ -97,11 +97,11 @@ const items: DashboardMenuItem[] = [
         icon: <DashboardOutlined />
         // moduleKey: 'rekam_medis.registration.select'
       },
-      // {
-      //   label: 'Pemeriksaan Awal',
-      //   key: '/dashboard/registration/triage',
-      //   icon: <DashboardOutlined />
-      // },
+      {
+        label: 'Pemeriksaan Awal',
+        key: '/dashboard/registration/triage',
+        icon: <DashboardOutlined />
+      },
       {
         label: 'Daftar kunjungan',
         key: '/dashboard/registration/active-encounters',
