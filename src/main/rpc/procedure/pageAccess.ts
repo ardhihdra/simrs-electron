@@ -5,6 +5,8 @@ const PageAccessItemSchema = z.object({
     id: z.number(),
     page_path: z.string(),
     allowedModules: z.array(z.string()).nullable().optional(),
+    roles: z.array(z.string()).nullable().optional(),
+    allowedLokasiKerjaIds: z.array(z.int()).nullable().optional(),
     module_category: z.string().nullable().optional(),
 })
 

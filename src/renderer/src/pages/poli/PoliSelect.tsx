@@ -11,7 +11,6 @@ export default function PoliSelect() {
   const navigate = useNavigate()
 
   const { data: poliData, isLoading } = client.visitManagement.poli.useQuery({})
-
   const listPoli = poliData?.result
     ?.map((poli) => ({
       id: poli.id,
@@ -20,13 +19,12 @@ export default function PoliSelect() {
       lokasiKerjaId: poli.location.id
     }))
     .filter((poli) => {
-      if (session?.hakAksesId === 'administrator') return true
+      // if (session?.hakAksesId === 'administrator') return true
       return poli.lokasiKerjaId === session?.lokasiKerjaId
     })
 
-  console.log('Session:', session)
-  console.log('List Poli:', listPoli)
-  return (
+
+    return (
     <div className="p-6">
       <div className="mb-8">
         <Title level={2} className="mb-1!">

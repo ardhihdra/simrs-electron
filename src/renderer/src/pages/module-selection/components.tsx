@@ -8,6 +8,7 @@ export type InstallationOption = {
   configId: number
   key: string
   label: string
+  lokasiKerjaId: number
 }
 
 type ModuleSelectionSidebarProps = {
