@@ -1,5 +1,4 @@
 import { encounterRpc } from './encounter'
-// import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
 import { patientRpc } from './patient'
@@ -15,7 +14,6 @@ import { windowRpc } from './window'
 export const rpcRouter = {
   patient: patientRpc,
   encounter: encounterRpc,
-  // laboratory: laboratoryRpc,
   room: roomRpc,
   practitioner: practitionerRpc,
   triage: triageRpc,

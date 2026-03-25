@@ -1,7 +1,7 @@
 import { client } from '@renderer/utils/client'
 import { App, DatePicker, Form, Input, Modal, Select } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 interface ReferralModalProps {
   open: boolean
@@ -9,6 +9,36 @@ interface ReferralModalProps {
   practitionerId?: string | number
   onClose: () => void
   onSuccess: () => void
+}
+
+interface KepegawaianItem {
+  id: string | number
+  namaLengkap?: string
+  nik?: string
+  hakAksesId?: string
+  hakAkses?: {
+    kode?: string
+    nama?: string
+  }
+}
+
+function normalizeList<T>(data: unknown): T[] {
+  const raw = data as any
+  return (raw?.result || raw?.data || raw || []) as T[]
+}
+
+function isDoctorPegawai(pegawai: KepegawaianItem): boolean {
+  const kode = String(pegawai.hakAkses?.kode || '').toLowerCase()
+  const nama = String(pegawai.hakAkses?.nama || '').toLowerCase()
+  const hakAksesId = String(pegawai.hakAksesId || '').toLowerCase()
+
+  return (
+    kode.includes('doctor') ||
+    nama.includes('doctor') ||
+    nama.includes('dokter') ||
+    hakAksesId.includes('doctor') ||
+    hakAksesId.includes('dokter')
+  )
 }
 
 export default function ReferralModal({
@@ -20,6 +50,7 @@ export default function ReferralModal({
 }: ReferralModalProps) {
   const { message } = App.useApp()
   const [form] = Form.useForm()
+  const [targetDoctorSearch, setTargetDoctorSearch] = useState('')
   const referMutation = client.registration.referPatient.useMutation()
 
   const referralType = Form.useWatch('referralType', form)
@@ -46,6 +77,7 @@ export default function ReferralModal({
       form.setFieldValue('internalTargetType', undefined)
       form.setFieldValue('targetDepartemenId', undefined)
       form.setFieldValue('doctorScheduleId', undefined)
+      form.setFieldValue('ancillaryTargetPractitionerId', undefined)
     }
   }, [referralType, internalTargetType, form])
 
@@ -53,6 +85,8 @@ export default function ReferralModal({
     if (internalTargetType !== 'POLI') {
       form.setFieldValue('targetDepartemenId', undefined)
       form.setFieldValue('doctorScheduleId', undefined)
+    } else {
+      form.setFieldValue('ancillaryTargetPractitionerId', undefined)
     }
   }, [internalTargetType, form])
 
@@ -100,16 +134,61 @@ export default function ReferralModal({
     }))
   }, [internalDoctorsQuery.data])
 
+  const ancillaryDoctorParams = useMemo(() => {
+    const params: Record<string, string> = {
+      page: '1',
+      items: '200',
+      include: 'hakAkses',
+      hakAksesId: 'doctor'
+    }
+
+    if (targetDoctorSearch.trim()) {
+      params.q = targetDoctorSearch.trim()
+      params.fields = 'namaLengkap,nik'
+    }
+
+    return params
+  }, [targetDoctorSearch])
+
+  const ancillaryDoctorsQuery = client.query.entity.useQuery(
+    {
+      model: 'kepegawaian',
+      method: 'get',
+      params: ancillaryDoctorParams
+    },
+    {
+      enabled: open && referralType === 'internal' && internalTargetType !== 'POLI',
+      queryKey: ['referral-ancillary-doctors', ancillaryDoctorParams]
+    } as any
+  )
+
+  const ancillaryDoctors = useMemo(() => {
+    const doctors = normalizeList<KepegawaianItem>(ancillaryDoctorsQuery.data)
+    return doctors.filter((doctor) => isDoctorPegawai(doctor))
+  }, [ancillaryDoctorsQuery.data])
+
+  const ancillaryDoctorOptions = useMemo(() => {
+    return ancillaryDoctors.map((doctor) => ({
+      value: String(doctor.id),
+      label: `${doctor.namaLengkap || 'Dokter'} (${doctor.nik || doctor.id})`
+    }))
+  }, [ancillaryDoctors])
+
   const handleOk = () => {
     form.submit()
   }
 
   const handleCancel = () => {
     form.resetFields()
+    setTargetDoctorSearch('')
     onClose()
   }
 
   const handleFinish = async (values: any) => {
+    const ancillaryTargetPractitioner = ancillaryDoctors.find(
+      (doctor) => String(doctor.id) === String(values.ancillaryTargetPractitionerId)
+    )
+
     try {
       await referMutation.mutateAsync({
         encounterId: record?.encounterId,
@@ -117,7 +196,8 @@ export default function ReferralModal({
         referringPractitionerName: 'Petugas Pendaftaran',
         direction: 'outgoing',
         referralType: values.referralType,
-        internalTargetType: values.referralType === 'internal' ? values.internalTargetType : undefined,
+        internalTargetType:
+          values.referralType === 'internal' ? values.internalTargetType : undefined,
         referralDate: values.date ? values.date.toISOString() : new Date().toISOString(),
         diagnosisCode: values.diagnosisCode,
         diagnosisText: values.diagnosisText,
@@ -139,11 +219,20 @@ export default function ReferralModal({
           values.referralType === 'internal' && values.internalTargetType === 'POLI'
             ? values.doctorScheduleId
             : undefined,
+        targetPractitionerId:
+          values.referralType === 'internal' && values.internalTargetType !== 'POLI'
+            ? String(values.ancillaryTargetPractitionerId)
+            : undefined,
         targetPractitionerName:
-          values.referralType === 'external' ? values.targetPractitionerName : undefined
+          values.referralType === 'external'
+            ? values.targetPractitionerName
+            : values.referralType === 'internal' && values.internalTargetType !== 'POLI'
+              ? ancillaryTargetPractitioner?.namaLengkap
+              : undefined
       })
       message.success('Pasien berhasil dirujuk')
       form.resetFields()
+      setTargetDoctorSearch('')
       onSuccess()
       onClose()
     } catch (error: any) {
@@ -234,10 +323,29 @@ export default function ReferralModal({
             )}
 
             {internalTargetType !== 'POLI' && (
-              <p className="text-gray-500 text-sm">
-                Rujukan internal ke {internalTargetType === 'LABORATORY' ? 'Laboratorium' : 'Radiologi'} akan
-                langsung membuat encounter baru tanpa membuat queue.
-              </p>
+              <>
+                <Form.Item
+                  name="ancillaryTargetPractitionerId"
+                  label="Dokter Tujuan"
+                  rules={[{ required: true, message: 'Harap pilih dokter tujuan' }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Pilih dokter tujuan"
+                    loading={ancillaryDoctorsQuery.isLoading || ancillaryDoctorsQuery.isRefetching}
+                    options={ancillaryDoctorOptions}
+                    filterOption={false}
+                    optionFilterProp="label"
+                    onSearch={setTargetDoctorSearch}
+                    notFoundContent="Dokter tidak ditemukan"
+                  />
+                </Form.Item>
+                <p className="text-gray-500 text-sm">
+                  Rujukan internal ke{' '}
+                  {internalTargetType === 'LABORATORY' ? 'Laboratorium' : 'Radiologi'} akan langsung
+                  membuat encounter baru tanpa membuat queue.
+                </p>
+              </>
             )}
           </>
         )}
