@@ -23,6 +23,7 @@ export default function ReferralModal({
   const referMutation = client.registration.referPatient.useMutation()
 
   const referralType = Form.useWatch('referralType', form)
+  const internalTargetType = Form.useWatch('internalTargetType', form)
   const referralDate = Form.useWatch('date', form)
   const targetPoliId = Form.useWatch('targetDepartemenId', form)
 
@@ -37,12 +38,30 @@ export default function ReferralModal({
     form.setFieldValue('doctorScheduleId', undefined)
   }, [targetPoliId, form])
 
+  useEffect(() => {
+    if (referralType === 'internal' && !internalTargetType) {
+      form.setFieldValue('internalTargetType', 'POLI')
+    }
+    if (referralType !== 'internal') {
+      form.setFieldValue('internalTargetType', undefined)
+      form.setFieldValue('targetDepartemenId', undefined)
+      form.setFieldValue('doctorScheduleId', undefined)
+    }
+  }, [referralType, internalTargetType, form])
+
+  useEffect(() => {
+    if (internalTargetType !== 'POLI') {
+      form.setFieldValue('targetDepartemenId', undefined)
+      form.setFieldValue('doctorScheduleId', undefined)
+    }
+  }, [internalTargetType, form])
+
   const allSchedulesQuery = client.registration.getAvailableDoctors.useQuery(
     {
       date: referralDate ? dayjs(referralDate).format('YYYY-MM-DD') : undefined
     },
     {
-      enabled: referralType === 'internal' && !!referralDate,
+      enabled: referralType === 'internal' && internalTargetType === 'POLI' && !!referralDate,
       queryKey: ['availableDoctors_all_referral', { date: referralDate }]
     }
   )
@@ -63,7 +82,11 @@ export default function ReferralModal({
       poliId: targetPoliId ? Number(targetPoliId) : undefined
     },
     {
-      enabled: referralType === 'internal' && !!referralDate && !!targetPoliId,
+      enabled:
+        referralType === 'internal' &&
+        internalTargetType === 'POLI' &&
+        !!referralDate &&
+        !!targetPoliId,
       queryKey: ['availableDoctors_referral', { date: referralDate, poliId: targetPoliId }]
     }
   )
@@ -94,17 +117,28 @@ export default function ReferralModal({
         referringPractitionerName: 'Petugas Pendaftaran',
         direction: 'outgoing',
         referralType: values.referralType,
+        internalTargetType: values.referralType === 'internal' ? values.internalTargetType : undefined,
         referralDate: values.date ? values.date.toISOString() : new Date().toISOString(),
         diagnosisCode: values.diagnosisCode,
         diagnosisText: values.diagnosisText,
         keadaanKirim: values.keadaanKirim,
         reasonForReferral: values.reasonForReferral,
         targetOrganizationName:
-          values.referralType === 'internal' ? 'RS Internal' : values.targetOrganizationName,
+          values.referralType === 'internal'
+            ? values.internalTargetType === 'LABORATORY'
+              ? 'Laboratorium Internal'
+              : values.internalTargetType === 'RADIOLOGY'
+                ? 'Radiologi Internal'
+                : 'RS Internal'
+            : values.targetOrganizationName,
         targetDepartemenId:
-          values.referralType === 'internal' ? Number(values.targetDepartemenId) : undefined,
+          values.referralType === 'internal' && values.internalTargetType === 'POLI'
+            ? Number(values.targetDepartemenId)
+            : undefined,
         doctorScheduleId:
-          values.referralType === 'internal' ? values.doctorScheduleId : undefined,
+          values.referralType === 'internal' && values.internalTargetType === 'POLI'
+            ? values.doctorScheduleId
+            : undefined,
         targetPractitionerName:
           values.referralType === 'external' ? values.targetPractitionerName : undefined
       })
@@ -132,7 +166,7 @@ export default function ReferralModal({
         form={form}
         layout="vertical"
         onFinish={handleFinish}
-        initialValues={{ referralType: 'internal' }}
+        initialValues={{ referralType: 'internal', internalTargetType: 'POLI' }}
       >
         <p>
           Pasien: <b>{record?.patientName}</b>
@@ -160,28 +194,51 @@ export default function ReferralModal({
         {referralType === 'internal' && (
           <>
             <Form.Item
-              name="targetDepartemenId"
-              label="Poli Tujuan"
-              rules={[{ required: true, message: 'Harap pilih poli tujuan' }]}
+              name="internalTargetType"
+              label="Tujuan Internal"
+              rules={[{ required: true, message: 'Harap pilih tujuan internal' }]}
             >
-              <Select
-                placeholder="Pilih Poli"
-                options={poliOptions}
-                loading={allSchedulesQuery.isLoading || allSchedulesQuery.isRefetching}
-                disabled={!referralDate}
-              />
+              <Select style={{ width: '100%' }}>
+                <Select.Option value="POLI">Poli</Select.Option>
+                <Select.Option value="LABORATORY">Laboratorium</Select.Option>
+                <Select.Option value="RADIOLOGY">Radiologi</Select.Option>
+              </Select>
             </Form.Item>
-            <Form.Item
-              name="doctorScheduleId"
-              label="Jadwal Dokter Tujuan"
-              rules={[{ required: true, message: 'Harap pilih jadwal dokter' }]}
-            >
-              <Select
-                placeholder="Pilih Dokter & Jam"
-                options={internalDoctorOptions}
-                loading={internalDoctorsQuery.isLoading}
-              />
-            </Form.Item>
+
+            {internalTargetType === 'POLI' && (
+              <>
+                <Form.Item
+                  name="targetDepartemenId"
+                  label="Poli Tujuan"
+                  rules={[{ required: true, message: 'Harap pilih poli tujuan' }]}
+                >
+                  <Select
+                    placeholder="Pilih Poli"
+                    options={poliOptions}
+                    loading={allSchedulesQuery.isLoading || allSchedulesQuery.isRefetching}
+                    disabled={!referralDate}
+                  />
+                </Form.Item>
+                <Form.Item
+                  name="doctorScheduleId"
+                  label="Jadwal Dokter Tujuan"
+                  rules={[{ required: true, message: 'Harap pilih jadwal dokter' }]}
+                >
+                  <Select
+                    placeholder="Pilih Dokter & Jam"
+                    options={internalDoctorOptions}
+                    loading={internalDoctorsQuery.isLoading}
+                  />
+                </Form.Item>
+              </>
+            )}
+
+            {internalTargetType !== 'POLI' && (
+              <p className="text-gray-500 text-sm">
+                Rujukan internal ke {internalTargetType === 'LABORATORY' ? 'Laboratorium' : 'Radiologi'} akan
+                langsung membuat encounter baru tanpa membuat queue.
+              </p>
+            )}
           </>
         )}
 

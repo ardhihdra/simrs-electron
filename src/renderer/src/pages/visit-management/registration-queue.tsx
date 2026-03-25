@@ -7,6 +7,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useParams } from 'react-router'
+import CallConfirmationModal from './components/CallConfirmationModal'
 import CallQueueModal from './components/CallQueueModal'
 import ConfirmQueueModal from './components/ConfirmQueueModal'
 import DischargeModal from './components/DischargeModal'
@@ -27,6 +28,9 @@ export default function RegistrationQueue({
   })
 
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; queue?: any }>({ open: false })
+  const [callConfirmModal, setCallConfirmModal] = useState<{ open: boolean; record?: any }>({
+    open: false
+  })
   const [callModal, setCallModal] = useState<{ open: boolean; record?: any }>({ open: false })
   const [dischargeModal, setDischargeModal] = useState<{ open: boolean; record?: any }>({
     open: false
@@ -45,7 +49,7 @@ export default function RegistrationQueue({
   } = client.registration.getQueues.useQuery({
     queueDate: searchParams.queueDate,
     queueNumber: searchParams.queueNumber ? Number(searchParams.queueNumber) : undefined,
-    status: ['PRE_RESERVED', 'RESERVED', 'REGISTERED', 'TRIAGE', 'TRIAGED', 'IN_PROGRESS'],
+    status: ['PRE_RESERVED', 'RESERVED', 'REGISTERED', 'CALLED', 'TRIAGE', 'TRIAGED', 'IN_PROGRESS'],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
 
@@ -218,10 +222,17 @@ export default function RegistrationQueue({
                   type: 'primary',
                   onClick: () => setConfirmModal({ open: true, queue: record })
                 })
-              } else if (['RESERVED', 'REGISTERED', 'CALLED', 'TRIAGE'].includes(record.status)) {
+              } else if (['RESERVED', 'REGISTERED'].includes(record.status)) {
                 actions.push({
                   label: 'Panggil',
                   icon: <SoundOutlined />,
+                  onClick: () => setCallConfirmModal({ open: true, record })
+                })
+              } else if (record.status === 'CALLED') {
+                actions.push({
+                  label: 'Konfirmasi Tujuan',
+                  icon: <CheckCircleOutlined />,
+                  type: 'primary',
                   onClick: () => setCallModal({ open: true, record })
                 })
               } else if (record.status === 'TRIAGED') {
@@ -273,6 +284,13 @@ export default function RegistrationQueue({
           }}
         />
       </div>
+
+      <CallConfirmationModal
+        open={callConfirmModal.open}
+        record={callConfirmModal.record}
+        onClose={() => setCallConfirmModal({ open: false, record: undefined })}
+        onSuccess={() => refetch()}
+      />
 
       <CallQueueModal
         open={callModal.open}

@@ -12,7 +12,7 @@ export default function CallQueueModal({ open, record, onClose, onSuccess }: Cal
   const { message } = App.useApp()
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
 
-  const handleProcessCall = async (withTriage: boolean) => {
+  const handleConfirmDestination = async (withTriage: boolean) => {
     if (!record) return
 
     try {
@@ -33,13 +33,13 @@ export default function CallQueueModal({ open, record, onClose, onSuccess }: Cal
       onClose()
     } catch (error: any) {
       console.error(error)
-      message.error(error.message || 'Gagal memproses antrian')
+      message.error(error.message || 'Gagal konfirmasi tujuan pasien')
     }
   }
 
   return (
     <Modal
-      title="Konfirmasi Panggilan"
+      title="Konfirmasi Tujuan Pasien"
       open={open}
       onCancel={onClose}
       footer={[
@@ -49,7 +49,7 @@ export default function CallQueueModal({ open, record, onClose, onSuccess }: Cal
         <Button
           key="triage"
           loading={updateStatusMutation.isPending}
-          onClick={() => handleProcessCall(true)}
+          onClick={() => handleConfirmDestination(true)}
         >
           Ke Pemeriksaan Awal
         </Button>,
@@ -57,7 +57,7 @@ export default function CallQueueModal({ open, record, onClose, onSuccess }: Cal
           key="poli"
           type="primary"
           loading={updateStatusMutation.isPending}
-          onClick={() => handleProcessCall(false)}
+          onClick={() => handleConfirmDestination(false)}
         >
           Langsung ke Poli
         </Button>
@@ -69,7 +69,7 @@ export default function CallQueueModal({ open, record, onClose, onSuccess }: Cal
       <p>
         No. Antrian: <b>{record?.formattedQueueNumber}</b>
       </p>
-      <p>Apakah pasien memerlukan pemeriksaan Triage terlebih dahulu?</p>
+      <p>Pilih tujuan pasien setelah dipanggil.</p>
     </Modal>
   )
 }

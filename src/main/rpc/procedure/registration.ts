@@ -169,6 +169,7 @@ const ReferPatientInputSchema = z.object({
   encounterId: z.string().uuid(),
   referringPractitionerId: z.number(),
   referringPractitionerName: z.string(),
+  internalTargetType: z.enum(['POLI', 'LABORATORY', 'RADIOLOGY']).optional(),
   targetOrganizationId: z.string().optional(),
   targetOrganizationName: z.string().optional(),
   targetDepartemenId: z.number().optional(),

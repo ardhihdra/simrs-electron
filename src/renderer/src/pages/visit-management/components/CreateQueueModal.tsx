@@ -238,8 +238,8 @@ const CreateQueueModal = ({
 
             <Form.Item
               name="mitraCodeNumber"
-              label="Mitra Code"
-              rules={[{ required: true, message: 'Harap isi mitra code' }]}
+              label="Nomor Kartu"
+              rules={[{ required: true, message: 'Harap isi nomor kartu' }]}
             >
               <Input placeholder="Nomor kartu/nomor mitra" />
             </Form.Item>
