@@ -140,6 +140,10 @@ function createWindow(): void {
         if (backendToken) {
           sessionStore.setBackendTokenForWindow(newWindowId, backendToken)
         }
+        const scopeToken = sessionStore.getScopeTokenForWindow(mainWindowId)
+        if (scopeToken) {
+          sessionStore.setScopeTokenForWindow(newWindowId, scopeToken)
+        }
       }
 
       // Optional: Open DevTools in dev mode for the new window

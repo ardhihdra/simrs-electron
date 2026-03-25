@@ -1,10 +1,17 @@
-import { PlusOutlined,  SyncOutlined } from '@ant-design/icons'
+import {
+  CheckCircleOutlined,
+  HourglassOutlined,
+  PlusOutlined,
+  SyncOutlined,
+  UserOutlined
+} from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
+import { TableHeaderStats } from '@renderer/components/TableHeaderStats'
 import { useDebounce } from '@renderer/hooks/useDebounce'
 import { client, rpc } from '@renderer/utils/client'
 import { PatientAttributes } from '@shared/patient'
-import {  Form, Input, App } from 'antd'
+import { App, Form, Input } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -19,7 +26,11 @@ export default function RegistrationPage() {
   const debouncedNik = useDebounce(searchParams.nik, 500)
   const debouncedName = useDebounce(searchParams.name, 500)
 
-  const { data: patientData, isLoading, isRefetching } = client.patient.list.useQuery({
+  const {
+    data: patientData,
+    isLoading,
+    isRefetching
+  } = client.patient.list.useQuery({
     nik: debouncedNik,
     name: debouncedName
   })
@@ -58,16 +69,16 @@ export default function RegistrationPage() {
 
   const handleSyncPatient = async (patientId: string) => {
     try {
-        await rpc.visitManagement.patientSync({ patientId })
-        message.success('Sync Satusehat berhasil')
+      await rpc.visitManagement.patientSync({ patientId })
+      message.success('Sync Satusehat berhasil')
     } catch (error: any) {
-        console.error(error)
-        message.error(error.message || 'Gagal sync Satusehat')
-    } 
+      console.error(error)
+      message.error(error.message || 'Gagal sync Satusehat')
+    }
   }
 
   return (
-    <div >
+    <div>
       <TableHeader
         title="Registrasi Kunjungan"
         subtitle="Manajemen pendaftaran pasien"
@@ -76,47 +87,75 @@ export default function RegistrationPage() {
         onCreate={handleCreateEmptyQueue}
         createLabel="Buat Antrian (Tanpa Pasien)"
         loading={isLoading || isRefetching}
-        
-      > <Form.Item name="medicalRecordNumber" style={{ width: '100%' }} >
-                <Input placeholder="Cari MRN" allowClear size='large' />
-            </Form.Item>
-            <Form.Item name="nik" style={{ width: '100%' }} >
-                <Input placeholder="Cari NIK" allowClear size='large' />
-            </Form.Item>
-            <Form.Item name="name" style={{ width: '100%' }} >
-                <Input placeholder="Cari Nama" allowClear size='large' />
-            </Form.Item>
+        stats={
+          <div className="grid grid-cols-4 gap-2 w-full">
+            <TableHeaderStats
+              variant="primary"
+              icon={<UserOutlined style={{ fontSize: 16 }} />}
+              value={dataSource.length}
+              label="Total Pasien"
+            />
+            <TableHeaderStats
+              variant="warning"
+              icon={<HourglassOutlined style={{ fontSize: 16 }} />}
+              value={12}
+              label="Antrian"
+            />
+            <TableHeaderStats
+              variant="info"
+              icon={<SyncOutlined spin style={{ fontSize: 16 }} />}
+              value={12}
+              label="Dilayani"
+            />
+            <TableHeaderStats
+              variant="success"
+              icon={<CheckCircleOutlined style={{ fontSize: 16 }} />}
+              value={12}
+              label="Selesai"
+            />
+          </div>
+        }
+      >
+        <Form.Item name="medicalRecordNumber" style={{ width: '100%' }}>
+          <Input placeholder="Cari MRN" allowClear size="large" />
+        </Form.Item>
+        <Form.Item name="nik" style={{ width: '100%' }}>
+          <Input placeholder="Cari NIK" allowClear size="large" />
+        </Form.Item>
+        <Form.Item name="name" style={{ width: '100%' }}>
+          <Input placeholder="Cari Nama" allowClear size="large" />
+        </Form.Item>
       </TableHeader>
 
       <div className="mt-4">
-          <GenericTable
-            columns={columns}
-            dataSource={dataSource as any}
-            rowKey="id"
-            loading={isLoading || isRefetching}
-            action={{
-              title: 'Aksi',
-              width: 150,
-              items: (record) => [
-                {
-label:'Sync Satusehat',
-icon:<SyncOutlined />,
-onClick:()=>handleSyncPatient(record.id)
-                },
-                {
-                  label: 'Daftar',
-                  icon: <PlusOutlined />,
-                  onClick: () => handleRegisterPatient(record),
-                  type: 'primary'
-                },
-                // {
-                //     label: 'Detail',
-                //     icon: <SearchOutlined />,
-                //     onClick: () => console.log('Detail patient', record)
-                // }
-              ]
-            }}
-          />
+        <GenericTable
+          columns={columns}
+          dataSource={dataSource as any}
+          rowKey="id"
+          loading={isLoading || isRefetching}
+          action={{
+            title: 'Aksi',
+            width: 150,
+            items: (record) => [
+              {
+                label: 'Sync Satusehat',
+                icon: <SyncOutlined />,
+                onClick: () => handleSyncPatient(record.id)
+              },
+              {
+                label: 'Daftar',
+                icon: <PlusOutlined />,
+                onClick: () => handleRegisterPatient(record),
+                type: 'primary'
+              }
+              // {
+              //     label: 'Detail',
+              //     icon: <SearchOutlined />,
+              //     onClick: () => console.log('Detail patient', record)
+              // }
+            ]
+          }}
+        />
       </div>
 
       <CreateQueueModal
@@ -124,8 +163,8 @@ onClick:()=>handleSyncPatient(record.id)
         onClose={() => setOpenModal(false)}
         patient={selectedPatient}
         onSuccess={() => {
-            // Refresh logic if needed, e.g. refetch active queues or something
-            // Currently this page searches patients, so maybe not much to refresh unless we show active queues too
+          // Refresh logic if needed, e.g. refetch active queues or something
+          // Currently this page searches patients, so maybe not much to refresh unless we show active queues too
         }}
       />
     </div>

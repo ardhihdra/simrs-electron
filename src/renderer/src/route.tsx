@@ -1,4 +1,7 @@
-import { Link, Route, Routes, useLocation } from 'react-router'
+import { ModuleScopeGuard } from './services/ModuleScope/guard'
+import { workspaceModuleCodes } from './services/ModuleScope/constant'
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
+import type { ReactNode } from 'react'
 
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
@@ -17,6 +20,7 @@ import Diagnostic from './pages/diagnostic/diagnostic'
 import DiagnosticForm from './pages/diagnostic/diagnostic-form'
 import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
+import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
@@ -59,6 +63,7 @@ import MedicationDispenseFromRequest from './pages/medication-dispense/medicatio
 import MedicationDispenseTable from './pages/medication-dispense/medication-dispense-table'
 import MedicationRequestForm from './pages/medication-request/medication-request-form'
 import MedicationRequestTable from './pages/medication-request/medication-request-table'
+import ModuleSelection from './pages/module-selection/page'
 import NurseCalling from './pages/nurse-calling/NurseCalling'
 import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
@@ -85,7 +90,10 @@ import ActiveEncountersPage from './pages/visit-management/active-encounters-pag
 import InitialTriage from './pages/visit-management/initial-triage'
 import RegistrationPage from './pages/visit-management/registration-page'
 import RegistrationQueue from './pages/visit-management/registration-queue'
-import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
+
+const withModuleGuard = (module: string, element: ReactNode) => (
+  <ModuleScopeGuard module={module}>{element}</ModuleScopeGuard>
+)
 
 function MainRoute() {
   const location = useLocation()
@@ -94,27 +102,43 @@ function MainRoute() {
       <Route path="/iframe-view" element={<IframeView />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
+        <Route path='/module-selection' element={<ModuleSelection />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
           <Route index element={<DashboardHome />} />
-          <Route path="expense" element={<Expense />}>
+          <Route
+            path="expense"
+            element={withModuleGuard(workspaceModuleCodes.registration, <Expense />)}
+          >
             <Route index element={<ExpenseTable />} />
             <Route path="create" element={<ExpenseForm />} />
           </Route>
-          <Route path="registration">
+          <Route
+            path="registration"
+            element={withModuleGuard(workspaceModuleCodes.registration, <Outlet />)}
+          >
             <Route index element={<RegistrationPage />} />
             <Route path="queue" element={<RegistrationQueue />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
-          <Route path="patient" element={<Patient />}>
+          <Route
+            path="patient"
+            element={withModuleGuard(workspaceModuleCodes.registration, <Patient />)}
+          >
             <Route index element={<PatientTable />} />
             <Route path="register" element={<PatientForm />} />
             <Route path="edit/:id" element={<PatientForm />} />
           </Route>
-          <Route path="pendaftaran" element={<Pendaftaran />}>
+          <Route
+            path="pendaftaran"
+            element={withModuleGuard(workspaceModuleCodes.registration, <Pendaftaran />)}
+          >
             <Route index element={<div>Daftar</div>} />
           </Route>
-          <Route path="encounter" element={<Encounter />}>
+          <Route
+            path="encounter"
+            element={withModuleGuard(workspaceModuleCodes.registration, <Encounter />)}
+          >
             <Route index element={<EncounterTable />} />
             <Route path="create" element={<EncounterForm />} />
             <Route path="edit/:id" element={<EncounterForm />} />
@@ -123,12 +147,18 @@ function MainRoute() {
             <Route path="referral-request/:id" element={<ReferralRequestPage />} />
             <Route path="triage" element={<TriagePage />} />
           </Route>
-          <Route path="service-request" element={<ServiceRequest />}>
+          <Route
+            path="service-request"
+            element={withModuleGuard(workspaceModuleCodes.registration, <ServiceRequest />)}
+          >
             <Route index element={<ServiceRequestTable />} />
             <Route path="create" element={<ServiceRequestForm />} />
             <Route path="edit/:id" element={<ServiceRequestForm />} />
           </Route>
-          <Route path="queue" element={<Encounter />}>
+          <Route
+            path="queue"
+            element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}
+          >
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
             <Route
@@ -141,45 +171,81 @@ function MainRoute() {
               element={<QueueList title="Antrian Laboratorium" serviceType="LAB" />}
             />
           </Route>
-          <Route path="income" element={<Income />}>
+          <Route
+            path="income"
+            element={withModuleGuard(workspaceModuleCodes.registration, <Income />)}
+          >
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
           </Route>
-          <Route path="registration/jaminan" element={<Jaminan />}>
+          <Route
+            path="registration/jaminan"
+            element={withModuleGuard(workspaceModuleCodes.registration, <Jaminan />)}
+          >
             <Route index element={<JaminanTable />} />
             <Route path="create" element={<JaminanForm />} />
             <Route path="edit/:id" element={<JaminanForm />} />
           </Route>
-          <Route path="registration/medical-staff-schedule" element={<MedicalStaffSchedule />}>
+          <Route
+            path="registration/medical-staff-schedule"
+            element={withModuleGuard(workspaceModuleCodes.registration, <MedicalStaffSchedule />)}
+          >
             <Route index element={<MedicalStaffScheduleTable />} />
             <Route path="create" element={<MedicalStaffScheduleForm />} />
             <Route path="edit/:id" element={<MedicalStaffScheduleForm />} />
           </Route>
-          <Route path="pegawai" element={<Pegawai />}>
+          <Route
+            path="pegawai"
+            element={withModuleGuard(workspaceModuleCodes.administrator, <Pegawai />)}
+          >
             <Route index element={<PegawaiTable />} />
             <Route path="create" element={<PegawaiForm />} />
             <Route path="edit/:id" element={<PegawaiForm />} />
           </Route>
-          <Route path="pegawai-report" element={<PegawaiReport />} />
-          <Route path="registration/doctor-schedule" element={<DoctorScheduleTable />} />
-          <Route path="registration/doctor-schedule/create" element={<DoctorScheduleForm />} />
-          <Route path="registration/doctor-schedule/edit/:id" element={<DoctorScheduleForm />} />
-          <Route path="registration/doctor-leave" element={<DoctorLeave />}>
+          <Route
+            path="pegawai-report"
+            element={withModuleGuard(workspaceModuleCodes.administrator, <PegawaiReport />)}
+          />
+          <Route
+            path="registration/doctor-schedule"
+            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorScheduleTable />)}
+          />
+          <Route
+            path="registration/doctor-schedule/create"
+            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorScheduleForm />)}
+          />
+          <Route
+            path="registration/doctor-schedule/edit/:id"
+            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorScheduleForm />)}
+          />
+          <Route
+            path="registration/doctor-leave"
+            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorLeave />)}
+          >
             <Route index element={<DoctorLeaveTable />} />
             <Route path="create" element={<DoctorLeaveForm />} />
             <Route path="edit/:id" element={<DoctorLeaveForm />} />
           </Route>
-          <Route path="diagnostic" element={<Diagnostic />}>
+          <Route
+            path="diagnostic"
+            element={withModuleGuard(workspaceModuleCodes.doctor, <Diagnostic />)}
+          >
             <Route index element={<DiagnosticTable />} />
             <Route path="create" element={<DiagnosticForm />} />
             <Route path="edit/:id" element={<DiagnosticForm />} />
           </Route>
-          <Route path="services" element={<Services />}>
+          <Route
+            path="services"
+            element={withModuleGuard(workspaceModuleCodes.doctor, <Services />)}
+          >
             <Route index element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
           </Route>
-          <Route path="medicine" element={<Pharmacy />}>
+          <Route
+            path="medicine"
+            element={withModuleGuard(workspaceModuleCodes.medicine, <Pharmacy />)}
+          >
             <Route index element={<PharmacyDashboard />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
@@ -203,25 +269,40 @@ function MainRoute() {
             <Route path="item-purchase" element={<ItemPurchasePage />} />
           </Route>
 
-          <Route path="nurse-calling" element={<NurseCalling />}>
+          <Route
+            path="nurse-calling"
+            element={withModuleGuard(workspaceModuleCodes.nurse, <NurseCalling />)}
+          >
             <Route index element={<PatientQueueTable />} />
             <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />
           </Route>
-          <Route path="doctor" element={<DoctorEMR />}>
+          <Route
+            path="doctor"
+            element={withModuleGuard(workspaceModuleCodes.doctor, <DoctorEMR />)}
+          >
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
           </Route>
-          <Route path="services" element={<Services />}>
+          <Route
+            path="services"
+            element={withModuleGuard(workspaceModuleCodes.doctor, <Services />)}
+          >
             <Route index element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
           </Route>
-          <Route path="pharmacy" element={<Pharmacy />}>
+          <Route
+            path="pharmacy"
+            element={withModuleGuard(workspaceModuleCodes.medicine, <Pharmacy />)}
+          >
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
             <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
             <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
           </Route>
-          <Route path="laboratory">
+          <Route
+            path="laboratory"
+            element={withModuleGuard(workspaceModuleCodes.laboratory, <Outlet />)}
+          >
             <Route index element={<LaboratoryPage />} />
             <Route path="list" element={<LaboratoryPage />} />
             <Route path="permintaan" element={<PermintaanLab />} />
@@ -233,7 +314,10 @@ function MainRoute() {
             <Route path="report/:id" element={<LabReportDetailPage />} />
             <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
           </Route>
-          <Route path="laboratory-management">
+          <Route
+            path="laboratory-management"
+            element={withModuleGuard(workspaceModuleCodes.laboratory, <Outlet />)}
+          >
             <Route index element={<LaboratoryQueue />} />
             <Route path="queue" element={<LaboratoryQueue />} />
             <Route path="requests" element={<LaboratoryRequests />} />

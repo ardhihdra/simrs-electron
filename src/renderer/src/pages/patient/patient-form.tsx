@@ -7,7 +7,10 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import type { PatientAttributes } from 'simrs-types'
 
-type PatientFormValues = Omit<PatientAttributes, 'birthDate'> & {
+type PatientFormValues = Omit<
+  PatientAttributes & { allowSendToSatusehat: boolean },
+  'birthDate'
+> & {
   birthDate: Dayjs
   district?: string
   village?: string
@@ -67,7 +70,9 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
 
   useEffect(() => {
     const item = detail.data?.result as
-      | Partial<PatientAttributes & { district: string; village: string }>
+      | Partial<
+          PatientAttributes & { district: string; village: string; allowSendToSatusehat: boolean }
+        >
       | undefined
     if (item) {
       form.setFieldsValue({
@@ -84,7 +89,8 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         village: item.village ?? undefined,
         postalCode: item.postalCode ?? undefined,
         country: item.country ?? undefined,
-        maritalStatus: item.maritalStatus ?? undefined
+        maritalStatus: item.maritalStatus ?? undefined,
+        allowSendToSatusehat: item.allowSendToSatusehat ?? false
       })
     }
   }, [detail.data, form])
@@ -145,7 +151,8 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         fhirServer: null,
         fhirVersion: null,
         lastFhirUpdated: null,
-        lastSyncedAt: null
+        lastSyncedAt: null,
+        allowSendToSatusehat: values.allowSendToSatusehat ?? true
       }
       if (isEdit && id) {
         await updateMutation.mutateAsync({ ...payload, id: id })
@@ -233,7 +240,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       <Form form={form} layout="vertical" onFinish={onFinish} className="w-full mt-6">
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
           <div className="grid grid-cols-2 gap-4">
-            <Form.Item label="NIK" name="nik" rules={[{ required: true, message: 'NIK wajib' }]}>
+            <Form.Item label="NIK" name="nik" rules={[{ required: false, message: 'NIK wajib' }]}>
               <Input placeholder="Nomor Induk Kependudukan" />
             </Form.Item>
             <Form.Item label="Nama" name="name" rules={[{ required: true, message: 'Nama wajib' }]}>

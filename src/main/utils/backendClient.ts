@@ -19,11 +19,16 @@ export function createBackendClient(ctx: IpcContext) {
   if (!token) throw new Error('NO_BACKEND_TOKEN')
 
   const root = base.endsWith('/') ? base.slice(0, -1) : base
+  const scopeToken =
+    typeof ctx.senderId === 'number'
+      ? ctx.sessionStore?.getScopeTokenForWindow?.(ctx.senderId)
+      : undefined
 
   const headers = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
-    'x-access-token': token
+    'x-access-token': token,
+    ...(scopeToken ? { Cookie: `scopeToken=${scopeToken}` } : {})
   }
 
   return {
@@ -61,7 +66,8 @@ export function createBackendClient(ctx: IpcContext) {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
-          'x-access-token': token
+          'x-access-token': token,
+          ...(scopeToken ? { Cookie: `scopeToken=${scopeToken}` } : {})
         },
         body: formData
       }),
@@ -71,7 +77,8 @@ export function createBackendClient(ctx: IpcContext) {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
-          'x-access-token': token
+          'x-access-token': token,
+          ...(scopeToken ? { Cookie: `scopeToken=${scopeToken}` } : {})
         },
         body: formData
       })
