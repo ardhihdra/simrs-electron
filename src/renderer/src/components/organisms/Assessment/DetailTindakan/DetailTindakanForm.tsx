@@ -1,17 +1,30 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Form, Button, Card, App, Modal, Table, Space, Tooltip, Popconfirm, Popover, Spin, Tag, Tabs } from 'antd'
+import {
+  Form,
+  Button,
+  Card,
+  App,
+  Modal,
+  Table,
+  Space,
+  Tooltip,
+  Popconfirm,
+  Popover,
+  Spin,
+  Tag,
+  Tabs
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
   SaveOutlined,
   PlusOutlined,
-  ThunderboltOutlined,
   DeleteOutlined,
   HistoryOutlined,
-  CheckCircleOutlined
+  EditOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
+
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useMasterTindakanList } from '@renderer/hooks/query/use-master-tindakan'
 import {
@@ -20,16 +33,18 @@ import {
   type PaketBhpItem
 } from '@renderer/hooks/query/use-master-paket-tindakan'
 import {
-  useDetailTindakanByEncounter,
   useCreateDetailTindakan,
-  useVoidDetailTindakan,
-  type DetailTindakanPasienItem
-} from '@renderer/hooks/query/use-detail-tindakan-pasien'
+  useDetailTindakanByEncounter,
+  useUpdateDetailTindakan,
+  useVoidDetailTindakan
+} from '../../../../hooks/query/use-detail-tindakan-pasien'
 import { useMasterJenisKomponenList } from '@renderer/hooks/query/use-master-jenis-komponen'
+import { useMasterPaketBhpList } from '@renderer/hooks/query/use-master-paket-bhp'
 import { theme } from 'antd'
 import PaketTindakanTab from './PaketTindakanTab'
 import TindakanNonPaketTab from './TindakanNonPaketTab'
 import PaketBhpTab from './PaketBhpTab'
+import BhpNonPaketTab from './BhpNonPaketTab'
 
 interface DetailTindakanFormProps {
   encounterId: string
@@ -112,15 +127,20 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const { token } = theme.useToken()
   const [modalForm] = Form.useForm()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [activeInputTab, setActiveInputTab] = useState<'paket' | 'non-paket' | 'paket-bhp'>(
-    'paket'
-  )
+  const [activeInputTab, setActiveInputTab] = useState<
+    'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket'
+  >('paket')
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
+  const [searchPaketBhp, setSearchPaketBhp] = useState('')
   const [paketCache, setPaketCache] = useState<Record<number, any>>({})
+  const [paketBhpCache, setPaketBhpCache] = useState<Record<number, any>>({})
   const [masterTindakanDetailCache, setMasterTindakanDetailCache] = useState<
     Record<number, MasterTindakanDetailRef | null>
   >({})
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [initialPetugas, setInitialPetugas] = useState<any[]>([])
+  const [initialPaketPetugas, setInitialPaketPetugas] = useState<Record<string, any[]>>({})
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
 
@@ -156,6 +176,26 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     })
   }, [paketList])
 
+  const { data: paketBhpList = [], isLoading: isLoadingPaketBhp } = useMasterPaketBhpList({
+    q: searchPaketBhp || undefined,
+    items: 10
+  })
+
+  useEffect(() => {
+    if (!Array.isArray(paketBhpList) || paketBhpList.length === 0) return
+
+    setPaketBhpCache((prev) => {
+      const next = { ...prev }
+      paketBhpList.forEach((paket) => {
+        const id = Number(paket?.id)
+        if (Number.isFinite(id) && id > 0) {
+          next[id] = paket
+        }
+      })
+      return next
+    })
+  }, [paketBhpList])
+
   const { data: consumableItems = [], isLoading: isLoadingConsumableItems } = useQuery({
     queryKey: ['item', 'consumable-list'],
     queryFn: async (): Promise<ConsumableItem[]> => {
@@ -187,8 +227,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const currentTindakanList = Form.useWatch('tindakanList', modalForm)
   const paketEntriesWatcher = Form.useWatch('paketEntries', modalForm)
-  const nonPaketKelasWatcher = Form.useWatch('kelas', modalForm)
   const assessmentDateWatcher = Form.useWatch('assessment_date', modalForm)
+
   const getDetailMasterTindakan = (detail: any) =>
     detail?.masterTindakan ?? detail?.tindakan ?? null
   const getPaketTindakanItems = (paket: any): PaketDetailItem[] => {
@@ -234,64 +274,140 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     [listJenisKomponen]
   )
 
-  const normalizeKelas = (value: unknown) =>
-    String(value ?? '')
-      .trim()
-      .toLowerCase()
+  const normalizeKelas = useCallback(
+    (value: unknown) =>
+      String(value ?? '')
+        .trim()
+        .toLowerCase(),
+    []
+  )
 
-  const isDateWithinPeriod = (tanggal: string, from?: string | null, to?: string | null) => {
-    const start = String(from || '')
-    const end = to ? String(to) : null
-    if (!start) return false
-    if (start > tanggal) return false
-    if (end && end < tanggal) return false
-    return true
-  }
+  const isDateWithinPeriod = useCallback(
+    (tanggal: string, from?: string | null, to?: string | null) => {
+      const start = String(from || '')
+      const end = to ? String(to) : null
+      if (!start) return false
+      if (start > tanggal) return false
+      if (end && end < tanggal) return false
+      return true
+    },
+    []
+  )
 
-  const pickTarifForKelasAndDate = (
-    tarifList: MasterTarifTindakanRef[],
-    kelas: string,
-    tanggal: string
-  ) => {
-    const kelasTarget = normalizeKelas(kelas)
-    const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+  const pickTarifForKelasAndDate = useCallback(
+    (tarifList: MasterTarifTindakanRef[], kelas: string, tanggal: string) => {
+      const kelasTarget = normalizeKelas(kelas)
+      const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
 
-    const candidates = (tarifList || [])
-      .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
-      .sort((a, b) => {
-        const kelasA = normalizeKelas(a?.kelas)
-        const kelasB = normalizeKelas(b?.kelas)
-        const rankA = kelasPriority.indexOf(kelasA)
-        const rankB = kelasPriority.indexOf(kelasB)
-        const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
-        const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
-        if (safeRankA !== safeRankB) return safeRankA - safeRankB
+      const candidates = (tarifList || [])
+        .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
+        .sort((a, b) => {
+          const kelasA = normalizeKelas(a?.kelas)
+          const kelasB = normalizeKelas(b?.kelas)
+          const rankA = kelasPriority.indexOf(kelasA)
+          const rankB = kelasPriority.indexOf(kelasB)
+          const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
+          const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
+          if (safeRankA !== safeRankB) return safeRankA - safeRankB
 
-        const fromA = String(a?.effectiveFrom ?? '')
-        const fromB = String(b?.effectiveFrom ?? '')
-        return fromB.localeCompare(fromA)
-      })
+          const fromA = String(a?.effectiveFrom ?? '')
+          const fromB = String(b?.effectiveFrom ?? '')
+          return fromB.localeCompare(fromA)
+        })
 
-    return candidates[0]
-  }
+      return candidates[0]
+    },
+    [isDateWithinPeriod, normalizeKelas]
+  )
 
-  const resolveRolesFromTindakanItems = (items: any[], kelas?: string | null, tanggal?: string) => {
-    if (!Array.isArray(items) || items.length === 0 || !kelas || !tanggal) return []
+  const resolveRolesFromTindakanItems = useCallback(
+    (items: any[], kelas?: string | null, tanggal?: string) => {
+      if (!Array.isArray(items) || items.length === 0 || !kelas || !tanggal) return []
 
-    const roleSet = new Set<string>()
+      const roleSet = new Set<string>()
 
-    items
-      .filter((item) => Number(item?.masterTindakanId) > 0)
-      .forEach((item) => {
-        const tindakanId = Number(item.masterTindakanId)
-        const detail = masterTindakanDetailCache[tindakanId]
-        if (!detail || !Array.isArray(detail?.tarifList)) return
+      items
+        .filter((item) => Number(item?.masterTindakanId) > 0)
+        .forEach((item) => {
+          const tindakanId = Number(item.masterTindakanId)
+          const detail = masterTindakanDetailCache[tindakanId]
+          if (!detail || !Array.isArray(detail?.tarifList)) return
 
-        const pickedTarif = pickTarifForKelasAndDate(detail.tarifList, kelas, tanggal)
-        const komponenList = Array.isArray(pickedTarif?.komponenList)
-          ? pickedTarif.komponenList
+          const pickedTarif = pickTarifForKelasAndDate(detail.tarifList, kelas, tanggal)
+          const komponenList = Array.isArray(pickedTarif?.komponenList)
+            ? pickedTarif.komponenList
+            : []
+
+          komponenList.forEach((komponen) => {
+            const komponenId = Number(komponen?.jenisKomponenId)
+            const isUntukMedis = komponen?.jenisKomponen?.isUntukMedis === true
+            const fallbackKode = String(
+              komponen?.kode || komponen?.jenisKomponen?.kode || ''
+            ).trim()
+            const roleKode = roleByKomponenId.get(komponenId) || (isUntukMedis ? fallbackKode : '')
+            if (roleKode) roleSet.add(roleKode)
+          })
+        })
+
+      return Array.from(roleSet)
+    },
+    [masterTindakanDetailCache, pickTarifForKelasAndDate, roleByKomponenId]
+  )
+
+  const resolveRolesFromPaketEntry = useCallback(
+    (entry: any, tanggal?: string) => {
+      if (!entry?.paketId || !entry?.kelas || !tanggal) return []
+
+      const paketId = Number(entry.paketId)
+      if (!Number.isFinite(paketId) || paketId <= 0) return []
+
+      const selectedPaket = paketCache[paketId] ?? paketList.find((p) => Number(p?.id) === paketId)
+      const tarifList = Array.isArray(selectedPaket?.tarifList)
+        ? (selectedPaket.tarifList as PaketTarifHeaderRef[])
+        : []
+      if (tarifList.length === 0) return []
+
+      const kelasTarget = normalizeKelas(entry?.kelas)
+      const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+      const pickedTarif = [...tarifList]
+        .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
+        .sort((a, b) => {
+          const kelasA = normalizeKelas(a?.kelas)
+          const kelasB = normalizeKelas(b?.kelas)
+          const rankA = kelasPriority.indexOf(kelasA)
+          const rankB = kelasPriority.indexOf(kelasB)
+          const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
+          const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
+          if (safeRankA !== safeRankB) return safeRankA - safeRankB
+
+          const fromA = String(a?.effectiveFrom ?? '')
+          const fromB = String(b?.effectiveFrom ?? '')
+          return fromB.localeCompare(fromA)
+        })[0]
+
+      if (!pickedTarif) return []
+
+      const entryDetailIds = new Set<number>(
+        (Array.isArray(entry?.tindakanList) ? entry.tindakanList : [])
+          .map((item: any) => Number(item?.paketDetailId))
+          .filter((id: number) => Number.isFinite(id) && id > 0)
+      )
+
+      const roleSet = new Set<string>()
+      const rincianList = Array.isArray(pickedTarif?.rincianTarif) ? pickedTarif.rincianTarif : []
+
+      rincianList.forEach((rincian) => {
+        const paketDetailId = Number(rincian?.paketDetailId)
+        if (
+          entryDetailIds.size > 0 &&
+          (!Number.isFinite(paketDetailId) || !entryDetailIds.has(paketDetailId))
+        ) {
+          return
+        }
+
+        const komponenList = Array.isArray(rincian?.komponenTarifList)
+          ? rincian.komponenTarifList
           : []
-
         komponenList.forEach((komponen) => {
           const komponenId = Number(komponen?.jenisKomponenId)
           const isUntukMedis = komponen?.jenisKomponen?.isUntukMedis === true
@@ -301,73 +417,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         })
       })
 
-    return Array.from(roleSet)
-  }
-
-  const resolveRolesFromPaketEntry = (entry: any, tanggal?: string) => {
-    if (!entry?.paketId || !entry?.kelas || !tanggal) return []
-
-    const paketId = Number(entry.paketId)
-    if (!Number.isFinite(paketId) || paketId <= 0) return []
-
-    const selectedPaket = paketCache[paketId] ?? paketList.find((p) => Number(p?.id) === paketId)
-    const tarifList = Array.isArray(selectedPaket?.tarifList)
-      ? (selectedPaket.tarifList as PaketTarifHeaderRef[])
-      : []
-    if (tarifList.length === 0) return []
-
-    const kelasTarget = normalizeKelas(entry?.kelas)
-    const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
-    const pickedTarif = [...tarifList]
-      .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
-      .sort((a, b) => {
-        const kelasA = normalizeKelas(a?.kelas)
-        const kelasB = normalizeKelas(b?.kelas)
-        const rankA = kelasPriority.indexOf(kelasA)
-        const rankB = kelasPriority.indexOf(kelasB)
-        const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
-        const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
-        if (safeRankA !== safeRankB) return safeRankA - safeRankB
-
-        const fromA = String(a?.effectiveFrom ?? '')
-        const fromB = String(b?.effectiveFrom ?? '')
-        return fromB.localeCompare(fromA)
-      })[0]
-
-    if (!pickedTarif) return []
-
-    const entryDetailIds = new Set<number>(
-      (Array.isArray(entry?.tindakanList) ? entry.tindakanList : [])
-        .map((item: any) => Number(item?.paketDetailId))
-        .filter((id: number) => Number.isFinite(id) && id > 0)
-    )
-
-    const roleSet = new Set<string>()
-    const rincianList = Array.isArray(pickedTarif?.rincianTarif) ? pickedTarif.rincianTarif : []
-
-    rincianList.forEach((rincian) => {
-      const paketDetailId = Number(rincian?.paketDetailId)
-      if (
-        entryDetailIds.size > 0 &&
-        (!Number.isFinite(paketDetailId) || !entryDetailIds.has(paketDetailId))
-      ) {
-        return
-      }
-
-      const komponenList = Array.isArray(rincian?.komponenTarifList)
-        ? rincian.komponenTarifList
-        : []
-      komponenList.forEach((komponen) => {
-        const komponenId = Number(komponen?.jenisKomponenId)
-        const isUntukMedis = komponen?.jenisKomponen?.isUntukMedis === true
-        const fallbackKode = String(komponen?.kode || komponen?.jenisKomponen?.kode || '').trim()
-        const roleKode = roleByKomponenId.get(komponenId) || (isUntukMedis ? fallbackKode : '')
-        if (roleKode) roleSet.add(roleKode)
-      })
-    })
-
-    return Array.from(roleSet)
-  }
+      return Array.from(roleSet)
+    },
+    [paketCache, paketList, roleByKomponenId]
+  )
 
   useEffect(() => {
     const allIds = new Set<number>()
@@ -427,34 +480,50 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     const tanggal = assessmentDateWatcher
       ? dayjs(assessmentDateWatcher).format('YYYY-MM-DD')
       : dayjs().format('YYYY-MM-DD')
-    const roles = resolveRolesFromTindakanItems(
-      Array.isArray(currentTindakanList) ? currentTindakanList : [],
-      nonPaketKelasWatcher,
-      tanggal
-    )
-    const existingPetugas = (modalForm.getFieldValue('petugasList') || []) as any[]
 
-    const nextPetugas = roles.map((roleKode) => ({
-      roleTenaga: roleKode,
-      pegawaiId: existingPetugas.find((p) => p?.roleTenaga === roleKode)?.pegawaiId
-    }))
+    const items = Array.isArray(currentTindakanList) ? currentTindakanList : []
+    if (items.length === 0) return
 
-    const currentSignature = JSON.stringify(
-      existingPetugas.map((item) => ({ roleTenaga: item?.roleTenaga, pegawaiId: item?.pegawaiId }))
-    )
-    const nextSignature = JSON.stringify(
-      nextPetugas.map((item) => ({ roleTenaga: item?.roleTenaga, pegawaiId: item?.pegawaiId }))
-    )
-    if (currentSignature !== nextSignature) {
-      modalForm.setFieldValue('petugasList', nextPetugas)
+    let hasChanges = false
+    const nextItems = items.map((item: any) => {
+      if (!item?.masterTindakanId || !item?.kelas) return item
+
+      const roles = resolveRolesFromTindakanItems([item], item.kelas, tanggal)
+      const existingPetugas = Array.isArray(item?.petugasList) ? item.petugasList : []
+
+      const nextPetugas = roles.map((roleKode) => {
+        let pegawaiId = existingPetugas.find((p: any) => p?.roleTenaga === roleKode)?.pegawaiId
+        if (!pegawaiId) {
+          pegawaiId = initialPetugas.find((p) => p?.roleTenaga === roleKode)?.pegawaiId
+        }
+        return { roleTenaga: roleKode, pegawaiId }
+      })
+
+      const currentSignature = JSON.stringify(
+        existingPetugas.map((p: any) => ({ roleTenaga: p?.roleTenaga, pegawaiId: p?.pegawaiId }))
+      )
+      const nextSignature = JSON.stringify(
+        nextPetugas.map((p) => ({ roleTenaga: p?.roleTenaga, pegawaiId: p?.pegawaiId }))
+      )
+
+      if (currentSignature !== nextSignature) {
+        hasChanges = true
+        return { ...item, petugasList: nextPetugas }
+      }
+      return item
+    })
+
+    if (hasChanges) {
+      modalForm.setFieldValue('tindakanList', nextItems)
     }
   }, [
     assessmentDateWatcher,
     currentTindakanList,
     masterTindakanDetailCache,
     modalForm,
-    nonPaketKelasWatcher,
-    roleByKomponenId
+    resolveRolesFromTindakanItems,
+    roleByKomponenId,
+    initialPetugas
   ])
 
   useEffect(() => {
@@ -473,10 +542,15 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const roles = Array.from(new Set([...rolesFromPaket, ...rolesFromTindakan]))
       const existingPetugas = Array.isArray(entry?.petugasList) ? entry.petugasList : []
 
-      const nextPetugas = roles.map((roleKode) => ({
-        roleTenaga: roleKode,
-        pegawaiId: existingPetugas.find((p: any) => p?.roleTenaga === roleKode)?.pegawaiId
-      }))
+      const nextPetugas = roles.map((roleKode) => {
+        let pegawaiId = existingPetugas.find((p: any) => p?.roleTenaga === roleKode)?.pegawaiId
+        if (!pegawaiId && initialPaketPetugas[entry.paketId]) {
+          pegawaiId = initialPaketPetugas[entry.paketId].find(
+            (p: any) => p?.roleTenaga === roleKode
+          )?.pegawaiId
+        }
+        return { roleTenaga: roleKode, pegawaiId }
+      })
 
       const currentSignature = JSON.stringify(
         existingPetugas.map((item: any) => ({
@@ -507,7 +581,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     paketCache,
     paketList,
     paketEntriesWatcher,
-    roleByKomponenId
+    roleByKomponenId,
+    resolveRolesFromPaketEntry,
+    resolveRolesFromTindakanItems,
+    initialPaketPetugas
   ])
 
   const tindakanOptions = useMemo(() => {
@@ -569,6 +646,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     useDetailTindakanByEncounter(encounterId)
 
   const createMutation = useCreateDetailTindakan(encounterId)
+  const updateMutation = useUpdateDetailTindakan(encounterId)
   const voidMutation = useVoidDetailTindakan(encounterId)
 
   const mergeBhpList = (existingBhpList: any[], incomingBhpList: any[]) => {
@@ -694,79 +772,102 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           }
         })
 
-    const paketTindakanData = (
+    const globalPetugasMap = new Map<string, number>()
+    if (Array.isArray(values.paketEntries)) {
+      for (const entry of values.paketEntries) {
+        if (Array.isArray(entry.petugasList)) {
+          for (const p of entry.petugasList) {
+            if (p?.roleTenaga && p?.pegawaiId) globalPetugasMap.set(p.roleTenaga, p.pegawaiId)
+          }
+        }
+      }
+    }
+    if (Array.isArray(values.tindakanList)) {
+      for (const item of values.tindakanList) {
+        if (Array.isArray(item.petugasList)) {
+          for (const p of item.petugasList) {
+            if (p?.roleTenaga && p?.pegawaiId) globalPetugasMap.set(p.roleTenaga, p.pegawaiId)
+          }
+        }
+      }
+    }
+    const petugasList = Array.from(globalPetugasMap.entries()).map(([roleTenaga, pegawaiId]) => ({
+      roleTenaga,
+      pegawaiId
+    }))
+
+    const tindakanPaketList = (
       Array.isArray(values?.paketEntries) ? values.paketEntries : []
     ).flatMap((entry: any) => {
-      const entryPetugasList = (entry?.petugasList ?? []).filter(
-        (p: any) => p?.pegawaiId && p?.roleTenaga
-      )
       const entryItems = Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
-      const entryBhpList = mapBhpList(entry?.bhpList, true)
-
-      const entryTindakanData = entryItems
+      return entryItems
         .filter((item: any) => item?.masterTindakanId)
         .map((item: any) => ({
-          bhpList: [] as {
-            itemId: number
-            jumlah: number
-            satuan?: string | null
-            includedInPaket: boolean
-          }[],
           masterTindakanId: item.masterTindakanId,
-          kelas: item?.kelas ?? entry?.kelas ?? null,
           paketId: item.paketId,
           paketDetailId: item.paketDetailId,
-          encounterId,
-          patientId,
-          tanggalTindakan: tanggal,
+          kelas: item?.kelas ?? entry?.kelas ?? null,
           jumlah: item.jumlah ?? 1,
           satuan: item.satuan,
-          cyto: item.cyto ?? false,
-          catatanTambahan: entry?.catatanTambahan,
-          petugasList: entryPetugasList
+          cyto: item.cyto ?? false
         }))
-
-      if (entryBhpList.length > 0 && entryTindakanData.length > 0) {
-        entryTindakanData[0].bhpList = entryBhpList
-      }
-
-      return entryTindakanData
     })
 
-    const nonPaketPetugasList = (values.petugasList ?? []).filter(
-      (p: any) => p?.pegawaiId && p?.roleTenaga
-    )
-
-    const nonPaketItems = Array.isArray(values?.tindakanList) ? values.tindakanList : []
-    const nonPaketBhpList = mapBhpList(values?.bhpList, false)
-    const nonPaketTindakanData = nonPaketItems
+    const tindakanSatuanList = (Array.isArray(values?.tindakanList) ? values.tindakanList : [])
       .filter((item: any) => item?.masterTindakanId)
       .map((item: any) => ({
-        bhpList: [] as {
-          itemId: number
-          jumlah: number
-          satuan?: string | null
-          includedInPaket: boolean
-        }[],
         masterTindakanId: item.masterTindakanId,
         kelas: item?.kelas ?? values?.kelas ?? null,
-        paketId: undefined,
-        paketDetailId: undefined,
-        encounterId,
-        patientId,
-        tanggalTindakan: tanggal,
         jumlah: item.jumlah ?? 1,
         satuan: item.satuan,
         cyto: item.cyto ?? false,
-        catatanTambahan: values.catatanTambahan,
-        petugasList: nonPaketPetugasList
+        catatanTambahan: item.catatanTambahan || undefined
       }))
 
-    if (nonPaketBhpList.length > 0 && nonPaketTindakanData.length > 0) {
-      nonPaketTindakanData[0].bhpList = nonPaketBhpList
+    const bhpPaketList = (
+      Array.isArray(values?.paketBhpEntries) ? values.paketBhpEntries : []
+    ).flatMap((entry: any) => {
+      const itemLists = Array.isArray(entry?.bhpList) ? entry.bhpList : []
+      return itemLists
+        .filter((item: any) => item?.itemId && Number(item.jumlah) > 0)
+        .map((item: any) => ({
+          paketBhpId: entry.paketBhpId,
+          paketBhpDetailId: item.paketBhpDetailId ?? 0,
+          itemId: item.itemId,
+          jumlah: Number(item.jumlah),
+          satuan: item.satuan
+        }))
+    })
+
+    const aggregatedBhpSatuanMap = new Map<string, any>()
+    const pushBhpSatuan = (bhp: any) => {
+      const key = `${bhp.itemId}-${bhp.includedInPaket}-${bhp.satuan ?? ''}`
+      if (aggregatedBhpSatuanMap.has(key)) {
+        aggregatedBhpSatuanMap.get(key).jumlah += bhp.jumlah
+      } else {
+        aggregatedBhpSatuanMap.set(key, bhp)
+      }
     }
 
-    return [...paketTindakanData, ...nonPaketTindakanData]
+    mapBhpList(values?.bhpList, false).forEach(pushBhpSatuan)
+    if (Array.isArray(values?.paketEntries)) {
+      values.paketEntries.forEach((entry: any) => {
+        mapBhpList(entry?.bhpList, true).forEach(pushBhpSatuan)
+      })
+    }
+
+    return {
+      encounterId,
+      patientId,
+      tanggalTindakan: tanggal,
+      cyto: Boolean(values.cytoGlobal),
+      catatanTambahan: values.catatanTambahan,
+      petugasList,
+      tindakanPaketList,
+      tindakanSatuanList,
+      bhpSatuanList: Array.from(aggregatedBhpSatuanMap.values()),
+      bhpPaketList
+    }
   }
 
   const handleSubmit = async (values: any) => {
@@ -822,21 +923,26 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const nonPaketBhp = Array.isArray(values?.bhpList) ? values.bhpList : []
       const hasNonPaketBhp = nonPaketBhp.some((bhp: any) => bhp?.itemId)
 
-      if ((hasNonPaketTindakan || hasNonPaketBhp) && !values?.kelas) {
-        message.error('Kelas tindakan non-paket wajib dipilih')
+      const missingKelasNonPaketIdx = nonPaketItems.findIndex(
+        (item: any) => item?.masterTindakanId && !item?.kelas
+      )
+      if (missingKelasNonPaketIdx >= 0) {
+        message.error(`Kelas wajib dipilih pada Tindakan Non-Paket #${missingKelasNonPaketIdx + 1}`)
         return
       }
 
-      if (hasNonPaketTindakan) {
-        const petugasList = (values.petugasList ?? []).filter(
+      const missingPetugasNonPaketIdx = nonPaketItems.findIndex((item: any) => {
+        if (!item?.masterTindakanId) return false
+        const itemPetugas = (item?.petugasList ?? []).filter(
           (p: any) => p?.pegawaiId && p?.roleTenaga
         )
-        if (petugasList.length === 0) {
-          message.error(
-            'Role tenaga medis non-paket belum tersedia. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.'
-          )
-          return
-        }
+        return itemPetugas.length === 0
+      })
+      if (missingPetugasNonPaketIdx >= 0) {
+        message.error(
+          `Role tenaga medis belum tersedia pada Tindakan Non-Paket #${missingPetugasNonPaketIdx + 1}. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.`
+        )
+        return
       }
 
       if (hasNonPaketBhp && !hasNonPaketTindakan) {
@@ -856,14 +962,28 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return
       }
 
-      const tindakanData = buildTindakanData(values)
-      if (tindakanData.length === 0) {
-        message.error('Minimal harus mencatat 1 tindakan')
+      const sessionPayload = buildTindakanData(values)
+      if (
+        sessionPayload.tindakanPaketList.length === 0 &&
+        sessionPayload.tindakanSatuanList.length === 0 &&
+        sessionPayload.bhpSatuanList.length === 0 &&
+        sessionPayload.bhpPaketList.length === 0
+      ) {
+        message.error('Minimal harus mencatat 1 tindakan atau BHP')
         return
       }
 
-      await createMutation.mutateAsync({ tindakanData })
-      message.success(`${tindakanData.length} tindakan berhasil disimpan`)
+      if (editingId) {
+        await updateMutation.mutateAsync({ ...sessionPayload, id: editingId } as any)
+      } else {
+        await createMutation.mutateAsync(sessionPayload as any)
+      }
+
+      const totalTindakan =
+        sessionPayload.tindakanSatuanList.length + sessionPayload.tindakanPaketList.length
+      const totalBhp = sessionPayload.bhpSatuanList.length + sessionPayload.bhpPaketList.length
+      message.success(`${totalTindakan} tindakan dan ${totalBhp} BHP berhasil disimpan`)
+
       modalForm.resetFields()
       setIsModalOpen(false)
     } catch (err: any) {
@@ -873,16 +993,138 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const handleOpenModal = () => {
     modalForm.resetFields()
+    setEditingId(null)
+    setInitialPetugas([])
+    setInitialPaketPetugas({})
     setActiveInputTab('paket')
+    const fallbackKelas = patientData?.encounter?.kelasId || patientData?.kelas?.id || undefined
+    const matchedKelas = kelasOptions.find(
+      (opt) =>
+        opt.value === fallbackKelas ||
+        opt.value === `kelas_${fallbackKelas}` ||
+        opt.label.toLowerCase().includes(String(fallbackKelas).toLowerCase())
+    )
+
     modalForm.setFieldsValue({
       assessment_date: dayjs(),
-      kelas: undefined,
+      kelas: matchedKelas?.value || fallbackKelas,
       petugasList: [],
       tindakanList: [{ jumlah: 1, cyto: false }],
       bhpList: [],
       paketCytoGlobal: false,
       paketIds: [],
-      paketEntries: []
+      paketEntries: [],
+      paketBhpEntries: []
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleEdit = (record: any) => {
+    setEditingId(record.id)
+    setActiveInputTab('paket')
+
+    const assessment_date = dayjs(record.tanggalTindakan)
+    const cytoGlobal = Boolean(record.cyto)
+
+    const fallbackKelas = patientData?.encounter?.kelasId || patientData?.kelas?.id || undefined
+    const matchedKelas = kelasOptions.find(
+      (opt) =>
+        opt.value === fallbackKelas ||
+        opt.value === `kelas_${fallbackKelas}` ||
+        opt.label.toLowerCase().includes(String(fallbackKelas).toLowerCase())
+    )
+
+    let kelasGlobal = matchedKelas?.value || fallbackKelas
+    if (record.tindakanNonPaket?.length > 0 && record.tindakanNonPaket[0].kelas) {
+      kelasGlobal = record.tindakanNonPaket[0].kelas
+    } else if (record.tindakanPaket?.length > 0 && record.tindakanPaket[0].kelas) {
+      kelasGlobal = record.tindakanPaket[0].kelas
+    }
+
+    const flatPetugasDB = (record.tindakanPelaksanaList || []).map((p: any) => ({
+      roleTenaga: p.roleTenaga,
+      pegawaiId: p.pegawaiId
+    }))
+    setInitialPetugas(flatPetugasDB)
+
+    const newInitialPaket: Record<string, any[]> = {}
+    const paketEntriesMap = new Map<number, any>()
+    if (Array.isArray(record.tindakanPaket)) {
+      record.tindakanPaket.forEach((t: any) => {
+        if (!paketEntriesMap.has(t.paketId)) {
+          newInitialPaket[t.paketId] = flatPetugasDB // Share db officers to all packages initially
+          paketEntriesMap.set(t.paketId, {
+            paketId: t.paketId,
+            kelas: t.kelas || kelasGlobal,
+            tindakanList: [],
+            bhpList: [],
+            petugasList: flatPetugasDB
+          })
+        }
+        paketEntriesMap.get(t.paketId).tindakanList.push({
+          masterTindakanId: t.paketDetail?.masterTindakanId,
+          paketId: t.paketId,
+          paketDetailId: t.paketDetailId,
+          kelas: t.kelas || kelasGlobal,
+          jumlah: Number(t.qty),
+          satuan: t.satuan,
+          cyto: t.cyto,
+          checked: true
+        })
+      })
+    }
+    const paketEntries = Array.from(paketEntriesMap.values())
+
+    const paketBhpEntriesMap = new Map<number, any>()
+    if (Array.isArray(record.paketBhp)) {
+      record.paketBhp.forEach((b: any) => {
+        if (!paketBhpEntriesMap.has(b.paketBhpId)) {
+          paketBhpEntriesMap.set(b.paketBhpId, {
+            paketBhpId: b.paketBhpId,
+            bhpList: []
+          })
+        }
+        paketBhpEntriesMap.get(b.paketBhpId).bhpList.push({
+          itemId: b.itemId,
+          paketBhpDetailId: b.paketBhpDetailId,
+          jumlah: Number(b.jumlah || b.qty),
+          satuan: b.satuan
+        })
+      })
+    }
+    const paketBhpEntries = Array.from(paketBhpEntriesMap.values())
+
+    const tindakanList = (record.tindakanNonPaket || []).map((t: any) => ({
+      masterTindakanId: t.masterTindakanId,
+      kelas: t.kelas || kelasGlobal,
+      jumlah: Number(t.qty),
+      satuan: t.satuan,
+      cyto: t.cyto,
+      catatanTambahan: t.catatanTambahan,
+      petugasList: flatPetugasDB
+    }))
+    if (tindakanList.length === 0) tindakanList.push({ jumlah: 1, cyto: false, petugasList: [] })
+
+    const bhpList = (record.bhpNonPaket || []).map((b: any) => ({
+      itemId: b.itemId,
+      jumlah: Number(b.jumlah || b.qty),
+      satuan: b.satuan,
+      includedInPaket: Boolean(b.includedInPaket)
+    }))
+
+    setInitialPaketPetugas(newInitialPaket)
+
+    modalForm.setFieldsValue({
+      assessment_date,
+      cytoGlobal,
+      catatanTambahan: record.catatanTambahan,
+      kelas: kelasGlobal,
+      petugasList: flatPetugasDB,
+      tindakanList,
+      bhpList,
+      paketEntries,
+      paketBhpEntries,
+      paketIds: paketEntries.map((e: any) => e.paketId)
     })
     setIsModalOpen(true)
   }
@@ -896,128 +1138,223 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     }
   }
 
-  const toNumber = (value: unknown) => {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : 0
-  }
+  const renderExpandedRecord = (record: any) => {
+    const tabItems: any[] = []
 
-  const formatCurrency = (value: unknown) =>
-    new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0
-    }).format(toNumber(value))
+    const paketColumns = [
+      { title: 'Dari Paket', dataIndex: 'namaPaket', key: 'namaPaket' },
+      { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
+      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 60, align: 'center' as const },
+      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 80 },
+      {
+        title: 'Cyto',
+        dataIndex: 'cyto',
+        key: 'cyto',
+        width: 70,
+        align: 'center' as const,
+        render: (_: any, rec: any) =>
+          rec.cyto === true || String(rec.cyto).toLowerCase() === 'true' ? (
+            <Tag color="error" style={{ margin: 0 }}>
+              Cyto
+            </Tag>
+          ) : (
+            <span className="text-slate-400">Tidak</span>
+          )
+      },
+      {
+        title: 'Catatan Tambahan',
+        dataIndex: 'catatanTambahan',
+        key: 'catatanTambahan',
+        render: (val: string) => val || '-'
+      }
+    ]
 
-  const renderExpandedBhp = (record: DetailTindakanPasienItem) => {
-    const bhpList = Array.isArray(record.bhpList) ? record.bhpList : []
+    const nonPaketColumns = [
+      { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
+      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 60, align: 'center' as const },
+      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 80 },
+      {
+        title: 'Cyto',
+        dataIndex: 'cyto',
+        key: 'cyto',
+        width: 70,
+        align: 'center' as const,
+        render: (_: any, rec: any) =>
+          rec.cyto === true || String(rec.cyto).toLowerCase() === 'true' ? (
+            <Tag color="error" style={{ margin: 0 }}>
+              Cyto
+            </Tag>
+          ) : (
+            <span className="text-slate-400">Tidak</span>
+          )
+      },
+      {
+        title: 'Catatan Tambahan',
+        dataIndex: 'catatanTambahan',
+        key: 'catatanTambahan',
+        render: (val: string) => val || '-'
+      }
+    ]
 
-    if (bhpList.length === 0) {
+    const pelaksanaColumns = [
+      { title: 'Nama Petugas', dataIndex: 'namaLengkap', key: 'namaLengkap' },
+      { title: 'Peran', dataIndex: 'peran', key: 'peran' },
+      {
+        title: 'Nominal Jasa',
+        dataIndex: 'nominal',
+        key: 'nominal',
+        width: 160,
+        align: 'right' as const
+      }
+    ]
+
+    const tarifColumns = [
+      { title: 'Komponen Tarif', dataIndex: 'namaKomponen', key: 'namaKomponen' },
+      {
+        title: 'Nominal',
+        dataIndex: 'nominal',
+        key: 'nominal',
+        width: 160,
+        align: 'right' as const
+      }
+    ]
+
+    const paketBhpColumns = [
+      { title: 'Dari Paket', dataIndex: 'namaPaket', key: 'namaPaket' },
+      { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
+      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 60, align: 'center' as const },
+      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 80 }
+    ]
+
+    const bhpNonPaketColumns = [
+      { title: 'Item BHP', dataIndex: 'item', key: 'item' },
+      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 80, align: 'center' as const },
+      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 100 }
+    ]
+
+    // 1. Paket Tindakan
+    if (record.tindakanPaket && record.tindakanPaket.length > 0) {
+      const data = record.tindakanPaket.map((t: any) => ({
+        key: `paketTindakan-${t.id}`,
+        namaPaket: t.paket?.namaPaket || `Paket ID: ${t.paketId}`,
+        item: t.namaTindakan || '-',
+        qty: Number(t.jumlah || t.qty || 1),
+        satuan: t.satuan || '-',
+        informasiDetail: t.kelas ? `Kelas ${t.kelas}` : '-',
+        cyto: Boolean(t.cyto),
+        catatanTambahan: t.catatanTambahan
+      }))
+      tabItems.push({
+        key: 'paket',
+        label: `Paket (${data.length})`,
+        children: <Table columns={paketColumns} dataSource={data} pagination={false} size="small" />
+      })
+    }
+
+    // 2. Tindakan Non Paket
+    if (record.tindakanNonPaket && record.tindakanNonPaket.length > 0) {
+      const data = record.tindakanNonPaket.map((t: any) => ({
+        key: `tindakanNonPaket-${t.id}`,
+        item: t.namaTindakan || t.masterTindakan?.namaTindakan || '-',
+        qty: Number(t.jumlah || t.qty || 1),
+        satuan: t.satuan || '-',
+        informasiDetail: t.kelas ? `Kelas ${t.kelas}` : '-',
+        cyto: Boolean(t.cyto),
+        catatanTambahan: t.catatanTambahan
+      }))
+      tabItems.push({
+        key: 'non-paket',
+        label: `Tindakan (${data.length})`,
+        children: (
+          <Table columns={nonPaketColumns} dataSource={data} pagination={false} size="small" />
+        )
+      })
+    }
+
+    // 3. Pelaksana
+    if (record.tindakanPelaksanaList && record.tindakanPelaksanaList.length > 0) {
+      const data = record.tindakanPelaksanaList.map((p: any) => ({
+        key: `pelaksana-${p.id}`,
+        namaLengkap: p.pegawai?.namaLengkap || `ID ${p.pegawaiId}`,
+        peran: roleOptions.find((r) => r.value === p.roleTenaga)?.label || p.roleTenaga,
+        nominal: `Rp ${Number(p.nominalJasa || p.nominal || 0).toLocaleString('id-ID')}`
+      }))
+      tabItems.push({
+        key: 'pelaksana',
+        label: `Pelaksana (${data.length})`,
+        children: (
+          <Table columns={pelaksanaColumns} dataSource={data} pagination={false} size="small" />
+        )
+      })
+    }
+
+    // 4. Komponen Tarif List
+    if (record.komponenTarifList && record.komponenTarifList.length > 0) {
+      const data = record.komponenTarifList.map((k: any) => ({
+        key: `tarif-${k.id}`,
+        namaKomponen: k.komponenTarif?.namaKomponen || k.namaKomponen || '-',
+        nominal: `Rp ${Number(k.nominal ?? 0).toLocaleString('id-ID')}`
+      }))
+      tabItems.push({
+        key: 'tarif',
+        label: `Tarif (${data.length})`,
+        children: <Table columns={tarifColumns} dataSource={data} pagination={false} size="small" />
+      })
+    }
+
+    // 5. Paket BHP
+    if (record.paketBhp && record.paketBhp.length > 0) {
+      const data = record.paketBhp.map((t: any) => ({
+        key: `paketBhp-${t.id}`,
+        namaPaket: t.paketBhp?.namaPaketBhp || `Paket BHP ID: ${t.paketBhpId}`,
+        item: t.namaItem || t.item?.nama || '-',
+        qty: Number(t.jumlah || t.qty || 1),
+        satuan: t.satuan || '-'
+      }))
+      tabItems.push({
+        key: 'paketBhp',
+        label: `Pkt. BHP (${data.length})`,
+        children: (
+          <Table columns={paketBhpColumns} dataSource={data} pagination={false} size="small" />
+        )
+      })
+    }
+
+    // 6. BHP Non Paket
+    if (record.bhpNonPaket && record.bhpNonPaket.length > 0) {
+      const data = record.bhpNonPaket.map((t: any) => ({
+        key: `bhpNonPaket-${t.id}`,
+        item: t.namaItem || t.item?.nama || '-',
+        qty: Number(t.jumlah || t.qty || 1),
+        satuan: t.satuan || '-'
+      }))
+      tabItems.push({
+        key: 'bhpNonPaket',
+        label: `BHP (${data.length})`,
+        children: (
+          <Table columns={bhpNonPaketColumns} dataSource={data} pagination={false} size="small" />
+        )
+      })
+    }
+
+    if (tabItems.length === 0) {
       return (
-        <div className="px-3 py-2 text-xs" style={{ color: token.colorTextTertiary }}>
-          Tidak ada data BHP pada tindakan ini.
+        <div className="py-6 px-4 text-center text-slate-400 bg-slate-50/50 italic text-sm border-t border-slate-200">
+          - Belum ada detail data -
         </div>
       )
     }
 
-    const totalIncluded = bhpList
-      .filter((bhp) => Boolean(bhp?.includedInPaket))
-      .reduce((sum, bhp) => sum + toNumber(bhp?.subtotal), 0)
-    const totalNonIncluded = bhpList
-      .filter((bhp) => !Boolean(bhp?.includedInPaket))
-      .reduce((sum, bhp) => sum + toNumber(bhp?.subtotal), 0)
-    const totalAll = totalIncluded + totalNonIncluded
-
-    const bhpColumns: ColumnsType<(typeof bhpList)[number]> = [
-      {
-        title: 'Item BHP',
-        key: 'item',
-        render: (_, row) => {
-          const itemCode = row.item?.kode ? `[${row.item.kode}] ` : ''
-          const itemName = row.namaItem ?? row.item?.nama ?? `Item #${row.itemId}`
-          return (
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">
-                {itemCode}
-                {itemName}
-              </span>
-            </div>
-          )
-        }
-      },
-      {
-        title: 'Qty',
-        key: 'qty',
-        width: 110,
-        render: (_, row) => `${toNumber(row.jumlah)} ${row.satuan ?? ''}`.trim()
-      },
-      {
-        title: 'Asal BHP',
-        key: 'asalBhp',
-        width: 120,
-        render: (_, row) =>
-          Boolean(row?.includedInPaket) ? (
-            <Tag color="green">Dari Paket</Tag>
-          ) : (
-            <Tag color="default">Non-Paket</Tag>
-          )
-      },
-      {
-        title: 'Harga Satuan',
-        key: 'hargaSatuan',
-        width: 130,
-        align: 'right',
-        render: (_, row) => formatCurrency(row?.hargaSatuan)
-      },
-      {
-        title: 'Subtotal',
-        key: 'subtotal',
-        width: 130,
-        align: 'right',
-        render: (_, row) => formatCurrency(row?.subtotal)
-      },
-      {
-        title: 'Status Dispense',
-        key: 'dispense',
-        width: 160,
-        render: (_, row) => {
-          const status = String(row?.medicationDispense?.status ?? '').toLowerCase()
-          if (!status) return <span style={{ color: token.colorTextTertiary }}>-</span>
-
-          const colorMap: Record<string, string> = {
-            completed: 'success',
-            preparation: 'processing',
-            cancelled: 'error',
-            declined: 'error',
-            in_progress: 'processing',
-            on_hold: 'warning'
-          }
-
-          return <Tag color={colorMap[status] ?? 'default'}>{status.replaceAll('_', ' ')}</Tag>
-        }
-      }
-    ]
-
     return (
-      <div className="px-3 py-2">
-        <Table
-          size="small"
-          rowKey={(row, idx) => String(row.id ?? `${record.id}-${row.itemId}-${idx}`)}
-          dataSource={bhpList}
-          columns={bhpColumns}
-          pagination={false}
-          className="border border-slate-100 rounded"
-        />
-        <div className="mt-2 flex flex-wrap justify-end gap-2 text-xs">
-          <Tag color="green">Total Included: {formatCurrency(totalIncluded)}</Tag>
-          <Tag color="orange">Total Non-Included: {formatCurrency(totalNonIncluded)}</Tag>
-          <Tag color="blue">Total BHP: {formatCurrency(totalAll)}</Tag>
+      <div className="p-4 sm:p-5 bg-slate-50 shadow-inner border-y border-slate-200">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+          <Tabs items={tabItems} size="small" />
         </div>
       </div>
     )
   }
 
-  // --- Kolom tabel riwayat ---
-  const columns: ColumnsType<DetailTindakanPasienItem> = [
+  const columns: ColumnsType<any> = [
     {
       title: 'No',
       key: 'no',
@@ -1030,57 +1367,6 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       key: 'tanggal',
       width: 110,
       render: (val) => dayjs(val).format('DD/MM/YYYY')
-    },
-    {
-      title: 'Tindakan',
-      key: 'tindakan',
-      render: (_, record) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="font-semibold text-sm">
-            {record.masterTindakan?.namaTindakan ?? '-'}
-          </span>
-          <span className="text-xs" style={{ color: token.colorTextTertiary }}>
-            [{record.masterTindakan?.kodeTindakan}]
-            {record.masterTindakan?.kategoriTindakan
-              ? ` · ${record.masterTindakan.kategoriTindakan}`
-              : ''}
-          </span>
-        </div>
-      )
-    },
-    {
-      title: 'Asal Tindakan',
-      key: 'asalTindakan',
-      width: 120,
-      render: (_, record) =>
-        Number(record?.paketId) > 0 ? (
-          <Tag color="geekblue">Paket</Tag>
-        ) : (
-          <Tag color="default">Non-Paket</Tag>
-        )
-    },
-    {
-      title: 'Jumlah',
-      key: 'jumlah',
-      width: 80,
-      render: (_, record) => `${Number(record.jumlah)} ${record.satuan ?? ''}`
-    },
-    {
-      title: 'Cyto',
-      dataIndex: 'cyto',
-      key: 'cyto',
-      width: 72,
-      align: 'center',
-      render: (val) =>
-        val ? (
-          <Tag color="error" icon={<ThunderboltOutlined />}>
-            Cyto
-          </Tag>
-        ) : (
-          <Tag color="default" icon={<CheckCircleOutlined />}>
-            Tidak
-          </Tag>
-        )
     },
     {
       title: 'Tim Pelaksana',
@@ -1126,45 +1412,46 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         val === 'void' ? <Tag color="error">Dibatalkan</Tag> : <Tag color="success">Aktif</Tag>
     },
     {
-      title: 'Tarif',
-      dataIndex: 'subtotal',
-      key: 'subtotal',
-      width: 120,
-      align: 'right',
-      render: (val) => formatCurrency(val)
-    },
-    {
       title: 'Aksi',
       key: 'aksi',
-      width: 70,
+      width: 100,
       align: 'center',
       render: (_, record) =>
         record.status !== 'void' ? (
-          <Popconfirm
-            title="Batalkan tindakan ini?"
-            description="Tindakan akan ditandai sebagai void."
-            onConfirm={() => handleVoid(record.id)}
-            okText="Ya, batalkan"
-            cancelText="Tidak"
-            okButtonProps={{ danger: true }}
-          >
-            <Tooltip title="Batalkan tindakan">
+          <Space>
+            <Tooltip title="Edit tindakan">
               <Button
                 size="small"
-                danger
                 type="text"
-                icon={<DeleteOutlined />}
-                loading={voidMutation.isPending}
+                icon={<EditOutlined />}
+                onClick={() => handleEdit(record)}
               />
             </Tooltip>
-          </Popconfirm>
+            <Popconfirm
+              title="Batalkan tindakan ini?"
+              description="Tindakan akan ditandai sebagai void."
+              onConfirm={() => handleVoid(record.id)}
+              okText="Ya, batalkan"
+              cancelText="Tidak"
+              okButtonProps={{ danger: true }}
+            >
+              <Tooltip title="Batalkan tindakan">
+                <Button
+                  size="small"
+                  danger
+                  type="text"
+                  icon={<DeleteOutlined />}
+                  loading={voidMutation.isPending}
+                />
+              </Tooltip>
+            </Popconfirm>
+          </Space>
         ) : null
     }
   ]
 
   return (
     <div className="flex flex-col gap-4">
-      {/* History table card */}
       <Card
         title={
           <Space>
@@ -1185,7 +1472,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             dataSource={tindakanList}
             columns={columns}
             expandable={{
-              expandedRowRender: renderExpandedBhp
+              expandedRowRender: renderExpandedRecord
             }}
             size="small"
             pagination={false}
@@ -1198,7 +1485,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
       {/* Modal form */}
       <Modal
-        title="Catat Detail Tindakan"
+        title={editingId ? `Edit Detail Tindakan (#${editingId})` : 'Catat Detail Tindakan'}
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false)
@@ -1218,10 +1505,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             key="submit"
             type="primary"
             icon={<SaveOutlined />}
-            loading={createMutation.isPending}
+            loading={createMutation.isPending || updateMutation.isPending}
             onClick={() => modalForm.submit()}
           >
-            Simpan
+            {editingId ? 'Update' : 'Simpan'}
           </Button>
         ]}
         width={860}
@@ -1234,54 +1521,89 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           className="flex! flex-col! gap-4!"
           initialValues={{ assessment_date: dayjs(), petugasList: [] }}
         >
-          <AssessmentHeader performers={performers || []} loading={isLoadingPerformers} />
           <Tabs
             activeKey={activeInputTab}
-            onChange={(key) => setActiveInputTab(key as 'paket' | 'non-paket' | 'paket-bhp')}
+            onChange={(key) =>
+              setActiveInputTab(key as 'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket')
+            }
             size="small"
             items={[
-              { key: 'paket', label: 'Paket Tindakan' },
-              { key: 'non-paket', label: 'Tindakan Non-Paket' },
-              { key: 'paket-bhp', label: 'Paket BHP' }
+              {
+                key: 'paket',
+                label: 'Paket Tindakan',
+                forceRender: true,
+                children: (
+                  <PaketTindakanTab
+                    modalForm={modalForm}
+                    token={token}
+                    setSearchPaket={setSearchPaket}
+                    isLoadingPaket={isLoadingPaket}
+                    paketOptions={paketOptions}
+                    handlePaketEntryChange={handlePaketEntryChange}
+                    kelasOptions={kelasOptions}
+                    tindakanOptions={tindakanOptions}
+                    consumableItemOptions={consumableItemOptions}
+                    isLoadingConsumableItems={isLoadingConsumableItems}
+                    consumableItemMap={consumableItemMap}
+                    isLoadingPerformers={isLoadingPerformers}
+                    performers={performers}
+                    roleLabelByCode={roleLabelByCode}
+                  />
+                )
+              },
+              {
+                key: 'non-paket',
+                label: 'Tindakan Non-Paket',
+                forceRender: true,
+                children: (
+                  <TindakanNonPaketTab
+                    modalForm={modalForm}
+                    token={token}
+                    kelasOptions={kelasOptions}
+                    setSearchTindakan={setSearchTindakan}
+                    isLoadingMaster={isLoadingMaster}
+                    tindakanOptions={tindakanOptions}
+                    isLoadingPerformers={isLoadingPerformers}
+                    performers={performers}
+                    roleLabelByCode={roleLabelByCode}
+                  />
+                )
+              },
+              {
+                key: 'paket-bhp',
+                label: 'Paket BHP',
+                forceRender: true,
+                children: (
+                  <PaketBhpTab
+                    modalForm={modalForm}
+                    isLoadingPaketBhp={isLoadingPaketBhp}
+                    paketBhpOptions={paketBhpList.map((p: any) => ({
+                      value: p.id,
+                      label: `[${p.kodePaketBhp}] ${p.namaPaketBhp}`
+                    }))}
+                    setSearchPaketBhp={setSearchPaketBhp}
+                    paketBhpCache={paketBhpCache}
+                    isLoadingConsumableItems={isLoadingConsumableItems}
+                    consumableItemOptions={consumableItemOptions}
+                    consumableItemMap={consumableItemMap}
+                  />
+                )
+              },
+              {
+                key: 'bhp-non-paket',
+                label: 'BHP Non-Paket',
+                forceRender: true,
+                children: (
+                  <BhpNonPaketTab
+                    modalForm={modalForm}
+                    isLoadingConsumableItems={isLoadingConsumableItems}
+                    consumableItemOptions={consumableItemOptions}
+                    consumableItemMap={consumableItemMap}
+                  />
+                )
+              }
             ]}
           />
-          {activeInputTab === 'paket' && (
-            <PaketTindakanTab
-              modalForm={modalForm}
-              token={token}
-              setSearchPaket={setSearchPaket}
-              isLoadingPaket={isLoadingPaket}
-              paketOptions={paketOptions}
-              handlePaketEntryChange={handlePaketEntryChange}
-              kelasOptions={kelasOptions}
-              tindakanOptions={tindakanOptions}
-              consumableItemOptions={consumableItemOptions}
-              isLoadingConsumableItems={isLoadingConsumableItems}
-              consumableItemMap={consumableItemMap}
-              isLoadingPerformers={isLoadingPerformers}
-              performers={performers}
-              roleLabelByCode={roleLabelByCode}
-            />
-          )}
-
-          {activeInputTab === 'non-paket' && (
-            <TindakanNonPaketTab
-              modalForm={modalForm}
-              token={token}
-              kelasOptions={kelasOptions}
-              setSearchTindakan={setSearchTindakan}
-              isLoadingMaster={isLoadingMaster}
-              tindakanOptions={tindakanOptions}
-              isLoadingConsumableItems={isLoadingConsumableItems}
-              consumableItemOptions={consumableItemOptions}
-              consumableItemMap={consumableItemMap}
-              isLoadingPerformers={isLoadingPerformers}
-              performers={performers}
-              roleLabelByCode={roleLabelByCode}
-            />
-          )}
-
-          {activeInputTab === 'paket-bhp' && <PaketBhpTab token={token} />}
         </Form>
       </Modal>
     </div>

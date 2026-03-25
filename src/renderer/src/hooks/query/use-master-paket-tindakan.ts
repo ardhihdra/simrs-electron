@@ -76,7 +76,6 @@ export const useMasterPaketTindakanList = (params?: {
             const fn = window.api?.query?.masterPaketTindakan?.list
             if (!fn) throw new Error('API master paket tindakan tidak tersedia')
             const res = await fn({ ...params })
-            console.log("res", res)
             if (!res.success) throw new Error((res as any).error ?? 'Gagal mengambil data paket tindakan')
             return ((res as any).result ?? []) as MasterPaketTindakanItem[]
         },

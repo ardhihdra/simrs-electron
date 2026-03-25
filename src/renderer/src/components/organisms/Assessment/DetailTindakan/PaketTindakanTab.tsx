@@ -1,15 +1,4 @@
-import {
-  Form,
-  Card,
-  Button,
-  Select,
-  Spin,
-  Switch,
-  InputNumber,
-  Input,
-  Row,
-  Col
-} from 'antd'
+import { Form, Card, Button, Select, Spin, Switch, InputNumber, Input, Row, Col } from 'antd'
 import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons'
 
 const { TextArea } = Input
@@ -122,7 +111,9 @@ export default function PaketTindakanTab({
                       loading={isLoadingPaket}
                       options={paketOptions}
                       onChange={(val) => handlePaketEntryChange(paketField.name, Number(val))}
-                      notFoundContent={isLoadingPaket ? <Spin size="small" /> : 'Paket tidak ditemukan'}
+                      notFoundContent={
+                        isLoadingPaket ? <Spin size="small" /> : 'Paket tidak ditemukan'
+                      }
                     />
                   </Form.Item>
                   <Form.Item
@@ -136,8 +127,11 @@ export default function PaketTindakanTab({
                       options={kelasOptions}
                       onChange={(selectedKelas) => {
                         const currentList =
-                          modalForm.getFieldValue(['paketEntries', paketField.name, 'tindakanList']) ||
-                          []
+                          modalForm.getFieldValue([
+                            'paketEntries',
+                            paketField.name,
+                            'tindakanList'
+                          ]) || []
                         modalForm.setFieldValue(
                           ['paketEntries', paketField.name, 'tindakanList'],
                           currentList.map((item: any) => ({
@@ -159,8 +153,11 @@ export default function PaketTindakanTab({
                       unCheckedChildren="Tidak"
                       onChange={(checked) => {
                         const currentList =
-                          modalForm.getFieldValue(['paketEntries', paketField.name, 'tindakanList']) ||
-                          []
+                          modalForm.getFieldValue([
+                            'paketEntries',
+                            paketField.name,
+                            'tindakanList'
+                          ]) || []
                         modalForm.setFieldValue(
                           ['paketEntries', paketField.name, 'tindakanList'],
                           currentList.map((item: any) => ({
@@ -192,7 +189,11 @@ export default function PaketTindakanTab({
                               <Form.Item
                                 {...restField}
                                 name={[name, 'masterTindakanId']}
-                                label={name === 0 ? <span className="font-bold">Tindakan</span> : undefined}
+                                label={
+                                  name === 0 ? (
+                                    <span className="font-bold">Tindakan</span>
+                                  ) : undefined
+                                }
                                 rules={[{ required: true, message: 'Pilih tindakan' }]}
                                 style={{ marginBottom: 0 }}
                               >
@@ -208,7 +209,9 @@ export default function PaketTindakanTab({
                               <Form.Item
                                 {...restField}
                                 name={[name, 'jumlah']}
-                                label={name === 0 ? <span className="font-bold">Jml</span> : undefined}
+                                label={
+                                  name === 0 ? <span className="font-bold">Jml</span> : undefined
+                                }
                                 rules={[{ required: true, message: 'Wajib' }]}
                                 style={{ marginBottom: 0 }}
                               >
@@ -219,7 +222,9 @@ export default function PaketTindakanTab({
                               <Form.Item
                                 {...restField}
                                 name={[name, 'satuan']}
-                                label={name === 0 ? <span className="font-bold">Satuan</span> : undefined}
+                                label={
+                                  name === 0 ? <span className="font-bold">Satuan</span> : undefined
+                                }
                                 style={{ marginBottom: 0 }}
                               >
                                 <Input placeholder="cth: kali" />
@@ -235,9 +240,13 @@ export default function PaketTindakanTab({
                   </Form.List>
                 </Card>
 
-                <Card size="small" className="mt-4!" title={<span className="font-semibold">BHP Paket</span>}>
+                <Card
+                  size="small"
+                  className="mt-4!"
+                  title={<span className="font-semibold">BHP Paket</span>}
+                >
                   <Form.List name={[paketField.name, 'bhpList']}>
-                    {(fields, { add }) => (
+                    {(fields) => (
                       <div className="flex flex-col gap-2">
                         {fields.length === 0 && (
                           <div className="text-xs" style={{ color: token.colorTextTertiary }}>
@@ -287,7 +296,13 @@ export default function PaketTindakanTab({
                                     ])
                                     if (!currentSatuan && selectedItem.kodeUnit) {
                                       modalForm.setFieldValue(
-                                        ['paketEntries', paketField.name, 'bhpList', name, 'satuan'],
+                                        [
+                                          'paketEntries',
+                                          paketField.name,
+                                          'bhpList',
+                                          name,
+                                          'satuan'
+                                        ],
                                         selectedItem.kodeUnit
                                       )
                                     }
@@ -316,22 +331,16 @@ export default function PaketTindakanTab({
                               </Form.Item>
                             </Col>
                             <Col span={8}>
-                              <Form.Item {...restField} name={[name, 'satuan']} style={{ marginBottom: 0 }}>
+                              <Form.Item
+                                {...restField}
+                                name={[name, 'satuan']}
+                                style={{ marginBottom: 0 }}
+                              >
                                 <Input placeholder="Satuan" />
                               </Form.Item>
                             </Col>
                           </Row>
                         ))}
-
-                        <Button
-                          type="dashed"
-                          size="small"
-                          icon={<PlusCircleOutlined />}
-                          onClick={() => add({ jumlah: 1, includedInPaket: true })}
-                          className="mt-1"
-                        >
-                          Tambah Paket BHP
-                        </Button>
                       </div>
                     )}
                   </Form.List>
@@ -347,7 +356,8 @@ export default function PaketTindakanTab({
                       <div className="flex flex-col gap-2">
                         {fields.length === 0 && (
                           <div className="text-xs" style={{ color: token.colorTextTertiary }}>
-                            Belum ada role tenaga medis dari komponen jasa tindakan pada kelas terpilih.
+                            Belum ada role tenaga medis dari komponen jasa tindakan pada kelas
+                            terpilih.
                           </div>
                         )}
                         {fields.map(({ key, name, ...restField }) => (
@@ -356,7 +366,11 @@ export default function PaketTindakanTab({
                               <Form.Item
                                 {...restField}
                                 name={[name, 'pegawaiId']}
-                                label={name === 0 ? <span className="font-bold">Nama Petugas</span> : undefined}
+                                label={
+                                  name === 0 ? (
+                                    <span className="font-bold">Nama Petugas</span>
+                                  ) : undefined
+                                }
                                 rules={[{ required: true, message: 'Pilih petugas' }]}
                                 style={{ marginBottom: 0 }}
                               >
@@ -390,7 +404,11 @@ export default function PaketTindakanTab({
                                 <Input />
                               </Form.Item>
                               <Form.Item
-                                label={name === 0 ? <span className="font-bold">Role / Peran</span> : undefined}
+                                label={
+                                  name === 0 ? (
+                                    <span className="font-bold">Role / Peran</span>
+                                  ) : undefined
+                                }
                                 style={{ marginBottom: 0 }}
                               >
                                 <Input

@@ -4,90 +4,71 @@ import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/
 
 export const requireSession = true
 
-const KepegawaianSimpleSchema = z.object({
-    id: z.number(),
-    namaLengkap: z.string().optional().nullable(),
-    nik: z.string().optional().nullable()
-}).passthrough()
-
-const MasterTindakanSimpleSchema = z.object({
-    id: z.number(),
-    kodeTindakan: z.string(),
-    namaTindakan: z.string(),
-    kategoriTindakan: z.string().optional().nullable()
-})
-
-const tindakanPelaksanaListSchema = z.object({
-    id: z.number(),
-    tindakanPasienId: z.number(),
-    pegawaiId: z.number(),
-    roleTenaga: z.string(),
-    nominalJasa: z.union([z.number(), z.string()]).optional().nullable(),
-    pegawai: KepegawaianSimpleSchema.optional().nullable()
-})
-
-const DetailTindakanBhpSchema = z.object({
-    id: z.number().optional(),
-    tindakanPasienId: z.number().optional(),
-    itemId: z.number(),
-    namaItem: z.string().optional().nullable(),
-    jumlah: z.union([z.number(), z.string()]),
-    satuan: z.string().optional().nullable(),
-    hargaSatuan: z.union([z.number(), z.string()]).optional().nullable(),
-    subtotal: z.union([z.number(), z.string()]).optional().nullable(),
-    includedInPaket: z.boolean().optional().nullable()
-})
-
 const DetailTindakanPasienSchema = z.object({
     id: z.number(),
     encounterId: z.string(),
     patientId: z.string(),
-    masterTindakanId: z.number(),
     tanggalTindakan: z.union([z.string(), z.date()]),
-    jumlah: z.union([z.number(), z.string()]),
-    satuan: z.string().optional().nullable(),
-    tarif: z.union([z.number(), z.string()]).optional().nullable(),
-    subtotal: z.union([z.number(), z.string()]).optional().nullable(),
     cyto: z.boolean().optional().nullable(),
     catatanTambahan: z.string().optional().nullable(),
     status: z.string().optional(),
     createdAt: z.union([z.string(), z.date()]).optional(),
     updatedAt: z.union([z.string(), z.date()]).optional(),
-    masterTindakan: MasterTindakanSimpleSchema.optional().nullable(),
-    tindakanPelaksanaList: z.array(tindakanPelaksanaListSchema).optional().nullable(),
-    bhpList: z.array(DetailTindakanBhpSchema).optional().nullable()
-})
+    tindakanPelaksanaList: z.any().array().optional().nullable(),
+    tindakanPaket: z.any().array().optional().nullable(),
+    tindakanNonPaket: z.any().array().optional().nullable(),
+    paketBhp: z.any().array().optional().nullable(),
+    bhpNonPaket: z.any().array().optional().nullable()
+}).passthrough()
 
-const PetugasInputSchema = z.object({
+const PetugasListSchema = z.object({
     pegawaiId: z.number(),
     roleTenaga: z.string()
 })
 
-const BHPInputSchema = z.object({
-    itemId: z.number(),
-    jumlah: z.number().int().min(1),
+const TindakanPaketListSchema = z.object({
+    masterTindakanId: z.number(),
+    paketId: z.number(),
+    paketDetailId: z.number().optional().nullable(),
+    kelas: z.string().optional().nullable(),
+    jumlah: z.number().min(0.01),
     satuan: z.string().optional().nullable(),
-    includedInPaket: z.boolean().optional()
+    cyto: z.boolean()
 })
 
-const CreateDetailTindakanItemSchema = z.object({
+const TindakanSatuanListSchema = z.object({
     masterTindakanId: z.number(),
-    encounterId: z.string(),
-    patientId: z.string(),
     kelas: z.string().optional().nullable(),
-    paketId: z.number().optional().nullable(),
-    paketDetailId: z.number().optional().nullable(),
-    tanggalTindakan: z.union([z.string(), z.date()]),
     jumlah: z.number().min(0.01),
-    satuan: z.string().optional(),
-    cyto: z.boolean().optional().default(false),
-    catatanTambahan: z.string().optional(),
-    petugasList: z.array(PetugasInputSchema).min(1),
-    bhpList: z.array(BHPInputSchema).optional()
+    satuan: z.string().optional().nullable(),
+    cyto: z.boolean()
+})
+
+const BhpSatuanListSchema = z.object({
+    itemId: z.number(),
+    jumlah: z.number(),
+    satuan: z.string().optional().nullable()
+})
+
+const BhpPaketListSchema = z.object({
+    paketBhpId: z.number(),
+    paketBhpDetailId: z.number(),
+    itemId: z.number(),
+    jumlah: z.number(),
+    satuan: z.string().optional().nullable()
 })
 
 const CreateDetailTindakanSchema = z.object({
-    tindakanData: z.array(CreateDetailTindakanItemSchema).min(1)
+    encounterId: z.string(),
+    patientId: z.string(),
+    tanggalTindakan: z.union([z.string(), z.date()]),
+    cyto: z.boolean().optional().nullable(),
+    catatanTambahan: z.string().optional().nullable(),
+    petugasList: z.array(PetugasListSchema),
+    tindakanPaketList: z.array(TindakanPaketListSchema).optional(),
+    tindakanSatuanList: z.array(TindakanSatuanListSchema).optional(),
+    bhpSatuanList: z.array(BhpSatuanListSchema).optional(),
+    bhpPaketList: z.array(BhpPaketListSchema).optional()
 })
 
 export const schemas = {
@@ -116,6 +97,14 @@ export const schemas = {
         result: z.object({
             success: z.boolean(),
             result: z.any().optional(),
+            error: z.string().optional(),
+            message: z.string().optional()
+        })
+    },
+    remove: {
+        args: z.object({ id: z.number() }),
+        result: z.object({
+            success: z.boolean(),
             error: z.string().optional(),
             message: z.string().optional()
         })
@@ -158,7 +147,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 export const byEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.byEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const url = `/api/detailtindakanpasien?encounterId=${args.encounterId}&items=100`
+        const url = `/api/detailtindakanpasien/${args.encounterId}/read`
         const res = await client.get(url)
 
         const ListSchema = BackendListSchema(DetailTindakanPasienSchema)
@@ -173,7 +162,6 @@ export const byEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
     try {
         const client = getClient(ctx)
-        // Payload dikirim dalam format { tindakanData: [...] } ke backend custom controller
         const res = await client.post('/api/detailtindakanpasien', args)
         const ResponseSchema = z.object({
             success: z.boolean(),
@@ -202,6 +190,23 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
         })
         const result = await parseBackendResponse(res, ResponseSchema)
         return { success: true, result }
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        return { success: false, error: msg }
+    }
+}
+
+export const remove = async (ctx: IpcContext, args: z.infer<typeof schemas.remove.args>) => {
+    try {
+        const client = getClient(ctx)
+        const res = await client.delete(`/api/detailtindakanpasien/${args.id}`)
+        const ResponseSchema = z.object({
+            success: z.boolean(),
+            message: z.string().optional(),
+            error: z.string().optional()
+        })
+        const result = await parseBackendResponse(res, ResponseSchema)
+        return { success: true, ...result }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         return { success: false, error: msg }

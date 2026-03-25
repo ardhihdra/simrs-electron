@@ -61,29 +61,46 @@ export interface PetugasInput {
     roleTenaga: string
 }
 
-export interface CreateDetailTindakanItem {
-    masterTindakanId: number
+export interface CreateDetailTindakanInput {
     encounterId: string
     patientId: string
-    kelas?: string | null
-    paketId?: number | null
-    paketDetailId?: number | null
     tanggalTindakan: string | Date
-    jumlah: number
-    satuan?: string
     cyto?: boolean
-    catatanTambahan?: string
+    catatanTambahan?: string | null
     petugasList: PetugasInput[]
-    bhpList?: {
+    tindakanSatuanList?: {
+        masterTindakanId: number
+        kelas?: string | null
+        jumlah: number
+        satuan?: string | null
+        cyto?: boolean
+    }[]
+    tindakanPaketList?: {
+        masterTindakanId: number
+        paketId: number
+        paketDetailId: number
+        kelas?: string | null
+        jumlah: number
+        satuan?: string | null
+        cyto?: boolean
+    }[]
+    bhpSatuanList?: {
         itemId: number
         jumlah: number
         satuan?: string | null
         includedInPaket?: boolean
     }[]
+    bhpPaketList?: {
+        paketBhpId: number
+        paketBhpDetailId: number
+        itemId: number
+        jumlah: number
+        satuan?: string | null
+    }[]
 }
 
-export interface CreateDetailTindakanInput {
-    tindakanData: CreateDetailTindakanItem[]
+export interface UpdateDetailTindakanInput extends CreateDetailTindakanInput {
+    id: number;
 }
 
 export const useDetailTindakanByEncounter = (encounterId: string | undefined) => {
@@ -94,7 +111,7 @@ export const useDetailTindakanByEncounter = (encounterId: string | undefined) =>
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
             const res = await fn({ encounterId: encounterId! })
             if (!res.success) throw new Error(res.error ?? 'Gagal mengambil detail tindakan')
-            return (res.result ?? []) as DetailTindakanPasienItem[]
+            return (res.result ?? []) as unknown as DetailTindakanPasienItem[]
         },
         enabled: !!encounterId
     })
@@ -104,10 +121,28 @@ export const useCreateDetailTindakan = (encounterId: string | undefined) => {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (input: CreateDetailTindakanInput) => {
-            const fn = window.api?.query?.detailTindakanPasien?.create
+            const fn = (window.api?.query?.detailTindakanPasien?.create as any)
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
-            const res = await fn(input)
+            const res = await (fn as any)(input)
             if (!res.success) throw new Error((res as any).error ?? 'Gagal menyimpan detail tindakan')
+            return res
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({
+                queryKey: ['detail-tindakan-pasien', 'by-encounter', encounterId]
+            })
+        }
+    })
+}
+
+export const useUpdateDetailTindakan = (encounterId: string | undefined) => {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (input: UpdateDetailTindakanInput) => {
+            const fn = (window.api?.query?.detailTindakanPasien?.update as any)
+            if (!fn) throw new Error('API detail tindakan tidak tersedia')
+            const res = await (fn as any)(input)
+            if (!res.success) throw new Error((res as any).error ?? 'Gagal memperbarui detail tindakan')
             return res
         },
         onSuccess: () => {
@@ -122,9 +157,9 @@ export const useVoidDetailTindakan = (encounterId: string | undefined) => {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (id: number) => {
-            const fn = window.api?.query?.detailTindakanPasien?.update
+            const fn = (window.api?.query?.detailTindakanPasien?.remove as any)
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
-            const res = await fn({ id, status: 'void' })
+            const res = await fn({ id })
             if (!res.success) throw new Error((res as any).error ?? 'Gagal membatalkan tindakan')
             return res
         },
