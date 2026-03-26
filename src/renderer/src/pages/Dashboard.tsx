@@ -112,11 +112,11 @@ const items: DashboardMenuItem[] = [
         key: '/dashboard/registration/select',
         icon: <DashboardOutlined />
       },
-      {
-        label: 'Daftar Kunjungan',
-        key: '/dashboard/registration/active-encounters',
-        icon: <UnorderedListOutlined />
-      },
+      // {
+      //   label: 'Daftar Kunjungan',
+      //   key: '/dashboard/registration/active-encounters',
+      //   icon: <UnorderedListOutlined />
+      // },
       { label: 'Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
       {
         label: 'Monitor Antrian Dokter',
