@@ -34,8 +34,14 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
     if (!queue) return
 
     try {
+      const queueId = queue.queueId ?? queue.id
+      if (queueId === undefined || queueId === null) {
+        message.error('ID antrian tidak ditemukan')
+        return
+      }
+
       await confirmMutation.mutateAsync({
-        queueId: queue.id,
+        queueId: String(queueId),
         patientId: values.patientId
       })
       message.success('Kehadiran dikonfirmasi')
