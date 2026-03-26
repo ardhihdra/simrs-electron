@@ -1,4 +1,5 @@
 import {
+  BarcodeOutlined,
   CalendarOutlined,
   DashboardOutlined,
   ExperimentOutlined,
@@ -111,6 +112,16 @@ const items: DashboardMenuItem[] = [
         label: 'Antrian Pasien',
         key: '/dashboard/registration/select',
         icon: <DashboardOutlined />
+      },
+      {
+        label: 'Antrian Mendatang',
+        key: '/dashboard/registration/upcoming-queue',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Kioska',
+        key: '/dashboard/registration/kioska',
+        icon: <BarcodeOutlined />
       },
       // {
       //   label: 'Daftar Kunjungan',

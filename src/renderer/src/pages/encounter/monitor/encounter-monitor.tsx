@@ -263,45 +263,47 @@ export default function EncounterMonitor() {
   console.log(queueQuery.data)
   return (
     <div className="space-y-4">
-      <Card className="border-0 shadow-sm">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <Title level={4} className="!mb-1">
-              Monitor Antrian Poli Dokter
-            </Title>
-            <Text type="secondary">
-              Tanggal antrian {selectedDate.format('DD MMM YYYY')} • update otomatis setiap 5 detik
-            </Text>
+      <div className="mb-4">
+        <Card className="border-0 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <Title level={4} className="!mb-1">
+                Monitor Antrian Poli Dokter
+              </Title>
+              <Text type="secondary">
+                Tanggal antrian {selectedDate.format('DD MMM YYYY')} • update otomatis setiap 5
+                detik
+              </Text>
+            </div>
+            <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
+              <DatePicker
+                allowClear={false}
+                className="min-w-[260px]"
+                format="DD MMM YYYY"
+                value={selectedDate}
+                onChange={(value) => setSelectedDate(value ?? dayjs())}
+              />
+              <Select
+                allowClear
+                showSearch
+                placeholder="Filter dokter"
+                className="min-w-[260px]"
+                value={selectedDoctor}
+                onChange={(value) => setSelectedDoctor(value)}
+                options={doctorOptions}
+                optionFilterProp="label"
+              />
+              {queueQuery.isFetching ? <Tag color="processing">Memperbarui data</Tag> : null}
+            </div>
           </div>
-          <div className="flex w-full flex-col gap-2 md:w-auto md:items-end">
-            <DatePicker
-              allowClear={false}
-              className="min-w-[260px]"
-              format="DD MMM YYYY"
-              value={selectedDate}
-              onChange={(value) => setSelectedDate(value ?? dayjs())}
-            />
-            <Select
-              allowClear
-              showSearch
-              placeholder="Filter dokter"
-              className="min-w-[260px]"
-              value={selectedDoctor}
-              onChange={(value) => setSelectedDoctor(value)}
-              options={doctorOptions}
-              optionFilterProp="label"
-            />
-            {queueQuery.isFetching ? <Tag color="processing">Memperbarui data</Tag> : null}
+          <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
+            <MonitorMetric label="Poli Dokter Aktif" value={filteredSummaries.length} />
+            <MonitorMetric label="Sedang Ditangani" value={totalInTreatment} />
+            <MonitorMetric label="Sudah Ditangani" value={totalHandled} />
+            <MonitorMetric label="Sisa Antrian" value={totalRemaining} />
           </div>
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-4">
-          <MonitorMetric label="Poli Dokter Aktif" value={filteredSummaries.length} />
-          <MonitorMetric label="Sedang Ditangani" value={totalInTreatment} />
-          <MonitorMetric label="Sudah Ditangani" value={totalHandled} />
-          <MonitorMetric label="Sisa Antrian" value={totalRemaining} />
-        </div>
-      </Card>
+        </Card>
+      </div>
 
       {queueQuery.isLoading ? (
         <Card className="border-0 shadow-sm">

@@ -89,9 +89,11 @@ import Services from './pages/services/services'
 import TriagePage from './pages/triage'
 import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
+import KioskaPage from './pages/visit-management/kioska'
 import RegistrationPage from './pages/visit-management/registration'
 import RegistrationQueue from './pages/visit-management/registration-queue'
 import RegistrationSelect from './pages/visit-management/registration-select'
+import UpcomingQueuePage from './pages/visit-management/upcoming-queue'
 
 const withModuleGuard = (module: string, element: ReactNode) => (
   <ModuleScopeGuard module={module}>{element}</ModuleScopeGuard>
@@ -122,6 +124,8 @@ function MainRoute() {
             <Route index element={<RegistrationPage />} />
             <Route path="select" element={<RegistrationSelect />} />
             <Route path="queue/:practitionerId" element={<RegistrationQueue />} />
+            <Route path="upcoming-queue" element={<UpcomingQueuePage />} />
+            <Route path="kioska" element={<KioskaPage />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
