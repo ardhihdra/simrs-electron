@@ -4,7 +4,14 @@ import { t } from '../'
 
 // --- Enums / Types ---
 const LabPrioritySchema = z.enum(['ROUTINE', 'URGENT', 'STAT'])
-const LabServiceRequestStatusSchema = z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED', 'REVOKED', 'ENTERED_IN_ERROR'])
+const LabServiceRequestStatusSchema = z.enum([
+  'DRAFT',
+  'ACTIVE',
+  'COMPLETED',
+  'CANCELLED',
+  'REVOKED',
+  'ENTERED_IN_ERROR'
+])
 
 // --- Schemas ---
 
@@ -24,29 +31,29 @@ export const CreateLabOrderSchema = z.object({
 
 // Collect Specimen
 export const CollectSpecimenSchema = z.object({
-  serviceRequestId: z.string().uuid(),
+  serviceRequestId: z.union([z.string(), z.number()]).transform((value) => String(value)),
   typeCodeId: z.string().uuid()
 })
 
 // Record Result
 const RecordLabResultObservationSchema = z.object({
-  observationCodeId: z.string().uuid(),
+  observationCodeId: z.string().min(1),
   value: z.string(),
   unit: z.string().optional(),
   referenceRange: z.string().optional(),
-  interpretation: z.enum(['L', 'H', 'LL', 'HH', 'N', 'A', 'AA', 'HH', 'POS', 'NEG']).optional(), // Adjust based on LabInterpretation type
+  interpretation: z.enum(['NORMAL', 'HIGH', 'LOW', 'CRITICAL']).optional(),
   observedAt: z.string().optional() // Date string
 })
 
 export const RecordLabResultSchema = z.object({
-  serviceRequestId: z.string().uuid(),
+  serviceRequestId: z.union([z.string(), z.number()]).transform((value) => String(value)),
   encounterId: z.string().uuid(),
   patientId: z.string().uuid(),
   observations: z.array(RecordLabResultObservationSchema)
 })
 
 export const RecordRadiologyResultSchema = z.object({
-  serviceRequestId: z.string().uuid(),
+  serviceRequestId: z.union([z.string(), z.number()]).transform((value) => String(value)),
   encounterId: z.string().uuid(),
   patientId: z.string().uuid(),
   modalityCode: z.string(),
@@ -84,45 +91,49 @@ export const laboratoryManagementRpc = {
     }),
 
   getPendingOrders: t
-    .input(z.object({
+    .input(
+      z.object({
         status: LabServiceRequestStatusSchema.optional(),
         priority: LabPrioritySchema.optional(),
         fromDate: z.string().optional(),
         toDate: z.string().optional()
-    }))
+      })
+    )
     .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
-        const params = new URLSearchParams()
-        if (input.status) params.append('status', input.status)
-        if (input.priority) params.append('priority', input.priority)
-        if (input.fromDate) params.append('fromDate', input.fromDate)
-        if (input.toDate) params.append('toDate', input.toDate)
-        
-        const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
-        const data = await res.json()
-     
-        return data
+      const params = new URLSearchParams()
+      if (input.status) params.append('status', input.status)
+      if (input.priority) params.append('priority', input.priority)
+      if (input.fromDate) params.append('fromDate', input.fromDate)
+      if (input.toDate) params.append('toDate', input.toDate)
+
+      const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
+      const data = await res.json()
+
+      return data
     }),
 
   getOrders: t
-    .input(z.object({
+    .input(
+      z.object({
         status: LabServiceRequestStatusSchema.optional(),
         priority: LabPrioritySchema.optional(),
         fromDate: z.string().optional(),
         toDate: z.string().optional()
-    }))
+      })
+    )
     .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
-        const params = new URLSearchParams()
-        if (input.status) params.append('status', input.status)
-        if (input.priority) params.append('priority', input.priority)
-        if (input.fromDate) params.append('fromDate', input.fromDate)
-        if (input.toDate) params.append('toDate', input.toDate)
-        
-        const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
-        const data = await res.json()
-     
-        return data
+      const params = new URLSearchParams()
+      if (input.status) params.append('status', input.status)
+      if (input.priority) params.append('priority', input.priority)
+      if (input.fromDate) params.append('fromDate', input.fromDate)
+      if (input.toDate) params.append('toDate', input.toDate)
+
+      const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
+      const data = await res.json()
+
+      return data
     }),
 
   // Get Complete Order
@@ -130,8 +141,8 @@ export const laboratoryManagementRpc = {
     .input(z.object({ id: z.string().uuid() }))
     .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
-        const res = await client.get(`/api/module/lab-management/order/${input.id}`)
-        return await res.json()
+      const res = await client.get(`/api/module/lab-management/order/${input.id}`)
+      return await res.json()
     }),
 
   // Specimen
@@ -159,7 +170,7 @@ export const laboratoryManagementRpc = {
       const res = await client.post('/api/module/lab-management/result/radiology', input)
 
       const data = await res.json()
-      console.log("data", data)
+      console.log('data', data)
       return data
     }),
 
@@ -179,17 +190,17 @@ export const laboratoryManagementRpc = {
         const match = base64File.match(/^data:(.*);base64,(.*)$/)
         const cleanBase64 = match ? match[2] : base64File
         const mimeType = match ? match[1] : 'application/dicom'
-        
+
         // Convert Base64 back to Blob for FormData
         const byteCharacters = atob(cleanBase64)
         const byteNumbers = new Array(byteCharacters.length)
-        
+
         for (let j = 0; j < byteCharacters.length; j++) {
           byteNumbers[j] = byteCharacters.charCodeAt(j)
         }
-        
+
         const byteArray = new Uint8Array(byteNumbers)
-        
+
         const fileBlob = new Blob([byteArray], { type: mimeType })
         formData.append('files', fileBlob, `dicom-image-${i}.dcm`)
       }
@@ -211,41 +222,43 @@ export const laboratoryManagementRpc = {
     .input(LabTerminologySearchSchema)
     .output(z.any())
     .query(async ({ client }, input) => {
-        const params = new URLSearchParams()
-        if (input.query) params.append('query', input.query)
-        if (input.domain) params.append('domain', input.domain)
-        if (input.category) params.append('category', input.category)
-        if (input.limit) params.append('limit', String(input.limit))
+      const params = new URLSearchParams()
+      if (input.query) params.append('query', input.query)
+      if (input.domain) params.append('domain', input.domain)
+      if (input.category) params.append('category', input.category)
+      if (input.limit) params.append('limit', String(input.limit))
 
-        const res = await client.get(`/api/module/lab-management/terminology?${params.toString()}`)
-        console.log(res)
-        return await res.json()
+      const res = await client.get(`/api/module/lab-management/terminology?${params.toString()}`)
+      console.log(res)
+      return await res.json()
     }),
 
   getTerminologyCategories: t
     .input(z.void())
     .output(ApiResponseSchema(z.any()))
     .query(async ({ client }) => {
-        const res = await client.get('/api/module/lab-management/terminology/categories')
-        return await res.json()
+      const res = await client.get('/api/module/lab-management/terminology/categories')
+      return await res.json()
     }),
 
   // PACS study search — QIDO-RS proxy
   searchPacsStudies: t
-    .input(z.object({
+    .input(
+      z.object({
         patientId: z.string().optional(),
         patientName: z.string().optional(),
         modality: z.string().optional(),
         studyDate: z.string().optional()
-    }))
+      })
+    )
     .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
-        const params = new URLSearchParams()
-        if (input.patientId) params.append('patientId', input.patientId)
-        if (input.patientName) params.append('patientName', input.patientName)
-        if (input.modality) params.append('modality', input.modality)
-        if (input.studyDate) params.append('studyDate', input.studyDate)
-        const res = await client.get(`/api/module/imaging/studies/search?${params.toString()}`)
-        return await res.json()
+      const params = new URLSearchParams()
+      if (input.patientId) params.append('patientId', input.patientId)
+      if (input.patientName) params.append('patientName', input.patientName)
+      if (input.modality) params.append('modality', input.modality)
+      if (input.studyDate) params.append('studyDate', input.studyDate)
+      const res = await client.get(`/api/module/imaging/studies/search?${params.toString()}`)
+      return await res.json()
     })
 }

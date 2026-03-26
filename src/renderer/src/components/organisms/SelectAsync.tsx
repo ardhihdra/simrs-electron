@@ -35,8 +35,8 @@ export const SelectAsync = ({
     queryFn: () => {
       return fn(filters)
     },
-    select: (data) => {
-      return data.data?.map((item) => {
+    select: (data: any) => {
+      return data.data?.map((item: any) => {
         return {
           value: item[output],
           label: item[display]
@@ -44,6 +44,7 @@ export const SelectAsync = ({
       })
     }
   })
+
   return (
     <Select
       options={data.data}

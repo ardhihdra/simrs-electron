@@ -33,7 +33,17 @@ export default defineConfig({
   },
   renderer: {
     resolve: {
-      alias
+      alias,
+      // Keep workspace-linked deps as node_modules paths so Vite can prebundle CJS packages.
+      preserveSymlinks: true
+    },
+    optimizeDeps: {
+      include: ['simrs-types']
+    },
+    build: {
+      commonjsOptions: {
+        include: [/simrs-types/, /node_modules/]
+      }
     },
     plugins: [react(), tailwindcss()]
   }

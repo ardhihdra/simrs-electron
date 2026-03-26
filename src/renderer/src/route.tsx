@@ -1,7 +1,7 @@
-import { ModuleScopeGuard } from './services/ModuleScope/guard'
-import { workspaceModuleCodes } from './services/ModuleScope/constant'
-import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
 import type { ReactNode } from 'react'
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
+import { workspaceModuleCodes } from './services/ModuleScope/constant'
+import { ModuleScopeGuard } from './services/ModuleScope/guard'
 
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
@@ -27,11 +27,12 @@ import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
 import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
-import ReferralRequestPage from './pages/encounter-transition/ReferralRequestPage'
-import EncounterTransitionPage from './pages/encounter-transition/encounter-transition'
+import ReferralRequestPage from './pages/encounter-transition/referral-request'
+import EncounterTransitionPage from './pages/encounter-transition/transition'
 import Encounter from './pages/encounter/Encounter'
 import EncounterForm from './pages/encounter/encounter-form'
 import EncounterTable from './pages/encounter/encounter-table'
+import DoctorQueueMonitor from './pages/encounter/monitor/doctor-queue-monitor'
 import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
 import Expense from './pages/expense/Expense'
 import { default as ExpenseForm, default as IncomeForm } from './pages/expense/expense-form'
@@ -52,9 +53,9 @@ import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import LaboratoryQueue from './pages/laboratory-management/queue'
 import LaboratoryReports from './pages/laboratory-management/reports'
 import LaboratoryRequests from './pages/laboratory-management/requests'
-import LaboratorySpecimenRequest from './pages/laboratory-management/requests/specimen'
+import LaboratorySpecimenRequest from './pages/laboratory-management/requests-specimen'
 import LaboratoryResults from './pages/laboratory-management/results'
-import LaboratoryResultEntry from './pages/laboratory-management/results/entry'
+import LaboratoryResultEntry from './pages/laboratory-management/results-entry'
 import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
 import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
 import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
@@ -74,10 +75,10 @@ import Pegawai from './pages/pegawai/Pegawai'
 import PegawaiForm from './pages/pegawai/pegawai-form'
 import PegawaiReport from './pages/pegawai/pegawai-report'
 import PegawaiTable from './pages/pegawai/pegawai-table'
-import Pendaftaran from './pages/pendaftaran'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import ReportPage from './pages/pharmacy/ReportPage'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
+import PoliSelect from './pages/poli/PoliSelect'
 import QueueList from './pages/queue/queue-list'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
@@ -86,10 +87,13 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
-import ActiveEncountersPage from './pages/visit-management/active-encounters-page'
+import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
-import RegistrationPage from './pages/visit-management/registration-page'
+import KioskaPage from './pages/visit-management/kioska'
+import RegistrationPage from './pages/visit-management/registration'
 import RegistrationQueue from './pages/visit-management/registration-queue'
+import RegistrationSelect from './pages/visit-management/registration-select'
+import UpcomingQueuePage from './pages/visit-management/upcoming-queue'
 
 const withModuleGuard = (module: string, element: ReactNode) => (
   <ModuleScopeGuard module={module}>{element}</ModuleScopeGuard>
@@ -100,9 +104,10 @@ function MainRoute() {
   return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
       <Route path="/iframe-view" element={<IframeView />} />
+      <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path='/module-selection' element={<ModuleSelection />} />
+        <Route path="/module-selection" element={<ModuleSelection />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
           <Route index element={<DashboardHome />} />
           <Route
@@ -117,7 +122,10 @@ function MainRoute() {
             element={withModuleGuard(workspaceModuleCodes.registration, <Outlet />)}
           >
             <Route index element={<RegistrationPage />} />
-            <Route path="queue" element={<RegistrationQueue />} />
+            <Route path="select" element={<RegistrationSelect />} />
+            <Route path="queue/:practitionerId" element={<RegistrationQueue />} />
+            <Route path="upcoming-queue" element={<UpcomingQueuePage />} />
+            <Route path="kioska" element={<KioskaPage />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
@@ -128,12 +136,6 @@ function MainRoute() {
             <Route index element={<PatientTable />} />
             <Route path="register" element={<PatientForm />} />
             <Route path="edit/:id" element={<PatientForm />} />
-          </Route>
-          <Route
-            path="pendaftaran"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Pendaftaran />)}
-          >
-            <Route index element={<div>Daftar</div>} />
           </Route>
           <Route
             path="encounter"
@@ -155,12 +157,10 @@ function MainRoute() {
             <Route path="create" element={<ServiceRequestForm />} />
             <Route path="edit/:id" element={<ServiceRequestForm />} />
           </Route>
-          <Route
-            path="queue"
-            element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}
-          >
+          <Route path="queue" element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
+
             <Route
               path="registration"
               element={<QueueList title="Antrian Pendaftaran" serviceType="registration" />}
@@ -234,13 +234,9 @@ function MainRoute() {
             <Route path="create" element={<DiagnosticForm />} />
             <Route path="edit/:id" element={<DiagnosticForm />} />
           </Route>
-          <Route
-            path="services"
-            element={withModuleGuard(workspaceModuleCodes.doctor, <Services />)}
-          >
-            <Route index element={<PemeriksaanUtamaPage />} />
-            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
-            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          <Route path="poli" element={<Outlet />}>
+            <Route index element={<PoliSelect />} />
+            <Route path="umum" element={<div>Poli Umum Workspace Placeholder</div>} />
           </Route>
           <Route
             path="medicine"

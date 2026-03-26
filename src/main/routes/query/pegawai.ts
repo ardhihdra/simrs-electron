@@ -93,8 +93,6 @@ export const list = async (ctx: IpcContext) => {
 
     const pegawaiList = parsedPegawai.data.result || []
     const kontrakList = parsedKontrak.ok && parsedKontrak.data?.success ? parsedKontrak.data.result || [] : []
-    console.log('pegawaiList', pegawaiList)
-    console.log('kontrakList', kontrakList)
     const allowedRoles = new Set(['doctor', 'nurse', 'pharmacist', 'lab_technician', 'radiologist'])
     const kontrakActiveByPegawaiId = new Map<number, boolean>()
     const kontrakRoleByPegawaiId = new Map<number, string>()

@@ -27,7 +27,7 @@ const PatientTable = () => {
   } = useQuery({
     queryKey: ['patient', 'list', filter.nik, filter.name],
     queryFn: async () => {
-      const fn = window.api.query.patient.list
+      const fn = rpc.visitManagement.getPatientList
       if (!fn) {
         throw new Error('Failed to load data')
       }
@@ -58,7 +58,7 @@ const PatientTable = () => {
     { title: 'Alamat', dataIndex: 'address', key: 'address' }
   ]
 
-  const dataSource = (queryData?.data || []).map((item, idx) => ({ ...item, no: idx + 1 }))
+  const dataSource = (queryData?.result || []).map((item, idx) => ({ ...item, no: idx + 1 }))
 
   const onFinish = async (values: any) => {
     setOpenRegistration(false)
@@ -74,6 +74,7 @@ const PatientTable = () => {
       message.destroy()
     }
   }
+
   return (
     <div>
       <TableHeader
