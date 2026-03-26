@@ -1,7 +1,6 @@
 import { withError } from '@main/ipc/middleware'
 import { Session as SessionStore } from '@main/ipc/protected/session-store'
 import { IpcContext } from '@main/ipc/router'
-import { User } from '@main/models/user'
 import { notificationService } from '@main/services/notification-service'
 import z from 'zod'
 
@@ -141,23 +140,13 @@ export async function getSession(ctx: IpcContext) {
   // FIX ME: Temporary password for admin user, NEED BETTER LOGIN MECHANISM
   const storedUser = store.getUser();
   if (!storedUser) return { success: false, error: 'no user found' }
-  try {
-    await User.findOrCreate({ 
-      where: { id: Number(s.userId) }, 
-      defaults: { id: Number(s.userId), username: storedUser.username, password: 'admin123' },
-      raw: true 
-    })
-    return {
-      success: true,
-      session: s,
-      user: {
-        id: Number(s.userId),
-        username: storedUser.username,
-        hakAksesId: storedUser.hakAksesId
-      }
+  return {
+    success: true,
+    session: s,
+    user: {
+      id: Number(s.userId),
+      username: storedUser.username,
+      hakAksesId: storedUser.hakAksesId
     }
-  } catch (error) {
-    console.error('Error finding or creating user:', error)
-    return { success: false, error: 'Failed to retrieve user data' }
   }
 }

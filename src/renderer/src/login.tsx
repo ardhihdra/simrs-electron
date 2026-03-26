@@ -76,8 +76,7 @@ const LoginForm: React.FC = () => {
               >
                 <Input
                   size="large"
-                  placeholder="eg. 3212010101010001"
-                  defaultValue={'admin1'}
+                  placeholder="eg. admin1"
                   prefix={<UserOutlined className="text-gray-400 px-1" />}
                 />
               </Form.Item>
