@@ -1,4 +1,4 @@
-import { Button, Input, Card, theme, Table, Spin } from 'antd'
+import { Button, Input, Card, theme, Table, Spin, Tag, Typography } from 'antd'
 import {
   EyeOutlined,
   EditOutlined,
@@ -11,26 +11,20 @@ import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
-
-interface DaySchedule {
-  enabled: boolean
-  startTime: string
-  endTime: string
-}
+import dayjs from 'dayjs'
 
 interface DoctorScheduleApiItem {
   id: number
   idPegawai: number
   idPoli: number
-  kategori?: string | null
-  senin?: DaySchedule
-  selasa?: DaySchedule
-  rabu?: DaySchedule
-  kamis?: DaySchedule
-  jumat?: DaySchedule
-  sabtu?: DaySchedule
-  minggu?: DaySchedule
-  status?: string
+  idLokasiKerja: number
+  idKontrakKerja: number
+  kategori: string
+  namaJadwal?: string | null
+  berlakuDari: string
+  berlakuSampai?: string | null
+  status: 'active' | 'inactive'
+  keterangan?: string | null
   pegawai?: {
     id: number
     namaLengkap: string
@@ -54,71 +48,87 @@ type DoctorScheduleListResult = {
 
 interface DoctorScheduleItem {
   id?: number
+  scheduleName: string
   doctorName: string
+  category: string
   poli: string
-  monday?: string | null
-  tuesday?: string | null
-  wednesday?: string | null
-  thursday?: string | null
-  friday?: string | null
-  saturday?: string | null
-  sunday?: string | null
+  effectiveRange: string
+  contractId: number
+  locationId: number
+  status: 'active' | 'inactive'
+  note: string
 }
 
 type Row = DoctorScheduleItem & { no: number }
 
+const formatDate = (value?: string | null) => {
+  if (!value) return '-'
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.format('DD MMM YYYY') : value
+}
+
 const baseColumns: ColumnsType<Row> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60, align: 'center' },
+  { title: 'Nama Jadwal', dataIndex: 'scheduleName', key: 'scheduleName', width: 220 },
   { title: 'Dokter', dataIndex: 'doctorName', key: 'doctorName', width: 200 },
-  { title: 'Poli', dataIndex: 'poli', key: 'poli', width: 150 },
   {
-    title: 'Senin',
-    dataIndex: 'monday',
-    key: 'monday',
-    width: 130,
-    render: (v?: string | null) => v || '-'
+    title: 'Kategori',
+    dataIndex: 'category',
+    key: 'category',
+    width: 200,
+    render: (value: string) => value || '-'
   },
   {
-    title: 'Selasa',
-    dataIndex: 'tuesday',
-    key: 'tuesday',
-    width: 130,
-    render: (v?: string | null) => v || '-'
+    title: 'Poli',
+    dataIndex: 'poli',
+    key: 'poli',
+    width: 180
   },
   {
-    title: 'Rabu',
-    dataIndex: 'wednesday',
-    key: 'wednesday',
-    width: 130,
-    render: (v?: string | null) => v || '-'
+    title: 'Periode Berlaku',
+    dataIndex: 'effectiveRange',
+    key: 'effectiveRange',
+    width: 220
   },
   {
-    title: 'Kamis',
-    dataIndex: 'thursday',
-    key: 'thursday',
-    width: 130,
-    render: (v?: string | null) => v || '-'
+    title: 'ID Kontrak',
+    dataIndex: 'contractId',
+    key: 'contractId',
+    width: 110,
+    align: 'center'
   },
   {
-    title: 'Jumat',
-    dataIndex: 'friday',
-    key: 'friday',
-    width: 130,
-    render: (v?: string | null) => v || '-'
+    title: 'ID Lokasi',
+    dataIndex: 'locationId',
+    key: 'locationId',
+    width: 110,
+    align: 'center'
   },
   {
-    title: 'Sabtu',
-    dataIndex: 'saturday',
-    key: 'saturday',
-    width: 130,
-    render: (v?: string | null) => v || '-'
+    title: 'Status',
+    dataIndex: 'status',
+    key: 'status',
+    width: 120,
+    align: 'center',
+    render: (value: Row['status']) => (
+      <Tag color={value === 'active' ? 'green' : 'default'}>
+        {value === 'active' ? 'Aktif' : 'Tidak Aktif'}
+      </Tag>
+    )
   },
   {
-    title: 'Minggu',
-    dataIndex: 'sunday',
-    key: 'sunday',
-    width: 130,
-    render: (v?: string | null) => v || '-'
+    title: 'Keterangan',
+    dataIndex: 'note',
+    key: 'note',
+    width: 260,
+    render: (value: string) => (
+      <Typography.Paragraph
+        ellipsis={{ rows: 2, expandable: false }}
+        className="mb-0"
+      >
+        {value || '-'}
+      </Typography.Paragraph>
+    )
   }
 ]
 
@@ -155,6 +165,7 @@ export default function DoctorScheduleTable() {
   const navigate = useNavigate()
   const [searchDokter, setSearchDokter] = useState('')
   const [searchPoli, setSearchPoli] = useState('')
+  const [searchJadwal, setSearchJadwal] = useState('')
 
   const { data, refetch, isError, isLoading } = useQuery<DoctorScheduleListResult>({
     queryKey: ['doctorSchedule', 'list'],
@@ -171,21 +182,25 @@ export default function DoctorScheduleTable() {
     const source: DoctorScheduleItem[] = Array.isArray(apiResult)
       ? apiResult.map((item) => ({
           id: item.id,
+          scheduleName: item.namaJadwal?.trim() || `Jadwal #${item.id}`,
           doctorName: item.pegawai?.namaLengkap || '-',
+          category: item.kategori || '-',
           poli: item.poli?.name || '-',
-          monday: item.senin?.enabled ? `${item.senin.startTime} - ${item.senin.endTime}` : null,
-          tuesday: item.selasa?.enabled
-            ? `${item.selasa.startTime} - ${item.selasa.endTime}`
-            : null,
-          wednesday: item.rabu?.enabled ? `${item.rabu.startTime} - ${item.rabu.endTime}` : null,
-          thursday: item.kamis?.enabled ? `${item.kamis.startTime} - ${item.kamis.endTime}` : null,
-          friday: item.jumat?.enabled ? `${item.jumat.startTime} - ${item.jumat.endTime}` : null,
-          saturday: item.sabtu?.enabled ? `${item.sabtu.startTime} - ${item.sabtu.endTime}` : null,
-          sunday: item.minggu?.enabled ? `${item.minggu.startTime} - ${item.minggu.endTime}` : null
+          effectiveRange: `${formatDate(item.berlakuDari)} - ${formatDate(item.berlakuSampai) === '-' ? 'Sekarang' : formatDate(item.berlakuSampai)}`,
+          contractId: item.idKontrakKerja,
+          locationId: item.idLokasiKerja,
+          status: item.status,
+          note: item.keterangan?.trim() || '-'
         }))
       : []
     const rows: Row[] = source.map((e, idx) => ({ ...e, no: idx + 1 }))
     return rows.filter((r) => {
+      const matchJadwal = searchJadwal
+        ? [r.scheduleName, r.category]
+            .join(' ')
+            .toLowerCase()
+            .includes(searchJadwal.toLowerCase())
+        : true
       const matchDokter = searchDokter
         ? String(r.doctorName || '')
             .toLowerCase()
@@ -196,9 +211,9 @@ export default function DoctorScheduleTable() {
             .toLowerCase()
             .includes(searchPoli.toLowerCase())
         : true
-      return matchDokter && matchPoli
+      return matchJadwal && matchDokter && matchPoli
     })
-  }, [data, searchDokter, searchPoli])
+  }, [data, searchDokter, searchJadwal, searchPoli])
 
   const tableColumns = [
     ...baseColumns,
@@ -237,7 +252,7 @@ export default function DoctorScheduleTable() {
                 </h1>
               </div>
               <p className="text-sm text-blue-200 m-0 ml-12">
-                Manajemen pengaturan jadwal praktik dokter berdasarkan poli
+                Manajemen master jadwal dokter berdasarkan periode, kontrak kerja, dan poli
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -339,6 +354,27 @@ export default function DoctorScheduleTable() {
                 letterSpacing: '0.05em'
               }}
             >
+              Cari Jadwal
+            </div>
+            <Input
+              placeholder="Nama Jadwal / Kategori..."
+              prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
+              value={searchJadwal}
+              onChange={(e) => setSearchJadwal(e.target.value)}
+              allowClear
+            />
+          </div>
+          <div>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: token.colorTextTertiary,
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
               Cari Dokter
             </div>
             <Input
@@ -391,7 +427,7 @@ export default function DoctorScheduleTable() {
                 showTotal: (total) => `Total ${total} jadwal`,
                 showSizeChanger: true
               }}
-              scroll={{ x: 1300, y: 'calc(100vh - 460px)' }}
+              scroll={{ x: 1600, y: 'calc(100vh - 460px)' }}
               className="flex-1 h-full"
               size="middle"
             />

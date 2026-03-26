@@ -1,49 +1,98 @@
-import { Button, Card, Checkbox, Divider, Form, Select, Tag, TimePicker } from 'antd'
+import { Button, Card, DatePicker, Form, Input, InputNumber, Select, Tag } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { queryClient } from '@renderer/query-client'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import {
   ArrowLeftOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
   SaveOutlined
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
+import dayjs, { type Dayjs } from 'dayjs'
 
-interface DaySchedule {
-  enabled: boolean
-  startTime: string
-  endTime: string
+type DoctorScheduleStatus = 'active' | 'inactive'
+
+interface DoctorContract {
+  idKontrakPegawai?: number
+  nomorKontrak?: string
+  kodeJabatan?: string | null
+  statusKontrak?: string | null
+  tanggalMulaiKontrak?: string | Date | null
+  tanggalBerakhirKontrak?: string | Date | null
+}
+
+interface DoctorOption {
+  id: number
+  namaLengkap: string
+  email?: string | null
+  nik?: string | null
+  hakAkses?: string | null
+  hakAksesId?: string | null
+  kontrakPegawai?: DoctorContract[]
+}
+
+interface PoliOption {
+  id: number
+  name: string
 }
 
 interface DoctorScheduleFormData {
   idPegawai: number
   idPoli: number
+  idLokasiKerja: number
+  idKontrakKerja: number
   kategori: string
-  senin: DaySchedule
-  selasa: DaySchedule
-  rabu: DaySchedule
-  kamis: DaySchedule
-  jumat: DaySchedule
-  sabtu: DaySchedule
-  minggu: DaySchedule
-  status: 'active' | 'inactive'
+  namaJadwal?: string | null
+  berlakuDari: string
+  berlakuSampai?: string | null
+  status: DoctorScheduleStatus
+  keterangan?: string | null
 }
 
-const defaultDaySchedule = {
-  enabled: false,
-  startTime: dayjs('08:00', 'HH:mm'),
-  endTime: dayjs('16:00', 'HH:mm')
+interface DoctorScheduleFormValues {
+  idPegawai: number
+  idPoli: number
+  idLokasiKerja: number
+  idKontrakKerja: number
+  kategori: string
+  namaJadwal?: string
+  berlakuDari: Dayjs
+  berlakuSampai?: Dayjs | null
+  status: DoctorScheduleStatus
+  keterangan?: string
+}
+
+interface DoctorScheduleDetail extends DoctorScheduleFormData {
+  id: number
+  pegawai?: {
+    id: number
+    namaLengkap: string
+    email?: string | null
+    nik?: string | null
+  } | null
+  poli?: {
+    id: number
+    name: string
+  } | null
+}
+
+type DoctorScheduleDetailResponse = {
+  success: boolean
+  result?: DoctorScheduleDetail
+  message?: string
+  error?: string
 }
 
 export function DoctorScheduleForm() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const [form] = Form.useForm()
+  const [form] = Form.useForm<DoctorScheduleFormValues>()
   const isEdit = Boolean(id)
+  const session = useModuleScopeStore((state) => state.session)
 
-  const { data: detailData } = useQuery({
+  const { data: detailData } = useQuery<DoctorScheduleDetailResponse>({
     queryKey: ['doctorSchedule', 'detail', id],
     queryFn: () => {
       const fn = window.api?.query?.doctorSchedule?.getById
@@ -54,16 +103,26 @@ export function DoctorScheduleForm() {
     enabled: isEdit
   })
 
-  const { data: pegawaiData } = useQuery({
+  const { data: pegawaiData } = useQuery<{
+    success: boolean
+    result?: DoctorOption[]
+    message?: string
+    error?: string
+  }>({
     queryKey: ['kepegawaian', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.kepegawaian?.list
       if (!fn) throw new Error('API kepegawaian tidak tersedia')
-      return fn()
+      return fn({ query: { depth: 1 } })
     }
   })
 
-  const { data: poliData } = useQuery({
+  const { data: poliData } = useQuery<{
+    success: boolean
+    result?: PoliOption[]
+    message?: string
+    error?: string
+  }>({
     queryKey: ['poli', 'list'],
     queryFn: () => {
       const fn = window.api?.query?.poli?.list
@@ -72,35 +131,77 @@ export function DoctorScheduleForm() {
     }
   })
 
+  const selectedDoctorId = Form.useWatch('idPegawai', form)
+
+  const selectedDoctor = useMemo(
+    () => pegawaiData?.result?.find((pegawai) => pegawai.id === selectedDoctorId),
+    [pegawaiData?.result, selectedDoctorId]
+  )
+
+  const contractOptions = useMemo(() => {
+    const contracts = selectedDoctor?.kontrakPegawai ?? []
+    const activeContracts = contracts.filter((contract) => {
+      const status = String(contract.statusKontrak ?? '').trim().toLowerCase()
+      return status === 'aktif' || status === 'active'
+    })
+    return (activeContracts.length > 0 ? activeContracts : contracts)
+      .filter((contract): contract is DoctorContract & { idKontrakPegawai: number } =>
+        typeof contract.idKontrakPegawai === 'number'
+      )
+      .map((contract) => {
+        const dateRange = [
+          contract.tanggalMulaiKontrak ? dayjs(contract.tanggalMulaiKontrak).format('DD MMM YYYY') : null,
+          contract.tanggalBerakhirKontrak ? dayjs(contract.tanggalBerakhirKontrak).format('DD MMM YYYY') : 'sekarang'
+        ]
+          .filter(Boolean)
+          .join(' - ')
+        const fragments = [contract.nomorKontrak, contract.kodeJabatan, dateRange].filter(Boolean)
+
+        return {
+          value: contract.idKontrakPegawai,
+          label: fragments.join(' | ')
+        }
+      })
+  }, [selectedDoctor?.kontrakPegawai])
+
   useEffect(() => {
     if (isEdit && detailData?.success && detailData.result) {
       const data = detailData.result
-      const convertDaySchedule = (day: DaySchedule | undefined) => {
-        if (!day) return defaultDaySchedule
-        return {
-          enabled: day.enabled,
-          startTime: day.startTime ? dayjs(day.startTime, 'HH:mm') : dayjs('08:00', 'HH:mm'),
-          endTime: day.endTime ? dayjs(day.endTime, 'HH:mm') : dayjs('16:00', 'HH:mm')
-        }
-      }
-
       const formValues = {
         idPegawai: data.idPegawai,
         idPoli: data.idPoli,
+        idLokasiKerja: data.idLokasiKerja,
+        idKontrakKerja: data.idKontrakKerja,
         kategori: data.kategori,
+        namaJadwal: data.namaJadwal ?? undefined,
+        berlakuDari: dayjs(data.berlakuDari),
+        berlakuSampai: data.berlakuSampai ? dayjs(data.berlakuSampai) : undefined,
         status: data.status,
-        senin: convertDaySchedule(data.senin),
-        selasa: convertDaySchedule(data.selasa),
-        rabu: convertDaySchedule(data.rabu),
-        kamis: convertDaySchedule(data.kamis),
-        jumat: convertDaySchedule(data.jumat),
-        sabtu: convertDaySchedule(data.sabtu),
-        minggu: convertDaySchedule(data.minggu)
+        keterangan: data.keterangan ?? undefined
       }
 
       form.setFieldsValue(formValues)
     }
   }, [isEdit, detailData, form])
+
+  useEffect(() => {
+    if (!isEdit && session?.lokasiKerjaId) {
+      form.setFieldValue('idLokasiKerja', session.lokasiKerjaId)
+    }
+  }, [form, isEdit, session?.lokasiKerjaId])
+
+  useEffect(() => {
+    const currentContractId = form.getFieldValue('idKontrakKerja')
+    if (contractOptions.length === 0) {
+      form.setFieldValue('idKontrakKerja', undefined)
+      return
+    }
+
+    const contractStillValid = contractOptions.some((contract) => contract.value === currentContractId)
+    if (!contractStillValid) {
+      form.setFieldValue('idKontrakKerja', contractOptions[0]?.value)
+    }
+  }, [contractOptions, form, selectedDoctorId])
 
   const createMutation = useMutation({
     mutationKey: ['doctorSchedule', 'create'],
@@ -146,71 +247,25 @@ export function DoctorScheduleForm() {
     }
   })
 
-  const onFinish = (values: DoctorScheduleFormData) => {
-    const formattedValues = { ...values }
-    const days = ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']
-
-    days.forEach((day) => {
-      if (formattedValues[day]) {
-        const dayData = formattedValues[day]
-        formattedValues[day] = {
-          enabled: dayData.enabled || false,
-          startTime:
-            dayData.startTime && dayjs.isDayjs(dayData.startTime)
-              ? dayData.startTime.format('HH:mm')
-              : dayData.startTime || '08:00',
-          endTime:
-            dayData.endTime && dayjs.isDayjs(dayData.endTime)
-              ? dayData.endTime.format('HH:mm')
-              : dayData.endTime || '16:00'
-        }
-      }
-    })
+  const onFinish = (values: DoctorScheduleFormValues) => {
+    const formattedValues: DoctorScheduleFormData = {
+      idPegawai: Number(values.idPegawai),
+      idPoli: Number(values.idPoli),
+      idLokasiKerja: Number(values.idLokasiKerja),
+      idKontrakKerja: Number(values.idKontrakKerja),
+      kategori: values.kategori.trim(),
+      namaJadwal: values.namaJadwal?.trim() || null,
+      berlakuDari: values.berlakuDari.format('YYYY-MM-DD'),
+      berlakuSampai: values.berlakuSampai ? values.berlakuSampai.format('YYYY-MM-DD') : null,
+      status: values.status,
+      keterangan: values.keterangan?.trim() || null
+    }
 
     if (isEdit) {
       updateMutation.mutate({ ...formattedValues, id: Number(id) })
     } else {
       createMutation.mutate(formattedValues)
     }
-  }
-
-  const DayScheduleField = ({ name, label }: { name: string; label: string }) => {
-    const enabled = Form.useWatch([name, 'enabled'], form)
-
-    return (
-      <div className="flex items-center gap-4 py-2 border-b border-gray-100 last:border-0">
-        <div className="w-24 shrink-0">
-          <Form.Item name={[name, 'enabled']} valuePropName="checked" className="mb-0">
-            <Checkbox>
-              <span className="font-medium text-gray-700">{label}</span>
-            </Checkbox>
-          </Form.Item>
-        </div>
-        <div className="flex items-center gap-3 flex-1">
-          {enabled ? (
-            <>
-              <Form.Item
-                name={[name, 'startTime']}
-                className="mb-0"
-                rules={[{ required: enabled, message: 'Waktu mulai harus diisi' }]}
-              >
-                <TimePicker format="HH:mm" placeholder="Mulai" className="w-32" />
-              </Form.Item>
-              <span className="text-gray-400 text-sm">s/d</span>
-              <Form.Item
-                name={[name, 'endTime']}
-                className="mb-0"
-                rules={[{ required: enabled, message: 'Waktu selesai harus diisi' }]}
-              >
-                <TimePicker format="HH:mm" placeholder="Selesai" className="w-32" />
-              </Form.Item>
-            </>
-          ) : (
-            <span className="text-gray-400 text-sm italic">— Libur / Tidak Praktek —</span>
-          )}
-        </div>
-      </div>
-    )
   }
 
   const isLoading = createMutation.isPending || updateMutation.isPending
@@ -258,13 +313,8 @@ export function DoctorScheduleForm() {
         layout="vertical"
         onFinish={onFinish}
         initialValues={{
-          senin: defaultDaySchedule,
-          selasa: defaultDaySchedule,
-          rabu: defaultDaySchedule,
-          kamis: defaultDaySchedule,
-          jumat: defaultDaySchedule,
-          sabtu: defaultDaySchedule,
-          minggu: defaultDaySchedule,
+          berlakuDari: dayjs(),
+          idLokasiKerja: session?.lokasiKerjaId,
           status: 'active'
         }}
       >
@@ -288,13 +338,11 @@ export function DoctorScheduleForm() {
                 size="large"
               >
                 {pegawaiData?.success &&
-                  pegawaiData.result?.map(
-                    (pegawai: { email: string; id: number; namaLengkap: string }) => (
-                      <Select.Option key={pegawai.id} value={pegawai.id}>
-                        {pegawai.namaLengkap}
-                      </Select.Option>
-                    )
-                  )}
+                  pegawaiData.result?.map((pegawai) => (
+                    <Select.Option key={pegawai.id} value={pegawai.id}>
+                      {pegawai.namaLengkap}
+                    </Select.Option>
+                  ))}
               </Select>
             </Form.Item>
 
@@ -303,25 +351,7 @@ export function DoctorScheduleForm() {
               name="kategori"
               rules={[{ required: true, message: 'Kategori harus diisi' }]}
             >
-              <Select placeholder="Pilih kategori" size="large">
-                <Select.Option value="Dokter Umum">Dokter Umum</Select.Option>
-                <Select.Option value="Dokter Spesialis Anak">Dokter Spesialis Anak</Select.Option>
-                <Select.Option value="Dokter Spesialis Kandungan">
-                  Dokter Spesialis Kandungan
-                </Select.Option>
-                <Select.Option value="Dokter Spesialis Bedah">Dokter Spesialis Bedah</Select.Option>
-                <Select.Option value="Dokter Spesialis Penyakit Dalam">
-                  Dokter Spesialis Penyakit Dalam
-                </Select.Option>
-                <Select.Option value="Dokter Spesialis Mata">Dokter Spesialis Mata</Select.Option>
-                <Select.Option value="Dokter Spesialis THT">Dokter Spesialis THT</Select.Option>
-                <Select.Option value="Dokter Spesialis Kulit">Dokter Spesialis Kulit</Select.Option>
-                <Select.Option value="Dokter Spesialis Jantung">
-                  Dokter Spesialis Jantung
-                </Select.Option>
-                <Select.Option value="Dokter Spesialis Saraf">Dokter Spesialis Saraf</Select.Option>
-                <Select.Option value="Dokter Gigi">Dokter Gigi</Select.Option>
-              </Select>
+              <Input placeholder="Contoh: Dokter Umum, Dokter Spesialis Anak" size="large" />
             </Form.Item>
 
             <Form.Item
@@ -337,12 +367,92 @@ export function DoctorScheduleForm() {
                 size="large"
               >
                 {poliData?.success &&
-                  poliData.result?.map((poli: { id: number; name: string }) => (
+                  poliData.result?.map((poli) => (
                     <Select.Option key={poli.id} value={poli.id}>
                       {poli.name}
                     </Select.Option>
                   ))}
               </Select>
+            </Form.Item>
+
+            <Form.Item
+              label={<span className="font-medium">Kontrak Kerja</span>}
+              name="idKontrakKerja"
+              rules={[{ required: true, message: 'Kontrak kerja harus dipilih' }]}
+              extra={
+                selectedDoctorId && contractOptions.length === 0
+                  ? 'Pegawai ini belum memiliki kontrak aktif yang bisa dipakai untuk jadwal.'
+                  : undefined
+              }
+            >
+              <Select
+                placeholder={selectedDoctorId ? 'Pilih kontrak kerja' : 'Pilih dokter terlebih dahulu'}
+                size="large"
+                disabled={!selectedDoctorId || contractOptions.length === 0}
+                options={contractOptions}
+              />
+            </Form.Item>
+
+            {session?.lokasiKerjaId ? (
+              <>
+                <Form.Item hidden name="idLokasiKerja" rules={[{ required: true }]}>
+                  <Input />
+                </Form.Item>
+                <Form.Item label={<span className="font-medium">Lokasi Kerja Aktif</span>}>
+                  <Input
+                    value={`ID Lokasi #${form.getFieldValue('idLokasiKerja') ?? session.lokasiKerjaId}`}
+                    disabled
+                    size="large"
+                  />
+                </Form.Item>
+              </>
+            ) : (
+              <Form.Item
+                label={<span className="font-medium">ID Lokasi Kerja</span>}
+                name="idLokasiKerja"
+                rules={[{ required: true, message: 'Lokasi kerja harus diisi' }]}
+              >
+                <InputNumber
+                  className="w-full"
+                  size="large"
+                  placeholder="Masukkan ID lokasi kerja"
+                  min={1}
+                />
+              </Form.Item>
+            )}
+          </Card>
+
+          <Card bodyStyle={{ padding: '20px 24px' }} className="border-none" title="Periode Jadwal">
+            <Form.Item label={<span className="font-medium">Nama Jadwal</span>} name="namaJadwal">
+              <Input placeholder="Contoh: Praktik Pagi Poli Anak" size="large" />
+            </Form.Item>
+
+            <Form.Item
+              label={<span className="font-medium">Berlaku Dari</span>}
+              name="berlakuDari"
+              rules={[{ required: true, message: 'Tanggal mulai berlaku harus diisi' }]}
+            >
+              <DatePicker className="w-full" format="DD MMM YYYY" size="large" />
+            </Form.Item>
+
+            <Form.Item
+              label={<span className="font-medium">Berlaku Sampai</span>}
+              name="berlakuSampai"
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value: Dayjs | null | undefined) {
+                    const berlakuDari = getFieldValue('berlakuDari') as Dayjs | undefined
+                    if (!value || !berlakuDari || !value.isBefore(berlakuDari, 'day')) {
+                      return Promise.resolve()
+                    }
+                    return Promise.reject(
+                      new Error('Tanggal selesai harus sama dengan atau setelah tanggal mulai')
+                    )
+                  }
+                })
+              ]}
+            >
+              <DatePicker className="w-full" format="DD MMM YYYY" size="large" />
             </Form.Item>
 
             <Form.Item
@@ -355,26 +465,19 @@ export function DoctorScheduleForm() {
                 <Select.Option value="inactive">Tidak Aktif</Select.Option>
               </Select>
             </Form.Item>
-          </Card>
 
-          {/* Jadwal Harian Card */}
-          <Card
-            bodyStyle={{ padding: '20px 24px' }}
-            className="border-none"
-            title="Jadwal Praktek Harian"
-          >
-            <div className="text-xs text-gray-400 mb-3 uppercase tracking-tight font-semibold">
-              Centang hari yang aktif lalu tentukan jam mulai dan selesai
-            </div>
-            <Divider className="my-2" />
-            <div>
-              <DayScheduleField name="senin" label="Senin" />
-              <DayScheduleField name="selasa" label="Selasa" />
-              <DayScheduleField name="rabu" label="Rabu" />
-              <DayScheduleField name="kamis" label="Kamis" />
-              <DayScheduleField name="jumat" label="Jumat" />
-              <DayScheduleField name="sabtu" label="Sabtu" />
-              <DayScheduleField name="minggu" label="Minggu" />
+            <Form.Item label={<span className="font-medium">Keterangan</span>} name="keterangan">
+              <Input.TextArea
+                rows={5}
+                placeholder="Catatan tambahan untuk jadwal dokter ini"
+                showCount
+                maxLength={1000}
+              />
+            </Form.Item>
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              Form ini mengikuti model master `JadwalDokter`. Pengaturan sesi atau jam praktik harian
+              dikelola terpisah dari data master jadwal.
             </div>
           </Card>
         </div>

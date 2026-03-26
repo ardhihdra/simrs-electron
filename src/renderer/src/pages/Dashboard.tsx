@@ -133,6 +133,11 @@ const items: DashboardMenuItem[] = [
         label: 'Monitor Antrian Dokter',
         key: '/dashboard/queue/monitor',
         icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Jadwal Dokter',
+        key: '/dashboard/registration/doctor-schedule',
+        icon: <CalendarOutlined />
       }
     ]
   },
@@ -365,6 +370,7 @@ function Dashboard() {
     '/dashboard/registration/medical-staff-schedule',
     '/dashboard/pegawai',
     '/dashboard/registration',
+    '/dashboard/registration/doctor-schedule',
     '/dashboard/registration/medical-staff-schedule',
     '/dashboard/queue',
     '/dashboard/diagnostic',
