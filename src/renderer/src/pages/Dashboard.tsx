@@ -75,6 +75,8 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 //   )
 // }
 
+const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = false;
+
 type DashboardMenuChild = {
   label: string
   key: string
@@ -249,11 +251,9 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
   const { allowedModules, roles, allowedLokasiKerjaIds } = access
 
   // Administrator bypasses module restrictions
-  const moduleAllowed =
-    session.hakAksesId === 'administrator' ||
-    (allowedModules.length > 0 && !session.allowedModules.some((m) => allowedModules.includes(m)))
+  const isAdministrator = session.hakAksesId === 'administrator';
 
-  if (!moduleAllowed) {
+  if (allowedModules.length > 0 && !session.allowedModules.some((m) => allowedModules.includes(m))) {
     // console.log('no module akses for modules', session.allowedModules, 'allowed:', allowedModules)
     return false
   }
@@ -261,7 +261,9 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
     // console.log('no lokasi akses for lokasi', session.lokasiKerjaId, 'allowed:', access.allowedLokasiKerjaIds)
     return false
   }
-  if (roles.length > 0 && session.hakAksesId && !roles.includes(session.hakAksesId)) {
+
+  const isRoleAllowed = isAdministrator || (roles.length > 0 && session.hakAksesId && !roles.includes(session.hakAksesId))
+  if (!isRoleAllowed) {
     // console.log('no role akses for role', session.hakAksesId, 'allowed:', roles)
     return false
   }
@@ -269,6 +271,13 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
   // console.log('access granted for', session)
   // console.log('checked againts', access)
   return true
+}
+
+const isPageNotRegistered = (access: PageAccessEntry | null) => {
+  return !access ||
+      (!access.allowedModules.length &&
+        !access.roles.length &&
+        !access.allowedLokasiKerjaIds.length);
 }
 
 const filterChildrenBySession = (
@@ -281,13 +290,9 @@ const filterChildrenBySession = (
 
   return children.filter((child) => {
     const access = pageAccessMap[child.key]
-    if (
-      !access ||
-      (!access.allowedModules.length &&
-        !access.roles.length &&
-        !access.allowedLokasiKerjaIds.length)
-    ) {
-      return true
+    if (isPageNotRegistered(access)) {
+      console.error('page not registered! please register to PageAccount seeder', child);
+      return DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
     }
     return isPageVisible(access, session)
   })
@@ -315,12 +320,7 @@ const filterItemsBySession = (
     const visibleChildren = filterChildrenBySession(item.children, pageAccessMap, session)
 
     // Parent is visible if its own access passes OR if it has visible children
-    const parentVisible =
-      !access ||
-      (!access.allowedModules.length &&
-        !access.roles.length &&
-        !access.allowedLokasiKerjaIds.length)
-        ? true
+    const parentVisible = isPageNotRegistered(access) ? DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
         : isPageVisible(access, session)
 
     if (parentVisible || visibleChildren.length > 0) {

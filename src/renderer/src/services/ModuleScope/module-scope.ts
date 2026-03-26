@@ -159,7 +159,8 @@ const ADMINISTRATOR_ROLE = 'administrator'
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
-export const normalizeModuleCode = (code: string): ModuleCode => code.trim().toLowerCase()
+// we use upper case for module
+export const normalizeModuleCode = (code: string): ModuleCode => code.trim()
 
 const normalizeRoleCode = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : undefined
