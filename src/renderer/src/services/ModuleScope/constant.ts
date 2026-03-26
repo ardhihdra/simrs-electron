@@ -1,4 +1,4 @@
-import { ModuleDefinition } from 'simrs-types'
+import { ModuleDefinition } from './type'
 import { ModuleNodeInput } from './type'
 import { buildModuleTree } from './utils'
 

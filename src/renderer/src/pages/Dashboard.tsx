@@ -189,7 +189,8 @@ const items: DashboardMenuItem[] = [
         icon: <UnorderedListOutlined />
       },
       { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
-      { label: 'Obat dan Barang', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
+      { label: 'Obat dan Barang Umum', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
+      { label: 'Obat dan Barang BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
       {
         label: 'Transaksi Penjualan Barang',
         key: '/dashboard/medicine/item-purchase',

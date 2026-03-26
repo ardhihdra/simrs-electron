@@ -29,3 +29,5 @@ export interface ScopeSessionPayload {
   label?: string
   hakAksesId?: string
 }
+
+export const ModuleDefinition: ModuleNodeInput[] = []
