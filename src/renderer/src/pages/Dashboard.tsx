@@ -17,10 +17,33 @@ import logoUrl from '@renderer/assets/logo.png'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 import { client } from '@renderer/utils/client'
-import { workspaceModuleCodes } from '@renderer/services/ModuleScope/constant'
 import { getModuleScopeState } from '@renderer/services/ModuleScope/module-scope'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
-import type { ModuleCode, ScopeSession } from '@renderer/services/ModuleScope/type'
+import type { ScopeSession } from '@renderer/services/ModuleScope/type'
+
+// Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
+const Modules = {
+  REGISTRASI: 'REGISTRASI',
+  ANTRIAN: 'ANTRIAN',
+  RAWAT_JALAN: 'RAWAT_JALAN',
+  RAWAT_INAP: 'RAWAT_INAP',
+  OK: 'OK',
+  VK: 'VK',
+  MCU: 'MCU',
+  RAWAT_DARURAT: 'RAWAT_DARURAT',
+  LAB: 'LAB',
+  RADIOLOGI: 'RADIOLOGI',
+  REKAM_MEDIK: 'REKAM_MEDIK',
+  FARMASI: 'FARMASI',
+  KEUANGAN: 'KEUANGAN',
+  PONEK: 'PONEK',
+  GUDANG_FARMASI: 'GUDANG_FARMASI',
+  GUDANG_UMUM: 'GUDANG_UMUM',
+  SYSTEM_ADMIN: 'SYSTEM_ADMIN',
+  BILLING_KASIR: 'BILLING_KASIR',
+  MOBILE_PASIEN: 'MOBILE_PASIEN',
+} as const
+type Module = (typeof Modules)[keyof typeof Modules]
 
 import type { MenuProps } from 'antd'
 import { Menu, theme } from 'antd'
@@ -55,12 +78,17 @@ type DashboardMenuChild = {
   label: string
   key: string
   icon: ReactNode
-  moduleKey?: ModuleCode
 }
 
 type DashboardMenuItem = DashboardMenuChild & {
-  moduleKey?: ModuleCode
+  module?: Module
   children?: DashboardMenuChild[]
+}
+
+type PageAccessEntry = {
+  allowedModules: string[]
+  roles: string[]
+  allowedLokasiKerjaIds: number[]
 }
 
 const DASHBOARD_ROOT_KEY = '/dashboard'
@@ -72,149 +100,54 @@ const items: DashboardMenuItem[] = [
     icon: <DashboardOutlined />
   },
   {
-    label: 'Pendaftaran Rumah Sakit',
+    label: 'Registrasi',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
-    moduleKey: 'rekam_medis.registration',
+    module: Modules.REGISTRASI,
     children: [
-      {
-        label: 'Pasien',
-        key: '/dashboard/patient',
-        icon: <UserOutlined />,
-        moduleKey: 'rekam_medis.registration.patient'
-      },
-      {
-        label: 'Pendaftaran',
-        key: '/dashboard/registration',
-        icon: <DashboardOutlined />,
-        moduleKey: 'rekam_medis.registration.pendaftaran'
-        // module: ['rekam_medis'],
-        // lokasi: ['lokasi_1', 'lokasi_2']
-        // hakAkses: []
-      },
-      {
-        label: 'Antrian Pasien',
-        key: '/dashboard/registration/select',
-        icon: <DashboardOutlined />
-        // moduleKey: 'rekam_medis.registration.select'
-      },
-      // {
-      //   label: 'Pemeriksaan Awal',
-      //   key: '/dashboard/registration/triage',
-      //   icon: <DashboardOutlined />
-      // },
-      {
-        label: 'Daftar kunjungan',
-        key: '/dashboard/registration/active-encounters',
-        icon: <UnorderedListOutlined />
-        // moduleKey: 'rekam_medis.registration.active_encounters'
-      }
+      { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
+      { label: 'Pendaftaran', key: '/dashboard/registration', icon: <DashboardOutlined /> },
+      { label: 'Antrian Pasien', key: '/dashboard/registration/select', icon: <DashboardOutlined /> },
+      { label: 'Daftar Kunjungan', key: '/dashboard/registration/active-encounters', icon: <UnorderedListOutlined /> },
+      { label: 'Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
+      { label: 'Monitor Antrian Dokter', key: '/dashboard/queue/monitor', icon: <UnorderedListOutlined /> }
     ]
   },
   {
-    label: 'Master Rumah Sakit',
-    key: '/dashboard/pegawai',
-    icon: <DashboardOutlined />,
-    moduleKey: workspaceModuleCodes.administrator,
-    children: [
-      {
-        label: 'Data Petugas Medis',
-        key: '/dashboard/pegawai',
-        icon: <UserOutlined />
-      },
-      {
-        label: 'Lap Data Petugas Medis',
-        key: '/dashboard/pegawai-report',
-        icon: <DashboardOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Poli',
+    label: 'Rawat Jalan',
     key: '/dashboard/poli',
     icon: <CalendarOutlined />,
-
+    module: Modules.RAWAT_JALAN,
     children: [
-      {
-        label: 'Poli',
-        key: '/dashboard/poli',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Poli Umum',
-        key: '/dashboard/poli/umum',
-        icon: <CalendarOutlined />
-      }
+      { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
+      { label: 'Poli Umum', key: '/dashboard/poli/umum', icon: <CalendarOutlined /> },
+      { label: 'Rekam Medis Dokter', key: '/dashboard/doctor', icon: <FileTextOutlined /> },
+      { label: 'Pemanggilan Pasien', key: '/dashboard/nurse-calling', icon: <PhoneOutlined /> }
     ]
   },
   {
     label: 'Rawat Inap',
     key: '/dashboard/rawat-inap',
     icon: <CalendarOutlined />,
-    moduleKey: 'rawat_inap',
+    module: Modules.RAWAT_INAP,
     children: [
-      {
-        label: 'Rawat Inap 1',
-        key: '/dashboard/rawat-inap/ranap-1/class-1',
-        icon: <CalendarOutlined />,
-        moduleKey: 'rawat_inap.ranap_1.class_1'
-      },
-      {
-        label: 'Rawat Inap 2',
-        key: '/dashboard/rawat-inap/ranap-2/class1',
-        icon: <CalendarOutlined />,
-        moduleKey: 'rawat_inap.ranap_2.class_1'
-      }
+      { label: 'Rawat Inap 1', key: '/dashboard/rawat-inap/ranap-1/class-1', icon: <CalendarOutlined /> },
+      { label: 'Rawat Inap 2', key: '/dashboard/rawat-inap/ranap-2/class1', icon: <CalendarOutlined /> }
     ]
   },
   {
-    label: 'Antrian',
-    key: '/dashboard/queue',
-    icon: <CalendarOutlined />,
-    moduleKey: workspaceModuleCodes.registration,
-    children: [
-      {
-        label: 'Antrian',
-        key: '/dashboard/queue',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Monitor Antrian Dokter',
-        key: '/dashboard/queue/monitor',
-        icon: <UnorderedListOutlined />,
-        moduleKey: workspaceModuleCodes.queue
-      }
-    ]
-  },
-  {
-    label: 'Obat',
+    label: 'Farmasi',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
-    moduleKey: workspaceModuleCodes.medicine,
+    module: Modules.FARMASI,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
-      {
-        label: 'Permintaan Obat (Resep)',
-        key: '/dashboard/medicine/medication-requests',
-        icon: <FileAddOutlined />
-      },
-      {
-        label: 'Penyerahan Obat ',
-        key: '/dashboard/medicine/medication-dispenses',
-        icon: <MedicineBoxOutlined />
-      },
-      {
-        label: 'Kategori Item',
-        key: '/dashboard/medicine/medicine-categories',
-        icon: <UnorderedListOutlined />
-      },
+      { label: 'Permintaan Obat (Resep)', key: '/dashboard/medicine/medication-requests', icon: <FileAddOutlined /> },
+      { label: 'Penyerahan Obat', key: '/dashboard/medicine/medication-dispenses', icon: <MedicineBoxOutlined /> },
+      { label: 'Kategori Item', key: '/dashboard/medicine/medicine-categories', icon: <UnorderedListOutlined /> },
       { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
       { label: 'Obat dan Barang', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
-      {
-        label: 'Transaksi Penjualan Barang',
-        key: '/dashboard/medicine/item-purchase',
-        icon: <WalletOutlined />
-      },
+      { label: 'Transaksi Penjualan Barang', key: '/dashboard/medicine/item-purchase', icon: <WalletOutlined /> },
       { label: 'Laporan', key: '/dashboard/medicine/report', icon: <FileTextOutlined /> }
     ]
   },
@@ -222,154 +155,74 @@ const items: DashboardMenuItem[] = [
     label: 'Laboratorium',
     key: '/dashboard/laboratory-management',
     icon: <ExperimentOutlined />,
-    moduleKey: workspaceModuleCodes.laboratory,
+    module: Modules.LAB,
     children: [
-      {
-        label: 'Antrian',
-        key: '/dashboard/laboratory-management/queue',
-        icon: <UnorderedListOutlined />
-      },
-      {
-        label: 'Permintaan',
-        key: '/dashboard/laboratory-management/requests',
-        icon: <FileAddOutlined />
-      },
-      {
-        label: 'Hasil',
-        key: '/dashboard/laboratory-management/results',
-        icon: <FileTextOutlined />
-      },
-      {
-        label: 'Laporan',
-        key: '/dashboard/laboratory-management/reports',
-        icon: <FileSearchOutlined />
-      }
-    ]
-  },
-  // {
-  //   label: 'Laboratorium',
-  //   key: '/dashboard/laboratory',
-  //   icon: <DashboardOutlined />,
-  //   children: [
-  //     {
-  //       label: 'List Lab',
-  //       key: '/dashboard/laboratory/list',
-  //       icon: <UnorderedListOutlined />
-  //     },
-  //     {
-  //       label: 'Permintaan Lab',
-  //       key: '/dashboard/laboratory/permintaan',
-  //       icon: <FileAddOutlined />
-  //     },
-  //     {
-  //       label: 'Pemeriksaan Lab',
-  //       key: '/dashboard/laboratory/result',
-  //       icon: <ExperimentOutlined />
-  //     },
-  //     {
-  //       label: 'Laporan Lab',
-  //       key: '/dashboard/laboratory/report',
-  //       icon: <FileTextOutlined />
-  //     },
-  //     {
-  //       label: 'Pengambilan Spesimen',
-  //       key: '/dashboard/laboratory/specimen',
-  //       icon: <MedicineBoxOutlined />
-  //     },
-  //     {
-  //       label: 'Diagnostic Report',
-  //       key: '/dashboard/laboratory/diagnostic-report',
-  //       icon: <FileSearchOutlined />
-  //     }
-  //   ]
-  // },
-  {
-    label: 'Perawat',
-    key: '/dashboard/nurse-calling',
-    icon: <UserOutlined />,
-    moduleKey: workspaceModuleCodes.nurse,
-    children: [
-      {
-        label: 'Pemanggilan Pasien',
-        key: '/dashboard/nurse-calling',
-        icon: <PhoneOutlined />
-      }
+      { label: 'Antrian', key: '/dashboard/laboratory-management/queue', icon: <UnorderedListOutlined /> },
+      { label: 'Permintaan', key: '/dashboard/laboratory-management/requests', icon: <FileAddOutlined /> },
+      { label: 'Hasil', key: '/dashboard/laboratory-management/results', icon: <FileTextOutlined /> },
+      { label: 'Laporan', key: '/dashboard/laboratory-management/reports', icon: <FileSearchOutlined /> }
     ]
   },
   {
-    label: 'Dokter',
-    key: '/dashboard/doctor',
-    icon: <UserOutlined />,
-    moduleKey: workspaceModuleCodes.doctor,
+    label: 'Sistem',
+    key: '/dashboard/pegawai',
+    icon: <DashboardOutlined />,
+    module: Modules.SYSTEM_ADMIN,
     children: [
-      {
-        label: 'Rekam Medis',
-        key: '/dashboard/doctor',
-        icon: <FileTextOutlined />
-      }
+      { label: 'Data Petugas Medis', key: '/dashboard/pegawai', icon: <UserOutlined /> },
+      { label: 'Lap Data Petugas Medis', key: '/dashboard/pegawai-report', icon: <DashboardOutlined /> }
     ]
   }
-  // {
-  //   label: 'Sistem Antrian',
-  //   key: '/dashboard/queue',
-  //   icon: <UserOutlined />,
-  //   moduleKey: workspaceModuleCodes.queue,
-  //   children: [
-  //     {
-  //       label: 'Antrian Pendaftaran',
-  //       key: '/dashboard/queue/registration',
-  //       icon: <UserOutlined />
-  //     },
-  //     {
-  //       label: 'Antrian Poli',
-  //       key: '/dashboard/queue/poli',
-  //       icon: <UserOutlined />
-  //     },
-  //     {
-  //       label: 'Antrian Laboratorium',
-  //       key: '/dashboard/queue/laboratory',
-  //       icon: <UserOutlined />
-  //     },
-  //     {
-  //       label: 'Monitor Antrian',
-  //       key: '/dashboard/queue/monitor',
-  //       icon: <UserOutlined />
-  //     }
-  //   ]
-  // }
 ]
 
-const isSessionModuleVisible = (allowedModules: string[], session: ScopeSession): boolean => {
-  const isVisible = session.allowedModules.some((mod) => allowedModules.includes(mod))
-  return isVisible
+const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSession): boolean => {
+  if (!access) return true
+
+  const { allowedModules, roles, allowedLokasiKerjaIds } = access
+
+  // Administrator bypasses module restrictions
+  const moduleAllowed = session.hakAksesId === 'administrator' || (allowedModules.length > 0 && !session.allowedModules.some((m) => allowedModules.includes(m)))
+
+  if (!moduleAllowed) {
+    // console.log('no module akses for modules', session.allowedModules, 'allowed:', allowedModules)
+    return false
+  }
+  if (allowedLokasiKerjaIds.length > 0 && !allowedLokasiKerjaIds.includes(session.lokasiKerjaId)) {
+    // console.log('no lokasi akses for lokasi', session.lokasiKerjaId, 'allowed:', access.allowedLokasiKerjaIds)
+    return false
+  }
+  if (roles.length > 0 && session.hakAksesId && !roles.includes(session.hakAksesId)) {
+    // console.log('no role akses for role', session.hakAksesId, 'allowed:', roles)
+    return false
+  }
+
+  // console.log('access granted for', session)
+  // console.log('checked againts', access)
+  return true
 }
 
 const filterChildrenBySession = (
   children: DashboardMenuChild[] | undefined,
-  pageAccessMap: Record<string, string[]>,
+  pageAccessMap: Record<string, PageAccessEntry>,
   session: ScopeSession | null
 ): DashboardMenuChild[] => {
-  if (!children?.length) {
-    return []
-  }
+  if (!children?.length) return []
+  if (!session) return []
 
   return children.filter((child) => {
-    const allowedModules = pageAccessMap[child.key]
-    if (!allowedModules?.length) {
-      console.log('No modules set, defaulting to visible:', child.key)
+    const access = pageAccessMap[child.key]
+    if (!access || (!access.allowedModules.length && !access.roles.length && !access.allowedLokasiKerjaIds.length)) {
       return true
     }
-
-    if (!session) {
-      return false
-    }
-
-    return isSessionModuleVisible(allowedModules, session)
+    return isPageVisible(access, session)
   })
 }
 
-const filterItemsBySession = (menuItems: DashboardMenuItem[], pageAccessMap: Record<string, string[]>, session: ScopeSession | null) => {
-  console.log('session', session)
+const filterItemsBySession = (
+  menuItems: DashboardMenuItem[],
+  pageAccessMap: Record<string, PageAccessEntry>,
+  session: ScopeSession | null
+) => {
   return menuItems.reduce<DashboardMenuItem[]>((result, item) => {
     if (item.key === DASHBOARD_ROOT_KEY) {
       result.push({
@@ -379,13 +232,18 @@ const filterItemsBySession = (menuItems: DashboardMenuItem[], pageAccessMap: Rec
       return result
     }
 
-    const allowedModules = pageAccessMap[item.key]
-    const visibleChildren = filterChildrenBySession(item.children, pageAccessMap, session)
-    const isParentVisible = !allowedModules?.length
-      ? true
-      : !!session && isSessionModuleVisible(allowedModules, session)
+    if (!session) return result
 
-    if (isParentVisible || visibleChildren.length > 0) {
+    const access = pageAccessMap[item.key]
+    const visibleChildren = filterChildrenBySession(item.children, pageAccessMap, session)
+
+    // Parent is visible if its own access passes OR if it has visible children
+    const parentVisible =
+      !access || (!access.allowedModules.length && !access.roles.length && !access.allowedLokasiKerjaIds.length)
+        ? true
+        : isPageVisible(access, session)
+
+    if (parentVisible || visibleChildren.length > 0) {
       result.push({
         ...item,
         ...(item.children ? { children: visibleChildren } : {})
@@ -404,12 +262,19 @@ function Dashboard() {
 
   const { data: pageAccessData } = client.pageAccess.list.useQuery({})
   const pageAccessMap = useMemo(() => {
-    const map: Record<string, string[]> = {}
+    const map: Record<string, PageAccessEntry> = {}
     for (const item of pageAccessData?.result ?? []) {
-      map[item.page_path] = item.allowedModules ?? []
+      map[item.page_path] = {
+        allowedModules: (item.allowedModules as string[] | undefined) ?? [],
+        roles: (item.roles as string[] | undefined) ?? [],
+        allowedLokasiKerjaIds: (item.allowedLokasiKerjaIds as number[] | undefined) ?? [],
+      }
     }
     return map
   }, [pageAccessData])
+
+  console.log('session', session)
+  console.log('cek pageAccessMap', pageAccessMap)
   const visibleItems = filterItemsBySession(items, pageAccessMap, session)
   const registeredPrefixes = [
     '/dashboard/expense',

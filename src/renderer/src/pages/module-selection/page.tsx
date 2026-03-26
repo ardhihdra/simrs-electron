@@ -22,6 +22,11 @@ import {
 type LogoutResult = { success: boolean }
 
 type ModuleGroup = {
+  lokasiKerja: {
+    id: number
+    kode: string
+    nama: string
+  },
   configs?: {
     allowedModules: string[]
     id: number
@@ -40,11 +45,12 @@ const uniqueModules = (modules: string[]) => Array.from(new Set(modules))
 const normalizeInstallations = (groups?: ModuleGroup[]): InstallationOption[] =>
   groups?.flatMap((group, groupIndex) =>
     (group.configs ?? []).map((config, configIndex) => ({
+      ...config,
       allowedModules: uniqueModules(config.allowedModules),
       allowedModulesDisplay: uniqueModules(config.allowedModules.map(formatModuleId)),
       configId: config.id,
       key: `${groupIndex}-${configIndex}-${config.id}`,
-      label: config.label
+      lokasiKerjaId: group.lokasiKerja.id,
     }))
   ) ?? []
 
@@ -73,12 +79,14 @@ export default function ModuleSelection() {
   )
 
   const handleSelectInstallation = (installationKey: string) => {
+    console.log('selected installation', installationKey)
     setSelectedInstallationKey((currentKey) =>
       currentKey === installationKey ? undefined : installationKey
     )
   }
 
   const handleClick = async (moduleName: string) => {
+    console.log('selected module', moduleName)
     if (!selectedInstallation) {
       message.warning('Silahkan pilih instalasi terlebih dahulu')
       return
