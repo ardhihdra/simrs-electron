@@ -7,11 +7,11 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useParams } from 'react-router'
-import CallConfirmationModal from './components/CallConfirmationModal'
-import CallQueueModal from './components/CallQueueModal'
-import ConfirmQueueModal from './components/ConfirmQueueModal'
-import DischargeModal from './components/DischargeModal'
-import ReferralModal from './components/ReferralModal'
+import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
+import CallQueueModal from '@renderer/components/organisms/visit-management/CallQueueModal'
+import ConfirmQueueModal from '@renderer/components/organisms/visit-management/ConfirmQueueModal'
+import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
+import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
 
 export default function RegistrationQueue({
   practitionerId: propPractitionerId

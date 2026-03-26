@@ -5,10 +5,10 @@ import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
-import { DischargeModal } from '../encounter-transition/components/DischargeModal'
-import { MpdnDischargeModal } from '../encounter-transition/components/MpdnDischargeModal'
-import { RujukanModal } from '../encounter-transition/components/RujukanModal'
-import { TransferBedFormValues, TransferBedModal } from '../encounter-transition/components/TransferBedModal'
+import { DischargeModal } from '@renderer/components/organisms/encounter-transition/DischargeModal'
+import { MpdnDischargeModal } from '@renderer/components/organisms/encounter-transition/MpdnDischargeModal'
+import { RujukanModal } from '@renderer/components/organisms/encounter-transition/RujukanModal'
+import { TransferBedFormValues, TransferBedModal } from '@renderer/components/organisms/encounter-transition/TransferBedModal'
 
 
 // Mock type if not available in simrs-types yet

@@ -3,7 +3,7 @@
  */
 
 import { Modal, Select, Typography } from 'antd'
-import { DISCHARGE_OPTIONS } from '../types'
+import { DISCHARGE_OPTIONS } from '@renderer/types/encounter-transition'
 
 const { Text } = Typography
 

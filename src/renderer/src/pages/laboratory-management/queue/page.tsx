@@ -6,7 +6,7 @@ import { App, Button, Form, Input, Modal, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
-import CreateAncillaryModal from './components/CreateAncillaryModal'
+import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
 
 interface EncounterRow {
   id: string

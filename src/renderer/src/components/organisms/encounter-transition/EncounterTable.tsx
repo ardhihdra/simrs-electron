@@ -5,7 +5,7 @@
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { ENCOUNTER_TYPE_LABELS, Encounter, STATUS_COLORS } from '../types'
+import { ENCOUNTER_TYPE_LABELS, Encounter, STATUS_COLORS } from '@renderer/types/encounter-transition'
 
 interface EncounterTableProps {
   encounters: Encounter[]

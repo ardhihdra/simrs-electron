@@ -4,7 +4,7 @@
 
 import { Collapse, Tag, Typography } from 'antd'
 import { useMemo } from 'react'
-import { Encounter } from '../types'
+import { Encounter } from '@renderer/types/encounter-transition'
 import { EncounterTable } from './EncounterTable'
 
 const { Text } = Typography

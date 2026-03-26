@@ -3,7 +3,7 @@ import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
 import { App, Button, Descriptions, Form, Modal, Space } from 'antd'
 import { useEffect, useState } from 'react'
-import CreatePatientModal from './CreatePatientModal'
+import CreatePatientModal from '@renderer/components/organisms/visit-management/CreatePatientModal'
 
 export type ConfirmQueueModalProps = {
   open: boolean

@@ -15,7 +15,7 @@ import { App, Button, Form, Input } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
-import CreateQueueModal from './components/CreateQueueModal'
+import CreateQueueModal from '@renderer/components/organisms/visit-management/CreateQueueModal'
 
 export default function RegistrationPage() {
   const [searchParams, setSearchParams] = useState({ nik: '', name: '' })

@@ -6,12 +6,12 @@ import { client } from '@renderer/utils/client'
 import { message, Tabs, Typography } from 'antd'
 import { useState } from 'react'
 import { EncounterListInput } from 'simrs-types'
-import { DischargeModal } from './components/DischargeModal'
-import { EncounterList } from './components/EncounterList'
-import { RujukanModal } from './components/RujukanModal'
-import { type TransferBedFormValues, TransferBedModal } from './components/TransferBedModal'
-import { useEncounterActions } from './hooks/useEncounterActions'
-import { Encounter } from './types'
+import { DischargeModal } from '@renderer/components/organisms/encounter-transition/DischargeModal'
+import { EncounterList } from '@renderer/components/organisms/encounter-transition/EncounterList'
+import { RujukanModal } from '@renderer/components/organisms/encounter-transition/RujukanModal'
+import { type TransferBedFormValues, TransferBedModal } from '@renderer/components/organisms/encounter-transition/TransferBedModal'
+import { useEncounterActions } from '@renderer/hooks/useEncounterTransitionActions'
+import { Encounter } from '@renderer/types/encounter-transition'
 
 const { Title, Text } = Typography
 
