@@ -71,12 +71,17 @@ const MySchema = z.object({
   result: z
     .array(
       z.object({
+        lokasiKerja: z.object({
+          id: z.number(),
+          kode: z.string(),
+          nama: z.string()
+        }),
         configs: z
           .array(
             z.object({
               allowedModules: z.array(z.string()),
               id: z.number(),
-              label: z.string()
+              label: z.string(),
             })
           )
           .optional()

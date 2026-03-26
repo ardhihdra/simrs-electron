@@ -1,6 +1,7 @@
 import { encounterRpc } from './encounter'
 import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
+import { pageAccessRpc } from './pageAccess'
 import { patientRpc } from './patient'
 import { practitionerRpc } from './practitioner'
 import { queryProcedure } from './query'
@@ -23,7 +24,8 @@ export const rpcRouter = {
   window: windowRpc,
   module: mmoduleRpc,
   registration: registrationRpc,
-  query: queryProcedure
+  query: queryProcedure,
+  pageAccess: pageAccessRpc
 }
 
 export type AppRouter = typeof rpcRouter
