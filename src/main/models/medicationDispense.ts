@@ -47,7 +47,9 @@ export const MedicationDispenseSchema = z.object({
   whenPrepared: z.string().or(z.date()).nullable().optional(),
   whenHandedOver: z.string().or(z.date()).nullable().optional(),
   performerId: z.number().nullable().optional(),
-  dosageInstruction: z.array(DosageInstructionEntrySchema).nullable().optional()
+  dosageInstruction: z.array(DosageInstructionEntrySchema).nullable().optional(),
+  note: z.array(z.object({ text: z.string().optional() }).passthrough()).nullable().optional(),
+  receiver: z.array(z.object({ display: z.string().optional() }).passthrough()).nullable().optional()
 })
 
 export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({

@@ -1,4 +1,4 @@
-import { Button, Form, Input, InputNumber, Select, Switch, Tag, Card } from 'antd'
+import { Button, Form, Input, InputNumber, Select, Card } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 
 interface MedicationCompoundsSectionProps {
@@ -8,27 +8,13 @@ interface MedicationCompoundsSectionProps {
   itemKodeMap: Map<number, string>
   signaOptions: any[]
   signaLoading: boolean
-  batchOptionsMap: Map<string, any[]>
-  batchLoadingMap: Map<string, boolean>
-  batchSortModeMap: Map<string, boolean>
-  setBatchSortModeMap: React.Dispatch<React.SetStateAction<Map<string, boolean>>>
-  sortBatches: (batches: any[], rowKey: string) => any[]
-  fetchBatchesForItem: (kodeItem: string, rowKey: string) => void
 }
 
 export const MedicationCompoundsSection = ({
-  form,
   itemOptions,
   itemLoading,
-  itemKodeMap,
   signaOptions,
-  signaLoading,
-  batchOptionsMap,
-  batchLoadingMap,
-  batchSortModeMap,
-  setBatchSortModeMap,
-  sortBatches,
-  fetchBatchesForItem
+  signaLoading
 }: MedicationCompoundsSectionProps) => {
   return (
     <div className="mt-8">
@@ -98,7 +84,6 @@ export const MedicationCompoundsSection = ({
                       <div className="space-y-2">
                         {subFields.map((subField) => {
                           const { key: subKey, ...subRestField } = subField
-                          const compoundBatchKey = `compound-${name}-ing-${subRestField.name}`
 
                           return (
                             <div key={`compoundItem-${subKey}`} className="flex gap-2 items-start flex-wrap bg-white/50 p-2 rounded-lg border border-orange-50">
@@ -115,72 +100,12 @@ export const MedicationCompoundsSection = ({
                                   showSearch
                                   optionFilterProp="label"
                                   loading={itemLoading}
-                                  onChange={(itemId: number) => {
-                                    const kode = itemKodeMap.get(itemId)
-                                    if (kode) {
-                                      fetchBatchesForItem(kode, compoundBatchKey)
-                                    }
-                                  }}
                                 />
-                              </Form.Item>
-                              <Form.Item
-                                {...subRestField}
-                                name={[subRestField.name, 'batchNumber']}
-                                className="mb-0 w-56"
-                                label={
-                                  <div className="flex items-center gap-2">
-                                    <span>Expire Date</span>
-                                    <Switch
-                                      size="small"
-                                      checked={batchSortModeMap.get(compoundBatchKey) ?? true}
-                                      onChange={(checked) => {
-                                        setBatchSortModeMap(prev => new Map(prev).set(compoundBatchKey, checked))
-                                      }}
-                                      checkedChildren="FEFO"
-                                      unCheckedChildren="FIFO"
-                                    />
-                                  </div>
-                                }
-                              >
-                                <Select
-                                  placeholder="Pilih Expire Date"
-                                  loading={batchLoadingMap.get(compoundBatchKey) ?? false}
-                                  allowClear
-                                  onChange={(val: string | undefined) => {
-                                    const batches = batchOptionsMap.get(compoundBatchKey) ?? []
-                                    const found = batches.find((b) => b.batchNumber === val)
-                                    const compounds = form.getFieldValue('compounds') || []
-                                    
-                                    if (compounds[name]?.items?.[subRestField.name]) {
-                                      if (val && val.toUpperCase() === 'NO-BATCH') {
-                                        compounds[name].items[subRestField.name].batchNumber = undefined
-                                        compounds[name].items[subRestField.name].expiryDate = undefined
-                                      } else {
-                                        compounds[name].items[subRestField.name].expiryDate = found?.expiryDate ?? undefined
-                                      }
-                                      form.setFieldsValue({ compounds })
-                                    }
-                                  }}
-                                  options={sortBatches(batchOptionsMap.get(compoundBatchKey) ?? [], compoundBatchKey).map((b) => ({
-                                    label: `${b.expiryDate ? b.expiryDate : 'Tanpa Exp'} | Stok: ${b.availableStock}`,
-                                    value: b.batchNumber
-                                  }))}
-                                />
-                              </Form.Item>
-                              <Form.Item name={[subRestField.name, 'expiryDate']} hidden>
-                                <Input />
-                              </Form.Item>
-                              <Form.Item shouldUpdate={(prev, curr) => prev.compounds?.[name]?.items?.[subRestField.name]?.expiryDate !== curr.compounds?.[name]?.items?.[subRestField.name]?.expiryDate}>
-                                {({ getFieldValue }) => {
-                                  const exp = getFieldValue(['compounds', name, 'items', subRestField.name, 'expiryDate'])
-                                  if (!exp) return null
-                                  return <Tag color="orange" className="mt-5">Exp: {exp}</Tag>
-                                }}
                               </Form.Item>
                               <Form.Item
                                 {...subRestField}
                                 name={[subRestField.name, 'quantity']}
-                                className="mb-0 w-24"
+                                className="mb-0 w-32"
                                 label="Jumlah"
                                 rules={[{ required: true, message: 'Wajib' }]}
                               >

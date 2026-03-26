@@ -27,6 +27,7 @@ import { useNavigate, useLocation } from 'react-router'
 import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
 import { printMedicationLabels } from './component/print-medication-label'
+import { SerahkanObatModal, type SerahkanObatFormValues } from './component/serahkan-obat-modal'
 
 type PatientNameEntry = {
   text?: string
@@ -201,21 +202,51 @@ function getStatusLabel(status: string): string {
   return status
 }
 
-function RowActions({ record, patient }: { record: DispenseItemRow; patient?: PatientInfo }) {
+interface RowActionsProps {
+  record: DispenseItemRow
+  patient?: PatientInfo
+  employees: Array<{ id: number; namaLengkap: string }>
+  employeeNameById: Map<number, string>
+}
+
+function RowActions({ record, patient, employees, employeeNameById }: RowActionsProps) {
   const { message } = AntdApp.useApp()
+  const [serahkanModalOpen, setSerahkanModalOpen] = useState(false)
 
   const updateMutation = useMutation({
     mutationKey: ['medicationDispense', 'update', 'complete'],
-    mutationFn: async () => {
+    mutationFn: async (formValues: SerahkanObatFormValues) => {
       if (typeof record.id !== 'number') {
         throw new Error('ID MedicationDispense tidak valid.')
       }
       const fn = window.api?.query?.medicationDispense?.update
       if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
-      const payload: { id: number; status: 'completed'; whenHandedOver: string } = {
+
+      const penyiapNama = employeeNameById.get(formValues.penyiapObatId) ?? ''
+      const penyerahNama = employeeNameById.get(formValues.penyerahObatId) ?? ''
+
+      const pioAnnotation = {
+        text: `PIO: ${JSON.stringify({
+          hubungan: formValues.hubunganPenerima,
+          namaPenerima: formValues.namaPenerima,
+          penyiapObatId: formValues.penyiapObatId,
+          penyiapObatNama: penyiapNama,
+          penyerahObatId: formValues.penyerahObatId,
+          penyerahObatNama: penyerahNama
+        })}`
+      }
+
+      const receiverDisplay = formValues.hubunganPenerima === 'Sendiri'
+        ? 'Sendiri (Pasien)'
+        : `${formValues.hubunganPenerima} - ${formValues.namaPenerima}`
+
+      const payload = {
         id: record.id,
-        status: 'completed',
-        whenHandedOver: new Date().toISOString()
+        status: 'completed' as const,
+        whenHandedOver: new Date().toISOString(),
+        performerId: formValues.penyerahObatId,
+        note: [pioAnnotation],
+        receiver: [{ display: receiverDisplay }]
       }
       const res = await fn(payload as never)
       if (!res.success) {
@@ -224,6 +255,7 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
       return res
     },
     onSuccess: () => {
+      setSerahkanModalOpen(false)
       queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
       message.success('Obat berhasil diserahkan')
     },
@@ -353,7 +385,7 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
             size="small"
             disabled={updateMutation.isPending || isStockInsufficient}
             loading={updateMutation.isPending}
-            onClick={() => updateMutation.mutate()}
+            onClick={() => setSerahkanModalOpen(true)}
           >
             Serahkan Obat
           </Button>
@@ -391,6 +423,13 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
           Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
         </div>
       )}
+      <SerahkanObatModal
+        open={serahkanModalOpen}
+        loading={updateMutation.isPending}
+        employees={employees}
+        onSubmit={(values) => updateMutation.mutate(values)}
+        onCancel={() => setSerahkanModalOpen(false)}
+      />
     </div>
   )
 }
@@ -662,6 +701,16 @@ export function MedicationDispenseTable() {
       }
     })
     return map
+  }, [employeeData])
+  const employeeList = useMemo(() => {
+    const source = Array.isArray(employeeData?.result)
+      ? (employeeData.result as Array<{ id?: number; namaLengkap?: string }>)
+      : []
+    return source
+      .filter((e): e is { id: number; namaLengkap: string } =>
+        typeof e.id === 'number' && typeof e.namaLengkap === 'string'
+      )
+      .map((e) => ({ id: e.id, namaLengkap: e.namaLengkap }))
   }, [employeeData])
   const itemApi = (
     window.api?.query as {
@@ -1286,7 +1335,7 @@ export function MedicationDispenseTable() {
                       title: 'Aksi',
                       key: 'action',
                       render: (_: DispenseItemRow, row: DispenseItemRow) => (
-                        <RowActions record={row} patient={record.patient} />
+                        <RowActions record={row} patient={record.patient} employees={employeeList} employeeNameById={employeeNameById} />
                       )
                     }
                   ]

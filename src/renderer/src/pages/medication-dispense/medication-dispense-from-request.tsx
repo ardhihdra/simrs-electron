@@ -1,4 +1,4 @@
-import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App, Alert, Tag } from 'antd'
+import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App, Alert, Tag, Select } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -97,6 +97,7 @@ interface TableRow {
 	medicationRequestId?: number
 	batch?: string
 	expiryDate?: string
+	kodeItem?: string
 	children?: TableRow[]
 }
 
@@ -224,6 +225,39 @@ function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
 	return dosage[0]?.text ?? ''
 }
 
+const BatchSelectCell = ({ kodeItem, value, onChange }: { kodeItem?: string, value?: string, onChange: (val: string) => void }) => {
+	const { data, isLoading } = useQuery({
+		queryKey: ['inventoryStock', 'listBatchesByLocation', kodeItem, 'FARM'],
+		enabled: !!kodeItem,
+		queryFn: async () => {
+			const api = window.api?.query as any
+			if (!api?.inventoryStock?.listBatchesByLocation) return { result: [] }
+			return api.inventoryStock.listBatchesByLocation({ kodeItem, kodeLokasi: 'FARM' })
+		}
+	})
+
+	if (!kodeItem) return <span>-</span>
+
+	const batches = Array.isArray(data?.result) ? data.result : []
+
+	if (isLoading) return <span>Memuat...</span>
+	if (batches.length === 0) return <span className="text-gray-400">Tidak ada batch</span>
+
+	return (
+		<Select
+			value={value}
+			onChange={onChange}
+			placeholder="Pilih Expire"
+			style={{ width: 180 }}
+			allowClear
+			options={batches.map((b: any) => ({
+				label: `${b.expiryDate ? dayjs(b.expiryDate).format('YYYY-MM-DD') : '-'} (${b.availableStock})`,
+				value: `${b.batchNumber || ''}|${b.expiryDate || 'null'}`
+			}))}
+		/>
+	)
+}
+
 export default function MedicationDispenseFromRequest() {
 	const { message, modal } = App.useApp()
 	const params = useParams()
@@ -232,6 +266,7 @@ export default function MedicationDispenseFromRequest() {
 	const requestId = typeof idParam === 'string' ? Number(idParam) : NaN
 	const [quantityOverrides, setQuantityOverrides] = useState<Record<number, number>>({})
 	const [telaahResults, setTelaahResults] = useState<TelaahResults>(defaultTelaahResults)
+	const [selectedBatches, setSelectedBatches] = useState<Record<string, { kodeItem: string; batchValue: string }>>({})
 
 	const { data, isLoading } = useQuery({
 		queryKey: ['medicationRequest', 'detail', requestId],
@@ -427,7 +462,7 @@ export default function MedicationDispenseFromRequest() {
 		const patientMrn = detail.patient?.mrNo || ''
 		const isExternalPatient = patientMrn.startsWith('L-MRN-')
 		const hasEncounter = !!detail.encounterId
-		
+
 		// Internal if has encounter AND is not explicitly an external-style MRN
 		return hasEncounter && !isExternalPatient
 	}, [detail])
@@ -439,25 +474,7 @@ export default function MedicationDispenseFromRequest() {
 	const createDispenseMutation = useMutation({
 		mutationKey: ['medicationDispense', 'createFromRequest', requestId],
 		mutationFn: async (): Promise<DispenseCreateResult> => {
-			const res = await window.api.query.medicationDispense.createFromRequest({
-				medicationRequestId: requestId,
-				telaahResults: telaahResults
-			})
-			if (!res.success) {
-				throw new Error('Detail resep belum tersedia')
-			}
-			const api = window.api?.query as {
-				medicationDispense?: {
-					createFromRequest: (args: {
-						medicationRequestId: number
-						quantity?: {
-							value?: number
-							unit?: string
-						}
-					}) => Promise<DispenseCreateResult>
-				}
-			}
-			const fn = api?.medicationDispense?.createFromRequest
+			const fn = window.api?.query?.medicationDispense?.createFromRequest
 			if (!fn) {
 				console.error('DEBUG: API createFromRequest not available')
 				throw new Error('API MedicationDispense tidak tersedia.')
@@ -493,6 +510,14 @@ export default function MedicationDispenseFromRequest() {
 				console.warn('DEBUG: No records to process')
 				throw new Error('Tidak ada resep yang dapat diproses.')
 			}
+
+			const mappedBatches: Record<string, string> = {}
+			for (const obj of Object.values(selectedBatches)) {
+				if (obj?.kodeItem && obj?.batchValue) {
+					mappedBatches[obj.kodeItem] = obj.batchValue
+				}
+			}
+
 			let lastResult: DispenseCreateResult | undefined
 			for (const item of toProcess) {
 				const args = {
@@ -500,10 +525,12 @@ export default function MedicationDispenseFromRequest() {
 					quantity: {
 						value: item.quantityValue,
 						unit: item.unit
-					}
+					},
+					selectedBatches: mappedBatches,
+					telaahResults
 				}
 				console.log('DEBUG: Calling API with args', args)
-				const result = await fn(args)
+				const result = await window.api.query.medicationDispense.createFromRequest(args as any)
 				console.log('DEBUG: API Result', result)
 
 				if (!result.success) {
@@ -582,6 +609,9 @@ export default function MedicationDispenseFromRequest() {
 				? groupListData
 				: [detail]
 
+		console.log('DEBUG [MedicationDispenseFromRequest] detail:', detail)
+		console.log('DEBUG [MedicationDispenseFromRequest] records:', records)
+
 		const rows: TableRow[] = []
 
 		records.forEach((record) => {
@@ -592,7 +622,8 @@ export default function MedicationDispenseFromRequest() {
 			let stokSaatIni: number | undefined
 			let unitStok: string | null = null
 			if (isItem) {
-				const kodeRaw = typeof record.item?.kode === 'string' ? record.item.kode : ''
+				const itemFromData = Array.isArray(itemData?.result) ? (itemData.result as any[]).find(it => it.id === record.itemId) : null
+				const kodeRaw = typeof itemFromData?.kode === 'string' ? itemFromData.kode : (typeof record.item?.kode === 'string' ? record.item.kode : '')
 				const kode = kodeRaw.trim().toUpperCase()
 				if (kode) {
 					const stockInfo = stockMapFromInventory.get(kode)
@@ -652,8 +683,9 @@ export default function MedicationDispenseFromRequest() {
 					? racikanTitleMatch[1].trim()
 					: undefined
 
+			const itemFromDataName = Array.isArray(itemData?.result) ? (itemData.result as any[]).find(it => it.id === record.itemId)?.nama : undefined
 			const namaObat = isItem
-				? record.item?.nama ?? '-'
+				? itemFromDataName ?? record.item?.nama ?? '-'
 				: isCompound
 					? racikanName ?? record.medication?.name ?? '-'
 					: record.medication?.name ?? '-'
@@ -698,7 +730,14 @@ export default function MedicationDispenseFromRequest() {
 							}
 							return prescribed
 						})(),
-				medicationRequestId
+				medicationRequestId,
+				kodeItem: ''
+			}
+
+			if (isItem) {
+				const itemFromData = Array.isArray(itemData?.result) ? (itemData.result as any[]).find(it => it.id === record.itemId) : null
+				const kodeRaw = typeof itemFromData?.kode === 'string' ? itemFromData.kode : (typeof record.item?.kode === 'string' ? record.item.kode : '')
+				row.kodeItem = kodeRaw.trim().toUpperCase()
 			}
 
 			// Extract batch info for non-compound items
@@ -760,7 +799,8 @@ export default function MedicationDispenseFromRequest() {
 							unitStok: ingUnit,
 							quantityDiambil: ing.quantity,
 							medicationRequestId: undefined,
-							batch: typeof ing.batchNumber === 'string' && ing.batchNumber.trim().length > 0 ? ing.batchNumber.trim() : undefined
+							batch: typeof ing.batchNumber === 'string' && ing.batchNumber.trim().length > 0 ? ing.batchNumber.trim() : undefined,
+							kodeItem: itemId ? ((Array.isArray(itemData?.result) ? (itemData.result as any[]).find(it => it.id === Number(itemId)) : null)?.kode || '').trim().toUpperCase() : undefined
 						}
 					})
 				}
@@ -837,31 +877,20 @@ export default function MedicationDispenseFromRequest() {
 		{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
 		{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
 		{
-			title: 'Batch / Expire',
+			title: 'Expire',
 			key: 'batchExpire',
 			render: (_: unknown, row: TableRow) => {
-				if (!row.batch && !row.expiryDate) return '-'
-				const parts: string[] = []
-				if (row.batch) parts.push(`Batch: ${row.batch}`)
-				if (row.expiryDate) parts.push(`Exp: ${row.expiryDate}`)
-				return <Tag color="orange">{parts.join(' | ')}</Tag>
+				return (
+					<BatchSelectCell 
+						kodeItem={row.kodeItem} 
+						value={selectedBatches[row.key]} 
+						onChange={(val) => setSelectedBatches(prev => ({ ...prev, [row.key]: val }))} 
+					/>
+				)
 			}
 		},
 		{ title: 'Qty Diminta', dataIndex: 'quantityDiminta', key: 'quantityDiminta' },
 		{ title: 'Satuan', dataIndex: 'unitDiminta', key: 'unitDiminta' },
-		{ 
-			title: 'Stok Saat Ini', 
-			dataIndex: 'stokSaatIni', 
-			key: 'stokSaatIni',
-			render: (val: number | undefined, row: TableRow) => {
-				const isLow = typeof val === 'number' && typeof row.quantityDiambil === 'number' && row.quantityDiambil > val
-				return (
-					<span style={{ color: isLow ? 'red' : 'inherit', fontWeight: isLow ? 'bold' : 'normal' }}>
-						{val ?? '-'} {row.unitStok ?? ''}
-					</span>
-				)
-			}
-		},
 		{ title: 'Instruksi / Kekuatan', dataIndex: 'instruksi', key: 'instruksi' },
 		{
 			title: 'Qty Diambil',
@@ -903,6 +932,21 @@ export default function MedicationDispenseFromRequest() {
 	]
 
 	const patientName = getPatientDisplayName(detail?.patient)
+	const getPatientTypeLabel = () => {
+		if (!detail) return ''
+		const mrn = detail.patient?.mrNo || ''
+		if (mrn.startsWith('L-MRN-')) return 'Pasien Luar'
+
+		const encType = (detail as any).encounter?.encounterType
+		if (encType === 'IMP' || encType === 'inpatient') return 'Rawat Inap'
+		if (encType === 'AMB' || encType === 'ambulatory') return 'Rawat Jalan'
+		if (encType === 'EMER' || encType === 'emergency') return 'IGD'
+
+		if (detail.encounterId) return 'Rawat Jalan'
+		return 'Pasien Luar'
+	}
+	const patientLabel = detail ? `${getPatientTypeLabel()} / ${patientName || '-'}` : '-'
+
 	const authoredOnText = detail?.authoredOn
 		? dayjs(detail.authoredOn).format('DD/MM/YYYY HH:mm')
 		: '-'
@@ -912,17 +956,17 @@ export default function MedicationDispenseFromRequest() {
 			<h2 className="text-3xl font-bold mb-2">Proses Dispense dari Resep</h2>
 			<Card loading={isLoading}>
 				<Descriptions column={1} size="small" bordered>
-					<Descriptions.Item label="Pasien">{patientName || '-'}</Descriptions.Item>
+					<Descriptions.Item label="Pasien">{patientLabel}</Descriptions.Item>
 					<Descriptions.Item label="Status Resep">{detail?.status ?? '-'}</Descriptions.Item>
 					<Descriptions.Item label="Tanggal Resep">{authoredOnText}</Descriptions.Item>
 				</Descriptions>
 			</Card>
 			{isOutOfStockForCurrentQuantity && (
-				<Alert 
-					type="error" 
-					showIcon 
-					message="Stok Tidak Cukup" 
-					description="Terdapat item atau bahan obat yang stoknya tidak mencukupi untuk jumlah yang akan diambil." 
+				<Alert
+					type="error"
+					showIcon
+					message="Stok Tidak Cukup"
+					description="Terdapat item atau bahan obat yang stoknya tidak mencukupi untuk jumlah yang akan diambil."
 				/>
 			)}
 			<Card title="Obat dalam Resep">
@@ -935,39 +979,39 @@ export default function MedicationDispenseFromRequest() {
 				/>
 			</Card>
 
-			<TelaahAdministrasiForm 
+			<TelaahAdministrasiForm
 				isInternal={isInternalRequest}
 				results={telaahResults}
 				onChange={setTelaahResults}
 			/>
 
 			<div className="mt-4 flex justify-end gap-2">
-					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
-						Kembali ke Daftar Resep
-					</Button>
-					<Tooltip title={createDisabledReason}>
-						<Popconfirm
-							title="Konfirmasi pembuatan dispense"
-							okText="Ya"
-							cancelText="Tidak"
-							onConfirm={() => createDispenseMutation.mutate()}
+				<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
+					Kembali ke Daftar Resep
+				</Button>
+				<Tooltip title={createDisabledReason}>
+					<Popconfirm
+						title="Konfirmasi pembuatan dispense"
+						okText="Ya"
+						cancelText="Tidak"
+						onConfirm={() => createDispenseMutation.mutate()}
+						disabled={isCreateDisabled}
+					>
+						<Button
+							type="primary"
+							loading={createDispenseMutation.isPending}
 							disabled={isCreateDisabled}
 						>
-							<Button
-								type="primary"
-								loading={createDispenseMutation.isPending}
-								disabled={isCreateDisabled}
-							>
-								Buat Dispense
-							</Button>
-						</Popconfirm>
-					</Tooltip>
+							Buat Dispense
+						</Button>
+					</Popconfirm>
+				</Tooltip>
+			</div>
+			{isPrescriptionFulfilled && (
+				<div className="mt-2 text-sm text-green-600">
+					Resep ini sudah terpenuhi, tidak dapat membuat dispense baru.
 				</div>
-				{isPrescriptionFulfilled && (
-					<div className="mt-2 text-sm text-green-600">
-						Resep ini sudah terpenuhi, tidak dapat membuat dispense baru.
-					</div>
-				)}
+			)}
 		</div>
 	)
 }

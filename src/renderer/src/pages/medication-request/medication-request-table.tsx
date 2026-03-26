@@ -659,7 +659,8 @@ export function MedicationRequestTable() {
             quantity: ing.quantity as number | undefined,
             unit: ing.unitCode as string | undefined,
             instruksi: (ing.note || ing.instruction) as string | undefined,
-            batch: typeof ing.batchNumber === 'string' ? ing.batchNumber : undefined
+            batch: typeof ing.batchNumber === 'string' ? ing.batchNumber : undefined,
+            expiryDate: typeof (ing as any).expiryDate === 'string' ? ((ing as any).expiryDate as string) : undefined
           }
         })
       }
@@ -890,19 +891,11 @@ export function MedicationRequestTable() {
                     { title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
                     { title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
                     { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
-                    { title: 'Satuan', dataIndex: 'unit', key: 'unit' },                    {
-                      title: 'Batch / Expire',
-                      key: 'batchExpire',
-                      render: (_: unknown, row: MedicationItemRow) => {
-                        if (!row.batch && !row.expiryDate) return '-'
-                        const parts: string[] = []
-                        if (row.batch) parts.push(`Batch: ${row.batch}`)
-                        if (row.expiryDate) parts.push(`Exp: ${row.expiryDate}`)
-                        return <Tag color="orange">{parts.join(' | ')}</Tag>
-                      }
-                    }
+                    { title: 'Satuan', dataIndex: 'unit', key: 'unit' }
                   ]
 
+                  try {
+                  } catch {}
                   return (
                     <Table
                       columns={detailColumns}
@@ -910,6 +903,7 @@ export function MedicationRequestTable() {
                       pagination={false}
                       size="small"
                       rowKey="key"
+                      expandable={{ defaultExpandAllRows: true }}
                     />
                   )
                 }

@@ -2,7 +2,7 @@ import { Button, Form, Input, InputNumber, Select, Switch, Tag, App as AntdApp }
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { queryClient } from '@renderer/query-client'
 import dayjs from 'dayjs'
 import { PatientSelectorWithService, PatientSelectorValue } from '@renderer/components/organisms/PatientSelectorWithService'
@@ -49,7 +49,7 @@ interface FormData {
   roomId?: string | null
   authoredOn?: any
   resepturId?: number | null
-  resepturName?: string
+  resepturId?: number | null
   // Single mode (Edit)
   medicationId?: number | null
   dosageInstruction?: string | null
@@ -84,8 +84,6 @@ interface FormData {
     quantity?: number
     instruction?: string
     note?: string
-    batchNumber?: string
-    expiryDate?: string
   }>
   manualPatientName?: string
   manualMedicalRecordNumber?: string
@@ -162,65 +160,6 @@ export function MedicationRequestForm() {
   const [session, setSession] = useState<any>(null)
   const [originalGroupRecords, setOriginalGroupRecords] = useState<MedicationRequestRecordForEdit[]>([])
   const { message, modal } = AntdApp.useApp()
-
-  // Batch options per item row: key = `otherItem-{index}` or `compound-{compIdx}-ing-{ingIdx}`
-  type BatchOption = {
-    batchNumber: string;
-    expiryDate: string | null;
-    availableStock: number;
-    firstReceivedDate?: string;
-  }
-  const [batchOptionsMap, setBatchOptionsMap] = useState<Map<string, BatchOption[]>>(new Map())
-  const [batchLoadingMap, setBatchLoadingMap] = useState<Map<string, boolean>>(new Map())
-  const [batchSortModeMap, setBatchSortModeMap] = useState<Map<string, boolean>>(new Map())
-
-  const sortBatches = useCallback((batches: BatchOption[], rowKey: string): BatchOption[] => {
-    const isFefo = batchSortModeMap.get(rowKey) ?? true // default FEFO
-    try {
-      // batches count check
-    } catch { }
-    return [...batches].sort((a, b) => {
-      if (isFefo) {
-        // FEFO: earliest expiry first
-        if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate)
-        if (a.expiryDate) return -1
-        if (b.expiryDate) return 1
-        // If neither has expiry, fallback to FIFO (received date)
-        if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
-        return 0
-      }
-      // FIFO: oldest received date first
-      if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
-      // Fallback to batch number if received date missing
-      return a.batchNumber.localeCompare(b.batchNumber)
-    })
-  }, [batchSortModeMap])
-
-  const fetchBatchesForItem = useCallback(async (kodeItem: string, rowKey: string) => {
-    setBatchLoadingMap((prev) => new Map(prev).set(rowKey, true))
-    try {
-      const api = window.api?.query as {
-        inventoryStock?: {
-          listBatchesByLocation?: (args: { kodeItem: string; kodeLokasi: string }) => Promise<{ success: boolean; result?: BatchOption[] }>,
-          listBatches?: (args: { kodeItem: string }) => Promise<{ success: boolean; result?: BatchOption[] }>
-        }
-      }
-      const useByLocation = api?.inventoryStock?.listBatchesByLocation
-      if (!useByLocation) {
-        // fallback to listBatches if needed
-      }
-      const res = useByLocation
-        ? await useByLocation({ kodeItem, kodeLokasi: 'FARM' })
-        : await api?.inventoryStock?.listBatches?.({ kodeItem })
-      if (res?.success && Array.isArray(res.result)) {
-        setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
-      }
-    } catch (err) {
-      console.error(`[MR] Fetch batches error for ${kodeItem} (row: ${rowKey})`, err)
-    } finally {
-      setBatchLoadingMap((prev) => new Map(prev).set(rowKey, false))
-    }
-  }, [])
 
   const buildDispenseRequest = (quantity?: number, unit?: string) => {
     if (!quantity) return null
@@ -482,7 +421,6 @@ export function MedicationRequestForm() {
       const foundEmployee = byId || byNik || byName
       if (foundEmployee) {
         form.setFieldValue('resepturId', foundEmployee.id)
-        form.setFieldValue('resepturName', foundEmployee.namaLengkap || undefined)
       }
     }
   }, [session, requesterData, isEdit, form])
@@ -637,6 +575,13 @@ export function MedicationRequestForm() {
           encounterId: baseRecord.encounterId ?? null,
           roomId: baseRecord.roomId ?? null,
           requesterId: baseRecord.requesterId ?? null,
+          resepturId: (() => {
+            const entry = (baseRecord.supportingInformation ?? []).find((info: any) => {
+              const type = info.resourceType || info.type
+              return type === 'Reseptur'
+            })
+            return entry ? (entry.itemId || (entry as any).item_id) : null
+          })(),
           authoredOn: baseRecord.authoredOn ? dayjs(baseRecord.authoredOn) : undefined,
           items: shouldUseFallbackSimpleItem
             ? [
@@ -748,22 +693,16 @@ export function MedicationRequestForm() {
         const createPatientFn = window.api?.query?.registration?.create
         if (!createPatientFn) throw new Error('API pendaftaran pasien tidak tersedia.')
 
+        const ts = Date.now()
+        const autoNik = `L${String(ts).padStart(15, '0')}`
+        const autoMrn = values.manualMedicalRecordNumber || `L-${String(ts).slice(-8)}`
+
         const regRes = (await createPatientFn({
           name: values.manualPatientName,
-          medicalRecordNumber: values.manualMedicalRecordNumber || `L-MRN-${Date.now()}`,
-          nik: '0000000000000000',
+          medicalRecordNumber: autoMrn,
+          nik: autoNik,
           gender: 'male' as const,
-          birthDate: '1900-01-01',
-          maritalStatus: 'single' as const,
-          phone: '-',
-          email: 'luar@k.com',
-          address: '-',
-          city: '-',
-          province: '-',
-          postalCode: '-',
-          country: 'Indonesia',
-          relatedPerson: [],
-          active: true
+          birthDate: '1900-01-01'
         }) as any)
 
         if (!regRes?.success) {
@@ -785,6 +724,7 @@ export function MedicationRequestForm() {
         return
       }
     }
+
 
     const baseCommonPayload = {
       status: values.status,
@@ -974,13 +914,11 @@ export function MedicationRequestForm() {
 
             const ingredient = {
               resourceType: 'Ingredient',
-              medicationId: (item.medicationId as number) || null,
-              itemId: (item.itemId as number) || null,
+              medicationId: (item.medicationId as number) || undefined,
+              itemId: (item.itemId as number) || undefined,
               note: item.note || '',
               instruction: item.note || '',
-              name,
-              batchNumber: (item as Record<string, unknown>).batchNumber || null,
-              expiryDate: (item as Record<string, unknown>).expiryDate || null
+              name
             }
             return ingredient
           })
@@ -1237,12 +1175,7 @@ export function MedicationRequestForm() {
             category: null,
             identifier: null,
             supportingInformation: (() => {
-              const original =
-                input.batchNumber
-                  ? [{ resourceType: 'StockBatch', batchNumber: input.batchNumber, expiryDate: input.expiryDate ?? null }]
-                  : []
-              const merged = [...original, ...supportingInformationCommon]
-              return merged.length > 0 ? merged : null
+              return supportingInformationCommon.length > 0 ? supportingInformationCommon : null
             })()
           })
         }
@@ -1342,15 +1275,13 @@ export function MedicationRequestForm() {
 
             return {
               resourceType: 'Ingredient',
-              medicationId: (item.medicationId as number) || null,
-              itemId: (item.itemId as number) || null,
+              medicationId: (item.medicationId as number) || undefined,
+              itemId: (item.itemId as number) || undefined,
               note: item.note || '',
               instruction: item.note || '',
               quantity: typeof item.quantity === 'number' ? item.quantity : 0,
               unitCode: item.unit || null,
-              name,
-              batchNumber: (item as Record<string, unknown>).batchNumber || null,
-              expiryDate: (item as Record<string, unknown>).expiryDate || null
+              name
             }
           })
 
@@ -1403,12 +1334,7 @@ export function MedicationRequestForm() {
                 ? buildDispenseRequest(it.quantity, unitCode)
                 : null,
             supportingInformation: (() => {
-              const original =
-                it.batchNumber
-                  ? [{ resourceType: 'StockBatch', batchNumber: it.batchNumber, expiryDate: it.expiryDate ?? null }]
-                  : []
-              const merged = [...original, ...supportingInformationCommon]
-              return merged.length > 0 ? merged : null
+              return supportingInformationCommon.length > 0 ? supportingInformationCommon : null
             })()
           }
         })
@@ -1507,43 +1433,30 @@ export function MedicationRequestForm() {
 
               <Form.Item
                 label="Reseptur"
+                name="resepturId"
               >
-                <Input disabled value={form.getFieldValue('resepturName')} placeholder="Mengikuti pengguna login" />
-              </Form.Item>
-              <Form.Item name="resepturId" hidden>
-                <Input />
+                <SelectAsync
+                  display="namaLengkap"
+                  entity="kepegawaian"
+                  output="id"
+                  placeHolder="Pilih Reseptur (Mengikuti pengguna login jika kosong)"
+                />
               </Form.Item>
             </div>
           </div>
 
             <MedicationOtherItemsTable
-              form={form}
               itemOptions={itemOptions}
               itemLoading={itemLoading}
-              itemKodeMap={itemKodeMap}
               signaOptions={signaOptions}
               signaLoading={signaLoading}
-              batchOptionsMap={batchOptionsMap}
-              batchLoadingMap={batchLoadingMap}
-              batchSortModeMap={batchSortModeMap}
-              setBatchSortModeMap={setBatchSortModeMap}
-              sortBatches={sortBatches}
-              fetchBatchesForItem={fetchBatchesForItem}
             />
 
             <MedicationCompoundsSection
-              form={form}
               itemOptions={itemOptions}
               itemLoading={itemLoading}
-              itemKodeMap={itemKodeMap}
               signaOptions={signaOptions}
               signaLoading={signaLoading}
-              batchOptionsMap={batchOptionsMap}
-              batchLoadingMap={batchLoadingMap}
-              batchSortModeMap={batchSortModeMap}
-              setBatchSortModeMap={setBatchSortModeMap}
-              sortBatches={sortBatches}
-              fetchBatchesForItem={fetchBatchesForItem}
             />
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
