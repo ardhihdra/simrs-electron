@@ -1,5 +1,5 @@
-import { Button, Divider, Popconfirm, Space, Spin, Table, Tooltip, Dropdown, MenuProps } from 'antd'
 import { MoreOutlined } from '@ant-design/icons'
+import { Button, Divider, Dropdown, MenuProps, Popconfirm, Space, Spin, Table, Tooltip } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import type { ReactNode } from 'react'
 
@@ -110,7 +110,7 @@ function GenericTable<T extends object>({
                 )
               }
 
-              if (items.length <= 2) {
+              if (items.length <= 1) {
                 return (
                   <Space split={<Divider type="vertical" />}>
                     {items.map((item, idx) => renderItem(item, idx))}
@@ -119,15 +119,20 @@ function GenericTable<T extends object>({
               }
 
               const menuItems: MenuProps['items'] = items.map((item, idx) => {
-                 return {
-                    key: String(idx),
-                    label: renderItem(item, idx)
-                 }
+                return {
+                  key: String(idx),
+                  label: renderItem(item, idx)
+                }
               })
 
               return (
                 <Dropdown menu={{ items: menuItems }} trigger={['click']}>
-                  <Button size="small" type="text" icon={<MoreOutlined />} onClick={e => e.preventDefault()} />
+                  <Button
+                    size="small"
+                    type="text"
+                    icon={<MoreOutlined />}
+                    onClick={(e) => e.preventDefault()}
+                  />
                 </Dropdown>
               )
             }

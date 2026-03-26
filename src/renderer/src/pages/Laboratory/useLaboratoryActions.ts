@@ -1,7 +1,50 @@
 import { client } from '@renderer/utils/client'
+import { queryClient } from '@renderer/query-client'
 import { message } from 'antd'
 import { useEffect, useState } from 'react'
-import type { RecordResultInput } from '../../../../main/rpc/procedure/laboratory'
+
+interface LabRecordResultInput {
+  serviceRequestId: string
+  encounterId: string
+  patientId: string
+  observations: Array<{
+    observationCodeId: string
+    value: string
+    unit?: string
+    referenceRange?: string
+    interpretation?: string
+    observedAt?: string
+  }>
+}
+
+interface RadiologyRecordResultInput {
+  serviceRequestId: string
+  encounterId: string
+  patientId: string
+  modalityCode: string
+  findings: string
+  started?: string
+}
+
+type RecordResultInput = LabRecordResultInput | RadiologyRecordResultInput
+
+async function invalidateLaboratoryQueries() {
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['laboratory-management-requests-v2'] }),
+    queryClient.invalidateQueries({ queryKey: ['laboratory-report'] }),
+    queryClient.invalidateQueries({
+      predicate: ({ queryKey }) => {
+        return queryKey.some(
+          (part) =>
+            typeof part === 'string' &&
+            (part.includes('laboratoryManagement') ||
+              part.includes('laboratory-management') ||
+              part === 'searchPacsStudies')
+        )
+      }
+    })
+  ])
+}
 
 interface UseLaboratoryActionsReturn {
   loading: string | null
@@ -15,19 +58,24 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
   const [loading, setLoading] = useState<string | null>(null)
   const [printEncounterId, setPrintEncounterId] = useState<string | null>(null)
 
-  const createOrderMutation = client.laboratory.createOrder.useMutation()
-  const collectSpecimenMutation = client.laboratory.collectSpecimen.useMutation()
-  const recordResultMutation = client.laboratory.recordResult.useMutation()
+  const createOrderMutation = client.laboratoryManagement.createOrder.useMutation()
+  const collectSpecimenMutation = client.laboratoryManagement.collectSpecimen.useMutation()
+  const recordResultMutation = client.laboratoryManagement.recordResult.useMutation()
+  const recordRadiologyResultMutation =
+    client.laboratoryManagement.recordRadiologyResult.useMutation()
 
   const {
     data: reportDataResponse,
     isFetching: isPrinting,
     isError: isPrintError,
     error: printError
-  } = client.laboratory.getReport.useQuery(printEncounterId!, {
-    enabled: !!printEncounterId,
-    queryKey: ['laboratory-report', printEncounterId ?? '']
-  })
+  } = client.laboratoryManagement.getReport.useQuery(
+    { encounterId: printEncounterId! },
+    {
+      enabled: !!printEncounterId,
+      queryKey: ['laboratory-report', printEncounterId ?? '']
+    }
+  )
 
   // Effect to handle printing when data is fetched
   useEffect(() => {
@@ -144,6 +192,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     setLoading('create-order')
     try {
       await createOrderMutation.mutateAsync(data)
+      await invalidateLaboratoryQueries()
       message.success('Lab order created')
       onSuccess?.()
     } catch (error: any) {
@@ -158,6 +207,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     setLoading('collect-specimen')
     try {
       await collectSpecimenMutation.mutateAsync(data)
+      await invalidateLaboratoryQueries()
       message.success('Specimen collected')
       onSuccess?.()
     } catch (error: any) {
@@ -171,8 +221,13 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
   const handleRecordResult = async (data: RecordResultInput) => {
     setLoading('record-result')
     try {
-      await recordResultMutation.mutateAsync(data)
-      message.success('Lab result recorded')
+      if ('observations' in data) {
+        await recordResultMutation.mutateAsync(data)
+      } else {
+        await recordRadiologyResultMutation.mutateAsync(data)
+      }
+      await invalidateLaboratoryQueries()
+      message.success('Hasil pemeriksaan berhasil disimpan')
       onSuccess?.()
     } catch (error: any) {
       console.error(error)

@@ -91,20 +91,23 @@ export class ModuleScopePermission {
   public isVisibleForClient(session: ScopeSession, targetModule: ModuleCode): boolean {
     this.assertKnownModule(targetModule)
     if (this.hasAdministratorAccess(session)) {
+      console.log('has admin access, visible', targetModule)
       return true
     }
 
     if (this.hasAccess(session, targetModule)) {
+      console.log('has access, visible', targetModule)
       return true
     }
 
     const descendants = this.getDescendants(targetModule)
     for (const descendant of descendants) {
       if (this.hasAccess(session, descendant)) {
+        console.log('has access through descendant, visible', targetModule)
         return true
       }
     }
-
+    console.log('no access, not visible', targetModule)
     return false
   }
 
