@@ -22,6 +22,7 @@ import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
 import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
+import OKSubmissionPage from './pages/ok/ok-submission-page'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
@@ -90,6 +91,8 @@ import ActiveEncountersPage from './pages/visit-management/active-encounters-pag
 import InitialTriage from './pages/visit-management/initial-triage'
 import RegistrationPage from './pages/visit-management/registration-page'
 import RegistrationQueue from './pages/visit-management/registration-queue'
+import AntrianVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
+import DetailVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/DetailVerifikasiPage'
 
 const withModuleGuard = (module: string, element: ReactNode) => (
   <ModuleScopeGuard module={module}>{element}</ModuleScopeGuard>
@@ -282,6 +285,15 @@ function MainRoute() {
           >
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
+          </Route>
+          <Route
+            path="ok"
+            element={withModuleGuard(workspaceModuleCodes.doctor, <Outlet />)}
+          >
+            <Route index element={<OKSubmissionPage />} />
+            <Route path="pengajuan" element={<OKSubmissionPage />} />
+            <Route path="verifikasi" element={<AntrianVerifikasiPage />} />
+            <Route path="verifikasi/:id" element={<DetailVerifikasiPage />} />
           </Route>
           <Route
             path="services"

@@ -27,17 +27,35 @@ import { InfoCircleOutlined } from '@ant-design/icons'
 import { useCreateQuestionnaireResponse } from '@renderer/hooks/query/use-questionnaire-response'
 import { QuestionnaireResponseStatus } from '@renderer/types/questionnaire.types'
 
+import { FormInstance } from 'antd'
+
 const { Text, Paragraph, Title } = Typography
 const { TextArea } = Input
 
 interface InformedConsentFormProps {
   encounterId: string
   patientData: any
+  standalone?: boolean
+  externalForm?: FormInstance
+  hideHeader?: boolean
+  okRequestId?: number
+  signatures?: Record<string, string>
+  onSignatureChange?: (type: string, dataUrl: string) => void
 }
 
-export const InformedConsentForm = ({ encounterId, patientData }: InformedConsentFormProps) => {
+export const InformedConsentForm = ({
+  encounterId,
+  patientData,
+  standalone = true,
+  externalForm,
+  hideHeader = false,
+  okRequestId,
+  signatures: externalSignatures,
+  onSignatureChange
+}: InformedConsentFormProps) => {
   const { message } = App.useApp()
-  const [form] = Form.useForm()
+  const [internalForm] = Form.useForm()
+  const form = externalForm || internalForm
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'doctor',
     'nurse'
@@ -49,7 +67,8 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
     type: '',
     title: ''
   })
-  const [signatures, setSignatures] = useState<Record<string, string>>({})
+  const [internalSignatures, setInternalSignatures] = useState<Record<string, string>>({})
+  const signatures = externalSignatures || internalSignatures
   const [isPreviewVisible, setIsPreviewVisible] = useState(false)
   const [formDataForPrint, setFormDataForPrint] = useState<any>(null)
 
@@ -212,6 +231,7 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         status: QuestionnaireResponseStatus.COMPLETED,
         authored: values.assessment_date?.toISOString() || new Date().toISOString(),
         authorId: values.performerId,
+        okRequestId: okRequestId || values.okRequestId,
         items
       }
 
@@ -228,7 +248,11 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
   }
 
   const saveSignature = (dataUrl: string) => {
-    setSignatures((prev) => ({ ...prev, [sigModal.type]: dataUrl }))
+    if (onSignatureChange) {
+      onSignatureChange(sigModal.type, dataUrl)
+    } else {
+      setInternalSignatures((prev) => ({ ...prev, [sigModal.type]: dataUrl }))
+    }
   }
 
   const handlePreviewPrint = () => {
@@ -298,35 +322,23 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
     </div>
   )
 
-  return (
-    <Form
-      form={form}
-      layout="vertical"
-      onFinish={handleFinish}
-      className="flex flex-col gap-4"
-      initialValues={{
-        assessment_date: dayjs(),
-        receiver_name: patientData?.patient?.name || '',
-        receiver_birthdate: patientData?.patient?.birthDate
-          ? dayjs(patientData.patient.birthDate)
-          : undefined,
-        receiver_address: patientData?.patient?.addressLine || '',
-        consent_type: 'agree'
-      }}
-    >
-      <Card>
-        <Space align="start">
-          <InfoCircleOutlined className="text-blue-500 text-xl mt-1" />
-          <div>
-            <Title level={5} className="mb-0">
-              Persetujuan Tindakan Kedokteran
-            </Title>
-            <Text type="secondary" className="text-xs">
-              Sesuai PMK No. 290 Th 2008 tentang Persetujuan Tindakan Kedokteran
-            </Text>
-          </div>
-        </Space>
-      </Card>
+  const content = (
+    <div className="flex flex-col gap-4">
+      {!hideHeader && (
+        <Card>
+          <Space align="start">
+            <InfoCircleOutlined className="text-blue-500 text-xl mt-1" />
+            <div>
+              <Title level={5} className="mb-0">
+                Persetujuan Tindakan Kedokteran
+              </Title>
+              <Text type="secondary" className="text-xs">
+                Sesuai PMK No. 290 Th 2008 tentang Persetujuan Tindakan Kedokteran
+              </Text>
+            </div>
+          </Space>
+        </Card>
+      )}
 
       <Card title="1. Pemberian Informasi" className=" ">
         <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
@@ -431,16 +443,23 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
         </Row>
       </Card>
 
-      <div className="flex justify-end">
-        <Space size="middle">
-          <Button size="large" icon={<PrinterOutlined />} onClick={handlePreviewPrint}>
-            Preview & Print
-          </Button>
-          <Button type="primary" size="large" icon={<SaveOutlined />} onClick={() => form.submit()}>
-            Simpan Final
-          </Button>
-        </Space>
-      </div>
+      {standalone && (
+        <div className="flex justify-end">
+          <Space size="middle">
+            <Button size="large" icon={<PrinterOutlined />} onClick={handlePreviewPrint}>
+              Preview & Print
+            </Button>
+            <Button
+              type="primary"
+              size="large"
+              icon={<SaveOutlined />}
+              onClick={() => form.submit()}
+            >
+              Simpan Final
+            </Button>
+          </Space>
+        </div>
+      )}
 
       <SignaturePadModal
         title={sigModal.title}
@@ -473,6 +492,30 @@ export const InformedConsentForm = ({ encounterId, patientData }: InformedConsen
           />
         </div>
       </Modal>
+    </div>
+  )
+
+  if (!standalone) {
+    return content
+  }
+
+  return (
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={handleFinish}
+      className=""
+      initialValues={{
+        assessment_date: dayjs(),
+        receiver_name: patientData?.patient?.name || '',
+        receiver_birthdate: patientData?.patient?.birthDate
+          ? dayjs(patientData.patient.birthDate)
+          : undefined,
+        receiver_address: patientData?.patient?.addressLine || '',
+        consent_type: 'agree'
+      }}
+    >
+      {content}
     </Form>
   )
 }

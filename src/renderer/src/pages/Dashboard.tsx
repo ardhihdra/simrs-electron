@@ -9,6 +9,7 @@ import {
   MedicineBoxOutlined,
   PhoneOutlined,
   RightCircleFilled,
+  CheckSquareOutlined,
   UnorderedListOutlined,
   UserOutlined,
   WalletOutlined
@@ -285,7 +286,28 @@ const items: DashboardMenuItem[] = [
       {
         label: 'Rekam Medis',
         key: '/dashboard/doctor',
-        icon: <FileTextOutlined />
+        icon: <FileTextOutlined />,
+        moduleKey: workspaceModuleCodes.doctor
+      }
+    ]
+  },
+  {
+    label: 'Kamar Operasi (OK)',
+    key: '/dashboard/ok',
+    icon: <MedicineBoxOutlined />,
+    moduleKey: workspaceModuleCodes.doctor,
+    children: [
+      {
+        label: 'Buat Pengajuan OK',
+        key: '/dashboard/ok/pengajuan',
+        icon: <FileTextOutlined />,
+        moduleKey: workspaceModuleCodes.doctor
+      },
+      {
+        label: 'Antrian & Verifikasi',
+        key: '/dashboard/ok/verifikasi',
+        icon: <CheckSquareOutlined />,
+        moduleKey: workspaceModuleCodes.doctor
       }
     ]
   },
@@ -403,7 +425,8 @@ function Dashboard() {
     '/dashboard/registration/doctor-leave',
     '/dashboard/doctor',
     '/dashboard/nurse-calling',
-    '/dashboard/rawat-inap'
+    '/dashboard/rawat-inap',
+    '/dashboard/ok'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === DASHBOARD_ROOT_KEY) return true
@@ -493,7 +516,9 @@ function Dashboard() {
   }, [location.pathname, session, visibleModuleState.visibleModules.join('|')])
 
   const isWorkspaceRoute =
-    location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+    location.pathname.startsWith('/dashboard/doctor/') ||
+    location.pathname.startsWith('/dashboard/ok/pengajuan') ||
+    location.pathname.startsWith('/dashboard/nurse-calling/medical-record/')
 
   if (isWorkspaceRoute) {
     return (

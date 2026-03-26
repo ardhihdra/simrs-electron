@@ -47,7 +47,6 @@ import { CardiologyForm } from '@renderer/components/organisms/Assessment/Cardio
 import { ENTForm } from '@renderer/components/organisms/Assessment/ENT/ENTForm'
 import { FallRiskAssessmentForm } from '@renderer/components/organisms/Assessment/FallRiskAssessment/FallRiskAssessmentForm'
 import { GCSAssessmentForm } from '@renderer/components/organisms/Assessment/GCSAssessment/GCSAssessmentForm'
-import { InformedConsentForm } from '@renderer/components/organisms/InformedConsentForm'
 import { EncounterTimeline } from '@renderer/components/organisms/EncounterTimeline'
 import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
 import { NutritionScreeningForm } from '@renderer/components/organisms/Assessment/NutritionScreening/NutritionScreeningForm'
@@ -210,11 +209,6 @@ export const DoctorInpatientWorkspace = ({
         icon: <ReconciliationOutlined />,
         label: 'Administrasi',
         children: [
-          {
-            key: 'informed-consent',
-            icon: <SafetyCertificateOutlined />,
-            label: 'Informed Consent'
-          },
           { key: 'referral', icon: <DisconnectOutlined />, label: 'Rujukan' },
           { key: 'discharge-summary', icon: <ContainerOutlined />, label: 'Resume Medis' },
           { key: 'medical-certificate', icon: <FileTextOutlined />, label: 'Surat Keterangan' },
@@ -372,8 +366,6 @@ export const DoctorInpatientWorkspace = ({
         return (
           <DiagnosticResultViewer encounterId={encounterId} patientId={patientData.patient.id} />
         )
-      case 'informed-consent':
-        return <InformedConsentForm encounterId={encounterId} patientData={patientData} />
       case 'referral':
         return (
           <ReferralForm
