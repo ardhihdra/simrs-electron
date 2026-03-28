@@ -61,7 +61,7 @@ interface ModuleScopeGuardProps extends PropsWithChildren {
 }
 
 export function ModuleScopeGuard({ children, access, fallback = null }: ModuleScopeGuardProps) {
-    return children
+    // return children
     const session = useModuleScopeStore((state) => state.session)
     if (!session) return <>{fallback}</>
     const isAllowed = isPageVisible(access, session)

@@ -1,11 +1,12 @@
 import { SearchOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
-import { client, rpc } from '@renderer/utils/client'
+import { client } from '@renderer/utils/client'
+import { useCreateServiceRequest } from '@renderer/hooks/query/use-service-request'
 import { App, Button, Form, Input, Modal, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
 import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
 
@@ -55,9 +56,14 @@ export default function LaboratoryQueue() {
   const [isServiceRequestModalOpen, setIsServiceRequestModalOpen] = useState(false)
   const [selectedEncounter, setSelectedEncounter] = useState<EncounterRow | null>(null)
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false)
-  const [isSubmittingServiceRequest, setIsSubmittingServiceRequest] = useState(false)
   const [statusForm] = Form.useForm()
   const [serviceRequestForm] = Form.useForm()
+
+  const { createServiceRequest, isSubmitting: isSubmittingServiceRequest } = useCreateServiceRequest({
+    encounterId: String(selectedEncounter?.id ?? ''),
+    patientId: String(selectedEncounter?.patientId ?? ''),
+    practitionerId: selectedEncounter?.practitionerId,
+  })
   const selectedStatus = Form.useWatch('status', statusForm) as EncounterStatusValue | undefined
 
   const {
@@ -233,57 +239,15 @@ export default function LaboratoryQueue() {
 
   const submitServiceRequestCreate = async () => {
     if (!selectedEncounter?.id || !selectedEncounter.patientId) return
-
     try {
       const values = await serviceRequestForm.validateFields()
-      setIsSubmittingServiceRequest(true)
-
-      const createResult = await rpc.query.entity({
-        model: 'serviceRequest',
-        method: 'post',
-        body: {
-          encounterId: String(selectedEncounter.id),
-          patientId: String(selectedEncounter.patientId),
-          doctorId: selectedEncounter.practitionerId,
-          serviceRequests: [
-            {
-              category: String(values.category),
-              code: String(values.code),
-              display: String(values.display),
-              priority: String(values.priority || 'routine'),
-              patientInstruction: values.patientInstruction
-                ? String(values.patientInstruction)
-                : undefined,
-              system: values.system ? String(values.system) : 'http://loinc.org'
-            }
-          ]
-        }
-      })
-
-      if (!createResult?.success) {
-        throw new Error(createResult?.message || 'Gagal membuat service request')
-      }
-
-      const createdServiceRequestId = createResult?.result?.[0]?.id
-      if (createdServiceRequestId) {
-        await rpc.query.entity({
-          model: 'encounter',
-          path: String(selectedEncounter.id),
-          method: 'put',
-          body: {
-            serviceRequestId: String(createdServiceRequestId)
-          }
-        })
-      }
-
+      await createServiceRequest(values)
       message.success('Service request baru berhasil dibuat')
       closeServiceRequestModal()
       await refetch()
     } catch (error: any) {
       if (error?.errorFields) return
       message.error(error?.message || 'Gagal membuat service request')
-    } finally {
-      setIsSubmittingServiceRequest(false)
     }
   }
 

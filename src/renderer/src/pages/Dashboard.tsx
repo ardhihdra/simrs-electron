@@ -241,7 +241,7 @@ const items: DashboardMenuItem[] = [
 ]
 
 const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSession): boolean => {
-  return true
+  // return true
   if (!access) return true
 
   const { allowedModules, roles, allowedLokasiKerjaIds } = access

@@ -5,15 +5,12 @@ import { useEffect, useMemo, useState } from 'react'
 
 type ServiceRequestCategoryValue = 'laboratory' | 'imaging'
 
-interface TerminologyItem {
+interface MasterServiceRequestCodeItem {
+  id: number
   loinc: string
-  name: string
-  system?: string
-}
-
-function normalizeList<T>(data: unknown): T[] {
-  const raw = data as { result?: T[]; data?: T[] } | T[]
-  return ((raw as { result?: T[]; data?: T[] })?.result ?? (raw as { data?: T[] })?.data ?? (raw as T[]) ?? [])
+  display: string
+  category: string
+  serviceType: 'laboratory' | 'radiology'
 }
 
 function mapServiceRequestCategoryToTerminologyDomain(
@@ -35,41 +32,43 @@ export default function CreateServiceRequestForm({ form }: Props) {
     [selectedCategory]
   )
 
-  const terminologyQuery = useMemo(
-    () => ({
-      domain: terminologyDomain,
-      query: terminologySearch.trim() || undefined,
-      limit: 50
-    }),
-    [terminologyDomain, terminologySearch]
-  )
-
   const { data: terminologyData, isLoading: isLoadingTerminology } =
-    client.laboratoryManagement.searchTerminology.useQuery(terminologyQuery, {
-      queryKey: ['lab-queue-terminology-search', terminologyQuery]
-    } as Parameters<typeof client.laboratoryManagement.searchTerminology.useQuery>[1])
+    client.laboratoryManagement.getServiceRequestCodes.useQuery(
+      {
+        domain: terminologyDomain,
+        query: terminologySearch.trim() || undefined,
+      },
+      {
+        queryKey: ['lab-queue-service-request-codes', { domain: terminologyDomain, query: terminologySearch }],
+      }
+    )
 
   const terminologyOptions = useMemo(() => {
-    const items = normalizeList<TerminologyItem>(terminologyData)
+    const result = terminologyData?.result as { laboratory?: MasterServiceRequestCodeItem[]; radiology?: MasterServiceRequestCodeItem[] } | undefined
+    const items: MasterServiceRequestCodeItem[] = [
+      ...(result?.laboratory ?? []),
+      ...(result?.radiology ?? []),
+    ]
     return items.map((item) => ({
-      value: item.loinc,
-      label: `${item.loinc} - ${item.name}`,
-      meta: item
+      value: item.id,
+      label: `${item.loinc} - ${item.display}`,
+      meta: item,
     }))
   }, [terminologyData])
 
   useEffect(() => {
-    form.setFieldsValue({ code: undefined, display: undefined, system: 'http://loinc.org' })
+    form.setFieldsValue({ code: undefined, display: undefined, system: 'http://loinc.org', masterServiceRequestCodeId: undefined })
     setTerminologySearch('')
   }, [selectedCategory, form])
 
-  const handleSelectCode = (loincCode: string) => {
-    const option = terminologyOptions.find((item) => item.value === loincCode)
+  const handleSelectCode = (id: number) => {
+    const option = terminologyOptions.find((item) => item.value === id)
     if (!option) return
     form.setFieldsValue({
+      masterServiceRequestCodeId: option.meta.id,
       code: option.meta.loinc,
-      display: option.meta.name,
-      system: option.meta.system || 'http://loinc.org'
+      display: option.meta.display,
+      system: 'http://loinc.org',
     })
   }
 
@@ -89,9 +88,9 @@ export default function CreateServiceRequestForm({ form }: Props) {
       </Form.Item>
 
       <Form.Item
-        name="code"
+        name="masterServiceRequestCodeId"
         label="Kode Pemeriksaan"
-        rules={[{ required: true, message: 'Harap isi kode pemeriksaan' }]}
+        rules={[{ required: true, message: 'Harap pilih kode pemeriksaan' }]}
       >
         <Select
           showSearch
@@ -105,12 +104,16 @@ export default function CreateServiceRequestForm({ form }: Props) {
         />
       </Form.Item>
 
+      <Form.Item name="code" label="LOINC Code">
+        <Input readOnly placeholder="Terisi otomatis" />
+      </Form.Item>
+
       <Form.Item
         name="display"
         label="Nama Pemeriksaan"
         rules={[{ required: true, message: 'Harap isi nama pemeriksaan' }]}
       >
-        <Input placeholder="Contoh: Hemoglobin [Mass/volume] in Blood" />
+        <Input placeholder="Terisi otomatis" />
       </Form.Item>
 
       <Form.Item

@@ -1,8 +1,9 @@
-import { useServiceRequestByEncounter, useBulkCreateServiceRequest } from '../../hooks/query/use-service-request'
+import { useServiceRequestByEncounter, useCreateServiceRequest } from '../../hooks/query/use-service-request'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
 import { App, Alert, Button, Form, Spin, Tag } from 'antd'
+import { useState } from 'react'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 
@@ -76,72 +77,75 @@ const columns: ColumnsType<ServiceRequestRow> = [
 export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormProps) => {
     const { message } = App.useApp()
     const [form] = Form.useForm()
+    const [showForm, setShowForm] = useState(false)
 
     const { data: serviceRequestData, isLoading, isError } = useServiceRequestByEncounter(encounterId)
-    const bulkCreate = useBulkCreateServiceRequest()
+    const { createServiceRequest, isSubmitting } = useCreateServiceRequest({
+        encounterId,
+        patientId: patientData.patient.id,
+        practitionerId: 1, // TODO: get from auth context — codebase-wide known limitation
+    })
 
     const existingOrders: ServiceRequestRow[] = serviceRequestData?.result ?? []
 
     const handleSubmit = async () => {
         try {
             const values = await form.validateFields()
-            await bulkCreate.mutateAsync({
-                encounterId,
-                patientId: patientData.patient.id,
-                doctorId: 1, // TODO: get from auth context — codebase-wide known limitation
-                serviceRequests: [
-                    {
-                        category: values.category,
-                        code: values.code,
-                        display: values.display,
-                        priority: values.priority ?? 'routine',
-                        patientInstruction: values.patientInstruction ?? undefined,
-                        system: values.system ?? 'http://loinc.org',
-                    },
-                ],
-            })
+            await createServiceRequest(values)
             message.success('Pemeriksaan berhasil ditambahkan')
             form.resetFields()
+            setShowForm(false)
         } catch (error) {
-            if (error !== null && typeof error === 'object' && 'errorFields' in error) return // antd validation error — form shows inline messages
+            if (error !== null && typeof error === 'object' && 'errorFields' in error) return
             console.error('Error creating service request:', error)
             message.error('Gagal menyimpan pemeriksaan')
         }
     }
 
+    const handleCancel = () => {
+        form.resetFields()
+        setShowForm(false)
+    }
+
     return (
         <div className="flex flex-col gap-4">
             <div>
-                <div className="font-medium mb-2">Pemeriksaan yang Sudah Diorder</div>
+                <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium">Pemeriksaan yang Sudah Diorder</span>
+                    {!showForm && (
+                        <Button type="primary" onClick={() => setShowForm(true)}>
+                            Tambah Penunjang Medis
+                        </Button>
+                    )}
+                </div>
                 {isLoading ? (
                     <div className="flex justify-center py-4">
                         <Spin />
                     </div>
                 ) : isError ? (
                     <Alert type="error" message="Gagal memuat data pemeriksaan" />
-                ) : (
+                ) : !showForm ? (
                     <GenericTable<ServiceRequestRow>
                         columns={columns}
                         dataSource={existingOrders}
                         rowKey={(record) => String(record.id ?? record.identifier ?? record.codes?.[0]?.code ?? 'unknown')}
                         tableProps={{ locale: { emptyText: 'Belum ada pemeriksaan yang diorder' } }}
                     />
-                )}
+                ) : <></>}
             </div>
 
-            <div>
-                <div className="font-medium mb-2">Tambah Pemeriksaan</div>
-                <CreateServiceRequestForm form={form} />
-                <div className="flex justify-end mt-2">
-                    <Button
-                        type="primary"
-                        onClick={handleSubmit}
-                        loading={bulkCreate.isPending}
-                    >
-                        Tambah Pemeriksaan
-                    </Button>
+            {showForm && (
+                <div>
+                    <div className="font-medium mb-2">Tambah Penunjang Medis</div>
+                    <CreateServiceRequestForm form={form} />
+                    <div className="flex justify-end gap-2 mt-2">
+                        <Button onClick={handleCancel}>Batal</Button>
+                        <Button type="primary" onClick={handleSubmit} loading={isSubmitting}>
+                            Simpan Penunjang Medis
+                        </Button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     )
 }

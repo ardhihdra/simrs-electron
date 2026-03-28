@@ -56,12 +56,12 @@ export default function TindakanNonPaketTab({
           <div className="flex flex-col gap-4">
             {fields.map((field, index) => (
               <Card
-                key={field.key}
+                key={`${field.key}-${index}`}
                 size="small"
                 className="border border-slate-200"
                 title={<span className="font-semibold">Tindakan #{index + 1}</span>}
                 extra={
-                  fields.length > 1 ? (
+                  fields.length > 0 ? (
                     <Button
                       type="text"
                       danger
@@ -166,8 +166,8 @@ export default function TindakanNonPaketTab({
                             Belum ada tenaga medis. Klik &quot;Tambah Petugas&quot; untuk menambahkan.
                           </div>
                         )}
-                        {petugasFields.map(({ key: pKey, name: pName, ...pRestField }) => (
-                          <Row key={pKey} gutter={8} align="middle">
+                        {petugasFields.map(({ key: pKey, name: pName, ...pRestField }, index) => (
+                          <Row key={`${pKey}-${index}`} gutter={8} align="middle">
                             <Col span={12}>
                               <Form.Item
                                 {...pRestField}
