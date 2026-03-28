@@ -123,7 +123,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
                     <GenericTable<ServiceRequestRow>
                         columns={columns}
                         dataSource={existingOrders}
-                        rowKey={(record) => String(record.id ?? record.identifier ?? Math.random())}
+                        rowKey={(record) => String(record.id ?? record.identifier ?? record.codes?.[0]?.code ?? 'unknown')}
                         tableProps={{ locale: { emptyText: 'Belum ada pemeriksaan yang diorder' } }}
                     />
                 )}
