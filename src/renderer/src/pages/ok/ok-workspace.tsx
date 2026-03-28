@@ -18,7 +18,6 @@ import {
 } from '@ant-design/icons'
 import { PengajuanOKForm } from '../../components/organisms/OK/PengajuanOKForm'
 import { DetailPengajuanForm } from '../../components/organisms/OK/DetailPengajuanForm'
-import { VerifikasiOKTable } from '../../components/organisms/OK/VerifikasiOKTable'
 import { ChecklistPreOpForm } from '../../components/organisms/OK/ChecklistPreOpForm'
 import { SignInForm, TimeOutForm, SignOutForm } from '../../components/organisms/OK/WHOChecklist'
 import {
@@ -26,6 +25,7 @@ import {
   AdministrasiOKForm,
   TagihanOKView
 } from '../../components/organisms/OK/PostOpForms'
+import AntrianVerifikasiPage from './antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
 
 interface OKWorkspaceProps {
   encounterId?: string
@@ -198,7 +198,7 @@ export const OKWorkspace = ({
       case 'penandaan-consent':
         return <DetailPengajuanForm encounterId={encounterId} patientData={patientData} />
       case 'verifikasi-ok':
-        return <VerifikasiOKTable />
+        return <AntrianVerifikasiPage />
       case 'checklist-preop':
       case 'penilaian-preop':
         return <ChecklistPreOpForm />

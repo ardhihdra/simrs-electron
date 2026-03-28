@@ -1,4 +1,5 @@
 import {
+  Alert,
   Table,
   Card,
   Tag,
@@ -11,95 +12,72 @@ import {
   Col,
   Statistic
 } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   EyeOutlined,
-  ClockCircleOutlined
+  ReloadOutlined
 } from '@ant-design/icons'
 
 const { Title, Text } = Typography
 
-const MOCK_PENGAJUAN = [
-  {
-    id: '1',
-    nomorAntrian: 'OK-2026-001',
-    namaPasien: 'Budi Santoso',
-    noRM: '2024-00012',
-    tindakan: 'Appendektomi',
-    spesialis: 'Bedah Umum',
-    kelas: 'Kelas II',
-    sifat: 'cyto',
-    tanggalRencana: '2026-03-28',
-    jamRencana: '08:00 — 10:00',
-    dokterOperator: 'dr. Ahmad Fadillah, Sp.B',
-    ruangOK: 'Kamar OK 1',
-    status: 'menunggu',
-    bhp: [
-      { nama: 'Sarung Tangan Steril', qty: 4, satuan: 'pasang', harga: 15000 },
-      { nama: 'Benang Absorbable 3-0', qty: 2, satuan: 'box', harga: 45000 },
-      { nama: 'Kasa Steril', qty: 10, satuan: 'lembar', harga: 3000 }
-    ]
-  },
-  {
-    id: '2',
-    nomorAntrian: 'OK-2026-002',
-    namaPasien: 'Siti Rahayu',
-    noRM: '2024-00034',
-    tindakan: 'Sectio Caesarea (SC)',
-    spesialis: 'Obstetri & Ginekologi',
-    kelas: 'VIP',
-    sifat: 'segera',
-    tanggalRencana: '2026-03-29',
-    jamRencana: '10:00 — 12:00',
-    dokterOperator: 'dr. Citra Dewi, Sp.OG',
-    ruangOK: 'Kamar OK 3',
-    status: 'menunggu',
-    bhp: [
-      { nama: 'Sarung Tangan Steril', qty: 6, satuan: 'pasang', harga: 15000 },
-      { nama: 'Benang Absorbable 1-0', qty: 3, satuan: 'box', harga: 60000 },
-      { nama: 'Spuit 20cc', qty: 5, satuan: 'pcs', harga: 8000 }
-    ]
-  },
-  {
-    id: '3',
-    nomorAntrian: 'OK-2026-003',
-    namaPasien: 'Ahmad Fauzi',
-    noRM: '2023-00098',
-    tindakan: 'ORIF Fraktur Femur',
-    spesialis: 'Ortopedi',
-    kelas: 'Kelas I',
-    sifat: 'efektif',
-    tanggalRencana: '2026-03-30',
-    jamRencana: '13:00 — 16:00',
-    dokterOperator: 'dr. Budi Santoso, Sp.OT',
-    ruangOK: 'Kamar OK 2',
-    status: 'disetujui',
-    bhp: [
-      { nama: 'Plate & Screw Set', qty: 1, satuan: 'set', harga: 2500000 },
-      { nama: 'Sarung Tangan Steril', qty: 8, satuan: 'pasang', harga: 15000 },
-      { nama: 'Benang Non-Absorbable 2-0', qty: 2, satuan: 'box', harga: 55000 }
-    ]
-  }
-]
+export type VerifikasiOkStatus = 'menunggu' | 'diproses' | 'disetujui' | 'ditolak'
+export type VerifikasiOkSifat = 'cyto' | 'segera' | 'efektif'
 
-const STATUS_MAP = {
-  menunggu: { color: 'orange', label: 'Menunggu Verifikasi', icon: <ClockCircleOutlined /> },
-  disetujui: { color: 'green', label: 'Disetujui', icon: <CheckCircleOutlined /> },
-  ditolak: { color: 'red', label: 'Ditolak', icon: <CloseCircleOutlined /> }
+export interface VerifikasiOkRow {
+  id: number | string
+  nomorAntrian: string
+  namaPasien: string
+  noRM: string
+  tindakan: string
+  spesialis: string
+  kelas: string
+  sifat: VerifikasiOkSifat
+  tanggalRencana: string
+  jamRencana: string
+  dokterOperator: string
+  ruangOK: string
+  status: VerifikasiOkStatus
 }
 
-const SIFAT_MAP = {
+interface VerifikasiOKTableProps {
+  rows: VerifikasiOkRow[]
+  loading?: boolean
+  errorMessage?: string | null
+  onRetry?: () => void
+}
+
+const STATUS_MAP: Record<
+  VerifikasiOkStatus,
+  {
+    label: string
+    badge: 'success' | 'processing' | 'error' | 'warning'
+    textColor?: string
+  }
+> = {
+  menunggu: { label: 'Menunggu Verifikasi', badge: 'processing', textColor: '#d97706' },
+  diproses: { label: 'Sedang Diproses', badge: 'warning', textColor: '#2563eb' },
+  disetujui: { label: 'Disetujui', badge: 'success' },
+  ditolak: { label: 'Ditolak', badge: 'error' }
+}
+
+const SIFAT_MAP: Record<VerifikasiOkSifat, { color: string; label: string }> = {
   cyto: { color: 'red', label: 'CYTO' },
   segera: { color: 'orange', label: 'SEGERA' },
   efektif: { color: 'green', label: 'EFEKTIF' }
 }
 
-export const VerifikasiOKTable = () => {
+export const VerifikasiOKTable = ({
+  rows,
+  loading = false,
+  errorMessage,
+  onRetry
+}: VerifikasiOKTableProps) => {
   const navigate = useNavigate()
 
-  const columns = [
+  const columns: ColumnsType<VerifikasiOkRow> = [
     {
       title: 'No. Antrian',
       dataIndex: 'nomorAntrian',
@@ -109,7 +87,7 @@ export const VerifikasiOKTable = () => {
     {
       title: 'Pasien',
       key: 'pasien',
-      render: (_: any, row: any) => (
+      render: (_, row) => (
         <div>
           <div className="font-semibold">{row.namaPasien}</div>
           <Text type="secondary" className="text-xs">
@@ -121,7 +99,7 @@ export const VerifikasiOKTable = () => {
     {
       title: 'Tindakan',
       key: 'tindakan',
-      render: (_: any, row: any) => (
+      render: (_, row) => (
         <div>
           <div>{row.tindakan}</div>
           <Tag className="text-xs">{row.spesialis}</Tag>
@@ -138,14 +116,12 @@ export const VerifikasiOKTable = () => {
       title: 'Sifat',
       dataIndex: 'sifat',
       key: 'sifat',
-      render: (v: keyof typeof SIFAT_MAP) => (
-        <Tag color={SIFAT_MAP[v]?.color}>{SIFAT_MAP[v]?.label}</Tag>
-      )
+      render: (v: VerifikasiOkSifat) => <Tag color={SIFAT_MAP[v].color}>{SIFAT_MAP[v].label}</Tag>
     },
     {
       title: 'Rencana Operasi',
       key: 'rencana',
-      render: (_: any, row: any) => (
+      render: (_, row) => (
         <div>
           <div>{row.tanggalRencana}</div>
           <Text type="secondary" className="text-xs">
@@ -163,28 +139,24 @@ export const VerifikasiOKTable = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (v: keyof typeof STATUS_MAP) => (
+      render: (v: VerifikasiOkStatus) => (
         <Badge
-          status={v === 'disetujui' ? 'success' : v === 'ditolak' ? 'error' : 'processing'}
-          text={
-            <span style={{ color: v === 'menunggu' ? '#d97706' : undefined }}>
-              {STATUS_MAP[v]?.label}
-            </span>
-          }
+          status={STATUS_MAP[v].badge}
+          text={<span style={{ color: STATUS_MAP[v].textColor }}>{STATUS_MAP[v].label}</span>}
         />
       )
     },
     {
       title: 'Aksi',
       key: 'aksi',
-      render: (_: any, row: any) => (
+      render: (_, row) => (
         <Space>
           <Tooltip title="Lihat Detail & BHP">
             <Button
               size="small"
               icon={<EyeOutlined />}
               onClick={() => {
-                navigate(`/dashboard/ok/verifikasi/${row.nomorAntrian}`)
+                navigate(`/dashboard/ok/verifikasi/${row.id}`)
               }}
             >
               Detail
@@ -216,7 +188,7 @@ export const VerifikasiOKTable = () => {
         </div>
         <div>
           <Title level={4} className="mb-0">
-            Verifikasi Pengajuan OK — Antrian Admin
+            Verifikasi Pengajuan OK - Antrian Admin
           </Title>
           <Text type="secondary" className="text-xs">
             Daftar pengajuan tindakan operasi yang masuk
@@ -224,21 +196,33 @@ export const VerifikasiOKTable = () => {
         </div>
       </div>
 
+      {errorMessage && (
+        <Alert
+          type="error"
+          showIcon
+          className="mb-4"
+          message={errorMessage}
+          action={
+            onRetry ? (
+              <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
+                Muat Ulang
+              </Button>
+            ) : null
+          }
+        />
+      )}
+
       <Row gutter={16} className="mb-4">
         <Col xs={8}>
           <Card size="small">
-            <Statistic
-              title="Total Pengajuan"
-              value={MOCK_PENGAJUAN.length}
-              valueStyle={{ color: '#3b82f6' }}
-            />
+            <Statistic title="Total Pengajuan" value={rows.length} valueStyle={{ color: '#3b82f6' }} />
           </Card>
         </Col>
         <Col xs={8}>
           <Card size="small">
             <Statistic
               title="Menunggu Verifikasi"
-              value={MOCK_PENGAJUAN.filter((p) => p.status === 'menunggu').length}
+              value={rows.filter((p) => p.status === 'menunggu').length}
               valueStyle={{ color: '#d97706' }}
             />
           </Card>
@@ -247,7 +231,7 @@ export const VerifikasiOKTable = () => {
           <Card size="small">
             <Statistic
               title="Disetujui"
-              value={MOCK_PENGAJUAN.filter((p) => p.status === 'disetujui').length}
+              value={rows.filter((p) => p.status === 'disetujui').length}
               valueStyle={{ color: '#16a34a' }}
             />
           </Card>
@@ -255,10 +239,11 @@ export const VerifikasiOKTable = () => {
       </Row>
 
       <Table
-        dataSource={MOCK_PENGAJUAN}
+        dataSource={rows}
         columns={columns}
         rowKey="id"
         size="small"
+        loading={loading}
         pagination={{ pageSize: 10 }}
       />
     </div>
