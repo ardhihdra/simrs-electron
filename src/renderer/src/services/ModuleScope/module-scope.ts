@@ -1,4 +1,4 @@
-import { moduleTree } from './constant'
+import { Modules, moduleTree } from './constant'
 import { useModuleScopeStore } from './store'
 import { ModuleCode, ModuleNode, PermissionState, ScopeSession } from './type'
 
@@ -16,32 +16,37 @@ export class ModuleScopePermission {
   }
 
   private buildIndexes(nodes: ModuleNode[], parent: ModuleCode | null): void {
-    for (const node of nodes) {
-      if (this.allModules.has(node.code)) {
-        throw new Error(`Duplicate module code: ${node.code}`)
-      }
-
-      this.allModules.add(node.code)
-      this.parentMap.set(node.code, parent)
-
-      if (!this.childrenMap.has(node.code)) {
-        this.childrenMap.set(node.code, [])
-      }
-
-      if (parent) {
-        const children = this.childrenMap.get(parent) ?? []
-        children.push(node.code)
-        this.childrenMap.set(parent, children)
-      }
-
-      if (node.children?.length) {
-        this.buildIndexes(node.children, node.code)
-      }
+    for (const module of Object.values(Modules)) {
+      this.allModules.add(module)
+      this.parentMap.set(module, parent)
     }
+    // for (const node of nodes) {
+    //   if (this.allModules.has(node.code)) {
+    //     throw new Error(`Duplicate module code: ${node.code}`)
+    //   }
+
+    //   this.allModules.add(node.code)
+    //   this.parentMap.set(node.code, parent)
+
+    //   if (!this.childrenMap.has(node.code)) {
+    //     this.childrenMap.set(node.code, [])
+    //   }
+
+    //   if (parent) {
+    //     const children = this.childrenMap.get(parent) ?? []
+    //     children.push(node.code)
+    //     this.childrenMap.set(parent, children)
+    //   }
+
+    //   if (node.children?.length) {
+    //     this.buildIndexes(node.children, node.code)
+    //   }
+    // }
   }
 
   private assertKnownModule(code: ModuleCode): void {
     if (!this.allModules.has(code)) {
+      console.log('allModules', this.allModules)
       throw new Error(`Unknown module: ${code}`)
     }
   }
@@ -91,23 +96,19 @@ export class ModuleScopePermission {
   public isVisibleForClient(session: ScopeSession, targetModule: ModuleCode): boolean {
     this.assertKnownModule(targetModule)
     if (this.hasAdministratorAccess(session)) {
-      console.log('has admin access, visible', targetModule)
       return true
     }
 
     if (this.hasAccess(session, targetModule)) {
-      console.log('has access, visible', targetModule)
       return true
     }
 
     const descendants = this.getDescendants(targetModule)
     for (const descendant of descendants) {
       if (this.hasAccess(session, descendant)) {
-        console.log('has access through descendant, visible', targetModule)
         return true
       }
     }
-    console.log('no access, not visible', targetModule)
     return false
   }
 
@@ -231,6 +232,9 @@ export const normalizeScopeSession = (input: unknown): ScopeSession => {
       : {}),
     ...(typeof rawSession.label === 'string' && rawSession.label.trim()
       ? { label: rawSession.label.trim() }
+      : {}),
+    ...(rawSession.kepegawaianId != null
+      ? { kepegawaianId: Number(rawSession.kepegawaianId) }
       : {})
   }
 

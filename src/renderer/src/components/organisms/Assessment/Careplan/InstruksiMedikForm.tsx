@@ -82,22 +82,27 @@ const INSTRUKSI_QUICK = [
 interface InstruksiMedikFormProps {
   encounterId: string
   patientData: { patient: { id: string; name?: string } }
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
-export const InstruksiMedikForm = ({ encounterId, patientData }: InstruksiMedikFormProps) => {
+export const InstruksiMedikForm = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}: InstruksiMedikFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
-  // Ambil semua CarePlan tapi filter hanya yang INSTRUKSI_CATEGORY
   const { data: carePlansRaw, isLoading } = useCarePlansByEncounter(encounterId)
   const instruksiList: any[] = ((carePlansRaw as any)?.result ?? []).filter(
     (cp: any) => cp.title === FIXED_TITLE
   )
 
-  // Goals untuk referensi
   const { data: goalsRaw } = useGoalsByEncounter(encounterId)
   const goalOptions = ((goalsRaw as any)?.result ?? []).map((g: any) => ({
     value: g.id,
@@ -108,7 +113,17 @@ export const InstruksiMedikForm = ({ encounterId, patientData }: InstruksiMedikF
   const deleteCarePlan = useDeleteCarePlan(encounterId)
 
   const handleSubmit = async (values: Record<string, any>) => {
-    const performer = performersData?.find((p: any) => p.id === values.performerId)
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = globalPerformerId
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
+      return
+    }
+
+    const performer = performersData?.find((p: any) => p.id === Number(performerId))
     try {
       const selectedGoalIds: string[] = values.goalIds ?? []
       const goals: CarePlanGoalInput[] = selectedGoalIds.map((id) => {
@@ -119,7 +134,7 @@ export const InstruksiMedikForm = ({ encounterId, patientData }: InstruksiMedikF
       await createCarePlan.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
-        performerId: String(values.performerId),
+        performerId: String(performerId),
         performerName: performer?.name,
         status: values.status,
         intent: 'plan',
@@ -293,7 +308,9 @@ export const InstruksiMedikForm = ({ encounterId, patientData }: InstruksiMedikF
           onFinish={handleSubmit}
           initialValues={{ status: 'active' }}
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          {!hideHeader && (
+            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          )}
 
           {/* ── Info Tetap ── */}
           <div className="bg-purple-50 border border-purple-100 rounded px-3 py-2 mb-4 text-xs text-purple-700">

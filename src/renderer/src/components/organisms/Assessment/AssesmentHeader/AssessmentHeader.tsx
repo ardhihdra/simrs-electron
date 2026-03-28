@@ -1,5 +1,6 @@
 import { Card, Col, DatePicker, Form, Row, Select } from 'antd'
-import React from 'react'
+import React, { useEffect, useMemo } from 'react'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 
 const { Option } = Select
 
@@ -11,12 +12,32 @@ interface Performer {
 interface AssessmentHeaderProps {
   performers?: Performer[]
   loading?: boolean
+  filterWithLogin?: boolean
 }
 
 export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
   performers = [],
-  loading = false
+  loading = false,
+  filterWithLogin = true
 }) => {
+  const form = Form.useFormInstance()
+  const { profile } = useMyProfile()
+
+  const filteredPerformers = useMemo(() => {
+    if (!filterWithLogin) return performers
+    const role = profile?.hakAksesId
+    if (role === 'doctor' || role === 'nurse') {
+      return performers.filter((p) => p.id === profile?.id)
+    }
+    return performers
+  }, [filterWithLogin, performers, profile])
+
+  useEffect(() => {
+    if (filteredPerformers.length === 1) {
+      form.setFieldValue('performerId', filteredPerformers[0].id)
+    }
+  }, [filteredPerformers, form])
+
   return (
     <Card className="">
       <Row gutter={24}>
@@ -46,7 +67,7 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
                 (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())
               }
             >
-              {performers.map((p) => (
+              {filteredPerformers.map((p) => (
                 <Option key={p.id} value={p.id}>
                   {p.name}
                 </Option>

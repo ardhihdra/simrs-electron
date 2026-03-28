@@ -46,7 +46,7 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
   try {
     const client = getClient(ctx)
     // Using standard read route
-    const res = await client.get(`/api/service-request/read/${args.encounterId}`)
+    const res = await client.get(`/api/servicerequest/read/${args.encounterId}`)
     const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
     return raw as any
   } catch (err) {
@@ -58,7 +58,7 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
   try {
     const client = getClient(ctx)
-    const res = await client.post('/api/service-request', args)
+    const res = await client.post('/api/servicerequest', args)
     const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
     return raw as any
   } catch (err) {
@@ -72,7 +72,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     const client = getClient(ctx)
     const { id, status } = args
     // Using standard update route (mapped to controller.update in appApi routerApp)
-    const res = await client.patch(`/api/service-request/${id}`, { status })
+    const res = await client.patch(`/api/servicerequest/${id}`, { status })
     const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
     return raw as any
   } catch (err) {

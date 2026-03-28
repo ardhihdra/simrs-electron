@@ -20,7 +20,7 @@ export const pageAccessRpc = {
         .input(z.any())
         .output(PageAccessSchema)
         .query(async ({ client }) => {
-            const data = await client.get('/api/page-access')
+            const data = await client.get('/api/module/page-access')
             const result = await data.json()
             return result
         }),

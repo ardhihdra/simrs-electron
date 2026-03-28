@@ -1,31 +1,38 @@
 import { Button, Card, Form, Input, InputNumber, Select } from 'antd'
 import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
 
+import { FormInstance } from 'antd'
+
 interface CompoundPrescriptionFormProps {
-  form: any
+  form: FormInstance<any>
+  name?: string
+  title?: React.ReactNode
   itemOptions: { label: string; value: number; [key: string]: any }[]
-  rawMaterialOptions: { label: string; value: number }[]
+  rawMaterialOptions: { label: string; value: number; [key: string]: any }[]
   loading?: boolean
 }
 
 export const CompoundPrescriptionForm = ({
   form,
+  name = 'compounds',
+  title,
   itemOptions,
   rawMaterialOptions,
   loading
 }: CompoundPrescriptionFormProps) => {
   return (
-    <div className="space-y-6">
-      <Form.List name="compounds">
+    <div className={title ? 'mt-8' : ''}>
+      {title && <h3 className="font-semibold text-lg mb-4">{title}</h3>}
+      <Form.List name={name}>
         {(fields, { add, remove }) => (
           <div className="space-y-6">
-            {fields.map(({ key, name, ...restField }) => (
+            {fields.map(({ key, name: fieldName, ...restField }) => (
               <Card
                 key={`compound-${key}`}
                 size="small"
-                title={`Racikan ${name + 1}`}
+                title={`Racikan ${fieldName + 1}`}
                 extra={
-                  <Button type="text" danger onClick={() => remove(name)}>
+                  <Button type="text" danger onClick={() => remove(fieldName)}>
                     Hapus
                   </Button>
                 }
@@ -34,7 +41,7 @@ export const CompoundPrescriptionForm = ({
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
                   <Form.Item
                     {...restField}
-                    name={[name, 'name']}
+                    name={[fieldName, 'name']}
                     label="Nama Racikan"
                     rules={[{ required: true, message: 'Nama racikan wajib diisi' }]}
                     className="mb-0"
@@ -43,7 +50,7 @@ export const CompoundPrescriptionForm = ({
                   </Form.Item>
                   <Form.Item
                     {...restField}
-                    name={[name, 'dosageInstruction']}
+                    name={[fieldName, 'dosageInstruction']}
                     label="Signa / Dosis Racikan"
                     rules={[{ required: true, message: 'Dosis racikan wajib diisi' }]}
                     className="mb-0"
@@ -52,7 +59,7 @@ export const CompoundPrescriptionForm = ({
                   </Form.Item>
                   <Form.Item
                     {...restField}
-                    name={[name, 'quantity']}
+                    name={[fieldName, 'quantity']}
                     label="Jumlah Racikan"
                     className="mb-0"
                   >
@@ -60,7 +67,7 @@ export const CompoundPrescriptionForm = ({
                   </Form.Item>
                   <Form.Item
                     {...restField}
-                    name={[name, 'quantityUnit']}
+                    name={[fieldName, 'quantityUnit']}
                     label="Satuan Racikan"
                     className="mb-0"
                   >
@@ -70,7 +77,7 @@ export const CompoundPrescriptionForm = ({
 
                 <div className="pl-4 border-l-2 border-orange-200">
                   <p className="text-xs text-gray-500 mb-2 font-semibold">KOMPOSISI:</p>
-                  <Form.List name={[name, 'items']}>
+                  <Form.List name={[fieldName, 'items']}>
                     {(subFields, subOpt) => (
                       <div className="space-y-2">
                         {subFields.map((subField) => {
@@ -80,63 +87,19 @@ export const CompoundPrescriptionForm = ({
                             <div key={`compoundItem-${subKey}`} className="flex gap-2 items-start">
                               <Form.Item
                                 {...subRestField}
-                                name={[subRestField.name, 'sourceType']}
-                                className="mb-0 w-32"
-                                initialValue="medicine"
+                                name={[subRestField.name, 'itemId']}
+                                className="mb-0 flex-1"
+                                rules={[{ required: true, message: 'Pilih obat' }]}
                               >
                                 <Select
-                                  options={[
-                                    { label: 'Obat', value: 'medicine' },
-                                    { label: 'Bahan Baku', value: 'substance' }
-                                  ]}
+                                  options={itemOptions.filter(
+                                    (option) => option.categoryType === 'obat'
+                                  )}
+                                  placeholder="Pilih Obat"
+                                  showSearch
+                                  optionFilterProp="label"
+                                  loading={loading}
                                 />
-                              </Form.Item>
-                              <Form.Item shouldUpdate noStyle>
-                                {() => {
-                                  const compounds = form.getFieldValue('compounds')
-                                  const compound = Array.isArray(compounds)
-                                    ? compounds[name]
-                                    : undefined
-                                  const items = compound?.items || []
-                                  const currentItem = items[subField.name] || {}
-                                  const sourceType = currentItem.sourceType || 'medicine'
-
-                                  if (sourceType === 'substance') {
-                                    return (
-                                      <Form.Item
-                                        {...subRestField}
-                                        name={[subRestField.name, 'rawMaterialId']}
-                                        className="mb-0 flex-1"
-                                        rules={[{ required: true, message: 'Pilih bahan baku' }]}
-                                      >
-                                        <Select
-                                          options={rawMaterialOptions}
-                                          placeholder="Pilih Bahan Baku"
-                                          showSearch
-                                          optionFilterProp="label"
-                                          loading={loading}
-                                        />
-                                      </Form.Item>
-                                    )
-                                  }
-
-                                  return (
-                                    <Form.Item
-                                      {...subRestField}
-                                      name={[subRestField.name, 'itemId']}
-                                      className="mb-0 flex-1"
-                                      rules={[{ required: true, message: 'Pilih obat' }]}
-                                    >
-                                      <Select
-                                        options={itemOptions}
-                                        placeholder="Pilih Obat"
-                                        showSearch
-                                        optionFilterProp="label"
-                                        loading={loading}
-                                      />
-                                    </Form.Item>
-                                  )
-                                }}
                               </Form.Item>
                               <Form.Item
                                 {...subRestField}
@@ -145,20 +108,6 @@ export const CompoundPrescriptionForm = ({
                                 rules={[{ required: true, message: 'Wajib' }]}
                               >
                                 <InputNumber placeholder="Jml" min={0} className="w-full" />
-                              </Form.Item>
-                              <Form.Item
-                                {...subRestField}
-                                name={[subRestField.name, 'unit']}
-                                className="mb-0 w-24"
-                              >
-                                <Input placeholder="Satuan" />
-                              </Form.Item>
-                              <Form.Item
-                                {...subRestField}
-                                name={[subRestField.name, 'note']}
-                                className="mb-0 w-32"
-                              >
-                                <Input placeholder="Kekuatan (mg)" />
                               </Form.Item>
                               <Button
                                 type="text"
@@ -183,17 +132,9 @@ export const CompoundPrescriptionForm = ({
                 </div>
               </Card>
             ))}
-            <Form.Item>
-              <Button
-                type="dashed"
-                onClick={() => add()}
-                block
-                icon={<PlusOutlined />}
-                className=""
-              >
-                Tambah Racikan Baru
-              </Button>
-            </Form.Item>
+            <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+              Tambah Racikan Baru
+            </Button>
           </div>
         )}
       </Form.List>

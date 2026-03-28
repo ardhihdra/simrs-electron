@@ -17,9 +17,10 @@ import {
 import logoUrl from '@renderer/assets/logo.png'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 import { getModuleScopeState } from '@renderer/services/ModuleScope/module-scope'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
-import type { ScopeSession } from '@renderer/services/ModuleScope/type'
+import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { client } from '@renderer/utils/client'
 
 // Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
@@ -86,12 +87,6 @@ type DashboardMenuChild = {
 type DashboardMenuItem = DashboardMenuChild & {
   module?: Module
   children?: DashboardMenuChild[]
-}
-
-type PageAccessEntry = {
-  allowedModules: string[]
-  roles: string[]
-  allowedLokasiKerjaIds: number[]
 }
 
 const DASHBOARD_ROOT_KEY = '/dashboard'
@@ -230,6 +225,19 @@ const items: DashboardMenuItem[] = [
     ]
   },
   {
+    label: 'Kasir & Billing',
+    key: '/dashboard/kasir',
+    icon: <WalletOutlined />,
+    module: Modules.BILLING_KASIR,
+    children: [
+      {
+        label: 'Tagihan Pasien',
+        key: '/dashboard/kasir',
+        icon: <FileTextOutlined />
+      }
+    ]
+  },
+  {
     label: 'Sistem',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
@@ -246,6 +254,7 @@ const items: DashboardMenuItem[] = [
 ]
 
 const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSession): boolean => {
+  // return true
   if (!access) return true
 
   const { allowedModules, roles, allowedLokasiKerjaIds } = access
@@ -262,7 +271,7 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
     return false
   }
 
-  const isRoleAllowed = isAdministrator || (roles.length > 0 && session.hakAksesId && !roles.includes(session.hakAksesId))
+  const isRoleAllowed = isAdministrator || (roles.length > 0 && session.hakAksesId && roles.includes(session.hakAksesId))
   if (!isRoleAllowed) {
     // console.log('no role akses for role', session.hakAksesId, 'allowed:', roles)
     return false
@@ -291,7 +300,7 @@ const filterChildrenBySession = (
   return children.filter((child) => {
     const access = pageAccessMap[child.key]
     if (isPageNotRegistered(access)) {
-      console.error('page not registered! please register to PageAccount seeder', child);
+      console.error('page not registered! please register to PageAccount seeder', child, access);
       return DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
     }
     return isPageVisible(access, session)
@@ -353,8 +362,13 @@ function Dashboard() {
     return map
   }, [pageAccessData])
 
+  const { profile } = useMyProfile()
   console.log('session', session)
-  console.log('cek pageAccessMap', pageAccessMap)
+  console.log('profile', profile)
+  
+  if (!Object.keys(pageAccessMap).length) {
+    console.error('PageAccess map not found!')
+  }
   const visibleItems = filterItemsBySession(items, pageAccessMap, session)
   const registeredPrefixes = [
     '/dashboard/expense',
@@ -381,7 +395,8 @@ function Dashboard() {
     '/dashboard/doctor',
     '/dashboard/nurse-calling',
     '/dashboard/rawat-inap',
-    '/dashboard/poli'
+    '/dashboard/poli',
+    '/dashboard/kasir'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === DASHBOARD_ROOT_KEY) return true

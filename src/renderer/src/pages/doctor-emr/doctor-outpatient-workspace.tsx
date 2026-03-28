@@ -11,7 +11,26 @@ import {
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   SearchOutlined,
-  UserOutlined
+  UserOutlined,
+  AlertOutlined,
+  ApiOutlined,
+  AuditOutlined,
+  CalendarOutlined,
+  ClusterOutlined,
+  CompassOutlined,
+  ContainerOutlined,
+  DeploymentUnitOutlined,
+  DisconnectOutlined,
+  FundOutlined,
+  HistoryOutlined,
+  HomeOutlined,
+  OrderedListOutlined,
+  ReadOutlined,
+  ScheduleOutlined,
+  SmileOutlined,
+  TeamOutlined,
+  ToolOutlined,
+  HeartOutlined
 } from '@ant-design/icons'
 import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
 import { AllergyForm } from '../../components/organisms/Assessment/Allergy/AllergyForm'
@@ -44,9 +63,13 @@ import { ENTForm } from '@renderer/components/organisms/Assessment/ENT/ENTForm'
 import { DischargeSummaryForm } from '@renderer/components/organisms/DischargeSummaryForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
+import { MedicalCertificateForm } from '@renderer/components/organisms/Assessment/MedicalCertificate/MedicalCertificateForm'
+import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
+import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
 
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
+import { UnifiedAssessmentTab } from '@renderer/components/organisms/Assessment/UnifiedAssessment/UnifiedAssessmentTab'
 
 interface DoctorOutpatientWorkspaceProps {
   encounterId: string
@@ -86,23 +109,36 @@ export const DoctorOutpatientWorkspace = ({
         label: 'Riwayat Rekam Medis'
       },
       {
+        key: 'unified-assessment',
+        icon: <SolutionOutlined />,
+        label: 'Custom Asesmen'
+      },
+      {
         key: 'assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Pasien',
         children: [
-          { key: 'anamnesis', label: 'Anamnesis' },
-          { key: 'past-disease', label: 'Riwayat Penyakit Terdahulu' },
-          { key: 'allergy', label: 'Alergi' },
-          { key: 'medication', label: 'Riwayat Pengobatan' },
-          { key: 'family-history', label: 'Riwayat Keluarga' },
-          { key: 'physical-assessment', label: 'Pemeriksaan Fisik' },
-          { key: 'functional-assessment', label: 'Pemeriksaan Fungsional' },
-          { key: 'clinical-course', label: 'Riwayat Perjalanan Penyakit' },
-          { key: 'care-goal', label: 'Tujuan Perawatan' },
-          { key: 'care-plan', label: 'Rencana Rawat Pasien' },
-          { key: 'instruksi-medik', label: 'Instruksi Medik' },
-          { key: 'clinical-rationale', label: 'Rasional Klinis' },
-          { key: 'prognosis', label: 'Prognosis' }
+          { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
+          { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
+          { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
+          { key: 'medication', icon: <MedicineBoxOutlined />, label: 'Riwayat Pengobatan' },
+          { key: 'family-history', icon: <TeamOutlined />, label: 'Riwayat Keluarga' },
+          { key: 'physical-assessment', icon: <AuditOutlined />, label: 'Pemeriksaan Fisik' },
+          {
+            key: 'functional-assessment',
+            icon: <SmileOutlined />,
+            label: 'Pemeriksaan Fungsional'
+          },
+          {
+            key: 'clinical-course',
+            icon: <CompassOutlined />,
+            label: 'Riwayat Perjalanan Penyakit'
+          },
+          { key: 'care-goal', icon: <FundOutlined />, label: 'Tujuan Perawatan' },
+          { key: 'care-plan', icon: <ScheduleOutlined />, label: 'Rencana Rawat Pasien' },
+          { key: 'instruksi-medik', icon: <OrderedListOutlined />, label: 'Instruksi Medik' },
+          { key: 'clinical-rationale', icon: <DeploymentUnitOutlined />, label: 'Rasional Klinis' },
+          { key: 'prognosis', icon: <ClusterOutlined />, label: 'Prognosis' }
         ]
       },
       {
@@ -110,12 +146,16 @@ export const DoctorOutpatientWorkspace = ({
         icon: <FormOutlined />,
         label: 'Form Poli',
         children: [
-          { key: 'dental-assessment', label: 'Pemeriksaan Gigi' },
-          { key: 'anc-assessment', label: 'Pemeriksaan Kehamilan (ANC)' },
-          { key: 'ophthalmology', label: 'Pemeriksaan Mata' },
-          { key: 'dermatology', label: 'Pemeriksaan Kulit (Dermatologi)' },
-          { key: 'cardiology', label: 'Pemeriksaan Jantung (Kardiologi)' },
-          { key: 'ent', label: 'Pemeriksaan THT' }
+          { key: 'dental-assessment', icon: <SmileOutlined />, label: 'Pemeriksaan Gigi' },
+          { key: 'anc-assessment', icon: <HeartOutlined />, label: 'Pemeriksaan Kehamilan (ANC)' },
+          { key: 'ophthalmology', icon: <CompassOutlined />, label: 'Pemeriksaan Mata' },
+          {
+            key: 'dermatology',
+            icon: <SolutionOutlined />,
+            label: 'Pemeriksaan Kulit (Dermatologi)'
+          },
+          { key: 'cardiology', icon: <HeartOutlined />, label: 'Pemeriksaan Jantung (Kardiologi)' },
+          { key: 'ent', icon: <ApiOutlined />, label: 'Pemeriksaan THT' }
         ]
       },
       {
@@ -128,11 +168,12 @@ export const DoctorOutpatientWorkspace = ({
         icon: <MedicineBoxOutlined />,
         label: 'Tindakan & Terapi',
         children: [
-          { key: 'diagnosis', label: 'Diagnosis (ICD-10)' },
-          { key: 'procedures', label: 'Tindakan Medis (ICD-9-CM)' },
-          { key: 'education', label: 'Edukasi' },
-          { key: 'nutrition-order', label: 'Order Diet (Gizi)' },
-          { key: 'prescription', label: 'E-Resep' }
+          { key: 'diagnosis', icon: <ContainerOutlined />, label: 'Diagnosis (ICD-10)' },
+          { key: 'procedures', icon: <ToolOutlined />, label: 'Tindakan Medis (ICD-9-CM)' },
+          { key: 'procedure-detail', icon: <AuditOutlined />, label: 'Detail Tindakan' },
+          { key: 'education', icon: <ReadOutlined />, label: 'Edukasi' },
+          { key: 'nutrition-order', icon: <HomeOutlined />, label: 'Order Diet (Gizi)' },
+          { key: 'prescription', icon: <FormOutlined />, label: 'E-Resep' }
         ]
       },
       {
@@ -140,8 +181,8 @@ export const DoctorOutpatientWorkspace = ({
         icon: <ExperimentOutlined />,
         label: 'Penunjang Medis',
         children: [
-          { key: 'lab-rad-order', label: 'Order Lab & Rad' },
-          { key: 'results', label: 'Hasil Penunjang' }
+          { key: 'lab-rad-order', icon: <ExperimentOutlined />, label: 'Order Lab & Rad' },
+          { key: 'results', icon: <ScheduleOutlined />, label: 'Hasil Penunjang' }
         ]
       },
       {
@@ -149,14 +190,16 @@ export const DoctorOutpatientWorkspace = ({
         icon: <ExportOutlined />,
         label: 'Administrasi',
         children: [
-          { key: 'referral', label: 'Rujukan' },
-          { key: 'discharge-summary', label: 'Resume Medis' }
+          { key: 'referral', icon: <DisconnectOutlined />, label: 'Rujukan' },
+          { key: 'discharge-summary', icon: <ContainerOutlined />, label: 'Resume Medis' },
+          { key: 'medical-certificate', icon: <FileTextOutlined />, label: 'Surat Keterangan' },
+          { key: 'follow-up', icon: <CalendarOutlined />, label: 'Surat Kontrol' },
+          {
+            key: 'notes',
+            icon: <FormOutlined />,
+            label: 'Catatan Tambahan'
+          }
         ]
-      },
-      {
-        key: 'notes',
-        icon: <FormOutlined />,
-        label: 'Catatan Tambahan'
       }
     ],
     []
@@ -360,6 +403,10 @@ export const DoctorOutpatientWorkspace = ({
           <Layout.Content className="p-6 overflow-y-auto h-full">
             {(() => {
               switch (selectedKey) {
+                case 'unified-assessment':
+                  return (
+                    <UnifiedAssessmentTab encounterId={encounterId!} patientData={patientData} />
+                  )
                 case 'info':
                   return (
                     <PatientInfoCard
@@ -468,6 +515,19 @@ export const DoctorOutpatientWorkspace = ({
                       encounterId={encounterId || ''}
                       patientData={patientData}
                     />
+                  )
+                case 'medical-certificate':
+                  return (
+                    <MedicalCertificateForm
+                      encounterId={encounterId || ''}
+                      patientData={patientData}
+                    />
+                  )
+                case 'follow-up':
+                  return <FollowUpForm encounterId={encounterId || ''} patientData={patientData} />
+                case 'procedure-detail':
+                  return (
+                    <DetailTindakanForm encounterId={encounterId || ''} patientData={patientData} />
                   )
                 case 'notes':
                   return <ClinicalNoteForm encounterId={encounterId || ''} />

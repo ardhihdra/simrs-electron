@@ -19,6 +19,7 @@ interface LabRequestItem {
   key: string
   testCodeId: string
   testName: string
+  masterServiceRequestCodeId: number
   priority: 'ROUTINE' | 'URGENT' | 'STAT'
 }
 
@@ -29,41 +30,47 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
   const { message } = App.useApp()
   const category = Form.useWatch('category', form)
   
-  // Fetch Categories
-  const { data: categories, isFetching: isFetchingCategories } = client.laboratoryManagement.getTerminologyCategories.useQuery()
+  // All service request codes for category dropdown (no filters)
+  const { data: allCodesData, isFetching: isFetchingCategories } = client.laboratoryManagement.getServiceRequestCodes.useQuery({})
 
-  // Determine Domain
-  let domain: 'laboratory' | 'radiology' = 'laboratory'
-  if (category && categories?.result?.radiology?.includes(category)) {
-      domain = 'radiology'
+  const categories = {
+    laboratory: [...new Set((allCodesData?.result?.laboratory ?? []).map((i: any) => i.category as string))],
+    radiology: [...new Set((allCodesData?.result?.radiology ?? []).map((i: any) => i.category as string))],
   }
 
+  // Determine Domain
+  const domain: 'laboratory' | 'radiology' = categories.radiology.includes(category) ? 'radiology' : 'laboratory'
+
   // Terminology Search
-  const { data: searchResults, isFetching: isSearching } = client.laboratoryManagement.searchTerminology.useQuery(
+  const { data: searchResults, isFetching: isSearching } = client.laboratoryManagement.getServiceRequestCodes.useQuery(
     {
-      query: searchTerm,
+      query: searchTerm || undefined,
       domain: domain,
-      category: category,
-      limit: 20
+      category: category || undefined,
     },
     {
       enabled: !!category || searchTerm.length >= 3,
-      queryKey: ['search-terminology', { query: searchTerm, domain, category, limit: 20 }]
+      queryKey: ['search-service-request-codes', { query: searchTerm, domain, category }]
     }
   )
+
+  const flatSearchResults: any[] = [
+    ...(searchResults?.result?.laboratory ?? []),
+    ...(searchResults?.result?.radiology ?? []),
+  ]
 
   // Create Order Mutation
   const createOrderMutation = client.laboratoryManagement.createOrder.useMutation()
 
   const handleAddItem = (values: any) => {
-    // User selected 'name' in the dropdown, so values.testCodeId is the name
-    const test = searchResults?.result?.find((t: any) => t.name === values.testCodeId)
+    const test = flatSearchResults.find((t: any) => t.id === values.testCodeId)
     if (!test) return
 
     const newItem: LabRequestItem = {
-      key: test.loinc || test.name, // Use LOINC as unique key if available
-      testCodeId: test.loinc || test.name, // Assuming backend expects LOINC or Name
-      testName: test.name,
+      key: String(test.id),
+      testCodeId: test.loinc,
+      testName: test.display,
+      masterServiceRequestCodeId: test.id,
       priority: values.priority
     }
 
@@ -207,14 +214,14 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
                     }}
                     loading={isFetchingCategories}
                   >
-                    {categories?.result?.laboratory?.map((cat: string) => (
+                    {categories.laboratory.map((cat: string) => (
                       <Select.Option key={cat} value={cat}>
-                        {cat.replace(/([A-Z])/g, ' $1').trim()} {/* Format camelCase to Title Case */}
+                        {cat.replace(/([A-Z])/g, ' $1').trim()}
                       </Select.Option>
                     ))}
-                     {categories?.result?.radiology?.map((cat: string) => (
+                    {categories.radiology.map((cat: string) => (
                       <Select.Option key={cat} value={cat}>
-                        {cat.replace(/([A-Z])/g, ' $1').trim()} {/* Format camelCase to Title Case */}
+                        {cat.replace(/([A-Z])/g, ' $1').trim()}
                       </Select.Option>
                     ))}
                   </Select>
@@ -245,9 +252,9 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
                                 }
                             }}
                         >
-                            {searchResults?.result?.map((item: any) => (
-                            <Select.Option key={item.name} value={item.name}>
-                                {item.name}
+                            {flatSearchResults.map((item: any) => (
+                            <Select.Option key={item.id} value={item.id}>
+                                {item.display}
                             </Select.Option>
                             ))}
                         </Select>

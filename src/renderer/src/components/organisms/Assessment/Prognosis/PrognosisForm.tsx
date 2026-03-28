@@ -30,6 +30,8 @@ const { Text } = Typography
 interface PrognosisFormProps {
   encounterId: string
   patientData: { patient: { id: string; name?: string } }
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 const PROGNOSIS_CODE_OPTIONS = [
@@ -68,7 +70,12 @@ function getPrognosisCode(ci: Record<string, unknown>): string {
   return ((first?.coding as Array<Record<string, unknown>>)?.[0]?.code as string) || ''
 }
 
-export const PrognosisForm = ({ encounterId, patientData }: PrognosisFormProps) => {
+export const PrognosisForm = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}: PrognosisFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
@@ -93,8 +100,18 @@ export const PrognosisForm = ({ encounterId, patientData }: PrognosisFormProps) 
   }
 
   const handleSubmit = async (values: Record<string, unknown>) => {
+    let performerId = values.performerId as string | number | undefined
+    if (hideHeader && globalPerformerId) {
+      performerId = globalPerformerId
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
+      return
+    }
+
     const performer = (performersData as Array<Record<string, unknown>>)?.find(
-      (p): p is Record<string, unknown> => p.id === values.performerId
+      (p): p is Record<string, unknown> => p.id === Number(performerId)
     )
 
     const label =
@@ -222,12 +239,7 @@ export const PrognosisForm = ({ encounterId, patientData }: PrognosisFormProps) 
       </Card>
 
       <Modal
-        title={
-          <>
-            <MedicineBoxOutlined className="mr-2" />
-            {editingId ? 'Edit Prognosis' : 'Tambah Prognosis Klinis'}
-          </>
-        }
+        title={editingId ? 'Edit Prognosis' : 'Tambah Prognosis Klinis'}
         open={modalOpen}
         onCancel={() => {
           form.resetFields()
@@ -239,7 +251,9 @@ export const PrognosisForm = ({ encounterId, patientData }: PrognosisFormProps) 
         destroyOnClose
       >
         <Form form={form} layout="vertical" onFinish={handleSubmit}>
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          {!hideHeader && (
+            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          )}
 
           <Form.Item
             name="prognosisCode"
@@ -259,15 +273,6 @@ export const PrognosisForm = ({ encounterId, patientData }: PrognosisFormProps) 
               placeholder="Jelaskan dasar alasan prognosis klinis, faktor penyulit, rencana tindak lanjut, dll..."
             />
           </Form.Item>
-
-          <Row>
-            <Col span={24}>
-              <div className="text-xs text-gray-400 mb-3">
-                Catatan: Prognosis disimpan sebagai bagian dari FHIR ClinicalImpression resource.
-                Field <code>prognosisCodeableConcept</code> menggunakan sistem kode SatuSehat.
-              </div>
-            </Col>
-          </Row>
 
           <Form.Item>
             <Space className="flex justify-end w-full">

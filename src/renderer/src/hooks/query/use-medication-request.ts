@@ -6,8 +6,8 @@ export const useMedicationRequestByEncounter = (encounterId?: string) => {
         queryKey: ['medication-request', 'by-encounter', encounterId],
         queryFn: async () => {
             const api = (window.api?.query as any)?.medicationRequest
-            if (!api?.list || !encounterId) throw new Error('API medicationRequest tidak tersedia')
-            return api.list({ encounterId, limit: 100 })
+            if (!api?.getByEncounterId || !encounterId) throw new Error('API medicationRequest tidak tersedia')
+            return api.getByEncounterId({ encounterId })
         },
         enabled: !!encounterId
     })
