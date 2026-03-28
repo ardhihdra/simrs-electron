@@ -21,12 +21,11 @@ export const laboratoryRpc = {
       params.append('status', 'IN_PROGRESS')
       params.append(
         'include',
-        'labServiceRequests.serviceCode,labServiceRequests.observations,patient'
+        'labServiceRequests.serviceCode,labServiceRequests.observations,patient,serviceUnit'
       )
       if (input.limit) params.append('limit', String(input.limit))
       if (input.offset) params.append('offset', String(input.offset))
       if (input.id) params.append('id', input.id)
-
       const data = await client.get(`/api/encounter?${params.toString()}`)
       const result = await data.json()
       console.log('List Encounters', result)

@@ -89,6 +89,9 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
+import KasirPage from './pages/kasir/KasirPage'
+import KasirEncounterTable from './pages/kasir/kasir-encounter-table'
+import InvoiceDetailPage from './pages/kasir/invoice-detail'
 import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
@@ -282,6 +285,10 @@ function MainRoute() {
             <Route path="report" element={<LabReportPage />} />
             <Route path="report/:id" element={<LabReportDetailPage />} />
             <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
+          </Route>
+          <Route path="kasir" element={g('/dashboard/kasir', <KasirPage />)}>
+            <Route index element={<KasirEncounterTable />} />
+            <Route path="invoice/:encounterId" element={<InvoiceDetailPage />} />
           </Route>
           <Route path="laboratory-management" element={g('/dashboard/laboratory-management', <Outlet />)}>
             <Route index element={<LaboratoryQueue />} />

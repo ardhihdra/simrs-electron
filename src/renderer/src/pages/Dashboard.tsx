@@ -225,6 +225,19 @@ const items: DashboardMenuItem[] = [
     ]
   },
   {
+    label: 'Kasir & Billing',
+    key: '/dashboard/kasir',
+    icon: <WalletOutlined />,
+    module: Modules.BILLING_KASIR,
+    children: [
+      {
+        label: 'Tagihan Pasien',
+        key: '/dashboard/kasir',
+        icon: <FileTextOutlined />
+      }
+    ]
+  },
+  {
     label: 'Sistem',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
@@ -382,7 +395,8 @@ function Dashboard() {
     '/dashboard/doctor',
     '/dashboard/nurse-calling',
     '/dashboard/rawat-inap',
-    '/dashboard/poli'
+    '/dashboard/poli',
+    '/dashboard/kasir'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === DASHBOARD_ROOT_KEY) return true
