@@ -3,19 +3,14 @@ import type { MenuProps } from 'antd'
 import { clearModuleScopeSession } from '@renderer/services/ModuleScope/module-scope'
 import { queryClient } from '@renderer/query-client'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
+import { useProfileStore } from '@renderer/store/profileStore'
 import { client } from '@renderer/utils/client'
 import { App, Avatar, Button, Dropdown, Modal, Space } from 'antd'
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import SettingsModal from '../SettingsModal'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 
-type SessionUser = { id: number | string; username: string }
-type GetSessionResult = {
-  success: boolean
-  session?: Record<string, never>
-  user?: SessionUser
-  error?: string
-}
 type LogoutResult = { success: boolean }
 type ModuleSignOutResult = {
   success?: boolean
@@ -24,7 +19,8 @@ type ModuleSignOutResult = {
 }
 
 function ProfileMenu() {
-  const [profile, setProfile] = useState<SessionUser | undefined>(undefined)
+  const { profile, initials } = useMyProfile()
+  const clearProfile = useProfileStore((state) => state.clearProfile)
   const [open, setOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { message } = App.useApp()
@@ -32,34 +28,11 @@ function ProfileMenu() {
   const moduleSignOutMutation = client.module.signout.useMutation()
   const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
 
-  useEffect(() => {
-    let mounted = true
-    ;(async () => {
-      try {
-        const res = (await window.api.auth.getSession()) as GetSessionResult
-        if (mounted && res.success && res.user) setProfile(res.user)
-      } catch {
-        // ignore
-      }
-    })()
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  const initials = useMemo(() => {
-    const name = profile?.username?.trim() || ''
-    if (!name) return 'U'
-    const parts = name.split(/\s+/)
-    const a = parts[0]?.[0] ?? ''
-    const b = parts[1]?.[0] ?? ''
-    return (a + b).toUpperCase() || a.toUpperCase() || 'U'
-  }, [profile?.username])
-
-  const clearModuleClientState = () => {
+  const clearModuleClientState = (includeProfile = false) => {
     clearModuleScopeSession()
     clearSelectedModule()
     queryClient.removeQueries({ queryKey: ['module'] })
+    if (includeProfile) clearProfile()
   }
 
   const handleModuleSignOut = async () => {
@@ -84,7 +57,7 @@ function ProfileMenu() {
   const handleLogout = async () => {
     const res = (await window.api.auth.logout()) as LogoutResult
     if (res.success) {
-      clearModuleClientState()
+      clearModuleClientState(true)
       setOpen(false)
       navigate('/')
     }

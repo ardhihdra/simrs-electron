@@ -1,8 +1,9 @@
-import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App } from 'antd'
+import { Button, Card, Descriptions, InputNumber, Popconfirm, Table, Tooltip, App, Alert, Tag } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import dayjs from 'dayjs'
+import { TelaahAdministrasiForm, defaultTelaahResults, TelaahResults } from './component/telaah-administrasi-form'
 
 type PatientNameEntry = {
 	text?: string
@@ -57,6 +58,7 @@ interface MedicationRequestDetail {
 	intent: string
 	priority?: string
 	patientId: string
+	encounterId?: string | null
 	authoredOn?: string
 	patient?: PatientInfo
 	medication?: MedicationInfo
@@ -93,6 +95,8 @@ interface TableRow {
 	unitStok?: string | null
 	quantityDiambil?: number
 	medicationRequestId?: number
+	batch?: string
+	expiryDate?: string
 	children?: TableRow[]
 }
 
@@ -132,6 +136,30 @@ interface InventoryStockItem {
 interface InventoryStockResponse {
 	success: boolean
 	result?: InventoryStockItem[]
+	message?: string
+}
+
+interface LocationItemStock {
+	kodeItem: string
+	namaItem: string
+	unit: string
+	stockIn: number
+	stockOut: number
+	availableStock: number
+}
+
+interface LocationStockSummary {
+	id: string
+	kodeLokasi: string
+	stockIn: number
+	stockOut: number
+	availableStock: number
+	items: LocationItemStock[]
+}
+
+interface InventoryStockByLocationResponse {
+	success: boolean
+	result?: LocationStockSummary[]
 	message?: string
 }
 
@@ -203,6 +231,7 @@ export default function MedicationDispenseFromRequest() {
 	const idParam = params.id
 	const requestId = typeof idParam === 'string' ? Number(idParam) : NaN
 	const [quantityOverrides, setQuantityOverrides] = useState<Record<number, number>>({})
+	const [telaahResults, setTelaahResults] = useState<TelaahResults>(defaultTelaahResults)
 
 	const { data, isLoading } = useQuery({
 		queryKey: ['medicationRequest', 'detail', requestId],
@@ -262,15 +291,21 @@ export default function MedicationDispenseFromRequest() {
 		}
 	})
 
-	const { data: inventoryStockData } = useQuery<InventoryStockResponse>({
-		queryKey: ['inventoryStock', 'list'],
+	const { data: inventoryStockByLocation } = useQuery<InventoryStockByLocationResponse>({
+		queryKey: ['inventoryStock', 'by-location', 'FARM'],
 		queryFn: () => {
 			const api = window.api?.query as {
-				inventoryStock?: { list: () => Promise<InventoryStockResponse> }
+				inventoryStock?: {
+					listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
+						success: boolean
+						result?: LocationStockSummary[]
+						message?: string
+					}>
+				}
 			}
-			const fn = api?.inventoryStock?.list
-			if (!fn) throw new Error('API stok inventory tidak tersedia.')
-			return fn()
+			const fn = api?.inventoryStock?.listByLocation
+			if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
+			return fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
 		}
 	})
 
@@ -372,26 +407,43 @@ export default function MedicationDispenseFromRequest() {
 
 	const stockMapFromInventory = useMemo(() => {
 		const map = new Map<string, { availableStock: number; unit: string }>()
-		const stockList: InventoryStockItem[] = Array.isArray(inventoryStockData?.result)
-			? inventoryStockData.result
+		const byLocation: LocationStockSummary[] = Array.isArray(inventoryStockByLocation?.result)
+			? inventoryStockByLocation.result!
 			: []
-		for (const s of stockList) {
-			const kodeItem = s.kodeItem.trim().toUpperCase()
+		const farm = byLocation.find((l) => l.kodeLokasi === 'FARM')
+		const items = farm?.items ?? []
+		for (const it of items) {
+			const kodeItem = it.kodeItem.trim().toUpperCase()
 			if (!kodeItem) continue
-			const availableStock = typeof s.availableStock === 'number' ? s.availableStock : 0
-			const unit = s.unit
+			const availableStock = typeof it.availableStock === 'number' ? it.availableStock : 0
+			const unit = it.unit
 			map.set(kodeItem, { availableStock, unit })
 		}
 		return map
-	}, [inventoryStockData?.result])
+	}, [inventoryStockByLocation?.result])
+
+	const isInternalRequest = useMemo(() => {
+		if (!detail) return false
+		const patientMrn = detail.patient?.mrNo || ''
+		const isExternalPatient = patientMrn.startsWith('L-MRN-')
+		const hasEncounter = !!detail.encounterId
+		
+		// Internal if has encounter AND is not explicitly an external-style MRN
+		return hasEncounter && !isExternalPatient
+	}, [detail])
+
+	const allCriteriaMet = useMemo(() => {
+		return Object.values(telaahResults).every(v => v === true)
+	}, [telaahResults])
 
 	const createDispenseMutation = useMutation({
 		mutationKey: ['medicationDispense', 'createFromRequest', requestId],
 		mutationFn: async (): Promise<DispenseCreateResult> => {
-			if (!Number.isFinite(requestId)) {
-				throw new Error('ID resep tidak valid')
-			}
-			if (!detail) {
+			const res = await window.api.query.medicationDispense.createFromRequest({
+				medicationRequestId: requestId,
+				telaahResults: telaahResults
+			})
+			if (!res.success) {
 				throw new Error('Detail resep belum tersedia')
 			}
 			const api = window.api?.query as {
@@ -411,9 +463,9 @@ export default function MedicationDispenseFromRequest() {
 				throw new Error('API MedicationDispense tidak tersedia.')
 			}
 			const recordsForGroup: MedicationRequestDetail[] =
-				Array.isArray(groupListData) && groupListData.length > 0
+				(Array.isArray(groupListData) && groupListData.length > 0
 					? groupListData
-					: [detail]
+					: [detail]).filter((r): r is MedicationRequestDetail => !!r)
 
 			const toProcess: { record: MedicationRequestDetail; quantityValue: number; unit?: string }[] = []
 			for (const record of recordsForGroup) {
@@ -520,9 +572,7 @@ export default function MedicationDispenseFromRequest() {
 		return map
 	}, [dispenseListData?.data])
 
-	const isOutOfStockForCurrentQuantity = useMemo(() => {
-		return false
-	}, [])
+
 
 	const tableData: TableRow[] = useMemo(() => {
 		if (!detail) return []
@@ -651,6 +701,16 @@ export default function MedicationDispenseFromRequest() {
 				medicationRequestId
 			}
 
+			// Extract batch info for non-compound items
+			if (isItem && !isCompound && Array.isArray(record.supportingInformation)) {
+				const batchInfo = (record.supportingInformation as Array<Record<string, unknown>>)
+					.find((info) => info.resourceType === 'StockBatch')
+				if (batchInfo) {
+					if (typeof batchInfo.batchNumber === 'string') row.batch = batchInfo.batchNumber
+					if (typeof batchInfo.expiryDate === 'string') row.expiryDate = batchInfo.expiryDate
+				}
+			}
+
 			if (isCompound && Array.isArray(record.supportingInformation)) {
 				const ingredients = record.supportingInformation.filter(
 					(info: any) =>
@@ -675,6 +735,20 @@ export default function MedicationDispenseFromRequest() {
 							}
 						}
 
+						let ingStock: number | undefined
+						let ingUnit: string | undefined
+						if (itemId) {
+							const item = Array.isArray(itemData?.result) ? (itemData.result as any[]).find(it => it.id === Number(itemId)) : null
+							const kode = (item?.kode || '').trim().toUpperCase()
+							if (kode) {
+								const s = stockMapFromInventory.get(kode)
+								if (s) {
+									ingStock = s.availableStock
+									ingUnit = s.unit
+								}
+							}
+						}
+
 						return {
 							key: `${record.id ?? ''}-ing-${idx}`,
 							jenis: 'Komposisi',
@@ -682,10 +756,11 @@ export default function MedicationDispenseFromRequest() {
 							quantityDiminta: ing.quantity,
 							unitDiminta: ing.unitCode,
 							instruksi: ing.note || ing.instruction,
-							stokSaatIni: undefined,
-							unitStok: undefined,
-							quantityDiambil: undefined,
-							medicationRequestId: undefined
+							stokSaatIni: ingStock,
+							unitStok: ingUnit,
+							quantityDiambil: ing.quantity,
+							medicationRequestId: undefined,
+							batch: typeof ing.batchNumber === 'string' && ing.batchNumber.trim().length > 0 ? ing.batchNumber.trim() : undefined
 						}
 					})
 				}
@@ -696,6 +771,19 @@ export default function MedicationDispenseFromRequest() {
 
 		return rows
 	}, [detail, groupListData, stockMapFromInventory, quantityOverrides, completedQuantityByRequestId, medicineMap, itemMap])
+
+	const isOutOfStockForCurrentQuantity = useMemo(() => {
+		const checkRow = (row: TableRow): boolean => {
+			if (typeof row.quantityDiambil === 'number' && typeof row.stokSaatIni === 'number') {
+				if (row.quantityDiambil > row.stokSaatIni) return true
+			}
+			if (row.children) {
+				return row.children.some(checkRow)
+			}
+			return false
+		}
+		return tableData.some(checkRow)
+	}, [tableData])
 
 	const isPrescriptionFulfilled = useMemo(() => {
 		const records: MedicationRequestDetail[] =
@@ -730,7 +818,7 @@ export default function MedicationDispenseFromRequest() {
 	}, [detail, groupListData, completedQuantityByRequestId])
 
 	const isCreateDisabled =
-		isPrescriptionFulfilled || isOutOfStockForCurrentQuantity
+		isPrescriptionFulfilled || isOutOfStockForCurrentQuantity || !allCriteriaMet
 
 	const createDisabledReason = (() => {
 		if (isPrescriptionFulfilled) {
@@ -739,15 +827,41 @@ export default function MedicationDispenseFromRequest() {
 		if (isOutOfStockForCurrentQuantity) {
 			return 'Stok obat tidak cukup untuk Qty Diambil yang dipilih.'
 		}
+		if (!allCriteriaMet) {
+			return 'Harap selesaikan Telaah Administrasi terlebih dahulu.'
+		}
 		return undefined
 	})()
 
 	const columns = [
 		{ title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
 		{ title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
+		{
+			title: 'Batch / Expire',
+			key: 'batchExpire',
+			render: (_: unknown, row: TableRow) => {
+				if (!row.batch && !row.expiryDate) return '-'
+				const parts: string[] = []
+				if (row.batch) parts.push(`Batch: ${row.batch}`)
+				if (row.expiryDate) parts.push(`Exp: ${row.expiryDate}`)
+				return <Tag color="orange">{parts.join(' | ')}</Tag>
+			}
+		},
 		{ title: 'Qty Diminta', dataIndex: 'quantityDiminta', key: 'quantityDiminta' },
 		{ title: 'Satuan', dataIndex: 'unitDiminta', key: 'unitDiminta' },
-		{ title: 'Stok Saat Ini', dataIndex: 'stokSaatIni', key: 'stokSaatIni' },
+		{ 
+			title: 'Stok Saat Ini', 
+			dataIndex: 'stokSaatIni', 
+			key: 'stokSaatIni',
+			render: (val: number | undefined, row: TableRow) => {
+				const isLow = typeof val === 'number' && typeof row.quantityDiambil === 'number' && row.quantityDiambil > val
+				return (
+					<span style={{ color: isLow ? 'red' : 'inherit', fontWeight: isLow ? 'bold' : 'normal' }}>
+						{val ?? '-'} {row.unitStok ?? ''}
+					</span>
+				)
+			}
+		},
 		{ title: 'Instruksi / Kekuatan', dataIndex: 'instruksi', key: 'instruksi' },
 		{
 			title: 'Qty Diambil',
@@ -803,6 +917,14 @@ export default function MedicationDispenseFromRequest() {
 					<Descriptions.Item label="Tanggal Resep">{authoredOnText}</Descriptions.Item>
 				</Descriptions>
 			</Card>
+			{isOutOfStockForCurrentQuantity && (
+				<Alert 
+					type="error" 
+					showIcon 
+					message="Stok Tidak Cukup" 
+					description="Terdapat item atau bahan obat yang stoknya tidak mencukupi untuk jumlah yang akan diambil." 
+				/>
+			)}
 			<Card title="Obat dalam Resep">
 				<Table<TableRow>
 					dataSource={tableData}
@@ -811,7 +933,15 @@ export default function MedicationDispenseFromRequest() {
 					rowKey="key"
 					size="small"
 				/>
-				<div className="mt-4 flex justify-end gap-2">
+			</Card>
+
+			<TelaahAdministrasiForm 
+				isInternal={isInternalRequest}
+				results={telaahResults}
+				onChange={setTelaahResults}
+			/>
+
+			<div className="mt-4 flex justify-end gap-2">
 					<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
 						Kembali ke Daftar Resep
 					</Button>
@@ -838,7 +968,6 @@ export default function MedicationDispenseFromRequest() {
 						Resep ini sudah terpenuhi, tidak dapat membuat dispense baru.
 					</div>
 				)}
-			</Card>
 		</div>
 	)
 }

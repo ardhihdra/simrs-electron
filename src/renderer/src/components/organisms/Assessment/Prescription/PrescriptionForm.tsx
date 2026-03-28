@@ -383,6 +383,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
       }
     }
   ]
+  console.log('medicationHistory', medicationHistory)
 
   return (
     <div className="">

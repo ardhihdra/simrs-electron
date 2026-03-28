@@ -102,7 +102,7 @@ export async function login(ctx: IpcContext, data: LoginArgs) {
     store.setBackendTokenForWindow(ctx.senderId, token)
     notificationService.connect(token)
   }
-  return { success: true, token: token, user: { id: userId, username } }
+  return { success: true, token: token, user: { id: userId, username, hakAksesId: json.result.hakAksesId ?? '' } }
 }
 
 // Logout for current window: delete its associated session token
@@ -142,6 +142,7 @@ export async function getSession(ctx: IpcContext) {
   const storedUser = store.getUser();
   if (!storedUser) return { success: false, error: 'no user found' }
   try {
+    // find or create in local
     await User.findOrCreate({ 
       where: { id: Number(s.userId) }, 
       defaults: { id: Number(s.userId), username: storedUser.username, password: 'admin123' },

@@ -1,7 +1,7 @@
 import { Button, Form, Input, Select, InputNumber, App } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, Fragment, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useNavigate, useParams, useLocation } from 'react-router'
 import { queryClient } from '@renderer/query-client'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
@@ -48,6 +48,7 @@ interface ItemCategoryAttributes {
 	  id?: number
 	  name: string
 	  status?: boolean
+    categoryType?: string | null
 }
 
 type KfaEntry = {
@@ -81,8 +82,20 @@ type ItemCategoryListResponse = {
 	  message?: string
 }
 
+type ItemListRow = {
+  kode?: string
+  itemCategoryId?: number | null
+}
+type ItemListResponse = {
+  success: boolean
+  result?: ItemListRow[]
+  message?: string
+}
+
 export function ItemForm() {
 	  const navigate = useNavigate()
+    const location = useLocation()
+    const bpjsOnly = location.pathname.includes('/dashboard/medicine/items-bpjs')
 	  const { id } = useParams()
 		  const [form] = Form.useForm<ItemFormValues>()
 	  const isEdit = Boolean(id)
@@ -116,6 +129,7 @@ export function ItemForm() {
 		  const itemCategoryApi = window.api?.query as {
 			  medicineCategory?: { list: () => Promise<ItemCategoryListResponse> }
 		  } | undefined
+      const itemApiList = (window.api?.query as { item?: { list: () => Promise<ItemListResponse> } })?.item
 
 		  const { data: itemCategorySource } = useQuery<ItemCategoryListResponse>({
 		    queryKey: ['itemCategory', 'list', 'for-item-form'],
@@ -125,6 +139,14 @@ export function ItemForm() {
 		      return fn()
 		    }
 		  })
+      const { data: itemListSource } = useQuery<ItemListResponse>({
+        queryKey: ['item', 'list', 'for-item-form-code'],
+        queryFn: () => {
+          const fn = itemApiList?.list
+          if (!fn) throw new Error('API item tidak tersedia.')
+          return fn()
+        }
+      })
 
 		  const unitOptions = useMemo(() => {
 	    const entries: UnitListEntry[] = Array.isArray(unitSource?.result) ? unitSource.result : []
@@ -143,24 +165,41 @@ export function ItemForm() {
 		    return options
 		  }, [unitSource?.result])
 
-		const itemCategoryOptions = useMemo(() => {
-		    const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
-		      ? itemCategorySource.result
-		      : []
-		
-		    const map = new Map<number, string>()
-		    for (const cat of entries) {
-		      const id = typeof cat.id === 'number' ? cat.id : undefined
-		      const rawName = typeof cat.name === 'string' ? cat.name : ''
-		      const name = rawName.trim()
-		      if (id === undefined || !name) continue
-		      if (!map.has(id)) {
-		        map.set(id, name)
-		      }
-		    }
-		
-		    return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
-		  }, [itemCategorySource?.result])
+		const groupedItemCategoryOptions = useMemo(() => {
+      const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+        ? itemCategorySource.result
+        : []
+      const toIsBpjs = (nameRaw: string, categoryTypeRaw?: string | null): boolean => {
+        const name = (nameRaw || '').toLowerCase()
+        const ct = (categoryTypeRaw || '').toLowerCase()
+        if (ct === 'bpjs') return true
+        if (name.includes('non_bpjs') || name.includes('non bpjs')) return false
+        return name.includes('bpjs')
+      }
+      const bpjs: Array<{ value: number; label: string }> = []
+      const nonBpjs: Array<{ value: number; label: string }> = []
+      for (const cat of entries) {
+        const id = typeof cat.id === 'number' ? cat.id : undefined
+        const rawName = typeof cat.name === 'string' ? cat.name : ''
+        const name = rawName.trim()
+        if (id === undefined || !name) continue
+        const isBpjs = toIsBpjs(name, cat.categoryType)
+        const option = { value: id, label: name }
+        if (isBpjs) bpjs.push(option)
+        else nonBpjs.push(option)
+      }
+      return [
+        { label: 'BPJS', options: bpjs },
+        { label: 'Non BPJS', options: nonBpjs }
+      ]
+		}, [itemCategorySource?.result])
+    
+    const filteredGroupedItemCategoryOptions = useMemo(() => {
+      if (!bpjsOnly) {
+        return groupedItemCategoryOptions.filter((g) => g.label === 'Non BPJS')
+      }
+      return groupedItemCategoryOptions.filter((g) => g.label === 'BPJS')
+    }, [bpjsOnly, groupedItemCategoryOptions])
 
 	  useEffect(() => {
 	    if (isEdit && detailData?.success && detailData.result) {
@@ -183,6 +222,113 @@ export function ItemForm() {
 	      })
 	    }
 	  }, [isEdit, detailData, form])
+  
+  useEffect(() => {
+    if (!isEdit) {
+      const currentKode = form.getFieldValue('kode')
+      if (!currentKode || String(currentKode).trim().length === 0) {
+        const now = new Date()
+        const y = String(now.getFullYear())
+        const m = String(now.getMonth() + 1).padStart(2, '0')
+        const d = String(now.getDate()).padStart(2, '0')
+        const dateStr = `${y}${m}${d}`
+        const catId: number | null | undefined = form.getFieldValue('itemCategoryId')
+        const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+          ? itemCategorySource.result
+          : []
+        const cat = entries.find((c) => typeof c.id === 'number' && c.id === catId)
+        const ct = (cat?.categoryType || '').toLowerCase()
+        const toPrefix = (categoryType: string): string => {
+          switch (categoryType) {
+            case 'bpjs': return 'BP'
+            case 'obat': return 'OB'
+            case 'non-obat': return 'NO'
+            case 'alkes': return 'AK'
+            case 'bmhp': return 'BM'
+            case 'reagen': return 'RG'
+            case 'umum': return 'UM'
+            case 'kosmetik': return 'KO'
+            case 'rumahtangga': return 'RT'
+            case 'makanan': return 'MK'
+            case 'minuman': return 'MN'
+            case 'bahan_baku': return 'BB'
+            default: return bpjsOnly ? 'BP' : 'IT'
+          }
+        }
+        const prefix = toPrefix(ct)
+        const list: ItemListRow[] = Array.isArray(itemListSource?.result) ? itemListSource.result : []
+        const pattern = new RegExp(`^${prefix}-${dateStr}-([0-9]{4})$`)
+        let maxSeq = 0
+        for (const row of list) {
+          const raw = typeof row.kode === 'string' ? row.kode : ''
+          const m = raw.match(pattern)
+          if (m && m[1]) {
+            const num = Number(m[1])
+            if (Number.isFinite(num) && num > maxSeq) {
+              maxSeq = num
+            }
+          }
+        }
+        const next = String(maxSeq + 1).padStart(4, '0')
+        const kodeAuto = `${prefix}-${dateStr}-${next}`
+        form.setFieldValue('kode', kodeAuto.toUpperCase())
+      }
+    }
+  }, [isEdit, bpjsOnly, form, itemCategorySource?.result, itemListSource?.result])
+
+  useEffect(() => {
+    if (!isEdit) {
+      const catId: number | null | undefined = form.getFieldValue('itemCategoryId')
+      const currentKode = String(form.getFieldValue('kode') || '')
+      // Regenerate when category changes if currentKode doesn't match target prefix
+      const entries: ItemCategoryAttributes[] = Array.isArray(itemCategorySource?.result)
+        ? itemCategorySource.result
+        : []
+      const cat = entries.find((c) => typeof c.id === 'number' && c.id === catId)
+      const ct = (cat?.categoryType || '').toLowerCase()
+      const toPrefix = (categoryType: string): string => {
+        switch (categoryType) {
+          case 'bpjs': return 'BP'
+          case 'obat': return 'OB'
+          case 'non-obat': return 'NO'
+          case 'alkes': return 'AK'
+          case 'bmhp': return 'BM'
+          case 'reagen': return 'RG'
+          case 'umum': return 'UM'
+          case 'kosmetik': return 'KO'
+          case 'rumahtangga': return 'RT'
+          case 'makanan': return 'MK'
+          case 'minuman': return 'MN'
+          case 'bahan_baku': return 'BB'
+          default: return bpjsOnly ? 'BP' : 'IT'
+        }
+      }
+      const expectedPrefix = toPrefix(ct)
+      if (!currentKode.startsWith(expectedPrefix)) {
+        const now = new Date()
+        const y = String(now.getFullYear())
+        const m = String(now.getMonth() + 1).padStart(2, '0')
+        const d = String(now.getDate()).padStart(2, '0')
+        const dateStr = `${y}${m}${d}`
+        const list: ItemListRow[] = Array.isArray(itemListSource?.result) ? itemListSource.result : []
+        const pattern = new RegExp(`^${expectedPrefix}-${dateStr}-([0-9]{4})$`)
+        let maxSeq = 0
+        for (const row of list) {
+          const raw = typeof row.kode === 'string' ? row.kode : ''
+          const m = raw.match(pattern)
+          if (m && m[1]) {
+            const num = Number(m[1])
+            if (Number.isFinite(num) && num > maxSeq) {
+              maxSeq = num
+            }
+          }
+        }
+        const next = String(maxSeq + 1).padStart(4, '0')
+        const kodeAuto = `${expectedPrefix}-${dateStr}-${next}`
+        form.setFieldValue('kode', kodeAuto.toUpperCase())
+      }
+    }
+  }, [isEdit, bpjsOnly, form, itemCategorySource?.result, itemListSource?.result, form.getFieldValue('itemCategoryId')])
 
 	  const createMutation = useMutation({
     mutationKey: ['item', 'create'],
@@ -203,7 +349,9 @@ export function ItemForm() {
       message.success('Item berhasil disimpan')
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
-      navigate('/dashboard/medicine/items', { replace: true })
+      navigate(bpjsOnly ? '/dashboard/medicine/items-bpjs' : '/dashboard/medicine/items', {
+        replace: true
+      })
     },
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
@@ -232,7 +380,9 @@ export function ItemForm() {
       form.resetFields()
       queryClient.invalidateQueries({ queryKey: ['item', 'list'] })
       queryClient.invalidateQueries({ queryKey: ['item', 'detail', id] })
-      navigate('/dashboard/medicine/items', { replace: true })
+      navigate(bpjsOnly ? '/dashboard/medicine/items-bpjs' : '/dashboard/medicine/items', {
+        replace: true
+      })
     },
     onError: (e) => {
       const msg = e instanceof Error ? e.message : String(e)
@@ -262,6 +412,10 @@ export function ItemForm() {
 	  }
 
 	  const onFinish = (values: ItemFormValues) => {
+      const namaBase = typeof values.nama === 'string' ? values.nama.trim() : ''
+      const mustAppendBpjs =
+        bpjsOnly && (namaBase.length === 0 || !/\bbpjs\b/i.test(namaBase))
+      const finalNama = mustAppendBpjs ? `${namaBase} BPJS`.trim() : namaBase
 		  const normalizedBuyRules = normalizePriceRules(values.buyPriceRules)
 		  const normalizedSellRules = normalizePriceRules(values.sellPriceRules)
 		  const allRules = [...(normalizedBuyRules ?? []), ...(normalizedSellRules ?? [])]
@@ -281,7 +435,7 @@ export function ItemForm() {
 		  }
 	    const payload: ItemFormValues = {
 	      ...values,
-	      nama: values.nama.trim(),
+	      nama: finalNama,
 	      kode: values.kode.trim().toUpperCase(),
 	      kodeUnit: baseUnitCode.trim().toUpperCase(),
 	      kfaCode: values.kfaCode || null,
@@ -309,7 +463,9 @@ export function ItemForm() {
           <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100">
             {isEdit ? 'Edit Item' : 'Item Baru'}
           </h2>
-          <Button onClick={() => navigate('/dashboard/medicine/items')}>Kembali</Button>
+          <Button onClick={() => navigate(bpjsOnly ? '/dashboard/medicine/items-bpjs' : '/dashboard/medicine/items')}>
+            Kembali
+          </Button>
         </div>
 
         <Form form={form} layout="vertical" onFinish={onFinish}>
@@ -390,7 +546,7 @@ export function ItemForm() {
 		          allowClear
 		          showSearch
 		          placeholder="Pilih kategori item"
-		          options={itemCategoryOptions}
+		          options={filteredGroupedItemCategoryOptions}
 		          optionFilterProp="label"
 		        />
 		      </Form.Item>

@@ -82,7 +82,7 @@ export default function PaketTindakanTab({
                 className="border border-slate-200 "
                 title={<span className="font-semibold">Paket #{paketIndex + 1}</span>}
                 extra={
-                  paketFields.length > 1 ? (
+                  paketFields.length > 0 ? (
                     <Button
                       type="text"
                       danger

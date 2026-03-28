@@ -115,6 +115,7 @@ export function createCrudRoutes<T extends z.ZodTypeAny>(options: CrudOptions<T>
 
         return { success: true, data: result }
       } catch (err) {
+        console.log(err)
         const msg = err instanceof Error ? err.message : String(err)
         console.error(`[ipc:${entity}.listAll] exception=`, msg)
         return { success: false, error: msg }

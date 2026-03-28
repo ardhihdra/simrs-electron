@@ -3,8 +3,9 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { useEffect } from 'react'
 import { queryClient } from '@renderer/query-client'
+import { CATEGORY_TYPES, CategoryTypeLabels, type CategoryType } from '@shared/category'
 
-interface FormData { name: string; status?: boolean; categoryType?: string | null }
+interface FormData { name: string; status?: boolean; categoryType?: CategoryType | null }
 
 export function MedicineCategoryForm() {
   const navigate = useNavigate()
@@ -24,7 +25,7 @@ export function MedicineCategoryForm() {
 
   useEffect(() => {
     if (isEdit && detailData?.success && detailData.result) {
-      const data = detailData.result as { name: string; status?: boolean; categoryType?: string | null }
+      const data = detailData.result as { name: string; status?: boolean; categoryType?: CategoryType | null }
       form.setFieldsValue({ name: data.name, status: data.status, categoryType: data.categoryType ?? null })
     }
   }, [isEdit, detailData, form])
@@ -72,15 +73,8 @@ export function MedicineCategoryForm() {
           <Form.Item label="Tipe Kategori" name="categoryType">
             <Select
               allowClear
-              placeholder="Pilih tipe kategori (Obat, Non Obat, Alkes, dsb)"
-              options={[
-                { value: 'obat', label: 'Obat' },
-                { value: 'non-obat', label: 'Non Obat' },
-                { value: 'alkes', label: 'Alat Kesehatan' },
-                { value: 'bmhp', label: 'BMHP' },
-                { value: 'reagen', label: 'Reagen' },
-                { value: 'umum', label: 'Umum' },
-              ]}
+              placeholder="Pilih tipe kategori"
+              options={CATEGORY_TYPES.map((v) => ({ value: v, label: CategoryTypeLabels[v] }))}
             />
           </Form.Item>
           <Form.Item label="Status" name="status" valuePropName="checked">

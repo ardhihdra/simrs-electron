@@ -10,7 +10,8 @@ export const windowRpc = {
     .input(
       z.object({
         url: z.string().url(),
-        title: z.string().optional()
+        title: z.string().optional(),
+        iframe: z.boolean().default(true).optional()
       })
     )
     .output(z.boolean())
@@ -34,6 +35,11 @@ export const windowRpc = {
         newWindow.on('ready-to-show', () => {
           newWindow.show()
         })
+
+        if (input.iframe === false) {
+          newWindow.loadURL(input.url)
+          return true
+        }
 
         // Build the URL to our renderer, pointing to the #/iframe-view route
         // We pass the target iframe URL as a query param or hash param

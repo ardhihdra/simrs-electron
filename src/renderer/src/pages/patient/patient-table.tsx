@@ -15,7 +15,7 @@ import RegistrationSheet from './components/RegistrationSheet'
 
 const PatientTable = () => {
   const navigate = useNavigate()
-  const [filter, setFilter] = useState({ nik: '', name: '' })
+  const [filter, setFilter] = useState({ nik: '', name: '', medicalRecordNumber: '', address: '' })
   const [openRegistration, setOpenRegistration] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>(undefined)
 
@@ -25,15 +25,17 @@ const PatientTable = () => {
     refetch,
     isRefetching
   } = useQuery({
-    queryKey: ['patient', 'list', filter.nik, filter.name],
+    queryKey: ['patient', 'list', filter.nik, filter.name, filter.medicalRecordNumber, filter.address],
     queryFn: async () => {
-      const fn = window.api.query.patient.list
+      const fn = rpc.visitManagement.getPatientList
       if (!fn) {
         throw new Error('Failed to load data')
       }
       return fn({
-        nik: filter.nik,
-        name: filter.name
+        nik: filter.nik || undefined,
+        name: filter.name || undefined,
+        medicalRecordNumber: filter.medicalRecordNumber || undefined,
+        address: filter.address || undefined
       })
     }
   })
@@ -58,7 +60,7 @@ const PatientTable = () => {
     { title: 'Alamat', dataIndex: 'address', key: 'address' }
   ]
 
-  const dataSource = (queryData?.data || []).map((item, idx) => ({ ...item, no: idx + 1 }))
+  const dataSource = (queryData?.result || []).map((item, idx) => ({ ...item, no: idx + 1 }))
 
   const onFinish = async (values: any) => {
     setOpenRegistration(false)
@@ -74,13 +76,14 @@ const PatientTable = () => {
       message.destroy()
     }
   }
+
   return (
     <div>
       <TableHeader
-        title="Daftar Pasien"
+        title="Master Pasien"
         subtitle="Manajemen pelayanan pasien"
-        onSearch={(values) => setFilter(values)}
-        onReset={() => setFilter({ nik: '', name: '' })}
+        onSearch={(values) => setFilter((prev) => ({ ...prev, ...values }))}
+        onReset={() => setFilter({ nik: '', name: '', medicalRecordNumber: '', address: '' })}
         onCreate={() => navigate('/dashboard/patient/register')}
         createLabel="Pasien Baru"
         loading={isLoading || isRefetching}

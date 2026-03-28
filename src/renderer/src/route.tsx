@@ -1,7 +1,9 @@
-import { ModuleScopeGuard } from './services/ModuleScope/guard'
-import { workspaceModuleCodes } from './services/ModuleScope/constant'
-import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
 import type { ReactNode } from 'react'
+import { useMemo } from 'react'
+import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
+import { ModuleScopeGuard } from './services/ModuleScope/guard'
+import type { PageAccessEntry } from './services/ModuleScope/type'
+import { client } from './utils/client'
 
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
@@ -27,11 +29,12 @@ import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
 import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
-import ReferralRequestPage from './pages/encounter-transition/ReferralRequestPage'
-import EncounterTransitionPage from './pages/encounter-transition/encounter-transition'
+import ReferralRequestPage from './pages/encounter-transition/referral-request'
+import EncounterTransitionPage from './pages/encounter-transition/transition'
 import Encounter from './pages/encounter/Encounter'
 import EncounterForm from './pages/encounter/encounter-form'
 import EncounterTable from './pages/encounter/encounter-table'
+import DoctorQueueMonitor from './pages/encounter/monitor/doctor-queue-monitor'
 import EncounterMonitor from './pages/encounter/monitor/encounter-monitor'
 import Expense from './pages/expense/Expense'
 import { default as ExpenseForm, default as IncomeForm } from './pages/expense/expense-form'
@@ -52,9 +55,9 @@ import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import LaboratoryQueue from './pages/laboratory-management/queue'
 import LaboratoryReports from './pages/laboratory-management/reports'
 import LaboratoryRequests from './pages/laboratory-management/requests'
-import LaboratorySpecimenRequest from './pages/laboratory-management/requests/specimen'
+import LaboratorySpecimenRequest from './pages/laboratory-management/requests-specimen'
 import LaboratoryResults from './pages/laboratory-management/results'
-import LaboratoryResultEntry from './pages/laboratory-management/results/entry'
+import LaboratoryResultEntry from './pages/laboratory-management/results-entry'
 import MedicalStaffSchedule from './pages/medical-staff-schedule/MedicalStaffSchedule'
 import MedicalStaffScheduleForm from './pages/medical-staff-schedule/medical-staff-schedule-form'
 import MedicalStaffScheduleTable from './pages/medical-staff-schedule/medical-staff-schedule-table'
@@ -74,10 +77,10 @@ import Pegawai from './pages/pegawai/Pegawai'
 import PegawaiForm from './pages/pegawai/pegawai-form'
 import PegawaiReport from './pages/pegawai/pegawai-report'
 import PegawaiTable from './pages/pegawai/pegawai-table'
-import Pendaftaran from './pages/pendaftaran'
 import Pharmacy from './pages/pharmacy/Pharmacy'
 import ReportPage from './pages/pharmacy/ReportPage'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
+import PoliSelect from './pages/poli/PoliSelect'
 import QueueList from './pages/queue/queue-list'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
@@ -86,79 +89,80 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
-import ActiveEncountersPage from './pages/visit-management/active-encounters-page'
+import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
-import RegistrationPage from './pages/visit-management/registration-page'
+import KioskaPage from './pages/visit-management/kioska'
+import RegistrationPage from './pages/visit-management/registration'
 import RegistrationQueue from './pages/visit-management/registration-queue'
+import RegistrationSelect from './pages/visit-management/registration-select'
+import UpcomingQueuePage from './pages/visit-management/upcoming-queue'
+import { Typography } from 'antd'
 
-const withModuleGuard = (module: string, element: ReactNode) => (
-  <ModuleScopeGuard module={module}>{element}</ModuleScopeGuard>
+const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode) => (
+    <ModuleScopeGuard access={access} fallback={<Typography>No access to this page</Typography>}>
+      {element}
+    </ModuleScopeGuard>
 )
 
 function MainRoute() {
-  const location = useLocation()
-  return (
+    const location = useLocation()
+
+    const { data: pageAccessData } = client.pageAccess.list.useQuery({})
+    const pageAccessMap = useMemo(() => {
+        const map: Record<string, PageAccessEntry> = {}
+        for (const item of pageAccessData?.result ?? []) {
+            map[item.page_path] = {
+                allowedModules: (item.allowedModules as string[] | undefined) ?? [],
+                roles: (item.roles as string[] | undefined) ?? [],
+                allowedLokasiKerjaIds: (item.allowedLokasiKerjaIds as number[] | undefined) ?? [],
+            }
+        }
+        return map
+    }, [pageAccessData])
+
+    const g = (path: string, element: ReactNode) => withModuleGuard(pageAccessMap[path], element)
+
+    return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
       <Route path="/iframe-view" element={<IframeView />} />
+      <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
-        <Route path='/module-selection' element={<ModuleSelection />} />
+        <Route path="/module-selection" element={<ModuleSelection />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
           <Route index element={<DashboardHome />} />
-          <Route
-            path="expense"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Expense />)}
-          >
+          <Route path="expense" element={g('/dashboard/expense', <Expense />)}>
             <Route index element={<ExpenseTable />} />
             <Route path="create" element={<ExpenseForm />} />
           </Route>
-          <Route
-            path="registration"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Outlet />)}
-          >
+          <Route path="registration" element={g('/dashboard/registration', <Outlet />)}>
             <Route index element={<RegistrationPage />} />
-            <Route path="queue" element={<RegistrationQueue />} />
+            <Route path="select" element={<RegistrationSelect />} />
+            <Route path="queue/:practitionerId" element={<RegistrationQueue />} />
+            <Route path="upcoming-queue" element={<UpcomingQueuePage />} />
+            <Route path="kioska" element={<KioskaPage />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
-          <Route
-            path="patient"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Patient />)}
-          >
+          <Route path="patient" element={g('/dashboard/patient', <Patient />)}>
             <Route index element={<PatientTable />} />
             <Route path="register" element={<PatientForm />} />
             <Route path="edit/:id" element={<PatientForm />} />
           </Route>
-          <Route
-            path="pendaftaran"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Pendaftaran />)}
-          >
-            <Route index element={<div>Daftar</div>} />
-          </Route>
-          <Route
-            path="encounter"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Encounter />)}
-          >
+          <Route path="encounter" element={g('/dashboard/encounter', <Encounter />)}>
             <Route index element={<EncounterTable />} />
             <Route path="create" element={<EncounterForm />} />
-            <Route path="edit/:id" element={<EncounterForm />} />
             <Route path="edit/:id" element={<EncounterForm />} />
             <Route path="transition" element={<EncounterTransitionPage />} />
             <Route path="referral-request/:id" element={<ReferralRequestPage />} />
             <Route path="triage" element={<TriagePage />} />
           </Route>
-          <Route
-            path="service-request"
-            element={withModuleGuard(workspaceModuleCodes.registration, <ServiceRequest />)}
-          >
+          <Route path="service-request" element={g('/dashboard/service-request', <ServiceRequest />)}>
             <Route index element={<ServiceRequestTable />} />
             <Route path="create" element={<ServiceRequestForm />} />
             <Route path="edit/:id" element={<ServiceRequestForm />} />
           </Route>
-          <Route
-            path="queue"
-            element={withModuleGuard(workspaceModuleCodes.queue, <Encounter />)}
-          >
+          <Route path="queue" element={g('/dashboard/queue', <Encounter />)}>
             <Route index element={<EncounterMonitor />} />
             <Route path="monitor" element={<EncounterMonitor />} />
             <Route
@@ -171,81 +175,59 @@ function MainRoute() {
               element={<QueueList title="Antrian Laboratorium" serviceType="LAB" />}
             />
           </Route>
-          <Route
-            path="income"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Income />)}
-          >
+          <Route path="income" element={g('/dashboard/income', <Income />)}>
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
           </Route>
-          <Route
-            path="registration/jaminan"
-            element={withModuleGuard(workspaceModuleCodes.registration, <Jaminan />)}
-          >
+          <Route path="registration/jaminan" element={g('/dashboard/registration/jaminan', <Jaminan />)}>
             <Route index element={<JaminanTable />} />
             <Route path="create" element={<JaminanForm />} />
             <Route path="edit/:id" element={<JaminanForm />} />
           </Route>
           <Route
             path="registration/medical-staff-schedule"
-            element={withModuleGuard(workspaceModuleCodes.registration, <MedicalStaffSchedule />)}
+            element={g('/dashboard/registration/medical-staff-schedule', <MedicalStaffSchedule />)}
           >
             <Route index element={<MedicalStaffScheduleTable />} />
             <Route path="create" element={<MedicalStaffScheduleForm />} />
             <Route path="edit/:id" element={<MedicalStaffScheduleForm />} />
           </Route>
-          <Route
-            path="pegawai"
-            element={withModuleGuard(workspaceModuleCodes.administrator, <Pegawai />)}
-          >
+          <Route path="pegawai" element={g('/dashboard/pegawai', <Pegawai />)}>
             <Route index element={<PegawaiTable />} />
             <Route path="create" element={<PegawaiForm />} />
             <Route path="edit/:id" element={<PegawaiForm />} />
           </Route>
-          <Route
-            path="pegawai-report"
-            element={withModuleGuard(workspaceModuleCodes.administrator, <PegawaiReport />)}
-          />
+          <Route path="pegawai-report" element={g('/dashboard/pegawai-report', <PegawaiReport />)} />
           <Route
             path="registration/doctor-schedule"
-            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorScheduleTable />)}
+            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleTable />)}
           />
           <Route
             path="registration/doctor-schedule/create"
-            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorScheduleForm />)}
+            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleForm />)}
           />
           <Route
             path="registration/doctor-schedule/edit/:id"
-            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorScheduleForm />)}
+            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleForm />)}
           />
           <Route
             path="registration/doctor-leave"
-            element={withModuleGuard(workspaceModuleCodes.registration, <DoctorLeave />)}
+            element={g('/dashboard/registration/doctor-leave', <DoctorLeave />)}
           >
             <Route index element={<DoctorLeaveTable />} />
             <Route path="create" element={<DoctorLeaveForm />} />
             <Route path="edit/:id" element={<DoctorLeaveForm />} />
           </Route>
-          <Route
-            path="diagnostic"
-            element={withModuleGuard(workspaceModuleCodes.doctor, <Diagnostic />)}
-          >
+          <Route path="diagnostic" element={g('/dashboard/diagnostic', <Diagnostic />)}>
             <Route index element={<DiagnosticTable />} />
             <Route path="create" element={<DiagnosticForm />} />
             <Route path="edit/:id" element={<DiagnosticForm />} />
           </Route>
-          <Route
-            path="services"
-            element={withModuleGuard(workspaceModuleCodes.doctor, <Services />)}
-          >
-            <Route index element={<PemeriksaanUtamaPage />} />
-            <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
-            <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
+          <Route path="poli" element={<Outlet />}>
+            <Route index element={<PoliSelect />} />
+            <Route path="umum" element={<div>Poli Umum Workspace Placeholder</div>} />
           </Route>
-          <Route
-            path="medicine"
-            element={withModuleGuard(workspaceModuleCodes.medicine, <Pharmacy />)}
-          >
+          <Route path="medicine" element={g('/dashboard/medicine', <Pharmacy />)}>
             <Route index element={<PharmacyDashboard />} />
             <Route path="report" element={<ReportPage />} />
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
@@ -258,8 +240,11 @@ function MainRoute() {
             <Route path="medication-requests/create" element={<MedicationRequestForm />} />
             <Route path="medication-requests/edit/:id" element={<MedicationRequestForm />} />
             <Route path="items" element={<ItemTable />} />
+            <Route path="items-bpjs" element={<ItemTable />} />
             <Route path="items/create" element={<ItemForm />} />
+            <Route path="items-bpjs/create" element={<ItemForm />} />
             <Route path="items/edit/:id" element={<ItemForm />} />
+            <Route path="items-bpjs/edit/:id" element={<ItemForm />} />
             <Route
               path="medication-requests/dispense/:id"
               element={<MedicationDispenseFromRequest />}
@@ -268,41 +253,25 @@ function MainRoute() {
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
             <Route path="item-purchase" element={<ItemPurchasePage />} />
           </Route>
-
-          <Route
-            path="nurse-calling"
-            element={withModuleGuard(workspaceModuleCodes.nurse, <NurseCalling />)}
-          >
+          <Route path="nurse-calling" element={g('/dashboard/nurse-calling', <NurseCalling />)}>
             <Route index element={<PatientQueueTable />} />
             <Route path="medical-record/:encounterId" element={<MedicalRecordForm />} />
           </Route>
-          <Route
-            path="doctor"
-            element={withModuleGuard(workspaceModuleCodes.doctor, <DoctorEMR />)}
-          >
+          <Route path="doctor" element={g('/dashboard/doctor', <DoctorEMR />)}>
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
           </Route>
-          <Route
-            path="services"
-            element={withModuleGuard(workspaceModuleCodes.doctor, <Services />)}
-          >
+          <Route path="services" element={g('/dashboard/services', <Services />)}>
             <Route index element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama" element={<PemeriksaanUtamaPage />} />
             <Route path="pemeriksaan-utama/edit" element={<PemeriksaanUtamaEditPage />} />
           </Route>
-          <Route
-            path="pharmacy"
-            element={withModuleGuard(workspaceModuleCodes.medicine, <Pharmacy />)}
-          >
+          <Route path="pharmacy" element={g('/dashboard/pharmacy', <Pharmacy />)}>
             <Route path="medicine-categories" element={<MedicineCategoryTable />} />
             <Route path="medicine-categories/create" element={<MedicineCategoryForm />} />
             <Route path="medicine-categories/edit/:id" element={<MedicineCategoryForm />} />
           </Route>
-          <Route
-            path="laboratory"
-            element={withModuleGuard(workspaceModuleCodes.laboratory, <Outlet />)}
-          >
+          <Route path="laboratory" element={g('/dashboard/laboratory', <Outlet />)}>
             <Route index element={<LaboratoryPage />} />
             <Route path="list" element={<LaboratoryPage />} />
             <Route path="permintaan" element={<PermintaanLab />} />
@@ -314,10 +283,7 @@ function MainRoute() {
             <Route path="report/:id" element={<LabReportDetailPage />} />
             <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
           </Route>
-          <Route
-            path="laboratory-management"
-            element={withModuleGuard(workspaceModuleCodes.laboratory, <Outlet />)}
-          >
+          <Route path="laboratory-management" element={g('/dashboard/laboratory-management', <Outlet />)}>
             <Route index element={<LaboratoryQueue />} />
             <Route path="queue" element={<LaboratoryQueue />} />
             <Route path="requests" element={<LaboratoryRequests />} />

@@ -16,6 +16,7 @@ export interface ScopeSession {
   allowedModules: ModuleCode[]
   label?: string
   hakAksesId?: string
+  kepegawaianId?: number
 }
 
 export interface PermissionState {
@@ -28,4 +29,12 @@ export interface ScopeSessionPayload {
   allowedModules: string[]
   label?: string
   hakAksesId?: string
+}
+
+export const ModuleDefinition: ModuleNodeInput[] = []
+
+export type PageAccessEntry = {
+    allowedModules: string[]
+    roles: string[]
+    allowedLokasiKerjaIds: number[]
 }

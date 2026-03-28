@@ -147,7 +147,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 export const byEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.byEncounter.args>) => {
     try {
         const client = getClient(ctx)
-        const url = `/api/detailtindakanpasien/${args.encounterId}/read`
+        const url = `/api/detailtindakanpasien/read/${args.encounterId}`
         const res = await client.get(url)
 
         const ListSchema = BackendListSchema(DetailTindakanPasienSchema)
