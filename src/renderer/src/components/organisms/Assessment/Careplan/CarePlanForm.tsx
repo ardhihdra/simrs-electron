@@ -35,6 +35,8 @@ const { Text } = Typography
 interface CarePlanFormProps {
   encounterId: string
   patientData: { patient: { id: string; name?: string } }
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 const STATUS_OPTIONS = [
@@ -90,7 +92,12 @@ const ACTIVITY_STATUS_COLOR: Record<string, string> = {
   cancelled: 'error'
 }
 
-export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) => {
+export const CarePlanForm = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}: CarePlanFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
@@ -112,7 +119,17 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
   const deleteCarePlan = useDeleteCarePlan(encounterId)
 
   const handleSubmit = async (values: Record<string, any>) => {
-    const performer = performersData?.find((p: any) => p.id === values.performerId)
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = globalPerformerId
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
+      return
+    }
+
+    const performer = performersData?.find((p: any) => p.id === Number(performerId))
     try {
       // Transform selected goalIds → CarePlanGoalInput[]
       const selectedGoalIds: string[] = values.goalIds ?? []
@@ -124,7 +141,7 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
       await createCarePlan.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
-        performerId: String(values.performerId),
+        performerId: String(performerId),
         performerName: performer?.name,
         status: values.status,
         intent: values.intent,
@@ -360,7 +377,9 @@ export const CarePlanForm = ({ encounterId, patientData }: CarePlanFormProps) =>
           className="flex! flex-col! gap-4!"
           initialValues={{ status: 'active', intent: 'plan' }}
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          {!hideHeader && (
+            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          )}
 
           <Form.Item name="title" label="Judul Rencana Perawatan">
             <Input placeholder="Cth: Rencana Perawatan Hipertensi Pasca Rawat Jalan" />

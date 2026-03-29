@@ -1,12 +1,14 @@
 import { SearchOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
-import { client, rpc } from '@renderer/utils/client'
+import { client } from '@renderer/utils/client'
+import { useCreateServiceRequest } from '@renderer/hooks/query/use-service-request'
 import { App, Button, Form, Input, Modal, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
+import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
 
 interface EncounterRow {
   id: string
@@ -35,29 +37,14 @@ interface EncounterRow {
 }
 
 type EncounterStatusValue = 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
-type ServiceRequestCategoryValue = 'laboratory' | 'imaging'
-
-interface TerminologyItem {
-  loinc: string
-  name: string
-  system?: string
-  category?: string
-  domain?: 'laboratory' | 'radiology' | 'mpdn' | 'composition'
-}
 
 function normalizeList<T>(data: unknown): T[] {
-  const raw = data as any
-  return (raw?.result || raw?.data || raw || []) as T[]
+  const raw = data as { result?: T[]; data?: T[] } | T[]
+  return ((raw as { result?: T[]; data?: T[] })?.result ?? (raw as { data?: T[] })?.data ?? (raw as T[]) ?? [])
 }
 
 function mapEncounterCategoryToServiceRequest(category?: string): 'laboratory' | 'imaging' {
   return category === 'RADIOLOGY' ? 'imaging' : 'laboratory'
-}
-
-function mapServiceRequestCategoryToTerminologyDomain(
-  category?: ServiceRequestCategoryValue
-): 'laboratory' | 'radiology' {
-  return category === 'imaging' ? 'radiology' : 'laboratory'
 }
 
 export default function LaboratoryQueue() {
@@ -69,16 +56,15 @@ export default function LaboratoryQueue() {
   const [isServiceRequestModalOpen, setIsServiceRequestModalOpen] = useState(false)
   const [selectedEncounter, setSelectedEncounter] = useState<EncounterRow | null>(null)
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false)
-  const [isSubmittingServiceRequest, setIsSubmittingServiceRequest] = useState(false)
-  const [terminologySearch, setTerminologySearch] = useState('')
-
   const [statusForm] = Form.useForm()
   const [serviceRequestForm] = Form.useForm()
+
+  const { createServiceRequest, isSubmitting: isSubmittingServiceRequest } = useCreateServiceRequest({
+    encounterId: String(selectedEncounter?.id ?? ''),
+    patientId: String(selectedEncounter?.patientId ?? ''),
+    practitionerId: selectedEncounter?.practitionerId,
+  })
   const selectedStatus = Form.useWatch('status', statusForm) as EncounterStatusValue | undefined
-  const selectedServiceRequestCategory = Form.useWatch(
-    'category',
-    serviceRequestForm
-  ) as ServiceRequestCategoryValue | undefined
 
   const {
     data: encountersData,
@@ -107,36 +93,6 @@ export default function LaboratoryQueue() {
           .includes(searchText.toLowerCase())
     )
   }, [encountersData, searchText])
-
-  const terminologyDomain = useMemo(
-    () => mapServiceRequestCategoryToTerminologyDomain(selectedServiceRequestCategory),
-    [selectedServiceRequestCategory]
-  )
-
-  const terminologyQuery = useMemo(
-    () => ({
-      domain: terminologyDomain,
-      query: terminologySearch.trim() || undefined,
-      limit: 50
-    }),
-    [terminologyDomain, terminologySearch]
-  )
-
-  const { data: terminologyData, isLoading: isLoadingTerminology } =
-    client.laboratoryManagement.searchTerminology.useQuery(terminologyQuery, {
-      enabled: isServiceRequestModalOpen,
-      queryKey: ['lab-queue-terminology-search', terminologyQuery]
-    } as any)
-
-  const terminologyOptions = useMemo(() => {
-    const items = normalizeList<TerminologyItem>(terminologyData)
-
-    return items.map((item) => ({
-      value: item.loinc,
-      label: `${item.loinc} - ${item.name}`,
-      meta: item
-    }))
-  }, [terminologyData])
 
   const columns: ColumnsType<EncounterRow> = [
     {
@@ -209,7 +165,7 @@ export default function LaboratoryQueue() {
   const closeServiceRequestModal = () => {
     setIsServiceRequestModalOpen(false)
     serviceRequestForm.resetFields()
-    setTerminologySearch('')
+    // setTerminologySearch('')
     setSelectedEncounter(null)
   }
 
@@ -239,28 +195,6 @@ export default function LaboratoryQueue() {
     })
     setIsServiceRequestModalOpen(true)
   }
-
-  const handleSelectTerminologyCode = (loincCode: string) => {
-    const option = terminologyOptions.find((item) => item.value === loincCode)
-    if (!option) return
-
-    serviceRequestForm.setFieldsValue({
-      code: option.meta.loinc,
-      display: option.meta.name,
-      system: option.meta.system || 'http://loinc.org'
-    })
-  }
-
-  useEffect(() => {
-    if (!isServiceRequestModalOpen) return
-
-    serviceRequestForm.setFieldsValue({
-      code: undefined,
-      display: undefined,
-      system: 'http://loinc.org'
-    })
-    setTerminologySearch('')
-  }, [selectedServiceRequestCategory, isServiceRequestModalOpen, serviceRequestForm])
 
   const submitEncounterStatus = async () => {
     if (!selectedEncounter?.id) return
@@ -305,57 +239,15 @@ export default function LaboratoryQueue() {
 
   const submitServiceRequestCreate = async () => {
     if (!selectedEncounter?.id || !selectedEncounter.patientId) return
-
     try {
       const values = await serviceRequestForm.validateFields()
-      setIsSubmittingServiceRequest(true)
-
-      const createResult = await rpc.query.entity({
-        model: 'serviceRequest',
-        method: 'post',
-        body: {
-          encounterId: String(selectedEncounter.id),
-          patientId: String(selectedEncounter.patientId),
-          doctorId: selectedEncounter.practitionerId,
-          serviceRequests: [
-            {
-              category: String(values.category),
-              code: String(values.code),
-              display: String(values.display),
-              priority: String(values.priority || 'routine'),
-              patientInstruction: values.patientInstruction
-                ? String(values.patientInstruction)
-                : undefined,
-              system: values.system ? String(values.system) : 'http://loinc.org'
-            }
-          ]
-        }
-      })
-
-      if (!createResult?.success) {
-        throw new Error(createResult?.message || 'Gagal membuat service request')
-      }
-
-      const createdServiceRequestId = createResult?.result?.[0]?.id
-      if (createdServiceRequestId) {
-        await rpc.query.entity({
-          model: 'encounter',
-          path: String(selectedEncounter.id),
-          method: 'put',
-          body: {
-            serviceRequestId: String(createdServiceRequestId)
-          }
-        })
-      }
-
+      await createServiceRequest(values)
       message.success('Service request baru berhasil dibuat')
       closeServiceRequestModal()
       await refetch()
     } catch (error: any) {
       if (error?.errorFields) return
       message.error(error?.message || 'Gagal membuat service request')
-    } finally {
-      setIsSubmittingServiceRequest(false)
     }
   }
 
@@ -471,68 +363,7 @@ export default function LaboratoryQueue() {
           </Button>
         ]}
       >
-        <Form form={serviceRequestForm} layout="vertical">
-          <Form.Item
-            name="category"
-            label="Kategori Service Request"
-            rules={[{ required: true, message: 'Harap pilih kategori' }]}
-          >
-            <Select
-              options={[
-                { value: 'laboratory', label: 'Laboratory' },
-                { value: 'imaging', label: 'Imaging (Radiology)' }
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="code"
-            label="Kode Pemeriksaan"
-            rules={[{ required: true, message: 'Harap isi kode pemeriksaan' }]}
-          >
-            <Select
-              showSearch
-              filterOption={false}
-              onSearch={setTerminologySearch}
-              onChange={handleSelectTerminologyCode}
-              options={terminologyOptions}
-              loading={isLoadingTerminology}
-              placeholder="Cari kode pemeriksaan dari terminology service"
-              notFoundContent="Kode pemeriksaan tidak ditemukan"
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="display"
-            label="Nama Pemeriksaan"
-            rules={[{ required: true, message: 'Harap isi nama pemeriksaan' }]}
-          >
-            <Input placeholder="Contoh: Hemoglobin [Mass/volume] in Blood" />
-          </Form.Item>
-
-          <Form.Item
-            name="priority"
-            label="Prioritas"
-            rules={[{ required: true, message: 'Harap pilih prioritas' }]}
-          >
-            <Select
-              options={[
-                { value: 'routine', label: 'Routine' },
-                { value: 'urgent', label: 'Urgent' },
-                { value: 'asap', label: 'ASAP' },
-                { value: 'stat', label: 'STAT' }
-              ]}
-            />
-          </Form.Item>
-
-          <Form.Item name="system" label="Coding System">
-            <Input placeholder="http://loinc.org" />
-          </Form.Item>
-
-          <Form.Item name="patientInstruction" label="Instruksi Pasien (opsional)">
-            <Input.TextArea rows={3} placeholder="Tambahkan instruksi bila diperlukan" />
-          </Form.Item>
-        </Form>
+        <CreateServiceRequestForm form={serviceRequestForm} />
       </Modal>
     </div>
   )

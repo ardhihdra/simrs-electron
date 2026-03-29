@@ -23,11 +23,15 @@ import dayjs from 'dayjs'
 interface FunctionalAssessmentFormProps {
   encounterId: string
   patientData: { patient: { id: string; name?: string } }
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 export const FunctionalAssessmentForm = ({
   encounterId,
-  patientData
+  patientData,
+  hideHeader = false,
+  globalPerformerId
 }: FunctionalAssessmentFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
@@ -160,14 +164,24 @@ export const FunctionalAssessmentForm = ({
     }
 
     const observations = createObservationBatch(obsToCreate as any)
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = globalPerformerId
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
+      return
+    }
+
     const performerName =
-      performersData?.find((p: any) => p.id === values.performerId)?.name || 'Unknown'
+      performersData?.find((p: any) => p.id === Number(performerId))?.name || 'Unknown'
 
     bulkCreateObservation.mutate(
       {
         encounterId,
         patientId: patientData.patient.id,
-        performerId: String(values.performerId),
+        performerId: String(performerId),
         performerName,
         observations
       },
@@ -193,7 +207,9 @@ export const FunctionalAssessmentForm = ({
       onFinishFailed={() => message.error('Mohon lengkapi semua field yang wajib diisi')}
       className="flex! flex-col! gap-4!"
     >
-      <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+      {!hideHeader && (
+        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+      )}
       <FunctionalStatusSection />
       <PsychosocialSection />
       <Form.Item>

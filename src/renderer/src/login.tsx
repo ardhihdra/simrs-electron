@@ -8,6 +8,7 @@ import { Button, Carousel, Checkbox, Form, Input } from 'antd'
 import Alert from 'antd/es/alert/Alert'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useProfileStore } from '@renderer/store/profileStore'
 
 type FieldType = {
   username: string
@@ -18,19 +19,21 @@ type FieldType = {
 type LoginResult = {
   success: boolean
   token?: string
-  user?: { id: number; username: string }
+  user?: { id: number; username: string; hakAksesId: string }
   error?: string
 }
 
 const LoginForm: React.FC = () => {
   const [errorInfo, setErrorInfo] = useState<string>()
   const navigate = useNavigate()
+  const setProfile = useProfileStore((state) => state.setProfile)
   const onFinish: FormProps<FieldType>['onFinish'] = async (values) => {
     const res = (await window.api.auth.login({
       username: values.username,
       password: values.password
     })) as LoginResult
-    if (res.success) {
+    if (res.success && res.user) {
+      setProfile(res.user)
       navigate('/module-selection')
       setErrorInfo(undefined)
     } else {
@@ -76,8 +79,7 @@ const LoginForm: React.FC = () => {
               >
                 <Input
                   size="large"
-                  placeholder="eg. 3212010101010001"
-                  defaultValue={'admin1'}
+                  placeholder="eg. admin1"
                   prefix={<UserOutlined className="text-gray-400 px-1" />}
                 />
               </Form.Item>

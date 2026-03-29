@@ -4,6 +4,7 @@ import {
   setModuleScopeSession
 } from '@renderer/services/ModuleScope/module-scope'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
+import { useProfileStore } from '@renderer/store/profileStore'
 import { client } from '@renderer/utils/client'
 import { App } from 'antd'
 import { useState } from 'react'
@@ -70,6 +71,7 @@ export default function ModuleSelection() {
   const [selectedInstallationKey, setSelectedInstallationKey] = useState<string | undefined>()
   const setSelectedModule = useSelectedModuleStore((state) => state.setSelectedModule)
   const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
+  const clearProfile = useProfileStore((state) => state.clearProfile)
 
   const installations = normalizeInstallations(data?.result)
   const selectedInstallation = installations.find((item) => item.key === selectedInstallationKey)
@@ -79,14 +81,12 @@ export default function ModuleSelection() {
   )
 
   const handleSelectInstallation = (installationKey: string) => {
-    console.log('selected installation', installationKey)
     setSelectedInstallationKey((currentKey) =>
       currentKey === installationKey ? undefined : installationKey
     )
   }
 
   const handleClick = async (moduleName: string) => {
-    console.log('selected module', moduleName)
     if (!selectedInstallation) {
       message.warning('Silahkan pilih instalasi terlebih dahulu')
       return
@@ -100,7 +100,6 @@ export default function ModuleSelection() {
         allowedModules: [selectedModuleCode]
       })
       const sessionResult = await sessionQuery.refetch()
-
       if (!sessionResult.data) {
         throw new Error('Module session is empty')
       }
@@ -121,6 +120,7 @@ export default function ModuleSelection() {
     if (res.success) {
       clearModuleScopeSession()
       clearSelectedModule()
+      clearProfile()
       navigation('/')
     }
   }

@@ -46,11 +46,15 @@ interface BodyMarker {
 interface PhysicalAssessmentFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
   encounterId,
-  patientData
+  patientData,
+  hideHeader = false,
+  globalPerformerId
 }) => {
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -115,8 +119,13 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       return
     }
 
-    if (!values.performerId) {
-      message.error('Mohon pilih pemeriksa')
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = Number(globalPerformerId)
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
       return
     }
 
@@ -219,13 +228,13 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       if (obsToCreate.length > 0) {
         const observations = createObservationBatch(obsToCreate, assessmentDate)
         const performerName =
-          performersData?.find((p: any) => p.id === values.performerId)?.name || 'Unknown'
+          performersData?.find((p: any) => p.id === Number(performerId))?.name || 'Unknown'
 
         await bulkCreateObservation.mutateAsync({
           encounterId,
           patientId: patientId,
           observations,
-          performerId: String(values.performerId),
+          performerId: String(performerId),
           performerName: performerName
         })
 
@@ -237,7 +246,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
               y: m.y,
               note: m.note
             })),
-            createdBy: Number(values.performerId)
+            doctorId: performerId ? Number(performerId) : 0
           })
         }
 
@@ -247,7 +256,9 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
       } else {
         message.info('Tidak ada data yang disimpan')
       }
-    } catch (e) {
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : 'Gagal menyimpan pemeriksaan fisik'
+      message.error(errMsg)
       console.error(e)
     } finally {
       setIsSubmitting(false)
@@ -364,7 +375,9 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
             assessment_date: dayjs()
           }}
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          {!hideHeader && (
+            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          )}
           <Card title="Body Map & Keadaan Umum" size="small">
             <Row gutter={24}>
               <Col span={24} lg={12}>

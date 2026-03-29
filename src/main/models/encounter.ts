@@ -54,7 +54,7 @@ Patient.hasMany(Encounter, { foreignKey: 'patientId', onDelete: 'CASCADE', as: '
 Encounter.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' })
 
 export const EncounterSchema = z.object({
-  episodeOfCareId: z.string().optional(),
+  episodeOfCareId: z.string().optional().nullable(),
   patientId: z.string(),
   encounterType: z.enum(['AMB', 'EMER', 'IMP', 'LAB']).default('AMB'),
   arrivalType: z.enum(['WALK_IN', 'REFERRAL', 'TRANSFER']).default('WALK_IN'),

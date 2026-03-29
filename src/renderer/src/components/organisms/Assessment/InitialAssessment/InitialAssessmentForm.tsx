@@ -636,7 +636,7 @@ export const InitialAssessmentForm = ({
     >
       <Spin spinning={isSubmitting} tip="Menyimpan data asesmen..." size="large">
         <div className="flex flex-col gap-4">
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} filterWithLogin />
           <VitalSignsSection form={form} />
 
           {mode === 'inpatient' && (

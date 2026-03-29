@@ -23,6 +23,10 @@ export const schemas = {
     args: z.object({ id: z.number() }),
     result: z.any()
   },
+  getByEncounterId: {
+    args: z.object({ encounterId: z.string() }),
+    result: z.any()
+  },
   create: {
     args: z.union([MedicationRequestSchema, MedicationRequestSchema.array()]),
     result: z.object({
@@ -105,6 +109,23 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
       error: z.string().optional()
     })
     const result = await parseBackendResponse(res, ReadSchema)
+    return result ? { success: true, data: result } : { success: false }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    return { success: false, error: msg }
+  }
+}
+
+export const getByEncounterId = async (ctx: IpcContext, args: z.infer<typeof schemas.getByEncounterId.args>) => {
+  try {
+    const client = getClient(ctx)
+    const res = await client.get(`/api/module/medication-request/medication-requests/encounter/${args.encounterId}`)
+    const ListSchema = z.object({
+      success: z.boolean(),
+      result: MedicationRequestWithIdSchema.array().optional(),
+      error: z.string().optional()
+    })
+    const result = await parseBackendResponse(res, ListSchema)
     return result ? { success: true, data: result } : { success: false }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)

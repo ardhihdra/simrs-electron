@@ -28,7 +28,7 @@ export const windowRpc = {
       })
     )
     .output(z.boolean())
-    .mutation(async (_c, input) => {
+    .mutation(async ({ }, input) => {
       try {
         const newWindow = new BrowserWindow({
           width: 1280,

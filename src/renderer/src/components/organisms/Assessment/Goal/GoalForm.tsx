@@ -1,9 +1,11 @@
 import {
+  Alert,
   App,
   Button,
   Card,
   Col,
   DatePicker,
+  Divider,
   Form,
   Input,
   Modal,
@@ -12,8 +14,7 @@ import {
   Table,
   Tag,
   Tooltip,
-  Typography,
-  Divider
+  Typography
 } from 'antd'
 import { PlusOutlined, DeleteOutlined, SaveOutlined, MinusCircleOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -40,6 +41,8 @@ const { Text } = Typography
 interface GoalFormProps {
   encounterId: string
   patientData: { patient: { id: string; name?: string } }
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 const LIFECYCLE_OPTIONS = [
@@ -92,7 +95,12 @@ const safeArray = (data: unknown): any[] => {
   return []
 }
 
-export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
+export const GoalForm = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}: GoalFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
   const [modalOpen, setModalOpen] = useState(false)
@@ -178,7 +186,17 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
 
   const handleSubmit = async (values: Record<string, any>) => {
     try {
-      const performer = performersData?.find((p: any) => p.id === values.performerId)
+      let performerId = values.performerId
+      if (hideHeader && globalPerformerId) {
+        performerId = globalPerformerId
+      }
+
+      if (!performerId) {
+        message.warning('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
+        return
+      }
+
+      const performer = performersData?.find((p: any) => p.id === Number(performerId))
 
       if (!values.description?.trim()) {
         message.warning('Deskripsi tujuan perawatan wajib diisi')
@@ -219,7 +237,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
       await createGoal.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
-        performerId: values.performerId ? String(values.performerId) : undefined,
+        performerId: performerId ? String(performerId) : undefined,
         performerName: performer?.name,
         lifecycleStatus: values.lifecycleStatus,
         description: values.description.trim(),
@@ -550,15 +568,27 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
             targets: [{ detailType: 'snomed' }]
           }}
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          {!hideHeader && (
+            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          )}
+
+          {hideHeader && !globalPerformerId && (
+            <Alert
+              type="warning"
+              showIcon
+              message="Pilih Petugas Pemeriksa terlebih dahulu di bagian atas halaman sebelum menyimpan."
+              className="mb-2"
+            />
+          )}
 
           {/* ── Kategori & Deskripsi ── */}
-          <Row gutter={16} className="mt-2">
+          <Row gutter={12} className="mt-2">
             <Col span={10}>
               <Form.Item
                 name="category"
                 label="Kategori Tujuan"
                 rules={[{ required: true, message: 'Wajib memilih kategori' }]}
+                className="mb-3"
               >
                 <Select options={CATEGORY_OPTIONS} placeholder="Pilih kategori..." />
               </Form.Item>
@@ -568,6 +598,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
                 name="description"
                 label="Deskripsi Tujuan Perawatan"
                 rules={[{ required: true, message: 'Deskripsi wajib diisi' }]}
+                className="mb-3"
               >
                 <TextArea
                   rows={2}
@@ -578,31 +609,36 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
           </Row>
 
           {/* ── Status & Prioritas ── */}
-          <Row gutter={16}>
+          <Row gutter={12}>
             <Col span={8}>
-              <Form.Item name="lifecycleStatus" label="Status" rules={[{ required: true }]}>
+              <Form.Item
+                name="lifecycleStatus"
+                label="Status"
+                rules={[{ required: true }]}
+                className="mb-3"
+              >
                 <Select options={LIFECYCLE_OPTIONS} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="priority" label="Prioritas">
+              <Form.Item name="priority" label="Prioritas" className="mb-3">
                 <Select options={PRIORITY_OPTIONS} />
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item name="startDate" label="Tanggal Perencanaan">
+              <Form.Item name="startDate" label="Tanggal Perencanaan" className="mb-3">
                 <DatePicker className="w-full" format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
           </Row>
 
-          <Divider orientation="left" className="text-sm! my-3!">
-            Referensi Terkait (Addresses)
+          <Divider orientation="left" className="text-sm! my-1!">
+            Referensi Terkait
           </Divider>
 
-          <Row gutter={16}>
+          <Row gutter={12}>
             <Col span={10}>
-              <Form.Item name="referenceType" label="Tipe Referensi">
+              <Form.Item name="referenceType" label="Tipe Referensi" className="mb-3">
                 <Select
                   allowClear
                   placeholder="Pilih tipe referensi..."
@@ -615,7 +651,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
               </Form.Item>
             </Col>
             <Col span={14}>
-              <Form.Item name="referenceId" label="Data Referensi">
+              <Form.Item name="referenceId" label="Data Referensi" className="mb-3">
                 <Select
                   allowClear
                   showSearch
@@ -633,7 +669,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
             </Col>
           </Row>
 
-          <Divider orientation="left" className="text-sm! my-3!">
+          <Divider orientation="left" className="text-sm! my-1!">
             Target Klinis
           </Divider>
 
@@ -645,7 +681,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
                   <Card
                     key={key}
                     size="small"
-                    className="mb-3"
+                    className="mb-2"
                     extra={
                       fields.length > 1 ? (
                         <Button
@@ -669,6 +705,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
                           name={[name, 'measureCode']}
                           label="Indikator / Ukuran (LOINC)"
                           rules={[{ required: true, message: 'Wajib dipilih' }]}
+                          className="mb-2"
                         >
                           <Select
                             showSearch
@@ -690,6 +727,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
                           name={[name, 'detailType']}
                           label="Tipe Detail Pencapaian"
                           initialValue="snomed"
+                          className="mb-2"
                         >
                           <Select
                             options={[
@@ -771,6 +809,7 @@ export const GoalForm = ({ encounterId, patientData }: GoalFormProps) => {
                       {...restField}
                       name={[name, 'dueDate']}
                       label="Target Tanggal Selesai"
+                      className="mb-0"
                     >
                       <DatePicker className="w-full" format="DD/MM/YYYY" />
                     </Form.Item>

@@ -60,6 +60,8 @@ export default function RegistrationQueue({
     ],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
+  console.log('searchParams', searchParams)
+  console.log('queueData', queueData)
 
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
   const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()

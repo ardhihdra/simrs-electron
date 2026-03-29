@@ -14,7 +14,7 @@ export const schemas = {
   list: {
     result: z.object({
       success: z.boolean(),
-      result: PoliSchemaWithId.array().optional(),
+      data: PoliSchemaWithId.array().optional(),
       message: z.string().optional()
     })
   },

@@ -71,11 +71,11 @@ export const UploadRadiologyDicomSchema = z.object({
 })
 
 // Terminology Search
-export const LabTerminologySearchSchema = z.object({
+export const ServiceRequestCodeSearchSchema = z.object({
   query: z.string().optional(),
+  loincCode: z.string().optional(),
   domain: z.enum(['laboratory', 'radiology']).optional(),
   category: z.string().optional(),
-  limit: z.number().optional()
 })
 
 // --- RPC ---
@@ -218,26 +218,17 @@ export const laboratoryManagementRpc = {
     }),
 
   // Terminology
-  searchTerminology: t
-    .input(LabTerminologySearchSchema)
-    .output(z.any())
+  getServiceRequestCodes: t
+    .input(ServiceRequestCodeSearchSchema)
+    .output(ApiResponseSchema(z.any()))
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()
       if (input.query) params.append('query', input.query)
+      if (input.loincCode) params.append('loincCode', input.loincCode)
       if (input.domain) params.append('domain', input.domain)
       if (input.category) params.append('category', input.category)
-      if (input.limit) params.append('limit', String(input.limit))
 
-      const res = await client.get(`/api/module/lab-management/terminology?${params.toString()}`)
-      console.log(res)
-      return await res.json()
-    }),
-
-  getTerminologyCategories: t
-    .input(z.void())
-    .output(ApiResponseSchema(z.any()))
-    .query(async ({ client }) => {
-      const res = await client.get('/api/module/lab-management/terminology/categories')
+      const res = await client.get(`/api/module/lab-management/terminology/service-request-codes?${params.toString()}`)
       return await res.json()
     }),
 

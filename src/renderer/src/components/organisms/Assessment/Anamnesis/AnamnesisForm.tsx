@@ -23,9 +23,16 @@ const { TextArea } = Input
 export interface AnamnesisFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
-export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patientData }) => {
+export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,8 +117,13 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patie
   const handleFinish = async (values: any) => {
     if (!encounterId || !patientIdStr) return
 
-    if (!values.performerId) {
-      message.error('Mohon pilih pemeriksa')
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = Number(globalPerformerId)
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
       return
     }
 
@@ -153,7 +165,7 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patie
           bulkCreateCondition.mutateAsync({
             encounterId,
             patientId: patientIdStr,
-            doctorId: values.performerId ? Number(values.performerId) : 0,
+            doctorId: performerId ? Number(performerId) : 0,
             conditions
           })
         )
@@ -192,7 +204,9 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({ encounterId, patie
       }}
     >
       <Spin spinning={isSubmitting} tip="Menyimpan Anamnesis..." size="large">
-        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        {!hideHeader && (
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        )}
 
         <Card title="Anamnesis" className="mt-4!">
           <Form.Item label="Keluhan Utama" className="" required>

@@ -28,7 +28,9 @@ export default defineConfig({
     },
     build: {
       // Enable dev-time hot reloading (reload renderers when preload changes)
-      watch: {}
+      watch: {},
+      // Preserve ipc-channels.json generated at runtime by the main process
+      emptyOutDir: false
     }
   },
   renderer: {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { App, Spin, Layout, Menu, theme, Input, Modal, Empty } from 'antd'
+import { App, Spin, Layout, Menu, theme, Input, Modal, Empty, Typography } from 'antd'
 import type { MenuProps } from 'antd'
 import {
   MonitorOutlined,
@@ -21,6 +21,7 @@ import { GeneralSOAPForm } from '@renderer/components/organisms/Assessment/Gener
 import { VitalSignsMonitoringForm } from '@renderer/components/organisms/Assessment/VitalSignsMonitoring/VitalSignsMonitoringForm'
 import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 
 type MenuItem = Required<MenuProps>['items'][number]
 
@@ -37,6 +38,7 @@ const MedicalRecordForm = () => {
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
   const { token } = theme.useToken()
+  const { profile } = useMyProfile()
 
   const loadPatientData = useCallback(async () => {
     if (!encounterId) return
@@ -102,6 +104,19 @@ const MedicalRecordForm = () => {
     loadPatientData()
   }, [encounterId, loadPatientData])
 
+  const rawatInapMenu: MenuItem[] = [
+    {
+      key: 'monitoring-ttv',
+      icon: <MonitorOutlined />,
+      label: 'Monitoring TTV'
+    },
+    {
+      key: 'cppt',
+      icon: <SolutionOutlined />,
+      label: 'Catatan Perkembangan (CPPT)'
+    }
+  ]
+
   const menuItems: MenuItem[] = useMemo(
     () => [
       {
@@ -124,24 +139,13 @@ const MedicalRecordForm = () => {
         label: 'Asesmen Awal'
       },
       {
-        key: 'monitoring-ttv',
-        icon: <MonitorOutlined />,
-        label: 'Monitoring TTV'
-      },
-      {
         key: 'general-soap',
         icon: <FormOutlined />,
         label: 'SOAP Umum'
       },
       ...(patientData?.poli?.name?.includes('RAWAT_INAP') ||
         patientData?.poli?.code === 'RAWAT_INAP'
-        ? [
-          {
-            key: 'cppt',
-            icon: <SolutionOutlined />,
-            label: 'Catatan Perkembangan (CPPT)'
-          }
-        ]
+        ? rawatInapMenu
         : [])
     ],
     [encounterType, patientData, token.colorError]
@@ -334,10 +338,13 @@ const MedicalRecordForm = () => {
                     onClick={() => setModalOpen(true)}
                   />
                 ) : (
-                  <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <MedicineBoxOutlined style={{ color: token.colorPrimary }} />
-                    <span style={{ color: token.colorText }}>Perawat</span>
-                  </div>
+                  <>
+                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <MedicineBoxOutlined style={{ color: token.colorPrimary }} />
+                      <span style={{ color: token.colorText }}>Perawat</span>
+                    </div>
+                    <Typography className="ml-6">{profile?.username}</Typography>
+                  </>
                 )}
               </div>
               <div className="flex flex-col flex-1 overflow-hidden mt-2">
