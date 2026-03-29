@@ -1,5 +1,6 @@
 import { SaveOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { App, Button, Card, Col, Form, Input, Modal, Row, Select } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -275,7 +276,14 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
       ]}
     >
       <div className="py-2">
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          onFinishFailed={(errorInfo) =>
+            notifyFormValidationError(form, message, errorInfo, 'Lengkapi data encounter penunjang terlebih dahulu.')
+          }
+        >
           <Row gutter={24}>
             <Col span={10}>
               <Card title="Informasi Pasien" size="small">

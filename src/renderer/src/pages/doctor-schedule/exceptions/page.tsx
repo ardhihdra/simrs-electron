@@ -1,5 +1,6 @@
 import { App, Form } from 'antd'
 import { useNavigate, useOutletContext } from 'react-router'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { DoctorScheduleExceptionsCard } from '../components/form/DoctorScheduleExceptionsCard'
 import { DoctorScheduleFormActions } from '../components/form/DoctorScheduleFormActions'
 import type { DoctorScheduleEditorOutletContext, DoctorScheduleExceptionsFormValues } from '../doctor-schedule-form.types'
@@ -18,7 +19,15 @@ export default function DoctorScheduleExceptionsPage() {
   })
 
   return (
-    <Form form={form} layout="vertical" onFinish={exceptionsPage.onFinish} initialValues={{ exceptions: [] }}>
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={exceptionsPage.onFinish}
+      onFinishFailed={(errorInfo) =>
+        notifyFormValidationError(form, message, errorInfo, 'Lengkapi data exception jadwal terlebih dahulu.')
+      }
+      initialValues={{ exceptions: [] }}
+    >
       <DoctorScheduleExceptionsCard form={form} isEdit />
       <DoctorScheduleFormActions
         isEdit

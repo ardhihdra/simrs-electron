@@ -1,5 +1,6 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
+import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { Button, Card, Form, Select, Typography, App } from 'antd'
 import { useLocation, useNavigate } from 'react-router'
 
@@ -35,6 +36,9 @@ const { message } = App.useApp()
             })
         } catch (error) {
             console.error(error)
+            if (hasValidationErrors(error)) {
+                notifyFormValidationError(form, message, error, 'Lengkapi data sampel terlebih dahulu.')
+            }
         }
     }
 
@@ -58,7 +62,13 @@ const { message } = App.useApp()
                     </div>
                 </div>
 
-                <Form form={form} layout="vertical">
+                <Form
+                    form={form}
+                    layout="vertical"
+                    onFinishFailed={(errorInfo) =>
+                        notifyFormValidationError(form, message, errorInfo, 'Lengkapi data sampel terlebih dahulu.')
+                    }
+                >
                     <Form.Item name="typeCodeId" label="Jenis Sampel" rules={[{ required: true }]}>
                         <Select
                             placeholder="Pilih Jenis Sampel"

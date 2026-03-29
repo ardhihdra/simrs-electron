@@ -2,6 +2,7 @@ import { App, Form } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate, useOutletContext, useParams } from 'react-router'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { DoctorScheduleBasicInfoCard } from '../components/form/DoctorScheduleBasicInfoCard'
 import { DoctorScheduleFormActions } from '../components/form/DoctorScheduleFormActions'
 import { DoctorScheduleFormHeader } from '../components/form/DoctorScheduleFormHeader'
@@ -35,6 +36,9 @@ function DoctorScheduleInfoPage({ mode = 'edit' }: DoctorScheduleInfoPageProps) 
       form={form}
       layout="vertical"
       onFinish={infoPage.onFinish}
+      onFinishFailed={(errorInfo) =>
+        notifyFormValidationError(form, message, errorInfo, 'Lengkapi informasi dasar jadwal dokter terlebih dahulu.')
+      }
       initialValues={{
         berlakuDari: dayjs(),
         idLokasiKerja: session?.lokasiKerjaId ? Number(session.lokasiKerjaId) : undefined,

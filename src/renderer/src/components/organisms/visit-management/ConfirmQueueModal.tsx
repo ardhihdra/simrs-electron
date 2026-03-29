@@ -2,6 +2,7 @@ import { PlusOutlined } from '@ant-design/icons'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import CreatePatientModal from '@renderer/components/organisms/visit-management/CreatePatientModal'
 import { client } from '@renderer/utils/client'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { App, Button, Descriptions, Form, Modal, Space } from 'antd'
 import { useEffect, useState } from 'react'
 
@@ -83,7 +84,14 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
         </div>
       )}
 
-      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleSubmit}
+        onFinishFailed={(errorInfo) =>
+          notifyFormValidationError(form, message, errorInfo, 'Pilih pasien terlebih dahulu sebelum konfirmasi.')
+        }
+      >
         <Form.Item label="Pasien" required className="mb-0">
           <Space className="w-full" align="start">
             <Form.Item

@@ -1,5 +1,6 @@
 import { App, Form } from 'antd'
 import { useNavigate, useOutletContext } from 'react-router'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { DoctorScheduleFormActions } from '../components/form/DoctorScheduleFormActions'
 import { DoctorScheduleRegularSessionsCard } from '../components/form/DoctorScheduleRegularSessionsCard'
 import type { DoctorScheduleEditorOutletContext, DoctorScheduleSessionsFormValues } from '../doctor-schedule-form.types'
@@ -18,7 +19,15 @@ export default function DoctorScheduleSessionsPage() {
   })
 
   return (
-    <Form form={form} layout="vertical" onFinish={sessionsPage.onFinish} initialValues={{ sessions: [] }}>
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={sessionsPage.onFinish}
+      onFinishFailed={(errorInfo) =>
+        notifyFormValidationError(form, message, errorInfo, 'Lengkapi sesi praktik terlebih dahulu.')
+      }
+      initialValues={{ sessions: [] }}
+    >
       <DoctorScheduleRegularSessionsCard />
       <DoctorScheduleFormActions
         isEdit
