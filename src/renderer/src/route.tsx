@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useMemo } from 'react'
-import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
+import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { ModuleScopeGuard } from './services/ModuleScope/guard'
 import type { PageAccessEntry } from './services/ModuleScope/type'
 import { client } from './utils/client'
@@ -28,9 +28,14 @@ import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorSchedule from './pages/doctor-schedule/DoctorSchedule'
+import { DoctorScheduleLegacyEditRedirect } from './pages/doctor-schedule/components/editor/DoctorScheduleLegacyEditRedirect'
+import { DoctorScheduleEditorShell } from './pages/doctor-schedule/components/editor/DoctorScheduleEditorShell'
 import DoctorScheduleCreatePage from './pages/doctor-schedule/create/page'
-import DoctorScheduleEditPage from './pages/doctor-schedule/edit/page'
+import DoctorScheduleExceptionsPage from './pages/doctor-schedule/exceptions/page'
+import DoctorScheduleInfoPage from './pages/doctor-schedule/info/page'
 import DoctorSchedulePage from './pages/doctor-schedule/page'
+import DoctorScheduleQuotasPage from './pages/doctor-schedule/quotas/page'
+import DoctorScheduleSessionsPage from './pages/doctor-schedule/sessions/page'
 import ReferralRequestPage from './pages/encounter-transition/referral-request'
 import EncounterTransitionPage from './pages/encounter-transition/transition'
 import Encounter from './pages/encounter/Encounter'
@@ -209,7 +214,14 @@ function MainRoute() {
           >
             <Route index element={<DoctorSchedulePage />} />
             <Route path="create" element={<DoctorScheduleCreatePage />} />
-            <Route path="edit/:id" element={<DoctorScheduleEditPage />} />
+            <Route path="edit/:id" element={<DoctorScheduleLegacyEditRedirect />} />
+            <Route path=":id" element={<DoctorScheduleEditorShell />}>
+              <Route index element={<Navigate to="info" replace />} />
+              <Route path="info" element={<DoctorScheduleInfoPage />} />
+              <Route path="sessions" element={<DoctorScheduleSessionsPage />} />
+              <Route path="quotas" element={<DoctorScheduleQuotasPage />} />
+              <Route path="exceptions" element={<DoctorScheduleExceptionsPage />} />
+            </Route>
           </Route>
           <Route
             path="registration/doctor-leave"

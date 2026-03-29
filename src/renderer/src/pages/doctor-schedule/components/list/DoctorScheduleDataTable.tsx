@@ -79,7 +79,7 @@ export function DoctorScheduleDataTable({
     {
       title: 'Aksi',
       key: 'action',
-      width: 100,
+      width: 320,
       align: 'center',
       fixed: 'right',
       render: (_, record) => <DoctorScheduleRowActions record={record} />
@@ -102,7 +102,7 @@ export function DoctorScheduleDataTable({
           dataSource={rows}
           rowKey={(record) => String(record.id ?? record.no)}
           pagination={{ pageSize: 10, showSizeChanger: true }}
-          scroll={{ x: 1600 }}
+          scroll={{ x: 1850 }}
           size="middle"
         />
       )}

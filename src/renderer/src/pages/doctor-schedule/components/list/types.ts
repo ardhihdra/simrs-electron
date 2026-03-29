@@ -1,9 +1,9 @@
 export interface DoctorScheduleApiItem {
-  id: number | string
-  idPegawai: number | string
-  idPoli: number | string
-  idLokasiKerja: number | string
-  idKontrakKerja: number | string
+  id: number
+  idPegawai: number
+  idPoli: number
+  idLokasiKerja: number
+  idKontrakKerja: number
   kategori: string
   namaJadwal?: string | null
   berlakuDari: string
@@ -32,14 +32,14 @@ export type DoctorScheduleListResult = {
 }
 
 export interface DoctorScheduleItem {
-  id?: number | string
+  id?: number
   scheduleName: string
   doctorName: string
   category: string
   poli: string
   effectiveRange: string
-  contractId: number | string
-  locationId: number | string
+  contractId: number
+  locationId: number
   status: 'active' | 'inactive'
   note: string
 }

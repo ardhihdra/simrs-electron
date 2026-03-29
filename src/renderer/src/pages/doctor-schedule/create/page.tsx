@@ -1,5 +1,5 @@
-import DoctorScheduleForm from '../doctor-schedule-form'
+import DoctorScheduleInfoPage from '../info/page'
 
 export default function Page() {
-  return <DoctorScheduleForm />
+  return <DoctorScheduleInfoPage mode="create" />
 }

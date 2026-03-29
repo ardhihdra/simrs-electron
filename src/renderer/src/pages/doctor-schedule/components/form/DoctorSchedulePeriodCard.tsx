@@ -57,8 +57,8 @@ export function DoctorSchedulePeriodCard() {
       </Form.Item>
 
       <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-        Data master `JadwalDokter`, `JadwalDokterSesi`, `JadwalDokterException`, dan
-        `JadwalDokterExceptionSesi` sekarang dikelola dari satu form ini.
+        Halaman ini hanya menyimpan informasi inti jadwal. Pengaturan sesi, quota registrasi, dan
+        libur dikelola dari halaman editor yang terpisah setelah jadwal dibuat.
       </div>
     </Card>
   )
