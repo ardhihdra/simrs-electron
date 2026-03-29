@@ -247,7 +247,6 @@ const items: DashboardMenuItem[] = [
       {
         label: 'Rekam Medis',
         key: '/dashboard/doctor',
-        icon: <FileTextOutlined />
         icon: <FileTextOutlined />,
         moduleKey: workspaceModuleCodes.doctor
       }
