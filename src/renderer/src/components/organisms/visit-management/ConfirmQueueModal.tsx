@@ -1,9 +1,9 @@
 import { PlusOutlined } from '@ant-design/icons'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
+import CreatePatientModal from '@renderer/components/organisms/visit-management/CreatePatientModal'
 import { client } from '@renderer/utils/client'
 import { App, Button, Descriptions, Form, Modal, Space } from 'antd'
 import { useEffect, useState } from 'react'
-import CreatePatientModal from '@renderer/components/organisms/visit-management/CreatePatientModal'
 
 export type ConfirmQueueModalProps = {
   open: boolean
@@ -95,8 +95,8 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
                 entity="patient"
                 display="name"
                 output="id"
-                disabled={!!queue?.patientId}
-                placeHolder="Cari Pasien"
+                // disabled={!!queue?.patientId}
+                placeHolder="Cari Data Pasien"
                 className="w-full"
               />
             </Form.Item>

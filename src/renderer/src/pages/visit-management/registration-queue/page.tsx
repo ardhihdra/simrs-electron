@@ -1,5 +1,10 @@
 import { CheckCircleOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
+import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
+import CallQueueModal from '@renderer/components/organisms/visit-management/CallQueueModal'
+import ConfirmQueueModal from '@renderer/components/organisms/visit-management/ConfirmQueueModal'
+import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
+import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
 import { App, DatePicker, Form, Input, Modal, Tag } from 'antd'
@@ -7,11 +12,6 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useParams } from 'react-router'
-import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
-import CallQueueModal from '@renderer/components/organisms/visit-management/CallQueueModal'
-import ConfirmQueueModal from '@renderer/components/organisms/visit-management/ConfirmQueueModal'
-import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
-import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
 
 export default function RegistrationQueue({
   practitionerId: propPractitionerId
@@ -49,7 +49,15 @@ export default function RegistrationQueue({
   } = client.registration.getQueues.useQuery({
     queueDate: searchParams.queueDate,
     queueNumber: searchParams.queueNumber ? Number(searchParams.queueNumber) : undefined,
-    status: ['PRE_RESERVED', 'RESERVED', 'REGISTERED', 'CALLED', 'TRIAGE', 'TRIAGED', 'IN_PROGRESS'],
+    status: [
+      'PRE_RESERVED',
+      'RESERVED',
+      'REGISTERED',
+      'CALLED',
+      'TRIAGE',
+      'TRIAGED',
+      'IN_PROGRESS'
+    ],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
 

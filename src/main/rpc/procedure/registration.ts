@@ -191,26 +191,45 @@ const CreateScheduleInputSchema = z.object({
   lokasiKerjaId: z.number(),
   kontrakKerjaId: z.number(),
   category: z.string(),
-  name: z.string(),
+  name: z.string().optional(),
   validFrom: z.string(),
   validTo: z.string().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  remark: z.string().optional(),
   sessions: z.array(
     z.object({
       dayOfWeek: z.number(),
       sessionNumber: z.number(),
       startTime: z.string(),
       endTime: z.string(),
-      quota: z.number()
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
     })
   )
 })
 
 const UpdateScheduleInputSchema = z.object({
   id: z.number(),
+  doctorId: z.number().optional(),
+  poliId: z.number().optional(),
+  lokasiKerjaId: z.number().optional(),
+  kontrakKerjaId: z.number().optional(),
   category: z.string().optional(),
   name: z.string().optional(),
+  validFrom: z.string().optional(),
+  validTo: z.string().optional(),
   status: z.string().optional(),
-  sessions: z.array(z.any()).optional()
+  remark: z.string().optional(),
+  sessions: z.array(
+    z.object({
+      dayOfWeek: z.number(),
+      sessionNumber: z.number(),
+      startTime: z.string(),
+      endTime: z.string(),
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
+    })
+  ).optional()
 })
 
 const CreateScheduleExceptionInputSchema = z.object({
@@ -219,7 +238,16 @@ const CreateScheduleExceptionInputSchema = z.object({
   type: z.string(),
   mode: z.string(),
   description: z.string().optional(),
-  sessions: z.array(z.any()).optional()
+  isActive: z.boolean().optional(),
+  sessions: z.array(
+    z.object({
+      sessionNumber: z.number(),
+      startTime: z.string(),
+      endTime: z.string(),
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
+    })
+  ).optional()
 })
 
 const UpdateScheduleExceptionInputSchema = z.object({
@@ -229,7 +257,16 @@ const UpdateScheduleExceptionInputSchema = z.object({
   type: z.string().optional(),
   mode: z.string().optional(),
   description: z.string().optional(),
-  sessions: z.array(z.any()).optional()
+  isActive: z.boolean().optional(),
+  sessions: z.array(
+    z.object({
+      sessionNumber: z.number(),
+      startTime: z.string(),
+      endTime: z.string(),
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
+    })
+  ).optional()
 })
 
 // --- RPC Procedures ---

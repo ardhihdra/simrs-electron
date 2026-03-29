@@ -8,17 +8,17 @@ import {
   CalendarOutlined
 } from '@ant-design/icons'
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import type { ColumnsType } from 'antd/es/table'
 import { useNavigate } from 'react-router'
 import dayjs from 'dayjs'
+import { client, rpc } from '@renderer/utils/client'
 
 interface DoctorScheduleApiItem {
-  id: number
-  idPegawai: number
-  idPoli: number
-  idLokasiKerja: number
-  idKontrakKerja: number
+  id: number | string
+  idPegawai: number | string
+  idPoli: number | string
+  idLokasiKerja: number | string
+  idKontrakKerja: number | string
   kategori: string
   namaJadwal?: string | null
   berlakuDari: string
@@ -47,14 +47,14 @@ type DoctorScheduleListResult = {
 }
 
 interface DoctorScheduleItem {
-  id?: number
+  id?: number | string
   scheduleName: string
   doctorName: string
   category: string
   poli: string
   effectiveRange: string
-  contractId: number
-  locationId: number
+  contractId: number | string
+  locationId: number | string
   status: 'active' | 'inactive'
   note: string
 }
@@ -134,6 +134,9 @@ const baseColumns: ColumnsType<Row> = [
 
 function RowActions({ record }: { record: Row }) {
   const navigate = useNavigate()
+  const scheduleId = Number(record.id)
+  const canNavigate = Number.isFinite(scheduleId) && scheduleId > 0
+
   return (
     <div className="flex gap-2 justify-center">
       <Button
@@ -141,8 +144,9 @@ function RowActions({ record }: { record: Row }) {
         icon={<EyeOutlined />}
         size="small"
         onClick={() => {
-          if (typeof record.id === 'number')
-            navigate(`/dashboard/registration/doctor-schedule/edit/${record.id}`)
+          if (canNavigate) {
+            navigate(`/dashboard/registration/doctor-schedule/edit/${scheduleId}`)
+          }
         }}
         title="Lihat Detail"
       />
@@ -151,8 +155,9 @@ function RowActions({ record }: { record: Row }) {
         icon={<EditOutlined />}
         size="small"
         onClick={() => {
-          if (typeof record.id === 'number')
-            navigate(`/dashboard/registration/doctor-schedule/edit/${record.id}`)
+          if (canNavigate) {
+            navigate(`/dashboard/registration/doctor-schedule/edit/${scheduleId}`)
+          }
         }}
         title="Edit"
       />
@@ -167,18 +172,23 @@ export default function DoctorScheduleTable() {
   const [searchPoli, setSearchPoli] = useState('')
   const [searchJadwal, setSearchJadwal] = useState('')
 
-  const { data, refetch, isError, isLoading } = useQuery<DoctorScheduleListResult>({
-    queryKey: ['doctorSchedule', 'list'],
-    queryFn: () => {
-      const fn = window.api?.query?.doctorSchedule?.list
-      if (!fn)
-        throw new Error('API jadwal dokter tidak tersedia. Silakan restart aplikasi/dev server.')
-      return fn()
-    }
-  })
+  const { data, refetch, isError, isLoading } = client.query.entity.useQuery(
+    {
+      model: 'jadwalDokter',
+      method: 'get',
+      params: {
+        items: '100'
+      }
+    },
+    {
+      queryKey: ['doctorSchedule', 'list']
+    } as any
+  )
+
+  const listResult = data as DoctorScheduleListResult | undefined
 
   const filtered = useMemo(() => {
-    const apiResult = data?.result || []
+    const apiResult = listResult?.result || []
     const source: DoctorScheduleItem[] = Array.isArray(apiResult)
       ? apiResult.map((item) => ({
           id: item.id,
@@ -213,7 +223,7 @@ export default function DoctorScheduleTable() {
         : true
       return matchJadwal && matchDokter && matchPoli
     })
-  }, [data, searchDokter, searchJadwal, searchPoli])
+  }, [listResult?.result, searchDokter, searchJadwal, searchPoli])
 
   const tableColumns = [
     ...baseColumns,
@@ -273,19 +283,16 @@ export default function DoctorScheduleTable() {
                 type="default"
                 onClick={async () => {
                   try {
-                    const res = await window.api.query.export.exportCsv({
+                    const res = await rpc.window.exportCsvUrl({
                       entity: 'jadwalpraktekdokter',
                       usePagination: false
                     })
-                    if (
-                      res &&
-                      typeof res === 'object' &&
-                      'success' in res &&
-                      res.success &&
-                      'url' in res &&
-                      res.url
-                    ) {
-                      window.open(res.url as string, '_blank')
+                    if (res?.success && res.url) {
+                      await rpc.window.create({
+                        url: res.url,
+                        title: 'Export CSV Jadwal Dokter',
+                        iframe: false
+                      })
                     }
                   } catch (e) {
                     console.error(e instanceof Error ? e.message : String(e))
@@ -415,7 +422,7 @@ export default function DoctorScheduleTable() {
           <div className="flex-1" style={{ background: token.colorBgContainer }}>
             {isError && (
               <div style={{ color: token.colorErrorText }} className="p-4">
-                {data?.error || data?.message || 'Gagal memuat data'}
+                {listResult?.error || listResult?.message || 'Gagal memuat data'}
               </div>
             )}
             <Table

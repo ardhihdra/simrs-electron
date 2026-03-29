@@ -4,6 +4,19 @@ import { join } from 'path'
 import { z } from 'zod'
 import { t } from '../'
 import icon from '../../../../resources/icon.png?asset'
+import { exportCsv } from '../../routes/query/export'
+
+const ExportCsvUrlInputSchema = z.object({
+  entity: z.string(),
+  usePagination: z.boolean().optional(),
+  page: z.number().optional(),
+  items: z.number().optional(),
+  q: z.string().optional(),
+  fields: z.string().optional(),
+  filter: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional()
+})
 
 export const windowRpc = {
   create: t
@@ -85,5 +98,17 @@ export const windowRpc = {
         console.error('Error creating window:', error)
         return false
       }
+    }),
+  exportCsvUrl: t
+    .input(ExportCsvUrlInputSchema)
+    .output(
+      z.object({
+        success: z.boolean(),
+        url: z.string().optional(),
+        error: z.string().optional()
+      })
+    )
+    .query(async (ctx, input) => {
+      return exportCsv(ctx, input)
     })
 }
