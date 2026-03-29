@@ -4,14 +4,11 @@ import { useEffect, useMemo } from 'react'
 import { queryClient } from '@renderer/query-client'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import { client, rpc } from '@renderer/utils/client'
-import {
-  ArrowLeftOutlined,
-  CalendarOutlined,
-  CheckCircleOutlined,
-  PlusOutlined,
-  SaveOutlined
-} from '@ant-design/icons'
+import { ArrowLeftOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
+import { DoctorScheduleFormHeader } from './components/form/DoctorScheduleFormHeader'
+import { DoctorScheduleBasicInfoCard } from './components/form/DoctorScheduleBasicInfoCard'
+import { DoctorSchedulePeriodCard } from './components/form/DoctorSchedulePeriodCard'
 
 type DoctorScheduleStatus = 'active' | 'inactive'
 type DoctorScheduleExceptionType = 'libur' | 'sakit' | 'izin' | 'cuti' | 'ubah_jam'
@@ -20,7 +17,7 @@ type RegistrationQuotaSource = 'online' | 'offline'
 type RegistrationQuotaPaymentMethod = 'cash' | 'asuransi' | 'company' | 'bpjs'
 
 interface DoctorContract {
-  idKontrakPegawai?: number
+  idKontrakPegawai?: number | string
   nomorKontrak?: string
   kodeJabatan?: string | null
   statusKontrak?: string | null
@@ -29,17 +26,24 @@ interface DoctorContract {
 }
 
 interface DoctorOption {
-  id: number
+  id: number | string
   namaLengkap: string
   email?: string | null
   nik?: string | null
-  hakAkses?: string | null
-  hakAksesId?: string | null
+  hakAkses?:
+    | string
+    | {
+        id?: string | number | null
+        kode?: string | null
+        nama?: string | null
+      }
+    | null
+  hakAksesId?: string | number | null
   kontrakPegawai?: DoctorContract[]
 }
 
 interface PoliOption {
-  id: number
+  id: number | string
   name: string
 }
 
@@ -167,13 +171,6 @@ type DoctorScheduleDetailResponse = {
   error?: string
 }
 
-type GenericListResponse<T> = {
-  success: boolean
-  result?: T[]
-  message?: string
-  error?: string
-}
-
 type RegistrationQuotaListResponse = {
   success: boolean
   result?: RegistrationQuotaDetail[]
@@ -271,6 +268,58 @@ const defaultExceptionSession = (): DoctorScheduleExceptionSessionFormValue => (
   isActive: true
 })
 
+const normalizeList = <T,>(data: unknown): T[] => {
+  const raw = data as any
+  return (raw?.result || raw?.data || raw || []) as T[]
+}
+
+const normalizeItem = <T,>(data: unknown): T | null => {
+  const raw = data as any
+  const item = raw?.result ?? raw?.data ?? raw
+  if (!item || Array.isArray(item)) return null
+  return item as T
+}
+
+const normalizeNumericId = (value: unknown): number | null => {
+  const normalized = Number(value)
+  return Number.isFinite(normalized) && normalized > 0 ? normalized : null
+}
+
+const mergeOptions = (
+  ...optionSets: Array<Array<{ value: number; label: string }> | undefined>
+): Array<{ value: number; label: string }> => {
+  const seen = new Set<number>()
+  const merged: Array<{ value: number; label: string }> = []
+
+  for (const options of optionSets) {
+    for (const option of options ?? []) {
+      if (seen.has(option.value)) continue
+      seen.add(option.value)
+      merged.push(option)
+    }
+  }
+
+  return merged
+}
+
+const isDoctorPegawai = (pegawai: DoctorOption): boolean => {
+  const hakAkses =
+    pegawai.hakAkses && typeof pegawai.hakAkses === 'object' ? pegawai.hakAkses : undefined
+
+  const searchTokens = [
+    typeof pegawai.hakAkses === 'string' ? pegawai.hakAkses : '',
+    typeof pegawai.hakAksesId === 'string' ? pegawai.hakAksesId : '',
+    String(hakAkses?.kode ?? ''),
+    String(hakAkses?.nama ?? '')
+  ]
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean)
+
+  if (searchTokens.length === 0) return true
+
+  return searchTokens.some((value) => value.includes('doctor') || value.includes('dokter'))
+}
+
 const extractErrorMessage = (error: unknown, fallback: string) => {
   if (error instanceof Error && error.message) return error.message
   return fallback
@@ -302,7 +351,6 @@ export function DoctorScheduleForm() {
   const { message } = App.useApp()
   const isEdit = Boolean(id)
   const session = useModuleScopeStore((state) => state.session)
-
   const { data: detailData } = client.query.entity.useQuery(
     {
       model: 'jadwalDokter',
@@ -315,29 +363,40 @@ export function DoctorScheduleForm() {
     } as any
   )
 
-  const { data: pegawaiData } = client.query.entity.useQuery(
+  const pegawaiQuery = client.query.entity.useQuery(
     {
       model: 'kepegawaian',
       method: 'get',
       params: {
+        page: '1',
         items: '100',
-        depth: '1'
+        depth: '1',
+        include: 'hakAkses',
       }
     },
     {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
       queryKey: ['kepegawaian', 'list', 'doctor-schedule', 'depth-1']
     } as any
   )
 
-  const { data: poliData } = client.query.entity.useQuery(
+  const poliQuery = client.query.entity.useQuery(
     {
       model: 'poli',
       method: 'get',
       params: {
+        page: '1',
         items: '100'
       }
     },
     {
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
       queryKey: ['poli', 'list', 'doctor-schedule']
     } as any
   )
@@ -364,16 +423,127 @@ export function DoctorScheduleForm() {
   const updateExceptionMutation = client.registration.updateScheduleException.useMutation()
 
   const detailResult = detailData as DoctorScheduleDetailResponse | undefined
-  const pegawaiResult = pegawaiData as GenericListResponse<DoctorOption> | undefined
-  const poliResult = poliData as GenericListResponse<PoliOption> | undefined
   const registrationQuotaResult = registrationQuotaData as RegistrationQuotaListResponse | undefined
-
   const selectedDoctorId = Form.useWatch('idPegawai', form)
+  const normalizedSelectedDoctorId =
+    typeof selectedDoctorId === 'number'
+      ? selectedDoctorId
+      : Number.isFinite(Number(selectedDoctorId))
+        ? Number(selectedDoctorId)
+        : undefined
 
-  const selectedDoctor = useMemo(
-    () => pegawaiResult?.result?.find((pegawai) => pegawai.id === selectedDoctorId),
-    [pegawaiResult?.result, selectedDoctorId]
+  const selectedDoctorDetailQuery = client.query.entity.useQuery(
+    {
+      model: 'kepegawaian',
+      method: 'get',
+      path: normalizedSelectedDoctorId ? `read/${normalizedSelectedDoctorId}` : undefined,
+      params: {
+        depth: '1',
+        include: 'hakAkses'
+      }
+    },
+    {
+      enabled: typeof normalizedSelectedDoctorId === 'number' && normalizedSelectedDoctorId > 0,
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+      queryKey: ['kepegawaian', 'detail', 'doctor-schedule', normalizedSelectedDoctorId]
+    } as any
   )
+
+  const currentDoctorOption = useMemo(() => {
+    const currentDoctor =
+      normalizeItem<DoctorOption>(selectedDoctorDetailQuery.data) ?? detailResult?.result?.pegawai
+    if (!currentDoctor?.id) return []
+
+    return [
+      {
+        value: Number(currentDoctor.id),
+        label: currentDoctor.namaLengkap || `Dokter #${currentDoctor.id}`
+      }
+    ]
+  }, [detailResult?.result?.pegawai, selectedDoctorDetailQuery.data])
+
+  const currentPoliOption = useMemo(() => {
+    const currentPoli = detailResult?.result?.poli
+    if (!currentPoli?.id) return []
+
+    return [
+      {
+        value: Number(currentPoli.id),
+        label: currentPoli.name || `Poli #${currentPoli.id}`
+      }
+    ]
+  }, [detailResult?.result?.poli])
+
+  const doctorSearchOptions = useMemo(() => {
+    return normalizeList<DoctorOption>(pegawaiQuery.data)
+      .map((pegawai) => ({
+        ...pegawai,
+        normalizedId: normalizeNumericId(pegawai?.id)
+      }))
+      .filter(
+        (
+          pegawai
+        ): pegawai is DoctorOption & {
+          normalizedId: number
+        } => pegawai.normalizedId !== null && isDoctorPegawai(pegawai)
+      )
+      .map((pegawai) => ({
+        value: pegawai.normalizedId,
+        label: pegawai.namaLengkap || `Dokter #${pegawai.normalizedId}`
+      }))
+  }, [pegawaiQuery.data])
+
+  const poliSearchOptions = useMemo(() => {
+    return normalizeList<PoliOption>(poliQuery.data)
+      .map((poli) => ({
+        ...poli,
+        normalizedId: normalizeNumericId(poli?.id)
+      }))
+      .filter(
+        (
+          poli
+        ): poli is PoliOption & {
+          normalizedId: number
+        } => poli.normalizedId !== null
+      )
+      .map((poli) => ({
+        value: poli.normalizedId,
+        label: poli.name || `Poli #${poli.normalizedId}`
+      }))
+  }, [poliQuery.data])
+
+  const doctorOptions = useMemo(
+    () => mergeOptions(currentDoctorOption, doctorSearchOptions),
+    [currentDoctorOption, doctorSearchOptions]
+  )
+
+  const poliOptions = useMemo(
+    () => mergeOptions(currentPoliOption, poliSearchOptions),
+    [currentPoliOption, poliSearchOptions]
+  )
+
+  const selectedDoctor = useMemo(() => {
+    const doctorFromDetail = normalizeItem<DoctorOption>(selectedDoctorDetailQuery.data)
+    const doctorFromList =
+      normalizeList<DoctorOption>(pegawaiQuery.data).find(
+        (pegawai) => normalizeNumericId(pegawai.id) === normalizedSelectedDoctorId
+      ) ?? null
+
+    if (doctorFromDetail && doctorFromList) {
+      return {
+        ...doctorFromList,
+        ...doctorFromDetail,
+        kontrakPegawai:
+          doctorFromDetail.kontrakPegawai && doctorFromDetail.kontrakPegawai.length > 0
+            ? doctorFromDetail.kontrakPegawai
+            : doctorFromList.kontrakPegawai
+      }
+    }
+
+    return doctorFromDetail ?? doctorFromList ?? null
+  }, [normalizedSelectedDoctorId, pegawaiQuery.data, selectedDoctorDetailQuery.data])
 
   const existingRegistrationQuota = useMemo(
     () => registrationQuotaResult?.result?.[0],
@@ -388,8 +558,17 @@ export function DoctorScheduleForm() {
     })
 
     return (activeContracts.length > 0 ? activeContracts : contracts)
-      .filter((contract): contract is DoctorContract & { idKontrakPegawai: number } =>
-        typeof contract.idKontrakPegawai === 'number'
+      .map((contract) => ({
+        ...contract,
+        normalizedIdKontrakPegawai: Number(contract.idKontrakPegawai)
+      }))
+      .filter(
+        (
+          contract
+        ): contract is DoctorContract & {
+          idKontrakPegawai: number | string
+          normalizedIdKontrakPegawai: number
+        } => Number.isFinite(contract.normalizedIdKontrakPegawai) && contract.normalizedIdKontrakPegawai > 0
       )
       .map((contract) => {
         const dateRange = [
@@ -404,11 +583,13 @@ export function DoctorScheduleForm() {
           .join(' - ')
 
         return {
-          value: contract.idKontrakPegawai,
+          value: contract.normalizedIdKontrakPegawai,
           label: [contract.nomorKontrak, contract.kodeJabatan, dateRange].filter(Boolean).join(' | ')
         }
       })
   }, [selectedDoctor?.kontrakPegawai])
+
+  const locationKerjaDisplayValue = `ID Lokasi #${form.getFieldValue('idLokasiKerja') ?? session?.lokasiKerjaId ?? '-'}`
 
   useEffect(() => {
     if (!isEdit || !detailResult?.success || !detailResult.result) return
@@ -490,9 +671,20 @@ export function DoctorScheduleForm() {
   }, [form, isEdit, session?.lokasiKerjaId])
 
   useEffect(() => {
-    const currentContractId = form.getFieldValue('idKontrakKerja')
-    if (contractOptions.length === 0) {
+    const currentContractId = Number(form.getFieldValue('idKontrakKerja'))
+    if (!normalizedSelectedDoctorId) {
       form.setFieldValue('idKontrakKerja', undefined)
+      return
+    }
+
+    if (selectedDoctorDetailQuery.isPending && contractOptions.length === 0) {
+      return
+    }
+
+    if (contractOptions.length === 0) {
+      if (!Number.isFinite(currentContractId) || currentContractId <= 0) {
+        form.setFieldValue('idKontrakKerja', undefined)
+      }
       return
     }
 
@@ -500,7 +692,12 @@ export function DoctorScheduleForm() {
     if (!contractStillValid) {
       form.setFieldValue('idKontrakKerja', contractOptions[0]?.value)
     }
-  }, [contractOptions, form, selectedDoctorId])
+  }, [
+    contractOptions,
+    form,
+    normalizedSelectedDoctorId,
+    selectedDoctorDetailQuery.isPending
+  ])
 
   const onFinish = async (values: DoctorScheduleFormValues) => {
     try {
@@ -749,37 +946,10 @@ export function DoctorScheduleForm() {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      <Card bodyStyle={{ padding: '20px 24px' }} className="border-none">
-        <div className="flex justify-between items-start">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <button
-                type="button"
-                onClick={() => navigate('/dashboard/registration/doctor-schedule')}
-                className="text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1 text-sm"
-              >
-                <ArrowLeftOutlined />
-                <span>Jadwal Praktek Dokter</span>
-              </button>
-            </div>
-            <h1 className="text-2xl font-bold mb-0">
-              {isEdit ? 'Edit Jadwal Dokter' : 'Tambah Jadwal Dokter'}
-            </h1>
-            <p className="text-sm text-gray-400 m-0">
-              {isEdit
-                ? 'Perbarui data master, sesi praktik, dan exception jadwal dokter'
-                : 'Isi formulir berikut untuk mendaftarkan jadwal dokter beserta sesi praktiknya'}
-            </p>
-          </div>
-          <Tag
-            color={isEdit ? 'blue' : 'green'}
-            icon={isEdit ? <CalendarOutlined /> : <CheckCircleOutlined />}
-            className="px-3 py-1 text-sm m-0"
-          >
-            {isEdit ? 'Mode Edit' : 'Jadwal Baru'}
-          </Tag>
-        </div>
-      </Card>
+      <DoctorScheduleFormHeader
+        isEdit={isEdit}
+        onBack={() => navigate('/dashboard/registration/doctor-schedule')}
+      />
 
       <Form
         form={form}
@@ -795,162 +965,20 @@ export function DoctorScheduleForm() {
         }}
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <Card bodyStyle={{ padding: '20px 24px' }} className="border-none" title="Informasi Dasar">
-            <Form.Item
-              label={<span className="font-medium">Nama Dokter</span>}
-              name="idPegawai"
-              rules={[{ required: true, message: 'Nama dokter harus diisi' }]}
-            >
-              <Select
-                placeholder="Pilih nama dokter"
-                showSearch
-                optionFilterProp="children"
-                loading={!pegawaiResult}
-                size="large"
-              >
-                {pegawaiResult?.success &&
-                  pegawaiResult.result?.map((pegawai) => (
-                    <Select.Option key={pegawai.id} value={pegawai.id}>
-                      {pegawai.namaLengkap}
-                    </Select.Option>
-                  ))}
-              </Select>
-            </Form.Item>
+          <DoctorScheduleBasicInfoCard
+            doctorOptions={doctorOptions}
+            doctorLoading={pegawaiQuery.isPending && doctorOptions.length === 0}
+            doctorIsError={pegawaiQuery.isError}
+            poliOptions={poliOptions}
+            poliLoading={poliQuery.isPending && poliOptions.length === 0}
+            poliIsError={poliQuery.isError}
+            selectedDoctorId={normalizedSelectedDoctorId}
+            contractOptions={contractOptions}
+            hasSessionLokasiKerja={Boolean(session?.lokasiKerjaId)}
+            locationKerjaDisplayValue={locationKerjaDisplayValue}
+          />
 
-            <Form.Item
-              label={<span className="font-medium">Kategori</span>}
-              name="kategori"
-              rules={[{ required: true, message: 'Kategori harus diisi' }]}
-            >
-              <Input placeholder="Contoh: Dokter Umum, Dokter Spesialis Anak" size="large" />
-            </Form.Item>
-
-            <Form.Item
-              label={<span className="font-medium">Poli</span>}
-              name="idPoli"
-              rules={[{ required: true, message: 'Poli harus diisi' }]}
-            >
-              <Select
-                placeholder="Pilih poli"
-                showSearch
-                optionFilterProp="children"
-                loading={!poliResult}
-                size="large"
-              >
-                {poliResult?.success &&
-                  poliResult.result?.map((poli) => (
-                    <Select.Option key={poli.id} value={poli.id}>
-                      {poli.name}
-                    </Select.Option>
-                  ))}
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              label={<span className="font-medium">Kontrak Kerja</span>}
-              name="idKontrakKerja"
-              rules={[{ required: true, message: 'Kontrak kerja harus dipilih' }]}
-              extra={
-                selectedDoctorId && contractOptions.length === 0
-                  ? 'Pegawai ini belum memiliki kontrak aktif yang bisa dipakai untuk jadwal.'
-                  : undefined
-              }
-            >
-              <Select
-                placeholder={selectedDoctorId ? 'Pilih kontrak kerja' : 'Pilih dokter terlebih dahulu'}
-                size="large"
-                disabled={!selectedDoctorId || contractOptions.length === 0}
-                options={contractOptions}
-              />
-            </Form.Item>
-
-            {session?.lokasiKerjaId ? (
-              <>
-                <Form.Item hidden name="idLokasiKerja" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item label={<span className="font-medium">Lokasi Kerja Aktif</span>}>
-                  <Input
-                    value={`ID Lokasi #${form.getFieldValue('idLokasiKerja') ?? session.lokasiKerjaId}`}
-                    disabled
-                    size="large"
-                  />
-                </Form.Item>
-              </>
-            ) : (
-              <Form.Item
-                label={<span className="font-medium">ID Lokasi Kerja</span>}
-                name="idLokasiKerja"
-                rules={[{ required: true, message: 'Lokasi kerja harus diisi' }]}
-              >
-                <InputNumber
-                  className="w-full"
-                  size="large"
-                  placeholder="Masukkan ID lokasi kerja"
-                  min={1}
-                />
-              </Form.Item>
-            )}
-          </Card>
-
-          <Card bodyStyle={{ padding: '20px 24px' }} className="border-none" title="Periode Jadwal">
-            <Form.Item label={<span className="font-medium">Nama Jadwal</span>} name="namaJadwal">
-              <Input placeholder="Contoh: Praktik Pagi Poli Anak" size="large" />
-            </Form.Item>
-
-            <Form.Item
-              label={<span className="font-medium">Berlaku Dari</span>}
-              name="berlakuDari"
-              rules={[{ required: true, message: 'Tanggal mulai berlaku harus diisi' }]}
-            >
-              <DatePicker className="w-full" format="DD MMM YYYY" size="large" />
-            </Form.Item>
-
-            <Form.Item
-              label={<span className="font-medium">Berlaku Sampai</span>}
-              name="berlakuSampai"
-              rules={[
-                ({ getFieldValue }) => ({
-                  validator(_, value: Dayjs | null | undefined) {
-                    const berlakuDari = getFieldValue('berlakuDari') as Dayjs | undefined
-                    if (!value || !berlakuDari || !value.isBefore(berlakuDari, 'day')) {
-                      return Promise.resolve()
-                    }
-                    return Promise.reject(
-                      new Error('Tanggal selesai harus sama dengan atau setelah tanggal mulai')
-                    )
-                  }
-                })
-              ]}
-            >
-              <DatePicker className="w-full" format="DD MMM YYYY" size="large" />
-            </Form.Item>
-
-            <Form.Item
-              label={<span className="font-medium">Status</span>}
-              name="status"
-              rules={[{ required: true, message: 'Status harus dipilih' }]}
-            >
-              <Select placeholder="Pilih status" size="large">
-                <Select.Option value="active">Aktif</Select.Option>
-                <Select.Option value="inactive">Tidak Aktif</Select.Option>
-              </Select>
-            </Form.Item>
-
-            <Form.Item label={<span className="font-medium">Keterangan</span>} name="keterangan">
-              <Input.TextArea
-                rows={5}
-                placeholder="Catatan tambahan untuk jadwal dokter ini"
-                showCount
-                maxLength={1000}
-              />
-            </Form.Item>
-
-            <div className="rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-              Data master `JadwalDokter`, `JadwalDokterSesi`, `JadwalDokterException`, dan
-              `JadwalDokterExceptionSesi` sekarang dikelola dari satu form ini.
-            </div>
-          </Card>
+          <DoctorSchedulePeriodCard />
         </div>
 
         <Card

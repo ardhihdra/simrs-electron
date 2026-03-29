@@ -164,7 +164,7 @@ const CreateQueueModal = ({
 
   return (
     <Drawer
-      title={patient ? `Pendaftaran Pasien: ${patient.name}` : 'Buat Antrian'}
+      title={patient ? `Buat Antrian Pasien: ${patient.name}` : 'Buat Antrian'}
       width={600}
       open={open}
       onClose={onClose}

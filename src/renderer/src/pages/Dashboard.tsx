@@ -76,7 +76,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 //   )
 // }
 
-const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = false;
+const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = false
 
 type DashboardMenuChild = {
   label: string
@@ -191,8 +191,16 @@ const items: DashboardMenuItem[] = [
         icon: <UnorderedListOutlined />
       },
       { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
-      { label: 'Obat dan Barang Umum', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
-      { label: 'Obat dan Barang BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
+      {
+        label: 'Obat dan Barang Umum',
+        key: '/dashboard/medicine/items',
+        icon: <ExperimentOutlined />
+      },
+      {
+        label: 'Obat dan Barang BPJS',
+        key: '/dashboard/medicine/items-bpjs',
+        icon: <ExperimentOutlined />
+      },
       {
         label: 'Transaksi Penjualan Barang',
         key: '/dashboard/medicine/item-purchase',
@@ -265,9 +273,12 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
   const { allowedModules, roles, allowedLokasiKerjaIds } = access
 
   // Administrator bypasses module restrictions
-  const isAdministrator = session.hakAksesId === 'administrator';
+  const isAdministrator = session.hakAksesId === 'administrator'
 
-  if (allowedModules.length > 0 && !session.allowedModules.some((m) => allowedModules.includes(m))) {
+  if (
+    allowedModules.length > 0 &&
+    !session.allowedModules.some((m) => allowedModules.includes(m))
+  ) {
     // console.log('no module akses for modules', session.allowedModules, 'allowed:', allowedModules)
     return false
   }
@@ -276,7 +287,9 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
     return false
   }
 
-  const isRoleAllowed = isAdministrator || (roles.length > 0 && session.hakAksesId && roles.includes(session.hakAksesId))
+  const isRoleAllowed =
+    isAdministrator ||
+    (roles.length > 0 && session.hakAksesId && roles.includes(session.hakAksesId))
   if (!isRoleAllowed) {
     // console.log('no role akses for role', session.hakAksesId, 'allowed:', roles)
     return false
@@ -288,10 +301,10 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
 }
 
 const isPageNotRegistered = (access: PageAccessEntry | null) => {
-  return !access ||
-      (!access.allowedModules.length &&
-        !access.roles.length &&
-        !access.allowedLokasiKerjaIds.length);
+  return (
+    !access ||
+    (!access.allowedModules.length && !access.roles.length && !access.allowedLokasiKerjaIds.length)
+  )
 }
 
 const filterChildrenBySession = (
@@ -305,7 +318,7 @@ const filterChildrenBySession = (
   return children.filter((child) => {
     const access = pageAccessMap[child.key]
     if (isPageNotRegistered(access)) {
-      console.error('page not registered! please register to PageAccount seeder', child, access);
+      console.error('page not registered! please register to PageAccount seeder', child, access)
       return DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
     }
     return isPageVisible(access, session)
@@ -334,8 +347,9 @@ const filterItemsBySession = (
     const visibleChildren = filterChildrenBySession(item.children, pageAccessMap, session)
 
     // Parent is visible if its own access passes OR if it has visible children
-    const parentVisible = isPageNotRegistered(access) ? DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
-        : isPageVisible(access, session)
+    const parentVisible = isPageNotRegistered(access)
+      ? DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
+      : isPageVisible(access, session)
 
     if (parentVisible || visibleChildren.length > 0) {
       result.push({
@@ -370,7 +384,7 @@ function Dashboard() {
   const { profile } = useMyProfile()
   console.log('session', session)
   console.log('profile', profile)
-  
+
   if (!Object.keys(pageAccessMap).length) {
     console.error('PageAccess map not found!')
   }

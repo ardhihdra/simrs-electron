@@ -27,8 +27,10 @@ import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
-import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
-import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
+import DoctorSchedule from './pages/doctor-schedule/DoctorSchedule'
+import DoctorScheduleCreatePage from './pages/doctor-schedule/create/page'
+import DoctorScheduleEditPage from './pages/doctor-schedule/edit/page'
+import DoctorSchedulePage from './pages/doctor-schedule/page'
 import ReferralRequestPage from './pages/encounter-transition/referral-request'
 import EncounterTransitionPage from './pages/encounter-transition/transition'
 import Encounter from './pages/encounter/Encounter'
@@ -203,16 +205,12 @@ function MainRoute() {
           <Route path="pegawai-report" element={g('/dashboard/pegawai-report', <PegawaiReport />)} />
           <Route
             path="registration/doctor-schedule"
-            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleTable />)}
-          />
-          <Route
-            path="registration/doctor-schedule/create"
-            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleForm />)}
-          />
-          <Route
-            path="registration/doctor-schedule/edit/:id"
-            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleForm />)}
-          />
+            element={g('/dashboard/registration/doctor-schedule', <DoctorSchedule />)}
+          >
+            <Route index element={<DoctorSchedulePage />} />
+            <Route path="create" element={<DoctorScheduleCreatePage />} />
+            <Route path="edit/:id" element={<DoctorScheduleEditPage />} />
+          </Route>
           <Route
             path="registration/doctor-leave"
             element={g('/dashboard/registration/doctor-leave', <DoctorLeave />)}
