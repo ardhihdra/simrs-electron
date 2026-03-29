@@ -18,6 +18,8 @@ const { Text } = Typography
 export interface RiwayatPerjalananPenyakitFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
 const QUICK_TEMPLATES = [
@@ -33,7 +35,9 @@ const QUICK_TEMPLATES = [
 
 export const RiwayatPerjalananPenyakitForm: React.FC<RiwayatPerjalananPenyakitFormProps> = ({
   encounterId,
-  patientData
+  patientData,
+  hideHeader = false,
+  globalPerformerId
 }) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
@@ -59,14 +63,22 @@ export const RiwayatPerjalananPenyakitForm: React.FC<RiwayatPerjalananPenyakitFo
       return
     }
 
-    const performerId = form.getFieldValue('performerId')
+    let performerId: string | number | undefined = form.getFieldValue('performerId')
+    if (hideHeader && globalPerformerId) {
+      performerId = globalPerformerId
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
+      return
+    }
 
     try {
       const payload = createClinicalImpression({
         patientId: patientIdStr,
         patientName: patientData.patient?.name,
         encounterId,
-        practitionerId: performerId?.toString() ?? patientData.doctor?.id?.toString(),
+        assessor: `Practitioner/${performerId}`.toString(),
         summary: values.summary,
         category: CLINICAL_IMPRESSION_CATEGORIES.CLINICAL_COURSE
       })
@@ -168,7 +180,9 @@ export const RiwayatPerjalananPenyakitForm: React.FC<RiwayatPerjalananPenyakitFo
           onFinish={onFinish}
           className="pt-4 space-y-4! flex! flex-col!"
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          {!hideHeader && (
+            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          )}
 
           {/* Info resource FHIR */}
           <div className="bg-blue-50 border border-blue-100 rounded px-3 py-2 mb-4 text-xs text-blue-700">

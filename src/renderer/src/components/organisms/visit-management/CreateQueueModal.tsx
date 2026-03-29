@@ -40,7 +40,7 @@ const CreateQueueModal = ({
     enabled: !!doctorQueryInput.date && !!doctorQueryInput.poliId,
     queryKey: ['availableDoctors', { date: doctorQueryInput.date, poliId: doctorQueryInput.poliId }]
   })
-
+  console.log('query for doctor', doctorQueryInput)
   const availableDoctors = useMemo(() => {
     const data = doctorsQuery.data as any
     return data?.result?.doctors || data?.data?.doctors || data?.doctors || []

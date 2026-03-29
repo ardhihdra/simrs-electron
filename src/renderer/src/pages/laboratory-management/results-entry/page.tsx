@@ -30,24 +30,19 @@ export default function RecordResultPage() {
   const [selectedStudyUid, setSelectedStudyUid] = useState<string | undefined>(undefined)
 
   // Terminology Data for Unit and Domain Check
-  const { data: terminologyData } = client.laboratoryManagement.searchTerminology.useQuery(
-    {
-      query: (record?.test as any).code || '',
-      // domain: 'laboratory', // Search all domains to find if it is radiology
-      limit: 1
-    },
+  const { data: terminologyData } = client.laboratoryManagement.getServiceRequestCodes.useQuery(
+    { loincCode: (record?.test as any)?.code || '' },
     {
       enabled: !!(record?.test as any)?.code,
-      queryKey: ['search-terminology', { query: (record?.test as any)?.code, limit: 1 }]
+      queryKey: ['service-request-code-by-loinc', (record?.test as any)?.code]
     }
   )
 
-  const terminologyItem = (terminologyData as Record<string, unknown>)?.result as
-    | Record<string, unknown>
+  const terminologyResult = (terminologyData as Record<string, unknown>)?.result as
+    | { laboratory?: Record<string, unknown>[]; radiology?: Record<string, unknown>[] }
     | undefined
-  const firstTermItem = Array.isArray(terminologyItem)
-    ? (terminologyItem[0] as Record<string, unknown> | undefined)
-    : undefined
+  const firstTermItem =
+    terminologyResult?.laboratory?.[0] ?? terminologyResult?.radiology?.[0]
 
   // PACS study search — generic, autofills with patientId on mount
   const patientId = (record as Record<string, unknown>)?.patientId as string | undefined

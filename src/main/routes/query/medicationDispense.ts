@@ -90,6 +90,28 @@ export const schemas = {
       error: z.string().optional(),
       message: z.string().optional()
     })
+  },
+  createModule: {
+    args: z.object({
+      patientId: z.string(),
+      itemId: z.number().nullable().optional(),
+      status: z.nativeEnum(MedicationDispenseStatus),
+      authorizingPrescriptionId: z.number().nullable().optional(),
+      encounterId: z.string().nullable().optional(),
+      quantity: z.object({ value: z.number().optional(), unit: z.string().optional() }).nullable().optional(),
+      whenPrepared: z.string().or(z.date()).nullable().optional(),
+      whenHandedOver: z.string().or(z.date()).nullable().optional(),
+      dosageInstruction: z.array(z.object({ text: z.string().optional() }).passthrough()).nullable().optional(),
+      category: z.array(z.object({ text: z.string().optional(), code: z.string().optional() }).passthrough()).nullable().optional(),
+      note: z.string().nullable().optional(),
+      performerId: z.number().nullable().optional()
+    }),
+    result: z.object({
+      success: z.boolean(),
+      result: z.object({ id: z.number(), status: z.nativeEnum(MedicationDispenseStatus) }).optional(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
   }
 } as const
 
@@ -521,9 +543,12 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
         enrichedRx && !enrichedRx.item && itemDetail
           ? { ...enrichedRx, item: itemDetail }
           : enrichedRx
+      const medicationEntry = item.medication ?? (itemDetail ? { id: itemDetail.id, name: itemDetail.nama, uom: undefined, stock: undefined } : undefined)
+
       return Object.assign({}, item, {
         patient: enrichedPatient ?? item.patient,
-        authorizingPrescription: mergedRx ?? item.authorizingPrescription
+        authorizingPrescription: mergedRx ?? item.authorizingPrescription,
+        medication: medicationEntry
       })
     })
 

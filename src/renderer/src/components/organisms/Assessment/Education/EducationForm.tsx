@@ -184,13 +184,13 @@ export const EducationForm = ({ encounterId, patientData }: EducationFormProps) 
   }
 
   const procedureColumns: ColumnsType<ProcedureTableData> = [
-    {
-      title: 'Kode (ICD-9 / SNOMED CT)',
-      dataIndex: ['procedure', 'icd9Code'],
-      key: 'icd9Code',
-      width: 150,
-      render: (code: string | undefined) => code || '-'
-    },
+    // {
+    //   title: 'Kode',
+    //   dataIndex: ['procedure', 'icd9Code'],
+    //   key: 'icd9Code',
+    //   width: 150,
+    //   render: (code: string | undefined) => code || '-'
+    // },
     {
       title: 'Nama Edukasi',
       dataIndex: ['procedure', 'name'],
@@ -251,7 +251,7 @@ export const EducationForm = ({ encounterId, patientData }: EducationFormProps) 
     >
       <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 
-      <Card title="Edukasi Pasien & Keluarga (SNOMED CT / ICD-9-CM)">
+      <Card title="Edukasi Pasien & Keluarga">
         <Space direction="vertical" className="w-full" size="large">
           <Form.Item label="Cari dan Tambah Edukasi" name="procedureSearch">
             <AutoComplete

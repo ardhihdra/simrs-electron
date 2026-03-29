@@ -17,7 +17,7 @@ type UpcomingQueueRow = {
   noSep?: string
   sepStatus?: string
   queueDate?: string
-  poliId?: number | string
+  poliCodeId?: number
   poliName?: string
   poli?: {
     id?: number | string
@@ -51,12 +51,12 @@ export default function UpcomingQueuePage() {
     [poliData]
   )
 
+  // TODO: move to backend
   const filteredData = useMemo(() => {
     const rows = (queueData?.result || []) as UpcomingQueueRow[]
     if (!searchParams.poliId) return rows
-
     return rows.filter((row) => {
-      const rowPoliId = row.poliId ?? row.poli?.id
+      const rowPoliId = row.poliCodeId ?? row.poli?.id
       return rowPoliId !== undefined && String(rowPoliId) === searchParams.poliId
     })
   }, [queueData, searchParams.poliId])

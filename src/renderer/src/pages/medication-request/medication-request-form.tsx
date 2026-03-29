@@ -1,13 +1,22 @@
-import { Button, Form, Input, InputNumber, Select, Switch, Tag, App as AntdApp } from 'antd'
+import {
+  Button,
+  Form,
+  Input,
+  Select,
+  App as AntdApp
+} from 'antd'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
-import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { useEffect, useMemo, useState } from 'react'
 import { queryClient } from '@renderer/query-client'
 import dayjs from 'dayjs'
+import { PatientAttributes } from 'simrs-types'
+import { ItemPrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/ItemPrescriptionForm'
+import { CompoundPrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/CompoundPrescriptionForm'
 import { PatientSelectorWithService, PatientSelectorValue } from '@renderer/components/organisms/PatientSelectorWithService'
 import { MedicationOtherItemsTable } from './components/MedicationOtherItemsTable'
 import { MedicationCompoundsSection } from './components/MedicationCompoundsSection'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 // Enums copied locally to avoid import issues with main process
 enum MedicationRequestStatus {
@@ -152,14 +161,87 @@ interface MedicationRequestRecordForEdit {
   supportingInformation?: SupportingInformationItemInfo[] | null
 }
 
+type EncounterOptionSource = {
+  id: string
+  encounterCode?: string
+  patient?: { id?: string | number; name?: string }
+  visitDate?: string
+  period?: { start?: string; end?: string }
+  startTime?: string
+  createdAt?: string | Date | null
+  updatedAt?: string | Date | null
+}
+type EncounterListPayload =
+  | { result?: EncounterOptionSource[]; data?: EncounterOptionSource[] }
+  | undefined
+
 export function MedicationRequestForm() {
   const navigate = useNavigate()
   const { id } = useParams()
   const [form] = Form.useForm<FormData>()
   const isEdit = Boolean(id)
   const [session, setSession] = useState<any>(null)
-  const [originalGroupRecords, setOriginalGroupRecords] = useState<MedicationRequestRecordForEdit[]>([])
+  const [originalGroupRecords, setOriginalGroupRecords] = useState<
+    MedicationRequestRecordForEdit[]
+  >([])
   const { message, modal } = AntdApp.useApp()
+
+  // Batch options per item row: key = `otherItem-{index}` or `compound-{compIdx}-ing-{ingIdx}`
+  type BatchOption = {
+    batchNumber: string;
+    expiryDate: string | null;
+    availableStock: number;
+    firstReceivedDate?: string;
+  }
+  const [batchOptionsMap, setBatchOptionsMap] = useState<Map<string, BatchOption[]>>(new Map())
+  const [batchLoadingMap, setBatchLoadingMap] = useState<Map<string, boolean>>(new Map())
+  const [batchSortModeMap, setBatchSortModeMap] = useState<Map<string, boolean>>(new Map())
+
+  const sortBatches = useCallback((batches: BatchOption[], rowKey: string): BatchOption[] => {
+    const isFefo = batchSortModeMap.get(rowKey) ?? true // default FEFO
+
+    return [...batches].sort((a, b) => {
+      if (isFefo) {
+        // FEFO: earliest expiry first
+        if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate)
+        if (a.expiryDate) return -1
+        if (b.expiryDate) return 1
+        // If neither has expiry, fallback to FIFO (received date)
+        if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
+        return 0
+      }
+      // FIFO: oldest received date first
+      if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
+      // Fallback to batch number if received date missing
+      return a.batchNumber.localeCompare(b.batchNumber)
+    })
+  }, [batchSortModeMap])
+
+  const fetchBatchesForItem = useCallback(async (kodeItem: string, rowKey: string) => {
+    setBatchLoadingMap((prev) => new Map(prev).set(rowKey, true))
+    try {
+      const api = window.api?.query as {
+        inventoryStock?: {
+          listBatchesByLocation?: (args: { kodeItem: string; kodeLokasi: string }) => Promise<{ success: boolean; result?: BatchOption[] }>,
+          listBatches?: (args: { kodeItem: string }) => Promise<{ success: boolean; result?: BatchOption[] }>
+        }
+      }
+      const listBatchesByLocation = api?.inventoryStock?.listBatchesByLocation
+      if (!listBatchesByLocation) {
+        // fallback to listBatches if needed
+      }
+      const res = listBatchesByLocation
+        ? await listBatchesByLocation({ kodeItem, kodeLokasi: 'FARM' })
+        : await api?.inventoryStock?.listBatches?.({ kodeItem })
+      if (res?.success && Array.isArray(res.result)) {
+        setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
+      }
+    } catch (err) {
+      console.error(`[MR] Fetch batches error for ${kodeItem} (row: ${rowKey})`, err)
+    } finally {
+      setBatchLoadingMap((prev) => new Map(prev).set(rowKey, false))
+    }
+  }, [])
 
   const buildDispenseRequest = (quantity?: number, unit?: string) => {
     if (!quantity) return null
@@ -191,7 +273,9 @@ export function MedicationRequestForm() {
       doseAndRate: [
         {
           type: {
-            coding: [{ system: 'http://terminology.hl7.org/CodeSystem/dose-rate-type', code: 'ordered' }]
+            coding: [
+              { system: 'http://terminology.hl7.org/CodeSystem/dose-rate-type', code: 'ordered' }
+            ]
           },
           doseQuantity: { value: doseValue, unit: doseUnit }
         }
@@ -313,6 +397,45 @@ export function MedicationRequestForm() {
     return map
   }, [itemCategoryData])
 
+  // const { data: encounterData, isLoading: encounterLoading } = useQuery({
+  //   queryKey: ['encounter', 'list', selectedPatientId],
+  //   queryFn: async () => {
+  //     const api = window.api?.query?.encounter?.list
+  //     if (!api) throw new Error('API encounter tidak tersedia')
+  //     const primary: {
+  //       success?: boolean
+  //       result?: EncounterOptionSource[]
+  //       data?: EncounterOptionSource[]
+  //       error?: string
+  //     } = await api({
+  //       limit: 100,
+  //       patientId: selectedPatientId ? String(selectedPatientId) : undefined
+  //     })
+  //     const hasArray = Array.isArray(primary?.result) || Array.isArray(primary?.data)
+  //     if (hasArray) return primary
+  //     const rpc = window.rpc?.encounter?.list
+  //     if (rpc) {
+  //       const params: { depth?: number; status?: string; id?: string } = { depth: 1 }
+  //       const fallback: {
+  //         success?: boolean
+  //         result?: EncounterOptionSource[]
+  //         data?: EncounterOptionSource[]
+  //         error?: string
+  //       } = await rpc(params)
+  //       return fallback
+  //     }
+  //     return primary
+  //   },
+  //   enabled: !!selectedPatientId || isEdit // Only fetch when patient is selected or in edit mode
+  // })
+
+  // Fallback: fetch encounters without patient filter, used only when filtered result is empty
+  const { data: encounterAllData } = useQuery({
+    queryKey: ['encounter', 'list', 'all'],
+    queryFn: () => window.api?.query?.encounter?.list({ limit: 100 }),
+    enabled: true
+  })
+
   const { data: requesterData } = useQuery({
     queryKey: ['kepegawaian', 'list'],
     queryFn: () => window.api?.query?.kepegawaian?.list()
@@ -341,62 +464,89 @@ export function MedicationRequestForm() {
   }, [signaData])
 
 
+  const itemOptions = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
 
+    const filteredByLocation = source.filter((item) => {
+      const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+      if (!code) return false
+      return farmKodeSet.has(code)
+    })
 
-
-
-  const itemOptions = useMemo(
-    () => {
-      const source: ItemAttributes[] = Array.isArray(itemSource?.result)
-        ? itemSource.result
-        : []
-
-      const filteredByLocation = source.filter((item) => {
+    return filteredByLocation
+      .filter((item) => typeof item.id === 'number')
+      .map((item) => {
+        const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
+        const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
+        const unitName = item.unit?.nama ?? unitCode
         const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
-        if (!code) return false
-        return farmKodeSet.has(code)
+        const name = item.nama ?? code
+        const displayName = name || code || String(item.id)
+        const label = unitName ? `${displayName} (${unitName})` : displayName
+        const categoryId =
+          typeof item.itemCategoryId === 'number'
+            ? item.itemCategoryId
+            : typeof item.category?.id === 'number'
+              ? item.category.id
+              : null
+
+        let categoryType = ''
+        if (categoryId && itemCategoryMap.has(categoryId)) {
+          categoryType = itemCategoryMap.get(categoryId) || ''
+        } else {
+          const rawCategoryType =
+            typeof item.category?.categoryType === 'string' ? item.category.categoryType : undefined
+          categoryType = rawCategoryType ? rawCategoryType.trim().toLowerCase() : ''
+        }
+
+        return {
+          value: item.id as number,
+          label,
+          unitCode,
+          categoryId,
+          categoryType
+        }
       })
+      .filter((entry) => entry.unitCode.length > 0)
+  }, [itemSource?.result, itemCategoryMap])
 
-      return filteredByLocation
-        .filter((item) => typeof item.id === 'number')
-        .map((item) => {
-          const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
-          const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
-          const unitName = item.unit?.nama ?? unitCode
-          const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
-          const name = item.nama ?? code
-          const displayName = name || code || String(item.id)
-          const label = unitName ? `${displayName} (${unitName})` : displayName
-          const categoryId =
-            typeof item.itemCategoryId === 'number'
-              ? item.itemCategoryId
-              : typeof item.category?.id === 'number'
-                ? item.category.id
-                : null
-
-          let categoryType = ''
-          if (categoryId && itemCategoryMap.has(categoryId)) {
-            categoryType = itemCategoryMap.get(categoryId) || ''
-          } else {
-            const rawCategoryType =
-              typeof item.category?.categoryType === 'string'
-                ? item.category.categoryType
-                : undefined
-            categoryType = rawCategoryType ? rawCategoryType.trim().toLowerCase() : ''
-          }
-
-          return {
-            value: item.id as number,
-            label,
-            unitCode,
-            categoryId,
-            categoryType
-          }
-        })
-        .filter((entry) => entry.unitCode.length > 0)
-    },
-    [itemSource?.result, itemCategoryMap, farmKodeSet]
-  )
+  const extractEncounters = (src: EncounterListPayload): EncounterOptionSource[] => {
+    const a = src?.result
+    const b = src?.data
+    return Array.isArray(a) ? a : Array.isArray(b) ? b! : []
+  }
+  // const encounterOptions = useMemo(() => {
+  //   const filtered = extractEncounters(encounterData)
+  //   const all = extractEncounters(encounterAllData)
+  //   const base = filtered.length > 0 ? filtered : all
+  //   const toDateText = (e: EncounterOptionSource): string | undefined => {
+  //     const raw = e.startTime || e.period?.start || e.visitDate || e.updatedAt || e.createdAt
+  //     if (!raw) return undefined
+  //     const dt =
+  //       raw instanceof Date ? raw : typeof raw === 'string' ? new Date(raw) : new Date(String(raw))
+  //     if (Number.isNaN(dt.getTime())) return undefined
+  //     return dt.toLocaleString('id-ID', {
+  //       day: '2-digit',
+  //       month: 'short',
+  //       year: 'numeric',
+  //       hour: '2-digit',
+  //       minute: '2-digit'
+  //     })
+  //   }
+  //   const options = base
+  //     .filter((e) => {
+  //       if (!selectedPatientId || filtered.length > 0) return true
+  //       // When using fallback (all), ensure we only show encounters of selected patient if patient info is present
+  //       // Some endpoints may not embed patient object; in that case, show all to let user pick manually.
+  //       const pid = e.patient?.id
+  //       return pid ? String(pid) === String(selectedPatientId) : true
+  //     })
+  //     .map((e) => ({
+  //       label: toDateText(e) || e.encounterCode || e.id,
+  //       value: e.id
+  //     }))
+  //   return options
+  // }, [encounterData, encounterAllData, selectedPatientId])
 
   const itemKodeMap = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
@@ -448,7 +598,9 @@ export function MedicationRequestForm() {
             Array.isArray(r.identifier) &&
             r.identifier.some((idEntry) => idEntry.system === 'racikan-group')
           const hasItem = typeof r.itemId === 'number' && r.itemId > 0
-          return !isCompound && !hasRacikanIdentifier && !hasItem && typeof r.medicationId === 'number'
+          return (
+            !isCompound && !hasRacikanIdentifier && !hasItem && typeof r.medicationId === 'number'
+          )
         })
 
         const compoundRecords = records.filter((r) => {
@@ -466,7 +618,7 @@ export function MedicationRequestForm() {
           medicationId: r.medicationId ?? 0,
           dosageInstruction:
             r.dosageInstruction && r.dosageInstruction[0]
-              ? r.dosageInstruction[0].text ?? ''
+              ? (r.dosageInstruction[0].text ?? '')
               : '',
           note: r.note ?? '',
           quantity: r.dispenseRequest?.quantity?.value,
@@ -478,9 +630,8 @@ export function MedicationRequestForm() {
         compoundRecords.forEach((r) => {
           const titleMatch = r.note?.match(/^\[Racikan:([^\]]+)\]/)
           const name = titleMatch && titleMatch[1] ? titleMatch[1].trim() : 'Racikan'
-          const dosageText = r.dosageInstruction && r.dosageInstruction[0]
-            ? r.dosageInstruction[0].text ?? ''
-            : ''
+          const dosageText =
+            r.dosageInstruction && r.dosageInstruction[0] ? (r.dosageInstruction[0].text ?? '') : ''
 
           let itemsForCompound: {
             sourceType: 'medicine' | 'substance'
@@ -503,10 +654,23 @@ export function MedicationRequestForm() {
                 const anyInfo = info as any
                 return {
                   sourceType: 'medicine',
-                  medicationId: info.medicationId ? Number(info.medicationId) : (anyInfo.medication_id ? Number(anyInfo.medication_id) : undefined),
-                  itemId: info.itemId ? Number(info.itemId) : (anyInfo.item_id ? Number(anyInfo.item_id) : undefined),
+                  medicationId: info.medicationId
+                    ? Number(info.medicationId)
+                    : anyInfo.medication_id
+                      ? Number(anyInfo.medication_id)
+                      : undefined,
+                  itemId: info.itemId
+                    ? Number(info.itemId)
+                    : anyInfo.item_id
+                      ? Number(anyInfo.item_id)
+                      : undefined,
                   note: info.note || anyInfo.note || info.instruction || anyInfo.instruction || '',
-                  quantity: typeof info.quantity === 'number' ? info.quantity : (typeof anyInfo.quantity === 'number' ? anyInfo.quantity : undefined),
+                  quantity:
+                    typeof info.quantity === 'number'
+                      ? info.quantity
+                      : typeof anyInfo.quantity === 'number'
+                        ? anyInfo.quantity
+                        : undefined,
                   unit: info.unitCode || anyInfo.unitCode || undefined
                 }
               })
@@ -529,7 +693,7 @@ export function MedicationRequestForm() {
                 sourceType: 'medicine' as const,
                 medicationId: itemRecord.medicationId ?? undefined,
                 itemId: itemRecord.itemId ?? undefined,
-                note: itemRecord.id === r.id ? undefined : itemRecord.note ?? undefined
+                note: itemRecord.id === r.id ? undefined : (itemRecord.note ?? undefined)
               }))
           }
 
@@ -589,7 +753,7 @@ export function MedicationRequestForm() {
                 medicationId: baseRecord.medicationId ?? 0,
                 dosageInstruction:
                   baseRecord.dosageInstruction && baseRecord.dosageInstruction[0]
-                    ? baseRecord.dosageInstruction[0].text ?? ''
+                    ? (baseRecord.dosageInstruction[0].text ?? '')
                     : '',
                 note: baseRecord.note ?? '',
                 quantity: baseRecord.dispenseRequest?.quantity?.value,
@@ -717,9 +881,9 @@ export function MedicationRequestForm() {
         finalPatientId = regRes.data.id
       } catch (err) {
         console.error('[MR] Manual patient registration failed:', err)
-        modal.error({ 
-          title: 'Gagal Registrasi Pasien Luar', 
-          content: err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftarkan pasien luar.' 
+        modal.error({
+          title: 'Gagal Registrasi Pasien Luar',
+          content: err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftarkan pasien luar.'
         })
         return
       }
@@ -775,7 +939,7 @@ export function MedicationRequestForm() {
         Array.isArray(originalGroupRecords) && originalGroupRecords.length > 0
           ? originalGroupRecords
           : detail
-            ? [(detail as unknown) as MedicationRequestRecordForEdit]
+            ? [detail as unknown as MedicationRequestRecordForEdit]
             : []
 
       const simpleRecords = sourceRecords.filter((record) => {
@@ -803,9 +967,10 @@ export function MedicationRequestForm() {
 
       const existingGroupIdentifier =
         detail?.groupIdentifier ??
-        (simpleRecords.find((record) => record.groupIdentifier)?.groupIdentifier ??
-          compoundRecords.find((record) => record.groupIdentifier)?.groupIdentifier ??
-          itemRecords.find((record) => record.groupIdentifier)?.groupIdentifier ?? null)
+        simpleRecords.find((record) => record.groupIdentifier)?.groupIdentifier ??
+        compoundRecords.find((record) => record.groupIdentifier)?.groupIdentifier ??
+        itemRecords.find((record) => record.groupIdentifier)?.groupIdentifier ??
+        null
 
       const hasNewSimple = items.length > simpleRecords.length
       const hasNewCompound = compounds.length > compoundRecords.length
@@ -870,10 +1035,7 @@ export function MedicationRequestForm() {
             dosageInstruction: item.dosageInstruction
               ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
               : null,
-            dispenseRequest: buildDispenseRequest(
-              item.quantity,
-              item.quantityUnit
-            ),
+            dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
             category: record.category ?? null,
             identifier: record.identifier ?? null,
             supportingInformation:
@@ -901,7 +1063,9 @@ export function MedicationRequestForm() {
       const compoundInputs: CompoundInputItem[] = compounds.map((compound) => {
         const compoundItems = compound.items ?? []
         const ingredients = compoundItems
-          .filter((item) => typeof item.medicationId === 'number' || typeof item.itemId === 'number')
+          .filter(
+            (item) => typeof item.medicationId === 'number' || typeof item.itemId === 'number'
+          )
           .map((item) => {
             let name = ''
             if (typeof item.medicationId === 'number') {
@@ -935,10 +1099,7 @@ export function MedicationRequestForm() {
         }
       })
 
-      const compoundCount = Math.min(
-        compoundRecords.length,
-        compoundInputs.length
-      )
+      const compoundCount = Math.min(compoundRecords.length, compoundInputs.length)
       for (let indexCompound = 0; indexCompound < compoundCount; indexCompound += 1) {
         const record = compoundRecords[indexCompound]
         if (typeof record.id !== 'number') {
@@ -948,9 +1109,7 @@ export function MedicationRequestForm() {
         const groupIdentifier =
           groupIdentifierForEdit ?? record.groupIdentifier ?? detail?.groupIdentifier ?? null
         const compoundNotePrefix = input.name ? `[Racikan: ${input.name}]` : '[Racikan]'
-        const fullNote = input.note
-          ? `${compoundNotePrefix} ${input.note}`
-          : compoundNotePrefix
+        const fullNote = input.note ? `${compoundNotePrefix} ${input.note}` : compoundNotePrefix
         updates.push({
           id: record.id,
           payload: {
@@ -960,12 +1119,15 @@ export function MedicationRequestForm() {
             note: fullNote,
             groupIdentifier,
             dosageInstruction: input.dosageInstruction
-              ? [buildDosageInstruction(input.dosageInstruction, input.quantity, input.quantityUnit)]
+              ? [
+                buildDosageInstruction(
+                  input.dosageInstruction,
+                  input.quantity,
+                  input.quantityUnit
+                )
+              ]
               : null,
-            dispenseRequest: buildDispenseRequest(
-              input.quantity,
-              input.quantityUnit
-            ),
+            dispenseRequest: buildDispenseRequest(input.quantity, input.quantityUnit),
             category:
               record.category && record.category.length > 0
                 ? record.category
@@ -992,9 +1154,7 @@ export function MedicationRequestForm() {
         const groupIdentifier =
           groupIdentifierForEdit ?? record.groupIdentifier ?? detail?.groupIdentifier ?? null
         const existingDispense = record.dispenseRequest ?? null
-        const selectedOption = itemOptions.find(
-          (option) => option.value === input.itemId
-        )
+        const selectedOption = itemOptions.find((option) => option.value === input.itemId)
         const unitCodeFromOption =
           selectedOption && typeof selectedOption.unitCode === 'string'
             ? selectedOption.unitCode
@@ -1086,13 +1246,8 @@ export function MedicationRequestForm() {
             itemId: item.medicationId,
             note: item.note ?? null,
             groupIdentifier,
-            dosageInstruction: item.dosageInstruction
-              ? [{ text: item.dosageInstruction }]
-              : null,
-            dispenseRequest: buildDispenseRequest(
-              item.quantity,
-              item.quantityUnit
-            ),
+            dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
+            dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
             category: null,
             identifier: null,
             supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
@@ -1110,22 +1265,15 @@ export function MedicationRequestForm() {
         ) {
           const input = compoundInputs[indexCompoundNew]
           const compoundNotePrefix = input.name ? `[Racikan: ${input.name}]` : '[Racikan]'
-          const fullNote = input.note
-            ? `${compoundNotePrefix} ${input.note}`
-            : compoundNotePrefix
+          const fullNote = input.note ? `${compoundNotePrefix} ${input.note}` : compoundNotePrefix
           extraCompoundPayloads.push({
             ...baseCommonPayload,
             medicationId: null,
             itemId: null,
             note: fullNote,
             groupIdentifier,
-            dosageInstruction: input.dosageInstruction
-              ? [{ text: input.dosageInstruction }]
-              : null,
-            dispenseRequest: buildDispenseRequest(
-              input.quantity,
-              input.quantityUnit
-            ),
+            dosageInstruction: input.dosageInstruction ? [{ text: input.dosageInstruction }] : null,
+            dispenseRequest: buildDispenseRequest(input.quantity, input.quantityUnit),
             category: [{ text: 'racikan', code: 'compound' }],
             identifier: null,
             supportingInformation:
@@ -1155,9 +1303,7 @@ export function MedicationRequestForm() {
           const instructionText =
             typeof input.instruction === 'string' ? input.instruction.trim() : ''
           const noteText = typeof input.note === 'string' ? input.note.trim() : ''
-          const combinedNote = [instructionText, noteText]
-            .filter((x) => x.length > 0)
-            .join(' | ')
+          const combinedNote = [instructionText, noteText].filter((x) => x.length > 0).join(' | ')
 
           const unitCode = itemUnitCodeMapForEdit.get(input.itemId)
 
@@ -1188,7 +1334,13 @@ export function MedicationRequestForm() {
           itemId: firstItem?.medicationId,
           note: firstItem?.note ?? null,
           dosageInstruction: firstItem?.dosageInstruction
-            ? [buildDosageInstruction(firstItem.dosageInstruction, firstItem?.quantity, firstItem?.quantityUnit)]
+            ? [
+              buildDosageInstruction(
+                firstItem.dosageInstruction,
+                firstItem?.quantity,
+                firstItem?.quantityUnit
+              )
+            ]
             : null,
           dispenseRequest: buildDispenseRequest(
             firstItem?.quantity,
@@ -1262,7 +1414,9 @@ export function MedicationRequestForm() {
         const compoundItems = comp.items || []
 
         const ingredients = compoundItems
-          .filter((item) => typeof item.medicationId === 'number' || typeof item.itemId === 'number')
+          .filter(
+            (item) => typeof item.medicationId === 'number' || typeof item.itemId === 'number'
+          )
           .map((item) => {
             let name = ''
             if (typeof item.medicationId === 'number') {
@@ -1412,11 +1566,30 @@ export function MedicationRequestForm() {
 
             <div className="space-y-2">
               <Form.Item label="Status" name="status" rules={[{ required: true }]}>
-                <Select options={Object.values(MedicationRequestStatus).map(v => ({ label: v, value: v }))} />
+                <Select
+                  options={Object.values(MedicationRequestStatus).map((v) => ({
+                    label: v,
+                    value: v
+                  }))}
+                />
+              </Form.Item>
+
+              <Form.Item label="Tujuan (Intent)" name="intent" rules={[{ required: true }]}>
+                <Select
+                  options={Object.values(MedicationRequestIntent).map((v) => ({
+                    label: v,
+                    value: v
+                  }))}
+                />
               </Form.Item>
 
               <Form.Item label="Prioritas" name="priority">
-                <Select options={Object.values(MedicationRequestPriority).map(v => ({ label: v, value: v }))} />
+                <Select
+                  options={Object.values(MedicationRequestPriority).map((v) => ({
+                    label: v,
+                    value: v
+                  }))}
+                />
               </Form.Item>
 
               <Form.Item
@@ -1445,25 +1618,47 @@ export function MedicationRequestForm() {
             </div>
           </div>
 
-            <MedicationOtherItemsTable
-              itemOptions={itemOptions}
-              itemLoading={itemLoading}
-              signaOptions={signaOptions}
-              signaLoading={signaLoading}
-            />
+          <MedicationOtherItemsTable
+            itemOptions={itemOptions}
+            itemLoading={itemLoading}
+            signaOptions={signaOptions}
+            signaLoading={signaLoading}
+          />
 
-            <MedicationCompoundsSection
-              itemOptions={itemOptions}
-              itemLoading={itemLoading}
-              signaOptions={signaOptions}
-              signaLoading={signaLoading}
-            />
+          {/*    <ItemPrescriptionForm
+               name="otherItems"
+               title="Obat dan Barang"
+               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               loading={itemLoading}
+             />
+
+             <CompoundPrescriptionForm
+               name="compounds"
+               title="Daftar Obat Racikan"
+               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               loading={itemLoading}
+             />
+           </div> */}
+          <MedicationCompoundsSection
+            itemOptions={itemOptions}
+            itemLoading={itemLoading}
+            signaOptions={signaOptions}
+            signaLoading={signaLoading}
+          />
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
-            <Button type="primary" htmlType="submit" loading={createMutation.isPending || updateMutation.isPending} className="px-6 bg-orange-600 hover:bg-orange-500 border-none">
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={createMutation.isPending || updateMutation.isPending}
+              className="px-6 bg-orange-600 hover:bg-orange-500 border-none"
+            >
               Simpan
             </Button>
-            <Button onClick={() => navigate('/dashboard/medicine/medication-requests')} className="px-6">
+            <Button
+              onClick={() => navigate('/dashboard/medicine/medication-requests')}
+              className="px-6"
+            >
               Batal
             </Button>
           </div>

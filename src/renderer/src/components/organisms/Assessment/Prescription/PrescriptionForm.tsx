@@ -383,6 +383,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
       }
     }
   ]
+  console.log('medicationHistory', medicationHistory)
 
   return (
     <div className="">
@@ -400,7 +401,8 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           extra={
             <Space>
               <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalOpen(true)}>
-                Riwayat ({medicationHistory?.result?.length || 0})
+                Riwayat ({medicationHistory?.data?.length || medicationHistory?.result?.length || 0}
+                )
               </Button>
               <Button onClick={() => navigate('/dashboard/doctor')}>Kembali</Button>
             </Space>
@@ -447,7 +449,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
         ]}
       >
         <Table
-          dataSource={medicationHistory?.result || []}
+          dataSource={medicationHistory?.data || medicationHistory?.result || []}
           columns={historyColumns}
           rowKey="id"
           loading={isLoadingHistory}

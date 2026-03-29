@@ -41,6 +41,7 @@ interface DentalPageProps {
   encounterId?: string
   patientId?: string
   onSaveSuccess?: () => void
+  hideHeader?: boolean
 }
 
 const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps = {}) => {

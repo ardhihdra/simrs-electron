@@ -20,9 +20,16 @@ const { TextArea } = Input
 export interface MedicationFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
-export const MedicationForm: React.FC<MedicationFormProps> = ({ encounterId, patientData }) => {
+export const MedicationForm: React.FC<MedicationFormProps> = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -60,8 +67,13 @@ export const MedicationForm: React.FC<MedicationFormProps> = ({ encounterId, pat
   const handleFinish = async (values: any) => {
     if (!encounterId || !patientIdStr) return
 
-    if (!values.performerId) {
-      message.error('Mohon pilih pemeriksa')
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = Number(globalPerformerId)
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
       return
     }
 
@@ -84,7 +96,7 @@ export const MedicationForm: React.FC<MedicationFormProps> = ({ encounterId, pat
         await bulkCreateCondition.mutateAsync({
           encounterId,
           patientId: patientIdStr,
-          doctorId: values.performerId ? Number(values.performerId) : 0,
+          doctorId: performerId ? Number(performerId) : 0,
           conditions: generatedCondition
         })
 
@@ -114,7 +126,9 @@ export const MedicationForm: React.FC<MedicationFormProps> = ({ encounterId, pat
       }}
     >
       <Spin spinning={isSubmitting || isLoadingCondition} tip="Memuat Form..." size="large">
-        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        {!hideHeader && (
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        )}
 
         <Card title="Riwayat Pengobatan" className="mt-4!">
           <Form.Item name="medicationHistory">

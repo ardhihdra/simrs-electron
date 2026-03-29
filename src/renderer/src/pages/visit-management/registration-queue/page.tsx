@@ -52,6 +52,8 @@ export default function RegistrationQueue({
     status: ['PRE_RESERVED', 'RESERVED', 'REGISTERED', 'CALLED', 'TRIAGE', 'TRIAGED', 'IN_PROGRESS'],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
+  console.log('searchParams', searchParams)
+  console.log('queueData', queueData)
 
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
   const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()

@@ -34,9 +34,16 @@ const { TextArea } = Input
 export interface PastDiseaseFormProps {
   encounterId: string
   patientData: PatientData
+  hideHeader?: boolean
+  globalPerformerId?: string | number
 }
 
-export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, patientData }) => {
+export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
+  encounterId,
+  patientData,
+  hideHeader = false,
+  globalPerformerId
+}) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -120,8 +127,13 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, p
   const handleFinish = async (values: any) => {
     if (!encounterId || !patientIdStr) return
 
-    if (!values.performerId) {
-      message.error('Mohon pilih pemeriksa')
+    let performerId = values.performerId
+    if (hideHeader && globalPerformerId) {
+      performerId = Number(globalPerformerId)
+    }
+
+    if (!performerId) {
+      message.error('Mohon pilih pemeriksa atau pastikan dokter DPJP tersedia')
       return
     }
 
@@ -163,7 +175,7 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, p
       await bulkCreateCondition.mutateAsync({
         encounterId,
         patientId: patientIdStr,
-        doctorId: Number(values.performerId),
+        doctorId: performerId ? Number(performerId) : 0,
         conditions
       })
 
@@ -201,7 +213,9 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({ encounterId, p
         tip="Memuat Form Riwayat Penyakit..."
         size="large"
       >
-        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        {!hideHeader && (
+          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        )}
 
         <Card
           title="Riwayat Penyakit"

@@ -12,7 +12,8 @@ const ScopeSessionSchema = z.object({
   lokasiKerjaId: z.coerce.number(),
   allowedModules: z.array(z.string()).min(1),
   label: z.string().nullish().transform((value) => value ?? undefined),
-  hakAksesId: z.string().optional()
+  hakAksesId: z.string().optional(),
+  kepegawaianId: z.number().optional()
 })
 
 const ScopeActivationSchema = z
@@ -176,6 +177,7 @@ export const mmoduleRpc = {
           : result
       const parsedResult = ScopeSessionOutputSchema.safeParse(enrichedResult)
       if (!parsedResult.success && typeof senderId === 'number') {
+        console.error("failed to parse session", parsedResult)
         sessionStore?.clearScopeTokenForWindow?.(senderId)
       }
       console.log('SESSION:', enrichedResult)
