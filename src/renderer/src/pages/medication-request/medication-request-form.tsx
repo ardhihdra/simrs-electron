@@ -2,22 +2,21 @@ import {
   Button,
   Form,
   Input,
-  InputNumber,
   Select,
-  DatePicker,
-  Card,
-  Tooltip,
   App as AntdApp
 } from 'antd'
-import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { useNavigate, useParams } from 'react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { queryClient } from '@renderer/query-client'
 import dayjs from 'dayjs'
 import { PatientAttributes } from 'simrs-types'
 import { ItemPrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/ItemPrescriptionForm'
 import { CompoundPrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/CompoundPrescriptionForm'
+import { PatientSelectorWithService, PatientSelectorValue } from '@renderer/components/organisms/PatientSelectorWithService'
+import { MedicationOtherItemsTable } from './components/MedicationOtherItemsTable'
+import { MedicationCompoundsSection } from './components/MedicationCompoundsSection'
+import { useMutation, useQuery } from '@tanstack/react-query'
 
 // Enums copied locally to avoid import issues with main process
 enum MedicationRequestStatus {
@@ -56,7 +55,10 @@ interface FormData {
   patientId: string
   encounterId?: string | null
   requesterId?: number | null
+  roomId?: string | null
   authoredOn?: any
+  resepturId?: number | null
+  resepturName?: string
   // Single mode (Edit)
   medicationId?: number | null
   dosageInstruction?: string | null
@@ -91,7 +93,11 @@ interface FormData {
     quantity?: number
     instruction?: string
     note?: string
+    batchNumber?: string
+    expiryDate?: string
   }>
+  manualPatientName?: string
+  manualMedicalRecordNumber?: string
 }
 
 interface GroupIdentifierInfo {
@@ -107,6 +113,8 @@ interface DispenseQuantityInfo {
 interface DispenseRequestInfo {
   quantity?: DispenseQuantityInfo
 }
+
+// signa options are now dynamically loaded from backend via API
 
 interface DosageInstructionInfo {
   text?: string
@@ -142,6 +150,7 @@ interface MedicationRequestRecordForEdit {
   patientId: string
   encounterId?: string | null
   requesterId?: number | null
+  roomId?: string | null
   authoredOn?: string | Date
   medicationId?: number | null
   itemId?: number | null
@@ -154,17 +163,87 @@ interface MedicationRequestRecordForEdit {
   supportingInformation?: SupportingInformationItemInfo[] | null
 }
 
+type EncounterOptionSource = {
+  id: string
+  encounterCode?: string
+  patient?: { id?: string | number; name?: string }
+  visitDate?: string
+  period?: { start?: string; end?: string }
+  startTime?: string
+  createdAt?: string | Date | null
+  updatedAt?: string | Date | null
+}
+type EncounterListPayload =
+  | { result?: EncounterOptionSource[]; data?: EncounterOptionSource[] }
+  | undefined
+
 export function MedicationRequestForm() {
   const navigate = useNavigate()
   const { id } = useParams()
   const [form] = Form.useForm<FormData>()
-  const selectedPatientId = Form.useWatch('patientId', form)
   const isEdit = Boolean(id)
   const [session, setSession] = useState<any>(null)
   const [originalGroupRecords, setOriginalGroupRecords] = useState<
     MedicationRequestRecordForEdit[]
   >([])
   const { message, modal } = AntdApp.useApp()
+
+  // Batch options per item row: key = `otherItem-{index}` or `compound-{compIdx}-ing-{ingIdx}`
+  type BatchOption = {
+    batchNumber: string;
+    expiryDate: string | null;
+    availableStock: number;
+    firstReceivedDate?: string;
+  }
+  const [batchOptionsMap, setBatchOptionsMap] = useState<Map<string, BatchOption[]>>(new Map())
+  const [batchLoadingMap, setBatchLoadingMap] = useState<Map<string, boolean>>(new Map())
+  const [batchSortModeMap, setBatchSortModeMap] = useState<Map<string, boolean>>(new Map())
+
+  const sortBatches = useCallback((batches: BatchOption[], rowKey: string): BatchOption[] => {
+    const isFefo = batchSortModeMap.get(rowKey) ?? true // default FEFO
+
+    return [...batches].sort((a, b) => {
+      if (isFefo) {
+        // FEFO: earliest expiry first
+        if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate)
+        if (a.expiryDate) return -1
+        if (b.expiryDate) return 1
+        // If neither has expiry, fallback to FIFO (received date)
+        if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
+        return 0
+      }
+      // FIFO: oldest received date first
+      if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
+      // Fallback to batch number if received date missing
+      return a.batchNumber.localeCompare(b.batchNumber)
+    })
+  }, [batchSortModeMap])
+
+  const fetchBatchesForItem = useCallback(async (kodeItem: string, rowKey: string) => {
+    setBatchLoadingMap((prev) => new Map(prev).set(rowKey, true))
+    try {
+      const api = window.api?.query as {
+        inventoryStock?: {
+          listBatchesByLocation?: (args: { kodeItem: string; kodeLokasi: string }) => Promise<{ success: boolean; result?: BatchOption[] }>,
+          listBatches?: (args: { kodeItem: string }) => Promise<{ success: boolean; result?: BatchOption[] }>
+        }
+      }
+      const listBatchesByLocation = api?.inventoryStock?.listBatchesByLocation
+      if (!listBatchesByLocation) {
+        // fallback to listBatches if needed
+      }
+      const res = listBatchesByLocation
+        ? await listBatchesByLocation({ kodeItem, kodeLokasi: 'FARM' })
+        : await api?.inventoryStock?.listBatches?.({ kodeItem })
+      if (res?.success && Array.isArray(res.result)) {
+        setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
+      }
+    } catch (err) {
+      console.error(`[MR] Fetch batches error for ${kodeItem} (row: ${rowKey})`, err)
+    } finally {
+      setBatchLoadingMap((prev) => new Map(prev).set(rowKey, false))
+    }
+  }, [])
 
   const buildDispenseRequest = (quantity?: number, unit?: string) => {
     if (!quantity) return null
@@ -221,34 +300,6 @@ export function MedicationRequestForm() {
     enabled: isEdit
   })
 
-  // Fetch lists for dropdowns
-  const { data: patientData, isLoading: patientLoading } = useQuery({
-    queryKey: ['patient', 'list'],
-    queryFn: () => window.api?.query?.patient?.list({ items: 100 })
-  })
-
-  const { data: medicineData, isLoading: medicineLoading } = useQuery({
-    queryKey: ['medicine', 'list'],
-    queryFn: () => window.api?.query?.medicine?.list({ limit: 100 })
-  })
-
-  interface MedicineAttributes {
-    id?: number
-    name: string
-    stock?: number
-    medicineCategoryId?: number
-    category?: { name?: string | null; categoryType?: string | null } | null
-  }
-
-  interface RawMaterialAttributes {
-    id?: number
-    name: string
-  }
-
-  interface RawMaterialApi {
-    list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
-  }
-
   interface ItemAttributes {
     id?: number
     nama?: string
@@ -273,16 +324,6 @@ export function MedicationRequestForm() {
     message?: string
   }
 
-  const { data: rawMaterialData, isLoading: rawMaterialLoading } = useQuery({
-    queryKey: ['rawMaterial', 'list'],
-    queryFn: async () => {
-      const api = (window.api?.query as { rawMaterial?: RawMaterialApi }).rawMaterial
-      const fn = api?.list
-      if (!fn) throw new Error('API bahan baku tidak tersedia.')
-      return fn()
-    }
-  })
-
   const itemApi = (window.api?.query as { item?: { list: () => Promise<ItemListResponse> } }).item
 
   const { data: itemSource, isLoading: itemLoading } = useQuery<ItemListResponse>({
@@ -293,6 +334,50 @@ export function MedicationRequestForm() {
       return fn()
     }
   })
+
+  const { data: inventoryByLocation } = useQuery({
+    queryKey: ['inventoryStock', 'by-location', 'FARM', 'for-medication-request'],
+    queryFn: async () => {
+      const api = window.api?.query as {
+        inventoryStock?: {
+          listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
+            success: boolean
+            result?: Array<{
+              id: string
+              kodeLokasi: string
+              stockIn: number
+              stockOut: number
+              availableStock: number
+              items: Array<{
+                kodeItem: string
+                namaItem: string
+                unit: string
+                stockIn: number
+                stockOut: number
+                availableStock: number
+              }>
+            }>
+            message?: string
+          }>
+        }
+      }
+      const fn = api?.inventoryStock?.listByLocation
+      if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
+      return fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+    }
+  })
+
+  const farmKodeSet = useMemo(() => {
+    const arr = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
+    const farm = arr.find(l => l.kodeLokasi === 'FARM')
+    const items = farm?.items ?? []
+    const set = new Set<string>()
+    for (const it of items) {
+      const kode = (it.kodeItem || '').trim().toUpperCase()
+      if (kode && it.availableStock > 0) set.add(kode)
+    }
+    return set
+  }, [inventoryByLocation?.result])
 
   const { data: itemCategoryData } = useQuery({
     queryKey: ['itemCategory', 'list'],
@@ -314,37 +399,37 @@ export function MedicationRequestForm() {
     return map
   }, [itemCategoryData])
 
-  const { data: encounterData, isLoading: encounterLoading } = useQuery({
-    queryKey: ['encounter', 'list', selectedPatientId],
-    queryFn: async () => {
-      const api = window.api?.query?.encounter?.list
-      if (!api) throw new Error('API encounter tidak tersedia')
-      const primary: {
-        success?: boolean
-        result?: EncounterOptionSource[]
-        data?: EncounterOptionSource[]
-        error?: string
-      } = await api({
-        limit: 100,
-        patientId: selectedPatientId ? String(selectedPatientId) : undefined
-      })
-      const hasArray = Array.isArray(primary?.result) || Array.isArray(primary?.data)
-      if (hasArray) return primary
-      const rpc = window.rpc?.encounter?.list
-      if (rpc) {
-        const params: { depth?: number; status?: string; id?: string } = { depth: 1 }
-        const fallback: {
-          success?: boolean
-          result?: EncounterOptionSource[]
-          data?: EncounterOptionSource[]
-          error?: string
-        } = await rpc(params)
-        return fallback
-      }
-      return primary
-    },
-    enabled: !!selectedPatientId || isEdit // Only fetch when patient is selected or in edit mode
-  })
+  // const { data: encounterData, isLoading: encounterLoading } = useQuery({
+  //   queryKey: ['encounter', 'list', selectedPatientId],
+  //   queryFn: async () => {
+  //     const api = window.api?.query?.encounter?.list
+  //     if (!api) throw new Error('API encounter tidak tersedia')
+  //     const primary: {
+  //       success?: boolean
+  //       result?: EncounterOptionSource[]
+  //       data?: EncounterOptionSource[]
+  //       error?: string
+  //     } = await api({
+  //       limit: 100,
+  //       patientId: selectedPatientId ? String(selectedPatientId) : undefined
+  //     })
+  //     const hasArray = Array.isArray(primary?.result) || Array.isArray(primary?.data)
+  //     if (hasArray) return primary
+  //     const rpc = window.rpc?.encounter?.list
+  //     if (rpc) {
+  //       const params: { depth?: number; status?: string; id?: string } = { depth: 1 }
+  //       const fallback: {
+  //         success?: boolean
+  //         result?: EncounterOptionSource[]
+  //         data?: EncounterOptionSource[]
+  //         error?: string
+  //       } = await rpc(params)
+  //       return fallback
+  //     }
+  //     return primary
+  //   },
+  //   enabled: !!selectedPatientId || isEdit // Only fetch when patient is selected or in edit mode
+  // })
 
   // Fallback: fetch encounters without patient filter, used only when filtered result is empty
   const { data: encounterAllData } = useQuery({
@@ -358,81 +443,54 @@ export function MedicationRequestForm() {
     queryFn: () => window.api?.query?.kepegawaian?.list()
   })
 
-  const patientOptions = useMemo(() => {
-    const patients = (patientData?.data || []) as PatientAttributes[]
-    return patients.map((p) => ({
-      label: `${p.name} (${p.medicalRecordNumber || '-'})`,
-      value: p.id!
-    }))
-  }, [patientData])
+  // Dynamic Signa Options
+  const { data: signaData, isLoading: signaLoading } = useQuery({
+    queryKey: ['mastersigna', 'listAll'],
+    queryFn: () => {
+      const api = window.api?.query as any
+      if (api?.mastersigna?.listAll) {
+        return api.mastersigna.listAll()
+      }
+      return api?.mastersigna?.list({ limit: 500 })
+    }
+  })
 
-  const medicineOptions = useMemo(() => {
-    const source: MedicineAttributes[] = Array.isArray(medicineData?.result)
-      ? (medicineData!.result as MedicineAttributes[])
-      : []
-
+  const signaOptions = useMemo(() => {
+    const source = Array.isArray(signaData?.result) ? signaData!.result : []
     return source
-      .filter((m) => typeof m.id === 'number')
-      .map((m) => {
-        const stockValue = typeof m.stock === 'number' ? m.stock : undefined
-        const categoryName =
-          m.category && typeof m.category.name === 'string' ? m.category.name : undefined
-        const categoryPrefix = categoryName ? `[${categoryName}] ` : ''
-        let suffix = ''
+      .filter((s: any) => s.isActive !== false)
+      .map((s: any) => ({
+        label: s.signaName,
+        value: s.signaName
+      }))
+  }, [signaData])
 
-        if (typeof stockValue === 'number') {
-          if (stockValue === 0) {
-            suffix = ' - Stok habis'
-          } else {
-            suffix = ` - Stok: ${stockValue}`
-          }
-        } else {
-          suffix = ' - Stok: -'
-        }
-
-        let categoryType = ''
-        if (typeof m.medicineCategoryId === 'number' && itemCategoryMap.has(m.medicineCategoryId)) {
-          categoryType = itemCategoryMap.get(m.medicineCategoryId) || ''
-        } else {
-          const rawCategoryType =
-            typeof m.category?.categoryType === 'string' ? m.category.categoryType : undefined
-          categoryType = rawCategoryType ? rawCategoryType.trim().toLowerCase() : ''
-        }
-
-        return {
-          label: `${categoryPrefix}${m.name}${suffix}`,
-          value: m.id as number,
-          categoryType
-        }
-      })
-  }, [medicineData, itemCategoryMap])
-
-  const rawMaterialOptions = useMemo(() => {
-    const source = (rawMaterialData?.result ?? []) as RawMaterialAttributes[]
-    return source
-      .filter((rm) => typeof rm.id === 'number')
-      .map((rm) => ({ label: rm.name, value: rm.id as number }))
-  }, [rawMaterialData])
 
   const itemOptions = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
 
-    return source
-      .filter((item) => typeof item.id === 'number')
-      .map((item) => {
-        const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
-        const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
-        const unitName = item.unit?.nama ?? unitCode
+      const filteredByLocation = source.filter((item) => {
         const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
-        const name = item.nama ?? code
-        const displayName = name || code || String(item.id)
-        const label = unitName ? `${displayName} (${unitName})` : displayName
-        const categoryId =
-          typeof item.itemCategoryId === 'number'
-            ? item.itemCategoryId
-            : typeof item.category?.id === 'number'
-              ? item.category.id
-              : null
+        if (!code) return false
+        return farmKodeSet.has(code)
+      })
+
+      return filteredByLocation
+        .filter((item) => typeof item.id === 'number')
+        .map((item) => {
+          const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
+          const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
+          const unitName = item.unit?.nama ?? unitCode
+          const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+          const name = item.nama ?? code
+          const displayName = name || code || String(item.id)
+          const label = unitName ? `${displayName} (${unitName})` : displayName
+          const categoryId =
+            typeof item.itemCategoryId === 'number'
+              ? item.itemCategoryId
+              : typeof item.category?.id === 'number'
+                ? item.category.id
+                : null
 
         let categoryType = ''
         if (categoryId && itemCategoryMap.has(categoryId)) {
@@ -454,89 +512,71 @@ export function MedicationRequestForm() {
       .filter((entry) => entry.unitCode.length > 0)
   }, [itemSource?.result, itemCategoryMap])
 
-  type EncounterOptionSource = {
-    id: string
-    encounterCode?: string
-    patient?: { id?: string | number; name?: string }
-    visitDate?: string
-    period?: { start?: string; end?: string }
-    startTime?: string
-    createdAt?: string | Date | null
-    updatedAt?: string | Date | null
-  }
-  type EncounterListPayload =
-    | { result?: EncounterOptionSource[]; data?: EncounterOptionSource[] }
-    | undefined
   const extractEncounters = (src: EncounterListPayload): EncounterOptionSource[] => {
     const a = src?.result
     const b = src?.data
     return Array.isArray(a) ? a : Array.isArray(b) ? b! : []
   }
-  const encounterOptions = useMemo(() => {
-    const filtered = extractEncounters(encounterData)
-    const all = extractEncounters(encounterAllData)
-    const base = filtered.length > 0 ? filtered : all
-    const toDateText = (e: EncounterOptionSource): string | undefined => {
-      const raw = e.startTime || e.period?.start || e.visitDate || e.updatedAt || e.createdAt
-      if (!raw) return undefined
-      const dt =
-        raw instanceof Date ? raw : typeof raw === 'string' ? new Date(raw) : new Date(String(raw))
-      if (Number.isNaN(dt.getTime())) return undefined
-      return dt.toLocaleString('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    }
-    const options = base
-      .filter((e) => {
-        if (!selectedPatientId || filtered.length > 0) return true
-        // When using fallback (all), ensure we only show encounters of selected patient if patient info is present
-        // Some endpoints may not embed patient object; in that case, show all to let user pick manually.
-        const pid = e.patient?.id
-        return pid ? String(pid) === String(selectedPatientId) : true
-      })
-      .map((e) => ({
-        label: toDateText(e) || e.encounterCode || e.id,
-        value: e.id
-      }))
-    return options
-  }, [encounterData, encounterAllData, selectedPatientId])
+  // const encounterOptions = useMemo(() => {
+  //   const filtered = extractEncounters(encounterData)
+  //   const all = extractEncounters(encounterAllData)
+  //   const base = filtered.length > 0 ? filtered : all
+  //   const toDateText = (e: EncounterOptionSource): string | undefined => {
+  //     const raw = e.startTime || e.period?.start || e.visitDate || e.updatedAt || e.createdAt
+  //     if (!raw) return undefined
+  //     const dt =
+  //       raw instanceof Date ? raw : typeof raw === 'string' ? new Date(raw) : new Date(String(raw))
+  //     if (Number.isNaN(dt.getTime())) return undefined
+  //     return dt.toLocaleString('id-ID', {
+  //       day: '2-digit',
+  //       month: 'short',
+  //       year: 'numeric',
+  //       hour: '2-digit',
+  //       minute: '2-digit'
+  //     })
+  //   }
+  //   const options = base
+  //     .filter((e) => {
+  //       if (!selectedPatientId || filtered.length > 0) return true
+  //       // When using fallback (all), ensure we only show encounters of selected patient if patient info is present
+  //       // Some endpoints may not embed patient object; in that case, show all to let user pick manually.
+  //       const pid = e.patient?.id
+  //       return pid ? String(pid) === String(selectedPatientId) : true
+  //     })
+  //     .map((e) => ({
+  //       label: toDateText(e) || e.encounterCode || e.id,
+  //       value: e.id
+  //     }))
+  //   return options
+  // }, [encounterData, encounterAllData, selectedPatientId])
+
+  const itemKodeMap = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    source.forEach((item) => {
+      if (typeof item.id === 'number' && typeof item.kode === 'string') {
+        map.set(item.id, item.kode.trim().toUpperCase())
+      }
+    })
+    return map
+  }, [itemSource?.result])
 
   // Auto-fill Requester from Session (match NIK)
   useEffect(() => {
-    if (session?.user?.username && requesterData?.result && !isEdit) {
-      // session.user.username stores NIK based on main/routes/auth.ts logic
-      const currentNik = session.user.username
-      const employees = requesterData.result as { nik?: string; id: number }[]
-      const foundEmployee = employees.find((e) => e.nik === currentNik)
-
+    if (session?.user && requesterData?.result && !isEdit) {
+      const employees = requesterData.result as { id: number; nik?: string; namaLengkap?: string }[]
+      const sessionId = Number(session.user.id)
+      const sessionUsername = String(session.user.username || '').trim()
+      const byId = Number.isFinite(sessionId) ? employees.find(e => e.id === sessionId) : undefined
+      const byNik = employees.find(e => typeof e.nik === 'string' && e.nik.trim() === sessionUsername)
+      const byName = employees.find(e => typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+      const foundEmployee = byId || byNik || byName
       if (foundEmployee) {
-        form.setFieldValue('requesterId', foundEmployee.id)
+        form.setFieldValue('resepturId', foundEmployee.id)
+        form.setFieldValue('resepturName', foundEmployee.namaLengkap || undefined)
       }
     }
   }, [session, requesterData, isEdit, form])
-
-  // Auto-fill Encounter when Patient is selected
-  useEffect(() => {
-    if (selectedPatientId && encounterData?.result && !isEdit) {
-      // Find active encounter (status: in-progress / active)
-      // Assuming result is array of encounters. Adjust based on actual API response structure.
-      const encounters = (encounterData.result || encounterData.data || []) as any[]
-      const activeEncounter = encounters.find(
-        (e) => e.status === 'in-progress' || e.status === 'active'
-      )
-
-      if (activeEncounter) {
-        form.setFieldValue('encounterId', activeEncounter.id)
-      } else if (encounters.length > 0) {
-        // Fallback to most recent?
-        form.setFieldValue('encounterId', encounters[0].id)
-      }
-    }
-  }, [selectedPatientId, encounterData, isEdit, form])
 
   useEffect(() => {
     if (isEdit && detailData?.success && detailData.data) {
@@ -700,6 +740,7 @@ export function MedicationRequestForm() {
           priority: baseRecord.priority,
           patientId: baseRecord.patientId,
           encounterId: baseRecord.encounterId ?? null,
+          roomId: baseRecord.roomId ?? null,
           requesterId: baseRecord.requesterId ?? null,
           authoredOn: baseRecord.authoredOn ? dayjs(baseRecord.authoredOn) : undefined,
           items: shouldUseFallbackSimpleItem
@@ -759,7 +800,7 @@ export function MedicationRequestForm() {
 
   const createMutation = useMutation({
     mutationKey: ['medicationRequest', 'create'],
-    mutationFn: (data) => {
+    mutationFn: (data: any) => {
       const fn = window.api?.query?.medicationRequest?.create
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
@@ -805,14 +846,68 @@ export function MedicationRequestForm() {
   })
 
   const onFinish = async (values: FormData) => {
+    let finalPatientId = values.patientId
+
+    if (values.patientId === 'MANUAL' && values.manualPatientName) {
+      try {
+        const createPatientFn = window.api?.query?.registration?.create
+        if (!createPatientFn) throw new Error('API pendaftaran pasien tidak tersedia.')
+
+        const regRes = (await createPatientFn({
+          name: values.manualPatientName,
+          medicalRecordNumber: values.manualMedicalRecordNumber || `L-MRN-${Date.now()}`,
+          nik: '0000000000000000',
+          gender: 'male' as const,
+          birthDate: '1900-01-01',
+          maritalStatus: 'single' as const,
+          phone: '-',
+          email: 'luar@k.com',
+          address: '-',
+          city: '-',
+          province: '-',
+          postalCode: '-',
+          country: 'Indonesia',
+          relatedPerson: [],
+          active: true
+        }) as any)
+
+        if (!regRes?.success) {
+          throw new Error(regRes.error || 'Gagal mendaftarkan pasien luar otomatis (Response Success False).')
+        }
+
+        if (!regRes.data?.id) {
+          console.error('[MR] Manual registration response data invalid:', regRes)
+          throw new Error('Gagal mendaftarkan pasien luar otomatis (ID tidak ditemukan di response).')
+        }
+
+        finalPatientId = regRes.data.id
+      } catch (err) {
+        console.error('[MR] Manual patient registration failed:', err)
+        modal.error({ 
+          title: 'Gagal Registrasi Pasien Luar', 
+          content: err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftarkan pasien luar.' 
+        })
+        return
+      }
+    }
+
     const baseCommonPayload = {
       status: values.status,
-      intent: values.intent,
+      intent: MedicationRequestIntent.ORDER,
       priority: values.priority,
-      patientId: values.patientId,
+      patientId: finalPatientId,
       encounterId: values.encounterId,
+      roomId: values.roomId,
       requesterId: values.requesterId,
-      authoredOn: values.authoredOn ? values.authoredOn.format('YYYY-MM-DD HH:mm:ss') : null
+      authoredOn: dayjs().format('YYYY-MM-DD HH:mm:ss')
+    }
+
+    const supportingInformationCommon: SupportingInformationItemInfo[] = []
+    if (typeof values.resepturId === 'number') {
+      supportingInformationCommon.push({
+        type: 'Reseptur',
+        itemId: values.resepturId
+      })
     }
 
     if (isEdit) {
@@ -944,7 +1039,10 @@ export function MedicationRequestForm() {
             dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
             category: record.category ?? null,
             identifier: record.identifier ?? null,
-            supportingInformation: record.supportingInformation ?? null
+            supportingInformation:
+              (record.supportingInformation && record.supportingInformation.length > 0)
+                ? [...record.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           }
         })
       }
@@ -960,8 +1058,8 @@ export function MedicationRequestForm() {
         supportingInformation?: SupportingInformationItemInfo[]
       }
 
-      const medicineList = (medicineData?.result || []) as MedicineAttributes[]
       const itemList = (itemSource?.result || []) as ItemAttributes[]
+      const medicineList = itemList as any[]
 
       const compoundInputs: CompoundInputItem[] = compounds.map((compound) => {
         const compoundItems = compound.items ?? []
@@ -981,11 +1079,13 @@ export function MedicationRequestForm() {
 
             const ingredient = {
               resourceType: 'Ingredient',
-              medicationId: (item.medicationId as number) || null,
-              itemId: (item.itemId as number) || null,
+              medicationId: (item.medicationId as number) || undefined,
+              itemId: (item.itemId as number) || undefined,
               note: item.note || '',
               instruction: item.note || '',
-              name
+              name,
+              batchNumber: (item as Record<string, unknown>).batchNumber || null,
+              expiryDate: (item as Record<string, unknown>).expiryDate || null
             }
             return ingredient
           })
@@ -1036,7 +1136,10 @@ export function MedicationRequestForm() {
                 ? record.category
                 : [{ text: 'racikan', code: 'compound' }],
             identifier: record.identifier ?? null,
-            supportingInformation: input.supportingInformation ?? null
+            supportingInformation:
+              (input.supportingInformation && input.supportingInformation.length > 0)
+                ? [...input.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           }
         })
       }
@@ -1075,7 +1178,10 @@ export function MedicationRequestForm() {
             dispenseRequest: newDispense,
             category: record.category ?? null,
             identifier: record.identifier ?? null,
-            supportingInformation: record.supportingInformation ?? null
+            supportingInformation:
+              (record.supportingInformation && record.supportingInformation.length > 0)
+                ? [...record.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           }
         })
       }
@@ -1147,7 +1253,7 @@ export function MedicationRequestForm() {
             dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
             category: null,
             identifier: null,
-            supportingInformation: null
+            supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
           })
         }
       }
@@ -1173,7 +1279,10 @@ export function MedicationRequestForm() {
             dispenseRequest: buildDispenseRequest(input.quantity, input.quantityUnit),
             category: [{ text: 'racikan', code: 'compound' }],
             identifier: null,
-            supportingInformation: input.supportingInformation ?? null
+            supportingInformation:
+              (input.supportingInformation && input.supportingInformation.length > 0)
+                ? [...input.supportingInformation, ...supportingInformationCommon]
+                : (supportingInformationCommon.length > 0 ? supportingInformationCommon : null)
           })
         }
       }
@@ -1214,7 +1323,14 @@ export function MedicationRequestForm() {
                 : null,
             category: null,
             identifier: null,
-            supportingInformation: null
+            supportingInformation: (() => {
+              const original =
+                input.batchNumber
+                  ? [{ resourceType: 'StockBatch', batchNumber: input.batchNumber, expiryDate: input.expiryDate ?? null }]
+                  : []
+              const merged = [...original, ...supportingInformationCommon]
+              return merged.length > 0 ? merged : null
+            })()
           })
         }
       }
@@ -1234,7 +1350,11 @@ export function MedicationRequestForm() {
                 )
               ]
             : null,
-          dispenseRequest: buildDispenseRequest(firstItem?.quantity, firstItem?.quantityUnit),
+          dispenseRequest: buildDispenseRequest(
+            firstItem?.quantity,
+            firstItem?.quantityUnit
+          ),
+          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null,
           id: baseId
         })
       } else {
@@ -1291,11 +1411,11 @@ export function MedicationRequestForm() {
           ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
           : null,
         note: item.note,
-        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)
+        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
+        supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
       }))
-
-      const medicineList = (medicineData?.result || []) as MedicineAttributes[]
       const itemList = (itemSource?.result || []) as ItemAttributes[]
+      const medicineList = itemList as any[]
 
       const compoundPayloads = compounds.map((comp, idx) => {
         const compoundId = `${Date.now()}-comp-${idx}`
@@ -1323,7 +1443,9 @@ export function MedicationRequestForm() {
               instruction: item.note || '',
               quantity: typeof item.quantity === 'number' ? item.quantity : 0,
               unitCode: item.unit || null,
-              name
+              name,
+              batchNumber: (item as Record<string, unknown>).batchNumber || null,
+              expiryDate: (item as Record<string, unknown>).expiryDate || null
             }
           })
 
@@ -1339,7 +1461,10 @@ export function MedicationRequestForm() {
           note: `[Racikan: ${comp.name}]`,
           category: [{ text: 'racikan', code: 'compound' }],
           dispenseRequest: buildDispenseRequest(comp.quantity, comp.quantityUnit),
-          supportingInformation: ingredients
+          supportingInformation: (() => {
+            const merged = [...ingredients, ...supportingInformationCommon]
+            return merged.length > 0 ? merged : null
+          })()
         }
       })
 
@@ -1371,7 +1496,15 @@ export function MedicationRequestForm() {
             dispenseRequest:
               typeof it.quantity === 'number' && unitCode
                 ? buildDispenseRequest(it.quantity, unitCode)
-                : null
+                : null,
+            supportingInformation: (() => {
+              const original =
+                it.batchNumber
+                  ? [{ resourceType: 'StockBatch', batchNumber: it.batchNumber, expiryDate: it.expiryDate ?? null }]
+                  : []
+              const merged = [...original, ...supportingInformationCommon]
+              return merged.length > 0 ? merged : null
+            })()
           }
         })
 
@@ -1389,45 +1522,57 @@ export function MedicationRequestForm() {
   return (
     <div className="flex justify-center p-4">
       <div className="w-full max-w-6xl bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-        <div className="flex justify-between items-center mb-6 border-b pb-4">
-          <h2 className="text-xl font-bold text-gray-800">
-            {isEdit ? 'Ubah Permintaan Obat' : 'Permintaan Obat Baru'}
-          </h2>
-          <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
-            Kembali
-          </Button>
+        <div className="flex justify-between items-center mb-6  pb-4">
+          <h2 className="text-xl font-bold text-gray-800">{isEdit ? 'Ubah Permintaan Obat' : 'Permintaan Obat Baru'}</h2>
+          <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>Kembali</Button>
         </div>
 
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mb-6">
             {/* Header Fields (Patient & Context) */}
-            <div className="space-y-2">
+            <div className="md:col-span-2 bg-gray-50  p-0 mb-4">
               <Form.Item
-                label="Pasien"
-                name="patientId"
-                rules={[{ required: true, message: 'Pasien wajib diisi' }]}
+                noStyle
+                shouldUpdate={(prev, curr) => prev.patientId !== curr.patientId || prev.encounterId !== curr.encounterId}
               >
-                <Select
-                  options={patientOptions}
-                  placeholder="Pilih Pasien"
-                  showSearch
-                  optionFilterProp="label"
-                  loading={patientLoading}
-                />
+                {({ getFieldValue, setFieldsValue }) => (
+                  <PatientSelectorWithService
+                    disabled={isEdit}
+                    initialValue={getFieldValue('encounterId')}
+                    onSelect={(val: PatientSelectorValue | null) => {
+                      if (val) {
+                        setFieldsValue({
+                          patientId: val.patientId,
+                          encounterId: val.encounterId,
+                          manualPatientName: val.patientName,
+                          manualMedicalRecordNumber: val.medicalRecordNumber
+                        })
+                      } else {
+                        setFieldsValue({
+                          patientId: undefined,
+                          encounterId: undefined,
+                          manualPatientName: undefined,
+                          manualMedicalRecordNumber: undefined
+                        })
+                      }
+                    }}
+                  />
+                )}
               </Form.Item>
+              {/* Hidden fields to keep Form compatibility */}
+              <Form.Item name="patientId" hidden><Input /></Form.Item>
+              <Form.Item name="encounterId" hidden><Input /></Form.Item>
+              <Form.Item name="manualPatientName" hidden><Input /></Form.Item>
+              <Form.Item name="manualMedicalRecordNumber" hidden><Input /></Form.Item>
+            </div>
 
-              <Form.Item
-                label="Kunjungan (Encounter)"
-                name="encounterId"
-                rules={[{ required: true, message: 'Kunjungan wajib diisi' }]}
-              >
-                <Select
-                  options={encounterOptions}
-                  placeholder="Pilih Kunjungan"
-                  showSearch
-                  optionFilterProp="label"
-                  loading={encounterLoading}
-                  allowClear
+            <div className="space-y-2">
+              <Form.Item label="Lokasi/Ruangan (Opsional)" name="roomId" tooltip="Diisi apabila pasien rawat inap untuk menentukan dimana obat akan di drop/diletakkan">
+                <SelectAsync
+                  entity="room"
+                  display="roomCodeId"
+                  output="id"
+                  placeHolder="Pilih Lokasi Ruangan (jika ada)"
                 />
               </Form.Item>
 
@@ -1462,130 +1607,72 @@ export function MedicationRequestForm() {
                 />
               </Form.Item>
 
-              <Form.Item label="Tanggal Penulisan" name="authoredOn">
-                <DatePicker showTime className="w-full" />
+              <Form.Item
+                label="Dokter"
+                name="requesterId"
+              >
+                <SelectAsync
+                  display="namaLengkap"
+                  entity="kepegawaian"
+                  output="id"
+                  filters={{ hakAksesId: 'doctor' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label="Reseptur"
+              >
+                <Input disabled value={form.getFieldValue('resepturName')} placeholder="Mengikuti pengguna login" />
+              </Form.Item>
+              <Form.Item name="resepturId" hidden>
+                <Input />
               </Form.Item>
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <h3 className="hidden font-semibold text-lg mb-4">Daftar Obat</h3>
-            <div className="hidden">
-              <Form.List name="items">
-                {(fields, { add, remove }) => (
-                  <div className="space-y-4">
-                    {fields.map(({ key, name, ...restField }) => (
-                      <div
-                        key={`item-${key}`}
-                        className="flex gap-4 items-start bg-gray-50 p-4 rounded-lg relative group"
-                      >
-                        <div className="flex-1 space-y-2">
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'medicationId']}
-                              label={
-                                <div className="flex items-center gap-1">
-                                  <span>Obat</span>
-                                  <Tooltip title="Pilih obat. Nama menampilkan informasi stok saat ini.">
-                                    <span className="text-gray-400 cursor-help">?</span>
-                                  </Tooltip>
-                                </div>
-                              }
-                              rules={[{ required: true, message: 'Wajib diisi' }]}
-                              className="mb-0"
-                            >
-                              <Select
-                                options={medicineOptions}
-                                placeholder="Pilih Obat"
-                                showSearch
-                                optionFilterProp="label"
-                                loading={medicineLoading}
-                              />
-                            </Form.Item>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'dosageInstruction']}
-                              label={
-                                <div className="flex items-center gap-1">
-                                  <span>Instruksi</span>
-                                  <Tooltip title="Aturan pakai atau signa untuk obat ini.">
-                                    <span className="text-gray-400 cursor-help">?</span>
-                                  </Tooltip>
-                                </div>
-                              }
-                              className="mb-0"
-                            >
-                              <Input placeholder="Dosis..." />
-                            </Form.Item>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'quantity']}
-                              label={
-                                <div className="flex items-center gap-1">
-                                  <span>Jumlah</span>
-                                  <Tooltip title="Isi jumlah yang diminta, perhatikan stok yang tersedia.">
-                                    <span className="text-gray-400 cursor-help">?</span>
-                                  </Tooltip>
-                                </div>
-                              }
-                              className="mb-0"
-                            >
-                              <InputNumber<number> min={1} className="w-full" />
-                            </Form.Item>
-                            <Form.Item
-                              {...restField}
-                              name={[name, 'quantityUnit']}
-                              label="Satuan"
-                              className="mb-0"
-                            >
-                              <Input placeholder="Contoh: tablet, kapsul, botol" />
-                            </Form.Item>
-                          </div>
-                          <Form.Item
-                            {...restField}
-                            name={[name, 'note']}
-                            label="Catatan"
-                            className="mb-0"
-                          >
-                            <Input placeholder="Catatan..." />
-                          </Form.Item>
-                        </div>
-                        {fields.length > 0 && (
-                          <Button
-                            type="text"
-                            danger
-                            icon={<MinusCircleOutlined />}
-                            onClick={() => remove(name)}
-                            className="mt-8"
-                          />
-                        )}
-                      </div>
-                    ))}
-                    <Form.Item>
-                      <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                        Tambah Obat
-                      </Button>
-                    </Form.Item>
-                  </div>
-                )}
-              </Form.List>
-            </div>
-
-            <ItemPrescriptionForm
-              name="otherItems"
-              title="Obat dan Barang"
-              itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
-              loading={itemLoading}
+            <MedicationOtherItemsTable
+              form={form}
+              itemOptions={itemOptions}
+              itemLoading={itemLoading}
+              itemKodeMap={itemKodeMap}
+              signaOptions={signaOptions}
+              signaLoading={signaLoading}
+              batchOptionsMap={batchOptionsMap}
+              batchLoadingMap={batchLoadingMap}
+              batchSortModeMap={batchSortModeMap}
+              setBatchSortModeMap={setBatchSortModeMap}
+              sortBatches={sortBatches}
+              fetchBatchesForItem={fetchBatchesForItem}
             />
 
-            <CompoundPrescriptionForm
-              name="compounds"
-              title="Daftar Obat Racikan"
-              itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
-              loading={itemLoading}
+          {/*    <ItemPrescriptionForm
+               name="otherItems"
+               title="Obat dan Barang"
+               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               loading={itemLoading}
+             />
+
+             <CompoundPrescriptionForm
+               name="compounds"
+               title="Daftar Obat Racikan"
+               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               loading={itemLoading}
+             />
+           </div> */}
+            <MedicationCompoundsSection
+              form={form}
+              itemOptions={itemOptions}
+              itemLoading={itemLoading}
+              itemKodeMap={itemKodeMap}
+              signaOptions={signaOptions}
+              signaLoading={signaLoading}
+              batchOptionsMap={batchOptionsMap}
+              batchLoadingMap={batchLoadingMap}
+              batchSortModeMap={batchSortModeMap}
+              setBatchSortModeMap={setBatchSortModeMap}
+              sortBatches={sortBatches}
+              fetchBatchesForItem={fetchBatchesForItem}
             />
-          </div>
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
             <Button

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router'
 import {
   Table,
   Button,
@@ -52,6 +53,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: st
 const PatientQueueTable = () => {
   const { message } = App.useApp()
   const { token } = theme.useToken()
+  const navigate = useNavigate()
   const [calling, setCalling] = useState<string | null>(null)
   const [polis, setPolis] = useState<Poli[]>([])
 
@@ -170,7 +172,8 @@ const PatientQueueTable = () => {
         refetch()
         // Tidak redirect; dokter klik Periksa sendiri saat siap
       } else {
-        message.error(response.error || 'Gagal memanggil pasien')
+        message.error('Gagal memanggil pasien')
+        message.error(response.error)
       }
     } catch (error) {
       message.error('Gagal memanggil pasien')

@@ -1,4 +1,4 @@
-import { moduleTree } from './constant'
+import { Modules, moduleTree } from './constant'
 import { useModuleScopeStore } from './store'
 import { ModuleCode, ModuleNode, PermissionState, ScopeSession } from './type'
 
@@ -16,32 +16,37 @@ export class ModuleScopePermission {
   }
 
   private buildIndexes(nodes: ModuleNode[], parent: ModuleCode | null): void {
-    for (const node of nodes) {
-      if (this.allModules.has(node.code)) {
-        throw new Error(`Duplicate module code: ${node.code}`)
-      }
-
-      this.allModules.add(node.code)
-      this.parentMap.set(node.code, parent)
-
-      if (!this.childrenMap.has(node.code)) {
-        this.childrenMap.set(node.code, [])
-      }
-
-      if (parent) {
-        const children = this.childrenMap.get(parent) ?? []
-        children.push(node.code)
-        this.childrenMap.set(parent, children)
-      }
-
-      if (node.children?.length) {
-        this.buildIndexes(node.children, node.code)
-      }
+    for (const module of Object.values(Modules)) {
+      this.allModules.add(module)
+      this.parentMap.set(module, parent)
     }
+    // for (const node of nodes) {
+    //   if (this.allModules.has(node.code)) {
+    //     throw new Error(`Duplicate module code: ${node.code}`)
+    //   }
+
+    //   this.allModules.add(node.code)
+    //   this.parentMap.set(node.code, parent)
+
+    //   if (!this.childrenMap.has(node.code)) {
+    //     this.childrenMap.set(node.code, [])
+    //   }
+
+    //   if (parent) {
+    //     const children = this.childrenMap.get(parent) ?? []
+    //     children.push(node.code)
+    //     this.childrenMap.set(parent, children)
+    //   }
+
+    //   if (node.children?.length) {
+    //     this.buildIndexes(node.children, node.code)
+    //   }
+    // }
   }
 
   private assertKnownModule(code: ModuleCode): void {
     if (!this.allModules.has(code)) {
+      console.log('allModules', this.allModules)
       throw new Error(`Unknown module: ${code}`)
     }
   }
@@ -104,7 +109,6 @@ export class ModuleScopePermission {
         return true
       }
     }
-
     return false
   }
 
@@ -156,7 +160,8 @@ const ADMINISTRATOR_ROLE = 'administrator'
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
-export const normalizeModuleCode = (code: string): ModuleCode => code.trim().toLowerCase()
+// we use upper case for module
+export const normalizeModuleCode = (code: string): ModuleCode => code.trim()
 
 const normalizeRoleCode = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim().toLowerCase() : undefined
@@ -227,6 +232,9 @@ export const normalizeScopeSession = (input: unknown): ScopeSession => {
       : {}),
     ...(typeof rawSession.label === 'string' && rawSession.label.trim()
       ? { label: rawSession.label.trim() }
+      : {}),
+    ...(rawSession.kepegawaianId != null
+      ? { kepegawaianId: Number(rawSession.kepegawaianId) }
       : {})
   }
 

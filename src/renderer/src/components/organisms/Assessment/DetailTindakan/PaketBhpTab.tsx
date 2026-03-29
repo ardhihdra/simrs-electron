@@ -80,7 +80,7 @@ export default function PaketBhpTab({
                 className="border border-slate-200"
                 title={<span className="font-semibold">Paket BHP #{name + 1}</span>}
                 extra={
-                  fields.length > 1 ? (
+                  fields.length > 0 ? (
                     <Button
                       type="text"
                       danger
