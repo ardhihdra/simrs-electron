@@ -3,6 +3,7 @@ import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import { client } from '@renderer/utils/client'
 import { Card, Col, Row, Typography } from 'antd'
 import dayjs from 'dayjs'
+import { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router'
 
 const { Title, Text } = Typography
@@ -50,29 +51,45 @@ export default function RegistrationSelect() {
 
   const { data: poliData } = client.visitManagement.poli.useQuery({})
 
-  const listPoli = poliData?.result
-    ?.map((poli) => ({
+  const listPoli = useMemo(
+    () =>
+      poliData?.result
+        ?.map((poli) => ({
       id: poli.id,
       name: poli.name,
       lokasiKerjaId: poli.location.id
-    }))
-    .filter((poli) => {
-      if (session?.hakAksesId === 'administrator') return true
-      return poli.lokasiKerjaId === session?.lokasiKerjaId
-    })
+        }))
+        .filter((poli) => {
+          if (session?.hakAksesId === 'administrator') return true
+          return poli.lokasiKerjaId === session?.lokasiKerjaId
+        }),
+    [poliData?.result, session?.hakAksesId, session?.lokasiKerjaId]
+  )
 
-    const filteredPractitioners = practitionerData?.result?.doctors
-    ?.filter((practitioner) => {
-      if (session?.hakAksesId === 'administrator') return true
-      return listPoli?.some((poli) => poli.id === practitioner.poliId) && (
-        !isDoctor || 
-        (isDoctor && practitioner.id == session.kepegawaianId)
-      )
-    })
-    ?.map((practitioner) => ({
-      ...practitioner,
-      id: practitioner.doctorId
-    }))
+  const filteredPractitioners = useMemo(
+    () =>
+      practitionerData?.result?.doctors
+        ?.filter((practitioner) => {
+          if (session?.hakAksesId === 'administrator') return true
+          return (
+            listPoli?.some((poli) => poli.id === practitioner.poliId) &&
+            (!isDoctor || practitioner.id == session.kepegawaianId)
+          )
+        })
+        ?.map((practitioner) => ({
+          ...practitioner,
+          id: practitioner.doctorId
+        })),
+    [isDoctor, listPoli, practitionerData?.result?.doctors, session?.hakAksesId, session?.kepegawaianId]
+  )
+
+  useEffect(() => {
+    if (filteredPractitioners?.length !== 1) {
+      return
+    }
+
+    navigate(`/dashboard/registration/queue/${filteredPractitioners[0].id}`, { replace: true })
+  }, [filteredPractitioners, navigate])
 
   return (
     <div className="p-6">
