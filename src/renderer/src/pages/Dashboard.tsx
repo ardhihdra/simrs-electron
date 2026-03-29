@@ -183,14 +183,14 @@ const items: DashboardMenuItem[] = [
         key: '/dashboard/medicine/medication-dispenses',
         icon: <MedicineBoxOutlined />
       },
-      {
-        label: 'Kategori Item',
-        key: '/dashboard/medicine/medicine-categories',
-        icon: <UnorderedListOutlined />
-      },
-      { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
-      { label: 'Obat dan Barang Umum', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
-      { label: 'Obat dan Barang BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
+      // {
+      //   label: 'Kategori Item',
+      //   key: '/dashboard/medicine/medicine-categories',
+      //   icon: <UnorderedListOutlined />
+      // },
+      // { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
+      // { label: 'Obat dan Barang Umum', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
+      // { label: 'Obat dan Barang BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
       {
         label: 'Transaksi Penjualan Barang',
         key: '/dashboard/medicine/item-purchase',
@@ -317,9 +317,9 @@ const filterItemsBySession = (
     // Parent is visible if its own access passes OR if it has visible children
     const parentVisible =
       !access ||
-      (!access.allowedModules.length &&
-        !access.roles.length &&
-        !access.allowedLokasiKerjaIds.length)
+        (!access.allowedModules.length &&
+          !access.roles.length &&
+          !access.allowedLokasiKerjaIds.length)
         ? true
         : isPageVisible(access, session)
 
