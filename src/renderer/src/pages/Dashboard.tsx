@@ -280,6 +280,54 @@ const items: DashboardMenuItem[] = [
 		],
 	},
 	{
+		label: "Antrian Non-Medis",
+		key: "/dashboard/non-medic-queue",
+		icon: <UnorderedListOutlined />,
+		module: Modules.BILLING_KASIR,
+		children: [
+			{
+				label: "KIOSK Billing",
+				key: "/dashboard/non-medic-queue/kiosk/billing",
+				icon: <BarcodeOutlined />,
+			},
+			{
+				label: "KIOSK Kasir",
+				key: "/dashboard/non-medic-queue/kiosk/cashier",
+				icon: <BarcodeOutlined />,
+			},
+			{
+				label: "KIOSK Farmasi",
+				key: "/dashboard/non-medic-queue/kiosk/pharmacy",
+				icon: <BarcodeOutlined />,
+			},
+			{
+				label: "Billing",
+				key: "/dashboard/non-medic-queue/billing",
+				icon: <WalletOutlined />,
+			},
+			{
+				label: "Kasir",
+				key: "/dashboard/non-medic-queue/cashier",
+				icon: <WalletOutlined />,
+			},
+			{
+				label: "Farmasi",
+				key: "/dashboard/non-medic-queue/pharmacy",
+				icon: <MedicineBoxOutlined />,
+			},
+			{
+				label: "Service Point",
+				key: "/dashboard/non-medic-queue/service-points",
+				icon: <UnorderedListOutlined />,
+			},
+			{
+				label: "Workspace Counter",
+				key: "/dashboard/non-medic-queue/workspace",
+				icon: <PhoneOutlined />,
+			},
+		],
+	},
+	{
 		label: "Sistem",
 		key: "/dashboard/pegawai",
 		icon: <DashboardOutlined />,
@@ -433,6 +481,7 @@ function Dashboard() {
 		"/dashboard/rawat-inap",
 		"/dashboard/poli",
 		"/dashboard/kasir",
+		"/dashboard/non-medic-queue",
 	];
 	const isRegisteredPath = (path: string): boolean => {
 		if (path === DASHBOARD_ROOT_KEY) return true;
@@ -513,7 +562,7 @@ function Dashboard() {
 		setSideItems(children);
 		const nextSide = (children[0]?.key as string) || key;
 		setActiveSide(nextSide);
-		navigate(key);
+		navigate(key === "/dashboard/non-medic-queue" ? nextSide : key);
 	};
 
 	useEffect(() => {
