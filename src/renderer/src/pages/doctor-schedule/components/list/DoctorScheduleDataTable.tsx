@@ -28,20 +28,20 @@ const baseColumns: ColumnsType<DoctorScheduleRow> = [
     key: 'effectiveRange',
     width: 220
   },
-  {
-    title: 'ID Kontrak',
-    dataIndex: 'contractId',
-    key: 'contractId',
-    width: 110,
-    align: 'center'
-  },
-  {
-    title: 'ID Lokasi',
-    dataIndex: 'locationId',
-    key: 'locationId',
-    width: 110,
-    align: 'center'
-  },
+  // {
+  //   title: 'ID Kontrak',
+  //   dataIndex: 'contractId',
+  //   key: 'contractId',
+  //   width: 110,
+  //   align: 'center'
+  // },
+  // {
+  //   title: 'ID Lokasi',
+  //   dataIndex: 'locationId',
+  //   key: 'locationId',
+  //   width: 110,
+  //   align: 'center'
+  // },
   {
     title: 'Status',
     dataIndex: 'status',
@@ -106,6 +106,7 @@ export function DoctorScheduleDataTable({ rows, loading, isError }: DoctorSchedu
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const buildDoctorScheduleRangeLabel = (
   berlakuDari: string,
   berlakuSampai?: string | null

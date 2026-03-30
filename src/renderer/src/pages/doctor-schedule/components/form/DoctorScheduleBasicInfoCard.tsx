@@ -1,4 +1,5 @@
-import { Card, Form, Input, InputNumber, Select } from 'antd'
+import { RPCSelectAsync } from '@renderer/components/organisms/RPCSelectAsync'
+import { Card, Form, Input, Select } from 'antd'
 
 interface OptionItem {
   value: number
@@ -105,7 +106,12 @@ export function DoctorScheduleBasicInfoCard({
       {hasSessionLokasiKerja ? (
         <>
           <Form.Item hidden name="idLokasiKerja" rules={[{ required: true }]}>
-            <Input />
+            <RPCSelectAsync
+              entity="lokasikerja"
+              placeHolder="Pilih lokasi kerja"
+              display="nama"
+              listAll
+            />
           </Form.Item>
           <Form.Item label={<span className="font-medium">Lokasi Kerja Aktif</span>}>
             <Input value={locationKerjaDisplayValue} disabled size="large" />
@@ -117,7 +123,12 @@ export function DoctorScheduleBasicInfoCard({
           name="idLokasiKerja"
           rules={[{ required: true, message: 'Lokasi kerja harus diisi' }]}
         >
-          <InputNumber className="w-full" size="large" placeholder="Masukkan ID lokasi kerja" min={1} />
+          <RPCSelectAsync
+            entity="lokasikerja"
+            placeHolder="Pilih lokasi kerja"
+            display="nama"
+            listAll
+          />
         </Form.Item>
       )}
     </Card>
