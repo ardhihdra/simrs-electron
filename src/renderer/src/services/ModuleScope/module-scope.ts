@@ -1,7 +1,8 @@
-import { Modules, moduleTree } from './constant'
+import { Modules } from 'simrs-types'
+
+import { moduleTree } from './constant'
 import { useModuleScopeStore } from './store'
 import { ModuleCode, ModuleNode, PermissionState, ScopeSession } from './type'
-
 export interface ModuleScopeOptions {
   moduleTree: ModuleNode[]
 }

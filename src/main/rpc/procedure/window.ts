@@ -13,7 +13,7 @@ const ExportCsvUrlInputSchema = z.object({
   items: z.number().optional(),
   q: z.string().optional(),
   fields: z.string().optional(),
-  filter: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  filter: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional()
 })

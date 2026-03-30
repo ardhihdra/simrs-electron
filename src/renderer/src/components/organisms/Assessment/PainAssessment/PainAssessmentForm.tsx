@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid'
 import type { PatientData } from '@renderer/types/doctor.types'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { PAIN_COMPONENTS_MAP, PAIN_SCALE_TYPE_MAP } from '@renderer/config/maps/observation-maps'
@@ -26,7 +26,7 @@ export const PainAssessmentForm = ({ encounterId, patientData }: PainAssessmentF
   const { message } = App.useApp()
   const [form] = Form.useForm()
 
-  const { data: response, refetch } = useObservationByEncounter(encounterId)
+  const { data: response, refetch } = useQueryObservationByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'

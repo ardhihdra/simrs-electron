@@ -6,7 +6,7 @@ import { FunctionalStatusSection } from '../FunctionalStatus/FunctionalStatusSec
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import {
   createObservationBatch,
@@ -40,14 +40,14 @@ export const FunctionalAssessmentForm = ({
     'nurse'
   ])
 
-  const { data: existingData } = useObservationByEncounter(encounterId)
+  const { data: existingData } = useQueryObservationByEncounter(encounterId)
   const bulkCreateObservation = useBulkCreateObservation()
 
   useEffect(() => {
     if (!existingData?.result) return
-
-    const formattedData = formatFunctionalStatus(existingData.result)
-    const psychoData = formatPsychosocialHistory(existingData.result)
+    const result = existingData.result.all
+    const formattedData = formatFunctionalStatus(result)
+    const psychoData = formatPsychosocialHistory(result)
 
     form.setFieldsValue({
       ...formattedData,

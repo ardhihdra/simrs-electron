@@ -63,7 +63,9 @@ const DoctorWorkspace = () => {
         visitDate: new Date(),
         serviceType: 'outpatient',
         encounterType: EncounterType.AMB,
-        arrivalType: ArrivalType.WALK_IN
+        arrivalType: ArrivalType.WALK_IN,
+        endTime: null,
+        startTime: new Date(),
       },
       {
         onSuccess: () => {

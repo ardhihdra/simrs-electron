@@ -5,16 +5,18 @@ import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryAc
 import { client } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { useEffect, useState } from 'react'
+import { Interpretation } from 'simrs-types'
 
 type DicomSourceMode = 'upload' | 'modality'
 
-const interpretationMap: Record<string, 'NORMAL' | 'HIGH' | 'LOW' | 'CRITICAL'> = {
-  NORMAL: 'NORMAL',
-  HIGH: 'HIGH',
-  LOW: 'LOW',
-  ABNORMAL: 'CRITICAL',
-  CRITICAL_HIGH: 'CRITICAL',
-  CRITICAL_LOW: 'CRITICAL'
+//  Do we actually need Abnormal, Critical High/Low? if so add it as 
+const interpretationMap: Record<string, Interpretation> = {
+  NORMAL: Interpretation.NORMAL,
+  HIGH: Interpretation.HIGH,
+  LOW: Interpretation.LOW,
+  ABNORMAL: Interpretation.CRITICAL,
+  CRITICAL_HIGH: Interpretation.CRITICAL,
+  CRITICAL_LOW: Interpretation.CRITICAL
 }
 
 const { Title, Text } = Typography

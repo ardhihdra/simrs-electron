@@ -1,4 +1,4 @@
-import { ApiResponseSchema } from 'simrs-types'
+import { ApiResponseSchema, Interpretation } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
@@ -41,7 +41,7 @@ const RecordLabResultObservationSchema = z.object({
   value: z.string(),
   unit: z.string().optional(),
   referenceRange: z.string().optional(),
-  interpretation: z.enum(['NORMAL', 'HIGH', 'LOW', 'CRITICAL']).optional(),
+  interpretation: z.nativeEnum(Interpretation).optional(),
   observedAt: z.string().optional() // Date string
 })
 

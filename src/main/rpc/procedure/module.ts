@@ -76,7 +76,7 @@ const MySchema = z.object({
           id: z.number(),
           kode: z.string(),
           nama: z.string()
-        }).optional(),
+        }),
         configs: z
           .array(
             z.object({

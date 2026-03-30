@@ -6,13 +6,13 @@
 export interface ConditionData {
     id?: string | number
     note?: string | null
-    categories?: Array<{ code?: string; display?: string; system?: string }>
+    categories?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
     codeCoding?: Array<{
         id?: string | number
-        code?: string
-        display?: string
-        system?: string
-        diagnosisCodeId?: string | number
+        code?: string | null
+        display?: string | null
+        system?: string | null
+        diagnosisCodeId?: string | number | null
         diagnosisCode?: {
             id?: string | number
             code?: string
@@ -20,9 +20,9 @@ export interface ConditionData {
             system?: string
             idDisplay?: string
         }
-    }>
-    recordedDate?: string | Date
-    onsetDateTime?: string | Date
+    }> | null
+    recordedDate?: string | Date | null
+    onsetDateTime?: string | Date | null
 }
 
 export interface FormattedAnamnesis {

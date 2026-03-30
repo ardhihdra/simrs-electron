@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { useBulkCreateObservation } from '@renderer/hooks/query/use-observation'
+import { useBulkCreateObservation, useQueryObservationByEncounter } from '@renderer/hooks/query/use-observation'
 import {
   createObservation,
   OBSERVATION_CATEGORIES,
@@ -8,7 +8,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 
 interface FallRiskAssessmentFormProps {
@@ -25,15 +25,11 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
   const [riskLevel, setRiskLevel] = useState('')
   const [interpretationCode, setInterpretationCode] = useState({ code: '', display: '' })
 
-  const { data: observationData, isLoading } = useQuery({
-    queryKey: ['observations', encounterId, 'fall-risk'],
-    queryFn: async () => {
-      const fn = window.api?.query?.observation?.getByEncounter
-      if (!fn) throw new Error('API Unavailable')
-      const res = await fn({ encounterId })
-      return res?.result || []
-    }
-  })
+  const { data: observationRaw, isLoading } = useQueryObservationByEncounter(encounterId)
+  const observationData = useMemo(
+    () => observationRaw?.result || { all: [], grouped: { vitalSigns: [], anamnesis: [], physicalExam: [], other: [] } },
+    [observationRaw]
+  )
 
   const bulkCreateObservation = useBulkCreateObservation()
 
@@ -127,8 +123,9 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
   )
 
   useEffect(() => {
-    if (observationData && observationData.length > 0) {
-      const sortedObs = [...observationData].sort(
+    const result = observationData ? observationData?.all : []
+    if (result && result.length > 0) {
+      const sortedObs = [...result].sort(
         (a: any, b: any) =>
           dayjs(b.effectiveDateTime || b.issued || b.createdAt).valueOf() -
           dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()

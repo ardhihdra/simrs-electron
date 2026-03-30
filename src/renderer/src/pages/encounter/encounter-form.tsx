@@ -8,6 +8,7 @@ import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
 import { SelectKepegawaian } from '@renderer/components/molecules/SelectKepegawaian'
 import { useCreateEncounter, useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { usePatientOptions } from '@renderer/hooks/query/use-patient'
+import { ArrivalType, EncounterType } from 'simrs-types'
 
 type EncounterFormValues = Omit<EncounterAttributes, 'visitDate'> & { visitDate: Dayjs }
 
@@ -56,7 +57,12 @@ function EncounterForm() {
         serviceType: values.serviceType,
         reason: values.reason ?? null,
         note: values.note ?? null,
-        status: values.status
+        status: values.status,
+        startTime: values.visitDate.toDate(), // For simplicity, using visitDate as startTime
+        endTime: null, // Can be set when encounter is completed
+        // FIX ME: use a correct EncounterType and ArrivalType
+        encounterType: EncounterType.AMB, // FIX ME: use a correct EncounterType
+        arrivalType: ArrivalType.WALK_IN, // Default to walk-in, can be extended later
       }
       if (isEdit && params.id) {
         await updateMutation.mutateAsync({ ...payload, id: params.id })
