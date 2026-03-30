@@ -11,6 +11,9 @@ import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { HistoryOutlined } from '@ant-design/icons'
 import { Table, Modal, Tag, Typography } from 'antd'
 import { useMedicationRequestByEncounter } from '@renderer/hooks/query/use-medication-request'
+import { useQuery } from '@tanstack/react-query'
+import { MedicationOtherItemsTable } from '@renderer/pages/medication-request/components/MedicationOtherItemsTable'
+import { MedicationCompoundsSection } from '@renderer/pages/medication-request/components/MedicationCompoundsSection'
 
 const { Text } = Typography
 
@@ -167,10 +170,120 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
     return map
   }, [itemCategories])
 
+  const { data: signaData, isLoading: signaLoading } = useQuery({
+    queryKey: ['mastersigna', 'listAll', 'for-prescription'],
+    queryFn: () => {
+      const api = window.api?.query as any
+      if (api?.mastersigna?.listAll) {
+        return api.mastersigna.listAll()
+      }
+      return api?.mastersigna?.list({ limit: 500 })
+    }
+  })
+  const signaOptions = useMemo(() => {
+    const source = Array.isArray(signaData?.result) ? signaData!.result : []
+    return source
+      .filter((s: any) => s.isActive !== false)
+      .map((s: any) => ({
+        label: s.signaName,
+        value: s.signaName
+      }))
+  }, [signaData])
+
+  const { data: inventoryByLocation } = useQuery({
+    queryKey: ['inventoryStock', 'by-location', 'FARM', 'for-prescription'],
+    queryFn: async () => {
+      const api = window.api?.query as {
+        inventoryStock?: {
+          listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
+            success: boolean
+            result?: Array<{
+              id: string
+              kodeLokasi: string
+              stockIn: number
+              stockOut: number
+              availableStock: number
+              items: Array<{
+                itemId?: number
+                kodeItem: string
+                namaItem: string
+                unit: string
+                unitCode?: string | null
+                stockIn: number
+                stockOut: number
+                availableStock: number
+              }>
+            }>
+            message?: string
+          }>
+        }
+      }
+      const fn = api?.inventoryStock?.listByLocation
+      if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
+      const res = await fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+      try {
+        const locs = Array.isArray(res?.result) ? res.result : []
+        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
+        const items = farm?.items ?? []
+        console.log('[RX][Stock][by-location:FARM] total locations:', locs.length, 'farm items:', items.length)
+        if (items.length > 0) {
+          const preview = items.slice(0, 5).map((it) => ({ kodeItem: it.kodeItem, availableStock: it.availableStock, unit: it.unit, itemId: it.itemId }))
+          console.log('[RX][Stock][by-location:FARM] preview:', preview)
+        }
+      } catch (e) {
+        console.log('[RX][Stock][by-location:FARM] log error:', e)
+      }
+      return res
+    }
+  })
+
+  const farmKodeSet = useMemo(() => {
+    const arr = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
+    const farm = arr.find(l => l.kodeLokasi === 'FARM')
+    const items = farm?.items ?? []
+    const set = new Set<string>()
+    for (const it of items) {
+      const kode = (it.kodeItem || '').trim().toUpperCase()
+      if (kode && it.availableStock > 0) set.add(kode)
+    }
+    return set
+  }, [inventoryByLocation?.result])
+  useEffect(() => {
+    if (inventoryByLocation?.result) {
+      try {
+        const arr = inventoryByLocation.result
+        const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
+        const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
+        console.log('[RX][Stock] farmKodeSet size:', farmKodeSet.size, 'farm items total:', totalItems)
+      } catch {}
+    }
+  }, [inventoryByLocation?.result, farmKodeSet.size])
+
+  const itemKodeMap = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(items) ? items : []
+    const map = new Map<number, string>()
+    source.forEach((item) => {
+      if (typeof item.id === 'number' && typeof item.kode === 'string') {
+        map.set(item.id, item.kode.trim().toUpperCase())
+      }
+    })
+    return map
+  }, [items])
+
   const itemOptions = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(items) ? items : []
 
-    return source
+    const filteredByLocation = source.filter((item) => {
+      const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+      if (!code) return false
+      return farmKodeSet.has(code)
+    })
+
+    try {
+      console.log('[RX][Items] source count:', source.length, 'farmKodeSet size:', farmKodeSet.size, 'filteredByLocation count:', filteredByLocation.length)
+    } catch {}
+
+    let opts = filteredByLocation
       .filter((item) => typeof item.id === 'number')
       .map((item) => {
         const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
@@ -204,8 +317,40 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           categoryType
         }
       })
-      .filter((entry) => entry.unitCode.length > 0)
-  }, [items, itemCategoryMap])
+      .filter((entry) => entry.categoryType === 'obat')
+
+    // Fallback: jika kosong, bangun dari stok FARM
+    if (opts.length === 0) {
+      try {
+        const locs = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
+        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
+        const itemsFarm = Array.isArray(farm?.items) ? farm!.items! : []
+        const fromFarm = itemsFarm
+          .filter((it: any) => typeof it.itemId === 'number' && it.itemId > 0)
+          .map((it: any) => {
+            const value = it.itemId as number
+            const label = it.unit ? `${it.namaItem || it.kodeItem} (${it.unit})` : (it.namaItem || it.kodeItem)
+            const unitCode =
+              typeof it.unitCode === 'string' && it.unitCode.trim().length > 0
+                ? it.unitCode.trim().toUpperCase()
+                : (typeof it.unit === 'string' ? it.unit : '')
+            return { value, label, unitCode, categoryId: null, categoryType: 'obat' }
+          })
+        if (fromFarm.length > 0) {
+          console.log('[RX][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
+          opts = fromFarm
+        }
+      } catch (e) {
+        console.log('[RX][Items][Options][fallback-from-stock] error:', e)
+      }
+    }
+
+    try {
+      const preview = opts.slice(0, 5)
+      console.log('[RX][Items][Options] count:', opts.length, 'preview:', preview)
+    } catch {}
+    return opts
+  }, [items, itemCategoryMap, farmKodeSet, inventoryByLocation?.result])
 
   const rawMaterialOptions = useMemo(() => {
     return rawMaterials
@@ -219,7 +364,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
   const handleSubmitPrescription = async () => {
     const values = form.getFieldsValue()
     const compoundList = values.compounds || []
-    const itemList = values.items || []
+    const itemList = values.otherItems || values.items || []
 
     if (itemList.length === 0 && compoundList.length === 0) {
       message.error('Resep kosong. Tambahkan minimal 1 item atau racikan.')
@@ -410,14 +555,23 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
         >
           <Tabs defaultActiveKey="1" type="card" className="mt-4">
             <TabPane tab="Obat & Barang" key="1">
-              <ItemPrescriptionForm itemOptions={itemOptions} loading={rawMaterialLoading} />
-            </TabPane>
-            <TabPane tab="Racikan" key="2">
-              <CompoundPrescriptionForm
+              <MedicationOtherItemsTable
                 form={form}
                 itemOptions={itemOptions}
-                rawMaterialOptions={rawMaterialOptions}
-                loading={rawMaterialLoading}
+                itemLoading={false}
+                itemKodeMap={itemKodeMap}
+                signaOptions={signaOptions}
+                signaLoading={signaLoading}
+              />
+            </TabPane>
+            <TabPane tab="Racikan" key="2">
+              <MedicationCompoundsSection
+                form={form}
+                itemOptions={itemOptions}
+                itemLoading={false}
+                itemKodeMap={itemKodeMap}
+                signaOptions={signaOptions}
+                signaLoading={signaLoading}
               />
             </TabPane>
           </Tabs>
