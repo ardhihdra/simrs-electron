@@ -10,7 +10,6 @@ export function DoctorScheduleRegularSessionsCard() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm text-gray-500 m-0">
-                Hari mengikuti `Date.getDay()`: Minggu = 0, Senin = 1, sampai Sabtu = 6.
               </p>
               <Button type="dashed" icon={<PlusOutlined />} onClick={() => add(defaultRegularSession())}>
                 Tambah Sesi

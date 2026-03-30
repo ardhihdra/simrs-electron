@@ -1,30 +1,28 @@
 import {
-	BarcodeOutlined,
-	CalendarOutlined,
-	DashboardOutlined,
-	ExperimentOutlined,
-	FileAddOutlined,
-	FileSearchOutlined,
-	FileTextOutlined,
-	LeftCircleFilled,
-	MedicineBoxOutlined,
-	PhoneOutlined,
-	RightCircleFilled,
-	UnorderedListOutlined,
-	UserOutlined,
-	WalletOutlined,
-} from "@ant-design/icons";
-import logoUrl from "@renderer/assets/logo.png";
-import NotificationBell from "@renderer/components/molecules/NotificationBell";
-import ProfileMenu from "@renderer/components/molecules/ProfileMenu";
-import { useMyProfile } from "@renderer/hooks/useProfile";
-import { getModuleScopeState } from "@renderer/services/ModuleScope/module-scope";
-import { useModuleScopeStore } from "@renderer/services/ModuleScope/store";
-import type {
-	PageAccessEntry,
-	ScopeSession,
-} from "@renderer/services/ModuleScope/type";
-import { client } from "@renderer/utils/client";
+  BarcodeOutlined,
+  CalendarOutlined,
+  DashboardOutlined,
+  ExperimentOutlined,
+  FileAddOutlined,
+  FileSearchOutlined,
+  FileTextOutlined,
+  LeftCircleFilled,
+  MedicineBoxOutlined,
+  PhoneOutlined,
+  RightCircleFilled,
+  UnorderedListOutlined,
+  UserOutlined,
+  WalletOutlined
+} from '@ant-design/icons'
+import logoUrl from '@renderer/assets/logo.png'
+import NotificationBell from '@renderer/components/molecules/NotificationBell'
+import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import { useMyProfile } from '@renderer/hooks/useProfile'
+import { getModuleScopeState } from '@renderer/services/ModuleScope/module-scope'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
+import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
+import { isPageVisible } from '@renderer/services/ModuleScope/utils'
+import { client } from '@renderer/utils/client'
 
 // Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
 const Modules = {
@@ -300,48 +298,6 @@ const items: DashboardMenuItem[] = [
 		],
 	},
 ];
-
-const isPageVisible = (
-	access: PageAccessEntry | undefined,
-	session: ScopeSession,
-): boolean => {
-	// return true
-	if (!access) return true;
-
-	const { allowedModules, roles, allowedLokasiKerjaIds } = access;
-
-	// Administrator bypasses module restrictions
-	const isAdministrator = session.hakAksesId === "administrator";
-
-	if (
-		allowedModules.length > 0 &&
-		!session.allowedModules.some((m) => allowedModules.includes(m))
-	) {
-		// console.log('no module akses for modules', session.allowedModules, 'allowed:', allowedModules)
-		return false;
-	}
-	if (
-		allowedLokasiKerjaIds.length > 0 &&
-		!allowedLokasiKerjaIds.includes(session.lokasiKerjaId)
-	) {
-		// console.log('no lokasi akses for lokasi', session.lokasiKerjaId, 'allowed:', access.allowedLokasiKerjaIds)
-		return false;
-	}
-
-	const isRoleAllowed =
-		isAdministrator ||
-		(roles.length > 0 &&
-			session.hakAksesId &&
-			roles.includes(session.hakAksesId));
-	if (!isRoleAllowed) {
-		// console.log('no role akses for role', session.hakAksesId, 'allowed:', roles)
-		return false;
-	}
-
-	// console.log('access granted for', session)
-	// console.log('checked againts', access)
-	return true;
-};
 
 const isPageNotRegistered = (access: PageAccessEntry | null) => {
 	return (
