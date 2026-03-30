@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Table,
   Card,
@@ -31,8 +31,11 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
 import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
+import { useMyProfile } from '@renderer/hooks/useProfile'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import dayjs from 'dayjs'
 import logoUrl from '@renderer/assets/logo.png'
+import { useSearchParams } from 'react-router'
 import { getSyncSummary } from '@renderer/utils/satu-sehat'
 import { SatuSehatSyncStatus } from '@renderer/types/satu-sehat'
 import { SyncPopoverContent } from './components/sync-popover-content'
@@ -75,7 +78,6 @@ const STATUS_CONFIG: Record<
   { label: string; color: string; antColor: string; dotColor: string }
 > = {
   all: { label: 'Semua', color: '', antColor: 'default', dotColor: '#6b7280' },
-  PLANNED: { label: 'Menunggu', color: 'blue', antColor: 'processing', dotColor: '#3b82f6' },
   IN_PROGRESS: {
     label: 'Diperiksa',
     color: 'orange',
@@ -83,18 +85,39 @@ const STATUS_CONFIG: Record<
     dotColor: '#f97316'
   },
   FINISHED: { label: 'Selesai', color: 'green', antColor: 'success', dotColor: '#22c55e' },
-  CANCELLED: { label: 'Dibatalkan', color: 'red', antColor: 'error', dotColor: '#ef4444' }
+  DISCHARGED: { label: 'Pulang', color: 'blue', antColor: 'processing', dotColor: '#3b82f6' }
 }
 
 export const DoctorPatientList = () => {
   const { modal: appModal } = App.useApp()
   const { token } = theme.useToken()
+  const { profile } = useMyProfile()
+  const { session } = useModuleScopeStore()
+  const [searchParams] = useSearchParams()
   const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>([dayjs(), dayjs()])
   const [activeStatus, setActiveStatus] = useState<string>('all')
   const [isBulkSyncing, setIsBulkSyncing] = useState(false)
   const [syncingRows, setSyncingRows] = useState<Record<string, boolean>>({})
+  const isDoctorRole = session?.hakAksesId === 'doctor'
+  const doctorTargetId =
+    isDoctorRole && session?.kepegawaianId != null ? String(session.kepegawaianId) : undefined
+  const routePoliName = searchParams.get('poliName')?.trim() || undefined
+  const routePoliCode = searchParams.get('poliCode')?.trim() || undefined
+  const isPoliLockedFromRoute = searchParams.get('from') === 'poli-select' && Boolean(routePoliName)
+  const activePoliLabel = selectedPoli || 'Semua Poli'
+  const doctorTargetLabel = useMemo(() => {
+    if (!isDoctorRole) return undefined
+    return profile?.username || (doctorTargetId ? `ID ${doctorTargetId}` : 'Tidak Diketahui')
+  }, [doctorTargetId, isDoctorRole, profile?.username])
+
+  useEffect(() => {
+    if (!isPoliLockedFromRoute || !routePoliName) return
+    if (selectedPoli !== routePoliName) {
+      setSelectedPoli(routePoliName)
+    }
+  }, [isPoliLockedFromRoute, routePoliName, selectedPoli])
 
   const handleOpenSyncDetail = (status: SatuSehatSyncStatus | null, fhirId: string) => {
     if (!status && !fhirId) return
@@ -129,14 +152,31 @@ export const DoctorPatientList = () => {
     isLoading,
     refetch
   } = useQuery({
-    queryKey: ['encounter', 'list', selectedPoli, searchText, activeStatus, dateRange],
+    queryKey: [
+      'encounter',
+      'list',
+      selectedPoli,
+      searchText,
+      activeStatus,
+      dateRange,
+      doctorTargetId
+    ],
     queryFn: async () => {
       const fn = window.api?.query?.encounter?.list
       if (!fn) throw new Error('API encounter tidak tersedia')
       const params: any = {}
       if (searchText) params.q = searchText
-      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+      if (activeStatus && activeStatus !== 'all') {
+        if (activeStatus === 'FINISHED') {
+          params.status = 'FINISHED'
+        } else {
+          params.status = activeStatus
+        }
+      } else {
+        params.status = 'IN_PROGRESS,FINISHED'
+      }
       if (selectedPoli) params.serviceType = selectedPoli
+      if (doctorTargetId) params.doctorId = doctorTargetId
       if (dateRange) {
         params.startDate = dateRange[0].startOf('day').toISOString()
         params.endDate = dateRange[1].endOf('day').toISOString()
@@ -144,7 +184,8 @@ export const DoctorPatientList = () => {
       params.sortBy = 'updatedAt'
       params.sortOrder = 'DESC'
       return fn(params)
-    }
+    },
+    enabled: !isPoliLockedFromRoute || !!selectedPoli
   })
 
   const patients: PatientListTableData[] = (encounterData?.result || []).map(
@@ -201,7 +242,6 @@ export const DoctorPatientList = () => {
     }
   )
 
-
   const handleViewRecord = (record: PatientListTableData) => {
     window.open(`#/dashboard/doctor/${record.encounterId}`, '_blank')
   }
@@ -233,8 +273,17 @@ export const DoctorPatientList = () => {
 
       const params: any = {}
       if (searchText) params.q = searchText
-      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
+      if (activeStatus && activeStatus !== 'all') {
+        if (activeStatus === 'FINISHED') {
+          params.status = 'FINISHED'
+        } else {
+          params.status = activeStatus
+        }
+      } else {
+        params.status = 'IN_PROGRESS,FINISHED'
+      }
       if (selectedPoli) params.serviceType = selectedPoli
+      if (doctorTargetId) params.doctorId = doctorTargetId
       if (dateRange) {
         params.startDate = dateRange[0].startOf('day').toISOString()
         params.endDate = dateRange[1].endOf('day').toISOString()
@@ -365,12 +414,29 @@ export const DoctorPatientList = () => {
               >
                 {record.patient.medicalRecordNumber || '-'}
               </span>
-              <span style={{ fontSize: 10, color: token.colorTextTertiary }}>
-                {record.patient.gender === 'male' ? '♂' : '♀'} {record.patient.age}th
-              </span>
             </div>
           </div>
         </div>
+      )
+    },
+    {
+      title: 'Jenis Kelamin',
+      key: 'gender',
+      width: 120,
+      render: (_, record) => (
+        <span style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}>
+          {record.patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
+        </span>
+      )
+    },
+    {
+      title: 'Umur',
+      key: 'age',
+      width: 80,
+      render: (_, record) => (
+        <span style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}>
+          {record.patient.age} th
+        </span>
       )
     },
     {
@@ -419,6 +485,23 @@ export const DoctorPatientList = () => {
             <Tag color={typeColor} bordered={false} className="mt-0.5 text-[10px] font-medium m-0">
               {typeLabel}
             </Tag>
+          </div>
+        )
+      }
+    },
+    {
+      title: 'Dokter Tujuan',
+      key: 'dokter',
+      width: 150,
+      render: (_, record) => {
+        const doctorName = record.queueTicket?.practitioner?.namaLengkap || '-'
+        return (
+          <div
+            style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}
+            className="truncate"
+            title={doctorName}
+          >
+            {doctorName}
           </div>
         )
       }
@@ -591,16 +674,29 @@ export const DoctorPatientList = () => {
     }
   ]
 
-  const statusTabItems = Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
-    const count = key === 'all' ? patients.length : patients.filter((p) => p.status === key).length
+  const statusDisplayTabs = [
+    { key: 'all', config: STATUS_CONFIG['all'] },
+    { key: 'IN_PROGRESS', config: STATUS_CONFIG['IN_PROGRESS'] },
+    { key: 'FINISHED', config: STATUS_CONFIG['FINISHED'] }
+  ]
+
+  const statusTabItems = statusDisplayTabs.map(({ key, config }) => {
+    let count = 0
+    if (key === 'all') {
+      count = patients.length
+    } else if (key === 'FINISHED') {
+      count = patients.filter((p) => p.status === 'FINISHED').length
+    } else {
+      count = patients.filter((p) => p.status === key).length
+    }
 
     return {
       key,
       label: (
         <span className="flex items-center gap-2 px-1">
-          {cfg.label}
+          {config.label}
           {count > 0 && (
-            <Badge count={count} color={cfg.dotColor} size="small" style={{ fontSize: 10 }} />
+            <Badge count={count} color={config.dotColor} size="small" style={{ fontSize: 10 }} />
           )}
         </span>
       )
@@ -633,6 +729,21 @@ export const DoctorPatientList = () => {
               <p className="text-sm text-blue-200 m-0 ml-12">
                 Manajemen pelayanan pasien Rawat Jalan, Inap, dan IGD
               </p>
+              <div className="ml-12 mt-2 flex flex-wrap items-center gap-2">
+                <Tag color="blue" bordered={false} className="m-0 font-medium">
+                  Poli Aktif: {activePoliLabel}
+                </Tag>
+                {/* {isPoliLockedFromRoute && routePoliCode && (
+                  <Tag color="cyan" bordered={false} className="m-0 font-medium">
+                    Dari PoliSelect
+                  </Tag>
+                )} */}
+                {doctorTargetLabel && (
+                  <Tag color="geekblue" bordered={false} className="m-0 font-medium">
+                    Dokter Tujuan: {doctorTargetLabel}
+                  </Tag>
+                )}
+              </div>
             </div>
             <Space size="small" align="center">
               <Button
@@ -814,7 +925,8 @@ export const DoctorPatientList = () => {
               valueType="name"
               placeholder="-- Semua Unit --"
               className="w-full"
-              allowClear
+              allowClear={!isPoliLockedFromRoute}
+              disabled={isPoliLockedFromRoute}
               value={selectedPoli}
               onChange={setSelectedPoli}
             />
@@ -896,7 +1008,7 @@ export const DoctorPatientList = () => {
               showTotal: (total) => `Total ${total} kunjungan`,
               showSizeChanger: true
             }}
-            scroll={{ x: 1050, y: 'calc(100vh - 460px)' }}
+            scroll={{ x: 1250, y: 'calc(100vh - 460px)' }}
             className="flex-1"
             size="middle"
           />

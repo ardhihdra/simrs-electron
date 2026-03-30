@@ -239,6 +239,7 @@ export const schemas = {
             pageSize: z.string().optional(),
             type: z.string().optional(),
             doctorId: z.string().optional(),
+            practitionerId: z.string().optional(),
             dateFrom: z.string().optional(),
             dateTo: z.string().optional(),
         }),

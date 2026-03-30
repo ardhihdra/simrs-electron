@@ -5,15 +5,15 @@ import {
   Form,
   Spin,
   Card,
-  Select,
   Input,
   Table,
   Modal,
-  Radio,
   DatePicker,
-  InputNumber
+  InputNumber,
+  Row,
+  Col
 } from 'antd'
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import dayjs from 'dayjs'
 import {
   useBulkCreateCondition,
@@ -25,10 +25,8 @@ import {
 } from '@renderer/utils/builders/condition-builder'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
-import { useDiagnosisCodeList } from '@renderer/hooks/query/use-diagnosis-code'
 import { PatientData } from '@renderer/types/doctor.types'
 
-const { Option } = Select
 const { TextArea } = Input
 
 export interface PastDiseaseFormProps {
@@ -60,33 +58,6 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
     'doctor'
   ])
 
-  const [diagnosisSearch, setDiagnosisSearch] = useState('')
-  const [debouncedDiagnosisSearch, setDebouncedDiagnosisSearch] = useState('')
-
-  const { data: masterDiagnosis, isLoading: searchingDiagnosis } = useDiagnosisCodeList({
-    q: debouncedDiagnosisSearch,
-    items: 20
-  })
-
-  const [diagnosisOptions, setDiagnosisOptions] = useState<any[]>([])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedDiagnosisSearch(diagnosisSearch)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [diagnosisSearch])
-
-  useEffect(() => {
-    if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
-      setDiagnosisOptions(masterDiagnosis)
-    } else {
-      setDiagnosisOptions([])
-    }
-  }, [masterDiagnosis, debouncedDiagnosisSearch])
-
-  useEffect(() => {}, [conditionResponse?.success, conditionResponse?.result])
-
   const historyData = conditionResponse?.result || []
   const pastDiseases = historyData
     .filter((cond: any) =>
@@ -107,20 +78,29 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
       render: (date: string) => dayjs(date).format('DD MMM YYYY, HH:mm')
     },
     {
-      title: 'ICD-10/SNOMED',
-      key: 'code',
-      width: 200,
-      render: (_: any, record: any) => {
-        const coding = record.codeCoding?.[0]?.diagnosisCode
-        if (!coding) return '-'
-        return `${coding.code} - ${coding.name_id || coding.name_en || coding.display}`
-      }
-    },
-    {
-      title: 'Catatan',
+      title: 'Riwayat Penyakit',
       dataIndex: 'note',
       key: 'note',
       render: (note: string) => note || '-'
+    },
+    {
+      title: 'Informasi Onset',
+      key: 'onset',
+      width: 250,
+      render: (_: any, record: any) => {
+        const period = record.onsetPeriod
+        const age = record.onsetAge
+        const parts: string[] = []
+        if (period?.start || period?.end) {
+          const start = period.start ? dayjs(period.start).format('DD/MM/YYYY') : '?'
+          const end = period.end ? dayjs(period.end).format('DD/MM/YYYY') : '?'
+          parts.push(`Periode: ${start} - ${end}`)
+        }
+        if (age) {
+          parts.push(`Usia: ${age} Thn`)
+        }
+        return parts.length > 0 ? parts.join(' • ') : '-'
+      }
     }
   ]
 
@@ -140,16 +120,16 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
     try {
       setIsSubmitting(true)
 
-      const isInactive = values.diseaseType === 'inactive'
-
       let onsetPeriodStart: string | undefined = undefined
       let onsetPeriodEnd: string | undefined = undefined
       let onsetAge: number | undefined = undefined
 
-      if (!isInactive && values.onsetPeriod && values.onsetPeriod.length === 2) {
-        onsetPeriodStart = values.onsetPeriod[0].toISOString()
-        onsetPeriodEnd = values.onsetPeriod[1].toISOString()
-      } else if (isInactive && values.onsetAge) {
+      if (values.onsetPeriod && values.onsetPeriod.length === 2) {
+        onsetPeriodStart = values.onsetPeriod[0]?.toISOString()
+        onsetPeriodEnd = values.onsetPeriod[1]?.toISOString()
+      }
+      
+      if (values.onsetAge) {
         onsetAge = Number(values.onsetAge)
       }
 
@@ -157,13 +137,10 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
         {
           category: CONDITION_CATEGORIES.PREVIOUS_CONDITION,
           notes: values.historyOfPresentIllness,
-          diagnosisCodeId: values.historyOfPresentIllness_codeId
-            ? Number(values.historyOfPresentIllness_codeId)
-            : undefined,
           recordedDate: dayjs().toISOString(),
-          clinicalStatus: isInactive ? 'INACTIVE' : 'ACTIVE',
+          clinicalStatus: 'ACTIVE', // Default to active entry
           onsetPeriod:
-            onsetPeriodStart && onsetPeriodEnd
+            onsetPeriodStart || onsetPeriodEnd
               ? { start: onsetPeriodStart, end: onsetPeriodEnd }
               : undefined,
           onsetAge: onsetAge
@@ -182,7 +159,6 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
       message.success('Riwayat Penyakit berhasil disimpan')
       form.resetFields([
         'historyOfPresentIllness',
-        'historyOfPresentIllness_codeId',
         'onsetPeriod',
         'onsetAge'
       ])
@@ -204,8 +180,7 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
       onFinish={handleFinish}
       className="flex! flex-col! gap-4!"
       initialValues={{
-        assessment_date: dayjs(),
-        diseaseType: 'active'
+        assessment_date: dayjs()
       }}
     >
       <Spin
@@ -226,85 +201,32 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
             </Button>
           }
         >
-          <Form.Item name="diseaseType" style={{ marginBottom: 16 }}>
-            <Radio.Group optionType="button" buttonStyle="solid">
-              <Radio.Button value="active">Riwayat Penyakit Sekarang</Radio.Button>
-              <Radio.Button value="inactive">Riwayat Penyakit Dulu</Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-
           <Form.Item
-            noStyle
-            shouldUpdate={(prevValues, currentValues) =>
-              prevValues.diseaseType !== currentValues.diseaseType
-            }
-          >
-            {({ getFieldValue }) => {
-              const diseaseType = getFieldValue('diseaseType')
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Form.Item
-                    label="Riwayat Penyakit (ICD-10/SNOMED)"
-                    name="historyOfPresentIllness_codeId"
-                    rules={[
-                      {
-                        required: true,
-                        message: 'Kode ICD-10/SNOMED wajib dipilih untuk sinkronisasi SatuSehat'
-                      }
-                    ]}
-                  >
-                    <Select
-                      showSearch
-                      filterOption={false}
-                      onSearch={setDiagnosisSearch}
-                      placeholder="Cari kode ICD-10/SNOMED..."
-                      className="w-full"
-                      notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
-                      onSelect={(_, option: any) => {
-                        form.setFieldValue('historyOfPresentIllness', option['data-display'])
-                      }}
-                      allowClear
-                    >
-                      {diagnosisOptions.map((d) => (
-                        <Option
-                          key={d.id}
-                          value={String(d.id)}
-                          label={`${d.code} - ${d.id_display || d.display}`}
-                          data-display={d.id_display || d.display}
-                        >
-                          {d.code} - {d.id_display || d.display}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-
-                  {diseaseType === 'active' ? (
-                    <Form.Item label="Rentang Waktu Terjangkit (Onset Period)" name="onsetPeriod">
-                      <DatePicker.RangePicker className="w-full" allowEmpty={[true, true]} />
-                    </Form.Item>
-                  ) : (
-                    <Form.Item label="Terjangkit pada Usia (Tahun)" name="onsetAge">
-                      <InputNumber
-                        className="w-full"
-                        min={0}
-                        max={150}
-                        placeholder="Contoh: 10"
-                        addonAfter="Tahun"
-                      />
-                    </Form.Item>
-                  )}
-                </div>
-              )
-            }}
-          </Form.Item>
-
-          <Form.Item
-            label="Rincian Riwayat Penyakit"
+            label={<span className="font-semibold">Nama / Rincian Riwayat Penyakit</span>}
             name="historyOfPresentIllness"
             rules={[{ required: true, message: 'Wajib diisi' }]}
           >
-            <TextArea rows={3} placeholder="Masukkan catatan tambahan atau riwayat penyakit..." />
+            <TextArea rows={3} placeholder="Masukkan rincian riwayat penyakit pasien..." />
           </Form.Item>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item label="Rentang Waktu Terjangkit (Onset Period)" name="onsetPeriod">
+                <DatePicker.RangePicker className="w-full" allowEmpty={[true, true]} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item label="Terjangkit pada Usia (Tahun)" name="onsetAge">
+                <InputNumber
+                  className="w-full"
+                  min={0}
+                  max={150}
+                  placeholder="Contoh: 10"
+                  addonAfter="Tahun"
+                />
+              </Form.Item>
+            </Col>
+          </Row>
         </Card>
 
         <Form.Item className="mt-4!">
@@ -334,7 +256,7 @@ export const PastDiseaseForm: React.FC<PastDiseaseFormProps> = ({
             Tutup
           </Button>
         ]}
-        width={800}
+        width={850}
       >
         <Table
           dataSource={pastDiseases}

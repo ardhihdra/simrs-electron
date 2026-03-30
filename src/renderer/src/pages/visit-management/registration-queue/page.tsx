@@ -46,12 +46,15 @@ export default function RegistrationQueue({
     isLoading,
     isRefetching,
     refetch
-  } = client.registration.getQueues.useQuery({
-    queueDate: searchParams.queueDate,
-    queueNumber: searchParams.queueNumber ? Number(searchParams.queueNumber) : undefined,
-    status: ['PRE_RESERVED', 'RESERVED', 'REGISTERED', 'CALLED', 'TRIAGE', 'TRIAGED', 'IN_PROGRESS'],
-    practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
-  })
+  } = client.registration.getQueues.useQuery(
+    {
+      queueDate: searchParams.queueDate,
+      queueNumber: searchParams.queueNumber ? Number(searchParams.queueNumber) : undefined,
+      status: ['PRE_RESERVED', 'RESERVED', 'REGISTERED', 'CALLED', 'TRIAGE', 'TRIAGED', 'IN_PROGRESS'],
+      practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
+    },
+    { refetchInterval: 5000 }
+  )
   console.log('searchParams', searchParams)
   console.log('queueData', queueData)
 

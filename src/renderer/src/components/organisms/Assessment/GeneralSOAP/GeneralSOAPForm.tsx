@@ -24,6 +24,7 @@ import {
   useCompositionByEncounter,
   useUpsertComposition
 } from '@renderer/hooks/query/use-composition'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
 import { PatientWithMedicalRecord } from '@renderer/types/doctor.types'
 import {
@@ -53,6 +54,7 @@ export const GeneralSOAPForm = ({
   allowedRoles
 }: GeneralSOAPFormProps) => {
   const { message } = App.useApp()
+  const { profile } = useMyProfile()
   const [form] = Form.useForm()
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [hasFinalEntry, setHasFinalEntry] = useState(false)
@@ -520,16 +522,18 @@ export const GeneralSOAPForm = ({
                     icon={<FormOutlined className="text-blue-500 text-lg" />}
                   />
                 </Tooltip>
-                <Tooltip title="Verifikasi">
-                  <Button
-                    type="text"
-                    shape="circle"
-                    onClick={() => handleVerify(record)}
-                    icon={
-                      <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
-                    }
-                  />
-                </Tooltip>
+                {profile?.hakAksesId === 'doctor' && (
+                  <Tooltip title="Verifikasi">
+                    <Button
+                      type="text"
+                      shape="circle"
+                      onClick={() => handleVerify(record)}
+                      icon={
+                        <CheckCircleOutlined className="text-gray-300 hover:text-green-500 text-lg transition-colors" />
+                      }
+                    />
+                  </Tooltip>
+                )}
               </Space>
             )}
 
@@ -684,7 +688,11 @@ export const GeneralSOAPForm = ({
             assessment_date: dayjs()
           }}
         >
-          <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+          <AssessmentHeader
+            performers={performersData || []}
+            loading={isLoadingPerformers}
+            forceCurrentLogin={profile?.hakAksesId === 'doctor'}
+          />
 
           {/* {currentRole === 'nurse' && (
                         <Alert

@@ -6,7 +6,7 @@ import {
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
 import { useProfileStore } from '@renderer/store/profileStore'
 import { client } from '@renderer/utils/client'
-import { App } from 'antd'
+import { App, theme } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 
@@ -56,6 +56,7 @@ const normalizeInstallations = (groups?: ModuleGroup[]): InstallationOption[] =>
   ) ?? []
 
 export default function ModuleSelection() {
+  const { token } = theme.useToken()
   const navigation = useNavigate()
   const { message } = App.useApp()
   const { data, isLoading } = client.module.my.useQuery({})
@@ -126,14 +127,31 @@ export default function ModuleSelection() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-linear-to-br from-slate-50 via-blue-50 to-cyan-100 px-6 py-10">
+    <div
+      className="relative min-h-screen overflow-hidden px-6 py-10"
+      style={{
+        background: `linear-gradient(135deg, ${token.colorBgLayout} 0%, ${token.colorPrimaryBg} 50%, ${token.colorInfoBg} 100%)`
+      }}
+    >
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -left-16 top-12 h-56 w-56 rounded-full bg-blue-300/20 blur-3xl" />
-        <div className="absolute bottom-10 right-0 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div
+          className="absolute -left-16 top-12 h-56 w-56 rounded-full blur-3xl opacity-20"
+          style={{ backgroundColor: token.colorPrimary }}
+        />
+        <div
+          className="absolute bottom-10 right-0 h-72 w-72 rounded-full blur-3xl opacity-20"
+          style={{ backgroundColor: token.colorInfo }}
+        />
       </div>
 
       <div className="relative mx-auto flex h-[calc(100vh-5rem)] max-w-6xl items-center">
-        <div className="grid w-full grid-cols-[0.95fr_1.4fr] overflow-hidden rounded-3xl border border-white/40 bg-white/75 shadow-2xl backdrop-blur">
+        <div
+          className="grid w-full grid-cols-[0.95fr_1.4fr] overflow-hidden rounded-3xl border shadow-2xl backdrop-blur"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.75)',
+            borderColor: 'rgba(255, 255, 255, 0.4)'
+          }}
+        >
           <ModuleSelectionSidebar
             totalModuleCount={totalModuleCount}
             onSignOut={() => {

@@ -90,6 +90,7 @@ export interface FormattedVitalSigns {
     height?: number
     weight?: number
     bmi?: number
+    bsa?: number
     bmiCategory?: string
     oxygenSaturation?: number
     gcsEye?: number
@@ -116,6 +117,7 @@ export const formatVitalSigns = (observations: ObservationData[]): FormattedVita
         height: extractQuantityValue(g('8302-2')),
         weight: extractQuantityValue(g('29463-7')),
         bmi: extractQuantityValue(g('39156-5')),
+        bsa: extractQuantityValue(g('8277-6')),
         bmiCategory: getInterpretationDisplay(g('39156-5')),
         oxygenSaturation: extractQuantityValue(g('59408-5')),
         gcsEye: extractQuantityValue(g('9267-5')),

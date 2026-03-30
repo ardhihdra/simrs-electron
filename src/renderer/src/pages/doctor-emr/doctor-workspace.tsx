@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router'
-import { App, Spin, Empty, Button, Modal, Select } from 'antd'
-import { LockOutlined } from '@ant-design/icons'
+import { App, Spin, Empty, Button } from 'antd'
+import { LockOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { getPatientMedicalRecord } from '@renderer/services/doctor.service'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
-import dayjs from 'dayjs'
 import { Gender } from '../../types/nurse.types'
-import { useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
+import dayjs from 'dayjs'
+import { useEncounterDetail } from '@renderer/hooks/query/use-encounter'
 import { useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
-import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
+import { EncounterStatus, EncounterType } from '@shared/encounter'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
 import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
+import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
 
 const DoctorWorkspace = () => {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -20,11 +21,9 @@ const DoctorWorkspace = () => {
 
   const [loading, setLoading] = useState(false)
   const [patientData, setPatientData] = useState<PatientWithMedicalRecord | null>(null)
-  const [isStatusModalVisible, setIsStatusModalVisible] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<EncounterStatus | null>(null)
+  const [dischargeModalOpen, setDischargeModalOpen] = useState(false)
 
   const { data: encounterDetail } = useEncounterDetail(encounterId)
-  const updateEncounter = useUpdateEncounter()
 
   const { data: allergyData } = useAllergyByEncounter(encounterId || '')
 
@@ -52,38 +51,6 @@ const DoctorWorkspace = () => {
     loadData()
   }, [encounterId, loadData])
 
-  const handleStatusUpdate = () => {
-    if (!encounterId || !selectedStatus) return
-
-    updateEncounter.mutate(
-      {
-        id: encounterId,
-        status: selectedStatus,
-        patientId: patientData?.patient.id || '',
-        visitDate: new Date(),
-        serviceType: 'outpatient',
-        encounterType: EncounterType.AMB,
-        arrivalType: ArrivalType.WALK_IN
-      },
-      {
-        onSuccess: () => {
-          message.success('Status berhasil diperbarui')
-          setIsStatusModalVisible(false)
-        },
-        onError: () => {
-          message.error('Gagal memperbarui status')
-        }
-      }
-    )
-  }
-
-  const openStatusModal = () => {
-    if (encounterDetail?.result?.status) {
-      setSelectedStatus(encounterDetail.result.status as EncounterStatus)
-    }
-    setIsStatusModalVisible(true)
-  }
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -98,6 +65,10 @@ const DoctorWorkspace = () => {
 
   const handleBack = () => {
     navigate('/dashboard/doctor')
+  }
+
+  const handleFinishEncounter = () => {
+    setDischargeModalOpen(true)
   }
 
   const patient = patientData.patient
@@ -168,47 +139,49 @@ const DoctorWorkspace = () => {
             encounterId={encounterId || ''}
             patientData={patientData}
             patientInfoCardData={patientInfoCardData}
-            onEditStatus={openStatusModal}
+            action={
+              currentStatus === EncounterStatus.IN_PROGRESS ? (
+                <Button type="primary" onClick={handleFinishEncounter} icon={<CheckCircleOutlined />} size="small">
+                  Selesaikan Pemeriksaan
+                </Button>
+              ) : undefined
+            }
           />
         ) : encounterDetail?.result?.encounterType === EncounterType.EMER ? (
           <DoctorEmergencyWorkspace
             encounterId={encounterId || ''}
             patientData={patientData}
             patientInfoCardData={patientInfoCardData}
-            onEditStatus={openStatusModal}
+            action={
+              currentStatus === EncounterStatus.IN_PROGRESS ? (
+                <Button type="primary" onClick={handleFinishEncounter} icon={<CheckCircleOutlined />} size="small">
+                  Selesaikan Pemeriksaan
+                </Button>
+              ) : undefined
+            }
           />
         ) : (
           <DoctorOutpatientWorkspace
             encounterId={encounterId || ''}
             patientData={patientData}
             patientInfoCardData={patientInfoCardData}
-            onEditStatus={openStatusModal}
+            action={
+              currentStatus === EncounterStatus.IN_PROGRESS ? (
+                <Button type="primary" onClick={handleFinishEncounter} icon={<CheckCircleOutlined />} size="small">
+                  Selesaikan Pemeriksaan
+                </Button>
+              ) : undefined
+            }
           />
         )}
       </div>
 
-      <Modal
-        title="Update Status Encounter"
-        open={isStatusModalVisible}
-        onOk={handleStatusUpdate}
-        onCancel={() => setIsStatusModalVisible(false)}
-        confirmLoading={updateEncounter.isPending}
-        okText="Simpan"
-        cancelText="Batal"
-      >
-        <div className="py-4">
-          <p className="mb-2">Pilih status baru untuk kunjungan ini:</p>
-          <Select
-            value={selectedStatus}
-            onChange={(val) => setSelectedStatus(val as EncounterStatus)}
-            style={{ width: '100%' }}
-            options={[
-              { label: 'Finished', value: EncounterStatus.FINISHED },
-              { label: 'Cancelled', value: EncounterStatus.CANCELLED }
-            ]}
-          />
-        </div>
-      </Modal>
+      <DischargeModal
+        open={dischargeModalOpen}
+        record={{ patientName: patientData?.patient?.name, encounterId }}
+        onClose={() => setDischargeModalOpen(false)}
+        onSuccess={() => loadData()}
+      />
     </div>
   )
 }

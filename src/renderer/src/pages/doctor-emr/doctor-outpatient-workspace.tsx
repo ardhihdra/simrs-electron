@@ -33,6 +33,7 @@ import {
   HeartOutlined
 } from '@ant-design/icons'
 import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
 import { AllergyForm } from '../../components/organisms/Assessment/Allergy/AllergyForm'
 import { MedicationForm } from '../../components/organisms/Assessment/Medication/MedicationForm'
 import { PastDiseaseForm } from '../../components/organisms/Assessment/PastDisease/PastDiseaseForm'
@@ -75,14 +76,14 @@ interface DoctorOutpatientWorkspaceProps {
   encounterId: string
   patientData: any
   patientInfoCardData: any
-  onEditStatus: () => void
+  action?: React.ReactNode
 }
 
 export const DoctorOutpatientWorkspace = ({
   encounterId,
   patientData,
   patientInfoCardData,
-  onEditStatus
+  action
 }: DoctorOutpatientWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('info')
@@ -111,13 +112,18 @@ export const DoctorOutpatientWorkspace = ({
       {
         key: 'unified-assessment',
         icon: <SolutionOutlined />,
-        label: 'Custom Asesmen'
+        label: 'Asesmen Terpadu'
       },
       {
         key: 'assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Pasien',
         children: [
+          {
+            key: 'initial-assessment',
+            icon: <FormOutlined />,
+            label: 'Asesmen Awal'
+          },
           { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
           { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
           { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
@@ -411,13 +417,22 @@ export const DoctorOutpatientWorkspace = ({
                   return (
                     <PatientInfoCard
                       patientData={patientInfoCardData}
-                      onEditStatus={onEditStatus}
+                      action={action}
                     />
                   )
                 case 'medical-history':
                   return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
                 case 'overview':
                   return <EncounterTimeline encounterId={encounterId || ''} />
+                case 'initial-assessment':
+                  return (
+                    <InitialAssessmentForm
+                      encounterId={encounterId!}
+                      patientData={patientData}
+                      mode="outpatient"
+                      role="doctor"
+                    />
+                  )
                 case 'anamnesis':
                   return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
                 case 'past-disease':

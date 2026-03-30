@@ -48,6 +48,7 @@ import { ENTForm } from '@renderer/components/organisms/Assessment/ENT/ENTForm'
 import { FallRiskAssessmentForm } from '@renderer/components/organisms/Assessment/FallRiskAssessment/FallRiskAssessmentForm'
 import { GCSAssessmentForm } from '@renderer/components/organisms/Assessment/GCSAssessment/GCSAssessmentForm'
 import { EncounterTimeline } from '@renderer/components/organisms/EncounterTimeline'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
 import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
 import { NutritionScreeningForm } from '@renderer/components/organisms/Assessment/NutritionScreening/NutritionScreeningForm'
 import { PrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/PrescriptionForm'
@@ -84,14 +85,14 @@ interface InpatientWorkspaceProps {
   encounterId: string
   patientData: any
   patientInfoCardData: any
-  onEditStatus: () => void
+  action?: React.ReactNode
 }
 
 export const DoctorInpatientWorkspace = ({
   encounterId,
   patientData,
   patientInfoCardData,
-  onEditStatus
+  action
 }: InpatientWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('info')
@@ -120,13 +121,18 @@ export const DoctorInpatientWorkspace = ({
       {
         key: 'unified-assessment',
         icon: <SolutionOutlined />,
-        label: 'Custom Asesmen'
+        label: 'Asesmen Terpadu'
       },
       {
         key: 'assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Pasien',
         children: [
+          {
+            key: 'initial-assessment',
+            icon: <FormOutlined />,
+            label: 'Asesmen Awal'
+          },
           { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
           { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
           { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
@@ -283,7 +289,7 @@ export const DoctorInpatientWorkspace = ({
       case 'unified-assessment':
         return <UnifiedAssessmentTab encounterId={encounterId} patientData={patientData} />
       case 'info':
-        return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
+        return <PatientInfoCard patientData={patientInfoCardData} action={action} />
       case 'medical-history':
         return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
@@ -291,6 +297,15 @@ export const DoctorInpatientWorkspace = ({
           <div className="space-y-4">
             <EncounterTimeline encounterId={encounterId} />
           </div>
+        )
+      case 'initial-assessment':
+        return (
+          <InitialAssessmentForm
+            encounterId={encounterId}
+            patientData={patientData}
+            mode="inpatient"
+            role="doctor"
+          />
         )
       case 'anamnesis':
         return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />

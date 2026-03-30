@@ -240,7 +240,9 @@ function MainRoute() {
           </Route>
           <Route path="poli" element={<Outlet />}>
             <Route index element={<PoliSelect />} />
-            <Route path="umum" element={<div>Poli Umum Workspace Placeholder</div>} />
+            <Route path=":poliCode" element={g('/dashboard/nurse-calling', <NurseCalling />)}>
+              <Route index element={<PatientQueueTable />} />
+            </Route>
           </Route>
           <Route path="medicine" element={g('/dashboard/medicine', <Pharmacy />)}>
             <Route index element={<PharmacyDashboard />} />
@@ -276,7 +278,7 @@ function MainRoute() {
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
           </Route>
-          <Route path="ok" element={withModuleGuard(workspaceModuleCodes.doctor, <Outlet />)}>
+          <Route path="ok" element={g('/dashboard/ok', <Outlet />)}>
             <Route index element={<OKSubmissionPage />} />
             <Route path="pengajuan" element={<OKSubmissionPage />} />
             <Route path="verifikasi" element={<AntrianVerifikasiPage />} />

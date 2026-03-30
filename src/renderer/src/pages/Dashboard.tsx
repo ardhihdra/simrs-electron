@@ -8,9 +8,7 @@ import {
   FileTextOutlined,
   LeftCircleFilled,
   MedicineBoxOutlined,
-  PhoneOutlined,
   RightCircleFilled,
-  CheckSquareOutlined,
   UnorderedListOutlined,
   UserOutlined,
   WalletOutlined
@@ -139,12 +137,7 @@ const items: DashboardMenuItem[] = [
     key: '/dashboard/poli',
     icon: <CalendarOutlined />,
     module: Modules.RAWAT_JALAN,
-    children: [
-      { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
-      { label: 'Poli Umum', key: '/dashboard/poli/umum', icon: <CalendarOutlined /> },
-      { label: 'Rekam Medis Dokter', key: '/dashboard/doctor', icon: <FileTextOutlined /> },
-      { label: 'Pemanggilan Pasien', key: '/dashboard/nurse-calling', icon: <PhoneOutlined /> }
-    ]
+    children: [{ label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> }]
   },
   {
     label: 'Rawat Inap',
@@ -229,28 +222,7 @@ const items: DashboardMenuItem[] = [
     label: 'Kasir & Billing',
     key: '/dashboard/kasir',
     icon: <WalletOutlined />,
-    module: Modules.BILLING_KASIR,
-    children: [
-      {
-        label: 'Pemanggilan Pasien',
-        key: '/dashboard/nurse-calling',
-        icon: <PhoneOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Dokter',
-    key: '/dashboard/doctor',
-    icon: <UserOutlined />,
-    moduleKey: workspaceModuleCodes.doctor,
-    children: [
-      {
-        label: 'Rekam Medis',
-        key: '/dashboard/doctor',
-        icon: <FileTextOutlined />,
-        moduleKey: workspaceModuleCodes.doctor
-      }
-    ]
+    module: Modules.BILLING_KASIR
   },
   {
     label: 'Sistem',
@@ -430,9 +402,9 @@ function Dashboard() {
   const getTopKeyFromPath = (path: string): string => {
     if (
       path.startsWith('/dashboard/doctor') &&
-      visibleItems.some((item) => item.key === '/dashboard/doctor')
+      visibleItems.some((item) => item.key === '/dashboard/poli')
     ) {
-      return '/dashboard/doctor'
+      return '/dashboard/poli'
     }
     for (const top of visibleItems) {
       const children = Array.isArray(top.children) ? top.children : []

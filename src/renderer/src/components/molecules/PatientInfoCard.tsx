@@ -1,7 +1,6 @@
 import React from 'react'
-import { Card, Tag, Button, theme } from 'antd'
+import { Card, Tag, theme } from 'antd'
 import {
-  EditOutlined,
   UserOutlined,
   IdcardOutlined,
   CalendarOutlined,
@@ -32,7 +31,7 @@ interface PatientInfoCardProps {
     status?: string
     allergies?: string
   }
-  onEditStatus?: () => void
+  action?: React.ReactNode
 }
 
 const getStatusColor = (status?: string): string => {
@@ -109,7 +108,7 @@ const InfoItem = ({
   )
 }
 
-export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardProps) => {
+export const PatientInfoCard = ({ patientData, action }: PatientInfoCardProps) => {
   const { token } = theme.useToken()
 
   const { patient, poli, doctor, visitDate, paymentMethod, status, allergies } = patientData
@@ -177,18 +176,7 @@ export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardPr
             >
               {getStatusLabel(status)}
             </Tag>
-            {onEditStatus && (
-              <Button
-                type="link"
-                size="small"
-                onClick={onEditStatus}
-                icon={<EditOutlined />}
-                className="text-xs p-0 m-0 h-auto"
-                style={{ color: 'rgba(255,255,255,0.60)' }}
-              >
-                Ubah Status
-              </Button>
-            )}
+            {action && <div className="mt-1">{action}</div>}
           </div>
         )}
       </div>

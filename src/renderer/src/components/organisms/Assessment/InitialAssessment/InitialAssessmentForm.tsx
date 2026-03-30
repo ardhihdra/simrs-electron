@@ -247,6 +247,14 @@ export const InitialAssessmentForm = ({
             ]
           })
         }
+        if (vitalSigns?.bsa) {
+          obsToCreate.push({
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '8277-6',
+            display: 'Luas Permukaan Tubuh',
+            valueQuantity: { value: vitalSigns.bsa, unit: 'm2' }
+          })
+        }
       }
 
       if (values.consciousness) {
@@ -538,6 +546,7 @@ export const InitialAssessmentForm = ({
         height: vitalSigns.height,
         weight: vitalSigns.weight,
         bmi: vitalSigns.bmi,
+        bsa: vitalSigns.bsa,
         temperatureMethod: vitalSigns.temperatureMethod || 'Axillary',
         bloodPressureBodySite: vitalSigns.bloodPressureBodySite || 'Left arm',
         bloodPressurePosition:

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Form, Button, Card, Table, Space, App, Spin, AutoComplete, Checkbox } from 'antd'
+import { Form, Button, Card, Table, Space, App, Spin, Checkbox, Select } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -9,6 +9,8 @@ import { useDiagnosisCodeList } from '../../../../hooks/query/use-diagnosis-code
 import { DIAGNOSIS_MAP } from '../../../../config/maps/condition-maps'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+
+const { Option } = Select
 
 interface DiagnosisCode {
   id: string
@@ -36,13 +38,12 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
   const { data: conditionsData, isLoading: isLoadingConditions } =
     useConditionByEncounter(encounterId)
 
-  console.log('conditionsData.result', conditionsData)
-
   const [diagnosisOptions, setDiagnosisOptions] = useState<DiagnosisCode[]>([])
   const [selectedDiagnoses, setSelectedDiagnoses] = useState<DiagnosisTableData[]>([])
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
   const [debouncedDiagnosisSearch, setDebouncedDiagnosisSearch] = useState('')
 
+  // Fetch diagnosis list with items: 20, but we will slice to show 5 when empty
   const { data: masterDiagnosis, isLoading: isLoadingMasterDiagnosis } = useDiagnosisCodeList({
     q: debouncedDiagnosisSearch,
     items: 20
@@ -50,12 +51,12 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
   useEffect(() => {
-    if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
+    if (masterDiagnosis) {
       setDiagnosisOptions(masterDiagnosis as unknown as DiagnosisCode[])
     } else {
       setDiagnosisOptions([])
     }
-  }, [masterDiagnosis, debouncedDiagnosisSearch])
+  }, [masterDiagnosis])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedDiagnosisSearch(diagnosisSearch), 500)
@@ -248,19 +249,25 @@ export const DiagnosisForm = ({ encounterId, patientData }: DiagnosisFormProps) 
       <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
       <Card title="Diagnosis (ICD-10)">
         <Space direction="vertical" className="w-full" size="large">
-          <Form.Item label="Cari dan Tambah Diagnosis" name="diagnosisSearch">
-            <AutoComplete
-              options={diagnosisOptions.map((d) => ({
-                value: d.id,
-                label: `${d.code} - ${d.id_display || d.display}`
-              }))}
+          <Form.Item label="Cari dan Tambah Diagnosis (SatuSehat)" name="diagnosisSearch">
+            <Select
+              showSearch
+              placeholder="Ketik kode ICD-10 atau nama diagnosis"
               onSearch={(v) => setDiagnosisSearch(v)}
               onSelect={handleAddDiagnosis}
-              placeholder="Ketik kode ICD-10 atau nama diagnosis (min 2 karakter)"
+              filterOption={false}
               className="w-full"
               value={diagnosisSearch}
+              defaultActiveFirstOption={true}
               notFoundContent={isLoadingMasterDiagnosis ? <Spin size="small" /> : null}
-            />
+              allowClear
+            >
+              {diagnosisOptions.slice(0, diagnosisSearch.length > 0 ? 20 : 5).map((d) => (
+                <Option key={d.id} value={d.id}>
+                  {d.code} - {d.id_display || d.display}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
           <Table
             columns={diagnosisColumns}

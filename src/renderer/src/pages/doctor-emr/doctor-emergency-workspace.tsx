@@ -69,6 +69,7 @@ import { NutritionOrderForm } from '@renderer/components/organisms/Assessment/Nu
 import EducationForm from '@renderer/components/organisms/Assessment/Education/EducationForm'
 
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
 import { MedicalCertificateForm } from '@renderer/components/organisms/Assessment/MedicalCertificate/MedicalCertificateForm'
 import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
 import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
@@ -81,14 +82,14 @@ interface DoctorEmergencyWorkspaceProps {
   encounterId: string
   patientData: any
   patientInfoCardData: any
-  onEditStatus: () => void
+  action?: React.ReactNode
 }
 
 export const DoctorEmergencyWorkspace = ({
   encounterId,
   patientData,
   patientInfoCardData,
-  onEditStatus
+  action
 }: DoctorEmergencyWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('info')
@@ -139,6 +140,11 @@ export const DoctorEmergencyWorkspace = ({
         icon: <FormOutlined />,
         label: 'Asesmen Pasien',
         children: [
+          {
+            key: 'initial-assessment',
+            icon: <FormOutlined />,
+            label: 'Asesmen Awal'
+          },
           { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
           { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
           { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
@@ -277,11 +283,20 @@ export const DoctorEmergencyWorkspace = ({
   const renderContent = () => {
     switch (selectedKey) {
       case 'info':
-        return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
+        return <PatientInfoCard patientData={patientInfoCardData} action={action} />
       case 'medical-history':
         return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
         return <EncounterTimeline encounterId={encounterId} />
+      case 'initial-assessment':
+        return (
+          <InitialAssessmentForm
+            encounterId={encounterId}
+            patientData={patientData}
+            mode="outpatient"
+            role="doctor"
+          />
+        )
       case 'triage':
         return <TriageForm encounterId={encounterId} patientData={patientData} />
       case 'gcs':
