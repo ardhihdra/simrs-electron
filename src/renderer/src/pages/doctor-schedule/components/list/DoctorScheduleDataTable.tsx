@@ -69,17 +69,13 @@ interface DoctorScheduleDataTableProps {
   isError: boolean
 }
 
-export function DoctorScheduleDataTable({
-  rows,
-  loading,
-  isError
-}: DoctorScheduleDataTableProps) {
+export function DoctorScheduleDataTable({ rows, loading, isError }: DoctorScheduleDataTableProps) {
   const columns: ColumnsType<DoctorScheduleRow> = [
     ...baseColumns,
     {
       title: 'Aksi',
       key: 'action',
-      width: 320,
+      width: 100,
       align: 'center',
       fixed: 'right',
       render: (_, record) => <DoctorScheduleRowActions record={record} />
@@ -110,6 +106,9 @@ export function DoctorScheduleDataTable({
   )
 }
 
-export const buildDoctorScheduleRangeLabel = (berlakuDari: string, berlakuSampai?: string | null) => {
+export const buildDoctorScheduleRangeLabel = (
+  berlakuDari: string,
+  berlakuSampai?: string | null
+) => {
   return `${formatDoctorScheduleDate(berlakuDari)} - ${formatDoctorScheduleDate(berlakuSampai) === '-' ? 'Sekarang' : formatDoctorScheduleDate(berlakuSampai)}`
 }
