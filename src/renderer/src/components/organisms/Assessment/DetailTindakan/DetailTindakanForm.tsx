@@ -26,6 +26,7 @@ import {
 import dayjs from 'dayjs'
 
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useMasterTindakanList } from '@renderer/hooks/query/use-master-tindakan'
 import {
   useMasterPaketTindakanList,
@@ -65,6 +66,11 @@ interface ConsumableItem {
   kodeUnit?: string | null
   kind?: 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL' | null
   sellingPrice?: number | null
+  category?: {
+    id?: number
+    name?: string | null
+    categoryType?: string | null
+  } | null
 }
 
 const kelasOptions = [
@@ -141,6 +147,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const [editingId, setEditingId] = useState<number | null>(null)
   const [initialPetugas, setInitialPetugas] = useState<any[]>([])
   const [initialPaketPetugas, setInitialPaketPetugas] = useState<Record<string, any[]>>({})
+  const { profile } = useMyProfile()
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
 
@@ -197,21 +204,85 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }, [paketBhpList])
 
   const { data: consumableItems = [], isLoading: isLoadingConsumableItems } = useQuery({
-    queryKey: ['item', 'consumable-list'],
+    queryKey: ['item', 'bhp-list'],
     queryFn: async (): Promise<ConsumableItem[]> => {
-      const fn = window.api?.query?.item?.list as (() => Promise<ItemListResponse>) | undefined
+      const fn = window.api?.query?.item?.list as any
       if (!fn) throw new Error('API master item tidak tersedia')
 
-      const res = await fn()
+      const res = await fn({ items: 1000, depth: 1 })
       if (!res.success) {
         throw new Error(res.message || res.error || 'Gagal mengambil data item')
       }
 
-      const list = Array.isArray(res.result) ? res.result : []
-      return list.filter((item) => item?.kind === 'CONSUMABLE')
+      const list = (Array.isArray(res.result) ? res.result : []) as ConsumableItem[]
+      
+      return list.filter((item) => {
+        const categoryType = typeof item?.category?.categoryType === 'string' 
+          ? item.category.categoryType.toLowerCase() 
+          : ''
+        return categoryType === 'bhp'
+      })
     },
     staleTime: 5 * 60 * 1000
   })
+
+  // Resolve Doctor Location
+  const { data: myEmployeeData } = useQuery({
+    queryKey: ['kepegawaian', 'profile-detail', profile?.id],
+    queryFn: async () => {
+      const fn = (window.api?.query as any)?.kepegawaian?.list
+      if (!fn || !profile?.username) return null
+      const res = await fn({ nik: profile.username, depth: 1 })
+      return (Array.isArray(res?.result) ? res.result[0] : null) as any
+    },
+    enabled: !!profile?.username
+  })
+
+  const currentWorkLocation = useMemo(() => {
+    try {
+      if (myEmployeeData) {
+        const contracts = Array.isArray(myEmployeeData.kontrakPegawai) ? myEmployeeData.kontrakPegawai : []
+        const active = contracts[0] // list.ts sorts by date desc
+        if (active?.kodeLokasiKerja) return active.kodeLokasiKerja
+      }
+    } catch {}
+    return 'GUDANG' // fallback
+  }, [myEmployeeData])
+
+  // Fetch Stock for Doctor Location
+  const { data: locationStockData } = useQuery({
+    queryKey: ['inventoryStock', 'by-location', currentWorkLocation],
+    queryFn: async () => {
+      const fn = (window.api?.query as any)?.inventoryStock?.listByLocation
+      if (!fn) return null
+      const res = await fn({ kodeLokasi: currentWorkLocation, items: 1000 })
+      return res?.success ? res.result : null
+    },
+    enabled: !!currentWorkLocation
+  })
+
+  const stockByItemMap = useMemo(() => {
+    const map = new Map<string, number>()
+    try {
+      const locs = Array.isArray(locationStockData) ? locationStockData : []
+      const current = locs.find((l: any) => l.kodeLokasi === currentWorkLocation)
+      const items = Array.isArray(current?.items) ? current.items : []
+      items.forEach((it: any) => {
+        const kode = String(it.kodeItem || '').trim().toUpperCase()
+        if (kode) map.set(kode, Number(it.availableStock || 0))
+      })
+    } catch (err) {
+      console.error('[BHP][Debug] Error build map:', err)
+    }
+    return map
+  }, [locationStockData, currentWorkLocation])
+
+  useEffect(() => {
+    console.log('[BHP][Debug] profile:', profile)
+    console.log('[BHP][Debug] myEmployeeData:', myEmployeeData)
+    console.log('[BHP][Debug] currentWorkLocation:', currentWorkLocation)
+    console.log('[BHP][Debug] locationStockData:', locationStockData)
+  }, [profile, myEmployeeData, currentWorkLocation, locationStockData])
 
   const { data: listJenisKomponen = [] } = useMasterJenisKomponenList({
     isUntukMedis: true,
@@ -254,15 +325,17 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     [consumableItems]
   )
 
-  const consumableItemOptions = useMemo(
-    () =>
-      consumableItems.map((item) => ({
+  const consumableItemOptions = useMemo(() => {
+    return consumableItems.map((item) => {
+      const stock = stockByItemMap.get(item.kode.trim().toUpperCase()) || 0
+      const stockText = stock > 0 ? ` (Stok: ${stock})` : ' (Stok Kosong)'
+      return {
         value: item.id,
-        label: `[${item.kode}] ${item.nama}`,
+        label: `[${item.kode}] ${item.nama}${stockText}`,
         searchLabel: `${item.kode} ${item.nama}`.toLowerCase()
-      })),
-    [consumableItems]
-  )
+      }
+    })
+  }, [consumableItems, stockByItemMap])
 
   const roleByKomponenId = useMemo(
     () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),

@@ -45,13 +45,26 @@ export default function BhpNonPaketTab({
                         isLoadingConsumableItems ? <Spin size="small" /> : 'Item consumable tidak ditemukan'
                       }
                       onChange={(value) => {
-                        if (!value) return
+                        if (!value) {
+                          modalForm.setFieldValue(['bhpList', name, 'satuan'], undefined)
+                          return
+                        }
                         const selectedItem = consumableItemMap.get(Number(value))
                         if (!selectedItem) return
 
+                        const rules = selectedItem.buyPriceRules || []
+                        let firstValidUnit = selectedItem.kodeUnit
+                        if (Array.isArray(rules) && rules.length > 0) {
+                          firstValidUnit = rules[0].unitCode
+                        }
+                        
                         const currentSatuan = modalForm.getFieldValue(['bhpList', name, 'satuan'])
-                        if (!currentSatuan && selectedItem.kodeUnit) {
-                          modalForm.setFieldValue(['bhpList', name, 'satuan'], selectedItem.kodeUnit)
+                        const isValid = Array.isArray(rules) && rules.length > 0
+                          ? rules.some((r: any) => r.unitCode === currentSatuan)
+                          : currentSatuan === selectedItem.kodeUnit
+                        
+                        if (!currentSatuan || !isValid) {
+                          modalForm.setFieldValue(['bhpList', name, 'satuan'], firstValidUnit)
                         }
                       }}
                     />
@@ -79,13 +92,43 @@ export default function BhpNonPaketTab({
                   </Form.Item>
                 </Col>
                 <Col span={4}>
-                  <Form.Item 
-                    {...restField} 
-                    name={[name, 'satuan']} 
-                    label={name === 0 ? <span className="font-bold">Satuan</span> : undefined}
-                    style={{ marginBottom: 0 }}
+                  <Form.Item
+                    noStyle
+                    shouldUpdate={(prevValues, currentValues) =>
+                      prevValues.bhpList?.[name]?.itemId !== currentValues.bhpList?.[name]?.itemId
+                    }
                   >
-                    <Input placeholder="Satuan" />
+                    {({ getFieldValue }) => {
+                      const itemId = getFieldValue(['bhpList', name, 'itemId'])
+                      const selectedItem = itemId ? consumableItemMap.get(Number(itemId)) : null
+                      const rules = selectedItem?.buyPriceRules || []
+                      
+                      let unitOptions: any[] = []
+                      if (Array.isArray(rules) && rules.length > 0) {
+                        unitOptions = rules.map((r: any) => ({
+                          label: r.unitCode,
+                          value: r.unitCode
+                        }))
+                      } else if (selectedItem?.kodeUnit) {
+                        unitOptions = [{ label: selectedItem.kodeUnit, value: selectedItem.kodeUnit }]
+                      }
+
+                      return (
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'satuan']}
+                          label={name === 0 ? <span className="font-bold">Satuan</span> : undefined}
+                          style={{ marginBottom: 0 }}
+                          rules={[{ required: true, message: 'Wajib' }]}
+                        >
+                          <Select
+                            placeholder="Satuan"
+                            options={unitOptions}
+                            disabled={!itemId || unitOptions.length === 0}
+                          />
+                        </Form.Item>
+                      )
+                    }}
                   </Form.Item>
                 </Col>
                 <Col span={2} className="text-center flex items-end pb-0.5 justify-center">
