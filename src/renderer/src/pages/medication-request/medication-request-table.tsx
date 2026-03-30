@@ -14,7 +14,10 @@ import {
   MedicineBoxOutlined,
   ReloadOutlined,
   PlusOutlined,
-  SearchOutlined
+  SearchOutlined,
+  ClockCircleOutlined,
+  StopOutlined,
+  PauseCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -140,7 +143,12 @@ function getPatientDisplayName(patient?: PatientInfo): string {
 
   if (typeof patient.name === 'string') {
     const trimmed = patient.name.trim()
-    if (trimmed.length > 0) return trimmed
+    if (trimmed.length > 0) {
+      const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
+      const localMrn = identifiers.find((id) => id.system === 'local-mrn')
+      const mrn = patient.mrNo || localMrn?.value || ''
+      return mrn ? `${trimmed} (${mrn})` : trimmed
+    }
   }
 
   const firstName: PatientNameEntry | undefined =
@@ -152,16 +160,14 @@ function getPatientDisplayName(patient?: PatientInfo): string {
     .join(' ')
     .trim()
 
-  const baseName = nameFromText || nameFromGivenFamily
+  const baseName = nameFromText || nameFromGivenFamily || 'Tanpa nama'
 
   const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
   const localMrn = identifiers.find((id) => id.system === 'local-mrn')
   const mrn = patient.mrNo || localMrn?.value || ''
 
-  if (baseName && mrn) return `${baseName} (${mrn})`
-  if (baseName) return baseName
-  if (mrn) return mrn
-  return 'Tanpa nama'
+  if (mrn) return `${baseName} (${mrn})`
+  return baseName
 }
 
 function isCompound(record: MedicationRequestAttributes): boolean {
@@ -232,30 +238,51 @@ const columns = [
         const allZero = hasQuantity && numericQuantities.every((q) => q <= 0)
 
         if (allZero) {
-          return <Tag color="blue">dispense</Tag>
+          return <Tag color="blue" icon={<CheckCircleOutlined />}>Selesai (Dispense)</Tag>
         }
         if (record.isPartial) {
-          return <Tag color="gold">active (parsial)</Tag>
+          return <Tag color="gold" icon={<ClockCircleOutlined />}>Aktif (Parsial)</Tag>
         }
         if (record.isOnProcess) {
-          return <Tag color="geekblue">on process</Tag>
+          return <Tag color="geekblue" icon={<SyncOutlined spin />}>Diproses</Tag>
         }
-        return <Tag color="green">active</Tag>
+        return <Tag color="green" icon={<CheckCircleOutlined />}>Aktif</Tag>
       }
+      if (val === 'completed') return <Tag color="blue" icon={<CheckCircleOutlined />}>Selesai</Tag>
+      if (val === 'cancelled' || val === 'stopped') return <Tag color="red" icon={<StopOutlined />}>Dibatalkan</Tag>
+      if (val === 'on-hold') return <Tag color="orange" icon={<PauseCircleOutlined />}>Tertunda</Tag>
+      if (val === 'entered-in-error') return <Tag color="volcano" icon={<CloseCircleOutlined />}>Void</Tag>
       return <Tag color="default">{val}</Tag>
     }
   },
   {
     title: 'Tujuan',
     dataIndex: 'intent',
-    key: 'intent'
+    key: 'intent',
+    render: (val: string) => {
+      const map: Record<string, string> = {
+        order: 'Order',
+        proposal: 'Proposal',
+        plan: 'Rencana',
+        'original-order': 'Order Asli',
+        reflex: 'Refleks',
+        filler: 'Pengisi',
+        'instance-order': 'Instansi Order',
+        option: 'Opsi'
+      }
+      return map[val] || val
+    }
   },
   {
     title: 'Prioritas',
     dataIndex: 'priority',
     key: 'priority',
-    render: (val: string) =>
-      val ? <Tag color={val === 'urgent' || val === 'stat' ? 'red' : 'blue'}>{val}</Tag> : '-'
+    render: (val: string) => {
+      if (!val) return '-'
+      const label = val === 'urgent' || val === 'stat' ? val.toUpperCase() : val.charAt(0).toUpperCase() + val.slice(1)
+      const labelIndo = val === 'urgent' ? 'Urgen' : val === 'stat' ? 'STAT' : val === 'routine' ? 'Rutin' : label
+      return <Tag color={val === 'urgent' || val === 'stat' ? 'red' : 'blue'}>{labelIndo}</Tag>
+    }
   },
   {
     title: 'Sisa',

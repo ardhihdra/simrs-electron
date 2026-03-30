@@ -19,7 +19,12 @@ import {
   MedicineBoxOutlined,
   ReloadOutlined,
   FileTextOutlined,
-  SearchOutlined
+  SearchOutlined,
+  ClockCircleOutlined,
+  StopOutlined,
+  PauseCircleOutlined,
+  QuestionCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
@@ -197,12 +202,24 @@ interface ParentRow {
 type StatusFilter = 'all' | 'completed' | 'return'
 
 function getStatusLabel(status: string): string {
-  if (status === 'entered-in-error') return 'return'
-  if (status === 'cancelled' || status === 'stopped' || status === 'declined') return 'cancel'
-  if (status === 'preparation') return 'pending'
-  if (status === 'in-progress') return 'on process'
-  if (status === 'on-hold') return 'hold'
+  if (status === 'entered-in-error') return 'Void/Kembali'
+  if (status === 'cancelled' || status === 'stopped' || status === 'declined') return 'Dibatalkan'
+  if (status === 'preparation') return 'Persiapan'
+  if (status === 'in-progress') return 'Diproses'
+  if (status === 'on-hold') return 'Tertunda'
+  if (status === 'completed') return 'Selesai'
   return status
+}
+
+function getStatusTag(status: string) {
+  const label = getStatusLabel(status)
+  if (status === 'completed') return <Tag color="green" icon={<CheckCircleOutlined />}>{label}</Tag>
+  if (status === 'entered-in-error') return <Tag color="volcano" icon={<ReloadOutlined />}>{label}</Tag>
+  if (status === 'cancelled' || status === 'stopped' || status === 'declined') return <Tag color="red" icon={<StopOutlined />}>{label}</Tag>
+  if (status === 'preparation') return <Tag color="blue" icon={<InfoCircleOutlined />}>{label}</Tag>
+  if (status === 'in-progress') return <Tag color="geekblue" icon={<SyncOutlined spin />}>{label}</Tag>
+  if (status === 'on-hold') return <Tag color="orange" icon={<PauseCircleOutlined />}>{label}</Tag>
+  return <Tag color="default">{label}</Tag>
 }
 
 interface RowActionsProps {
@@ -393,7 +410,12 @@ function getPatientDisplayName(patient?: PatientInfo): string {
 
   if (typeof patient.name === 'string') {
     const trimmed = patient.name.trim()
-    if (trimmed.length > 0) return trimmed
+    if (trimmed.length > 0) {
+      const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
+      const localMrn = identifiers.find((id) => id.system === 'local-mrn')
+      const mrn = patient.mrNo || localMrn?.value || ''
+      return mrn ? `${trimmed} (${mrn})` : trimmed
+    }
   }
 
   const firstName: PatientNameEntry | undefined =
@@ -405,16 +427,14 @@ function getPatientDisplayName(patient?: PatientInfo): string {
     .join(' ')
     .trim()
 
-  const baseName = nameFromText || nameFromGivenFamily
+  const baseName = nameFromText || nameFromGivenFamily || 'Tanpa nama'
 
   const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
   const localMrn = identifiers.find((id) => id.system === 'local-mrn')
   const mrn = patient.mrNo || localMrn?.value || ''
 
-  if (baseName && mrn) return `${baseName} (${mrn})`
-  if (baseName) return baseName
-  if (mrn) return mrn
-  return 'Tanpa nama'
+  if (mrn) return `${baseName} (${mrn})`
+  return baseName
 }
 
 function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
@@ -523,25 +543,17 @@ const columns = [
     dataIndex: 'encounterType',
     key: 'encounterType',
     render: (val: string) => {
-      if (val === 'AMB') return <Tag color="green">Rawat Jalan</Tag>
-      if (val === 'EMER') return <Tag color="red">IGD</Tag>
-      if (val === 'IMP') return <Tag color="blue">Rawat Inap</Tag>
-      return '-'
+      if (val === 'AMB' || val === 'ambulatory') return <Tag color="green">Rawat Jalan</Tag>
+      if (val === 'EMER' || val === 'emergency') return <Tag color="red">IGD</Tag>
+      if (val === 'IMP' || val === 'inpatient') return <Tag color="blue">Rawat Inap</Tag>
+      return <Tag color="default">Pasien Luar</Tag>
     }
   },
   {
     title: 'Status Penyerahan',
     dataIndex: 'status',
     key: 'status',
-    render: (val: string) => {
-      const color =
-        val === 'completed'
-          ? 'green'
-          : val === 'cancelled' || val === 'entered-in-error'
-            ? 'red'
-            : 'default'
-      return <Tag color={color}>{getStatusLabel(val)}</Tag>
-    }
+    render: (val: string) => getStatusTag(val)
   },
   {
     title: 'Pembayaran',
@@ -550,7 +562,8 @@ const columns = [
     render: (val: string | undefined) => {
       const status = val || 'Belum Ditagihkan'
       const color = status === 'Lunas' ? 'green' : status === 'Sebagian' ? 'orange' : 'volcano'
-      return <Tag color={color}>{status}</Tag>
+      const icon = status === 'Lunas' ? <CheckCircleOutlined /> : status === 'Sebagian' ? <ClockCircleOutlined /> : <CloseCircleOutlined />
+      return <Tag color={color} icon={icon}>{status}</Tag>
     }
   },
   {

@@ -191,16 +191,19 @@ interface ItemListResponse {
 }
 
 function getPatientDisplayName(patient?: PatientInfo): string {
-	if (!patient) return ''
+	if (!patient) return '-'
 
 	if (typeof patient.name === 'string') {
 		const trimmed = patient.name.trim()
-		if (trimmed.length > 0) return trimmed
+		if (trimmed.length > 0) {
+			const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
+			const mrnComp = identifiers.find((id) => id.system === 'local-mrn')?.value || patient.mrNo || ''
+			return mrnComp ? `${trimmed} (${mrnComp})` : trimmed
+		}
 	}
 
-	const firstName: PatientNameEntry | undefined = Array.isArray(patient.name) && patient.name.length > 0
-		? patient.name[0]
-		: undefined
+	const firstName: PatientNameEntry | undefined =
+		Array.isArray(patient.name) && patient.name.length > 0 ? patient.name[0] : undefined
 
 	const nameFromText = firstName?.text?.trim() ?? ''
 	const nameFromGivenFamily = [firstName?.given?.[0], firstName?.family]
@@ -208,16 +211,26 @@ function getPatientDisplayName(patient?: PatientInfo): string {
 		.join(' ')
 		.trim()
 
-	const baseName = nameFromText || nameFromGivenFamily
+	const baseName = nameFromText || nameFromGivenFamily || 'Tanpa nama'
 
 	const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
-	const localMrn = identifiers.find((id) => id.system === 'local-mrn')
-	const mrn = patient.mrNo || localMrn?.value || ''
+	const mrn = identifiers.find((id) => id.system === 'local-mrn')?.value || patient.mrNo || ''
 
-	if (baseName && mrn) return `${baseName} (${mrn})`
-	if (baseName) return baseName
-	if (mrn) return mrn
-	return 'Tanpa nama'
+	if (mrn) return `${baseName} (${mrn})`
+	return baseName
+}
+
+function getRequestStatusTag(status: string) {
+	const map: Record<string, { label: string; color: string }> = {
+		active: { label: 'Aktif', color: 'green' },
+		completed: { label: 'Selesai', color: 'blue' },
+		cancelled: { label: 'Dibatalkan', color: 'red' },
+		'on-hold': { label: 'Tertunda', color: 'orange' },
+		draft: { label: 'Draf', color: 'default' },
+		'entered-in-error': { label: 'Void', color: 'volcano' }
+	}
+	const cfg = map[status] || { label: status, color: 'default' }
+	return <Tag color={cfg.color}>{cfg.label}</Tag>
 }
 
 function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
@@ -266,7 +279,7 @@ export default function MedicationDispenseFromRequest() {
 	const requestId = typeof idParam === 'string' ? Number(idParam) : NaN
 	const [quantityOverrides, setQuantityOverrides] = useState<Record<number, number>>({})
 	const [telaahResults, setTelaahResults] = useState<TelaahResults>(defaultTelaahResults)
-	const [selectedBatches, setSelectedBatches] = useState<Record<string, { kodeItem: string; batchValue: string }>>({})
+	const [selectedBatches, setSelectedBatches] = useState<Record<string, string>>({})
 
 	const { data, isLoading } = useQuery({
 		queryKey: ['medicationRequest', 'detail', requestId],
@@ -512,9 +525,20 @@ export default function MedicationDispenseFromRequest() {
 			}
 
 			const mappedBatches: Record<string, string> = {}
-			for (const obj of Object.values(selectedBatches)) {
-				if (obj?.kodeItem && obj?.batchValue) {
-					mappedBatches[obj.kodeItem] = obj.batchValue
+			for (const [rowKey, batchValue] of Object.entries(selectedBatches)) {
+				const findInTable = (rows: TableRow[]): TableRow | undefined => {
+					for (const r of rows) {
+						if (r.key === rowKey) return r
+						if (r.children) {
+							const found = findInTable(r.children)
+							if (found) return found
+						}
+					}
+					return undefined
+				}
+				const row = findInTable(tableData)
+				if (row?.kodeItem && batchValue) {
+					mappedBatches[row.kodeItem] = batchValue
 				}
 			}
 
@@ -957,7 +981,7 @@ export default function MedicationDispenseFromRequest() {
 			<Card loading={isLoading}>
 				<Descriptions column={1} size="small" bordered>
 					<Descriptions.Item label="Pasien">{patientLabel}</Descriptions.Item>
-					<Descriptions.Item label="Status Resep">{detail?.status ?? '-'}</Descriptions.Item>
+					<Descriptions.Item label="Status Resep">{detail ? getRequestStatusTag(detail.status) : '-'}</Descriptions.Item>
 					<Descriptions.Item label="Tanggal Resep">{authoredOnText}</Descriptions.Item>
 				</Descriptions>
 			</Card>
