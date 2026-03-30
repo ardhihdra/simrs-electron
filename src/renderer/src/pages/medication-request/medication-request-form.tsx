@@ -1459,17 +1459,21 @@ export function MedicationRequestForm() {
         value: `${Date.now()}`
       }
 
-      const simplePayloads = items.map((item) => ({
-        ...baseCommonPayload,
-        groupIdentifier,
-        itemId: item.medicationId,
-        dosageInstruction: item.dosageInstruction
-          ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
-          : null,
-        note: item.note,
-        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
-        supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
-      }))
+      // For new requests, we primarily use otherItems and compounds.
+      // items (simplePayloads) is kept for backward compatibility but should be empty if the new UI is used.
+      const simplePayloads = items
+        .filter((item) => typeof item.medicationId === 'number' && item.medicationId > 0)
+        .map((item) => ({
+          ...baseCommonPayload,
+          groupIdentifier,
+          itemId: item.medicationId,
+          dosageInstruction: item.dosageInstruction
+            ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
+            : null,
+          note: item.note,
+          dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
+          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
+        }))
       const itemList = (itemSource?.result || []) as ItemAttributes[]
       const medicineList = itemList as any[]
 

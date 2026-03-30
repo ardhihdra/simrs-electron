@@ -104,6 +104,8 @@ interface MedicationDispenseAttributes {
   authorizingPrescription?: AuthorizingPrescriptionInfo | null
   paymentStatus?: string
   encounter?: { encounterType?: string }
+  identifier?: Array<{ system: string; value: string }> | null
+  fhirId?: string | null
 }
 
 interface MedicationDispenseListArgs {
@@ -176,6 +178,7 @@ interface DispenseItemRow {
   fhirId?: string
   batch?: string
   expiryDate?: string
+  paymentStatus?: string
   children?: DispenseItemRow[]
 }
 
@@ -301,79 +304,25 @@ function RowActions({ record, patient, employees, employeeNameById }: RowActions
   const quantityToDispense = typeof record.quantity === 'number' ? record.quantity : 0
   const hasStockInfo = typeof record.availableStock === 'number'
   const isStockInsufficient = hasStockInfo && quantityToDispense > (record.availableStock as number)
+  const isPaid = record.paymentStatus === 'Lunas'
   const canComplete =
-    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient
+    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid
   const canVoid = isCompleted && typeof record.id === 'number'
   const isKomposisi = record.jenis === 'Komposisi'
 
   const handlePrintLabel = () => {
     const patientLabel = getPatientDisplayName(patient)
-    const name = record.medicineName ?? 'Obat'
-    const quantityValue = typeof record.quantity === 'number' ? record.quantity : 0
-    const unitLabel = record.unit ?? ''
-    const instructionText = record.instruksi ?? ''
-
-    const parts: string[] = []
-    if (patientLabel.trim().length > 0) {
-      parts.push(`Pasien: ${patientLabel}`)
-    }
-    parts.push(`Nama Obat: ${name}`)
-    parts.push(`Qty: ${quantityValue} ${unitLabel}`.trim())
-    if (instructionText.trim().length > 0) {
-      parts.push(`Instruksi: ${instructionText}`)
-    }
-
-    if (parts.length === 0) {
-      message.info('Data label obat tidak tersedia')
-      return
-    }
-
-    const htmlLines = parts.map((line) => `<div class="line">${line}</div>`).join('')
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Label Obat</title>
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; margin: 8px; }
-    .label { border: 1px solid #000; padding: 4px 8px; max-width: 320px; }
-    .line { margin-bottom: 2px; }
-  </style>
-</head>
-<body>
-  <div class="label">
-    ${htmlLines}
-  </div>
-</body>
-</html>`
-
-    const iframe = document.createElement('iframe')
-    iframe.style.position = 'fixed'
-    iframe.style.right = '0'
-    iframe.style.bottom = '0'
-    iframe.style.width = '0'
-    iframe.style.height = '0'
-    iframe.style.border = '0'
-    document.body.appendChild(iframe)
-
-    const iframeWindow = iframe.contentWindow
-    if (!iframeWindow) {
-      message.info('Gagal menyiapkan tampilan cetak label')
-      iframe.remove()
-      return
-    }
-
-    const doc = iframeWindow.document
-    doc.open()
-    doc.write(html)
-    doc.close()
-
-    iframeWindow.focus()
-    iframeWindow.print()
-
-    setTimeout(() => {
-      iframe.remove()
-    }, 1000)
+    printMedicationLabels({
+        patientName: patientLabel,
+        items: [{
+            medicineName: record.medicineName,
+            quantity: record.quantity,
+            unit: record.unit,
+            instruksi: record.instruksi,
+            expiryDate: (record as any).expiryDate,
+            batch: (record as any).batch
+        }]
+    })
   }
 
   return (
@@ -421,6 +370,11 @@ function RowActions({ record, patient, employees, employeeNameById }: RowActions
       {isStockInsufficient && (
         <div className="text-xs text-red-500">
           Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
+        </div>
+      )}
+      {!isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
+        <div className="text-xs text-orange-500">
+          Pembayaran belum lunas, tidak dapat menyerahkan obat.
         </div>
       )}
       <SerahkanObatModal
@@ -968,14 +922,33 @@ export function MedicationDispenseTable() {
               if (!ingName && typeof ingItemId === 'number') {
                 ingName = itemNameById.get(ingItemId)
               }
+
+              let ingBatch: string | undefined
+              let ingExpiryDate: string | undefined
+
+              // Fallback for ingredients: look in identifiers if the dispense record has them
+              const ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
+              if (ingKode) {
+                const batchId = item.identifier?.find((id: any) => id.system === `batch-number-${ingKode}`)
+                const expId = item.identifier?.find((id: any) => id.system === `expiry-date-${ingKode}`)
+                if (batchId) ingBatch = batchId.value
+                if (expId) ingExpiryDate = expId.value
+              }
+
+              // Secondary fallback for legacy data
+              if (!ingBatch && ing.batchNumber) ingBatch = ing.batchNumber
+              if (!ingExpiryDate && ing.expiryDate) ingExpiryDate = ing.expiryDate
+
               return {
-                key: `${key}-ing-${idx}`,
+                key: `${key}-${item.id ?? 'grp'}-ing-${idx}`,
                 jenis: 'Komposisi',
                 medicineName: ingName ?? 'Komposisi',
-                quantity: typeof ing.quantity === 'number' ? ing.quantity : undefined,
+                quantity: typeof ing.quantity === 'number' ? Math.round(ing.quantity) : undefined,
                 unit: ing.unitCode ?? ing.unit,
                 status: '',
-                instruksi: ing.note ?? ing.instruction
+                instruksi: ing.note ?? ing.instruction,
+                batch: ingBatch,
+                expiryDate: ingExpiryDate
               }
             })
           }
@@ -997,14 +970,33 @@ export function MedicationDispenseTable() {
             if (!ingName && typeof ingItemId === 'number') {
               ingName = itemNameById.get(ingItemId)
             }
+
+            let ingBatch: string | undefined
+            let ingExpiryDate: string | undefined
+
+            // Fallback for ingredients: look in identifiers if the dispense record has them
+            const ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
+            if (ingKode) {
+              const batchId = item.identifier?.find((id: any) => id.system === `batch-number-${ingKode}`)
+              const expId = item.identifier?.find((id: any) => id.system === `expiry-date-${ingKode}`)
+              if (batchId) ingBatch = batchId.value
+              if (expId) ingExpiryDate = expId.value
+            }
+
+            // Secondary fallback for legacy data
+            if (!ingBatch && ing.batchNumber) ingBatch = ing.batchNumber
+            if (!ingExpiryDate && ing.expiryDate) ingExpiryDate = ing.expiryDate
+
             return {
-              key: `${key}-${item.id}-ing-${idx}`,
+              key: `${key}-${item.id ?? 'racik'}-ing-${idx}`,
               jenis: 'Komposisi',
               medicineName: ingName ?? 'Komposisi',
-              quantity: typeof ing.quantity === 'number' ? ing.quantity : undefined,
+              quantity: typeof ing.quantity === 'number' ? Math.round(ing.quantity) : undefined,
               unit: ing.unitCode ?? ing.unit,
               status: '',
-              instruksi: ing.note ?? ing.instruction
+              instruksi: ing.note ?? ing.instruction,
+              batch: ingBatch,
+              expiryDate: ingExpiryDate
             }
           })
         }
@@ -1015,21 +1007,32 @@ export function MedicationDispenseTable() {
         id: item.id,
         jenis,
         medicineName,
-        quantity: typeof quantityValue === 'number' ? quantityValue : undefined,
+        quantity: typeof quantityValue === 'number' ? Math.round(quantityValue) : undefined,
         unit: quantityUnit,
         status: item.status,
         performerName: item.performer?.name,
         instruksi,
         availableStock:
           typeof item.medication?.stock === 'number' ? item.medication.stock : undefined,
+        paymentStatus: item.paymentStatus,
         fhirId:
-          typeof (item as any).fhirId === 'string' && (item as any).fhirId.trim().length > 0
-            ? (item as any).fhirId.trim()
+          typeof item.fhirId === 'string' && item.fhirId.trim().length > 0
+            ? item.fhirId.trim()
             : undefined,
         children
       }
-      // Extract batch info for non-compound items from prescription supportingInformation
-      if (isItem && Array.isArray(prescription?.supportingInformation)) {
+
+      // Extract batch info from identifiers (New priority)
+      if (Array.isArray(item.identifier)) {
+        const identifiers = item.identifier
+        const batchId = identifiers.find((id) => id.system === 'batch-number' || id.system.startsWith('batch-number-'))
+        const expiryId = identifiers.find((id) => id.system === 'expiry-date' || id.system.startsWith('expiry-date-'))
+        if (batchId) rowItem.batch = batchId.value
+        if (expiryId) rowItem.expiryDate = expiryId.value
+      }
+
+      // Fallback: Extract batch info for non-compound items from prescription supportingInformation
+      if (!rowItem.batch && !rowItem.expiryDate && isItem && Array.isArray(prescription?.supportingInformation)) {
         const batchInfo = (prescription.supportingInformation as Array<Record<string, unknown>>)
           .find((info) => info.resourceType === 'StockBatch')
         if (batchInfo) {

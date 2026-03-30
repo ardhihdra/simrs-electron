@@ -1,10 +1,13 @@
 import { message } from 'antd'
+import dayjs from 'dayjs'
 
 export interface MedicationLabelItem {
     medicineName?: string
     quantity?: number
     unit?: string
     instruksi?: string
+    expiryDate?: string
+    batch?: string
 }
 
 export interface PrintMedicationLabelParams {
@@ -19,16 +22,35 @@ export function printMedicationLabels({ patientName, items }: PrintMedicationLab
             const quantityValue = typeof item.quantity === 'number' ? item.quantity : 0
             const unitLabel = item.unit ?? ''
             const instructionText = item.instruksi ?? ''
+            const expiryDate = item.expiryDate
+            const batch = item.batch
 
             const lines: string[] = []
             if (patientName.trim().length > 0) {
                 lines.push(`Pasien: ${patientName}`)
             }
             lines.push(`Nama Obat: ${name}`)
-            lines.push(`Qty: ${quantityValue} ${unitLabel}`.trim())
+            lines.push(`Qty: ${Math.round(quantityValue)} ${unitLabel}`.trim())
+            
             if (instructionText.trim().length > 0) {
                 lines.push(`Instruksi: ${instructionText}`)
             }
+
+            const batchExpParts: string[] = []
+            if (batch && batch.trim().length > 0) {
+                batchExpParts.push(`Batch: ${batch}`)
+            }
+            if (expiryDate && expiryDate.trim().length > 0) {
+                const formattedExp = dayjs(expiryDate).isValid() 
+                    ? dayjs(expiryDate).format('DD/MM/YYYY') 
+                    : expiryDate
+                batchExpParts.push(`Exp: ${formattedExp}`)
+            }
+
+            if (batchExpParts.length > 0) {
+                lines.push(batchExpParts.join(' | '))
+            }
+            
             return lines
         })
         .filter((lines) => lines.length > 0)
@@ -54,22 +76,28 @@ export function printMedicationLabels({ patientName, items }: PrintMedicationLab
   <title>Label Obat</title>
   <style>
     body { 
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; 
-      font-size: 12px; 
-      margin: 8px; 
+      font-family: inherit; 
+      font-size: 14px; 
+      margin: 0;
+      padding: 0;
     }
     .label { 
-      border: 1px solid #000; 
-      padding: 4px 8px; 
-      max-width: 320px; 
-      margin-bottom: 8px; 
-      page-break-after: always; /* Pastikan tiap label di halaman berbeda jika diprint panjang */
+      border: 1px dashed #ccc; 
+      padding: 10px; 
+      width: 300px; 
+      margin-bottom: 15px; 
+      page-break-after: always;
     }
-    .line { margin-bottom: 2px; }
+    .line { 
+      margin-bottom: 4px; 
+      word-wrap: break-word;
+      border-bottom: 1px dotted #eee;
+      padding-bottom: 2px;
+    }
+    .line:last-child { border-bottom: none; }
     @media print {
       body { margin: 0; }
-      /* Saat di print bisa dihapus border-nya atau menyesuaikan ukuran printer thermal */
-      .label { border: none; padding: 0; margin-bottom: 0; }
+      .label { border: none; padding: 0; margin-bottom: 0; width: 100%; }
     }
   </style>
 </head>
