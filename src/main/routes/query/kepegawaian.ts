@@ -16,7 +16,8 @@ export const schemas = {
       .object({
         query: z
           .object({
-            hakAksesCode: z.string().optional()
+            hakAksesCode: z.string().optional(),
+            depth: z.number().optional()
           })
           .optional()
       })
@@ -73,6 +74,10 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 
     if (args?.query?.hakAksesCode) {
       params.append('hakAksesCode', args.query.hakAksesCode)
+    }
+
+    if (typeof args?.query?.depth === 'number') {
+      params.append('depth', String(args.query.depth))
     }
 
     const res = await client.get(`/api/kepegawaian?${params.toString()}`)

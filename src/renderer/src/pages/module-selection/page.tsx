@@ -75,10 +75,7 @@ export default function ModuleSelection() {
 
   const installations = normalizeInstallations(data?.result)
   const selectedInstallation = installations.find((item) => item.key === selectedInstallationKey)
-  const totalModuleCount = installations.reduce(
-    (total, installation) => total + installation.allowedModules.length,
-    0
-  )
+  const totalModuleCount = new Set(installations.flatMap((i) => i.allowedModules)).size
 
   const handleSelectInstallation = (installationKey: string) => {
     setSelectedInstallationKey((currentKey) =>
@@ -103,10 +100,11 @@ export default function ModuleSelection() {
       if (!sessionResult.data) {
         throw new Error('Module session is empty')
       }
+      console.log('Session Result', sessionResult.data)
 
       setModuleScopeSession(sessionResult.data)
       setSelectedModule(moduleName)
-      message.success('Berhasil Mengaktifkan Modul')
+      message.success(`Berhasil Mengaktifkan Modul ${moduleName.replaceAll('_', ' ')}`)
       navigation('/dashboard')
     } catch (err) {
       console.log(err)

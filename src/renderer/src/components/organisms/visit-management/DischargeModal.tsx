@@ -1,4 +1,5 @@
 import { client } from '@renderer/utils/client'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { App, Form, Input, Modal, Select } from 'antd'
 
 interface DischargeModalProps {
@@ -61,7 +62,14 @@ export default function DischargeModal({ open, record, onClose, onSuccess }: Dis
       confirmLoading={dischargeMutation.isPending}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" onFinish={handleFinish}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={handleFinish}
+        onFinishFailed={(errorInfo) =>
+          notifyFormValidationError(form, message, errorInfo, 'Lengkapi data pemulangan pasien terlebih dahulu.')
+        }
+      >
         <p>
           Pasien: <b>{record?.patientName}</b>
         </p>

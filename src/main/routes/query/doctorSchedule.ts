@@ -89,15 +89,14 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     const payload = {
       idPegawai: args.idPegawai,
       idPoli: args.idPoli,
-      kategori: args.kategori ?? null,
-      senin: args.senin,
-      selasa: args.selasa,
-      rabu: args.rabu,
-      kamis: args.kamis,
-      jumat: args.jumat,
-      sabtu: args.sabtu,
-      minggu: args.minggu,
+      idLokasiKerja: args.idLokasiKerja,
+      idKontrakKerja: args.idKontrakKerja,
+      kategori: args.kategori,
+      namaJadwal: args.namaJadwal ?? null,
+      berlakuDari: args.berlakuDari,
+      berlakuSampai: args.berlakuSampai ?? null,
       status: args.status ?? 'active',
+      keterangan: args.keterangan ?? null,
       createdBy: args.createdBy ?? null
     }
     const res = await client.post('/api/jadwalDokter', payload)
@@ -118,15 +117,14 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
     const payload = {
       idPegawai: args.idPegawai,
       idPoli: args.idPoli,
+      idLokasiKerja: args.idLokasiKerja,
+      idKontrakKerja: args.idKontrakKerja,
       kategori: args.kategori,
-      senin: args.senin,
-      selasa: args.selasa,
-      rabu: args.rabu,
-      kamis: args.kamis,
-      jumat: args.jumat,
-      sabtu: args.sabtu,
-      minggu: args.minggu,
+      namaJadwal: args.namaJadwal ?? null,
+      berlakuDari: args.berlakuDari,
+      berlakuSampai: args.berlakuSampai ?? null,
       status: args.status,
+      keterangan: args.keterangan ?? null,
       updatedBy: args.updatedBy ?? null
     }
     const res = await client.put(`/api/jadwalDokter/${args.id}`, payload)

@@ -1,5 +1,6 @@
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { PatientAttributes } from '@shared/patient'
 import { App, Button, DatePicker, Drawer, Form, Input, Select, Space } from 'antd'
 import dayjs from 'dayjs'
@@ -164,7 +165,7 @@ const CreateQueueModal = ({
 
   return (
     <Drawer
-      title={patient ? `Pendaftaran Pasien: ${patient.name}` : 'Buat Antrian'}
+      title={patient ? `Buat Antrian Pasien: ${patient.name}` : 'Buat Antrian'}
       width={600}
       open={open}
       onClose={onClose}
@@ -183,6 +184,9 @@ const CreateQueueModal = ({
         form={form}
         layout="vertical"
         onFinish={handleSubmit}
+        onFinishFailed={(errorInfo) =>
+          notifyFormValidationError(form, message, errorInfo, 'Lengkapi data antrian terlebih dahulu.')
+        }
         initialValues={{
           visitDate: dayjs(),
           paymentMethod: 'CASH'

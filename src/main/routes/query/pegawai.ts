@@ -5,6 +5,10 @@ import { createBackendClient, parseBackendResponse, BackendListSchema } from '@m
 
 export const requireSession = true
 
+// FIX ME: better to use enum
+const HakAksesEnum = z.string().nullable()
+  .optional()
+
 export const schemas = {
   list: {
     result: z.object({
@@ -26,10 +30,8 @@ export const schemas = {
       jenisKelamin: z.enum(['L', 'P']),
       alamat: z.string().nullable().optional(),
       nomorTelepon: z.string().nullable().optional(),
-      hakAkses: z
-        .enum(['administrator', 'manager', 'admin', 'admin_backoffice', 'operator_gudang', 'doctor', 'nurse', 'pharmacist', 'receptionist', 'lab_technician', 'radiologist', 'accountant', 'patient'])
-        .nullable()
-        .optional()
+      hakAkses: HakAksesEnum,
+      hakAksesId: HakAksesEnum
     }),
     result: z.object({ success: z.boolean(), data: KepegawaianSchemaWithId.optional(), error: z.string().optional() })
   },
@@ -43,10 +45,8 @@ export const schemas = {
       jenisKelamin: z.enum(['L', 'P']).optional(),
       alamat: z.string().nullable().optional(),
       nomorTelepon: z.string().nullable().optional(),
-      hakAkses: z
-        .enum(['administrator', 'manager', 'admin', 'admin_backoffice', 'operator_gudang', 'doctor', 'nurse', 'pharmacist', 'receptionist', 'lab_technician', 'radiologist', 'accountant', 'patient'])
-        .nullable()
-        .optional()
+      hakAkses: HakAksesEnum,
+      hakAksesId: HakAksesEnum
     }),
     result: z.object({ success: z.boolean(), data: KepegawaianSchemaWithId.optional(), error: z.string().optional() })
   },
