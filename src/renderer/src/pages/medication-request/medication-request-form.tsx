@@ -7,7 +7,7 @@ import {
 } from 'antd'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { useNavigate, useParams } from 'react-router'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { queryClient } from '@renderer/query-client'
 import dayjs from 'dayjs'
 import { PatientAttributes } from 'simrs-types'
@@ -235,6 +235,10 @@ export function MedicationRequestForm() {
         : await api?.inventoryStock?.listBatches?.({ kodeItem })
       if (res?.success && Array.isArray(res.result)) {
         setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
+        try {
+          const preview = (res.result as BatchOption[]).slice(0, 5).map((b) => ({ batch: b.batchNumber, exp: b.expiryDate, available: b.availableStock }))
+          console.log(`[MR][Batches][${kodeItem}@FARM] count:`, (res.result as BatchOption[]).length, 'preview:', preview)
+        } catch { }
       }
     } catch (err) {
       console.error(`[MR] Fetch batches error for ${kodeItem} (row: ${rowKey})`, err)
@@ -329,7 +333,14 @@ export function MedicationRequestForm() {
     queryFn: () => {
       const fn = itemApi?.list
       if (!fn) throw new Error('API item tidak tersedia.')
-      return fn()
+      return fn().then((res) => {
+        try {
+          const arr = Array.isArray(res?.result) ? res.result : []
+          const preview = arr.slice(0, 5).map((i: any) => ({ id: i.id, kode: i.kode, nama: i.nama }))
+          console.log('[MR][Items] total:', arr.length, 'preview:', preview)
+        } catch { }
+        return res
+      })
     }
   })
 
@@ -361,7 +372,20 @@ export function MedicationRequestForm() {
       }
       const fn = api?.inventoryStock?.listByLocation
       if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
-      return fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+      const res = await fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+      try {
+        const locs = Array.isArray(res?.result) ? res.result : []
+        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
+        const items = farm?.items ?? []
+        console.log('[MR][Stock][by-location:FARM] total locations:', locs.length, 'farm items:', items.length)
+        if (items.length > 0) {
+          const preview = items.slice(0, 5).map((it) => ({ kodeItem: it.kodeItem, availableStock: it.availableStock, unit: it.unit }))
+          console.log('[MR][Stock][by-location:FARM] preview:', preview)
+        }
+      } catch (e) {
+        console.log('[MR][Stock][by-location:FARM] log error:', e)
+      }
+      return res
     }
   })
 
@@ -376,6 +400,16 @@ export function MedicationRequestForm() {
     }
     return set
   }, [inventoryByLocation?.result])
+  useEffect(() => {
+    if (inventoryByLocation?.result) {
+      try {
+        const arr = inventoryByLocation.result
+        const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
+        const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
+        console.log('[MR][Stock] farmKodeSet size:', farmKodeSet.size, 'farm items total:', totalItems)
+      } catch { }
+    }
+  }, [inventoryByLocation?.result, farmKodeSet.size])
 
   const { data: itemCategoryData } = useQuery({
     queryKey: ['itemCategory', 'list'],
@@ -473,7 +507,11 @@ export function MedicationRequestForm() {
       return farmKodeSet.has(code)
     })
 
-    return filteredByLocation
+    try {
+      console.log('[MR][Items] source count:', source.length, 'farmKodeSet size:', farmKodeSet.size, 'filteredByLocation count:', filteredByLocation.length)
+    } catch { }
+
+    let opts = filteredByLocation
       .filter((item) => typeof item.id === 'number')
       .map((item) => {
         const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
@@ -507,8 +545,34 @@ export function MedicationRequestForm() {
           categoryType
         }
       })
-      .filter((entry) => entry.unitCode.length > 0)
-  }, [itemSource?.result, itemCategoryMap])
+    // Fallback from inventory stock if master items are empty
+    if (opts.length === 0) {
+      try {
+        const locs = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
+        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
+        const items = Array.isArray(farm?.items) ? farm!.items! : []
+        const fromFarm = items
+          .filter((it: any) => typeof it.itemId === 'number' && it.itemId > 0)
+          .map((it: any) => {
+            const value = it.itemId as number
+            const label = it.unit ? `${it.namaItem || it.kodeItem} (${it.unit})` : (it.namaItem || it.kodeItem)
+            const unitCode = typeof it.unitCode === 'string' && it.unitCode.trim().length > 0 ? it.unitCode.trim().toUpperCase() : (typeof it.unit === 'string' ? it.unit : '')
+            return { value, label, unitCode, categoryId: null, categoryType: 'obat' }
+          })
+        if (fromFarm.length > 0) {
+          console.log('[MR][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
+          opts = fromFarm
+        }
+      } catch (e) {
+        console.log('[MR][Items][Options][fallback-from-stock] error:', e)
+      }
+    }
+    try {
+      const preview = opts.slice(0, 5)
+      console.log('[MR][Items][Options] count:', opts.length, 'preview:', preview)
+    } catch { }
+    return opts
+  }, [itemSource?.result, itemCategoryMap, farmKodeSet, inventoryByLocation?.result])
 
   const extractEncounters = (src: EncounterListPayload): EncounterOptionSource[] => {
     const a = src?.result
@@ -1494,6 +1558,28 @@ export function MedicationRequestForm() {
         })
 
       const payload = [...simplePayloads, ...compoundPayloads, ...itemPayloads]
+      try {
+        const simpleSummary = simplePayloads.map((p) => ({
+          itemId: p.itemId,
+          qty: p.dispenseRequest?.quantity?.value,
+          unit: p.dispenseRequest?.quantity?.unit
+        }))
+        const compoundSummary = compoundPayloads.map((p) => ({
+          ingredients: Array.isArray(p.supportingInformation)
+            ? (p.supportingInformation as any[]).filter((x) => x?.resourceType === 'Ingredient').length
+            : 0,
+          qty: p.dispenseRequest?.quantity?.value,
+          unit: p.dispenseRequest?.quantity?.unit
+        }))
+        const itemSummary = itemPayloads.map((p) => ({
+          itemId: p.itemId,
+          qty: p.dispenseRequest?.quantity?.value,
+          unit: p.dispenseRequest?.quantity?.unit
+        }))
+        console.log('[MR][Create] simple count:', simplePayloads.length, simpleSummary)
+        console.log('[MR][Create] compound count:', compoundPayloads.length, compoundSummary)
+        console.log('[MR][Create] other items count:', itemPayloads.length, itemSummary)
+      } catch { }
 
       if (payload.length === 0) {
         message.error('Minimal isi minimal 1 Item.')

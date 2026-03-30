@@ -37,7 +37,7 @@ export const MedicationOtherItemsTable = ({
                       className="mb-0"
                     >
                       <Select
-                        options={itemOptions.filter((option) => option.categoryType === 'obat')}
+                        options={itemOptions}
                         placeholder="Pilih Item"
                         showSearch
                         optionFilterProp="label"

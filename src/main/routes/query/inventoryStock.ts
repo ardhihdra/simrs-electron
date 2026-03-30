@@ -55,9 +55,11 @@ const BatchItemSchema = z.object({
 })
 
 const LocationItemStockSchema = z.object({
+	itemId: z.number().optional(),
 	kodeItem: z.string(),
 	namaItem: z.string(),
 	unit: z.string(),
+	unitCode: z.string().nullable().optional(),
 	stockIn: z.number(),
 	stockOut: z.number(),
 	availableStock: z.number()
