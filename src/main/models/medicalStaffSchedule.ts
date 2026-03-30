@@ -9,7 +9,7 @@ const DayScheduleSchema = z.object({
 export const MedicalStaffScheduleSchemaWithId = z.object({
     id: z.number(),
     idPegawai: z.number(),
-    kodeDepartemen: z.string(),
+    organizationId: z.string(),
     kategori: z.string().nullable().optional(),
     senin: DayScheduleSchema.optional(),
     selasa: DayScheduleSchema.optional(),
@@ -31,15 +31,24 @@ export const MedicalStaffScheduleSchemaWithId = z.object({
         email: z.string().optional().nullable(),
         nik: z.string().optional().nullable()
     }).optional().nullable(),
-    departemen: z.object({
-        kode: z.string(),
-        nama: z.string()
+    organization: z.object({
+        id: z.string(),
+        name: z.string(),
+        type: z.string().optional(),
+        alias: z.array(z.string()).optional().nullable(),
+        partOfId: z.string().optional().nullable(),
+        partOf: z.object({
+            id: z.string(),
+            name: z.string(),
+            type: z.string().optional(),
+            alias: z.array(z.string()).optional().nullable()
+        }).optional().nullable()
     }).optional().nullable()
 })
 
 export const MedicalStaffScheduleSchema = z.object({
     idPegawai: z.number(),
-    kodeDepartemen: z.string(),
+    organizationId: z.string(),
     kategori: z.string().nullable().optional(),
     senin: DayScheduleSchema.optional(),
     selasa: DayScheduleSchema.optional(),

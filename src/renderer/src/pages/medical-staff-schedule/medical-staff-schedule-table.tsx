@@ -29,11 +29,14 @@ interface MedicalStaffScheduleAttributes {
     nik: string
     email: string
   }
-  kodeDepartemen: string
-  departemen: {
-    kode: string
-    nama: string
-  }
+  organizationId: string
+  organization?: {
+    id: string
+    name: string
+    partOf?: {
+      name?: string | null
+    } | null
+  } | null
   kategori: string
   senin: DaySchedule
   selasa: DaySchedule
@@ -54,10 +57,13 @@ const baseColumns = [
   },
   { title: 'Kategori', dataIndex: 'kategori', key: 'kategori' },
   {
-    title: 'Poli/Departemen',
-    dataIndex: ['departemen', 'nama'],
-    key: 'departemen',
-    render: (value: string) => value || '-'
+    title: 'Organization',
+    dataIndex: ['organization', 'name'],
+    key: 'organization',
+    render: (_value: string, record: MedicalStaffScheduleAttributes) =>
+      record.organization?.partOf?.name
+        ? `${record.organization?.name} - ${record.organization.partOf.name}`
+        : record.organization?.name || '-'
   },
   {
     title: 'Senin',
@@ -191,7 +197,7 @@ export function MedicalStaffScheduleTable() {
     const q = search.trim().toLowerCase()
     if (!q) return source
     return source.filter((p) => {
-      const hay = [p.pegawai?.namaLengkap, p.kategori, p.departemen?.nama]
+      const hay = [p.pegawai?.namaLengkap, p.kategori, p.organization?.name, p.organization?.partOf?.name]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()

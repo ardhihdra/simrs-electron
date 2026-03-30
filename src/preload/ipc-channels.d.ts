@@ -13,7 +13,6 @@ import type * as Mod_query_clinicalImpression from '@main/routes/query/clinicalI
 import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
 import type * as Mod_query_composition from '@main/routes/query/composition'
 import type * as Mod_query_condition from '@main/routes/query/condition'
-import type * as Mod_query_departemen from '@main/routes/query/departemen'
 import type * as Mod_query_detailTindakanPasien from '@main/routes/query/detailTindakanPasien'
 import type * as Mod_query_diagnosisCode from '@main/routes/query/diagnosisCode'
 import type * as Mod_query_diagnostic from '@main/routes/query/diagnostic'
@@ -162,8 +161,6 @@ type Args_Mod_query_condition_create = InferArgs<typeof Mod_query_condition, 'cr
 type Result_Mod_query_condition_create = InferResult<typeof Mod_query_condition, 'create'>
 type Args_Mod_query_condition_getByEncounter = InferArgs<typeof Mod_query_condition, 'getByEncounter'>
 type Result_Mod_query_condition_getByEncounter = InferResult<typeof Mod_query_condition, 'getByEncounter'>
-type Args_Mod_query_departemen_list = InferArgs<typeof Mod_query_departemen, 'list'>
-type Result_Mod_query_departemen_list = InferResult<typeof Mod_query_departemen, 'list'>
 type Args_Mod_query_detailTindakanPasien_byEncounter = InferArgs<typeof Mod_query_detailTindakanPasien, 'byEncounter'>
 type Result_Mod_query_detailTindakanPasien_byEncounter = InferResult<typeof Mod_query_detailTindakanPasien, 'byEncounter'>
 type Args_Mod_query_detailTindakanPasien_create = InferArgs<typeof Mod_query_detailTindakanPasien, 'create'>
@@ -672,9 +669,6 @@ declare global {
         condition: {
           create: Invoke<Args_Mod_query_condition_create, Result_Mod_query_condition_create>
           getByEncounter: Invoke<Args_Mod_query_condition_getByEncounter, Result_Mod_query_condition_getByEncounter>
-        }
-        departemen: {
-          list: Invoke<Args_Mod_query_departemen_list, Result_Mod_query_departemen_list>
         }
         detailTindakanPasien: {
           byEncounter: Invoke<Args_Mod_query_detailTindakanPasien_byEncounter, Result_Mod_query_detailTindakanPasien_byEncounter>
