@@ -10,6 +10,7 @@ interface PaketBhpTabProps {
   isLoadingConsumableItems: boolean
   consumableItemOptions: any[]
   consumableItemMap: Map<number, any>
+  stockByItemMap: Map<string, number>
 }
 
 export default function PaketBhpTab({
@@ -20,7 +21,8 @@ export default function PaketBhpTab({
   paketBhpCache,
   isLoadingConsumableItems,
   consumableItemOptions,
-  consumableItemMap
+  consumableItemMap,
+  stockByItemMap
 }: PaketBhpTabProps) {
   const handlePaketBhpChange = (value: number, namePath: number) => {
     const currentEntries = modalForm.getFieldValue('paketBhpEntries') || []
@@ -182,30 +184,87 @@ export default function PaketBhpTab({
                                         </Col>
                                         <Col span={4}>
                                           <Form.Item
-                                            {...bhpRestField}
-                                            name={[bhpName, 'jumlah']}
-                                            rules={[
-                                              { required: true, message: 'Wajib' },
-                                              {
-                                                validator: async (_rule, value) => {
-                                                  if (value === undefined || value === null) return
-                                                  if (
-                                                    !Number.isInteger(Number(value)) ||
-                                                    Number(value) <= 0
-                                                  ) {
-                                                    throw new Error('Bulat > 0')
-                                                  }
-                                                }
-                                              }
-                                            ]}
-                                            style={{ marginBottom: 0 }}
+                                            noStyle
+                                            shouldUpdate={(prevValues, currentValues) =>
+                                              prevValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
+                                                ?.itemId !==
+                                                currentValues.paketBhpEntries?.[name]?.bhpList?.[
+                                                  bhpName
+                                                ]?.itemId ||
+                                              prevValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
+                                                ?.jumlah !==
+                                                currentValues.paketBhpEntries?.[name]?.bhpList?.[
+                                                  bhpName
+                                                ]?.jumlah
+                                            }
                                           >
-                                            <InputNumber
-                                              min={1}
-                                              step={1}
-                                              className="w-full"
-                                              placeholder="Qty"
-                                            />
+                                            {({ getFieldValue }) => {
+                                              const itemId = getFieldValue([
+                                                'paketBhpEntries',
+                                                name,
+                                                'bhpList',
+                                                bhpName,
+                                                'itemId'
+                                              ])
+                                              const selectedItem = itemId
+                                                ? consumableItemMap.get(Number(itemId))
+                                                : null
+                                              const stock =
+                                                stockByItemMap.get(
+                                                  selectedItem?.kode?.trim()?.toUpperCase() ?? ''
+                                                ) || 0
+
+                                              return (
+                                                <Form.Item
+                                                  {...bhpRestField}
+                                                  name={[bhpName, 'jumlah']}
+                                                  rules={[
+                                                    { required: true, message: 'Wajib' },
+                                                    {
+                                                      validator: async (_rule, value) => {
+                                                        if (value === undefined || value === null)
+                                                          return
+                                                        if (
+                                                          !Number.isInteger(Number(value)) ||
+                                                          Number(value) <= 0
+                                                        ) {
+                                                          throw new Error('Bulat > 0')
+                                                        }
+                                                        if (itemId && stock <= 0) {
+                                                          throw new Error('Stok Kosong')
+                                                        }
+                                                        if (itemId && Number(value) > stock) {
+                                                          throw new Error(`Maks ${stock}`)
+                                                        }
+                                                      }
+                                                    }
+                                                  ]}
+                                                  style={{ marginBottom: 0 }}
+                                                  validateStatus={
+                                                    itemId && stock <= 0 ? 'error' : undefined
+                                                  }
+                                                  help={
+                                                    itemId ? (
+                                                      <span
+                                                        style={{
+                                                          fontSize: 10,
+                                                          color: stock <= 0 ? '#ff4d4f' : '#666'
+                                                        }}
+                                                      >
+                                                        Stok: {stock}
+                                                      </span>
+                                                    ) : null
+                                                  }
+                                                >
+                                                  <InputNumber
+                                                    min={1}
+                                                    step={1}
+                                                    className="w-full"
+                                                    placeholder="Qty"
+                                                  />
+                                                </Form.Item>
+                                              )
+                                            }}
                                           </Form.Item>
                                         </Col>
                                         <Col span={6}>

@@ -328,11 +328,14 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const consumableItemOptions = useMemo(() => {
     return consumableItems.map((item) => {
       const stock = stockByItemMap.get(item.kode.trim().toUpperCase()) || 0
-      const stockText = stock > 0 ? ` (Stok: ${stock})` : ' (Stok Kosong)'
+      const isOutOfStock = stock <= 0
+      const stockText = isOutOfStock ? ' (Stok Kosong)' : ` (Stok: ${stock})`
+      
       return {
         value: item.id,
         label: `[${item.kode}] ${item.nama}${stockText}`,
-        searchLabel: `${item.kode} ${item.nama}`.toLowerCase()
+        searchLabel: `${item.kode} ${item.nama}`.toLowerCase(),
+        disabled: isOutOfStock
       }
     })
   }, [consumableItems, stockByItemMap])
@@ -1659,6 +1662,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     isLoadingConsumableItems={isLoadingConsumableItems}
                     consumableItemOptions={consumableItemOptions}
                     consumableItemMap={consumableItemMap}
+                    stockByItemMap={stockByItemMap}
                   />
                 )
               },
@@ -1672,6 +1676,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     isLoadingConsumableItems={isLoadingConsumableItems}
                     consumableItemOptions={consumableItemOptions}
                     consumableItemMap={consumableItemMap}
+                    stockByItemMap={stockByItemMap}
                   />
                 )
               }
