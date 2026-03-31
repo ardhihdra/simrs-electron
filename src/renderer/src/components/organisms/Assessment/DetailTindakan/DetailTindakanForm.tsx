@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import {
   Form,
   Button,
@@ -227,45 +228,82 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   })
 
   // Resolve Doctor Location
+  const session = useModuleScopeStore((state) => state.session)
+
   const { data: myEmployeeData } = useQuery({
-    queryKey: ['kepegawaian', 'profile-detail', profile?.id],
+    queryKey: ['kepegawaian', 'getById', profile?.id],
     queryFn: async () => {
-      const fn = (window.api?.query as any)?.kepegawaian?.list
-      if (!fn || !profile?.username) return null
-      const res = await fn({ nik: profile.username, depth: 1 })
-      return (Array.isArray(res?.result) ? res.result[0] : null) as any
+      const api = (window.api?.query as any)?.kepegawaian
+      const pid = Number(profile?.id)
+      if (!api?.getById || !Number.isFinite(pid) || pid <= 0) return null
+      const res = await api.getById({ id: pid })
+      const plain = (res?.result ?? res?.data ?? null) as any
+      return plain || null
     },
-    enabled: !!profile?.username
+    enabled: Number.isFinite(Number(profile?.id))
+  })
+
+  const { data: lokasiKerjaFromSession } = useQuery({
+    queryKey: ['lokasiKerja', 'by-id', session?.lokasiKerjaId],
+    queryFn: async () => {
+      const api = (window.api?.query as any)?.lokasiKerja
+      const id = Number(session?.lokasiKerjaId)
+      if (!api?.read || !Number.isFinite(id) || id <= 0) return null
+      const res = await api.read({ id })
+      const plain = (res?.result ?? res?.data ?? null) as any
+      if (!plain) return null
+      return { id: Number(plain.id), kode: String(plain.kode || '').trim().toUpperCase(), nama: String(plain.nama || '') }
+    },
+    enabled: !!session?.lokasiKerjaId
   })
 
   const currentWorkLocation = useMemo(() => {
     try {
+      if (lokasiKerjaFromSession?.kode) {
+        return lokasiKerjaFromSession.kode
+      }
       if (myEmployeeData) {
         const contracts = Array.isArray(myEmployeeData.kontrakPegawai) ? myEmployeeData.kontrakPegawai : []
         const active = contracts[0] // list.ts sorts by date desc
-        if (active?.kodeLokasiKerja) return active.kodeLokasiKerja
+        if (active?.kodeLokasiKerja) return String(active.kodeLokasiKerja).trim().toUpperCase()
+        if (active?.lokasiKerja?.kode) return String(active.lokasiKerja.kode).trim().toUpperCase()
       }
     } catch {}
     return 'GUDANG' // fallback
-  }, [myEmployeeData])
+  }, [lokasiKerjaFromSession, myEmployeeData])
 
   // Fetch Stock for Doctor Location
   const { data: locationStockData } = useQuery({
     queryKey: ['inventoryStock', 'by-location', currentWorkLocation],
     queryFn: async () => {
-      const fn = (window.api?.query as any)?.inventoryStock?.listByLocation
+      const api = (window.api?.query as any)?.inventoryStock
+      const fn = api?.listByLocation
+      console.log('[BHP][Debug] call by-location, fn exists:', !!fn, 'kodeLokasi:', currentWorkLocation)
       if (!fn) return null
-      const res = await fn({ kodeLokasi: currentWorkLocation, items: 1000 })
-      return res?.success ? res.result : null
+      let res: any = null
+      try {
+        res = await fn({ kodeLokasi: String(currentWorkLocation || '').trim().toUpperCase(), items: 1000 })
+      } catch (e) {
+        console.error('[BHP][Debug] by-location error:', e)
+        return null
+      }
+      console.log('[BHP][Debug] by-location response:', res)
+      if (res && typeof res === 'object') {
+        if (res.success === true && Array.isArray(res.result)) return res.result
+        if (Array.isArray((res as any).data)) return (res as any).data
+      }
+      if (Array.isArray(res)) return res
+      return null
     },
-    enabled: !!currentWorkLocation
+    enabled: !!currentWorkLocation && String(currentWorkLocation).trim().length > 0
   })
 
-  const stockByItemMap = useMemo(() => {
+  const locationStockByItemMap = useMemo(() => {
     const map = new Map<string, number>()
     try {
       const locs = Array.isArray(locationStockData) ? locationStockData : []
-      const current = locs.find((l: any) => l.kodeLokasi === currentWorkLocation)
+      const target = String(currentWorkLocation || '').trim().toUpperCase()
+      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
       const items = Array.isArray(current?.items) ? current.items : []
       items.forEach((it: any) => {
         const kode = String(it.kodeItem || '').trim().toUpperCase()
@@ -277,9 +315,70 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     return map
   }, [locationStockData, currentWorkLocation])
 
+  const { data: fallbackBatchStocks } = useQuery({
+    queryKey: ['inventoryStock', 'batches-by-location', currentWorkLocation, (consumableItems || []).map((i) => i.kode).join(',')],
+    queryFn: async () => {
+      const api = (window.api?.query as any)?.inventoryStock
+      const fn = api?.listBatchesByLocation
+      const kodeLokasi = String(currentWorkLocation || '').trim().toUpperCase()
+      if (!fn || !kodeLokasi) return null
+      const codes = (consumableItems || [])
+        .map((it) => String(it.kode || '').trim().toUpperCase())
+        .filter((s) => !!s)
+      const out: Record<string, number> = {}
+      for (const kodeItem of codes.slice(0, 100)) {
+        try {
+          const res = await fn({ kodeItem, kodeLokasi })
+          const arr = Array.isArray((res as any)?.result) ? (res as any).result : Array.isArray(res) ? (res as any) : []
+          const total = arr.reduce((sum: number, b: any) => sum + Number(b?.availableStock || 0), 0)
+          out[kodeItem] = total
+        } catch (e) {
+          console.warn('[BHP][Debug] fallback listBatchesByLocation error for', kodeItem, e)
+        }
+      }
+      return out
+    },
+    enabled: !locationStockData || (Array.isArray(locationStockData) && locationStockData.length === 0)
+  })
+
+  const fallbackStockByItemMap = useMemo(() => {
+    const map = new Map<string, number>()
+    try {
+      const obj = fallbackBatchStocks as Record<string, number> | null
+      if (obj && typeof obj === 'object') {
+        Object.entries(obj).forEach(([kode, qty]) => {
+          const key = String(kode || '').trim().toUpperCase()
+          if (key) map.set(key, Number(qty || 0))
+        })
+      }
+    } catch {}
+    return map
+  }, [fallbackBatchStocks])
+
+  const stockByItemMap = useMemo(() => {
+    return locationStockByItemMap.size > 0 ? locationStockByItemMap : fallbackStockByItemMap
+  }, [locationStockByItemMap, fallbackStockByItemMap])
+
+  const allowedItemIdSet = useMemo(() => {
+    const set = new Set<number>()
+    try {
+      const locs = Array.isArray(locationStockData) ? locationStockData : []
+      const target = String(currentWorkLocation || '').trim().toUpperCase()
+      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
+      const items = Array.isArray(current?.items) ? current.items : []
+      items.forEach((it: any) => {
+        const idVal = Number(it.itemId ?? it.id)
+        if (Number.isFinite(idVal) && idVal > 0) set.add(idVal)
+      })
+    } catch {}
+    return set
+  }, [locationStockData, currentWorkLocation])
+
   useEffect(() => {
     console.log('[BHP][Debug] profile:', profile)
     console.log('[BHP][Debug] myEmployeeData:', myEmployeeData)
+    console.log('[BHP][Debug] session:', session)
+    console.log('[BHP][Debug] lokasiKerjaFromSession:', lokasiKerjaFromSession)
     console.log('[BHP][Debug] currentWorkLocation:', currentWorkLocation)
     console.log('[BHP][Debug] locationStockData:', locationStockData)
   }, [profile, myEmployeeData, currentWorkLocation, locationStockData])
@@ -325,20 +424,47 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     [consumableItems]
   )
 
+  useEffect(() => {
+    try {
+      const preview = (consumableItems || []).slice(0, 10).map((i) => ({
+        id: i.id,
+        kode: i.kode,
+        nama: i.nama
+      }))
+      console.log('[BHP][Debug] consumableItems preview:', preview, 'total:', (consumableItems || []).length)
+      const stockPreview = Array.from(stockByItemMap.entries()).slice(0, 10)
+      console.log('[BHP][Debug] stockByItemMap preview:', stockPreview, 'size:', stockByItemMap.size)
+    } catch (e) {
+      console.log('[BHP][Debug] consumableItems log error:', e)
+    }
+  }, [consumableItems, stockByItemMap])
+
   const consumableItemOptions = useMemo(() => {
-    return consumableItems.map((item) => {
-      const stock = stockByItemMap.get(item.kode.trim().toUpperCase()) || 0
+    const noLocationStock = allowedItemIdSet.size === 0 && stockByItemMap.size === 0
+    const filtered = noLocationStock
+      ? consumableItems
+      : consumableItems.filter((item) => {
+          const kode = String(item.kode || '').trim().toUpperCase()
+          const idNum = Number(item.id)
+          if (!kode || !Number.isFinite(idNum)) return false
+          if (allowedItemIdSet.size > 0) {
+            return allowedItemIdSet.has(idNum)
+          }
+          return stockByItemMap.has(kode)
+        })
+    return filtered.map((item) => {
+      const kode = String(item.kode || '').trim().toUpperCase()
+      const stock = stockByItemMap.get(kode) || 0
       const isOutOfStock = stock <= 0
       const stockText = isOutOfStock ? ' (Stok Kosong)' : ` (Stok: ${stock})`
-      
       return {
         value: item.id,
-        label: `[${item.kode}] ${item.nama}${stockText}`,
+        label: `${item.nama}${stockText}`,
         searchLabel: `${item.kode} ${item.nama}`.toLowerCase(),
         disabled: isOutOfStock
       }
     })
-  }, [consumableItems, stockByItemMap])
+  }, [consumableItems, stockByItemMap, allowedItemIdSet])
 
   const roleByKomponenId = useMemo(
     () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),

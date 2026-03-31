@@ -35,12 +35,23 @@ export default function PaketBhpTab({
     const selectedPaket = paketBhpCache[value]
     if (selectedPaket) {
       const listBhp = Array.isArray(selectedPaket?.listBhp) ? selectedPaket.listBhp : []
-      const mappedBhp = listBhp.map((bhp: any) => ({
-        paketBhpDetailId: bhp.id,
-        itemId: bhp.itemId,
-        jumlah: Number(bhp.jumlahDefault ?? 1),
-        satuan: bhp.satuan ?? undefined
-      }))
+      const mappedBhp = listBhp.map((bhp: any) => {
+        const item = consumableItemMap.get(Number(bhp.itemId))
+        const rules = item?.buyPriceRules || []
+        let unit = bhp.satuan
+        if (!unit && Array.isArray(rules) && rules.length > 0) {
+          unit = rules[0].unitCode
+        } else if (!unit && item?.kodeUnit) {
+          unit = item.kodeUnit
+        }
+
+        return {
+          paketBhpDetailId: bhp.id,
+          itemId: bhp.itemId,
+          jumlah: Number(bhp.jumlahDefault ?? 1),
+          satuan: unit
+        }
+      })
 
       currentEntries[namePath] = {
         paketBhpId: value,
@@ -142,44 +153,25 @@ export default function PaketBhpTab({
                                             rules={[{ required: true, message: 'Wajib' }]}
                                             style={{ marginBottom: 0 }}
                                           >
-                                            <Select
-                                              showSearch
-                                              placeholder="Pilih BHP"
-                                              loading={isLoadingConsumableItems}
-                                              options={consumableItemOptions}
-                                              optionFilterProp="searchLabel"
-                                              filterOption={(input, option) =>
-                                                String(option?.searchLabel ?? '')
-                                                  .toLowerCase()
-                                                  .includes(input.toLowerCase())
-                                              }
-                                              onChange={(val) => {
-                                                if (!val) return
-                                                const selectedItem = consumableItemMap.get(
-                                                  Number(val)
-                                                )
-                                                if (!selectedItem) return
-                                                const currentSatuan = modalForm.getFieldValue([
-                                                  'paketBhpEntries',
-                                                  name,
-                                                  'bhpList',
-                                                  bhpName,
-                                                  'satuan'
-                                                ])
-                                                if (!currentSatuan && selectedItem.kodeUnit) {
-                                                  modalForm.setFieldValue(
-                                                    [
-                                                      'paketBhpEntries',
-                                                      name,
-                                                      'bhpList',
-                                                      bhpName,
-                                                      'satuan'
-                                                    ],
-                                                    selectedItem.kodeUnit
-                                                  )
+                                              <Select
+                                                showSearch
+                                                disabled
+                                                placeholder="Pilih BHP"
+                                                loading={isLoadingConsumableItems}
+                                                options={consumableItemOptions}
+                                                optionFilterProp="searchLabel"
+                                                dropdownStyle={{ minWidth: 400 }}
+                                                optionRender={(option) => (
+                                                  <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
+                                                    {option.label}
+                                                  </div>
+                                                )}
+                                                filterOption={(input, option) =>
+                                                  String(option?.searchLabel ?? '')
+                                                    .toLowerCase()
+                                                    .includes(input.toLowerCase())
                                                 }
-                                              }}
-                                            />
+                                              />
                                           </Form.Item>
                                         </Col>
                                         <Col span={4}>
@@ -269,11 +261,57 @@ export default function PaketBhpTab({
                                         </Col>
                                         <Col span={6}>
                                           <Form.Item
-                                            {...bhpRestField}
-                                            name={[bhpName, 'satuan']}
-                                            style={{ marginBottom: 0 }}
+                                            noStyle
+                                            shouldUpdate={(prevValues, currentValues) =>
+                                              prevValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
+                                                ?.itemId !==
+                                              currentValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
+                                                ?.itemId
+                                            }
                                           >
-                                            <Input placeholder="Satuan" />
+                                            {({ getFieldValue }) => {
+                                              const itemId = getFieldValue([
+                                                'paketBhpEntries',
+                                                name,
+                                                'bhpList',
+                                                bhpName,
+                                                'itemId'
+                                              ])
+                                              const selectedItem = itemId
+                                                ? consumableItemMap.get(Number(itemId))
+                                                : null
+                                              const rules = selectedItem?.buyPriceRules || []
+
+                                              let unitOptions: any[] = []
+                                              if (Array.isArray(rules) && rules.length > 0) {
+                                                unitOptions = rules.map((r: any) => ({
+                                                  label: r.unitCode,
+                                                  value: r.unitCode
+                                                }))
+                                              } else if (selectedItem?.kodeUnit) {
+                                                unitOptions = [
+                                                  {
+                                                    label: selectedItem.kodeUnit,
+                                                    value: selectedItem.kodeUnit
+                                                  }
+                                                ]
+                                              }
+
+                                              return (
+                                                <Form.Item
+                                                  {...bhpRestField}
+                                                  name={[bhpName, 'satuan']}
+                                                  style={{ marginBottom: 0 }}
+                                                  rules={[{ required: true, message: 'Wajib' }]}
+                                                >
+                                                  <Select
+                                                    placeholder="Satuan"
+                                                    options={unitOptions}
+                                                    disabled={!itemId || unitOptions.length === 0}
+                                                  />
+                                                </Form.Item>
+                                              )
+                                            }}
                                           </Form.Item>
                                         </Col>
                                         <Col span={2} className="text-center"></Col>

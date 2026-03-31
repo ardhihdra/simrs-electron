@@ -206,7 +206,11 @@ export const remove = async (ctx: IpcContext, args: z.infer<typeof schemas.remov
             error: z.string().optional()
         })
         const result = await parseBackendResponse(res, ResponseSchema)
-        return { success: true, ...result }
+        return {
+            success: true,
+            message: (result as any)?.message,
+            error: (result as any)?.error
+        }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         return { success: false, error: msg }

@@ -255,10 +255,11 @@ export const listBatchesByLocation = async (ctx: IpcContext, args: { kodeItem: s
 	const res = await client.get(url)
 	const BackendSchema = z.object({
 		success: z.boolean(),
-		result: BatchItemSchema.array().optional(),
+		result: BatchItemSchema.array().nullable().optional(),
 		message: z.string().optional()
 	})
-	const result = await parseBackendResponse(res, BackendSchema)
+	const parsed = await parseBackendResponse(res, BackendSchema)
+	const result = Array.isArray(parsed) ? parsed : []
 	return { success: true, result }
 }
 export const listByLocation = async (ctx: IpcContext, args: ListByLocationArgs) => {
@@ -271,8 +272,13 @@ export const listByLocation = async (ctx: IpcContext, args: ListByLocationArgs) 
 
 	const url = `/api/inventorystock/by-location?${params.toString()}`
 	const res = await client.get(url)
-	const ListSchema = BackendListSchema(LocationStockSummarySchema)
-	const result = await parseBackendResponse(res, ListSchema)
+	const BackendSchema = z.object({
+		success: z.boolean(),
+		result: LocationStockSummarySchema.array().nullable().optional(),
+		message: z.string().optional()
+	})
+	const parsed = await parseBackendResponse(res, BackendSchema)
+	const result = Array.isArray(parsed) ? parsed : []
 	return { success: true, result }
 }
 
