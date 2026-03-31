@@ -27,7 +27,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
 
   const { data: observationRaw, isLoading } = useQueryObservationByEncounter(encounterId)
   const observationData = useMemo(
-    () => observationRaw?.result || { all: [], grouped: { vitalSigns: [], anamnesis: [], physicalExam: [], other: [] } },
+    () => observationRaw?.result || [],
     [observationRaw]
   )
 
@@ -123,7 +123,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
   )
 
   useEffect(() => {
-    const result = observationData ? observationData?.all : []
+    const result = Array.isArray(observationData) ? observationData : []
     if (result && result.length > 0) {
       const sortedObs = [...result].sort(
         (a: any, b: any) =>

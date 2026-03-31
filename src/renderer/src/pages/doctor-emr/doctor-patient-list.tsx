@@ -730,19 +730,19 @@ export const DoctorPatientList = () => {
                 Manajemen pelayanan pasien Rawat Jalan, Inap, dan IGD
               </p>
               <div className="ml-12 mt-2 flex flex-wrap items-center gap-2">
-                <Tag color="blue" bordered={false} className="m-0 font-medium">
+                {/* <Tag color="blue" bordered={false} className="m-0 font-medium">
                   Poli Aktif: {activePoliLabel}
-                </Tag>
+                </Tag> */}
                 {/* {isPoliLockedFromRoute && routePoliCode && (
                   <Tag color="cyan" bordered={false} className="m-0 font-medium">
                     Dari PoliSelect
                   </Tag>
                 )} */}
-                {doctorTargetLabel && (
+                {/* {doctorTargetLabel && (
                   <Tag color="geekblue" bordered={false} className="m-0 font-medium">
                     Dokter Tujuan: {doctorTargetLabel}
                   </Tag>
-                )}
+                )} */}
               </div>
             </div>
             <Space size="small" align="center">

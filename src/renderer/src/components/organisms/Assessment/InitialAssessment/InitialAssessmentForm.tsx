@@ -136,7 +136,7 @@ export const InitialAssessmentForm = ({
                   ]
                 : [])
             ]
-          } as any)
+          })
         }
         if (vitalSigns?.diastolicBloodPressure) {
           obsToCreate.push({
@@ -178,7 +178,7 @@ export const InitialAssessmentForm = ({
             bodySites: vitalSigns.pulseRateBodySite
               ? [{ code: vitalSigns.pulseRateBodySite, display: vitalSigns.pulseRateBodySite }]
               : undefined
-          } as any)
+          })
         }
         if (vitalSigns?.respiratoryRate) {
           obsToCreate.push({
@@ -207,7 +207,7 @@ export const InitialAssessmentForm = ({
             methods: vitalSigns.temperatureMethod
               ? [{ code: vitalSigns.temperatureMethod, display: vitalSigns.temperatureMethod }]
               : undefined
-          } as any)
+          })
         }
         if (vitalSigns?.oxygenSaturation) {
           obsToCreate.push({
@@ -275,7 +275,7 @@ export const InitialAssessmentForm = ({
                 ]
               }
             : undefined
-        } as any)
+        })
       }
 
       if (mode === 'inpatient') {
@@ -511,7 +511,9 @@ export const InitialAssessmentForm = ({
   }
 
   useEffect(() => {
-    const observations = response?.result?.all
+    const observations = Array.isArray(response?.result) 
+      ? response.result 
+      : response?.result;
 
     if (response?.success && observations && observations.length > 0) {
       const summary = formatObservationSummary(observations || [], [])

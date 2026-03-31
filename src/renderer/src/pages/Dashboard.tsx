@@ -145,9 +145,7 @@ const items: DashboardMenuItem[] = [
     module: Modules.RAWAT_JALAN,
     children: [
       { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
-      { label: 'Poli Umum', key: '/dashboard/poli/umum', icon: <CalendarOutlined /> },
-      { label: 'Rekam Medis Dokter', key: '/dashboard/doctor', icon: <FileTextOutlined /> },
-      { label: 'Pemanggilan Pasien', key: '/dashboard/nurse-calling', icon: <PhoneOutlined /> }
+      { label: 'Rekam Medis Dokter', key: '/dashboard/doctor', icon: <FileTextOutlined /> }
     ]
   },
   {
@@ -266,40 +264,6 @@ const items: DashboardMenuItem[] = [
   }
 ]
 
-const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSession): boolean => {
-  // return true
-  if (!access) return true
-
-  const { allowedModules, roles, allowedLokasiKerjaIds } = access
-
-  // Administrator bypasses module restrictions
-  const isAdministrator = session.hakAksesId === 'administrator'
-
-  if (
-    allowedModules.length > 0 &&
-    !session.allowedModules.some((m) => allowedModules.includes(m))
-  ) {
-    // console.log('no module akses for modules', session.allowedModules, 'allowed:', allowedModules)
-    return false
-  }
-  if (allowedLokasiKerjaIds.length > 0 && !allowedLokasiKerjaIds.includes(session.lokasiKerjaId)) {
-    // console.log('no lokasi akses for lokasi', session.lokasiKerjaId, 'allowed:', access.allowedLokasiKerjaIds)
-    return false
-  }
-
-  const isRoleAllowed =
-    isAdministrator ||
-    (roles.length > 0 && session.hakAksesId && roles.includes(session.hakAksesId))
-  if (!isRoleAllowed) {
-    // console.log('no role akses for role', session.hakAksesId, 'allowed:', roles)
-    return false
-  }
-
-  // console.log('access granted for', session)
-  // console.log('checked againts', access)
-  return true
-}
-
 const isPageNotRegistered = (access: PageAccessEntry | null) => {
   return (
     !access ||
@@ -370,6 +334,60 @@ function Dashboard() {
   const session = useModuleScopeStore((state) => state.session)
   const visibleModuleState = getModuleScopeState(session)
 
+  const { data: poliData } = client.visitManagement.poli.useQuery({})
+  const isAdministrator = session?.hakAksesId === 'administrator'
+  const listPoli = useMemo(
+    () =>
+      (poliData?.result ?? [])
+        .map((poli) => ({
+          id: poli.id,
+          name: poli.name,
+          code: poli.code || poli.id.toString(),
+          lokasiKerjaId: poli.location?.id
+        }))
+        .filter((poli) => {
+          if (isAdministrator) return true
+          return poli.lokasiKerjaId === session?.lokasiKerjaId
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, 'id')),
+    [isAdministrator, poliData?.result, session?.lokasiKerjaId]
+  )
+
+  // Map from normalized poli key → original poli metadata (for role-aware navigation)
+  const poliKeyMeta = useMemo(() => {
+    const map: Record<string, { code: string; name: string }> = {}
+    listPoli.forEach((poli) => {
+      const key = `/dashboard/poli/${String(poli.code).trim().toLowerCase()}`
+      map[key] = { code: String(poli.code).trim().toLowerCase(), name: poli.name }
+    })
+    return map
+  }, [listPoli])
+
+  const dynamicItems = useMemo(() => {
+    return items.map((item) => {
+      if (item.key === '/dashboard/poli') {
+        const dynamicPoliChildren = listPoli.map((poli) => {
+          const lowerName = poli.name.toLowerCase()
+          const nameWithPrefix = lowerName.startsWith('poli') ? poli.name : `Poli ${poli.name}`
+
+          return {
+            label: nameWithPrefix,
+            key: `/dashboard/poli/${String(poli.code).trim().toLowerCase()}`,
+            icon: <CalendarOutlined />
+          }
+        })
+        return {
+          ...item,
+          children: [
+            { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
+            ...dynamicPoliChildren
+          ]
+        }
+      }
+      return item
+    })
+  }, [listPoli])
+
   const { data: pageAccessData } = client.pageAccess.list.useQuery({})
   const pageAccessMap = useMemo(() => {
     const map: Record<string, PageAccessEntry> = {}
@@ -390,7 +408,7 @@ function Dashboard() {
   if (!Object.keys(pageAccessMap).length) {
     console.error('PageAccess map not found!')
   }
-  const visibleItems = filterItemsBySession(items, pageAccessMap, session)
+  const visibleItems = filterItemsBySession(dynamicItems, pageAccessMap, session)
   const registeredPrefixes = [
     '/dashboard/expense',
     '/dashboard/patient',
@@ -434,11 +452,8 @@ function Dashboard() {
     return top ? top.label : path
   }
   const getTopKeyFromPath = (path: string): string => {
-    if (
-      path.startsWith('/dashboard/doctor') &&
-      visibleItems.some((item) => item.key === '/dashboard/doctor')
-    ) {
-      return '/dashboard/doctor'
+    if (path.startsWith('/dashboard/doctor')) {
+      return '/dashboard/poli'
     }
     for (const top of visibleItems) {
       const children = Array.isArray(top.children) ? top.children : []
@@ -480,6 +495,33 @@ function Dashboard() {
   const navigate = useNavigate()
   const onSideClick: MenuProps['onClick'] = (e) => {
     const key = String(e.key)
+    const role = session?.hakAksesId
+
+    const poliMeta = poliKeyMeta[key]
+    if (poliMeta) {
+      if (role === 'doctor') {
+        const params = new URLSearchParams({
+          from: 'poli-select',
+          poliCode: poliMeta.code,
+          poliName: poliMeta.name
+        })
+        navigate(`/dashboard/doctor?${params.toString()}`)
+        setActiveSide(key)
+        return
+      }
+
+      if (role === 'nurse') {
+        navigate(key)
+        setActiveSide(key)
+        return
+      }
+
+      const params = new URLSearchParams({ selectPoli: poliMeta.code })
+      navigate(`/dashboard/poli?${params.toString()}`)
+      setActiveSide(key)
+      return
+    }
+
     navigate(key)
     setActiveSide(key)
   }
@@ -504,12 +546,25 @@ function Dashboard() {
     const children = childrenOfTop(newTop)
     setSideItems(children)
     const childKeys = childKeysOfTop(newTop)
+
+    if (location.pathname.startsWith('/dashboard/doctor')) {
+      const searchParams = new URLSearchParams(location.search)
+      const poliCode = searchParams.get('poliCode')
+      if (poliCode) {
+        const poliKey = `/dashboard/poli/${poliCode.trim().toLowerCase()}`
+        if (childKeys.includes(poliKey)) {
+          setActiveSide(poliKey)
+          return
+        }
+      }
+    }
+
     const match = childKeys
       .filter((key) => location.pathname.startsWith(key))
       .sort((a, b) => b.length - a.length)[0]
 
     setActiveSide(match || (children[0]?.key as string))
-  }, [location.pathname, session, visibleModuleState.visibleModules.join('|')])
+  }, [location.pathname, location.search, session, visibleModuleState.visibleModules.join('|')])
 
   const isWorkspaceRoute =
     location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
@@ -548,14 +603,16 @@ function Dashboard() {
             </span>
           </div>
         </div>
-        <Menu
-          onClick={onSideClick}
-          selectedKeys={[activeSide]}
-          mode="inline"
-          inlineCollapsed={collapsed}
-          items={sideItems}
-          style={{ borderInlineEnd: 0, backgroundColor: 'transparent' }}
-        />
+        <div className="flex-1 overflow-y-auto">
+          <Menu
+            onClick={onSideClick}
+            selectedKeys={[activeSide]}
+            mode="inline"
+            inlineCollapsed={collapsed}
+            items={sideItems}
+            style={{ borderInlineEnd: 0, backgroundColor: 'transparent' }}
+          />
+        </div>
         <div className="mt-auto px-4 py-3 flex justify-center">
           <button
             aria-label="Toggle sidebar"

@@ -174,7 +174,9 @@ const PatientQueueTable = () => {
     return rows
       .filter((row) => {
         const queueStatus = String(row.status || '')
-        if (!NURSE_VISIBLE_STATUSES.includes(queueStatus as (typeof NURSE_VISIBLE_STATUSES)[number])) {
+        if (
+          !NURSE_VISIBLE_STATUSES.includes(queueStatus as (typeof NURSE_VISIBLE_STATUSES)[number])
+        ) {
           return false
         }
 
@@ -359,7 +361,10 @@ const PatientQueueTable = () => {
       width: 180,
       render: (_, record) => (
         <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: token.colorText }} className="truncate">
+          <div
+            style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}
+            className="truncate"
+          >
             {record.poli.name}
           </div>
           <Tag color="blue" bordered={false} className="mt-0.5 text-[10px] font-medium m-0">
@@ -373,7 +378,11 @@ const PatientQueueTable = () => {
       key: 'doctor',
       width: 150,
       render: (_, record) => (
-        <div style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }} className="truncate" title={record.doctor.name}>
+        <div
+          style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}
+          className="truncate"
+          title={record.doctor.name}
+        >
           {record.doctor.name}
         </div>
       )
@@ -464,9 +473,9 @@ const PatientQueueTable = () => {
                 Menampilkan pasien yang sudah dipanggil ke pemeriksaan awal (triase)
               </p>
               <div className="ml-12 mt-2 flex flex-wrap items-center gap-2">
-                <Tag color="blue" bordered={false} className="m-0 font-medium">
+                {/* <Tag color="blue" bordered={false} className="m-0 font-medium">
                   Poli Aktif: {activePoliName}
-                </Tag>
+                </Tag> */}
               </div>
             </div>
             <Button

@@ -52,7 +52,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
   const { data: compositionData, isLoading, refetch } = useCompositionByEncounter(encounterId)
   const { data: obsData } = useQueryObservationByEncounter(encounterId)
-  const observationData = obsData?.result?.all || []
+  const observationData = obsData?.result || []
   const { data: condData } = useConditionByEncounter(encounterId)
   const upsertMutation = useUpsertComposition()
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
@@ -302,6 +302,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
     form.setFieldsValue({
       id: record.id,
+      performerId: record.authorId?.[0] ? Number(record.authorId[0]) : undefined,
       soapSubjective: record.soapSubjective,
       soapObjective: remainingText,
       soapAssessment: record.soapAssessment,
@@ -323,7 +324,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         return
       }
 
-      const verifierId = selectedPerformerId || record.authorId?.[0] || 1
+      const verifierId = selectedPerformerId || (record.authorId?.[0] ? Number(record.authorId[0]) : 1)
 
       const sections =
         record.sections && record.sections.length > 0

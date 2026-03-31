@@ -2,8 +2,8 @@ import { CalendarOutlined, MedicineBoxOutlined, TeamOutlined } from '@ant-design
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import { client } from '@renderer/utils/client'
 import { Card, Col, Modal, Row, Spin, Tag, Typography, theme } from 'antd'
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useMemo, useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router'
 
 const { Title, Text } = Typography
 
@@ -29,6 +29,7 @@ export default function PoliSelect() {
   const navigate = useNavigate()
   const { token } = theme.useToken()
   const isAdministrator = session?.hakAksesId === 'administrator'
+  const [searchParams] = useSearchParams()
 
   const [selectedPoli, setSelectedPoli] = useState<PoliItem | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -52,6 +53,19 @@ export default function PoliSelect() {
         .sort((a, b) => a.name.localeCompare(b.name, 'id')),
     [isAdministrator, poliData?.result, session?.lokasiKerjaId]
   )
+
+  // Auto-open workspace picker if navigated from sidebar with selectPoli param
+  useEffect(() => {
+    const selectPoliCode = searchParams.get('selectPoli')
+    if (!selectPoliCode || listPoli.length === 0) return
+    const found = listPoli.find(
+      (p) => String(p.code).trim().toLowerCase() === selectPoliCode.trim().toLowerCase()
+    )
+    if (found && needsWorkspacePicker(session?.hakAksesId)) {
+      setSelectedPoli(found)
+      setIsModalOpen(true)
+    }
+  }, [searchParams, listPoli, session?.hakAksesId])
 
   const lokasiKerjaNameById = useMemo(() => {
     const entries = (moduleMyData?.result ?? [])

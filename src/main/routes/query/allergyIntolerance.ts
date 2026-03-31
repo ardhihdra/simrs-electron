@@ -1,59 +1,19 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { createBackendClient, parseBackendResponse } from '@main/utils/backendClient'
+import { AllergyIntoleranceSchema } from 'simrs-types'
 
 export const requireSession = true
 
-const AllergyIntoleranceSchema = z.object({
+export const AllergyIntoleranceSchemaPayload = AllergyIntoleranceSchema.extend({
     id: z.number().optional().nullable(),
-    identifier: z.string().optional().nullable(),
-    patientId: z.string(),
-    encounterId: z.string().optional().nullable(),
-    clinicalStatus: z.enum(['active', 'inactive', 'resolved']).optional().nullable(),
-    verificationStatus: z.enum(['unconfirmed', 'confirmed', 'refuted', 'entered-in-error']).optional().nullable(),
-    type: z.enum(['allergy', 'intolerance']).optional().nullable(),
-    category: z.enum(['food', 'medication', 'environment', 'biologic']).optional().nullable(),
-    criticality: z.enum(['low', 'high', 'unable-to-assess']).optional().nullable(),
-    note: z.string().optional().nullable(),
-    recorder: z.number().optional().nullable(),
-    recordedDate: z.string().optional().nullable(),
-    diagnosisCodeId: z.number().optional().nullable(),
-    kfaCodeId: z.number().optional().nullable(),
-    codeCoding: z.array(z.object({
-        diagnosisCodeId: z.number().optional().nullable(),
-        kfaCodeId: z.number().optional().nullable(),
-        diagnosisCode: z.object({
-            code: z.string().optional().nullable(),
-            display: z.string().optional().nullable(),
-            system: z.string().optional().nullable(),
-            name_id: z.string().optional().nullable(),
-            name_en: z.string().optional().nullable()
-        }).optional().nullable(),
-        kfaCode: z.object({
-            code: z.number().optional().nullable(),
-            display: z.string().optional().nullable()
-        }).optional().nullable()
-    })).optional().nullable(),
-    createdAt: z.string().optional().nullable(),
-    updatedAt: z.string().optional().nullable()
+    createdAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    updatedAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
 })
 
 export const schemas = {
     create: {
-        args: z.object({
-            patientId: z.string(),
-            encounterId: z.string().optional(),
-            recordedDate: z.string().optional(),
-            recorder: z.number().optional(),
-            clinicalStatus: z.enum(['active', 'inactive', 'resolved']).optional(),
-            verificationStatus: z.enum(['unconfirmed', 'confirmed', 'refuted', 'entered-in-error']).optional(),
-            type: z.enum(['allergy', 'intolerance']).optional(),
-            category: z.enum(['food', 'medication', 'environment', 'biologic']).optional(),
-            criticality: z.enum(['low', 'high', 'unable-to-assess']).optional(),
-            note: z.string().optional(),
-            diagnosisCodeId: z.number().optional(),
-            kfaCodeId: z.number().optional()
-        }),
+        args: AllergyIntoleranceSchemaPayload,
         result: z.object({
             success: z.boolean(),
             result: AllergyIntoleranceSchema.optional(),
@@ -74,19 +34,7 @@ export const schemas = {
         })
     },
     update: {
-        args: z.object({
-            id: z.number(),
-            clinicalStatus: z.enum(['active', 'inactive', 'resolved']).optional(),
-            verificationStatus: z.enum(['unconfirmed', 'confirmed', 'refuted', 'entered-in-error']).optional(),
-            type: z.enum(['allergy', 'intolerance']).optional(),
-            category: z.enum(['food', 'medication', 'environment', 'biologic']).optional(),
-            criticality: z.enum(['low', 'high', 'unable-to-assess']).optional(),
-            note: z.string().optional(),
-            recorder: z.number().optional(),
-            recordedDate: z.string().optional(),
-            diagnosisCodeId: z.number().optional(),
-            kfaCodeId: z.number().optional()
-        }),
+        args: AllergyIntoleranceSchemaPayload.extend({ id: z.number() }),
         result: z.object({
             success: z.boolean(),
             result: AllergyIntoleranceSchema.optional(),

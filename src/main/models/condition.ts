@@ -198,47 +198,4 @@ export const Condition = sequelize.define(
   }
 );
 
-export const ConditionSchema = z.object({
-  identifier: z.string().nullable().optional(),
-  clinicalStatus: z.nativeEnum(ConditionClinicalStatus).nullable().optional(),
-  verificationStatus: z.nativeEnum(ConditionVerificationStatus).nullable().optional(),
-  category: z.array(z.string()).nullable().optional(),
-  severity: z.nativeEnum(ConditionSeverity).nullable().optional(),
-  code: z.string().nullable().optional(),
-  bodySite: z.array(z.string()).nullable().optional(),
-  subjectId: z.number(),
-  encounterId: z.number().nullable().optional(),
-  onsetDateTime: z.union([z.date(), z.string()]).nullable().optional(),
-  onsetAge: z.number().nullable().optional(),
-  onsetPeriodStart: z.union([z.date(), z.string()]).nullable().optional(),
-  onsetPeriodEnd: z.union([z.date(), z.string()]).nullable().optional(),
-  onsetRange: z.string().nullable().optional(),
-  onsetString: z.string().nullable().optional(),
-  abatementDateTime: z.union([z.date(), z.string()]).nullable().optional(),
-  abatementAge: z.number().nullable().optional(),
-  abatementPeriodStart: z.union([z.date(), z.string()]).nullable().optional(),
-  abatementPeriodEnd: z.union([z.date(), z.string()]).nullable().optional(),
-  abatementRange: z.string().nullable().optional(),
-  abatementString: z.string().nullable().optional(),
-  recordedDate: z.union([z.date(), z.string()]).nullable().optional(),
-  recorder: z.number().nullable().optional(),
-  recorderType: z.string().nullable().optional(),
-  asserter: z.number().nullable().optional(),
-  asserterType: z.string().nullable().optional(),
-  stage: z.array(z.object({
-    summary: z.string().optional(),
-    assessment: z.array(z.number()).optional(),
-    type: z.string().optional(),
-  })).nullable().optional(),
-  evidence: z.array(z.object({
-    code: z.array(z.string()).optional(),
-    detail: z.array(z.number()).optional(),
-  })).nullable().optional(),
-  note: z.string().nullable().optional(),
-});
 
-export const ConditionSchemaWithId = ConditionSchema.extend({
-  id: z.number(),
-  createdAt: z.date().optional().nullable(),
-  updatedAt: z.date().optional().nullable(),
-});

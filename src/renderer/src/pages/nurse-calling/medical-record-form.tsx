@@ -27,16 +27,27 @@ import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/Tri
 import { EncounterTimeline } from '@renderer/components/organisms/EncounterTimeline'
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
 import { useMyProfile } from '@renderer/hooks/useProfile'
+import { useEncounterDetail } from '@renderer/hooks/query/use-encounter'
 
 type MenuItem = Required<MenuProps>['items'][number]
+
+const rawatInapMenu: MenuItem[] = [
+  {
+    key: 'monitoring-ttv',
+    icon: <MonitorOutlined />,
+    label: 'Monitoring TTV'
+  },
+  {
+    key: 'cppt',
+    icon: <SolutionOutlined />,
+    label: 'Catatan Perkembangan (CPPT)'
+  }
+]
 
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
   const { encounterId } = useParams<{ encounterId: string }>()
   const { message, modal } = App.useApp()
-  const [loading, setLoading] = useState(false)
-  const [patientData, setPatientData] = useState<PatientQueue | null>(null)
-  const [encounterType, setEncounterType] = useState<string>('')
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('patient-info')
   const [searchText, setSearchText] = useState('')
@@ -82,86 +93,69 @@ const MedicalRecordForm = () => {
     })
   }
 
-  const loadPatientData = useCallback(async () => {
-    if (!encounterId) return
+  const {
+    data: encounterResponse,
+    isLoading: isEncounterLoading,
+    isError
+  } = useEncounterDetail(encounterId)
 
-    setLoading(true)
-    try {
-      const fn = window.api?.query?.encounter?.read
-      if (!fn) throw new Error('API encounter tidak tersedia')
+  const patientData = useMemo<PatientQueue | null>(() => {
+    const enc = encounterResponse?.result as any
+    if (!enc) return null
 
-      const response = await fn({ id: encounterId })
+    const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
+    const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
 
-      if (response.success && response.result) {
-        const enc = response.result as any
-        const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
-        const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
-
-        const mappedData: PatientQueue = {
-          id: enc.id,
-          encounterId: enc.id,
-          queueId: enc.queueTicket?.id,
-          queueNumber: enc.queueTicket?.queueNumber || 0,
-          patient: {
-            id: enc.patient?.id || '',
-            name: enc.patient?.name || 'Unknown',
-            medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
-            gender: (enc.patient?.gender === 'male' ? 'MALE' : 'FEMALE') as any,
-            birthDate: enc.patient?.birthDate || '',
-            age: age,
-            phone: '',
-            address: '',
-            identityNumber: enc.patient?.nik || ''
-          },
-          poli: {
-            id: enc.queueTicket?.poli?.id?.toString() || '1',
-            code: 'POL',
-            name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
-          },
-          doctor: {
-            id: enc.queueTicket?.practitioner?.id?.toString() || 'doc1',
-            name: enc.queueTicket?.practitioner?.namaLengkap || 'Dr. Umum',
-            specialization: 'General',
-            sipNumber: enc.queueTicket?.practitioner?.nik || '-'
-          },
-          status: enc.queueTicket?.status || enc.status || PatientStatus.EXAMINING,
-          registrationDate:
-            enc.startTime || enc.createdAt || enc.visitDate || new Date().toISOString(),
-          visitDate: enc.visitDate || enc.startTime || enc.createdAt || new Date().toISOString(),
-          paymentMethod: enc.queueTicket?.assuranceCodeId || enc.queueTicket?.assuranceType || 'Umum',
-          allergies: enc.patient?.allergies || '-'
-        }
-
-        setPatientData(mappedData)
-        setEncounterType(enc.encounterType || '')
-      } else {
-        message.error('Data pasien tidak ditemukan')
-        navigate('/dashboard/nurse-calling')
-      }
-    } catch (error) {
-      message.error('Gagal memuat data pasien')
-      console.error(error)
-    } finally {
-      setLoading(false)
+    return {
+      id: enc.id,
+      encounterId: enc.id,
+      queueId: enc.queueTicket?.id,
+      queueNumber: enc.queueTicket?.queueNumber || 0,
+      patient: {
+        id: enc.patient?.id || '',
+        name: enc.patient?.name || 'Unknown',
+        medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
+        gender: (enc.patient?.gender === 'male' ? 'MALE' : 'FEMALE') as any,
+        birthDate: enc.patient?.birthDate || '',
+        age: age,
+        phone: '',
+        address: '',
+        identityNumber: enc.patient?.nik || ''
+      },
+      poli: {
+        id: enc.queueTicket?.poli?.id?.toString() || '1',
+        code: 'POL',
+        name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
+      },
+      doctor: {
+        id: enc.queueTicket?.practitioner?.id?.toString() || 'doc1',
+        name: enc.queueTicket?.practitioner?.namaLengkap || 'Dr. Umum',
+        specialization: 'General',
+        sipNumber: enc.queueTicket?.practitioner?.nik || '-'
+      },
+      status: enc.queueTicket?.status || enc.status || PatientStatus.EXAMINING,
+      registrationDate: enc.startTime || enc.createdAt || enc.visitDate || new Date().toISOString(),
+      visitDate: enc.visitDate || enc.startTime || enc.createdAt || new Date().toISOString(),
+      paymentMethod: enc.queueTicket?.assuranceCodeId || enc.queueTicket?.assuranceType || 'Umum',
+      allergies: enc.patient?.allergies || '-'
     }
-  }, [encounterId, message, navigate])
+  }, [encounterResponse?.result])
+
+  const encounterType = (encounterResponse?.result as any)?.encounterType || ''
 
   useEffect(() => {
-    loadPatientData()
-  }, [encounterId, loadPatientData])
-
-  const rawatInapMenu: MenuItem[] = [
-    {
-      key: 'monitoring-ttv',
-      icon: <MonitorOutlined />,
-      label: 'Monitoring TTV'
-    },
-    {
-      key: 'cppt',
-      icon: <SolutionOutlined />,
-      label: 'Catatan Perkembangan (CPPT)'
+    if (isEncounterLoading) return
+    if (isError) {
+      message.error('Gagal memuat data pasien')
+      navigate('/dashboard/nurse-calling')
+      return
     }
-  ]
+    if (encounterResponse && (!encounterResponse.success || !encounterResponse.result)) {
+      message.error(`Data pasien tidak ditemukan: ${encounterResponse.error || 'Server error'}`)
+      console.error('API Error Response:', encounterResponse)
+      navigate('/dashboard/nurse-calling')
+    }
+  }, [isEncounterLoading, isError, encounterResponse, message, navigate])
 
   const menuItems: MenuItem[] = useMemo(
     () => [
@@ -315,7 +309,7 @@ const MedicalRecordForm = () => {
     }
   }
 
-  if (loading) {
+  if (isEncounterLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
         <Spin size="large" />

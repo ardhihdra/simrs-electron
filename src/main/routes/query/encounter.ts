@@ -4,10 +4,6 @@ import { BackendListSchema, getClient, parseBackendResponse } from '@main/utils/
 import { EncounterSchema } from 'simrs-types'
 import z from 'zod'
 
-// ---------------------------------------------------------------------------
-// Shared sub-schemas
-// ---------------------------------------------------------------------------
-
 const SyncLogSchema = z.object({
     internalResourceId: z.string(),
     status: z.string(),
@@ -79,7 +75,9 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
             id: z.string(),
             name: z.string(),
             type: z.string().optional(),
-        }),
+        })
+        .nullable()
+        .optional(),
     queueTicket: z
         .object({
             id: z.string().optional(),
@@ -106,10 +104,6 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
     labServiceRequests: z.array(z.any()).optional(),
     satuSehatSyncStatus: SatuSehatSyncStatusSchema,
 })
-
-// ---------------------------------------------------------------------------
-// Schemas (IPC contract)
-// ---------------------------------------------------------------------------
 
 export const EncounterSchemaPayload = EncounterSchema.extend({
     id: z.string().nullable().optional(),
@@ -317,11 +311,11 @@ export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
 
         const transformedResult = Array.isArray(Result)
             ? Result.map((encounter: any) => ({
-                  ...encounter,
-                  visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
-                  serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
-                  status: encounter.status ? String(encounter.status) : 'UNKNOWN',
-              }))
+                ...encounter,
+                visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
+                serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
+                status: encounter.status ? String(encounter.status) : 'UNKNOWN',
+            }))
             : Result
 
         return transformedResult ? { success: true, result: transformedResult } : { success: false }
@@ -564,7 +558,6 @@ export const exportData = async (ctx: IpcContext, args?: Record<string, unknown>
             })
         }
 
-        // Call the export endpoint
         const response = (await client.get(`/api/module/encounter/export?${queryParams.toString()}`)) as any
         if (!response.ok) {
             throw new Error(`Gagal memuat dokumen: HTTP ${response.status}`)
@@ -587,7 +580,6 @@ export const exportData = async (ctx: IpcContext, args?: Record<string, unknown>
 export const getPatientTimeline = async (ctx: IpcContext, args: z.infer<typeof schemas.getPatientTimeline.args>) => {
     try {
         const client = getClient(ctx)
-        // The backend route is /api/encounter/patient/:patientId/timeline
         const res = await client.get(`/api/encounter/patient/${args.patientId}/timeline`)
 
         const TimelineSchema = z.object({

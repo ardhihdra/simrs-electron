@@ -63,7 +63,7 @@ export const GeneralSOAPForm = ({
 
   const { data: compositionData, isLoading, refetch } = useCompositionByEncounter(encounterId)
   const { data: obsData } = useQueryObservationByEncounter(encounterId)
-  const observationData = obsData?.result?.all || []
+  const observationData = obsData?.result || []
   const upsertMutation = useUpsertComposition()
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(
@@ -208,7 +208,7 @@ export const GeneralSOAPForm = ({
       await upsertMutation.mutateAsync(payload)
 
       const statusMsg = values.status === 'final' ? 'Final' : 'Draft'
-      const roleMsg = currentRole === 'nurse' ? 'Perawat' : 'Dokter'
+      const roleMsg = profile?.username || 'User'
       const actionMsg = editingId ? 'diupdate' : 'disimpan'
       message.success(`SOAP Umum berhasil ${actionMsg} oleh ${roleMsg} (${statusMsg})`)
       form.resetFields()
@@ -223,13 +223,12 @@ export const GeneralSOAPForm = ({
   }
 
   const handleFetchVitals = () => {
-    if (!obsData?.result) {
+    if (observationData.length === 0) {
       message.warning('Tidak ada data TTV ditemukan')
       return
     }
 
-    const rawObs = obsData?.result?.all || []
-    const sortedObs = [...rawObs].sort(
+    const sortedObs = [...observationData].sort(
       (a: any, b: any) =>
         dayjs(b.effectiveDateTime || b.issued).valueOf() -
         dayjs(a.effectiveDateTime || a.issued).valueOf()
@@ -325,7 +324,7 @@ export const GeneralSOAPForm = ({
     const { remainingText } = parseVitals(record.soapObjective || '')
 
     form.setFieldsValue({
-      performerId: record.authorId?.[0] || undefined,
+      performerId: record.authorId?.[0] ? Number(record.authorId[0]) : undefined,
       soapSubjective: record.soapSubjective,
       soapObjective: remainingText,
       soapAssessment: record.soapAssessment,
@@ -343,7 +342,7 @@ export const GeneralSOAPForm = ({
     try {
       if (record.status === 'final') return
 
-      const verifierId = selectedPerformerId || record.authorId?.[0] || 1
+      const verifierId = selectedPerformerId || (record.authorId?.[0] ? Number(record.authorId[0]) : 1)
 
       const sections =
         record.sections && record.sections.length > 0

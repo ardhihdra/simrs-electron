@@ -102,12 +102,22 @@ export const formatVitalSigns = (observations: ObservationData[]): FormattedVita
     const g = (code: string) => getObservationByCode(observations, code)
     const systolicObs = g('8480-6')
     const diastolicObs = g('8462-4')
+
+    const extractBPMetadata = (obs?: ObservationData) => {
+        const bodySites = obs?.bodySites || []
+        const position = bodySites.find((s) => s.display?.toLowerCase().includes('position'))?.display
+        const site = bodySites.find((s) => !s.display?.toLowerCase().includes('position'))?.display
+        return { site, position }
+    }
+
+    const sysMeta = extractBPMetadata(systolicObs)
+    const diaMeta = extractBPMetadata(diastolicObs)
+
     return {
         systolicBloodPressure: extractQuantityValue(systolicObs),
         diastolicBloodPressure: extractQuantityValue(diastolicObs),
-        bloodPressureBodySite: getBodySiteDisplay(systolicObs || diastolicObs),
-        bloodPressurePosition:
-            systolicObs?.bodySites?.[1]?.display || diastolicObs?.bodySites?.[1]?.display,
+        bloodPressureBodySite: sysMeta.site || diaMeta.site,
+        bloodPressurePosition: sysMeta.position || diaMeta.position,
         temperature: extractQuantityValue(g('8310-5')),
         temperatureMethod: getMethodDisplay(g('8310-5')),
         pulseRate: extractQuantityValue(g('8867-4')),

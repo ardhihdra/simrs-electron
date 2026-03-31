@@ -1,42 +1,12 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { getClient } from '@main/utils/backendClient'
+import { ConditionSchema } from 'simrs-types'
 
-
-export const requireSession = true
-
-const ConditionCategorySchema = z.object({
-    code: z.string().optional().nullable(),
-    display: z.string().optional().nullable(),
-    system: z.string().optional().nullable()
-})
-
-const ConditionCodeCodingSchema = z.object({
-    diagnosisCodeId: z.number(),
-    isPrimary: z.boolean().optional(),
-    diagnosisCode: z.object({
-        code: z.string(),
-        display: z.string(),
-        system: z.string()
-    }).optional()
-})
-
-const ConditionSchema = z.object({
-    id: z.string().optional(),
-    clinicalStatus: z.string().optional().nullable(),
-    verificationStatus: z.string().optional().nullable(),
-    subjectId: z.string(),
-    encounterId: z.string().optional().nullable(),
-    recordedDate: z.union([z.string(), z.date()]).optional().nullable(),
-    recorder: z.number().optional().nullable(),
-    note: z.string().optional().nullable(),
-    categories: z.array(ConditionCategorySchema).optional().nullable(),
-    codeCoding: z.array(ConditionCodeCodingSchema).optional().nullable(),
-    onsetPeriodStart: z.union([z.string(), z.date()]).optional().nullable(),
-    onsetPeriodEnd: z.union([z.string(), z.date()]).optional().nullable(),
-    onsetAge: z.number().optional().nullable(),
-    createdAt: z.union([z.string(), z.date()]).optional().nullable(),
-    updatedAt: z.union([z.string(), z.date()]).optional().nullable()
+export const ConditionSchemaPayload = ConditionSchema.extend({
+    id: z.union([z.string(), z.number()]).optional().nullable(),
+    createdAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    updatedAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
 })
 
 const BulkCreateConditionInputSchema = z.object({
@@ -117,7 +87,7 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
         const res = await client.get(`/api/module/condition/${args.encounterId}`)
 
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
-
+        console.log(raw)
         if (!raw || typeof raw !== 'object') {
             return { success: false, error: 'Invalid response format' }
         }
