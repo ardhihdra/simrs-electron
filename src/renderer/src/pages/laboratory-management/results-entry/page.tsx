@@ -1,22 +1,20 @@
 import { ArrowLeftOutlined, CloudDownloadOutlined, UploadOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload, App } from 'antd'
-import { useLocation, useNavigate } from 'react-router'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
 import { client } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
+import { App, Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload } from 'antd'
 import { useEffect, useState } from 'react'
-import { Interpretation } from 'simrs-types'
-
+import { useLocation, useNavigate } from 'react-router'
 type DicomSourceMode = 'upload' | 'modality'
 
-//  Do we actually need Abnormal, Critical High/Low? if so add it as 
-const interpretationMap: Record<string, Interpretation> = {
-  NORMAL: Interpretation.NORMAL,
-  HIGH: Interpretation.HIGH,
-  LOW: Interpretation.LOW,
-  ABNORMAL: Interpretation.CRITICAL,
-  CRITICAL_HIGH: Interpretation.CRITICAL,
-  CRITICAL_LOW: Interpretation.CRITICAL
+//  Do we actually need Abnormal, Critical High/Low? if so add it as
+const interpretationMap: Record<string, string> = {
+  NORMAL: 'NORMAL',
+  HIGH: 'HIGH',
+  LOW: 'LOW',
+  ABNORMAL: 'CRITICAL',
+  CRITICAL_HIGH: 'CRITICAL',
+  CRITICAL_LOW: 'CRITICAL'
 }
 
 const { Title, Text } = Typography
@@ -44,8 +42,7 @@ export default function RecordResultPage() {
   const terminologyResult = (terminologyData as Record<string, unknown>)?.result as
     | { laboratory?: Record<string, unknown>[]; radiology?: Record<string, unknown>[] }
     | undefined
-  const firstTermItem =
-    terminologyResult?.laboratory?.[0] ?? terminologyResult?.radiology?.[0]
+  const firstTermItem = terminologyResult?.laboratory?.[0] ?? terminologyResult?.radiology?.[0]
 
   // PACS study search — generic, autofills with patientId on mount
   const patientId = (record as Record<string, unknown>)?.patientId as string | undefined
@@ -206,7 +203,7 @@ export default function RecordResultPage() {
               unit: values.unit as string,
               referenceRange: values.referenceRange as string,
               interpretation:
-                interpretationMap[String(values.interpretation || 'NORMAL')] || 'NORMAL',
+                (interpretationMap[String(values.interpretation || 'NORMAL')] as any) || 'NORMAL',
               observedAt: new Date().toISOString()
             }
           ]
@@ -261,7 +258,12 @@ export default function RecordResultPage() {
           layout="vertical"
           onFinish={handleSubmit}
           onFinishFailed={(errorInfo) =>
-            notifyFormValidationError(form, message, errorInfo, 'Form hasil pemeriksaan belum lengkap.')
+            notifyFormValidationError(
+              form,
+              message,
+              errorInfo,
+              'Form hasil pemeriksaan belum lengkap.'
+            )
           }
         >
           {isRadiology ? (

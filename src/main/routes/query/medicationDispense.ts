@@ -3,7 +3,7 @@ import { MedicationDispenseWithIdSchema } from '@main/models/medicationDispense'
 import { MedicationRequestWithIdSchema } from '@main/models/medicationRequest'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
-import { MedicationDispenseStatusSchema, MedicationDispenseStatusEnum } from 'simrs-types'
+import { MedicationDispenseStatusSchema, MedicationDispenseStatus } from 'simrs-types'
 
 interface QuantityInfo {
   value?: number
@@ -48,7 +48,7 @@ export const schemas = {
           MedicationDispenseWithIdSchema,
           z.object({
             id: z.number().optional(),
-            status: z.enum(MedicationDispenseStatusEnum).optional()
+            status: MedicationDispenseStatusSchema.optional()
           })
         ])
         .optional(),
@@ -164,7 +164,7 @@ export const moduleSchemas = {
       result: z
         .object({
           id: z.number().optional(),
-          status: z.enum(MedicationDispenseStatusEnum).optional()
+          status: MedicationDispenseStatusSchema.optional()
         })
         .optional(),
       error: z.string().optional(),
@@ -653,7 +653,7 @@ export const createFromRequest = async (
       const payload = {
         patientId: request.patientId,
         authorizingPrescriptionId: request.id as number,
-        status: MedicationDispenseStatusEnum.IN_PROGRESS,
+        status: MedicationDispenseStatus.IN_PROGRESS,
         quantity: {
           value,
           unit: quantity?.unit
@@ -726,7 +726,7 @@ export const createFromRequest = async (
         itemId: request.itemId as number,
         patientId: request.patientId,
         authorizingPrescriptionId: request.id,
-        status: MedicationDispenseStatusEnum.IN_PROGRESS,
+        status: MedicationDispenseStatus.IN_PROGRESS,
         quantity: {
           value,
           unit

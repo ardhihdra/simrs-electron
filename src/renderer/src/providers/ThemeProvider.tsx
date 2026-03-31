@@ -1,9 +1,9 @@
-import { useEffect, useState, ReactNode } from 'react'
+import { DEFAULT_THEME_KEY, THEME_REGISTRY } from '@renderer/themes/index'
 import { ConfigProvider, theme } from 'antd'
+import { useEffect, useState } from 'react'
 import { ThemeContext, type ThemeMode } from './theme-context'
-import { THEME_REGISTRY, DEFAULT_THEME_KEY } from '@renderer/themes/index'
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
+export function ThemeProvider({ children }: { children: any }) {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem('theme-mode')
     return (saved && saved in THEME_REGISTRY ? saved : DEFAULT_THEME_KEY) as ThemeMode

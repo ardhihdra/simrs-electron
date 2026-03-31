@@ -32,7 +32,7 @@ import {
   useMedicationDispenseByEncounter
 } from '@renderer/hooks/query/use-medication-dispense'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { MedicationDispenseStatusEnum } from 'simrs-types'
+import { MedicationDispenseStatus } from 'simrs-types'
 
 const { TextArea } = Input
 
@@ -103,7 +103,7 @@ export const ProcedureDetailForm = ({ encounterId, patientData }: ProcedureDetai
   const updateMutation = useMutation({
     mutationFn: async (payload: {
       id: number
-      status: MedicationDispenseStatusEnum
+      status: MedicationDispenseStatus
       whenHandedOver?: string
     }) => {
       const fn = window.api?.query?.medicationDispense?.update
@@ -215,11 +215,11 @@ export const ProcedureDetailForm = ({ encounterId, patientData }: ProcedureDetai
   }
 
   const handleDelete = (id: number) => {
-    updateMutation.mutate({ id, status: MedicationDispenseStatusEnum.ENTERED_IN_ERROR })
+    updateMutation.mutate({ id, status: MedicationDispenseStatus.ENTERED_IN_ERROR })
   }
 
   const handleComplete = (id: number) => {
-    updateMutation.mutate({ id, status: MedicationDispenseStatusEnum.COMPLETED, whenHandedOver: new Date().toISOString() })
+    updateMutation.mutate({ id, status: MedicationDispenseStatus.COMPLETED, whenHandedOver: new Date().toISOString() })
   }
 
   const columns = [

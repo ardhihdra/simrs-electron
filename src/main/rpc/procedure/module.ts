@@ -1,3 +1,9 @@
+import {
+  ScopeSessionSchema,
+  ScopeActivationSchema,
+  ScopeSignOutSchema,
+  MySchema
+} from 'simrs-types'
 import z from 'zod'
 import { t } from '..'
 
@@ -7,37 +13,7 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const getHakAksesId = (user: unknown): string | undefined =>
   isRecord(user) && typeof user.hakAksesId === 'string' ? user.hakAksesId : undefined
 
-const ScopeSessionSchema = z.object({
-  id: z.coerce.number(),
-  lokasiKerjaId: z.coerce.number().optional(),
-  allowedModules: z.array(z.string()).min(1),
-  label: z.string().nullish().transform((value) => value ?? undefined),
-  hakAksesId: z.string().optional(),
-  kepegawaianId: z.number().optional()
-})
-
-const ScopeActivationSchema = z
-  .object({
-    success: z.boolean().optional(),
-    message: z.string().optional(),
-    result: z
-      .object({
-        lokasiKerjaId: z.coerce.number().optional(),
-        allowedModules: z.array(z.string()).min(1),
-        scopeToken: z.string().min(1),
-        expiresAt: z.unknown().optional()
-      })
-      .optional()
-  })
-  .passthrough()
-
-const ScopeSignOutSchema = z
-  .object({
-    success: z.boolean().optional(),
-    message: z.string().optional(),
-    error: z.string().optional()
-  })
-  .passthrough()
+// --- Schemas are now in simrs-types ---
 
 const ScopeSessionOutputSchema = z
   .union([
@@ -66,30 +42,6 @@ const ScopeSessionOutputSchema = z
 
     return session
   })
-
-const MySchema = z.object({
-  success: z.boolean().optional(),
-  result: z
-    .array(
-      z.object({
-        lokasiKerja: z.object({
-          id: z.number(),
-          kode: z.string(),
-          nama: z.string()
-        }),
-        configs: z
-          .array(
-            z.object({
-              allowedModules: z.array(z.string()),
-              id: z.number(),
-              label: z.string(),
-            })
-          )
-          .optional()
-      })
-    )
-    .optional()
-})
 
 export const mmoduleRpc = {
   my: t
