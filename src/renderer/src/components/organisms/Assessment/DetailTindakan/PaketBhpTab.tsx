@@ -55,7 +55,8 @@ export default function PaketBhpTab({
 
       currentEntries[namePath] = {
         paketBhpId: value,
-        bhpList: mappedBhp
+        bhpList: mappedBhp,
+        jumlah: 1
       }
       modalForm.setFieldValue('paketBhpEntries', [...currentEntries])
     }
@@ -107,8 +108,8 @@ export default function PaketBhpTab({
                 }
                 bodyStyle={{ padding: 12 }}
               >
-                <Row gutter={[16, 16]}>
-                  <Col span={24}>
+                <Row gutter={[8, 16]}>
+                  <Col span={19}>
                     <Form.Item
                       {...restField}
                       name={[name, 'paketBhpId']}
@@ -131,6 +132,17 @@ export default function PaketBhpTab({
                       />
                     </Form.Item>
                   </Col>
+                  <Col span={5}>
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'jumlah']}
+                      label={<span className="font-bold">Qty Paket</span>}
+                      rules={[{ required: true, message: 'Wajib' }]}
+                      style={{ marginBottom: 0 }}
+                    >
+                      <InputNumber min={1} placeholder="Qty" className="w-full" />
+                    </Form.Item>
+                  </Col>
 
                   <Col span={24}>
                     <Collapse
@@ -145,177 +157,111 @@ export default function PaketBhpTab({
                                 <div className="flex flex-col gap-2">
                                   {bhpFields.map(
                                     ({ key: bhpKey, name: bhpName, ...bhpRestField }) => (
-                                      <Row key={bhpKey} gutter={8} align="middle">
-                                        <Col span={10}>
-                                          <Form.Item
-                                            {...bhpRestField}
-                                            name={[bhpName, 'itemId']}
-                                            rules={[{ required: true, message: 'Wajib' }]}
-                                            style={{ marginBottom: 0 }}
-                                          >
-                                              <Select
-                                                showSearch
-                                                disabled
-                                                placeholder="Pilih BHP"
-                                                loading={isLoadingConsumableItems}
-                                                options={consumableItemOptions}
-                                                optionFilterProp="searchLabel"
-                                                dropdownStyle={{ minWidth: 400 }}
-                                                optionRender={(option) => (
-                                                  <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                                                    {option.label}
-                                                  </div>
-                                                )}
-                                                filterOption={(input, option) =>
-                                                  String(option?.searchLabel ?? '')
-                                                    .toLowerCase()
-                                                    .includes(input.toLowerCase())
-                                                }
-                                              />
-                                          </Form.Item>
-                                        </Col>
-                                        <Col span={4}>
-                                          <Form.Item
-                                            noStyle
-                                            shouldUpdate={(prevValues, currentValues) =>
-                                              prevValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
-                                                ?.itemId !==
-                                                currentValues.paketBhpEntries?.[name]?.bhpList?.[
-                                                  bhpName
-                                                ]?.itemId ||
-                                              prevValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
-                                                ?.jumlah !==
-                                                currentValues.paketBhpEntries?.[name]?.bhpList?.[
-                                                  bhpName
-                                                ]?.jumlah
-                                            }
-                                          >
-                                            {({ getFieldValue }) => {
-                                              const itemId = getFieldValue([
-                                                'paketBhpEntries',
-                                                name,
-                                                'bhpList',
-                                                bhpName,
-                                                'itemId'
-                                              ])
-                                              const selectedItem = itemId
-                                                ? consumableItemMap.get(Number(itemId))
-                                                : null
-                                              const stock =
-                                                stockByItemMap.get(
-                                                  selectedItem?.kode?.trim()?.toUpperCase() ?? ''
-                                                ) || 0
+                                      <Form.Item
+                                        key={bhpKey}
+                                        noStyle
+                                        shouldUpdate={(prev, curr) =>
+                                          prev.paketBhpEntries?.[name]?.bhpList?.[bhpName] !==
+                                            curr.paketBhpEntries?.[name]?.bhpList?.[bhpName] ||
+                                          prev.paketBhpEntries?.[name]?.jumlah !==
+                                            curr.paketBhpEntries?.[name]?.jumlah
+                                        }
+                                      >
+                                        {({ getFieldValue }) => {
+                                          const entry = getFieldValue(['paketBhpEntries', name])
+                                          const pkgJumlah = Number(entry?.jumlah || 1)
+                                          const itemId = getFieldValue([
+                                            'paketBhpEntries',
+                                            name,
+                                            'bhpList',
+                                            bhpName,
+                                            'itemId'
+                                          ])
+                                          const baseJumlah = getFieldValue([
+                                            'paketBhpEntries',
+                                            name,
+                                            'bhpList',
+                                            bhpName,
+                                            'jumlah'
+                                          ])
+                                          const jumlahTotal = Number(baseJumlah || 0) * pkgJumlah
 
-                                              return (
-                                                <Form.Item
-                                                  {...bhpRestField}
-                                                  name={[bhpName, 'jumlah']}
-                                                  rules={[
-                                                    { required: true, message: 'Wajib' },
-                                                    {
-                                                      validator: async (_rule, value) => {
-                                                        if (value === undefined || value === null)
-                                                          return
-                                                        if (
-                                                          !Number.isInteger(Number(value)) ||
-                                                          Number(value) <= 0
-                                                        ) {
-                                                          throw new Error('Bulat > 0')
-                                                        }
-                                                        if (itemId && stock <= 0) {
-                                                          throw new Error('Stok Kosong')
-                                                        }
-                                                        if (itemId && Number(value) > stock) {
-                                                          throw new Error(`Maks ${stock}`)
-                                                        }
-                                                      }
-                                                    }
-                                                  ]}
-                                                  style={{ marginBottom: 0 }}
-                                                  validateStatus={
-                                                    itemId && stock <= 0 ? 'error' : undefined
-                                                  }
-                                                  help={
-                                                    itemId ? (
-                                                      <span
-                                                        style={{
-                                                          fontSize: 10,
-                                                          color: stock <= 0 ? '#ff4d4f' : '#666'
-                                                        }}
-                                                      >
-                                                        Stok: {stock}
-                                                      </span>
-                                                    ) : null
-                                                  }
-                                                >
-                                                  <InputNumber
-                                                    min={1}
-                                                    step={1}
-                                                    className="w-full"
-                                                    placeholder="Qty"
-                                                  />
-                                                </Form.Item>
-                                              )
-                                            }}
-                                          </Form.Item>
-                                        </Col>
-                                        <Col span={6}>
-                                          <Form.Item
-                                            noStyle
-                                            shouldUpdate={(prevValues, currentValues) =>
-                                              prevValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
-                                                ?.itemId !==
-                                              currentValues.paketBhpEntries?.[name]?.bhpList?.[bhpName]
-                                                ?.itemId
-                                            }
-                                          >
-                                            {({ getFieldValue }) => {
-                                              const itemId = getFieldValue([
-                                                'paketBhpEntries',
-                                                name,
-                                                'bhpList',
-                                                bhpName,
-                                                'itemId'
-                                              ])
-                                              const selectedItem = itemId
-                                                ? consumableItemMap.get(Number(itemId))
-                                                : null
-                                              const rules = selectedItem?.buyPriceRules || []
+                                          const satuan = getFieldValue([
+                                            'paketBhpEntries',
+                                            name,
+                                            'bhpList',
+                                            bhpName,
+                                            'satuan'
+                                          ])
+                                          const item = itemId
+                                            ? consumableItemMap.get(Number(itemId))
+                                            : null
+                                          const stock = item?.kode
+                                            ? stockByItemMap.get(item.kode.trim().toUpperCase())
+                                            : 0
 
-                                              let unitOptions: any[] = []
-                                              if (Array.isArray(rules) && rules.length > 0) {
-                                                unitOptions = rules.map((r: any) => ({
-                                                  label: r.unitCode,
-                                                  value: r.unitCode
-                                                }))
-                                              } else if (selectedItem?.kodeUnit) {
-                                                unitOptions = [
-                                                  {
-                                                    label: selectedItem.kodeUnit,
-                                                    value: selectedItem.kodeUnit
-                                                  }
-                                                ]
-                                              }
-
-                                              return (
-                                                <Form.Item
-                                                  {...bhpRestField}
-                                                  name={[bhpName, 'satuan']}
-                                                  style={{ marginBottom: 0 }}
-                                                  rules={[{ required: true, message: 'Wajib' }]}
-                                                >
-                                                  <Select
-                                                    placeholder="Satuan"
-                                                    options={unitOptions}
-                                                    disabled={!itemId || unitOptions.length === 0}
-                                                  />
-                                                </Form.Item>
-                                              )
-                                            }}
-                                          </Form.Item>
-                                        </Col>
-                                        <Col span={2} className="text-center"></Col>
-                                      </Row>
+                                          return (
+                                            <div className="border-b border-slate-50 last:border-0 pb-1 mb-1">
+                                              <Row gutter={8} align="middle">
+                                                <Col span={14}>
+                                                  <span className="text-sm font-medium">
+                                                    {item?.nama || 'Item tidak ditemukan'}
+                                                  </span>
+                                                </Col>
+                                                <Col span={4} className="text-right">
+                                                  <span className="text-sm font-bold text-blue-600">
+                                                    {jumlahTotal}
+                                                  </span>
+                                                </Col>
+                                                <Col span={6}>
+                                                  <span className="text-xs text-slate-500">
+                                                    {satuan}
+                                                  </span>
+                                                  {stock !== undefined && (
+                                                    <span
+                                                      className="ml-2 text-[10px]"
+                                                      style={{
+                                                        color: stock <= 0 ? '#f5222d' : '#8c8c8c'
+                                                      }}
+                                                    >
+                                                      (Stok: {stock})
+                                                    </span>
+                                                  )}
+                                                </Col>
+                                              </Row>
+                                              {/* Hidden fields for form submission */}
+                                              <Form.Item
+                                                {...bhpRestField}
+                                                name={[bhpName, 'itemId']}
+                                                hidden
+                                              >
+                                                <Input />
+                                              </Form.Item>
+                                              <Form.Item
+                                                {...bhpRestField}
+                                                name={[bhpName, 'jumlah']}
+                                                hidden
+                                              >
+                                                <Input />
+                                              </Form.Item>
+                                              <Form.Item
+                                                {...bhpRestField}
+                                                name={[bhpName, 'satuan']}
+                                                hidden
+                                              >
+                                                <Input />
+                                              </Form.Item>
+                                              <Form.Item
+                                                {...bhpRestField}
+                                                name={[bhpName, 'paketBhpDetailId']}
+                                                hidden
+                                              >
+                                                <Input />
+                                              </Form.Item>
+                                            </div>
+                                          )
+                                        }}
+                                      </Form.Item>
                                     )
                                   )}
                                 </div>

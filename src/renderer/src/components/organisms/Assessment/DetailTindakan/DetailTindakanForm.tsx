@@ -1030,13 +1030,14 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       Array.isArray(values?.paketBhpEntries) ? values.paketBhpEntries : []
     ).flatMap((entry: any) => {
       const itemLists = Array.isArray(entry?.bhpList) ? entry.bhpList : []
+      const entryJumlah = Number(entry?.jumlah || 1)
       return itemLists
         .filter((item: any) => item?.itemId && Number(item.jumlah) > 0)
         .map((item: any) => ({
           paketBhpId: entry.paketBhpId,
           paketBhpDetailId: item.paketBhpDetailId ?? 0,
           itemId: item.itemId,
-          jumlah: Number(item.jumlah),
+          jumlah: Number(item.jumlah) * entryJumlah,
           satuan: item.satuan
         }))
     })
@@ -1781,7 +1782,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     isLoadingPaketBhp={isLoadingPaketBhp}
                     paketBhpOptions={paketBhpList.map((p: any) => ({
                       value: p.id,
-                      label: `[${p.kodePaketBhp}] ${p.namaPaketBhp}`
+                      label: p.namaPaketBhp
                     }))}
                     setSearchPaketBhp={setSearchPaketBhp}
                     paketBhpCache={paketBhpCache}
