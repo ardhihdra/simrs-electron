@@ -1,5 +1,6 @@
+import { SearchOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
-import { Form, Input, Select } from 'antd'
+import { Card, Checkbox, Empty, Form, Input, Select, Tag } from 'antd'
 import type { FormInstance } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -13,6 +14,13 @@ interface MasterServiceRequestCodeItem {
   serviceType: 'laboratory' | 'radiology'
 }
 
+interface SelectedServiceRequestCodeValue {
+  masterServiceRequestCodeId: number
+  code: string
+  display: string
+  system: string
+}
+
 function mapServiceRequestCategoryToTerminologyDomain(
   category?: ServiceRequestCategoryValue
 ): 'laboratory' | 'radiology' {
@@ -23,54 +31,170 @@ interface Props {
   form: FormInstance
 }
 
-export default function CreateServiceRequestForm({ form }: Props) {
+interface ServiceRequestCodeSelectorProps {
+  category?: ServiceRequestCategoryValue
+  value?: SelectedServiceRequestCodeValue[]
+  onChange?: (value: SelectedServiceRequestCodeValue[]) => void
+}
+
+function ServiceRequestCodeSelector({
+  category,
+  value = [],
+  onChange
+}: ServiceRequestCodeSelectorProps) {
   const [terminologySearch, setTerminologySearch] = useState('')
-  const selectedCategory = Form.useWatch('category', form) as ServiceRequestCategoryValue | undefined
 
   const terminologyDomain = useMemo(
-    () => mapServiceRequestCategoryToTerminologyDomain(selectedCategory),
-    [selectedCategory]
+    () => mapServiceRequestCategoryToTerminologyDomain(category),
+    [category]
   )
 
   const { data: terminologyData, isLoading: isLoadingTerminology } =
     client.laboratoryManagement.getServiceRequestCodes.useQuery(
       {
         domain: terminologyDomain,
-        query: terminologySearch.trim() || undefined,
+        query: terminologySearch.trim() || undefined
       },
       {
-        queryKey: ['lab-queue-service-request-codes', { domain: terminologyDomain, query: terminologySearch }],
+        queryKey: [
+          'lab-queue-service-request-codes',
+          { domain: terminologyDomain, query: terminologySearch }
+        ]
       }
     )
 
   const terminologyOptions = useMemo(() => {
-    const result = terminologyData?.result as { laboratory?: MasterServiceRequestCodeItem[]; radiology?: MasterServiceRequestCodeItem[] } | undefined
+    const result = terminologyData?.result as
+      | { laboratory?: MasterServiceRequestCodeItem[]; radiology?: MasterServiceRequestCodeItem[] }
+      | undefined
     const items: MasterServiceRequestCodeItem[] = [
       ...(result?.laboratory ?? []),
-      ...(result?.radiology ?? []),
+      ...(result?.radiology ?? [])
     ]
+
     return items.map((item) => ({
-      value: item.id,
-      label: `${item.loinc} - ${item.display}`,
-      meta: item,
+      masterServiceRequestCodeId: item.id,
+      code: item.loinc,
+      display: item.display,
+      system: 'http://loinc.org'
     }))
   }, [terminologyData])
 
-  useEffect(() => {
-    form.setFieldsValue({ code: undefined, display: undefined, system: 'http://loinc.org', masterServiceRequestCodeId: undefined })
-    setTerminologySearch('')
-  }, [selectedCategory, form])
+  const selectedIds = useMemo(
+    () => new Set(value.map((item) => item.masterServiceRequestCodeId)),
+    [value]
+  )
 
-  const handleSelectCode = (id: number) => {
-    const option = terminologyOptions.find((item) => item.value === id)
-    if (!option) return
-    form.setFieldsValue({
-      masterServiceRequestCodeId: option.meta.id,
-      code: option.meta.loinc,
-      display: option.meta.display,
-      system: 'http://loinc.org',
-    })
+  useEffect(() => {
+    setTerminologySearch('')
+  }, [category])
+
+  const handleCheckedChange = (checked: boolean, item: SelectedServiceRequestCodeValue) => {
+    if (checked) {
+      if (selectedIds.has(item.masterServiceRequestCodeId)) return
+      onChange?.([...value, item])
+      return
+    }
+
+    onChange?.(
+      value.filter(
+        (selectedItem) =>
+          selectedItem.masterServiceRequestCodeId !== item.masterServiceRequestCodeId
+      )
+    )
   }
+
+  const handleRemoveSelected = (masterServiceRequestCodeId: number) => {
+    onChange?.(
+      value.filter((item) => item.masterServiceRequestCodeId !== masterServiceRequestCodeId)
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      <Input
+        allowClear
+        value={terminologySearch}
+        onChange={(event) => setTerminologySearch(event.target.value)}
+        placeholder="Cari kode atau nama pemeriksaan"
+        prefix={<SearchOutlined />}
+      />
+
+      {value.length > 0 ? (
+        <div className="flex flex-wrap gap-2">
+          {value.map((item) => (
+            <Tag
+              key={item.masterServiceRequestCodeId}
+              color="blue"
+              closable
+              onClose={() => handleRemoveSelected(item.masterServiceRequestCodeId)}
+            >
+              {item.code} - {item.display}
+            </Tag>
+          ))}
+        </div>
+      ) : (
+        <div className="text-xs text-gray-500">
+          Pilih satu atau lebih kode pemeriksaan dari daftar di bawah.
+        </div>
+      )}
+
+      {terminologyOptions.length > 0 ? (
+        <div className="grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+          {terminologyOptions.map((item) => {
+            const isChecked = selectedIds.has(item.masterServiceRequestCodeId)
+
+            return (
+              <Card
+                key={item.masterServiceRequestCodeId}
+                size="small"
+                className={`cursor-pointer transition-all ${
+                  isChecked ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                }`}
+                onClick={() => handleCheckedChange(!isChecked, item)}
+              >
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    checked={isChecked}
+                    onChange={(event) => handleCheckedChange(event.target.checked, item)}
+                    onClick={(event) => event.stopPropagation()}
+                  />
+                  <div className="min-w-0">
+                    <div className="font-medium text-gray-800">{item.display}</div>
+                    <div className="text-xs text-gray-500">{item.code}</div>
+                  </div>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="rounded-md border border-dashed border-gray-200 p-4">
+          <Empty
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+            description={
+              isLoadingTerminology
+                ? 'Memuat kode pemeriksaan...'
+                : 'Kode pemeriksaan tidak ditemukan'
+            }
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function CreateServiceRequestForm({ form }: Props) {
+  const selectedCategory = Form.useWatch('category', form) as
+    | ServiceRequestCategoryValue
+    | undefined
+
+  useEffect(() => {
+    form.setFieldsValue({
+      selectedServiceRequestCodes: [],
+      system: 'http://loinc.org'
+    })
+  }, [selectedCategory, form])
 
   return (
     <Form form={form} layout="vertical">
@@ -88,32 +212,21 @@ export default function CreateServiceRequestForm({ form }: Props) {
       </Form.Item>
 
       <Form.Item
-        name="masterServiceRequestCodeId"
+        name="selectedServiceRequestCodes"
         label="Kode Pemeriksaan"
-        rules={[{ required: true, message: 'Harap pilih kode pemeriksaan' }]}
-      >
-        <Select
-          showSearch
-          filterOption={false}
-          onSearch={setTerminologySearch}
-          onChange={handleSelectCode}
-          options={terminologyOptions}
-          loading={isLoadingTerminology}
-          placeholder="Cari kode pemeriksaan dari terminology service"
-          notFoundContent="Kode pemeriksaan tidak ditemukan"
-        />
-      </Form.Item>
+        rules={[
+          {
+            validator: (_, value: SelectedServiceRequestCodeValue[] | undefined) => {
+              if (Array.isArray(value) && value.length > 0) {
+                return Promise.resolve()
+              }
 
-      <Form.Item name="code" label="LOINC Code">
-        <Input readOnly placeholder="Terisi otomatis" />
-      </Form.Item>
-
-      <Form.Item
-        name="display"
-        label="Nama Pemeriksaan"
-        rules={[{ required: true, message: 'Harap isi nama pemeriksaan' }]}
+              return Promise.reject(new Error('Harap pilih minimal satu kode pemeriksaan'))
+            }
+          }
+        ]}
       >
-        <Input placeholder="Terisi otomatis" />
+        <ServiceRequestCodeSelector category={selectedCategory} />
       </Form.Item>
 
       <Form.Item

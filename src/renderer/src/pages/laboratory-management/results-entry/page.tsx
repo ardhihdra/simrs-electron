@@ -2,9 +2,11 @@ import { ArrowLeftOutlined, CloudDownloadOutlined, UploadOutlined } from '@ant-d
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
 import { client } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
+import { getInterpretationFromReferenceRange } from '@renderer/utils/laboratory-interpretation'
 import { App, Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload } from 'antd'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+
 type DicomSourceMode = 'upload' | 'modality'
 
 //  Do we actually need Abnormal, Critical High/Low? if so add it as
@@ -43,6 +45,37 @@ export default function RecordResultPage() {
     | { laboratory?: Record<string, unknown>[]; radiology?: Record<string, unknown>[] }
     | undefined
   const firstTermItem = terminologyResult?.laboratory?.[0] ?? terminologyResult?.radiology?.[0]
+  const terminologyDomain = (
+    (firstTermItem?.domain as string | undefined) === 'radiology' ? 'radiology' : 'laboratory'
+  ) as 'laboratory' | 'radiology'
+
+  const { data: unitData, isLoading: isLoadingUnits } =
+    client.laboratoryManagement.getUnits.useQuery(
+      {
+        loincCode: (record?.test as any)?.code || '',
+        domain: terminologyDomain
+      },
+      {
+        enabled: !!(record?.test as any)?.code,
+        queryKey: [
+          'terminology-units-by-loinc',
+          { loincCode: (record?.test as any)?.code, domain: terminologyDomain }
+        ]
+      }
+    )
+
+  const unitOptions = (
+    ((unitData as Record<string, unknown>)?.result as Record<string, string>[] | undefined) ?? []
+  ).map((item) => ({
+    value: item.code,
+    label: item.display
+  }))
+  const defaultUnit =
+    (typeof (firstTermItem as Record<string, unknown> | undefined)?.ucum === 'string'
+      ? ((firstTermItem as Record<string, string>).ucum as string)
+      : undefined) || unitOptions[0]?.value
+  const resultValue = Form.useWatch('value', form) as string | undefined
+  const referenceRangeValue = Form.useWatch('referenceRange', form) as string | undefined
 
   // PACS study search — generic, autofills with patientId on mount
   const patientId = (record as Record<string, unknown>)?.patientId as string | undefined
@@ -57,16 +90,6 @@ export default function RecordResultPage() {
     })
   const pacsStudies =
     ((pacsStudiesData as Record<string, unknown>)?.result as Record<string, unknown>[]) || []
-
-  useEffect(() => {
-    if (firstTermItem) {
-      if (firstTermItem.loinc === testObj?.code && (firstTermItem as Record<string, string>).ucum) {
-        form.setFieldsValue({
-          unit: (firstTermItem as Record<string, string>).ucum
-        })
-      }
-    }
-  }, [firstTermItem, form, testObj?.code])
 
   const { handleRecordResult, loading } = useLaboratoryActions(() => {
     message.success('Result recorded successfully')
@@ -114,6 +137,35 @@ export default function RecordResultPage() {
     testObj?.name?.toLowerCase().includes('ct scan') ||
     testObj?.code?.startsWith('RAD') ||
     rec?.modality
+
+  useEffect(() => {
+    if (isRadiology || !defaultUnit) {
+      return
+    }
+
+    const currentUnit = form.getFieldValue('unit') as string | undefined
+    if (!currentUnit) {
+      form.setFieldsValue({
+        unit: defaultUnit
+      })
+    }
+  }, [defaultUnit, form, isRadiology])
+
+  useEffect(() => {
+    if (isRadiology) {
+      return
+    }
+
+    const nextInterpretation = getInterpretationFromReferenceRange(resultValue, referenceRangeValue)
+    if (!nextInterpretation) {
+      return
+    }
+
+    const currentInterpretation = form.getFieldValue('interpretation') as string | undefined
+    if (currentInterpretation !== nextInterpretation) {
+      form.setFieldValue('interpretation', nextInterpretation)
+    }
+  }, [form, isRadiology, referenceRangeValue, resultValue])
 
   const handleSubmit = async () => {
     try {
@@ -399,7 +451,17 @@ export default function RecordResultPage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <Form.Item name="unit" label="Satuan">
-                  <Input placeholder="Satuan" />
+                  <Select
+                    showSearch
+                    allowClear
+                    loading={isLoadingUnits}
+                    placeholder={isLoadingUnits ? 'Memuat satuan...' : 'Pilih satuan'}
+                    options={unitOptions}
+                    optionFilterProp="label"
+                    notFoundContent={
+                      isLoadingUnits ? <Spin size="small" /> : 'Satuan tidak tersedia'
+                    }
+                  />
                 </Form.Item>
                 <Form.Item name="referenceRange" label="Nilai Rujukan">
                   <Input placeholder="Nilai Rujukan" />
