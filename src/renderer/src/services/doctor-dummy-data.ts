@@ -57,26 +57,6 @@ export const dummyDiagnosisCodes: DiagnosisCode[] = [
     { id: 'dx-024', code: 'R10.4', name: 'Abdominal pain', category: 'Symptoms' }
 ]
 
-// ============ Medical Procedures ============
-
-export const dummyMedicalProcedures: MedicalProcedure[] = [
-    { id: 'proc-001', code: 'PE-001', icd9Code: '89.7', name: 'Pemeriksaan Fisik Lengkap', category: 'Examination', price: 50000 },
-    { id: 'proc-002', code: 'INJ-001', icd9Code: '99.29', name: 'Injeksi Intramuskular', category: 'Injection', price: 25000 },
-    { id: 'proc-003', code: 'INJ-002', icd9Code: '99.21', name: 'Injeksi Intravena', category: 'Injection', price: 30000 },
-    { id: 'proc-004', code: 'INF-001', icd9Code: '38.93', name: 'Pemasangan Infus', category: 'Infusion', price: 75000 },
-    { id: 'proc-005', code: 'WC-001', icd9Code: '93.57', name: 'Perawatan Luka Kecil', category: 'Wound Care', price: 40000 },
-    { id: 'proc-006', code: 'WC-002', icd9Code: '93.57', name: 'Perawatan Luka Sedang', category: 'Wound Care', price: 75000 },
-    { id: 'proc-007', code: 'WC-003', icd9Code: '86.59', name: 'Jahit Luka', category: 'Minor Surgery', price: 150000 },
-    { id: 'proc-008', code: 'NEB-001', icd9Code: '93.96', name: 'Nebulisasi', category: 'Respiratory', price: 35000 },
-    { id: 'proc-009', code: 'EKG-001', icd9Code: '89.52', name: 'Pemeriksaan EKG', category: 'Diagnostic', price: 100000 },
-    { id: 'proc-010', code: 'LAB-001', icd9Code: '38.91', name: 'Pengambilan Darah', category: 'Laboratory', price: 20000 },
-    { id: 'proc-011', code: 'CATH-001', icd9Code: '57.94', name: 'Pemasangan Kateter Urin', category: 'Procedure', price: 80000 },
-    { id: 'proc-012', code: 'MINOR-001', icd9Code: '86.3', name: 'Tindakan Bedah Minor', category: 'Minor Surgery', price: 250000 },
-    { id: 'proc-013', code: 'DRESS-001', icd9Code: '97.16', name: 'Ganti Balutan', category: 'Wound Care', price: 30000 },
-    { id: 'proc-014', code: 'SPUT-001', icd9Code: '96.59', name: 'Suction (Pengisapan Lendir)', category: 'Respiratory', price: 40000 },
-    { id: 'proc-015', code: 'CONS-001', icd9Code: '89.08', name: 'Konsultasi Spesialis', category: 'Consultation', price: 150000 }
-]
-
 // ============ Medicines ============
 
 export const dummyMedicines: Medicine[] = [

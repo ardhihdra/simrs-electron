@@ -20,6 +20,7 @@ import { useMyProfile } from '@renderer/hooks/useProfile'
 import { getModuleScopeState } from '@renderer/services/ModuleScope/module-scope'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
+import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
 
 // Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
@@ -49,7 +50,7 @@ type Module = (typeof Modules)[keyof typeof Modules]
 import type { MenuProps } from 'antd'
 import { Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 
 // const SendNotificationButton = () => {
@@ -75,7 +76,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router'
 //   )
 // }
 
-const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = false;
+const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = true
 
 type DashboardMenuChild = {
   label: string
@@ -126,6 +127,11 @@ const items: DashboardMenuItem[] = [
       // },
       { label: 'Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
       {
+        label: 'Jadwal Dokter',
+        key: '/dashboard/registration/doctor-schedule',
+        icon: <CalendarOutlined />
+      },
+      {
         label: 'Monitor Antrian Dokter',
         key: '/dashboard/queue/monitor',
         icon: <UnorderedListOutlined />
@@ -137,7 +143,12 @@ const items: DashboardMenuItem[] = [
     key: '/dashboard/poli',
     icon: <CalendarOutlined />,
     module: Modules.RAWAT_JALAN,
-    children: [{ label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> }]
+    children: [
+      { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
+      { label: 'Poli Umum', key: '/dashboard/poli/umum', icon: <CalendarOutlined /> },
+      { label: 'Rekam Medis Dokter', key: '/dashboard/doctor', icon: <FileTextOutlined /> },
+      { label: 'Pemanggilan Pasien', key: '/dashboard/nurse-calling', icon: <PhoneOutlined /> }
+    ]
   },
   {
     label: 'Rawat Inap',
@@ -180,8 +191,16 @@ const items: DashboardMenuItem[] = [
         icon: <UnorderedListOutlined />
       },
       { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
-      { label: 'Obat dan Barang Umum', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
-      { label: 'Obat dan Barang BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
+      {
+        label: 'Obat dan Barang Umum',
+        key: '/dashboard/medicine/items',
+        icon: <ExperimentOutlined />
+      },
+      {
+        label: 'Obat dan Barang BPJS',
+        key: '/dashboard/medicine/items-bpjs',
+        icon: <ExperimentOutlined />
+      },
       {
         label: 'Transaksi Penjualan Barang',
         key: '/dashboard/medicine/item-purchase',
@@ -222,7 +241,14 @@ const items: DashboardMenuItem[] = [
     label: 'Kasir & Billing',
     key: '/dashboard/kasir',
     icon: <WalletOutlined />,
-    module: Modules.BILLING_KASIR
+    module: Modules.BILLING_KASIR,
+    children: [
+      {
+        label: 'Tagihan Pasien',
+        key: '/dashboard/kasir',
+        icon: <FileTextOutlined />
+      }
+    ]
   },
   {
     label: 'Sistem',
@@ -247,9 +273,12 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
   const { allowedModules, roles, allowedLokasiKerjaIds } = access
 
   // Administrator bypasses module restrictions
-  const isAdministrator = session.hakAksesId === 'administrator';
+  const isAdministrator = session.hakAksesId === 'administrator'
 
-  if (allowedModules.length > 0 && !session.allowedModules.some((m) => allowedModules.includes(m))) {
+  if (
+    allowedModules.length > 0 &&
+    !session.allowedModules.some((m) => allowedModules.includes(m))
+  ) {
     // console.log('no module akses for modules', session.allowedModules, 'allowed:', allowedModules)
     return false
   }
@@ -258,7 +287,9 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
     return false
   }
 
-  const isRoleAllowed = isAdministrator || (roles.length > 0 && session.hakAksesId && roles.includes(session.hakAksesId))
+  const isRoleAllowed =
+    isAdministrator ||
+    (roles.length > 0 && session.hakAksesId && roles.includes(session.hakAksesId))
   if (!isRoleAllowed) {
     // console.log('no role akses for role', session.hakAksesId, 'allowed:', roles)
     return false
@@ -270,10 +301,10 @@ const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSessio
 }
 
 const isPageNotRegistered = (access: PageAccessEntry | null) => {
-  return !access ||
-      (!access.allowedModules.length &&
-        !access.roles.length &&
-        !access.allowedLokasiKerjaIds.length);
+  return (
+    !access ||
+    (!access.allowedModules.length && !access.roles.length && !access.allowedLokasiKerjaIds.length)
+  )
 }
 
 const filterChildrenBySession = (
@@ -287,7 +318,7 @@ const filterChildrenBySession = (
   return children.filter((child) => {
     const access = pageAccessMap[child.key]
     if (isPageNotRegistered(access)) {
-      console.error('page not registered! please register to PageAccount seeder', child, access);
+      console.error('page not registered! please register to PageAccount seeder', child, access)
       return DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
     }
     return isPageVisible(access, session)
@@ -304,7 +335,9 @@ const filterItemsBySession = (
       result.push({
         ...item,
         ...(item.children
-          ? { children: filterChildrenBySession(item.children, pageAccessMap, session) }
+          ? {
+              children: filterChildrenBySession(item.children, pageAccessMap, session)
+            }
           : {})
       })
       return result
@@ -316,8 +349,9 @@ const filterItemsBySession = (
     const visibleChildren = filterChildrenBySession(item.children, pageAccessMap, session)
 
     // Parent is visible if its own access passes OR if it has visible children
-    const parentVisible = isPageNotRegistered(access) ? DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
-        : isPageVisible(access, session)
+    const parentVisible = isPageNotRegistered(access)
+      ? DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
+      : isPageVisible(access, session)
 
     if (parentVisible || visibleChildren.length > 0) {
       result.push({
@@ -352,7 +386,7 @@ function Dashboard() {
   const { profile } = useMyProfile()
   console.log('session', session)
   console.log('profile', profile)
-  
+
   if (!Object.keys(pageAccessMap).length) {
     console.error('PageAccess map not found!')
   }
@@ -366,6 +400,7 @@ function Dashboard() {
     '/dashboard/registration/medical-staff-schedule',
     '/dashboard/pegawai',
     '/dashboard/registration',
+    '/dashboard/registration/doctor-schedule',
     '/dashboard/registration/medical-staff-schedule',
     '/dashboard/queue',
     '/dashboard/diagnostic',
@@ -383,8 +418,7 @@ function Dashboard() {
     '/dashboard/nurse-calling',
     '/dashboard/rawat-inap',
     '/dashboard/poli',
-    '/dashboard/kasir',
-    '/dashboard/ok'
+    '/dashboard/kasir'
   ]
   const isRegisteredPath = (path: string): boolean => {
     if (path === DASHBOARD_ROOT_KEY) return true
@@ -402,9 +436,9 @@ function Dashboard() {
   const getTopKeyFromPath = (path: string): string => {
     if (
       path.startsWith('/dashboard/doctor') &&
-      visibleItems.some((item) => item.key === '/dashboard/poli')
+      visibleItems.some((item) => item.key === '/dashboard/doctor')
     ) {
-      return '/dashboard/poli'
+      return '/dashboard/doctor'
     }
     for (const top of visibleItems) {
       const children = Array.isArray(top.children) ? top.children : []
@@ -421,7 +455,11 @@ function Dashboard() {
     const top = visibleItems.find((i) => i.key === key)
     if (!top) return [] as ItemType[]
     if (Array.isArray(top.children) && top.children.length > 0) {
-      return top.children.map((c) => ({ label: c.label, key: c.key, icon: c.icon })) as ItemType[]
+      return top.children.map((c) => ({
+        label: c.label,
+        key: c.key,
+        icon: c.icon
+      })) as ItemType[]
     }
     return [{ label: top.label, key: top.key, icon: top.icon } as ItemType]
   }
@@ -474,9 +512,7 @@ function Dashboard() {
   }, [location.pathname, session, visibleModuleState.visibleModules.join('|')])
 
   const isWorkspaceRoute =
-    location.pathname.startsWith('/dashboard/doctor/') ||
-    location.pathname.startsWith('/dashboard/ok/pengajuan') ||
-    location.pathname.startsWith('/dashboard/nurse-calling/medical-record/')
+    location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
 
   if (isWorkspaceRoute) {
     return (

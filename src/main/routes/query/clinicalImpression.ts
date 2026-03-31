@@ -1,6 +1,7 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { getClient } from '@main/utils/backendClient'
+import { BaseResultSchema } from '@main/utils/crud'
 
 export const requireSession = true
 
@@ -37,10 +38,8 @@ export const schemas = {
         args: z.object({
             encounterId: z.string()
         }),
-        result: z.object({
-            success: z.boolean(),
+        result: BaseResultSchema.extend({
             data: z.array(ClinicalImpressionPropsSchema).optional(),
-            message: z.string().optional(),
             total: z.number().optional()
         })
     },
@@ -62,46 +61,35 @@ export const schemas = {
             finding: z.array(z.any()).optional(),
             note: z.array(z.any()).optional()
         }).passthrough(),
-        result: z.object({
-            success: z.boolean(),
-            data: ClinicalImpressionPropsSchema.optional(),
-            message: z.string().optional()
+        result: BaseResultSchema.extend({
+            data: ClinicalImpressionPropsSchema.optional()
         })
     },
     list: {
         args: z.any().optional(),
-        result: z.object({
-            success: z.boolean(),
+        result: BaseResultSchema.extend({
             data: z.array(ClinicalImpressionPropsSchema).optional(),
-            message: z.string().optional(),
             total: z.number().optional()
         })
     },
     update: {
         args: z.any(),
-        result: z.object({
-            success: z.boolean(),
-            data: ClinicalImpressionPropsSchema.optional(),
-            message: z.string().optional()
+        result: BaseResultSchema.extend({
+            data: ClinicalImpressionPropsSchema.optional()
         })
     },
     deleteById: {
         args: z.object({
             id: z.string()
         }),
-        result: z.object({
-            success: z.boolean(),
-            message: z.string().optional()
-        })
+        result: BaseResultSchema
     },
     getById: {
         args: z.object({
             id: z.string()
         }),
-        result: z.object({
-            success: z.boolean(),
-            data: ClinicalImpressionPropsSchema.optional(),
-            message: z.string().optional()
+        result: BaseResultSchema.extend({
+            data: ClinicalImpressionPropsSchema.optional()
         })
     }
 } as const

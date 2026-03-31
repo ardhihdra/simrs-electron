@@ -29,6 +29,7 @@ function PegawaiForm() {
       return fn({ id }) as Promise<ReadResult>
     }
   })
+  console.log('cek detail pegawai', detail.data)
 
   useEffect(() => {
     const data = detail.data?.data
@@ -41,7 +42,7 @@ function PegawaiForm() {
         jenisKelamin: data.jenisKelamin,
         alamat: data.alamat ?? undefined,
         nomorTelepon: data.nomorTelepon ?? undefined,
-        hakAkses: data.hakAkses ?? undefined
+        hakAksesId: data.hakAksesId ?? undefined
       })
     }
   }, [detail.data?.data])
@@ -62,7 +63,7 @@ function PegawaiForm() {
         jenisKelamin: payload.jenisKelamin,
         alamat: payload.alamat ?? null,
         nomorTelepon: payload.nomorTelepon ?? null,
-        hakAkses: payload.hakAkses ?? null
+        hakAksesId: payload.hakAksesId ?? null
       }) as Promise<CreateResult>
     },
     onSuccess: (res) => {
@@ -89,7 +90,7 @@ function PegawaiForm() {
         jenisKelamin: payload.jenisKelamin,
         alamat: payload.alamat ?? null,
         nomorTelepon: payload.nomorTelepon ?? null,
-        hakAkses: payload.hakAkses ?? null
+        hakAksesId: payload.hakAksesId ?? null
       }) as Promise<UpdateResult>
     },
     onSuccess: (res) => {
@@ -180,7 +181,7 @@ function PegawaiForm() {
               <Select.Option value={JenisKelaminEnum.Perempuan}>Perempuan</Select.Option>
             </Select>
           </Form.Item>
-          <Form.Item label="Hak Akses" name="hakAkses">
+          <Form.Item label="Hak Akses" name="hakAksesId">
             <Select placeholder="Pilih hak akses" allowClear>
               <Select.Option value="doctor">Dokter</Select.Option>
               <Select.Option value="nurse">Perawat</Select.Option>

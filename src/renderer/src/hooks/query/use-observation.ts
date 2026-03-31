@@ -70,9 +70,9 @@ export const useBulkCreateObservation = () => {
     })
 }
 
-export const useObservationByEncounter = (encounterId?: string) => {
+export const useQueryObservationByEncounter = (encounterId?: string, additionalQueryKey?: string[]) => {
     return useQuery({
-        queryKey: ['observation', 'by-encounter', encounterId],
+        queryKey: ['observation', 'by-encounter', encounterId, ...(additionalQueryKey || [])],
         queryFn: () => {
             const fn = window.api?.query?.observation?.getByEncounter
             if (!fn || !encounterId) throw new Error('API observation tidak tersedia')

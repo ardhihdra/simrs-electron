@@ -9,6 +9,7 @@ import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
 import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
+import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 
 interface EncounterRow {
   id: string
@@ -215,22 +216,26 @@ export default function LaboratoryQueue() {
         payload.endTime = dayjs().toISOString()
       }
 
-      const result = await rpc.query.entity({
+      const result = await client.query.entity.useQuery({
         model: 'encounter',
         path: String(selectedEncounter.id),
         method: 'put',
         body: payload
       })
 
-      if (!result?.success) {
-        throw new Error(result?.message || 'Gagal mengubah status encounter')
+      if (!result?.isSuccess) {
+        console.error(result)
+        throw new Error('Gagal mengubah status encounter')
       }
 
       message.success('Status encounter berhasil diperbarui')
       closeStatusModal()
       await refetch()
     } catch (error: any) {
-      if (error?.errorFields) return
+      if (hasValidationErrors(error)) {
+        notifyFormValidationError(statusForm, message, error, 'Lengkapi data status encounter terlebih dahulu.')
+        return
+      }
       message.error(error?.message || 'Gagal mengubah status encounter')
     } finally {
       setIsSubmittingStatus(false)
@@ -246,7 +251,10 @@ export default function LaboratoryQueue() {
       closeServiceRequestModal()
       await refetch()
     } catch (error: any) {
-      if (error?.errorFields) return
+      if (hasValidationErrors(error)) {
+        notifyFormValidationError(serviceRequestForm, message, error, 'Lengkapi data service request terlebih dahulu.')
+        return
+      }
       message.error(error?.message || 'Gagal membuat service request')
     }
   }

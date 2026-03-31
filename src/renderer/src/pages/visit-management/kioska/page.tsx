@@ -1,5 +1,6 @@
 import { BarcodeOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
+import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { App, Button, Card, DatePicker, Form, Input, Select, Space, Typography } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
@@ -114,7 +115,10 @@ export default function KioskaPage() {
       setLastQueue(result)
       message.success('Antrian berhasil diambil')
     } catch (error: any) {
-      if (error?.errorFields) return
+      if (hasValidationErrors(error)) {
+        notifyFormValidationError(form, message, error, 'Lengkapi data antrian terlebih dahulu.')
+        return
+      }
       message.error(error?.message || 'Gagal mengambil antrian')
     }
   }
@@ -127,6 +131,9 @@ export default function KioskaPage() {
           layout="vertical"
           initialValues={{ visitDate: dayjs() }}
           onFinish={handleSubmit}
+          onFinishFailed={(errorInfo) =>
+            notifyFormValidationError(form, message, errorInfo, 'Lengkapi data antrian terlebih dahulu.')
+          }
         >
           <Form.Item
             name="visitDate"

@@ -23,7 +23,7 @@ import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useGoalsByEncounter, useCreateGoal, useDeleteGoal } from '@renderer/hooks/query/use-goal'
 import { useConditionByEncounter } from '@renderer/hooks/query/use-condition'
-import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
+import { useQueryObservationByEncounter } from '@renderer/hooks/query/use-observation'
 import { useMedicationRequestByEncounter } from '@renderer/hooks/query/use-medication-request'
 import { useNutritionOrderByEncounter } from '@renderer/hooks/query/use-nutrition-order'
 import { useServiceRequestByEncounter } from '@renderer/hooks/query/use-service-request'
@@ -110,7 +110,7 @@ export const GoalForm = ({
   const { data: conditionsData, isLoading: isLoadingConditions } =
     useConditionByEncounter(encounterId)
   const { data: observationsData, isLoading: isLoadingObservations } =
-    useObservationByEncounter(encounterId)
+    useQueryObservationByEncounter(encounterId)
   const { data: medicationsData, isLoading: isLoadingMedications } =
     useMedicationRequestByEncounter(encounterId)
   const { data: nutritionsData, isLoading: isLoadingNutritions } =

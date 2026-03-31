@@ -18,7 +18,7 @@ import { useState } from 'react'
 import CreateQueueModal from '@renderer/components/organisms/visit-management/CreateQueueModal'
 
 export default function RegistrationPage() {
-  const [searchParams, setSearchParams] = useState({ nik: '', name: '' })
+  const [searchParams, setSearchParams] = useState({ nik: '', name: '', medicalRecordNumber: '' })
   const [openModal, setOpenModal] = useState(false)
   const [showDate, setShowDate] = useState(true)
   const { message } = App.useApp()
@@ -26,6 +26,7 @@ export default function RegistrationPage() {
 
   const debouncedNik = useDebounce(searchParams.nik, 500)
   const debouncedName = useDebounce(searchParams.name, 500)
+  const debouncedMrn = useDebounce(searchParams.medicalRecordNumber, 500)
 
   const {
     data: patientData,
@@ -33,7 +34,8 @@ export default function RegistrationPage() {
     isRefetching
   } = client.visitManagement.getPatientList.useQuery({
     nik: debouncedNik,
-    name: debouncedName
+    name: debouncedName,
+    medicalRecordNumber: debouncedMrn
   })
 
   const columns: ColumnsType<PatientAttributes & { no: number }> = [
@@ -86,7 +88,7 @@ export default function RegistrationPage() {
         title="Registrasi Kunjungan"
         subtitle="Manajemen pendaftaran pasien"
         onSearch={(values) => setSearchParams(values)}
-        onReset={() => setSearchParams({ nik: '', name: '' })}
+        onReset={() => setSearchParams({ nik: '', name: '', medicalRecordNumber: '' })}
         onCreate={() => handleCreateEmptyQueue(false)}
         createLabel="Buat Antrian (Tanpa Pasien)"
         loading={isLoading || isRefetching}

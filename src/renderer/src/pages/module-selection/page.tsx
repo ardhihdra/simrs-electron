@@ -58,7 +58,7 @@ const normalizeInstallations = (groups?: ModuleGroup[]): InstallationOption[] =>
 export default function ModuleSelection() {
   const { token } = theme.useToken()
   const navigation = useNavigate()
-  const { message } = App.useApp()
+  const { notification } = App.useApp()
   const { data, isLoading } = client.module.my.useQuery({})
   const scopeMutation = client.module.scope.useMutation()
   const sessionQuery = client.module.getSession.useQuery(
@@ -76,10 +76,7 @@ export default function ModuleSelection() {
 
   const installations = normalizeInstallations(data?.result)
   const selectedInstallation = installations.find((item) => item.key === selectedInstallationKey)
-  const totalModuleCount = installations.reduce(
-    (total, installation) => total + installation.allowedModules.length,
-    0
-  )
+  const totalModuleCount = new Set(installations.flatMap((i) => i.allowedModules)).size
 
   const handleSelectInstallation = (installationKey: string) => {
     setSelectedInstallationKey((currentKey) =>
@@ -87,9 +84,21 @@ export default function ModuleSelection() {
     )
   }
 
+  const notify = (type: 'success' | 'error' | 'warning', message: string) =>
+    notification[type]({
+      message: <span style={{ fontSize: 13, fontWeight: 500 }}>{message}</span>,
+      placement: 'topRight',
+      duration: 3,
+      style: {
+        borderRadius: 10,
+        padding: '14px 16px',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+      },
+    })
+
   const handleClick = async (moduleName: string) => {
     if (!selectedInstallation) {
-      message.warning('Silahkan pilih instalasi terlebih dahulu')
+      notify('warning', 'Silahkan pilih instalasi terlebih dahulu')
       return
     }
 
@@ -104,15 +113,16 @@ export default function ModuleSelection() {
       if (!sessionResult.data) {
         throw new Error('Module session is empty')
       }
+      console.log('Session Result', sessionResult.data)
 
       setModuleScopeSession(sessionResult.data)
       setSelectedModule(moduleName)
-      message.success('Berhasil Mengaktifkan Modul')
+      notify('success', `Berhasil Mengaktifkan Modul ${moduleName.replaceAll('_', ' ')}`)
       navigation('/dashboard')
     } catch (err) {
       console.log(err)
       clearModuleScopeSession()
-      message.error('Gagal Mengaktifkan Modul')
+      notify('error', 'Gagal Mengaktifkan Modul')
     }
   }
 

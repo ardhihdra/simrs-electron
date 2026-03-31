@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import { formatObservationSummary } from '@renderer/utils/formatters/observation-formatter'
 import {
@@ -48,7 +48,7 @@ export const InitialAssessmentForm = ({
   const bulkCreateObservation = useBulkCreateObservation()
   const patientId = patientData.patient.id
 
-  const { data: response } = useObservationByEncounter(encounterId)
+  const { data: response } = useQueryObservationByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'
@@ -511,7 +511,7 @@ export const InitialAssessmentForm = ({
   }
 
   useEffect(() => {
-    const observations = response?.result
+    const observations = response?.result?.all
 
     if (response?.success && observations && observations.length > 0) {
       const summary = formatObservationSummary(observations || [], [])

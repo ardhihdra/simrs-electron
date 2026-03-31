@@ -2,8 +2,18 @@ import { queryClient } from "@renderer/query-client"
 import { EncounterListResult } from "@shared/encounter"
 import { useMutation, useQuery } from "@tanstack/react-query"
 
-
 import { EncounterAttributes } from '@shared/encounter'
+
+type EncounterListParams = {
+    depth?: number
+    status?: string
+    id?: string
+    include?: string
+    q?: string
+    startDate?: string
+    endDate?: string
+    serviceUnitId?: string
+}
 
 export const useCreateEncounter = () => {
     return useMutation({
@@ -46,13 +56,13 @@ export const useEncounterDetail = (id?: number | string) => {
     })
 }
 
-export const useEncounterList = () => {
+export const useEncounterList = (params?: EncounterListParams) => {
     return useQuery<EncounterListResult>({
-        queryKey: ['encounter', 'list'],
+        queryKey: ['encounter', 'list', params],
         queryFn: () => {
             const fn = window.api?.query?.encounter?.list
             if (!fn) throw new Error('API encounter tidak tersedia. Silakan restart aplikasi/dev server.')
-            return fn() as Promise<EncounterListResult>
+            return fn(params ?? {}) as Promise<EncounterListResult>
         }
     })
 }

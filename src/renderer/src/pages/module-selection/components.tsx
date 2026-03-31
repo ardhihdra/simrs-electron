@@ -1,6 +1,7 @@
-import { LogoutOutlined } from '@ant-design/icons'
+import { LogoutOutlined, SearchOutlined } from '@ant-design/icons'
 import logoUrl from '@renderer/assets/logo.png'
-import { Button, Empty, Spin, theme } from 'antd'
+import { Button, Empty, Input, Spin, theme } from 'antd'
+import { useState } from 'react'
 
 export type InstallationOption = {
   allowedModules: string[]
@@ -8,7 +9,7 @@ export type InstallationOption = {
   configId: number
   key: string
   label: string
-  lokasiKerjaId: number
+  lokasiKerjaId?: number
 }
 
 type ModuleSelectionSidebarProps = {
@@ -33,7 +34,12 @@ export function ModuleSelectionSidebar({
         <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 p-2 backdrop-blur">
           <img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />
         </div>
-        <p className="mb-2 text-sm font-medium uppercase tracking-[0.35em] opacity-80" style={{ color: token.colorPrimaryBg }}>SIMRS</p>
+        <p
+          className="mb-2 text-sm font-medium uppercase tracking-[0.35em] opacity-80"
+          style={{ color: token.colorPrimaryBg }}
+        >
+          SIMRS
+        </p>
         <h1 className="text-3xl font-semibold leading-tight">
           Pilih modul kerja untuk memulai aktivitas Anda
         </h1>
@@ -71,10 +77,15 @@ export function ModuleSelectionHeader() {
 
   return (
     <div className="mb-8">
-      <p className="text-sm font-medium uppercase tracking-[0.3em]" style={{ color: token.colorPrimary }}>
+      <p
+        className="text-sm font-medium uppercase tracking-[0.3em]"
+        style={{ color: token.colorPrimary }}
+      >
         Module Selection
       </p>
-      <h2 className="mt-2 text-3xl font-semibold" style={{ color: token.colorTextHeading }}>Choose your workspace</h2>
+      <h2 className="mt-2 text-3xl font-semibold" style={{ color: token.colorTextHeading }}>
+        Choose your workspace
+      </h2>
       <p className="mt-3 max-w-2xl text-sm leading-6" style={{ color: token.colorTextSecondary }}>
         Silahkan pilih module yang tersedia, module dibawah ini merupakan module yang bisa kamu
         akses.
@@ -122,7 +133,11 @@ export function ModuleSelectionEmptyState({ description }: EmptyStateProps) {
       }}
     >
       <Empty
-        description={<span className="text-sm" style={{ color: token.colorTextSecondary }}>{description}</span>}
+        description={
+          <span className="text-sm" style={{ color: token.colorTextSecondary }}>
+            {description}
+          </span>
+        }
       />
     </div>
   )
@@ -139,13 +154,21 @@ export function InstallationSection({
   onSelect,
   selectedInstallationKey
 }: InstallationSectionProps) {
+  const [search, setSearch] = useState('')
+  const filtered = installations.filter((i) => i.label.toLowerCase().includes(search.toLowerCase()))
+
   const { token } = theme.useToken()
 
   return (
-    <section className="rounded-3xl border bg-white/80 p-5 shadow-sm" style={{ borderColor: token.colorBorderSecondary }}>
+    <section
+      className="rounded-3xl border bg-white/80 p-5 shadow-sm"
+      style={{ borderColor: token.colorBorderSecondary }}
+    >
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold" style={{ color: token.colorTextHeading }}>Pilih Instalasi</h3>
+          <h3 className="text-lg font-semibold" style={{ color: token.colorTextHeading }}>
+            Pilih Instalasi
+          </h3>
           <p className="mt-1 text-sm" style={{ color: token.colorTextSecondary }}>
             Tentukan instalasi terlebih dahulu untuk menampilkan module yang tersedia.
           </p>
@@ -161,52 +184,72 @@ export function InstallationSection({
         </div>
       </div>
 
+      <Input
+        prefix={<SearchOutlined className="text-slate-400" />}
+        placeholder="Cari instalasi..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-3"
+        allowClear
+      />
+
       <div className="max-h-56 overflow-y-auto pr-1">
         <div className="grid grid-cols-2 gap-3">
-        {installations.map((installation) => {
-          const isSelected = installation.key === selectedInstallationKey
+          {filtered.map((installation) => {
+            const isSelected = installation.key === selectedInstallationKey
 
-          return (
-            <Button
-              key={installation.key}
-              size="large"
-              onClick={() => onSelect(installation.key)}
-              style={isSelected ? {
-                background: `linear-gradient(to right, ${token.colorPrimary}, ${token.colorInfo})`,
-                borderColor: token.colorPrimary,
-                color: token.colorTextLightSolid
-              } : {
-                backgroundColor: token.colorBgLayout,
-                borderColor: token.colorBorder,
-                color: token.colorText
-              }}
-              className={[
-                '!h-auto !rounded-xl !border !px-4 !py-4 !text-left !shadow-none transition-all',
-                isSelected
-                  ? 'hover:!border-blue-500 hover:!opacity-90'
-                  : 'hover:!border-blue-300 hover:!bg-blue-50'
-              ].join(' ')}
-            >
-              <div className="flex w-full items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold">{installation.label}</div>
-                  <div className="mt-1 text-xs opacity-80" style={{ color: isSelected ? token.colorPrimaryBg : token.colorTextSecondary }}>
-                    {installation.allowedModules.length} module tersedia
+            return (
+              <Button
+                key={installation.key}
+                size="large"
+                onClick={() => onSelect(installation.key)}
+                style={
+                  isSelected
+                    ? {
+                        background: `linear-gradient(to right, ${token.colorPrimary}, ${token.colorInfo})`,
+                        borderColor: token.colorPrimary,
+                        color: token.colorTextLightSolid
+                      }
+                    : {
+                        backgroundColor: token.colorBgLayout,
+                        borderColor: token.colorBorder,
+                        color: token.colorText
+                      }
+                }
+                className={[
+                  '!h-auto !rounded-xl !border !px-4 !py-4 !text-left !shadow-none transition-all',
+                  isSelected
+                    ? 'hover:!border-blue-500 hover:!opacity-90'
+                    : 'hover:!border-blue-300 hover:!bg-blue-50'
+                ].join(' ')}
+              >
+                <div className="flex w-full items-center justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-semibold">{installation.label}</div>
+                    <div
+                      className="mt-1 text-xs opacity-80"
+                      style={{
+                        color: isSelected ? token.colorPrimaryBg : token.colorTextSecondary
+                      }}
+                    >
+                      {installation.allowedModules.length} module tersedia
+                    </div>
+                  </div>
+                  <div
+                    className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
+                    style={{
+                      backgroundColor: isSelected
+                        ? 'rgba(255,255,255,0.2)'
+                        : token.colorBgContainer,
+                      color: isSelected ? token.colorTextLightSolid : token.colorTextSecondary
+                    }}
+                  >
+                    {isSelected ? 'Dipilih' : 'Pilih'}
                   </div>
                 </div>
-                <div
-                  className="rounded-full px-2.5 py-1 text-[11px] font-semibold"
-                  style={{
-                    backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : token.colorBgContainer,
-                    color: isSelected ? token.colorTextLightSolid : token.colorTextSecondary
-                  }}
-                >
-                  {isSelected ? 'Dipilih' : 'Pilih'}
-                </div>
-              </div>
-            </Button>
-          )
-        })}
+              </Button>
+            )
+          })}
         </div>
       </div>
     </section>
@@ -229,17 +272,25 @@ export function ModuleSection({
   const { token } = theme.useToken()
 
   return (
-    <section className="rounded-3xl border bg-white/80 p-5 shadow-sm" style={{ borderColor: token.colorBorderSecondary }}>
+    <section
+      className="rounded-3xl border bg-white/80 p-5 shadow-sm"
+      style={{ borderColor: token.colorBorderSecondary }}
+    >
       <div className="mb-4 flex items-start justify-between gap-4">
         <div>
-          <h3 className="text-lg font-semibold" style={{ color: token.colorTextHeading }}>Pilih Module</h3>
+          <h3 className="text-lg font-semibold" style={{ color: token.colorTextHeading }}>
+            Pilih Module
+          </h3>
           <p className="mt-1 text-sm" style={{ color: token.colorTextSecondary }}>
             {installationLabel
               ? `Module untuk instalasi ${installationLabel}`
               : 'Pilih instalasi untuk menampilkan daftar module yang bisa diakses.'}
           </p>
         </div>
-        <div className="rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: token.colorFillAlter, color: token.colorTextSecondary }}>
+        <div
+          className="rounded-full px-3 py-1 text-xs font-semibold"
+          style={{ backgroundColor: token.colorFillAlter, color: token.colorTextSecondary }}
+        >
           {modules.length} module
         </div>
       </div>

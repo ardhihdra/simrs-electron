@@ -48,11 +48,13 @@ import type * as Mod_query_medicineBrand from '@main/routes/query/medicineBrand'
 import type * as Mod_query_medicineCategory from '@main/routes/query/medicineCategory'
 import type * as Mod_query_nutritionOrder from '@main/routes/query/nutritionOrder'
 import type * as Mod_query_observation from '@main/routes/query/observation'
+import type * as Mod_query_organization from '@main/routes/query/organization'
 import type * as Mod_query_patient from '@main/routes/query/patient'
 import type * as Mod_query_pegawai from '@main/routes/query/pegawai'
 import type * as Mod_query_pharmacyTransaction from '@main/routes/query/pharmacyTransaction'
 import type * as Mod_query_poli from '@main/routes/query/poli'
 import type * as Mod_query_procedure from '@main/routes/query/procedure'
+import type * as Mod_query_procedureDetail from '@main/routes/query/procedureDetail'
 import type * as Mod_query_productionFormula from '@main/routes/query/productionFormula'
 import type * as Mod_query_productionRequest from '@main/routes/query/productionRequest'
 import type * as Mod_query_questionnaireResponse from '@main/routes/query/questionnaireResponse'
@@ -450,6 +452,10 @@ type Args_Mod_query_observation_list = InferArgs<typeof Mod_query_observation, '
 type Result_Mod_query_observation_list = InferResult<typeof Mod_query_observation, 'list'>
 type Args_Mod_query_observation_update = InferArgs<typeof Mod_query_observation, 'update'>
 type Result_Mod_query_observation_update = InferResult<typeof Mod_query_observation, 'update'>
+type Args_Mod_query_organization_list = InferArgs<typeof Mod_query_organization, 'list'>
+type Result_Mod_query_organization_list = InferResult<typeof Mod_query_organization, 'list'>
+type Args_Mod_query_organization_listAll = InferArgs<typeof Mod_query_organization, 'listAll'>
+type Result_Mod_query_organization_listAll = InferResult<typeof Mod_query_organization, 'listAll'>
 type Args_Mod_query_patient_create = InferArgs<typeof Mod_query_patient, 'create'>
 type Result_Mod_query_patient_create = InferResult<typeof Mod_query_patient, 'create'>
 type Args_Mod_query_patient_deleteById = InferArgs<typeof Mod_query_patient, 'deleteById'>
@@ -494,6 +500,12 @@ type Args_Mod_query_procedure_bulkCreate = InferArgs<typeof Mod_query_procedure,
 type Result_Mod_query_procedure_bulkCreate = InferResult<typeof Mod_query_procedure, 'bulkCreate'>
 type Args_Mod_query_procedure_getByEncounter = InferArgs<typeof Mod_query_procedure, 'getByEncounter'>
 type Result_Mod_query_procedure_getByEncounter = InferResult<typeof Mod_query_procedure, 'getByEncounter'>
+type Args_Mod_query_procedureDetail_create = InferArgs<typeof Mod_query_procedureDetail, 'create'>
+type Result_Mod_query_procedureDetail_create = InferResult<typeof Mod_query_procedureDetail, 'create'>
+type Args_Mod_query_procedureDetail_list = InferArgs<typeof Mod_query_procedureDetail, 'list'>
+type Result_Mod_query_procedureDetail_list = InferResult<typeof Mod_query_procedureDetail, 'list'>
+type Args_Mod_query_procedureDetail_remove = InferArgs<typeof Mod_query_procedureDetail, 'remove'>
+type Result_Mod_query_procedureDetail_remove = InferResult<typeof Mod_query_procedureDetail, 'remove'>
 type Args_Mod_query_productionFormula_create = InferArgs<typeof Mod_query_productionFormula, 'create'>
 type Result_Mod_query_productionFormula_create = InferResult<typeof Mod_query_productionFormula, 'create'>
 type Args_Mod_query_productionFormula_deleteById = InferArgs<typeof Mod_query_productionFormula, 'deleteById'>
@@ -887,6 +899,10 @@ declare global {
           list: Invoke<Args_Mod_query_observation_list, Result_Mod_query_observation_list>
           update: Invoke<Args_Mod_query_observation_update, Result_Mod_query_observation_update>
         }
+        organization: {
+          list: Invoke<Args_Mod_query_organization_list, Result_Mod_query_organization_list>
+          listAll: Invoke<Args_Mod_query_organization_listAll, Result_Mod_query_organization_listAll>
+        }
         patient: {
           create: Invoke<Args_Mod_query_patient_create, Result_Mod_query_patient_create>
           deleteById: Invoke<Args_Mod_query_patient_deleteById, Result_Mod_query_patient_deleteById>
@@ -918,6 +934,11 @@ declare global {
         procedure: {
           bulkCreate: Invoke<Args_Mod_query_procedure_bulkCreate, Result_Mod_query_procedure_bulkCreate>
           getByEncounter: Invoke<Args_Mod_query_procedure_getByEncounter, Result_Mod_query_procedure_getByEncounter>
+        }
+        procedureDetail: {
+          create: Invoke<Args_Mod_query_procedureDetail_create, Result_Mod_query_procedureDetail_create>
+          list: Invoke<Args_Mod_query_procedureDetail_list, Result_Mod_query_procedureDetail_list>
+          remove: Invoke<Args_Mod_query_procedureDetail_remove, Result_Mod_query_procedureDetail_remove>
         }
         productionFormula: {
           create: Invoke<Args_Mod_query_productionFormula_create, Result_Mod_query_productionFormula_create>

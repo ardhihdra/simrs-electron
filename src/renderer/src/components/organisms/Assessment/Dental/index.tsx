@@ -16,7 +16,7 @@ import dayjs from 'dayjs'
 import { useMemo, useState, useEffect } from 'react'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter,
+  useQueryObservationByEncounter,
   useDeleteObservation
 } from '@renderer/hooks/query/use-observation'
 import { useMasterProcedureList } from '@renderer/hooks/query/use-master-procedure'
@@ -81,7 +81,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
   const { mutateAsync: saveToDB, isPending: isSaving } = useBulkCreateObservation()
   const { mutateAsync: deleteObs } = useDeleteObservation()
-  const { data: observationData } = useObservationByEncounter(encounterId)
+  const { data: observationData } = useQueryObservationByEncounter(encounterId)
 
   const pendingToothIds = useMemo(() => pendingTeeth.map((t) => t.id).join(', '), [pendingTeeth])
 
@@ -208,8 +208,9 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   }, [procedureSearch])
 
   useEffect(() => {
-    if (observationData?.result && observationData.result.length > 0) {
-      const timelineData = transformObservationsToTimeline(observationData.result as any)
+    const result = observationData?.result?.all
+    if (result && result.length > 0) {
+      const timelineData = transformObservationsToTimeline(result as any)
       setSelected(timelineData)
     } else {
       setSelected([])
@@ -263,19 +264,21 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
                     setPendingTeeth(item.tooth)
                     setEditingIndex(idx)
                     setIsModalOpen(true)
+                    // FIX ME: is treatment a string or object? why it can be both?
+                    // if it's populated, please use a different field for populated
                     if (item.treatment) {
                       let tName = ''
-                      if (typeof item.treatment === 'string') {
-                        tName = item.treatment
-                        setSelectedTreatmentData(null)
-                      } else if (
-                        typeof item.treatment === 'object' &&
-                        'code' in item.treatment &&
-                        'name' in item.treatment
-                      ) {
-                        tName = `${item.treatment.code} - ${item.treatment.name}`
-                        setSelectedTreatmentData(item.treatment)
-                      }
+                      tName = item.treatment
+                      setSelectedTreatmentData(null)
+                      // if (typeof item.treatment === 'string') {
+                      // } else if (
+                      //   typeof item.treatment === 'object' &&
+                      //   'code' in item.treatment &&
+                      //   'name' in item.treatment
+                      // ) {
+                      //   tName = `${item.treatment.code} - ${item.treatment.name}`
+                      //   setSelectedTreatmentData(item.treatment)
+                      // }
                       setProcedureSearch(tName)
                       form.setFieldValue('treatment', tName)
                     } else {

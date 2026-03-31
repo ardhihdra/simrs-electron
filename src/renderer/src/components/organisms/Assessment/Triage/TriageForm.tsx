@@ -5,7 +5,7 @@ import { useEffect } from 'react'
 import type { PatientData } from '@renderer/types/doctor.types'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { CTAS_LEVEL_MAP, TRANSPORTATION_SNOMED_MAP } from '@renderer/config/maps/observation-maps'
@@ -39,7 +39,7 @@ export const TriageForm = ({ encounterId, patientData }: TriageFormProps) => {
   const { message } = App.useApp()
   const [form] = Form.useForm()
 
-  const { data: response, refetch } = useObservationByEncounter(encounterId)
+  const { data: response, refetch } = useQueryObservationByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'

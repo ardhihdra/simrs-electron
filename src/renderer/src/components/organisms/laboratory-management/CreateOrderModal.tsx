@@ -1,5 +1,6 @@
 import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { Button, Card, Col, Form, Modal, Row, Select, Table, App } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useState } from 'react'
@@ -33,9 +34,9 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
   // All service request codes for category dropdown (no filters)
   const { data: allCodesData, isFetching: isFetchingCategories } = client.laboratoryManagement.getServiceRequestCodes.useQuery({})
 
-  const categories = {
-    laboratory: [...new Set((allCodesData?.result?.laboratory ?? []).map((i: any) => i.category as string))],
-    radiology: [...new Set((allCodesData?.result?.radiology ?? []).map((i: any) => i.category as string))],
+  const categories: { laboratory: string[]; radiology: string[] } = {
+    laboratory: [...new Set<string>((allCodesData?.result?.laboratory ?? []).map((i: any) => i.category as string))],
+    radiology: [...new Set<string>((allCodesData?.result?.radiology ?? []).map((i: any) => i.category as string))],
   }
 
   // Determine Domain
@@ -201,7 +202,14 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
             </Card>
 
             <Card title="Tambah Pemeriksaan" size="small" style={{ marginTop: '1rem' }}>
-              <Form form={form} layout="vertical" onFinish={handleAddItem}>
+              <Form
+                form={form}
+                layout="vertical"
+                onFinish={handleAddItem}
+                onFinishFailed={(errorInfo) =>
+                  notifyFormValidationError(form, message, errorInfo, 'Lengkapi data pemeriksaan terlebih dahulu.')
+                }
+              >
                 <Form.Item
                   name="category"
                   label="Kategori"

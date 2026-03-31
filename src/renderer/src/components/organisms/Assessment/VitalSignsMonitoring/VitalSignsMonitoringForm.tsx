@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import {
   createObservationBatch,
@@ -30,7 +30,7 @@ export const VitalSignsMonitoringForm = ({
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const bulkCreateObservation = useBulkCreateObservation()
 
-  const { data: response, isLoading, refetch } = useObservationByEncounter(encounterId)
+  const { data: response, isLoading, refetch } = useQueryObservationByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'
@@ -182,7 +182,7 @@ export const VitalSignsMonitoringForm = ({
     }
   }
 
-  const historyData = response?.result || []
+  const historyData = response?.result?.all ? response.result.all : []
 
   const groupedHistory = historyData
     .filter((obs: any) => {

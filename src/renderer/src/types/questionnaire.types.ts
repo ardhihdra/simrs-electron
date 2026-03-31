@@ -20,6 +20,7 @@ export interface QuestionnaireResponseItem {
     valueCoding?: any;
     valueReference?: any;
     item?: QuestionnaireResponseItem[];
+    answer?: { valueBoolean: any, item?: QuestionnaireResponseItem[] }[];
 }
 
 export interface QuestionnaireResponse {

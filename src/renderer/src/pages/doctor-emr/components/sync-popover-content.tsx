@@ -1,5 +1,5 @@
 import { ResourceSyncCount, SatuSehatSyncStatus } from "@renderer/types/satu-sehat"
-import { theme } from "antd"
+import { Tag, theme } from "antd"
 
 
 const resourceLabel: Record<string, string> = {

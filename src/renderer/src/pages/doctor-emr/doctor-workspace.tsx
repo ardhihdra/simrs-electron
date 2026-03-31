@@ -51,6 +51,40 @@ const DoctorWorkspace = () => {
     loadData()
   }, [encounterId, loadData])
 
+  const handleStatusUpdate = () => {
+    if (!encounterId || !selectedStatus) return
+
+    updateEncounter.mutate(
+      {
+        id: encounterId,
+        status: selectedStatus,
+        patientId: patientData?.patient.id || '',
+        visitDate: new Date(),
+        serviceType: 'outpatient',
+        encounterType: EncounterType.AMB,
+        arrivalType: ArrivalType.WALK_IN,
+        endTime: null,
+        startTime: new Date()
+      },
+      {
+        onSuccess: () => {
+          message.success('Status berhasil diperbarui')
+          setIsStatusModalVisible(false)
+        },
+        onError: () => {
+          message.error('Gagal memperbarui status')
+        }
+      }
+    )
+  }
+
+  const openStatusModal = () => {
+    if (encounterDetail?.result?.status) {
+      setSelectedStatus(encounterDetail.result.status as EncounterStatus)
+    }
+    setIsStatusModalVisible(true)
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -141,7 +175,12 @@ const DoctorWorkspace = () => {
             patientInfoCardData={patientInfoCardData}
             action={
               currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <Button type="primary" onClick={handleFinishEncounter} icon={<CheckCircleOutlined />} size="small">
+                <Button
+                  type="primary"
+                  onClick={handleFinishEncounter}
+                  icon={<CheckCircleOutlined />}
+                  size="small"
+                >
                   Selesaikan Pemeriksaan
                 </Button>
               ) : undefined
@@ -154,7 +193,12 @@ const DoctorWorkspace = () => {
             patientInfoCardData={patientInfoCardData}
             action={
               currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <Button type="primary" onClick={handleFinishEncounter} icon={<CheckCircleOutlined />} size="small">
+                <Button
+                  type="primary"
+                  onClick={handleFinishEncounter}
+                  icon={<CheckCircleOutlined />}
+                  size="small"
+                >
                   Selesaikan Pemeriksaan
                 </Button>
               ) : undefined
@@ -167,7 +211,12 @@ const DoctorWorkspace = () => {
             patientInfoCardData={patientInfoCardData}
             action={
               currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <Button type="primary" onClick={handleFinishEncounter} icon={<CheckCircleOutlined />} size="small">
+                <Button
+                  type="primary"
+                  onClick={handleFinishEncounter}
+                  icon={<CheckCircleOutlined />}
+                  size="small"
+                >
                   Selesaikan Pemeriksaan
                 </Button>
               ) : undefined

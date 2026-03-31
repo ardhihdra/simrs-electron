@@ -74,6 +74,12 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
         })
         .optional()
         .nullable(),
+    serviceUnit: z
+        .object({
+            id: z.string(),
+            name: z.string(),
+            type: z.string().optional(),
+        }),
     queueTicket: z
         .object({
             id: z.string().optional(),
@@ -105,6 +111,13 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
 // Schemas (IPC contract)
 // ---------------------------------------------------------------------------
 
+export const EncounterSchemaPayload = EncounterSchema.extend({
+    id: z.string().nullable().optional(),
+    createdAt: z.coerce.date().optional(),
+    endTime: z.union([z.date().optional().nullable(), z.string().optional().nullable()]),
+    updatedAt: z.coerce.date().optional(),
+})
+
 export const schemas = {
     list: {
         result: z.object({
@@ -122,7 +135,8 @@ export const schemas = {
         }),
     },
     create: {
-        args: EncounterSchema,
+        // FIX ME: add schema without id in simrs-types
+        args: EncounterSchemaPayload,
         result: z.object({
             success: z.boolean(),
             data: EncounterSchemaWithId.extend({
@@ -334,7 +348,7 @@ export const read = async (ctx: IpcContext, args: z.infer<typeof schemas.read.ar
         if (parsedResult) {
             const transformed = {
                 ...parsedResult,
-                visitDate: parsedResult.startTime || parsedResult.visitDate || new Date().toISOString(),
+                visitDate: parsedResult.startTime || parsedResult.visitDate,
                 serviceType: parsedResult.serviceUnitId || parsedResult.serviceType || '-',
                 status: parsedResult.status ? String(parsedResult.status) : 'UNKNOWN',
             }

@@ -59,8 +59,8 @@ export interface EncounterAttributes {
   visitDate: Date | string
   serviceType: string // often mapped to serviceUnit if string
 
-  startTime?: Date | string
-  endTime?: Date | string | null
+  startTime: Date | string
+  endTime: Date | string | null
   partOfId?: string | null
   dischargeDisposition?: string | null
   reason?: string | null
@@ -79,12 +79,12 @@ export interface EncounterAttributes {
   location?: Array<{ location: Reference; status?: 'planned' | 'active' | 'reserved' | 'completed'; physicalType?: CodeableConcept; period?: Period }>
   encounterCode?: string | null
 
-  createdBy?: number | null
-  updatedBy?: number | null
+  createdBy?: number
+  updatedBy?: number
   createdAt?: Date
   updatedAt?: Date
-  deletedAt?: Date | null
-  deletedBy?: number | null
+  deletedAt?: Date
+  deletedBy?: number
 }
 
 
