@@ -65,7 +65,6 @@ interface ConsumableItem {
   kode: string
   nama: string
   kodeUnit?: string | null
-  kind?: 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL' | null
   sellingPrice?: number | null
   category?: {
     id?: number
