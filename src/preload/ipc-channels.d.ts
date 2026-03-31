@@ -9,6 +9,7 @@ import type * as Mod_query_allergyIntolerance from '@main/routes/query/allergyIn
 import type * as Mod_query_backofficeDOReceivedItem from '@main/routes/query/backofficeDOReceivedItem'
 import type * as Mod_query_bodymarker from '@main/routes/query/bodymarker'
 import type * as Mod_query_carePlan from '@main/routes/query/carePlan'
+import type * as Mod_query_cashierShift from '@main/routes/query/cashierShift'
 import type * as Mod_query_clinicalImpression from '@main/routes/query/clinicalImpression'
 import type * as Mod_query_clinicalNote from '@main/routes/query/clinicalNote'
 import type * as Mod_query_composition from '@main/routes/query/composition'
@@ -138,6 +139,14 @@ type Args_Mod_query_carePlan_deleteById = InferArgs<typeof Mod_query_carePlan, '
 type Result_Mod_query_carePlan_deleteById = InferResult<typeof Mod_query_carePlan, 'deleteById'>
 type Args_Mod_query_carePlan_getByEncounter = InferArgs<typeof Mod_query_carePlan, 'getByEncounter'>
 type Result_Mod_query_carePlan_getByEncounter = InferResult<typeof Mod_query_carePlan, 'getByEncounter'>
+type Args_Mod_query_cashierShift_close = InferArgs<typeof Mod_query_cashierShift, 'close'>
+type Result_Mod_query_cashierShift_close = InferResult<typeof Mod_query_cashierShift, 'close'>
+type Args_Mod_query_cashierShift_current = InferArgs<typeof Mod_query_cashierShift, 'current'>
+type Result_Mod_query_cashierShift_current = InferResult<typeof Mod_query_cashierShift, 'current'>
+type Args_Mod_query_cashierShift_open = InferArgs<typeof Mod_query_cashierShift, 'open'>
+type Result_Mod_query_cashierShift_open = InferResult<typeof Mod_query_cashierShift, 'open'>
+type Args_Mod_query_cashierShift_summary = InferArgs<typeof Mod_query_cashierShift, 'summary'>
+type Result_Mod_query_cashierShift_summary = InferResult<typeof Mod_query_cashierShift, 'summary'>
 type Args_Mod_query_clinicalImpression_create = InferArgs<typeof Mod_query_clinicalImpression, 'create'>
 type Result_Mod_query_clinicalImpression_create = InferResult<typeof Mod_query_clinicalImpression, 'create'>
 type Args_Mod_query_clinicalImpression_deleteById = InferArgs<typeof Mod_query_clinicalImpression, 'deleteById'>
@@ -652,6 +661,12 @@ declare global {
           create: Invoke<Args_Mod_query_carePlan_create, Result_Mod_query_carePlan_create>
           deleteById: Invoke<Args_Mod_query_carePlan_deleteById, Result_Mod_query_carePlan_deleteById>
           getByEncounter: Invoke<Args_Mod_query_carePlan_getByEncounter, Result_Mod_query_carePlan_getByEncounter>
+        }
+        cashierShift: {
+          close: Invoke<Args_Mod_query_cashierShift_close, Result_Mod_query_cashierShift_close>
+          current: Invoke<Args_Mod_query_cashierShift_current, Result_Mod_query_cashierShift_current>
+          open: Invoke<Args_Mod_query_cashierShift_open, Result_Mod_query_cashierShift_open>
+          summary: Invoke<Args_Mod_query_cashierShift_summary, Result_Mod_query_cashierShift_summary>
         }
         clinicalImpression: {
           create: Invoke<Args_Mod_query_clinicalImpression_create, Result_Mod_query_clinicalImpression_create>
