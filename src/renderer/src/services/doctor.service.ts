@@ -129,7 +129,33 @@ export const getPatientMedicalRecord = async (
         }
 
         const obsRes = await window.api.query.observation.getByEncounter({ encounterId })
-        const observations = obsRes.success && obsRes.result?.grouped ? obsRes.result.grouped : null
+        type ObservationBuckets = {
+            vitalSigns: any[]
+            anamnesis: any[]
+            physicalExam: any[]
+        }
+
+        const obsResult = obsRes.result as unknown
+        const groupedObservations =
+            obsRes.success &&
+            obsResult &&
+            typeof obsResult === 'object' &&
+            !Array.isArray(obsResult) &&
+            'grouped' in obsResult
+                ? (obsResult as { grouped?: ObservationBuckets | null }).grouped ?? null
+                : null
+
+        const observationList = obsRes.success && Array.isArray(obsResult) ? obsResult : []
+        const observations: ObservationBuckets | null =
+            groupedObservations ??
+            (observationList.length > 0
+                ? {
+                    // Fallback for newer API shape where result is a flat array.
+                    vitalSigns: observationList as any[],
+                    anamnesis: observationList as any[],
+                    physicalExam: observationList as any[]
+                }
+                : null)
 
         const condRes = await window.api.query.condition?.getByEncounter({ encounterId })
 

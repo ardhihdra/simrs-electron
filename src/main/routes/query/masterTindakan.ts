@@ -1,41 +1,18 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
+import {
+    MasterTindakanSchema,
+    CATEGORY_BPJS_VALUES as SHARED_CATEGORY_BPJS_VALUES
+} from 'simrs-types'
 
 export const requireSession = true
 
-export const CATEGORY_BPJS_VALUES = [
-    'Prosedur Non Bedah',
-    'Prosedur Bedah',
-    'Tenaga Ahli',
-    'Keperawatan',
-    'Radiologi',
-    'Laboratorium',
-    'Rehabilitasi',
-    'Kamar / Akomodasi',
-    'Obat',
-    'Alkes',
-    'BMHP',
-    'Pelayanan Darah',
-    'Rawat Intensif',
-    'Konsultasi',
-    'Penunjang',
-    'Sewa Alat'
-] as const
+export const CATEGORY_BPJS_VALUES = SHARED_CATEGORY_BPJS_VALUES
 
 export type CategoryBpjs = typeof CATEGORY_BPJS_VALUES[number]
 
-const MasterTindakanSchema = z.object({
-    id: z.number(),
-    kodeTindakan: z.string(),
-    namaTindakan: z.string(),
-    kategoriTindakan: z.string().optional().nullable(),
-    categoryBpjs: z.enum(CATEGORY_BPJS_VALUES).optional().nullable(),
-    deskripsi: z.string().optional().nullable(),
-    aktif: z.boolean().optional(),
-    createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
-})
+const MasterTindakanSchemaCompat = MasterTindakanSchema as unknown as z.ZodTypeAny
 
 export const schemas = {
     list: {
@@ -49,13 +26,17 @@ export const schemas = {
             categoryBpjs: z.enum(CATEGORY_BPJS_VALUES).optional(),
             status: z.string().optional()
         }).optional(),
-        result: z.any()
+        result: z.object({
+            success: z.boolean(),
+            result: z.array(MasterTindakanSchemaCompat).optional(),
+            error: z.string().optional()
+        })
     },
     getById: {
         args: z.object({ id: z.number() }),
         result: z.object({
             success: z.boolean(),
-            result: z.any().optional(),
+            result: MasterTindakanSchemaCompat.optional().nullable(),
             error: z.string().optional()
         })
     }
@@ -72,14 +53,14 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         if (args?.kode) params.append('kode', args.kode)
         if (args?.nama) params.append('nama', args.nama)
         if (args?.kategori) params.append('kategori', args.kategori)
-        if (args?.categoryBpjs) params.append('categoryBpjs', args.categoryBpjs)
+        if (args?.categoryBpjs) params.append('kategoriBpjs', args.categoryBpjs)
         if (args?.status) params.append('status', args.status)
 
         const queryString = params.toString()
         const url = `/api/mastertindakan${queryString ? `?${queryString}` : ''}`
         const res = await client.get(url)
 
-        const ListSchema = BackendListSchema(MasterTindakanSchema)
+        const ListSchema = BackendListSchema(MasterTindakanSchemaCompat)
         const result = await parseBackendResponse(res, ListSchema)
         return { success: true, result: result ?? [] }
     } catch (err) {
@@ -94,7 +75,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
         const res = await client.get(`/api/mastertindakan/${args.id}/read`)
         const BackendReadSchema = z.object({
             success: z.boolean(),
-            result: z.any().optional().nullable(),
+            result: MasterTindakanSchemaCompat.optional().nullable(),
             message: z.string().optional(),
             error: z.any().optional()
         })

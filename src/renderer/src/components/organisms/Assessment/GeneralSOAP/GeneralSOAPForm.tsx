@@ -234,7 +234,10 @@ export const GeneralSOAPForm = ({
         dayjs(a.effectiveDateTime || a.issued).valueOf()
     )
 
-    const summary = formatObservationSummary(sortedObs, [])
+    const summary = formatObservationSummary(
+      sortedObs as Parameters<typeof formatObservationSummary>[0],
+      []
+    )
     const { vitalSigns, physicalExamination } = summary
 
     form.setFieldsValue({

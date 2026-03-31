@@ -159,13 +159,20 @@ const PatientQueueTable = () => {
     data: queueData,
     isLoading,
     refetch
-  } = client.registration.getQueues.useQuery(
-    {
-      queueDate: queueDate.format('YYYY-MM-DD'),
-      status: [...NURSE_VISIBLE_STATUSES]
-    },
-    { refetchInterval: 5000 }
-  )
+  } = client.registration.getQueues.useQuery({
+    queueDate: queueDate.format('YYYY-MM-DD'),
+    status: [...NURSE_VISIBLE_STATUSES]
+  })
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      refetch()
+    }, 5000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [refetch])
 
   const filteredQueues = useMemo(() => {
     const rows = (queueData?.result || []) as QueueRow[]

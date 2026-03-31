@@ -126,7 +126,7 @@ export default function PoliSelect() {
   const showPicker = needsWorkspacePicker(session?.hakAksesId)
 
   return (
-    <div className="flex flex-col gap-4 p-6">
+    <div className="flex h-full flex-col gap-4">
       <Card
         styles={{ body: { padding: '20px 24px' } }}
         variant="borderless"

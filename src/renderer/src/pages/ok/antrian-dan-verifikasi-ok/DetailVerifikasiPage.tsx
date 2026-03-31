@@ -155,7 +155,7 @@ const DetailVerifikasiPage = () => {
 
   const operatingRoomMap = useMemo(() => {
     const map = new Map<number, string>()
-    ;(operatingRooms || []).forEach((item: { id?: number; nama?: string; kelas?: string }) => {
+    ;(operatingRooms || []).forEach((item) => {
       if (typeof item.id === 'number') {
         const label = `${item.nama || 'Ruang OK'}${item.kelas ? ` (${item.kelas})` : ''}`
         map.set(item.id, label)

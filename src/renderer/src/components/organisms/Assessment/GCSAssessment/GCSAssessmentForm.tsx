@@ -49,7 +49,9 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
           dayjs(a.effectiveDateTime || a.issued || a.createdAt).valueOf()
       )
 
-      const vitalSigns = formatVitalSigns(sortedObs)
+      const vitalSigns = formatVitalSigns(
+        sortedObs as Parameters<typeof formatVitalSigns>[0]
+      )
       const { gcsEye, gcsVerbal, gcsMotor } = vitalSigns
 
       if (gcsEye) setGcsEye(gcsEye)

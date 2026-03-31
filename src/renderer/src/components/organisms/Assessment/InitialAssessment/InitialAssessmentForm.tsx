@@ -516,7 +516,10 @@ export const InitialAssessmentForm = ({
       : response?.result;
 
     if (response?.success && observations && observations.length > 0) {
-      const summary = formatObservationSummary(observations || [], [])
+      const summary = formatObservationSummary(
+        (observations || []) as Parameters<typeof formatObservationSummary>[0],
+        []
+      )
       const {
         vitalSigns,
         painAssessment,

@@ -30,8 +30,9 @@ export interface QuestionnaireResponse {
     questionnaire?: string;
     status: QuestionnaireResponseStatus;
     authored?: Date | string;
-    authorId?: string;
-    sourceId?: string;
+    authorId?: string | number | null;
+    sourceId?: string | number | null;
+    okRequestId?: number | null;
     items?: QuestionnaireResponseItem[];
 }
 
@@ -41,7 +42,8 @@ export interface CreateQuestionnaireResponsePayload {
     questionnaire?: string;
     status?: QuestionnaireResponseStatus;
     authored?: Date | string;
-    authorId?: string;
-    sourceId?: string;
+    authorId?: string | number | null;
+    sourceId?: string | number | null;
+    okRequestId?: number | null;
     items: QuestionnaireResponseItem[];
 }

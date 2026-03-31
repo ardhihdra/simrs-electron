@@ -2,6 +2,7 @@ import { queryClient } from "@renderer/query-client"
 import { useMutation, useQuery } from "@tanstack/react-query"
 
 export interface ObservationInput {
+    [key: string]: unknown
     category: string
     code: string
     display?: string
@@ -25,6 +26,11 @@ export interface ObservationInput {
     }>
     referenceRange?: Array<{ low?: unknown; high?: unknown; text?: string }>
     bodySites?: Array<{
+        code: string
+        display?: string
+        system?: string
+    }>
+    methods?: Array<{
         code: string
         display?: string
         system?: string

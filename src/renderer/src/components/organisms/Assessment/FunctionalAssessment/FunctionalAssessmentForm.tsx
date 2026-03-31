@@ -46,8 +46,12 @@ export const FunctionalAssessmentForm = ({
   useEffect(() => {
     if (!existingData?.result) return
     const result = existingData.result
-    const formattedData = formatFunctionalStatus(result)
-    const psychoData = formatPsychosocialHistory(result)
+    const formattedData = formatFunctionalStatus(
+      result as Parameters<typeof formatFunctionalStatus>[0]
+    )
+    const psychoData = formatPsychosocialHistory(
+      result as Parameters<typeof formatPsychosocialHistory>[0]
+    )
 
     form.setFieldsValue({
       ...formattedData,

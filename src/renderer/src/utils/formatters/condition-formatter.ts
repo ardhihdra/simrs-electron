@@ -4,22 +4,22 @@
  */
 
 export interface ConditionData {
-    id?: string | number
+    id?: string | number | null
     note?: string | null
     categories?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
     codeCoding?: Array<{
-        id?: string | number
+        id?: string | number | null
         code?: string | null
         display?: string | null
         system?: string | null
         diagnosisCodeId?: string | number | null
         diagnosisCode?: {
-            id?: string | number
-            code?: string
-            display?: string
-            system?: string
-            idDisplay?: string
-        }
+            id?: string | number | null
+            code?: string | null
+            display?: string | null
+            system?: string | null
+            idDisplay?: string | null
+        } | null
     }> | null
     recordedDate?: string | Date | null
     onsetDateTime?: string | Date | null

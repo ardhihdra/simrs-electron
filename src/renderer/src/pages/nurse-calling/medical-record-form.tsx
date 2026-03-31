@@ -59,7 +59,8 @@ const MedicalRecordForm = () => {
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
 
   const handleCallToPoli = () => {
-    if (!patientData?.queueId) {
+    const queueId = patientData?.queueId
+    if (!queueId) {
       message.error('ID Antrian tidak ditemukan')
       return
     }
@@ -81,7 +82,7 @@ const MedicalRecordForm = () => {
       onOk: async () => {
         try {
           await updateStatusMutation.mutateAsync({
-            queueId: patientData.queueId,
+            queueId,
             action: actionVal
           })
           message.success('Status antrian berhasil diperbarui')

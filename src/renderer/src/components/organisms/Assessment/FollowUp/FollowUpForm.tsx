@@ -140,8 +140,13 @@ export const FollowUpForm = ({ encounterId: _encounterId, patientData }: FollowU
         notes: values.notes
       })
 
+      const responseId =
+        response && typeof response === 'object' && 'id' in response
+          ? String((response as { id?: string | number | null }).id ?? '')
+          : ''
+
       const newFollowUp: FollowUpData = {
-        id: response?.id || `KTR-${Date.now()}`,
+        id: responseId || `KTR-${Date.now()}`,
         controlDate: controlDateISO,
         poliTujuan: values.poliTujuan,
         dokterTujuan: values.dokterTujuan,
