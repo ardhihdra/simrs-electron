@@ -1,16 +1,10 @@
-import { ApiResponseSchema } from 'simrs-types'
+import { ApiResponseSchema, InvoiceInputSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
 export const kasirRpc = {
     getInvoice: t
-        .input(
-            z.object({
-                encounterId: z.string().uuid(),
-                patientId: z.string().uuid(),
-                kelas: z.string().optional()
-            })
-        )
+        .input(InvoiceInputSchema)
         .output(ApiResponseSchema(z.any()))
         .query(async ({ client }, input) => {
             const params = new URLSearchParams({ patientId: input.patientId })

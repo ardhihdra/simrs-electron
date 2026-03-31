@@ -1,18 +1,20 @@
-import { Form, Input, Button, DatePicker, Select, message } from 'antd'
+import type { EncounterAttributes } from '@shared/encounter'
+import { Button, DatePicker, Form, Input, Select, message } from 'antd'
+import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
-import dayjs, { type Dayjs } from 'dayjs'
-import type { EncounterAttributes } from '@shared/encounter'
 
-import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
 import { SelectKepegawaian } from '@renderer/components/molecules/SelectKepegawaian'
-import { useCreateEncounter, useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
+import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
+import {
+  useCreateEncounter,
+  useEncounterDetail,
+  useUpdateEncounter
+} from '@renderer/hooks/query/use-encounter'
 import { usePatientOptions } from '@renderer/hooks/query/use-patient'
 import { ArrivalType, EncounterType } from 'simrs-types'
 
 type EncounterFormValues = Omit<EncounterAttributes, 'visitDate'> & { visitDate: Dayjs }
-
-
 
 function EncounterForm() {
   const [form] = Form.useForm<EncounterFormValues>()
@@ -62,14 +64,14 @@ function EncounterForm() {
         endTime: null, // Can be set when encounter is completed
         // FIX ME: use a correct EncounterType and ArrivalType
         encounterType: EncounterType.AMB, // FIX ME: use a correct EncounterType
-        arrivalType: ArrivalType.WALK_IN, // Default to walk-in, can be extended later
+        arrivalType: ArrivalType.WALK_IN // Default to walk-in, can be extended later
       }
       if (isEdit && params.id) {
-        await updateMutation.mutateAsync({ ...payload, id: params.id })
+        await updateMutation.mutateAsync({ ...payload, id: params.id } as any)
         message.success('Encounter berhasil diperbarui')
         navigate('/dashboard/encounter')
       } else {
-        await createMutation.mutateAsync(payload)
+        await createMutation.mutateAsync(payload as any)
         message.success('Encounter berhasil disimpan')
         form.resetFields()
         navigate('/dashboard/encounter')
@@ -84,32 +86,60 @@ function EncounterForm() {
 
   return (
     <div className="my-4">
-      <Form form={form} layout="vertical" onFinish={onFinish} className="max-w-md mx-auto" disabled={isView}>
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        className="max-w-md mx-auto"
+        disabled={isView}
+      >
         <div className="grid grid-cols-2 gap-4">
-          <Form.Item label="Pasien" name="patientId" rules={[{ required: true, message: 'Pilih pasien' }]}>
+          <Form.Item
+            label="Pasien"
+            name="patientId"
+            rules={[{ required: true, message: 'Pilih pasien' }]}
+          >
             <Select
               placeholder="Pilih pasien"
               loading={patients.isLoading}
               options={patients.data}
               showSearch
               filterOption={(input, option) =>
-                (String(option?.label ?? '')).toLowerCase().includes(input.toLowerCase())
+                String(option?.label ?? '')
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
               }
             />
           </Form.Item>
-          <Form.Item label="Tanggal Kunjungan" name="visitDate" rules={[{ required: true, message: 'Tanggal kunjungan wajib' }]}>
+          <Form.Item
+            label="Tanggal Kunjungan"
+            name="visitDate"
+            rules={[{ required: true, message: 'Tanggal kunjungan wajib' }]}
+          >
             <DatePicker showTime className="w-full" />
           </Form.Item>
 
-          <Form.Item label="Jenis Layanan" name="serviceType" rules={[{ required: true, message: 'Jenis layanan wajib' }]}>
+          <Form.Item
+            label="Jenis Layanan"
+            name="serviceType"
+            rules={[{ required: true, message: 'Jenis layanan wajib' }]}
+          >
             <SelectPoli valueType="name" />
           </Form.Item>
 
-          <Form.Item label="Dokter" name="doctorId" rules={[{ required: true, message: 'Dokter wajib' }]}>
+          <Form.Item
+            label="Dokter"
+            name="doctorId"
+            rules={[{ required: true, message: 'Dokter wajib' }]}
+          >
             <SelectKepegawaian hakAksesCode="doctor" />
           </Form.Item>
 
-          <Form.Item label="Status" name="status" rules={[{ required: true, message: 'Status wajib' }]}>
+          <Form.Item
+            label="Status"
+            name="status"
+            rules={[{ required: true, message: 'Status wajib' }]}
+          >
             <Select placeholder="Pilih status">
               <Select.Option value="planned">Planned</Select.Option>
               <Select.Option value="arrived">Arrived</Select.Option>

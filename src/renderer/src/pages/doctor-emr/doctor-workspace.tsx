@@ -1,17 +1,17 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useParams, useNavigate } from 'react-router'
-import { App, Spin, Empty, Button, Modal, Select } from 'antd'
 import { LockOutlined } from '@ant-design/icons'
-import { getPatientMedicalRecord } from '@renderer/services/doctor.service'
-import { PatientWithMedicalRecord } from '../../types/doctor.types'
-import dayjs from 'dayjs'
-import { Gender } from '../../types/nurse.types'
-import { useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
-import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
+import { useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
+import { getPatientMedicalRecord } from '@renderer/services/doctor.service'
+import { ArrivalType, EncounterStatus, EncounterType } from '@shared/encounter'
+import { App, Button, Empty, Modal, Select, Spin } from 'antd'
+import dayjs from 'dayjs'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
+import { PatientWithMedicalRecord } from '../../types/doctor.types'
+import { Gender } from '../../types/nurse.types'
+import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
-import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
 
 const DoctorWorkspace = () => {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -61,12 +61,12 @@ const DoctorWorkspace = () => {
         status: selectedStatus,
         patientId: patientData?.patient.id || '',
         visitDate: new Date(),
-        serviceType: 'outpatient',
+        serviceType: 'outpatient', // TODO: fix this, ini masih ada apa sudah dihapus?
         encounterType: EncounterType.AMB,
         arrivalType: ArrivalType.WALK_IN,
         endTime: null,
-        startTime: new Date(),
-      },
+        startTime: new Date()
+      } as any,
       {
         onSuccess: () => {
           message.success('Status berhasil diperbarui')

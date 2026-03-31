@@ -1,7 +1,6 @@
 import z from 'zod'
-import { MedicationDispenseStatus } from './enums/ResourceEnums'
 import { MedicationRequestWithIdSchema } from './medicationRequest'
-import { MedicationDispenseStatusEnum } from 'simrs-types'
+import { MedicationDispenseStatus } from 'simrs-types'
 
 const QuantitySchema = z.object({
   value: z.number().optional(),
@@ -39,7 +38,7 @@ const DosageInstructionEntrySchema = z.object({
 })
 
 export const MedicationDispenseSchema = z.object({
-  status: z.nativeEnum(MedicationDispenseStatusEnum),
+  status: z.nativeEnum(MedicationDispenseStatus),
   itemId: z.number().nullable().optional(),
   patientId: z.string(),
   encounterId: z.string().nullable().optional(),
