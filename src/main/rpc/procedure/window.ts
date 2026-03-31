@@ -13,7 +13,7 @@ const ExportCsvUrlInputSchema = z.object({
   items: z.number().optional(),
   q: z.string().optional(),
   fields: z.string().optional(),
-  filter: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  filter: z.record(z.string(), z.string().or(z.number()).or(z.boolean())).optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional()
 })
@@ -28,7 +28,7 @@ export const windowRpc = {
       })
     )
     .output(z.boolean())
-    .mutation(async ({ }, input) => {
+    .mutation(async (_ctx, input) => {
       try {
         const newWindow = new BrowserWindow({
           width: 1280,
@@ -109,6 +109,6 @@ export const windowRpc = {
       })
     )
     .query(async (ctx, input) => {
-      return exportCsv(ctx, input)
+      return exportCsv(ctx, input as any)
     })
 }
