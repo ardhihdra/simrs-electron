@@ -2,6 +2,7 @@ import { Card, Descriptions, Tag, Space, Button } from 'antd'
 import { UserOutlined, CalendarOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
+import { Gender } from '@renderer/types/nurse.types'
 
 interface PatientHeaderProps {
   patientData: PatientWithMedicalRecord
@@ -35,7 +36,7 @@ export const PatientHeader = ({ patientData, onBack }: PatientHeaderProps) => {
                   <CalendarOutlined /> {dayjs(patient.birthDate).format('DD MMM YYYY')} ({age} Th)
                 </span>
                 <span>•</span>
-                <span>{patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'}</span>
+                <span>{patient.gender === Gender.MALE ? 'Laki-laki' : 'Perempuan'}</span>
               </Space>
 
               <Descriptions size="small" column={2} className="mt-2">
@@ -43,11 +44,12 @@ export const PatientHeader = ({ patientData, onBack }: PatientHeaderProps) => {
                   <Tag color="green">{patientData.paymentMethod || 'Umum'}</Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="Alergi">
-                  {nurseRecord?.anamnesis.allergies ? (
+                  {/* FIX ME: Apa alergi emang disini? */}
+                  {/* {nurseRecord?.anamnesis.allergies ? (
                     <Tag color="red">{nurseRecord.anamnesis.allergies}</Tag>
-                  ) : (
+                  ) : ( */}
                     <span className="text-gray-400">-</span>
-                  )}
+                  {/* )} */}
                 </Descriptions.Item>
               </Descriptions>
             </div>

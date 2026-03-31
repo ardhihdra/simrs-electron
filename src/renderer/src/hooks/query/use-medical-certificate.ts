@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+
+
 export const useCreateMedicalCertificate = () => {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: async (payload: Window['api']['query']['medicalCertificate']['create']['argsType']) => {
+        mutationFn: async (payload: Parameters<Window['api']['query']['medicalCertificate']['create']>[0]) => {
             const res = await window.api.query.medicalCertificate.create(payload)
             if (!res.success) throw new Error(res.error || 'Failed to create medical certificate')
             return res.result
@@ -37,7 +39,7 @@ export const useDeleteMedicalCertificate = () => {
 
     return useMutation({
         mutationFn: async ({ id }: { id: string }) => {
-            const res = await window.api.query.medicalCertificate.delete({ id })
+            const res = await window.api.query.medicalCertificate.remove({ id })
             if (!res.success) throw new Error(res.error || 'Failed to delete medical certificate')
             return res
         },

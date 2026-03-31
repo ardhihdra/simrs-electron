@@ -3,7 +3,7 @@ import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useBulkCreateObservation } from '@renderer/hooks/query/use-observation'
+import { useBulkCreateObservation, useQueryObservationByEncounter } from '@renderer/hooks/query/use-observation'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { NUTRITION_MAP } from '@renderer/config/maps/observation-maps'
 import {
@@ -39,15 +39,8 @@ export const NutritionScreeningForm = ({
   const queryClient = useQueryClient()
   const [totalScore, setTotalScore] = useState(0)
 
-  const { data: observationData, isLoading } = useQuery({
-    queryKey: ['observations', encounterId, 'nutrition'],
-    queryFn: async () => {
-      const fn = window.api?.query?.observation?.getByEncounter
-      if (!fn) throw new Error('API Unavailable')
-      const res = await fn({ encounterId })
-      return res?.result || []
-    }
-  })
+  const { data: obvResult, isLoading } = useQueryObservationByEncounter(encounterId, ['nutrition'])
+  const observationData = obvResult?.result?.all || []
 
   const bulkCreateObservation = useBulkCreateObservation()
 

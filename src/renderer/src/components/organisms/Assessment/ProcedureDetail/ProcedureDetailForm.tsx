@@ -22,7 +22,6 @@ import {
   PlusOutlined,
   HistoryOutlined,
   DeleteOutlined,
-  ExperimentOutlined,
   CheckCircleOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
@@ -33,6 +32,7 @@ import {
   useMedicationDispenseByEncounter
 } from '@renderer/hooks/query/use-medication-dispense'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { MedicationDispenseStatus } from 'simrs-types'
 
 const { TextArea } = Input
 
@@ -103,7 +103,7 @@ export const ProcedureDetailForm = ({ encounterId, patientData }: ProcedureDetai
   const updateMutation = useMutation({
     mutationFn: async (payload: {
       id: number
-      status: 'entered-in-error' | 'completed'
+      status: MedicationDispenseStatus
       whenHandedOver?: string
     }) => {
       const fn = window.api?.query?.medicationDispense?.update
@@ -215,11 +215,11 @@ export const ProcedureDetailForm = ({ encounterId, patientData }: ProcedureDetai
   }
 
   const handleDelete = (id: number) => {
-    updateMutation.mutate({ id, status: 'entered-in-error' })
+    updateMutation.mutate({ id, status: MedicationDispenseStatus.ENTERED_IN_ERROR })
   }
 
   const handleComplete = (id: number) => {
-    updateMutation.mutate({ id, status: 'completed', whenHandedOver: new Date().toISOString() })
+    updateMutation.mutate({ id, status: MedicationDispenseStatus.COMPLETED, whenHandedOver: new Date().toISOString() })
   }
 
   const columns = [

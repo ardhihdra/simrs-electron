@@ -1,10 +1,10 @@
+import GenericTable from '@renderer/components/organisms/GenericTable'
+import { useEncounterList } from '@renderer/hooks/query/use-encounter'
 import { Button, Input, Tag } from 'antd'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import GenericTable from '@renderer/components/organisms/GenericTable'
-import { useEncounterList } from '@renderer/hooks/query/use-encounter'
-import { EncounterRow } from '@shared/encounter'
+import { EncounterRow } from 'simrs-types'
 
 interface QueueListProps {
   title: string
@@ -27,12 +27,12 @@ export default function QueueList({ title, serviceType }: QueueListProps) {
       if (!isToday) return false
 
       // Filter by service type if provided
-      if (serviceType) {
-        // Flexible matching: contains or equals
-        const type = (item.serviceType || '').toLowerCase()
-        const target = serviceType.toLowerCase()
-        if (!type.includes(target)) return false
-      }
+      // if (serviceType) {
+      //   // Flexible matching: contains or equals
+      //   const type = (item.serviceType || '').toLowerCase()
+      //   const target = serviceType.toLowerCase()
+      //   if (!type.includes(target)) return false
+      // }
 
       // Search filter
       if (search) {
@@ -65,19 +65,19 @@ export default function QueueList({ title, serviceType }: QueueListProps) {
       width: 100
     },
     { title: 'Nama Pasien', dataIndex: ['patient', 'name'], key: 'patientName' },
-    {
-      title: 'Layanan',
-      dataIndex: 'serviceType',
-      key: 'serviceType',
-      render: (v: EncounterRow['serviceType']) => <span className="capitalize">{v}</span>
-    },
+    // {
+    //   title: 'Layanan',
+    //   dataIndex: 'serviceType',
+    //   key: 'serviceType',
+    //   render: (v: EncounterRow['serviceType']) => <span className="capitalize">{v}</span>
+    // },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (status: EncounterRow['status']) => (
-        <Tag color={status === 'finished' ? 'green' : status === 'cancelled' ? 'red' : 'blue'}>
+        <Tag color={status === 'FINISHED' ? 'green' : status === 'CANCELLED' ? 'red' : 'blue'}>
           {String(status ?? '').toUpperCase()}
         </Tag>
       )

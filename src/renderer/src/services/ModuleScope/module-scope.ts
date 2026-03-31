@@ -1,7 +1,8 @@
-import { Modules, moduleTree } from './constant'
+import { Modules } from 'simrs-types'
+
+import { moduleTree } from './constant'
 import { useModuleScopeStore } from './store'
 import { ModuleCode, ModuleNode, PermissionState, ScopeSession } from './type'
-
 export interface ModuleScopeOptions {
   moduleTree: ModuleNode[]
 }
@@ -15,10 +16,15 @@ export class ModuleScopePermission {
     this.buildIndexes(options.moduleTree, null)
   }
 
-  private buildIndexes(nodes: ModuleNode[], parent: ModuleCode | null): void {
+  private buildIndexes(_nodes: ModuleNode[], parent: ModuleCode | null): void {
+    if (!Modules) {
+      return
+    }
+    console.log(Modules)
     for (const module of Object.values(Modules)) {
-      this.allModules.add(module)
-      this.parentMap.set(module, parent)
+      const code = module as string
+      this.allModules.add(code)
+      this.parentMap.set(code, parent)
     }
     // for (const node of nodes) {
     //   if (this.allModules.has(node.code)) {
@@ -233,9 +239,7 @@ export const normalizeScopeSession = (input: unknown): ScopeSession => {
     ...(typeof rawSession.label === 'string' && rawSession.label.trim()
       ? { label: rawSession.label.trim() }
       : {}),
-    ...(rawSession.kepegawaianId != null
-      ? { kepegawaianId: Number(rawSession.kepegawaianId) }
-      : {})
+    ...(rawSession.kepegawaianId != null ? { kepegawaianId: Number(rawSession.kepegawaianId) } : {})
   }
 
   if (!isAdministratorRole(session.hakAksesId)) {

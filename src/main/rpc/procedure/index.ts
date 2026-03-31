@@ -1,5 +1,6 @@
 import { encounterRpc } from './encounter'
 import { kasirRpc } from './kasir'
+import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
 import { nonMedicQueueRpc } from './non-medic-queue'
@@ -21,6 +22,7 @@ export const rpcRouter = {
   practitioner: practitionerRpc,
   triage: triageRpc,
   visitManagement: visitManagementRpc,
+  laboratory: laboratoryRpc,
   laboratoryManagement: laboratoryManagementRpc,
   wilayah: wilayahRpc,
   window: windowRpc,

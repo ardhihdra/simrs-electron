@@ -61,7 +61,7 @@ export const ReferralForm = ({
   const printContentRef = useRef<HTMLDivElement>(null)
   const docTitle = `Surat_Rujukan_${selectedReferral?.id || ''}`
   const handlePrintAction = useReactToPrint({
-    content: () => printContentRef.current,
+    contentRef: printContentRef,
     documentTitle: docTitle
   })
 

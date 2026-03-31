@@ -26,7 +26,7 @@ export const useBulkCreateBodyMarker = () => {
     const { message } = App.useApp()
 
     return useMutation({
-        mutationFn: async (payload: { encounterId: string; markers: any[]; createdBy?: number }) => {
+        mutationFn: async (payload: { encounterId: string; markers: any[]; doctorId: number; createdBy?: number }) => {
             const response = await window.api.query.bodymarker.create(payload)
             return response
         },

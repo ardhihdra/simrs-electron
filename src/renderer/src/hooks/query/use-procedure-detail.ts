@@ -5,7 +5,7 @@ export const useCreateProcedureDetail = () => {
 
     return useMutation({
         mutationFn: async (
-            payload: Window['api']['query']['procedureDetail']['create']['argsType']
+            payload: Parameters<Window['api']['query']['procedureDetail']['create']>[0]
         ) => {
             const res = await window.api.query.procedureDetail.create(payload)
             if (!res.success) throw new Error(res.error || 'Gagal menyimpan detail tindakan')

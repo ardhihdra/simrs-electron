@@ -6,7 +6,7 @@ import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { PatientData } from '@renderer/types/doctor.types'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { formatVitalSigns } from '@renderer/utils/formatters/observation-formatter'
@@ -31,7 +31,7 @@ export const GCSAssessmentForm = ({ encounterId, patientData }: GCSAssessmentFor
 
   const gcsTotal = gcsEye + gcsVerbal + gcsMotor
 
-  const { data: response } = useObservationByEncounter(encounterId)
+  const { data: response } = useQueryObservationByEncounter(encounterId)
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['nurse'])
 

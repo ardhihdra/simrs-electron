@@ -25,7 +25,7 @@ import {
   useCompositionByEncounter,
   useUpsertComposition
 } from '../../../../hooks/query/use-composition'
-import { useObservationByEncounter } from '../../../../hooks/query/use-observation'
+import { useQueryObservationByEncounter } from '../../../../hooks/query/use-observation'
 import { useConditionByEncounter } from '../../../../hooks/query/use-condition'
 import { formatObservationSummary } from '../../../../utils/formatters/observation-formatter'
 import { PatientWithMedicalRecord } from '../../../../types/doctor.types'
@@ -51,7 +51,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   const [isAddingNew, setIsAddingNew] = useState(false)
 
   const { data: compositionData, isLoading, refetch } = useCompositionByEncounter(encounterId)
-  const { data: obsData } = useObservationByEncounter(encounterId)
+  const { data: obsData } = useQueryObservationByEncounter(encounterId)
+  const observationData = obsData?.result?.all || []
   const { data: condData } = useConditionByEncounter(encounterId)
   const upsertMutation = useUpsertComposition()
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
@@ -204,8 +205,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       return
     }
 
-    const rawObs = obsData?.result || []
-    const sortedObs = [...rawObs].sort(
+    const sortedObs = [...observationData].sort(
       (a: any, b: any) =>
         dayjs(b.effectiveDateTime || b.issued).valueOf() -
         dayjs(a.effectiveDateTime || a.issued).valueOf()
@@ -241,8 +241,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
     if (vitalSigns.temperature) vitalsParts.push(`S: ${vitalSigns.temperature} °C`)
 
-    const observations = obsData?.result || []
-    const findObs = (code: string) => observations.find((o: any) => o.code === code)
+    const findObs = (code: string) => observationData.find((o: any) => o.code === code)
     const gcsEye = findObs('9267-5')?.valueQuantity?.value
     const gcsVerbal = findObs('9270-9')?.valueQuantity?.value
     const gcsMotor = findObs('9268-3')?.valueQuantity?.value

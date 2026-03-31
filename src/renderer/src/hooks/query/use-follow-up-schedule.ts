@@ -4,7 +4,7 @@ export const useCreateFollowUpSchedule = () => {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: async (payload: Window['api']['query']['followUpSchedule']['create']['argsType']) => {
+        mutationFn: async (payload: Parameters<Window['api']['query']['followUpSchedule']['create']>[0]) => {
             const res = await window.api.query.followUpSchedule.create(payload)
             if (!res.success) throw new Error(res.error || 'Failed to create follow up schedule')
             return res.result
@@ -37,7 +37,7 @@ export const useDeleteFollowUpSchedule = () => {
 
     return useMutation({
         mutationFn: async ({ id }: { id: string }) => {
-            const res = await window.api.query.followUpSchedule.delete({ id })
+            const res = await window.api.query.followUpSchedule.remove({ id })
             if (!res.success) throw new Error(res.error || 'Failed to delete follow up schedule')
             return res
         },

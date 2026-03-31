@@ -1,9 +1,9 @@
 import z from 'zod'
 import { MedicationDispenseWithIdSchema } from '@main/models/medicationDispense'
 import { MedicationRequestWithIdSchema } from '@main/models/medicationRequest'
-import { MedicationDispenseStatus } from '@main/models/enums/ResourceEnums'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
+import { MedicationDispenseStatusSchema, MedicationDispenseStatus } from 'simrs-types'
 
 interface QuantityInfo {
   value?: number
@@ -48,7 +48,7 @@ export const schemas = {
           MedicationDispenseWithIdSchema,
           z.object({
             id: z.number().optional(),
-            status: z.nativeEnum(MedicationDispenseStatus).optional()
+            status: MedicationDispenseStatusSchema.optional()
           })
         ])
         .optional(),
@@ -82,7 +82,7 @@ export const schemas = {
           MedicationDispenseWithIdSchema,
           z.object({
             id: z.number(),
-            status: z.nativeEnum(MedicationDispenseStatus).optional()
+            status: MedicationDispenseStatusSchema.optional()
           })
         ])
         .optional(),
@@ -102,7 +102,7 @@ export const schemas = {
     args: z.object({
       patientId: z.string(),
       itemId: z.number().nullable().optional(),
-      status: z.nativeEnum(MedicationDispenseStatus),
+      status: MedicationDispenseStatusSchema,
       authorizingPrescriptionId: z.number().nullable().optional(),
       encounterId: z.string().nullable().optional(),
       quantity: z.object({ value: z.number().optional(), unit: z.string().optional() }).nullable().optional(),
@@ -115,7 +115,7 @@ export const schemas = {
     }),
     result: z.object({
       success: z.boolean(),
-      result: z.object({ id: z.number(), status: z.nativeEnum(MedicationDispenseStatus) }).optional(),
+      result: z.object({ id: z.number(), status: MedicationDispenseStatusSchema }).optional(),
       error: z.string().optional(),
       message: z.string().optional()
     })
@@ -164,7 +164,7 @@ export const moduleSchemas = {
       result: z
         .object({
           id: z.number().optional(),
-          status: z.nativeEnum(MedicationDispenseStatus).optional()
+          status: MedicationDispenseStatusSchema.optional()
         })
         .optional(),
       error: z.string().optional(),
@@ -175,7 +175,7 @@ export const moduleSchemas = {
     args: z.object({
       patientId: z.string(),
       itemId: z.number().nullable().optional(),
-      status: z.nativeEnum(MedicationDispenseStatus),
+      status: MedicationDispenseStatusSchema,
       authorizingPrescriptionId: z.number().nullable().optional(),
       encounterId: z.string().nullable().optional(),
       quantity: z
@@ -209,7 +209,7 @@ export const moduleSchemas = {
       result: z
         .object({
           id: z.number(),
-          status: z.nativeEnum(MedicationDispenseStatus)
+          status: MedicationDispenseStatusSchema
         })
         .optional(),
       error: z.string().optional(),
@@ -697,6 +697,7 @@ export const createFromRequest = async (
               } else {
                 detail = await syncRes.text()
               }
+              // FIX ME: what for?
             } catch { }
             console.warn('[medication-dispense.sync] failed', createdId, syncRes.status, detail)
           }

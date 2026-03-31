@@ -32,3 +32,5 @@ $ pnpm build:mac
 # For Linux
 $ pnpm build:linux
 ```
+
+we have simrs-types repository, for development, you can use yalc (https://www.npmjs.com/package/yalc) to use local repo for npm

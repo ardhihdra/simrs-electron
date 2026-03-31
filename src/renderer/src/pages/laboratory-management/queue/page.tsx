@@ -216,15 +216,16 @@ export default function LaboratoryQueue() {
         payload.endTime = dayjs().toISOString()
       }
 
-      const result = await rpc.query.entity({
+      const result = await client.query.entity.useQuery({
         model: 'encounter',
         path: String(selectedEncounter.id),
         method: 'put',
         body: payload
       })
 
-      if (!result?.success) {
-        throw new Error(result?.message || 'Gagal mengubah status encounter')
+      if (!result?.isSuccess) {
+        console.error(result)
+        throw new Error('Gagal mengubah status encounter')
       }
 
       message.success('Status encounter berhasil diperbarui')

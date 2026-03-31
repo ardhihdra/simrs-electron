@@ -1,40 +1,40 @@
-import { useState } from 'react'
 import {
-  Table,
-  Card,
-  Tag,
-  Button,
-  Spin,
-  Input,
-  DatePicker,
-  Space,
-  Row,
-  Col,
-  message,
-  Popconfirm,
-  App,
-  Badge,
-  theme
-} from 'antd'
-import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloudSyncOutlined,
+  DownloadOutlined,
+  ExceptionOutlined,
   EyeOutlined,
   ReloadOutlined,
   SearchOutlined,
-  CloudSyncOutlined,
   SyncOutlined,
-  DownloadOutlined,
-  TeamOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExceptionOutlined
+  TeamOutlined
 } from '@ant-design/icons'
-import type { ColumnsType } from 'antd/es/table'
-import { useQuery } from '@tanstack/react-query'
-import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
-import dayjs from 'dayjs'
 import logoUrl from '@renderer/assets/logo.png'
-import { getSyncSummary } from '@renderer/utils/satu-sehat'
+import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
 import { SatuSehatSyncStatus } from '@renderer/types/satu-sehat'
+import { getSyncSummary } from '@renderer/utils/satu-sehat'
+import { useQuery } from '@tanstack/react-query'
+import {
+  App,
+  Badge,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Input,
+  message,
+  Popconfirm,
+  Row,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  theme
+} from 'antd'
+import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
+import { useState } from 'react'
 import { SyncPopoverContent } from './components/sync-popover-content'
 
 const { RangePicker } = DatePicker
@@ -200,7 +200,6 @@ export const DoctorPatientList = () => {
       }
     }
   )
-
 
   const handleViewRecord = (record: PatientListTableData) => {
     window.open(`#/dashboard/doctor/${record.encounterId}`, '_blank')
@@ -576,7 +575,7 @@ export const DoctorPatientList = () => {
               }}
               size="small"
               loading={isSyncing}
-              style={syncStyle}
+              style={syncStyle as any}
               title={
                 s && isSynced
                   ? `Encounter: ✅ | ${getSyncSummary(s).totalSynced}/${getSyncSummary(s).totalResources} resource sync`
