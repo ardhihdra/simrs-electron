@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { useEffect } from 'react'
 import { queryClient } from '@renderer/query-client'
+import { client } from '@renderer/utils/client'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 
@@ -14,7 +15,7 @@ interface DaySchedule {
 
 interface MedicalStaffScheduleFormData {
   idPegawai: number
-  kodeDepartemen: string
+  organizationId: string
   kategori: string
   senin: DaySchedule
   selasa: DaySchedule
@@ -60,12 +61,15 @@ export function MedicalStaffScheduleForm() {
     }
   })
 
-  const { data: departemenData } = useQuery({
-    queryKey: ['departemen', 'list'],
-    queryFn: () => {
-      const fn = window.api?.query?.departemen?.list
-      if (!fn) throw new Error('API departemen tidak tersedia')
-      return fn()
+  const { data: organizationData } = client.query.entity.useQuery({
+    model: 'organization',
+    method: 'get',
+    params: {
+      items: '200',
+      type: 'dept',
+      depth: '2',
+      sortBy: 'name',
+      sortValue: '1'
     }
   })
 
@@ -83,7 +87,7 @@ export function MedicalStaffScheduleForm() {
 
       const formValues = {
         idPegawai: data.idPegawai,
-        kodeDepartemen: data.kodeDepartemen,
+        organizationId: data.organizationId,
         kategori: data.kategori,
         status: data.status,
         senin: convertDaySchedule(data.senin),
@@ -309,23 +313,30 @@ export function MedicalStaffScheduleForm() {
             </Form.Item>
 
             <Form.Item
-              label={<span className="font-medium">Nama Poli / Departemen</span>}
-              name="kodeDepartemen"
-              rules={[{ required: true, message: 'Poli/Departemen harus diisi' }]}
+              label={<span className="font-medium">Organization / Unit</span>}
+              name="organizationId"
+              rules={[{ required: true, message: 'Organization harus diisi' }]}
             >
               <Select
-                placeholder="Pilih poli/departemen"
+                placeholder="Pilih organization"
                 showSearch
                 optionFilterProp="children"
-                loading={!departemenData}
+                loading={!organizationData}
                 size="large"
               >
-                {departemenData?.success &&
-                  departemenData.result?.map((dept: { kode: string; nama: string }) => (
-                    <Select.Option key={dept.kode} value={dept.kode}>
-                      {dept.nama}
-                    </Select.Option>
-                  ))}
+                {organizationData?.success &&
+                  organizationData.result?.map(
+                    (organization: {
+                      id: string
+                      name: string
+                      partOf?: { name?: string | null } | null
+                    }) => (
+                      <Select.Option key={organization.id} value={organization.id}>
+                        {organization.name}
+                        {organization.partOf?.name ? ` - ${organization.partOf.name}` : ''}
+                      </Select.Option>
+                    )
+                  )}
               </Select>
             </Form.Item>
 

@@ -53,7 +53,7 @@ const BackendResponseSchema = z.object({
 export const list = async (ctx: IpcContext) => {
     try {
         const client = createBackendClient(ctx)
-        const res = await client.get('/api/jadwalPraktekPetugasMedis?items=100')
+        const res = await client.get('/api/jadwalPraktekPetugasMedis?items=100&depth=1')
         const result = await parseBackendResponse(
             res,
             BackendListSchema(MedicalStaffScheduleSchemaWithId)
@@ -71,7 +71,7 @@ export const list = async (ctx: IpcContext) => {
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
     try {
         const client = createBackendClient(ctx)
-        const res = await client.get(`/api/jadwalPraktekPetugasMedis/read/${args.id}`)
+        const res = await client.get(`/api/jadwalPraktekPetugasMedis/read/${args.id}?depth=1`)
         const result = await parseBackendResponse(res, BackendResponseSchema)
         return { success: true, result }
     } catch (err) {
@@ -88,7 +88,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
         const client = createBackendClient(ctx)
         const payload = {
             idPegawai: args.idPegawai,
-            kodeDepartemen: args.kodeDepartemen,
+            organizationId: args.organizationId,
             kategori: args.kategori ?? null,
             senin: args.senin,
             selasa: args.selasa,
@@ -117,7 +117,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
         const client = createBackendClient(ctx)
         const payload = {
             idPegawai: args.idPegawai,
-            kodeDepartemen: args.kodeDepartemen,
+            organizationId: args.organizationId,
             kategori: args.kategori,
             senin: args.senin,
             selasa: args.selasa,

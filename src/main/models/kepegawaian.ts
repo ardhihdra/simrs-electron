@@ -59,8 +59,7 @@ const KontrakPegawaiSchema = z.object({
   idPegawai: z.number(),
   nomorKontrak: z.string(),
   nip: z.string(),
-  kodeDivisi: z.string().optional().nullable(),
-  kodeDepartemen: z.string().optional().nullable(),
+  organizationId: z.string().optional().nullable(),
   kodeJabatan: z.string().optional().nullable(),
   tanggalMulaiKontrak: z.coerce.date(),
   tanggalBerakhirKontrak: z.coerce.date(),
@@ -82,7 +81,20 @@ const KontrakPegawaiSchema = z.object({
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
   deletedAt: z.coerce.date().optional(),
-  deletedBy: z.number().optional().nullable()
+  deletedBy: z.number().optional().nullable(),
+  organization: z.object({
+    id: z.string(),
+    name: z.string(),
+    type: z.string().optional(),
+    alias: z.array(z.string()).optional().nullable(),
+    partOfId: z.string().optional().nullable(),
+    partOf: z.object({
+      id: z.string(),
+      name: z.string(),
+      type: z.string().optional(),
+      alias: z.array(z.string()).optional().nullable()
+    }).optional().nullable()
+  }).optional().nullable()
 })
 
 export const KepegawaianSchema = z.object({
