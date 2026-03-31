@@ -1,7 +1,7 @@
 import { SaveOutlined } from '@ant-design/icons'
 import { App, Button, Form, Spin, Card, Row, Col, Select, Input } from 'antd'
 import React, { useEffect, useState } from 'react'
-import { useCreateAllergy, useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
+import { useCreateAllergy, useAllergyByEncounter, AllergyInput } from '@renderer/hooks/query/use-allergy'
 import { createAllergy as buildAllergy } from '@renderer/utils/builders/allergy-builder'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
@@ -63,7 +63,7 @@ export const AllergyForm: React.FC<AllergyFormProps> = ({
       }
       setLoadingKfa(true)
       try {
-        const res = await window.api?.searchKfa({ query: kfaSearch })
+        const res = await window.api?.query.item.searchKfa({ query: kfaSearch })
         if (res?.success && res.result) {
           setKfaOptions(res.result)
         } else {
@@ -185,7 +185,7 @@ export const AllergyForm: React.FC<AllergyFormProps> = ({
             : undefined,
           clinicalStatus: 'active',
           verificationStatus: 'confirmed',
-          category: values.allergyHistory_category || 'food'
+          category: values.allergyHistory_category || 'food' as AllergyInput['category']
         })
 
         await createAllergy.mutateAsync(allergyPayload)

@@ -3,17 +3,20 @@ import { Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload, App
 import { useLocation, useNavigate } from 'react-router'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
 import { client } from '@renderer/utils/client'
+import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { useEffect, useState } from 'react'
+import { Interpretation } from 'simrs-types'
 
 type DicomSourceMode = 'upload' | 'modality'
 
-const interpretationMap: Record<string, 'NORMAL' | 'HIGH' | 'LOW' | 'CRITICAL'> = {
-  NORMAL: 'NORMAL',
-  HIGH: 'HIGH',
-  LOW: 'LOW',
-  ABNORMAL: 'CRITICAL',
-  CRITICAL_HIGH: 'CRITICAL',
-  CRITICAL_LOW: 'CRITICAL'
+//  Do we actually need Abnormal, Critical High/Low? if so add it as 
+const interpretationMap: Record<string, Interpretation> = {
+  NORMAL: Interpretation.NORMAL,
+  HIGH: Interpretation.HIGH,
+  LOW: Interpretation.LOW,
+  ABNORMAL: Interpretation.CRITICAL,
+  CRITICAL_HIGH: Interpretation.CRITICAL,
+  CRITICAL_LOW: Interpretation.CRITICAL
 }
 
 const { Title, Text } = Typography
@@ -211,8 +214,8 @@ export default function RecordResultPage() {
       }
     } catch (error: any) {
       console.error(error)
-      if (error?.errorFields?.length) {
-        message.error('Form belum lengkap')
+      if (hasValidationErrors(error)) {
+        notifyFormValidationError(form, message, error, 'Form hasil pemeriksaan belum lengkap.')
         return
       }
       message.error(error?.message || 'Gagal menyimpan hasil pemeriksaan')
@@ -253,7 +256,14 @@ export default function RecordResultPage() {
           </div>
         </div>
 
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          onFinishFailed={(errorInfo) =>
+            notifyFormValidationError(form, message, errorInfo, 'Form hasil pemeriksaan belum lengkap.')
+          }
+        >
           {isRadiology ? (
             <>
               <Form.Item

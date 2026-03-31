@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { useEffect } from 'react'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '../../hooks/query/use-observation'
 import {
   createObservationBatch,
@@ -28,7 +28,7 @@ export const DecubitusRiskAssessmentForm = ({
   const { message } = App.useApp()
   const [form] = Form.useForm()
 
-  const { data: response, refetch } = useObservationByEncounter(encounterId)
+  const { data: response, refetch } = useQueryObservationByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'

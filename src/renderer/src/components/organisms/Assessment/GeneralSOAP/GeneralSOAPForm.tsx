@@ -24,7 +24,7 @@ import {
   useCompositionByEncounter,
   useUpsertComposition
 } from '@renderer/hooks/query/use-composition'
-import { useObservationByEncounter } from '@renderer/hooks/query/use-observation'
+import { useQueryObservationByEncounter } from '@renderer/hooks/query/use-observation'
 import { PatientWithMedicalRecord } from '@renderer/types/doctor.types'
 import {
   COMPOSITION_STATUS_MAP,
@@ -60,7 +60,8 @@ export const GeneralSOAPForm = ({
   const [editingId, setEditingId] = useState<number | null>(null)
 
   const { data: compositionData, isLoading, refetch } = useCompositionByEncounter(encounterId)
-  const { data: obsData } = useObservationByEncounter(encounterId)
+  const { data: obsData } = useQueryObservationByEncounter(encounterId)
+  const observationData = obsData?.result?.all || []
   const upsertMutation = useUpsertComposition()
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(
@@ -225,7 +226,7 @@ export const GeneralSOAPForm = ({
       return
     }
 
-    const rawObs = obsData?.result || []
+    const rawObs = obsData?.result?.all || []
     const sortedObs = [...rawObs].sort(
       (a: any, b: any) =>
         dayjs(b.effectiveDateTime || b.issued).valueOf() -
@@ -262,8 +263,7 @@ export const GeneralSOAPForm = ({
     if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
     if (vitalSigns.temperature) vitalsParts.push(`S: ${vitalSigns.temperature} °C`)
 
-    const observations = obsData?.result || []
-    const findObs = (code: string) => observations.find((o: any) => o.code === code)
+    const findObs = (code: string) => observationData.find((o: any) => o.code === code)
     const gcsEye = findObs('9267-5')?.valueQuantity?.value
     const gcsVerbal = findObs('9270-9')?.valueQuantity?.value
     const gcsMotor = findObs('9268-3')?.valueQuantity?.value

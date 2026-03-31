@@ -53,6 +53,7 @@ export const Encounter = sequelize.define(
 Patient.hasMany(Encounter, { foreignKey: 'patientId', onDelete: 'CASCADE', as: 'encounters' })
 Encounter.belongsTo(Patient, { foreignKey: 'patientId', as: 'patient' })
 
+// FIX ME: Use the one in simrs-types and resolve
 export const EncounterSchema = z.object({
   episodeOfCareId: z.string().optional().nullable(),
   patientId: z.string(),

@@ -11,3 +11,5 @@ out
 .antigravity
 .agent
 ipc-channels.d.ts
+
+.yalc

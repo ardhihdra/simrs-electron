@@ -1,4 +1,5 @@
 import { client } from '@renderer/utils/client'
+import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { App, DatePicker, Form, Input, Modal, Select } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
@@ -255,6 +256,9 @@ export default function ReferralModal({
         form={form}
         layout="vertical"
         onFinish={handleFinish}
+        onFinishFailed={(errorInfo) =>
+          notifyFormValidationError(form, message, errorInfo, 'Lengkapi data rujukan terlebih dahulu.')
+        }
         initialValues={{ referralType: 'internal', internalTargetType: 'POLI' }}
       >
         <p>

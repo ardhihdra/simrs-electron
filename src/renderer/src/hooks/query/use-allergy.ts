@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@renderer/query-client"
 
-interface AllergyInput {
+export interface AllergyInput {
     patientId: string
     encounterId?: string
     recordedDate?: string

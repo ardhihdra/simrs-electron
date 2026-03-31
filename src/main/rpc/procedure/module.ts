@@ -9,7 +9,7 @@ const getHakAksesId = (user: unknown): string | undefined =>
 
 const ScopeSessionSchema = z.object({
   id: z.coerce.number(),
-  lokasiKerjaId: z.coerce.number(),
+  lokasiKerjaId: z.coerce.number().optional(),
   allowedModules: z.array(z.string()).min(1),
   label: z.string().nullish().transform((value) => value ?? undefined),
   hakAksesId: z.string().optional(),
@@ -22,7 +22,7 @@ const ScopeActivationSchema = z
     message: z.string().optional(),
     result: z
       .object({
-        lokasiKerjaId: z.coerce.number(),
+        lokasiKerjaId: z.coerce.number().optional(),
         allowedModules: z.array(z.string()).min(1),
         scopeToken: z.string().min(1),
         expiresAt: z.unknown().optional()
@@ -121,6 +121,10 @@ export const mmoduleRpc = {
     .mutation(async ({ client, senderId, sessionStore }, input) => {
       const data = await client.post('/api/module/scope', input)
       const result = await data.json()
+      if (!result?.success) {
+        console.error('Failed to activate module scope:', result?.message || result)
+        throw new Error(result?.message || 'Failed to activate module scope')
+      }
       if (typeof senderId === 'number') {
         const scopeToken = ScopeActivationSchema.safeParse(result).data?.result?.scopeToken
         if (scopeToken) {

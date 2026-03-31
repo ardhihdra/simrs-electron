@@ -2,6 +2,7 @@ import { client } from '@renderer/utils/client'
 import { queryClient } from '@renderer/query-client'
 import { message } from 'antd'
 import { useEffect, useState } from 'react'
+import { Interpretation } from 'simrs-types'
 
 interface LabRecordResultInput {
   serviceRequestId: string
@@ -12,7 +13,7 @@ interface LabRecordResultInput {
     value: string
     unit?: string
     referenceRange?: string
-    interpretation?: string
+    interpretation?: Interpretation
     observedAt?: string
   }>
 }
@@ -73,7 +74,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     { encounterId: printEncounterId! },
     {
       enabled: !!printEncounterId,
-      queryKey: ['laboratory-report', printEncounterId ?? '']
+      queryKey: ['laboratory-report', { encounterId: printEncounterId ?? '' }]
     }
   )
 

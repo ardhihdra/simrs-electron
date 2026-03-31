@@ -14,6 +14,12 @@ function formatQueryValue(v: any): string {
   return String(v)
 }
 
+export const BaseResultSchema = z.object({
+    success: z.boolean(),
+    message: z.string().optional(),
+    error: z.string().optional()
+})
+
 export interface ListOptions {
   page?: number
   items?: number

@@ -22,6 +22,10 @@ export const encounterRpc = {
       if (input.depth) params.append('depth', String(input.depth))
       if (input.status) params.append('status', input.status)
       if (input.id) params.append('id', input.id)
+      if (input.q) params.append('q', input.q)
+      if (input.startDate) params.append('startDate', input.startDate)
+      if (input.endDate) params.append('endDate', input.endDate)
+      if (input.serviceUnitId) params.append('serviceUnitId', input.serviceUnitId)
 
       const data = await client.get(`/api/encounter?${params.toString()}`)
       const res = await data.json()

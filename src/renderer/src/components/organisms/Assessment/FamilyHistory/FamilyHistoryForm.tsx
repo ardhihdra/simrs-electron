@@ -3,6 +3,7 @@ import { App, Button, Form, Spin, Card, Row, Col, Select, Input, Checkbox } from
 import React, { useEffect, useState } from 'react'
 import dayjs from 'dayjs'
 import {
+  FamilyHistoryInput,
   useCreateFamilyHistory,
   useFamilyHistoryByPatient
 } from '@renderer/hooks/query/use-family-history'

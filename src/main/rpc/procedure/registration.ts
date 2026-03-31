@@ -191,26 +191,45 @@ const CreateScheduleInputSchema = z.object({
   lokasiKerjaId: z.number(),
   kontrakKerjaId: z.number(),
   category: z.string(),
-  name: z.string(),
+  name: z.string().optional(),
   validFrom: z.string(),
   validTo: z.string().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  remark: z.string().optional(),
   sessions: z.array(
     z.object({
       dayOfWeek: z.number(),
       sessionNumber: z.number(),
       startTime: z.string(),
       endTime: z.string(),
-      quota: z.number()
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
     })
   )
 })
 
 const UpdateScheduleInputSchema = z.object({
   id: z.number(),
+  doctorId: z.number().optional(),
+  poliId: z.number().optional(),
+  lokasiKerjaId: z.number().optional(),
+  kontrakKerjaId: z.number().optional(),
   category: z.string().optional(),
   name: z.string().optional(),
+  validFrom: z.string().optional(),
+  validTo: z.string().optional(),
   status: z.string().optional(),
-  sessions: z.array(z.any()).optional()
+  remark: z.string().optional(),
+  sessions: z.array(
+    z.object({
+      dayOfWeek: z.number(),
+      sessionNumber: z.number(),
+      startTime: z.string(),
+      endTime: z.string(),
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
+    })
+  ).optional()
 })
 
 const CreateScheduleExceptionInputSchema = z.object({
@@ -219,7 +238,16 @@ const CreateScheduleExceptionInputSchema = z.object({
   type: z.string(),
   mode: z.string(),
   description: z.string().optional(),
-  sessions: z.array(z.any()).optional()
+  isActive: z.boolean().optional(),
+  sessions: z.array(
+    z.object({
+      sessionNumber: z.number(),
+      startTime: z.string(),
+      endTime: z.string(),
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
+    })
+  ).optional()
 })
 
 const UpdateScheduleExceptionInputSchema = z.object({
@@ -229,7 +257,91 @@ const UpdateScheduleExceptionInputSchema = z.object({
   type: z.string().optional(),
   mode: z.string().optional(),
   description: z.string().optional(),
-  sessions: z.array(z.any()).optional()
+  isActive: z.boolean().optional(),
+  sessions: z.array(
+    z.object({
+      sessionNumber: z.number(),
+      startTime: z.string(),
+      endTime: z.string(),
+      quota: z.number().optional(),
+      isActive: z.boolean().optional()
+    })
+  ).optional()
+})
+
+const SyncScheduleQuotaInputSchema = z.object({
+  scheduleId: z.number(),
+  doctorId: z.number(),
+  status: z.enum(['active', 'inactive']).optional(),
+  values: z.array(
+    z.object({
+      hari: z.number(),
+      source: z.enum(['online', 'offline']),
+      paymentMethod: z.enum(['cash', 'asuransi', 'company', 'bpjs']),
+      quotaValue: z.number().nullable().optional()
+    })
+  )
+})
+
+const GetDoctorContractsInputSchema = z.object({
+  doctorId: z.number()
+})
+
+const GetScheduleEditorInputSchema = z.object({
+  scheduleId: z.number()
+})
+
+const SaveScheduleInfoInputSchema = z.object({
+  doctorId: z.number(),
+  poliId: z.number(),
+  lokasiKerjaId: z.number(),
+  kontrakKerjaId: z.number(),
+  category: z.string(),
+  name: z.string().optional(),
+  validFrom: z.string(),
+  validTo: z.string().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  remark: z.string().optional()
+})
+
+const UpdateScheduleInfoInputSchema = SaveScheduleInfoInputSchema.extend({
+  scheduleId: z.number()
+})
+
+const SaveScheduleSessionsInputSchema = z.object({
+  scheduleId: z.number(),
+  sessions: z.array(
+    z.object({
+      dayOfWeek: z.number(),
+      sessionNumber: z.number(),
+      startTime: z.string(),
+      endTime: z.string(),
+      quota: z.number().nullable().optional(),
+      isActive: z.boolean().optional()
+    })
+  )
+})
+
+const SaveScheduleExceptionsInputSchema = z.object({
+  scheduleId: z.number(),
+  exceptions: z.array(
+    z.object({
+      date: z.string(),
+      type: z.string(),
+      mode: z.string(),
+      description: z.string().optional(),
+      isActive: z.boolean().optional(),
+      sessions: z.array(
+        z.object({
+          sessionNumber: z.number(),
+          startTime: z.string(),
+          endTime: z.string(),
+          quota: z.number().nullable().optional(),
+          isActive: z.boolean().optional()
+        })
+      ).optional()
+    })
+  )
 })
 
 // --- RPC Procedures ---
@@ -349,6 +461,102 @@ export const registrationRpc = {
       return await response.json()
     }),
 
+  getScheduleEditorReferenceData: t
+    .input(z.object({}))
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }) => {
+      const response = await client.get(`${BASE_URL}/editor/reference-data`)
+      return await response.json()
+    }),
+
+  getDoctorContracts: t
+    .input(GetDoctorContractsInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, { doctorId }) => {
+      const response = await client.get(`${BASE_URL}/editor/doctors/${doctorId}/contracts`)
+      return await response.json()
+    }),
+
+  getScheduleEditorSummary: t
+    .input(GetScheduleEditorInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, { scheduleId }) => {
+      const response = await client.get(`${BASE_URL}/editor/${scheduleId}/summary`)
+      return await response.json()
+    }),
+
+  getScheduleInfo: t
+    .input(GetScheduleEditorInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, { scheduleId }) => {
+      const response = await client.get(`${BASE_URL}/editor/${scheduleId}/info`)
+      return await response.json()
+    }),
+
+  createScheduleInfo: t
+    .input(SaveScheduleInfoInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, input) => {
+      const response = await client.post(`${BASE_URL}/editor/info`, input)
+      return await response.json()
+    }),
+
+  updateScheduleInfo: t
+    .input(UpdateScheduleInfoInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, { scheduleId, ...input }) => {
+      const response = await client.put(`${BASE_URL}/editor/${scheduleId}/info`, input)
+      return await response.json()
+    }),
+
+  getScheduleSessions: t
+    .input(GetScheduleEditorInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, { scheduleId }) => {
+      const response = await client.get(`${BASE_URL}/editor/${scheduleId}/sessions`)
+      return await response.json()
+    }),
+
+  saveScheduleSessions: t
+    .input(SaveScheduleSessionsInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, { scheduleId, ...input }) => {
+      const response = await client.put(`${BASE_URL}/editor/${scheduleId}/sessions`, input)
+      return await response.json()
+    }),
+
+  getScheduleQuotas: t
+    .input(GetScheduleEditorInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, { scheduleId }) => {
+      const response = await client.get(`${BASE_URL}/editor/${scheduleId}/quotas`)
+      return await response.json()
+    }),
+
+  saveScheduleQuotas: t
+    .input(SyncScheduleQuotaInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, { scheduleId, ...input }) => {
+      const response = await client.put(`${BASE_URL}/editor/${scheduleId}/quotas`, input)
+      return await response.json()
+    }),
+
+  getScheduleExceptions: t
+    .input(GetScheduleEditorInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, { scheduleId }) => {
+      const response = await client.get(`${BASE_URL}/editor/${scheduleId}/exceptions`)
+      return await response.json()
+    }),
+
+  saveScheduleExceptions: t
+    .input(SaveScheduleExceptionsInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, { scheduleId, ...input }) => {
+      const response = await client.put(`${BASE_URL}/editor/${scheduleId}/exceptions`, input)
+      return await response.json()
+    }),
+
   // Schedule Management
   createSchedule: t
     .input(CreateScheduleInputSchema)
@@ -382,6 +590,14 @@ export const registrationRpc = {
         `${BASE_URL}/${doctorScheduleId}/exceptions/${exceptionId}`,
         input
       )
+      return await response.json()
+    }),
+
+  syncScheduleQuota: t
+    .input(SyncScheduleQuotaInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, { scheduleId, ...input }) => {
+      const response = await client.put(`${BASE_URL}/${scheduleId}/quota`, input)
       return await response.json()
     })
 }
