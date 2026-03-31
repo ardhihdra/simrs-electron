@@ -165,7 +165,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const { data: paketList = [], isLoading: isLoadingPaket } = useMasterPaketTindakanList({
     q: searchPaket || undefined,
-    items: 10
+    items: 10,
+    depth: 1
   })
 
   useEffect(() => {
@@ -185,7 +186,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const { data: paketBhpList = [], isLoading: isLoadingPaketBhp } = useMasterPaketBhpList({
     q: searchPaketBhp || undefined,
-    items: 10
+    items: 10,
+    depth: 1
   })
 
   useEffect(() => {
@@ -469,6 +471,104 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),
     [listJenisKomponen]
   )
+
+  const filteredPaketBhpOptions = useMemo(() => {
+    return (paketBhpList || []).map((p: any) => {
+      const listBhp = Array.isArray(p.listBhp) ? p.listBhp : []
+      const missingFromLocation: string[] = []
+      const outOfStock: string[] = []
+
+      const noLocationStock = allowedItemIdSet.size === 0 && stockByItemMap.size === 0
+
+      if (!noLocationStock && listBhp.length > 0) {
+        for (const bhp of listBhp) {
+          const item = consumableItemMap.get(Number(bhp.itemId))
+          if (!item) {
+            missingFromLocation.push(`ID:${bhp.itemId}`)
+            continue
+          }
+          const kode = String(item.kode || '').trim().toUpperCase()
+          const stock = stockByItemMap.get(kode)
+
+          if (stock === undefined) {
+            if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
+              missingFromLocation.push(item.nama)
+            } else if (allowedItemIdSet.size === 0) {
+              missingFromLocation.push(item.nama)
+            }
+          } else if (stock <= 0) {
+            outOfStock.push(item.nama)
+          }
+        }
+      }
+
+      let statusText = ''
+      if (missingFromLocation.length > 0) {
+        statusText = ` (Item tdk tersedia di lokasi: ${missingFromLocation.join(', ')})`
+      } else if (outOfStock.length > 0) {
+        statusText = ` (Stok habis: ${outOfStock.join(', ')})`
+      }
+
+      return {
+        value: p.id,
+        label: `${p.namaPaketBhp}${statusText}`,
+        disabled: statusText !== ''
+      }
+    })
+  }, [paketBhpList, consumableItemMap, stockByItemMap, allowedItemIdSet])
+
+  const filteredPaketOptions = useMemo(() => {
+    return (paketList || []).map((p: any) => {
+      const directBhp = Array.isArray(p.listBHP) ? p.listBHP : []
+      const detailItems = Array.isArray(p.detailItems || p.listTindakan)
+        ? p.detailItems || p.listTindakan
+        : []
+      const indirectBhp = detailItems.flatMap((di: any) =>
+        Array.isArray(di.bhpList) ? di.bhpList : []
+      )
+      const allBhp = [...directBhp, ...indirectBhp]
+
+      const missingFromLocation: string[] = []
+      const outOfStock: string[] = []
+
+      const noLocationStock = allowedItemIdSet.size === 0 && stockByItemMap.size === 0
+
+      if (!noLocationStock && allBhp.length > 0) {
+        for (const bhp of allBhp) {
+          const item = consumableItemMap.get(Number(bhp.itemId))
+          if (!item) {
+            missingFromLocation.push(`ID:${bhp.itemId}`)
+            continue
+          }
+          const kode = String(item.kode || '').trim().toUpperCase()
+          const stock = stockByItemMap.get(kode)
+
+          if (stock === undefined) {
+            if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
+              missingFromLocation.push(item.nama)
+            } else if (allowedItemIdSet.size === 0) {
+              missingFromLocation.push(item.nama)
+            }
+          } else if (stock <= 0) {
+            outOfStock.push(item.nama)
+          }
+        }
+      }
+
+      let statusText = ''
+      if (missingFromLocation.length > 0) {
+        statusText = ` (Item tdk tersedia di lokasi: ${missingFromLocation.join(', ')})`
+      } else if (outOfStock.length > 0) {
+        statusText = ` (Stok habis: ${outOfStock.join(', ')})`
+      }
+
+      return {
+        value: p.id,
+        label: `${p.namaPaket}${statusText}`,
+        disabled: statusText !== ''
+      }
+    })
+  }, [paketList, consumableItemMap, stockByItemMap, allowedItemIdSet])
 
   const roleLabelByCode = useMemo(
     () => new Map((listJenisKomponen || []).map((item) => [item.kode, item.label])),
@@ -1740,7 +1840,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     token={token}
                     setSearchPaket={setSearchPaket}
                     isLoadingPaket={isLoadingPaket}
-                    paketOptions={paketOptions}
+                    paketOptions={filteredPaketOptions}
                     handlePaketEntryChange={handlePaketEntryChange}
                     kelasOptions={kelasOptions}
                     tindakanOptions={tindakanOptions}
@@ -1779,10 +1879,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                   <PaketBhpTab
                     modalForm={modalForm}
                     isLoadingPaketBhp={isLoadingPaketBhp}
-                    paketBhpOptions={paketBhpList.map((p: any) => ({
-                      value: p.id,
-                      label: p.namaPaketBhp
-                    }))}
+                    paketBhpOptions={filteredPaketBhpOptions}
                     setSearchPaketBhp={setSearchPaketBhp}
                     paketBhpCache={paketBhpCache}
                     isLoadingConsumableItems={isLoadingConsumableItems}
