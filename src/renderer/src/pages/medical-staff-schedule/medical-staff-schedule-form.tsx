@@ -6,6 +6,7 @@ import { queryClient } from '@renderer/query-client'
 import { client } from '@renderer/utils/client'
 import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import { BackendResponse, MedicalStaffScheduleSchemaWithId } from 'simrs-types'
 
 interface DaySchedule {
   enabled: boolean
@@ -113,7 +114,7 @@ export function MedicalStaffScheduleForm() {
         )
       return fn(data)
     },
-    onSuccess: (data) => {
+    onSuccess: (data: BackendResponse<typeof MedicalStaffScheduleSchemaWithId>) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['medicalStaffSchedule', 'list'] })
         navigate('/dashboard/registration/medical-staff-schedule')
@@ -136,7 +137,7 @@ export function MedicalStaffScheduleForm() {
         )
       return fn(data)
     },
-    onSuccess: (data) => {
+    onSuccess: (data: BackendResponse<typeof MedicalStaffScheduleSchemaWithId>) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['medicalStaffSchedule', 'list'] })
         queryClient.invalidateQueries({ queryKey: ['medicalStaffSchedule', 'detail', id] })

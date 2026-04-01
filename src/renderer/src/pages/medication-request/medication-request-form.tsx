@@ -58,7 +58,6 @@ interface FormData {
   roomId?: string | null
   authoredOn?: any
   resepturId?: number | null
-  resepturId?: number | null
   // Single mode (Edit)
   medicationId?: number | null
   dosageInstruction?: string | null
@@ -873,9 +872,9 @@ export function MedicationRequestForm() {
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
     },
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       if (!res?.success) {
-        const msg = (res as any)?.error || (res as any)?.message || 'Gagal membuat Permintaan Obat'
+        const msg = res?.error || res?.message || 'Gagal membuat Permintaan Obat'
         modal.error({ title: 'Gagal', content: msg })
         return
       }
@@ -897,9 +896,9 @@ export function MedicationRequestForm() {
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
     },
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       if (!res?.success) {
-        const msg = (res as any)?.error || (res as any)?.message || 'Gagal mengubah Permintaan Obat'
+        const msg = res?.error || res?.message || 'Gagal mengubah Permintaan Obat'
         modal.error({ title: 'Gagal', content: msg })
         return
       }
@@ -1709,6 +1708,8 @@ export function MedicationRequestForm() {
           </div>
 
           <MedicationOtherItemsTable
+            form={form}
+            itemKodeMap={itemKodeMap}
             itemOptions={itemOptions}
             itemLoading={itemLoading}
             signaOptions={signaOptions}
@@ -1730,6 +1731,8 @@ export function MedicationRequestForm() {
              />
            </div> */}
           <MedicationCompoundsSection
+            form={form}
+            itemKodeMap={itemKodeMap}
             itemOptions={itemOptions}
             itemLoading={itemLoading}
             signaOptions={signaOptions}

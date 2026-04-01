@@ -1,4 +1,5 @@
 import { Button, Card, Form, Input, Select, Tag, theme } from 'antd'
+import { JaminanBackendResponse } from 'simrs-types'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router'
 import { useEffect } from 'react'
@@ -48,7 +49,7 @@ export function JaminanForm() {
       if (!fn) throw new Error('API jaminan tidak tersedia. Silakan restart aplikasi/dev server.')
       return fn(data)
     },
-    onSuccess: (data) => {
+    onSuccess: (data: JaminanBackendResponse) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['jaminan', 'list'] })
         navigate('/dashboard/registration/jaminan')
@@ -68,7 +69,7 @@ export function JaminanForm() {
       if (!fn) throw new Error('API jaminan tidak tersedia. Silakan restart aplikasi/dev server.')
       return fn(data)
     },
-    onSuccess: (data) => {
+    onSuccess: (data: JaminanBackendResponse) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['jaminan', 'list'] })
         queryClient.invalidateQueries({ queryKey: ['jaminan', 'detail', id] })
