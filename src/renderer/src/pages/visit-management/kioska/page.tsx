@@ -413,7 +413,7 @@ export default function KioskaPage() {
                         </div>
                       ) : poliOptions.length ? (
                         <div className="mb-6 max-h-[28rem] overflow-y-auto rounded-[28px] border border-slate-100 bg-slate-50/60 p-3">
-                          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                          <div className="grid gap-4 grid-cols-4">
                             {poliOptions.map((poli) => {
                               const isSelected = String(poliId || '') === poli.value
                               const color = getPoliColor(poli.label)
@@ -423,7 +423,7 @@ export default function KioskaPage() {
                                   key={poli.value}
                                   hoverable
                                   onClick={() => form.setFieldValue('poliId', poli.value)}
-                                  className={`group aspect-square transition-all flex! items-center justify-center duration-300 ${
+                                  className={`group aspect-square overflow-hidden transition-all flex! items-center justify-center duration-300 ${
                                     isSelected
                                       ? '!border-blue-500 !bg-blue-50 shadow-lg'
                                       : '!border-slate-200 hover:!border-blue-300 hover:shadow-md'
@@ -514,7 +514,7 @@ export default function KioskaPage() {
                         </div>
                       ) : availableDoctors.length ? (
                         <div className="mb-6 max-h-[28rem] overflow-y-auto rounded-[28px] border border-slate-100 bg-slate-50/60 p-3">
-                          <div className="grid gap-4 md:grid-cols-2">
+                          <div className="grid gap-4 grid-cols-3">
                             {availableDoctors.map((doctor: any) => {
                               const isSelected =
                                 String(selectedDoctorScheduleId || '') ===
@@ -538,17 +538,17 @@ export default function KioskaPage() {
                                   }`}
                                   styles={{ body: { padding: 20 } }}
                                 >
-                                  <div className="flex min-h-[160px] flex-col items-center justify-center gap-4 text-center">
+                                  <div className="flex h-full w-full aspect-square flex-col items-center justify-center gap-4 text-center">
                                     <div
-                                      className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${color.bg} ${color.hover}`}
+                                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${color.bg} ${color.hover}`}
                                     >
                                       <UserOutlined
-                                        className={`text-3xl transition-colors duration-300 group-hover:text-white ${color.icon}`}
+                                        className={`text-2xl transition-colors duration-300 group-hover:text-white ${color.icon}`}
                                       />
                                     </div>
-                                    <Typography.Title level={5} className="!mb-0 !text-center">
+                                    <div className="mb-0! text-center! text-xs font-bold capitalize">
                                       {doctor.doctorName || 'Dokter'}
-                                    </Typography.Title>
+                                    </div>
                                   </div>
                                 </Card>
                               )
