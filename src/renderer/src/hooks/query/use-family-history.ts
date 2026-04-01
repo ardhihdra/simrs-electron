@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@renderer/query-client"
 
-interface FamilyHistoryInput {
+export interface FamilyHistoryInput {
     patientId: string
     status: string
     relationship: string

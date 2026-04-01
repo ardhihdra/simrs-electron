@@ -167,7 +167,9 @@ function ServiceRequestForm() {
       // @ts-ignore - dynamic API call not typed in window
       const fn = window.api?.query?.serviceRequest?.create
       if (!fn) throw new Error('API serviceRequest tidak tersedia')
-      const result = await fn(payload)
+      // FIX ME: match create type with ServiceRequestAttributes instead of any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = await (fn as (payload: any) => Promise<any>)(payload)
       if (!result.success) throw new Error(result.error || 'Failed to create service request')
       return result
     },

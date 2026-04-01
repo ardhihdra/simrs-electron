@@ -93,7 +93,13 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
   useEffect(() => {
     const item = detail.data?.result as
       | Partial<
-          PatientAttributes & { district: string; village: string; allowSendToSatusehat: boolean }
+          // FIX ME: update type to simrs-types PatientAttributes
+          PatientAttributes & {
+            district: string;
+            village: string;
+            allowSendToSatusehat: boolean
+            familyEmployee: number | null | undefined
+          }
         >
       | undefined
     if (item) {

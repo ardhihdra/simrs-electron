@@ -47,7 +47,7 @@ function GenericTable<T extends object>({
   tableProps,
   loading = false
 }: GenericTableProps<T>) {
-  const mergedColumns: ColumnsType<T> = action
+  const mergedColumns = action
     ? [
         ...columns,
         {
@@ -56,7 +56,7 @@ function GenericTable<T extends object>({
           width: action.width ?? 100,
           align: action.align ?? 'center',
           fixed: action.fixedRight ? 'right' : undefined,
-          render: (_value: T[keyof T], record: T, _index: number) => {
+          render: (_: any, record: T): any => {
             if (action.render) {
               return action.render(record)
             }
@@ -69,7 +69,7 @@ function GenericTable<T extends object>({
                     type={item.type ?? 'link'}
                     danger={item.danger}
                     disabled={item.disabled}
-                    icon={item.icon}
+                    icon={item.icon as any}
                     onClick={(e) => {
                       if (!item.confirm) {
                         e.stopPropagation()
@@ -150,7 +150,7 @@ function GenericTable<T extends object>({
         </div>
       )}
       <Table<T>
-        columns={mergedColumns}
+        columns={mergedColumns as any}
         dataSource={dataSource}
         rowKey={rowKey as keyof T}
         pagination={false}

@@ -1,5 +1,6 @@
 import { IpcContext } from '@main/ipc/router'
 import { getClient, parseBackendResponse } from '@main/utils/backendClient'
+import { BaseResultSchema } from '@main/utils/crud'
 import z from 'zod'
 
 export const MedicalCertificateSchema = z.object({
@@ -26,7 +27,8 @@ export const schemas = {
         result: z.object({
             success: z.boolean(),
             message: z.string().optional(),
-            result: MedicalCertificateSchema.optional()
+            result: MedicalCertificateSchema.optional(),
+            error: z.string().optional()
         })
     },
     list: {
@@ -37,15 +39,13 @@ export const schemas = {
         }),
         result: z.object({
             success: z.boolean(),
-            result: z.array(MedicalCertificateSchema).optional()
+            result: z.array(MedicalCertificateSchema).optional(),
+            error: z.string().optional()
         })
     },
-    delete: {
+    remove: {
         args: z.object({ id: z.string() }),
-        result: z.object({
-            success: z.boolean(),
-            message: z.string().optional()
-        })
+        result: BaseResultSchema
     }
 }
 
@@ -91,11 +91,11 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     }
 }
 
-export const remove = async (ctx: IpcContext, args: z.infer<typeof schemas.delete.args>) => {
+export const remove = async (ctx: IpcContext, args: z.infer<typeof schemas.remove.args>) => {
     try {
         const client = getClient(ctx)
         const res = await client.delete(`/api/medicalcertificate/${args.id}`)
-        const parsedResult = (await parseBackendResponse(res, schemas.delete.result)) as any
+        const parsedResult = (await parseBackendResponse(res, schemas.remove.result)) as any
         return { success: true, ...parsedResult }
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)

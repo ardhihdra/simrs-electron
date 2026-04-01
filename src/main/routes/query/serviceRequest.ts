@@ -14,8 +14,9 @@ export const schemas = {
     result: z.object({
       success: z.boolean(),
       result: z.array(z.any()).optional(),
-      message: z.string().optional()
-    })
+      message: z.string().optional(),
+      error: z.any().optional()
+    }),
   },
   create: {
     args: z.object({
@@ -27,8 +28,9 @@ export const schemas = {
     result: z.object({
       success: z.boolean(),
       result: z.array(z.any()).optional(),
-      message: z.string().optional()
-    })
+      message: z.string().optional(),
+      error: z.any().optional()
+    }),
   },
   update: {
     args: z.object({
@@ -37,8 +39,9 @@ export const schemas = {
     }),
     result: z.object({
       success: z.boolean(),
-      message: z.string().optional()
-    })
+      message: z.string().optional(),
+      error: z.any().optional()
+    }),
   }
 } as const
 

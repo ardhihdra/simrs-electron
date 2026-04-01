@@ -350,7 +350,7 @@ function addNestedTable<
       // Child table — full width minus the indent, flush below the parent
       autoTable(doc, {
         startY: currentY,
-        head: [nested.columns.map((col: ExportColumn) => col.label)],
+        head: [nested.columns.map((col) => col.label)],
         body: childBodyRows,
         styles: { fontSize: 7.5, cellPadding: 2.5 },
         headStyles: { fillColor: PDF_ACCENT_BLUE, textColor: 255, fontStyle: 'bold' },

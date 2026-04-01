@@ -40,7 +40,11 @@ export const useKepegawaianList = (filters?: PegawaiListFilter) => {
                     no: idx + 1,
                     kategori: p.hakAkses ?? null,
                     idSatuSehat: p.idSatuSehat ?? null,
-                    bagianSpesialis: kontrak?.kodeJabatan || kontrak?.kodeDepartemen || null,
+                    bagianSpesialis:
+                      kontrak?.kodeJabatan ||
+                      kontrak?.organization?.name ||
+                      kontrak?.organization?.partOf?.name ||
+                      null,
                     tanggalMulaiTugas: kontrak?.tanggalMulaiKontrak ? String(kontrak.tanggalMulaiKontrak) : null
                 }
             })

@@ -41,7 +41,7 @@ import {
 import { useBulkCreateProcedure } from '../../hooks/query/use-procedure'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '../../hooks/query/use-observation'
 import type { PatientData } from '@renderer/types/doctor.types'
 
@@ -117,7 +117,7 @@ export const EKGDiagnosticForm = ({ encounterId, patientData }: EKGDiagnosticFor
     'nurse'
   ])
   const { data: srData } = useServiceRequestByEncounter(encounterId)
-  const { data: obsData } = useObservationByEncounter(encounterId)
+  const { data: obsData } = useQueryObservationByEncounter(encounterId)
 
   const createSR = useBulkCreateServiceRequest()
   const createProcedure = useBulkCreateProcedure()
@@ -179,8 +179,9 @@ export const EKGDiagnosticForm = ({ encounterId, patientData }: EKGDiagnosticFor
         ]
       }
 
-      const result = await createSR.mutateAsync(payload as any)
-      const srId = result?.data?.[0]?.id || result?.result?.[0]?.id || uuidv4()
+      const response = await createSR.mutateAsync(payload as any)
+      const result = response?.result
+      const srId = result?.[0]?.id || uuidv4()
       setCreatedSRId(String(srId))
       message.success('Order EKG berhasil dibuat')
       setCurrentStep(1)
@@ -239,7 +240,7 @@ export const EKGDiagnosticForm = ({ encounterId, patientData }: EKGDiagnosticFor
       }
 
       const result = await createProcedure.mutateAsync(payload as any)
-      const procId = result?.data?.[0]?.id || result?.result?.[0]?.id || uuidv4()
+      const procId = result?.result?.[0]?.id || uuidv4()
       setCreatedProcId(String(procId))
       message.success('Data pelaksanaan EKG berhasil disimpan')
       setCurrentStep(2)

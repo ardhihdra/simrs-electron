@@ -19,7 +19,7 @@ import bodyMapImage from '@renderer/assets/images/body_map.png'
 import { HEAD_TO_TOE_MAP } from '@renderer/config/maps/observation-maps'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
 import {
@@ -68,8 +68,8 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
   const imgRef = useRef<HTMLImageElement>(null)
 
   const bulkCreateObservation = useBulkCreateObservation()
-  const { data: response, isLoading } = useObservationByEncounter(encounterId)
-  const observationData = useMemo(() => response?.result || [], [response])
+  const { data: result, isLoading } = useQueryObservationByEncounter(encounterId)
+  const observationData = result?.result?.all
 
   const { data: bodyMarkerData, isLoading: isLoadingBodyMarker } =
     useBodyMarkerByEncounter(encounterId)

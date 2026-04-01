@@ -2,6 +2,8 @@
  * Builder untuk FHIR FamilyMemberHistory resource.
  */
 
+import { FamilyHistoryInput } from "@renderer/hooks/query/use-family-history"
+
 export interface FamilyHistoryCondition {
     diagnosisCodeId: number
     outcome?: string
@@ -11,13 +13,13 @@ export interface FamilyHistoryCondition {
 }
 
 export interface FamilyHistoryBuilderOptions {
-    patientId: string | number
+    patientId: string
     status?: 'partial' | 'completed' | 'entered-in-error' | 'health-unknown'
     relationship?: string
     conditions: FamilyHistoryCondition[]
 }
 
-export const createFamilyHistory = (options: FamilyHistoryBuilderOptions): Record<string, unknown> => ({
+export const createFamilyHistory = (options: FamilyHistoryBuilderOptions): FamilyHistoryInput => ({
     patientId: options.patientId,
     status: options.status || 'completed',
     relationship: options.relationship || 'other',

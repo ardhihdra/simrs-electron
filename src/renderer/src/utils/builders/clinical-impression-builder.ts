@@ -11,6 +11,7 @@ export interface ClinicalImpressionBuilderOptions {
     effectiveDateTime?: string
     category: typeof CLINICAL_IMPRESSION_CATEGORIES[keyof typeof CLINICAL_IMPRESSION_CATEGORIES]
     investigations?: Array<{ id: string, display?: string }>
+    assessor?: string
 }
 
 export const createClinicalImpression = (
