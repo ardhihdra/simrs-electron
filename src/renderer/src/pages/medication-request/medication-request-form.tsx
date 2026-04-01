@@ -7,7 +7,7 @@ import {
 } from 'antd'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { useNavigate, useParams } from 'react-router'
-import { useEffect, useMemo, useState, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { queryClient } from '@renderer/query-client'
 import dayjs from 'dayjs'
 import { PatientAttributes } from 'simrs-types'
@@ -58,7 +58,6 @@ interface FormData {
   roomId?: string | null
   authoredOn?: any
   resepturId?: number | null
-  resepturName?: string
   // Single mode (Edit)
   medicationId?: number | null
   dosageInstruction?: string | null
@@ -93,8 +92,6 @@ interface FormData {
     quantity?: number
     instruction?: string
     note?: string
-    batchNumber?: string
-    expiryDate?: string
   }>
   manualPatientName?: string
   manualMedicalRecordNumber?: string
@@ -237,6 +234,10 @@ export function MedicationRequestForm() {
         : await api?.inventoryStock?.listBatches?.({ kodeItem })
       if (res?.success && Array.isArray(res.result)) {
         setBatchOptionsMap((prev) => new Map(prev).set(rowKey, res.result as BatchOption[]))
+        try {
+          const preview = (res.result as BatchOption[]).slice(0, 5).map((b) => ({ batch: b.batchNumber, exp: b.expiryDate, available: b.availableStock }))
+          console.log(`[MR][Batches][${kodeItem}@FARM] count:`, (res.result as BatchOption[]).length, 'preview:', preview)
+        } catch { }
       }
     } catch (err) {
       console.error(`[MR] Fetch batches error for ${kodeItem} (row: ${rowKey})`, err)
@@ -331,7 +332,14 @@ export function MedicationRequestForm() {
     queryFn: () => {
       const fn = itemApi?.list
       if (!fn) throw new Error('API item tidak tersedia.')
-      return fn()
+      return fn().then((res) => {
+        try {
+          const arr = Array.isArray(res?.result) ? res.result : []
+          const preview = arr.slice(0, 5).map((i: any) => ({ id: i.id, kode: i.kode, nama: i.nama }))
+          console.log('[MR][Items] total:', arr.length, 'preview:', preview)
+        } catch { }
+        return res
+      })
     }
   })
 
@@ -363,7 +371,20 @@ export function MedicationRequestForm() {
       }
       const fn = api?.inventoryStock?.listByLocation
       if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
-      return fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+      const res = await fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+      try {
+        const locs = Array.isArray(res?.result) ? res.result : []
+        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
+        const items = farm?.items ?? []
+        console.log('[MR][Stock][by-location:FARM] total locations:', locs.length, 'farm items:', items.length)
+        if (items.length > 0) {
+          const preview = items.slice(0, 5).map((it) => ({ kodeItem: it.kodeItem, availableStock: it.availableStock, unit: it.unit }))
+          console.log('[MR][Stock][by-location:FARM] preview:', preview)
+        }
+      } catch (e) {
+        console.log('[MR][Stock][by-location:FARM] log error:', e)
+      }
+      return res
     }
   })
 
@@ -378,6 +399,16 @@ export function MedicationRequestForm() {
     }
     return set
   }, [inventoryByLocation?.result])
+  useEffect(() => {
+    if (inventoryByLocation?.result) {
+      try {
+        const arr = inventoryByLocation.result
+        const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
+        const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
+        console.log('[MR][Stock] farmKodeSet size:', farmKodeSet.size, 'farm items total:', totalItems)
+      } catch { }
+    }
+  }, [inventoryByLocation?.result, farmKodeSet.size])
 
   const { data: itemCategoryData } = useQuery({
     queryKey: ['itemCategory', 'list'],
@@ -469,28 +500,32 @@ export function MedicationRequestForm() {
   const itemOptions = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
 
-      const filteredByLocation = source.filter((item) => {
-        const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
-        if (!code) return false
-        return farmKodeSet.has(code)
-      })
+    const filteredByLocation = source.filter((item) => {
+      const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+      if (!code) return false
+      return farmKodeSet.has(code)
+    })
 
-      return filteredByLocation
-        .filter((item) => typeof item.id === 'number')
-        .map((item) => {
-          const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
-          const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
-          const unitName = item.unit?.nama ?? unitCode
-          const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
-          const name = item.nama ?? code
-          const displayName = name || code || String(item.id)
-          const label = unitName ? `${displayName} (${unitName})` : displayName
-          const categoryId =
-            typeof item.itemCategoryId === 'number'
-              ? item.itemCategoryId
-              : typeof item.category?.id === 'number'
-                ? item.category.id
-                : null
+    try {
+      console.log('[MR][Items] source count:', source.length, 'farmKodeSet size:', farmKodeSet.size, 'filteredByLocation count:', filteredByLocation.length)
+    } catch { }
+
+    let opts = filteredByLocation
+      .filter((item) => typeof item.id === 'number')
+      .map((item) => {
+        const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
+        const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
+        const unitName = item.unit?.nama ?? unitCode
+        const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+        const name = item.nama ?? code
+        const displayName = name || code || String(item.id)
+        const label = unitName ? `${displayName} (${unitName})` : displayName
+        const categoryId =
+          typeof item.itemCategoryId === 'number'
+            ? item.itemCategoryId
+            : typeof item.category?.id === 'number'
+              ? item.category.id
+              : null
 
         let categoryType = ''
         if (categoryId && itemCategoryMap.has(categoryId)) {
@@ -509,8 +544,34 @@ export function MedicationRequestForm() {
           categoryType
         }
       })
-      .filter((entry) => entry.unitCode.length > 0)
-  }, [itemSource?.result, itemCategoryMap])
+    // Fallback from inventory stock if master items are empty
+    if (opts.length === 0) {
+      try {
+        const locs = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
+        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
+        const items = Array.isArray(farm?.items) ? farm!.items! : []
+        const fromFarm = items
+          .filter((it: any) => typeof it.itemId === 'number' && it.itemId > 0)
+          .map((it: any) => {
+            const value = it.itemId as number
+            const label = it.unit ? `${it.namaItem || it.kodeItem} (${it.unit})` : (it.namaItem || it.kodeItem)
+            const unitCode = typeof it.unitCode === 'string' && it.unitCode.trim().length > 0 ? it.unitCode.trim().toUpperCase() : (typeof it.unit === 'string' ? it.unit : '')
+            return { value, label, unitCode, categoryId: null, categoryType: 'obat' }
+          })
+        if (fromFarm.length > 0) {
+          console.log('[MR][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
+          opts = fromFarm
+        }
+      } catch (e) {
+        console.log('[MR][Items][Options][fallback-from-stock] error:', e)
+      }
+    }
+    try {
+      const preview = opts.slice(0, 5)
+      console.log('[MR][Items][Options] count:', opts.length, 'preview:', preview)
+    } catch { }
+    return opts
+  }, [itemSource?.result, itemCategoryMap, farmKodeSet, inventoryByLocation?.result])
 
   const extractEncounters = (src: EncounterListPayload): EncounterOptionSource[] => {
     const a = src?.result
@@ -573,7 +634,6 @@ export function MedicationRequestForm() {
       const foundEmployee = byId || byNik || byName
       if (foundEmployee) {
         form.setFieldValue('resepturId', foundEmployee.id)
-        form.setFieldValue('resepturName', foundEmployee.namaLengkap || undefined)
       }
     }
   }, [session, requesterData, isEdit, form])
@@ -742,20 +802,27 @@ export function MedicationRequestForm() {
           encounterId: baseRecord.encounterId ?? null,
           roomId: baseRecord.roomId ?? null,
           requesterId: baseRecord.requesterId ?? null,
+          resepturId: (() => {
+            const entry = (baseRecord.supportingInformation ?? []).find((info: any) => {
+              const type = info.resourceType || info.type
+              return type === 'Reseptur'
+            })
+            return entry ? (entry.itemId || (entry as any).item_id) : null
+          })(),
           authoredOn: baseRecord.authoredOn ? dayjs(baseRecord.authoredOn) : undefined,
           items: shouldUseFallbackSimpleItem
             ? [
-                {
-                  medicationId: baseRecord.medicationId ?? 0,
-                  dosageInstruction:
-                    baseRecord.dosageInstruction && baseRecord.dosageInstruction[0]
-                      ? (baseRecord.dosageInstruction[0].text ?? '')
-                      : '',
-                  note: baseRecord.note ?? '',
-                  quantity: baseRecord.dispenseRequest?.quantity?.value,
-                  quantityUnit: baseRecord.dispenseRequest?.quantity?.unit
-                }
-              ]
+              {
+                medicationId: baseRecord.medicationId ?? 0,
+                dosageInstruction:
+                  baseRecord.dosageInstruction && baseRecord.dosageInstruction[0]
+                    ? (baseRecord.dosageInstruction[0].text ?? '')
+                    : '',
+                note: baseRecord.note ?? '',
+                quantity: baseRecord.dispenseRequest?.quantity?.value,
+                quantityUnit: baseRecord.dispenseRequest?.quantity?.unit
+              }
+            ]
             : items,
           compounds: compoundsForm,
           otherItems: otherItemsForm
@@ -805,9 +872,9 @@ export function MedicationRequestForm() {
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
     },
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       if (!res?.success) {
-        const msg = (res as any)?.error || (res as any)?.message || 'Gagal membuat Permintaan Obat'
+        const msg = res?.error || res?.message || 'Gagal membuat Permintaan Obat'
         modal.error({ title: 'Gagal', content: msg })
         return
       }
@@ -829,9 +896,9 @@ export function MedicationRequestForm() {
       if (!fn) throw new Error('API MedicationRequest tidak tersedia.')
       return fn(data)
     },
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       if (!res?.success) {
-        const msg = (res as any)?.error || (res as any)?.message || 'Gagal mengubah Permintaan Obat'
+        const msg = res?.error || res?.message || 'Gagal mengubah Permintaan Obat'
         modal.error({ title: 'Gagal', content: msg })
         return
       }
@@ -853,22 +920,16 @@ export function MedicationRequestForm() {
         const createPatientFn = window.api?.query?.registration?.create
         if (!createPatientFn) throw new Error('API pendaftaran pasien tidak tersedia.')
 
+        const ts = Date.now()
+        const autoNik = `L${String(ts).padStart(15, '0')}`
+        const autoMrn = values.manualMedicalRecordNumber || `L-${String(ts).slice(-8)}`
+
         const regRes = (await createPatientFn({
           name: values.manualPatientName,
-          medicalRecordNumber: values.manualMedicalRecordNumber || `L-MRN-${Date.now()}`,
-          nik: '0000000000000000',
+          medicalRecordNumber: autoMrn,
+          nik: autoNik,
           gender: 'male' as const,
-          birthDate: '1900-01-01',
-          maritalStatus: 'single' as const,
-          phone: '-',
-          email: 'luar@k.com',
-          address: '-',
-          city: '-',
-          province: '-',
-          postalCode: '-',
-          country: 'Indonesia',
-          relatedPerson: [],
-          active: true
+          birthDate: '1900-01-01'
         }) as any)
 
         if (!regRes?.success) {
@@ -883,13 +944,14 @@ export function MedicationRequestForm() {
         finalPatientId = regRes.data.id
       } catch (err) {
         console.error('[MR] Manual patient registration failed:', err)
-        modal.error({ 
-          title: 'Gagal Registrasi Pasien Luar', 
-          content: err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftarkan pasien luar.' 
+        modal.error({
+          title: 'Gagal Registrasi Pasien Luar',
+          content: err instanceof Error ? err.message : 'Terjadi kesalahan saat mendaftarkan pasien luar.'
         })
         return
       }
     }
+
 
     const baseCommonPayload = {
       status: values.status,
@@ -981,9 +1043,9 @@ export function MedicationRequestForm() {
         existingGroupIdentifier ??
         (hasNewSimple || hasNewCompound || hasNewItems
           ? {
-              system: 'http://sys-ids/prescription-group',
-              value: `${Date.now()}`
-            }
+            system: 'http://sys-ids/prescription-group',
+            value: `${Date.now()}`
+          }
           : null)
 
       interface UpdatePayload {
@@ -1083,9 +1145,7 @@ export function MedicationRequestForm() {
               itemId: (item.itemId as number) || undefined,
               note: item.note || '',
               instruction: item.note || '',
-              name,
-              batchNumber: (item as Record<string, unknown>).batchNumber || null,
-              expiryDate: (item as Record<string, unknown>).expiryDate || null
+              name
             }
             return ingredient
           })
@@ -1123,12 +1183,12 @@ export function MedicationRequestForm() {
             groupIdentifier,
             dosageInstruction: input.dosageInstruction
               ? [
-                  buildDosageInstruction(
-                    input.dosageInstruction,
-                    input.quantity,
-                    input.quantityUnit
-                  )
-                ]
+                buildDosageInstruction(
+                  input.dosageInstruction,
+                  input.quantity,
+                  input.quantityUnit
+                )
+              ]
               : null,
             dispenseRequest: buildDispenseRequest(input.quantity, input.quantityUnit),
             category:
@@ -1324,12 +1384,7 @@ export function MedicationRequestForm() {
             category: null,
             identifier: null,
             supportingInformation: (() => {
-              const original =
-                input.batchNumber
-                  ? [{ resourceType: 'StockBatch', batchNumber: input.batchNumber, expiryDate: input.expiryDate ?? null }]
-                  : []
-              const merged = [...original, ...supportingInformationCommon]
-              return merged.length > 0 ? merged : null
+              return supportingInformationCommon.length > 0 ? supportingInformationCommon : null
             })()
           })
         }
@@ -1343,12 +1398,12 @@ export function MedicationRequestForm() {
           note: firstItem?.note ?? null,
           dosageInstruction: firstItem?.dosageInstruction
             ? [
-                buildDosageInstruction(
-                  firstItem.dosageInstruction,
-                  firstItem?.quantity,
-                  firstItem?.quantityUnit
-                )
-              ]
+              buildDosageInstruction(
+                firstItem.dosageInstruction,
+                firstItem?.quantity,
+                firstItem?.quantityUnit
+              )
+            ]
             : null,
           dispenseRequest: buildDispenseRequest(
             firstItem?.quantity,
@@ -1403,17 +1458,21 @@ export function MedicationRequestForm() {
         value: `${Date.now()}`
       }
 
-      const simplePayloads = items.map((item) => ({
-        ...baseCommonPayload,
-        groupIdentifier,
-        itemId: item.medicationId,
-        dosageInstruction: item.dosageInstruction
-          ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
-          : null,
-        note: item.note,
-        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
-        supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
-      }))
+      // For new requests, we primarily use otherItems and compounds.
+      // items (simplePayloads) is kept for backward compatibility but should be empty if the new UI is used.
+      const simplePayloads = items
+        .filter((item) => typeof item.medicationId === 'number' && item.medicationId > 0)
+        .map((item) => ({
+          ...baseCommonPayload,
+          groupIdentifier,
+          itemId: item.medicationId,
+          dosageInstruction: item.dosageInstruction
+            ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
+            : null,
+          note: item.note,
+          dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
+          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
+        }))
       const itemList = (itemSource?.result || []) as ItemAttributes[]
       const medicineList = itemList as any[]
 
@@ -1437,15 +1496,13 @@ export function MedicationRequestForm() {
 
             return {
               resourceType: 'Ingredient',
-              medicationId: (item.medicationId as number) || null,
-              itemId: (item.itemId as number) || null,
+              medicationId: (item.medicationId as number) || undefined,
+              itemId: (item.itemId as number) || undefined,
               note: item.note || '',
               instruction: item.note || '',
               quantity: typeof item.quantity === 'number' ? item.quantity : 0,
               unitCode: item.unit || null,
-              name,
-              batchNumber: (item as Record<string, unknown>).batchNumber || null,
-              expiryDate: (item as Record<string, unknown>).expiryDate || null
+              name
             }
           })
 
@@ -1498,17 +1555,34 @@ export function MedicationRequestForm() {
                 ? buildDispenseRequest(it.quantity, unitCode)
                 : null,
             supportingInformation: (() => {
-              const original =
-                it.batchNumber
-                  ? [{ resourceType: 'StockBatch', batchNumber: it.batchNumber, expiryDate: it.expiryDate ?? null }]
-                  : []
-              const merged = [...original, ...supportingInformationCommon]
-              return merged.length > 0 ? merged : null
+              return supportingInformationCommon.length > 0 ? supportingInformationCommon : null
             })()
           }
         })
 
       const payload = [...simplePayloads, ...compoundPayloads, ...itemPayloads]
+      try {
+        const simpleSummary = simplePayloads.map((p) => ({
+          itemId: p.itemId,
+          qty: p.dispenseRequest?.quantity?.value,
+          unit: p.dispenseRequest?.quantity?.unit
+        }))
+        const compoundSummary = compoundPayloads.map((p) => ({
+          ingredients: Array.isArray(p.supportingInformation)
+            ? (p.supportingInformation as any[]).filter((x) => x?.resourceType === 'Ingredient').length
+            : 0,
+          qty: p.dispenseRequest?.quantity?.value,
+          unit: p.dispenseRequest?.quantity?.unit
+        }))
+        const itemSummary = itemPayloads.map((p) => ({
+          itemId: p.itemId,
+          qty: p.dispenseRequest?.quantity?.value,
+          unit: p.dispenseRequest?.quantity?.unit
+        }))
+        console.log('[MR][Create] simple count:', simplePayloads.length, simpleSummary)
+        console.log('[MR][Create] compound count:', compoundPayloads.length, compoundSummary)
+        console.log('[MR][Create] other items count:', itemPayloads.length, itemSummary)
+      } catch { }
 
       if (payload.length === 0) {
         message.error('Minimal isi minimal 1 Item.')
@@ -1621,29 +1695,26 @@ export function MedicationRequestForm() {
 
               <Form.Item
                 label="Reseptur"
+                name="resepturId"
               >
-                <Input disabled value={form.getFieldValue('resepturName')} placeholder="Mengikuti pengguna login" />
-              </Form.Item>
-              <Form.Item name="resepturId" hidden>
-                <Input />
+                <SelectAsync
+                  display="namaLengkap"
+                  entity="kepegawaian"
+                  output="id"
+                  placeHolder="Pilih Reseptur (Mengikuti pengguna login jika kosong)"
+                />
               </Form.Item>
             </div>
           </div>
 
-            <MedicationOtherItemsTable
-              form={form}
-              itemOptions={itemOptions}
-              itemLoading={itemLoading}
-              itemKodeMap={itemKodeMap}
-              signaOptions={signaOptions}
-              signaLoading={signaLoading}
-              batchOptionsMap={batchOptionsMap}
-              batchLoadingMap={batchLoadingMap}
-              batchSortModeMap={batchSortModeMap}
-              setBatchSortModeMap={setBatchSortModeMap}
-              sortBatches={sortBatches}
-              fetchBatchesForItem={fetchBatchesForItem}
-            />
+          <MedicationOtherItemsTable
+            form={form}
+            itemKodeMap={itemKodeMap}
+            itemOptions={itemOptions}
+            itemLoading={itemLoading}
+            signaOptions={signaOptions}
+            signaLoading={signaLoading}
+          />
 
           {/*    <ItemPrescriptionForm
                name="otherItems"
@@ -1659,20 +1730,14 @@ export function MedicationRequestForm() {
                loading={itemLoading}
              />
            </div> */}
-            <MedicationCompoundsSection
-              form={form}
-              itemOptions={itemOptions}
-              itemLoading={itemLoading}
-              itemKodeMap={itemKodeMap}
-              signaOptions={signaOptions}
-              signaLoading={signaLoading}
-              batchOptionsMap={batchOptionsMap}
-              batchLoadingMap={batchLoadingMap}
-              batchSortModeMap={batchSortModeMap}
-              setBatchSortModeMap={setBatchSortModeMap}
-              sortBatches={sortBatches}
-              fetchBatchesForItem={fetchBatchesForItem}
-            />
+          <MedicationCompoundsSection
+            form={form}
+            itemKodeMap={itemKodeMap}
+            itemOptions={itemOptions}
+            itemLoading={itemLoading}
+            signaOptions={signaOptions}
+            signaLoading={signaLoading}
+          />
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
             <Button

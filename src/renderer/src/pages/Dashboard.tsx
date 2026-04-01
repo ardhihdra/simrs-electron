@@ -23,36 +23,16 @@ import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
-
-// Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
-const Modules = {
-	REGISTRASI: "REGISTRASI",
-	ANTRIAN: "ANTRIAN",
-	RAWAT_JALAN: "RAWAT_JALAN",
-	RAWAT_INAP: "RAWAT_INAP",
-	OK: "OK",
-	VK: "VK",
-	MCU: "MCU",
-	RAWAT_DARURAT: "RAWAT_DARURAT",
-	LAB: "LAB",
-	RADIOLOGI: "RADIOLOGI",
-	REKAM_MEDIK: "REKAM_MEDIK",
-	FARMASI: "FARMASI",
-	KEUANGAN: "KEUANGAN",
-	PONEK: "PONEK",
-	GUDANG_FARMASI: "GUDANG_FARMASI",
-	GUDANG_UMUM: "GUDANG_UMUM",
-	SYSTEM_ADMIN: "SYSTEM_ADMIN",
-	BILLING_KASIR: "BILLING_KASIR",
-	MOBILE_PASIEN: "MOBILE_PASIEN",
-} as const;
-type Module = (typeof Modules)[keyof typeof Modules];
-
+import { Modules } from 'simrs-types'
 import type { MenuProps } from "antd";
 import { Menu, theme } from "antd";
 import { ItemType } from "antd/es/menu/interface";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
+
+
+// Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
+type Module = (typeof Modules)[keyof typeof Modules];
 
 // const SendNotificationButton = () => {
 //   const { message } = AntdApp.useApp()
@@ -191,51 +171,31 @@ const items: DashboardMenuItem[] = [
 		icon: <WalletOutlined />,
 		module: Modules.FARMASI,
 		children: [
+			{ label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
 			{
-				label: "Dashboard Obat",
-				key: "/dashboard/medicine",
-				icon: <MedicineBoxOutlined />,
+				label: 'Permintaan Obat (Resep)',
+				key: '/dashboard/medicine/medication-requests',
+				icon: <FileAddOutlined />
 			},
 			{
-				label: "Permintaan Obat (Resep)",
-				key: "/dashboard/medicine/medication-requests",
-				icon: <FileAddOutlined />,
+				label: 'Penyerahan Obat',
+				key: '/dashboard/medicine/medication-dispenses',
+				icon: <MedicineBoxOutlined />
 			},
+			// {
+			//   label: 'Kategori Item',
+			//   key: '/dashboard/medicine/medicine-categories',
+			//   icon: <UnorderedListOutlined />
+			// },
+			// { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
+			// { label: 'Obat dan Barang Umum', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
+			// { label: 'Obat dan Barang BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
 			{
-				label: "Penyerahan Obat",
-				key: "/dashboard/medicine/medication-dispenses",
-				icon: <MedicineBoxOutlined />,
+				label: 'Transaksi Penjualan Barang',
+				key: '/dashboard/medicine/item-purchase',
+				icon: <WalletOutlined />
 			},
-			{
-				label: "Kategori Item",
-				key: "/dashboard/medicine/medicine-categories",
-				icon: <UnorderedListOutlined />,
-			},
-			{
-				label: "Kode KFA",
-				key: "/dashboard/medicine/kfa-codes",
-				icon: <UnorderedListOutlined />,
-			},
-			{
-				label: "Obat dan Barang Umum",
-				key: "/dashboard/medicine/items",
-				icon: <ExperimentOutlined />,
-			},
-			{
-				label: "Obat dan Barang BPJS",
-				key: "/dashboard/medicine/items-bpjs",
-				icon: <ExperimentOutlined />,
-			},
-			{
-				label: "Transaksi Penjualan Barang",
-				key: "/dashboard/medicine/item-purchase",
-				icon: <WalletOutlined />,
-			},
-			{
-				label: "Laporan",
-				key: "/dashboard/medicine/report",
-				icon: <FileTextOutlined />,
-			},
+			{ label: 'Laporan', key: '/dashboard/medicine/report', icon: <FileTextOutlined /> },
 		],
 	},
 	{

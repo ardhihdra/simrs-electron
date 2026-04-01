@@ -65,15 +65,8 @@ export const schemas = {
           unit: z.string().optional()
         })
         .optional(),
-      telaahResults: z.object({
-        kejelasanResep: z.boolean(),
-        tepatPasien: z.boolean(),
-        tepatObat: z.boolean(),
-        tepatDosis: z.boolean(),
-        tepatWaktu: z.boolean(),
-        tepatRute: z.boolean(),
-        identitasDokter: z.boolean()
-      }).optional()
+      selectedBatches: z.any().optional(),
+      telaahResults: z.any().optional()
     }),
     result: z.object({
       success: z.boolean(),
@@ -661,6 +654,7 @@ export const createFromRequest = async (
         encounterId,
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
+        selectedBatches: args.selectedBatches,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
         note: (() => {
           const notes: any[] = []
@@ -734,6 +728,7 @@ export const createFromRequest = async (
         encounterId,
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
+        selectedBatches: args.selectedBatches,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
         note: (() => {
           const notes: any[] = []

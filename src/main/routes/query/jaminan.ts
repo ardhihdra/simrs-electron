@@ -1,7 +1,7 @@
 import z from 'zod'
-import { JaminanSchema, JaminanSchemaWithId } from '@main/models/jaminan'
 import { IpcContext } from '@main/ipc/router'
 import { createBackendClient, parseBackendResponse, BackendListSchema } from '@main/utils/backendClient'
+import { JaminanSchemaPayload, jaminanAttributesSchema } from 'simrs-types'
 
 export const requireSession = true
 
@@ -9,7 +9,7 @@ export const schemas = {
     list: {
         result: z.object({
             success: z.boolean(),
-            result: JaminanSchemaWithId.array().optional(),
+            result: jaminanAttributesSchema.array().optional(),
             message: z.string().optional()
         })
     },
@@ -17,23 +17,23 @@ export const schemas = {
         args: z.object({ id: z.number() }),
         result: z.object({
             success: z.boolean(),
-            result: JaminanSchemaWithId.optional(),
+            result: jaminanAttributesSchema.optional(),
             message: z.string().optional()
         })
     },
     create: {
-        args: JaminanSchema.partial(),
+        args: JaminanSchemaPayload,
         result: z.object({
             success: z.boolean(),
-            result: JaminanSchemaWithId.optional(),
+            result: jaminanAttributesSchema.optional(),
             message: z.string().optional()
         })
     },
     update: {
-        args: JaminanSchemaWithId,
+        args: jaminanAttributesSchema,
         result: z.object({
             success: z.boolean(),
-            result: JaminanSchemaWithId.optional(),
+            result: jaminanAttributesSchema.optional(),
             message: z.string().optional()
         })
     },
@@ -45,7 +45,7 @@ export const schemas = {
 
 const BackendResponseSchema = z.object({
     success: z.boolean(),
-    result: JaminanSchemaWithId.optional(),
+    result: jaminanAttributesSchema.optional(),
     message: z.string().optional(),
     error: z.string().optional()
 })
@@ -56,7 +56,7 @@ export const list = async (ctx: IpcContext) => {
         const res = await client.get('/api/jaminan?items=100')
         const result = await parseBackendResponse(
             res,
-            BackendListSchema(JaminanSchemaWithId)
+            BackendListSchema(jaminanAttributesSchema)
         )
         return { success: true, result }
     } catch (err) {

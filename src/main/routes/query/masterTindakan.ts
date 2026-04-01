@@ -15,7 +15,7 @@ export const CATEGORY_BPJS_VALUES = [
     'Kamar / Akomodasi',
     'Obat',
     'Alkes',
-    'BMHP',
+    'BHP',
     'Pelayanan Darah',
     'Rawat Intensif',
     'Konsultasi',

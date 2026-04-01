@@ -29,12 +29,24 @@ export const PegawaiCategoryOptions = [
 export interface KontrakPegawaiAttributes {
   idKontrakPegawai?: number
   idPegawai?: number
-  kodeDivisi?: string | null
-  kodeDepartemen?: string | null
+  organizationId?: string | null
   kodeJabatan?: string | null
   tanggalMulaiKontrak?: Date | string | null
   tanggalBerakhirKontrak?: Date | string | null
   statusKontrak?: string | null
+  organization?: {
+    id?: string | null
+    name?: string | null
+    type?: string | null
+    alias?: string[] | null
+    partOfId?: string | null
+    partOf?: {
+      id?: string | null
+      name?: string | null
+      type?: string | null
+      alias?: string[] | null
+    } | null
+  } | null
 }
 
 export interface KepegawaianAttributes {

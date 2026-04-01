@@ -1,7 +1,7 @@
 import z from 'zod'
-import { MedicalStaffScheduleSchema, MedicalStaffScheduleSchemaWithId } from '@main/models/medicalStaffSchedule'
 import { IpcContext } from '@main/ipc/router'
 import { createBackendClient, parseBackendResponse, BackendListSchema } from '@main/utils/backendClient'
+import { ApiResponseSchema, MedicalStaffScheduleSchema, MedicalStaffScheduleSchemaWithId } from 'simrs-types'
 
 export const requireSession = true
 
@@ -43,17 +43,11 @@ export const schemas = {
     }
 } as const
 
-const BackendResponseSchema = z.object({
-    success: z.boolean(),
-    result: MedicalStaffScheduleSchemaWithId.optional(),
-    message: z.string().optional(),
-    error: z.string().optional()
-})
 
 export const list = async (ctx: IpcContext) => {
     try {
         const client = createBackendClient(ctx)
-        const res = await client.get('/api/jadwalPraktekPetugasMedis?items=100')
+        const res = await client.get('/api/jadwalPraktekPetugasMedis?items=100&depth=1')
         const result = await parseBackendResponse(
             res,
             BackendListSchema(MedicalStaffScheduleSchemaWithId)
@@ -71,8 +65,8 @@ export const list = async (ctx: IpcContext) => {
 export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getById.args>) => {
     try {
         const client = createBackendClient(ctx)
-        const res = await client.get(`/api/jadwalPraktekPetugasMedis/read/${args.id}`)
-        const result = await parseBackendResponse(res, BackendResponseSchema)
+        const res = await client.get(`/api/jadwalPraktekPetugasMedis/read/${args.id}?depth=1`)
+        const result = await parseBackendResponse(res, ApiResponseSchema(MedicalStaffScheduleSchemaWithId))
         return { success: true, result }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -88,7 +82,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
         const client = createBackendClient(ctx)
         const payload = {
             idPegawai: args.idPegawai,
-            kodeDepartemen: args.kodeDepartemen,
+            organizationId: args.organizationId,
             kategori: args.kategori ?? null,
             senin: args.senin,
             selasa: args.selasa,
@@ -101,7 +95,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
             createdBy: args.createdBy ?? null
         }
         const res = await client.post('/api/jadwalPraktekPetugasMedis', payload)
-        const result = await parseBackendResponse(res, BackendResponseSchema)
+        const result = await parseBackendResponse(res, ApiResponseSchema(MedicalStaffScheduleSchemaWithId))
         return { success: true, result }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -117,7 +111,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
         const client = createBackendClient(ctx)
         const payload = {
             idPegawai: args.idPegawai,
-            kodeDepartemen: args.kodeDepartemen,
+            organizationId: args.organizationId,
             kategori: args.kategori,
             senin: args.senin,
             selasa: args.selasa,
@@ -130,7 +124,7 @@ export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.updat
             updatedBy: args.updatedBy ?? null
         }
         const res = await client.put(`/api/jadwalPraktekPetugasMedis/${args.id}`, payload)
-        const result = await parseBackendResponse(res, BackendResponseSchema)
+        const result = await parseBackendResponse(res, ApiResponseSchema(MedicalStaffScheduleSchemaWithId))
         return { success: true, result }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)

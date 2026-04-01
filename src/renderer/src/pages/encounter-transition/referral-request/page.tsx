@@ -84,7 +84,7 @@ export default function ReferralRequestPage() {
                 </Form.Item>
               </Col>
               <Col span={24}>
-                <Form.Item label="BMHP" name="bmhp">
+                <Form.Item label="BHP" name="bhp">
                   <TextArea rows={2} />
                 </Form.Item>
               </Col>
