@@ -69,6 +69,7 @@ export const useMasterPaketTindakanList = (params?: {
     q?: string
     aktif?: boolean
     items?: number
+    depth?: number
 }) => {
     return useQuery({
         queryKey: ['master-paket-tindakan', 'list', params],

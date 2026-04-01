@@ -33,6 +33,7 @@ export const useMasterPaketBhpList = (params?: {
     q?: string
     aktif?: boolean
     items?: number
+    depth?: number
 }) => {
     return useQuery({
         queryKey: ['master-paket-bhp', 'list', params],
