@@ -246,16 +246,16 @@ function NonMedicQueueServicePointWorkspacePage() {
             ) : null}
 
             <Row gutter={[16, 16]}>
-                <Col xs={24} md={6}>
-                    <Card>
+                <Col xs={24} md={6} style={{ minHeight: 120 }}>
+                    <Card style={{ height: '100%' }}>
                         <Statistic
                             title="Lokasi Aktif"
                             value={lokasiKerjaName}
                         />
                     </Card>
                 </Col>
-                <Col xs={24} md={6}>
-                    <Card>
+                <Col xs={24} md={6} style={{ minHeight: 120 }}>
+                    <Card style={{ height: '100%' }}>
                         <Statistic
                             title="Service Point Kamu"
                             value={servicePointFromBoard?.displayName || servicePointFromBoard?.name || '-'}
@@ -265,13 +265,13 @@ function NonMedicQueueServicePointWorkspacePage() {
                         </Typography.Text>
                     </Card>
                 </Col>
-                <Col xs={24} md={6}>
-                    <Card>
+                <Col xs={24} md={6} style={{ minHeight: 120 }}>
+                    <Card style={{ height: '100%' }}>
                         <Statistic title="Service Type" value={servicePointFromBoard?.serviceTypeCode ?? '-'} />
                     </Card>
                 </Col>
-                <Col xs={24} md={6}>
-                    <Card>
+                <Col xs={24} md={6} style={{ minHeight: 120 }}>
+                    <Card style={{ height: '100%' }}>
                         <Statistic title="Sisa Antrian" value={board?.waitingTotal ?? 0} />
                     </Card>
                 </Col>
