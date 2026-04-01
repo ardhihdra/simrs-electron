@@ -53,7 +53,7 @@ import { CardiologyForm } from '../../components/organisms/Assessment/Cardiology
 import { ENTForm } from '../../components/organisms/Assessment/ENT/ENTForm'
 import { ReferralForm } from '../../components/organisms/ReferralForm'
 import { VitalSignsMonitoringForm } from '../../components/organisms/Assessment/VitalSignsMonitoring/VitalSignsMonitoringForm'
-import { Empty, Input, Layout, Menu, Modal, theme } from 'antd'
+import { App, Empty, Input, Layout, Menu, Modal, theme } from 'antd'
 import { useMemo, useState } from 'react'
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
@@ -73,6 +73,7 @@ import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment
 import { MedicalCertificateForm } from '@renderer/components/organisms/Assessment/MedicalCertificate/MedicalCertificateForm'
 import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
 import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
+import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
 
 const { Sider, Content } = Layout
 
@@ -96,7 +97,12 @@ export const DoctorEmergencyWorkspace = ({
   const [searchText, setSearchText] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
+  const { message } = App.useApp()
   const { token } = theme.useToken()
+  const handleFormSubmitCapture = useMemo(
+    () => createFormValidationSubmitCapture(message),
+    [message]
+  )
 
   const items = useMemo(
     () => [
@@ -534,7 +540,9 @@ export const DoctorEmergencyWorkspace = ({
         </Sider>
 
         <Layout>
-          <Content className="p-6 overflow-y-auto h-full">{renderContent()}</Content>
+          <Content className="p-6 overflow-y-auto h-full" onSubmitCapture={handleFormSubmitCapture}>
+            {renderContent()}
+          </Content>
         </Layout>
       </Layout>
     </div>

@@ -36,6 +36,7 @@ import {
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import dayjs from 'dayjs'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 
 const { TextArea } = Input
 
@@ -47,6 +48,7 @@ interface CPPTFormProps {
 
 export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormProps) => {
   const { message } = App.useApp()
+  const { profile } = useMyProfile()
   const [form] = Form.useForm()
   const [isAddingNew, setIsAddingNew] = useState(false)
 
@@ -61,8 +63,10 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   ])
 
   const selectedPerformerId = Form.useWatch('performerId', form)
-  const selectedPerformer = performersData?.find((p: any) => p.id === selectedPerformerId)
-  const currentRole = selectedPerformer?.role
+  const findPerformerById = (performerId: number | string | undefined | null) =>
+    performersData?.find((p: any) => String(p.id) === String(performerId))
+  const selectedPerformer = findPerformerById(selectedPerformerId)
+  const currentRole = selectedPerformer?.role || profile?.hakAksesId
 
   const handleSubmit = async (values: any) => {
     try {
@@ -220,14 +224,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       heartRate: vitalSigns.pulseRate,
       respRate: vitalSigns.respiratoryRate,
       temperature: vitalSigns.temperature,
-      consciousness: physicalExamination.consciousness,
-      gcs_e: summary.vitalSigns?.gcsEye,
-      gcs_v: summary.vitalSigns?.gcsVerbal,
-      gcs_m: summary.vitalSigns?.gcsMotor,
-      gcs:
-        (summary.vitalSigns?.gcsEye || 0) +
-          (summary.vitalSigns?.gcsVerbal || 0) +
-          (summary.vitalSigns?.gcsMotor || 0) || undefined
+      consciousness: physicalExamination.consciousness
     })
 
     const vitalsParts: string[] = []
@@ -240,16 +237,6 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     if (vitalSigns.pulseRate) vitalsParts.push(`N: ${vitalSigns.pulseRate} x/m`)
     if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
     if (vitalSigns.temperature) vitalsParts.push(`S: ${vitalSigns.temperature} °C`)
-
-    const findObs = (code: string) => observationData.find((o: any) => o.code === code)
-    const gcsEye = findObs('9267-5')?.valueQuantity?.value
-    const gcsVerbal = findObs('9270-9')?.valueQuantity?.value
-    const gcsMotor = findObs('9268-3')?.valueQuantity?.value
-
-    if (gcsEye || gcsVerbal || gcsMotor) {
-      const total = (gcsEye || 0) + (gcsVerbal || 0) + (gcsMotor || 0)
-      vitalsParts.push(`GCS: E${gcsEye || '-'}V${gcsVerbal || '-'}M${gcsMotor || '-'} (${total})`)
-    }
 
     if (physicalExamination.consciousness) {
       vitalsParts.push(`Kesadaran: ${physicalExamination.consciousness}`)
@@ -324,7 +311,43 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         return
       }
 
-      const verifierId = selectedPerformerId || (record.authorId?.[0] ? Number(record.authorId[0]) : 1)
+      const professionalAttester = record.attesters?.find((a: any) => a.mode === 'professional')
+      const attesterReferenceId = professionalAttester?.partyReference
+        ? String(professionalAttester.partyReference).split('/')[1]
+        : undefined
+      const recordAuthorId = record.authorId?.[0]
+      const profilePerformer = profile?.id ? findPerformerById(profile.id) : undefined
+      const recordAuthorPerformer = recordAuthorId ? findPerformerById(recordAuthorId) : undefined
+      const attesterPerformer = attesterReferenceId ? findPerformerById(attesterReferenceId) : undefined
+
+      const selectedDoctor = selectedPerformer?.role === 'doctor' ? selectedPerformer : undefined
+      const profileDoctor = profilePerformer?.role === 'doctor' ? profilePerformer : undefined
+      const recordDoctor = recordAuthorPerformer?.role === 'doctor' ? recordAuthorPerformer : undefined
+      const attesterDoctor = attesterPerformer?.role === 'doctor' ? attesterPerformer : undefined
+
+      const verifierPerformer =
+        selectedDoctor ||
+        profileDoctor ||
+        recordDoctor ||
+        attesterDoctor ||
+        selectedPerformer ||
+        profilePerformer ||
+        recordAuthorPerformer ||
+        attesterPerformer
+      const verifierId = verifierPerformer?.id ?? profile?.id ?? recordAuthorId ?? attesterReferenceId
+      const verifierName =
+        verifierPerformer?.name ||
+        record.author?.namaLengkap ||
+        record.authorName ||
+        professionalAttester?.partyDisplay ||
+        profile?.username ||
+        'Dokter'
+      const parsedVerifierId = Number(verifierId)
+
+      if (!Number.isFinite(parsedVerifierId) || parsedVerifierId <= 0) {
+        message.error('Petugas verifikator tidak valid. Pilih petugas dokter terlebih dahulu.')
+        return
+      }
 
       const sections =
         record.sections && record.sections.length > 0
@@ -378,8 +401,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         id: record.id,
         encounterId,
         patientId: patientData.patient.id,
-        doctorId: Number(verifierId),
-        authorName: selectedPerformer?.name || record.authorName,
+        doctorId: parsedVerifierId,
+        authorName: verifierName,
         title: record.title || 'CPPT - Catatan Perkembangan Pasien Terintegrasi',
         status: 'final',
         date: record.date,
@@ -693,10 +716,6 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                     readOnly
                     disabled
                   />
-                </Form.Item>
-
-                <Form.Item label="GCS (Terkumpul)" name="gcs" className="mb-0">
-                  <Input className="w-full" placeholder="-" readOnly disabled />
                 </Form.Item>
 
                 <Form.Item label="Kesadaran" name="consciousness" className="mb-0">

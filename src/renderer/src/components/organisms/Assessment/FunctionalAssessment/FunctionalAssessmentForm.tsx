@@ -19,6 +19,7 @@ import {
 import { PSYCHOLOGICAL_STATUS_SNOMED_MAP } from '@renderer/config/maps/observation-maps'
 import { PsychosocialSection } from '../PhysicalSection/PsychosocialSection'
 import dayjs from 'dayjs'
+import { handleFormValidationFailed, showApiError } from '@renderer/utils/form-feedback'
 
 interface FunctionalAssessmentFormProps {
   encounterId: string
@@ -194,7 +195,7 @@ export const FunctionalAssessmentForm = ({
           message.success('Data pemeriksaan fungsional berhasil disimpan')
         },
         onError: (err: Error) => {
-          message.error(`Gagal menyimpan: ${err.message}`)
+          showApiError(message, err, 'Gagal menyimpan data pemeriksaan fungsional')
         }
       }
     )
@@ -208,7 +209,13 @@ export const FunctionalAssessmentForm = ({
       initialValues={{
         assessment_date: dayjs()
       }}
-      onFinishFailed={() => message.error('Mohon lengkapi semua field yang wajib diisi')}
+      onFinishFailed={(errorInfo) =>
+        handleFormValidationFailed(message, errorInfo, {
+          form,
+          fallbackMessage: 'Mohon lengkapi field yang wajib diisi.'
+        })
+      }
+      scrollToFirstError={{ behavior: 'smooth', block: 'center' }}
       className="flex! flex-col! gap-4!"
     >
       {!hideHeader && (

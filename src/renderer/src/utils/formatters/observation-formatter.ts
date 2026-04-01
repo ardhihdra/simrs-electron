@@ -146,7 +146,11 @@ export interface FormattedPhysicalExamination {
 export const formatPhysicalExamination = (
     observations: ObservationData[]
 ): FormattedPhysicalExamination => ({
-    consciousness: extractStringValue(getObservationByCode(observations, 'consciousness')),
+    // Kesadaran pada asesmen keperawatan disimpan sebagai LOINC 67775-7.
+    // Tetap fallback ke kode lama untuk kompatibilitas data historis.
+    consciousness:
+        extractStringValue(getObservationByCode(observations, '67775-7')) ||
+        extractStringValue(getObservationByCode(observations, 'consciousness')),
     generalCondition: extractStringValue(getObservationByCode(observations, 'general-condition')),
     additionalNotes: extractStringValue(getObservationByCode(observations, 'physical-exam-notes'))
 })

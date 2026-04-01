@@ -67,6 +67,19 @@ interface ConsumableItem {
   sellingPrice?: number | null
 }
 
+interface UnitListResponse {
+  success: boolean
+  result?: UnitListItem[]
+  message?: string
+  error?: string
+}
+
+interface UnitListItem {
+  id: number
+  nama?: string | null
+  kode?: string | null
+}
+
 const kelasOptions = [
   { value: 'kelas_1', label: 'Kelas 1' },
   { value: 'kelas_2', label: 'Kelas 2' },
@@ -213,6 +226,22 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     staleTime: 5 * 60 * 1000
   })
 
+  const { data: unitSource, isLoading: isLoadingUnitList } = useQuery({
+    queryKey: ['unit', 'list', 'detail-tindakan-form'],
+    queryFn: async (): Promise<UnitListItem[]> => {
+      const fn = window.api?.query?.unit?.list as (() => Promise<UnitListResponse>) | undefined
+      if (!fn) throw new Error('API unit tidak tersedia')
+
+      const res = await fn()
+      if (!res.success) {
+        throw new Error(res.message || res.error || 'Gagal mengambil data unit')
+      }
+
+      return Array.isArray(res.result) ? res.result : []
+    },
+    staleTime: 5 * 60 * 1000
+  })
+
   const { data: listJenisKomponen = [] } = useMasterJenisKomponenList({
     isUntukMedis: true,
     items: 500
@@ -227,6 +256,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const currentTindakanList = Form.useWatch('tindakanList', modalForm)
   const paketEntriesWatcher = Form.useWatch('paketEntries', modalForm)
+  const paketBhpEntriesWatcher = Form.useWatch('paketBhpEntries', modalForm)
+  const bhpListWatcher = Form.useWatch('bhpList', modalForm)
   const assessmentDateWatcher = Form.useWatch('assessment_date', modalForm)
 
   const getDetailMasterTindakan = (detail: any) =>
@@ -263,6 +294,62 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       })),
     [consumableItems]
   )
+
+  const normalizeUnitCode = useCallback((value: unknown) => {
+    return String(value ?? '')
+      .trim()
+      .toUpperCase()
+  }, [])
+
+  const unitOptions = useMemo(() => {
+    const optionMap = new Map<string, string>()
+    const registerUnit = (rawCode: unknown, rawName?: unknown) => {
+      const code = normalizeUnitCode(rawCode)
+      if (!code || optionMap.has(code)) return
+
+      const unitName = typeof rawName === 'string' ? rawName.trim() : ''
+      optionMap.set(code, unitName ? `${code} - ${unitName}` : code)
+    }
+
+    ;(unitSource || []).forEach((unit) => registerUnit(unit?.kode, unit?.nama))
+    ;(consumableItems || []).forEach((item) => registerUnit(item?.kodeUnit))
+    ;(masterTindakanList || []).forEach((item) => registerUnit(item?.satuan))
+
+    ;(Array.isArray(currentTindakanList) ? currentTindakanList : []).forEach((item: any) =>
+      registerUnit(item?.satuan)
+    )
+    ;(Array.isArray(bhpListWatcher) ? bhpListWatcher : []).forEach((item: any) =>
+      registerUnit(item?.satuan)
+    )
+
+    ;(Array.isArray(paketEntriesWatcher) ? paketEntriesWatcher : []).forEach((entry: any) => {
+      ;(Array.isArray(entry?.tindakanList) ? entry.tindakanList : []).forEach((item: any) =>
+        registerUnit(item?.satuan)
+      )
+      ;(Array.isArray(entry?.bhpList) ? entry.bhpList : []).forEach((item: any) =>
+        registerUnit(item?.satuan)
+      )
+    })
+
+    ;(Array.isArray(paketBhpEntriesWatcher) ? paketBhpEntriesWatcher : []).forEach((entry: any) => {
+      ;(Array.isArray(entry?.bhpList) ? entry.bhpList : []).forEach((item: any) =>
+        registerUnit(item?.satuan)
+      )
+    })
+
+    return Array.from(optionMap.entries())
+      .sort(([codeA], [codeB]) => codeA.localeCompare(codeB))
+      .map(([value, label]) => ({ value, label }))
+  }, [
+    bhpListWatcher,
+    consumableItems,
+    currentTindakanList,
+    masterTindakanList,
+    normalizeUnitCode,
+    paketBhpEntriesWatcher,
+    paketEntriesWatcher,
+    unitSource
+  ])
 
   const roleByKomponenId = useMemo(
     () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),
@@ -1453,12 +1540,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   return (
     <div className="flex flex-col gap-4">
       <Card
-        title={
-          <Space>
-            <HistoryOutlined />
-            Detail Tindakan Medis
-          </Space>
-        }
+        title="Detail Tindakan Medis"
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenModal}>
             Catat Tindakan Baru
@@ -1538,10 +1620,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     token={token}
                     setSearchPaket={setSearchPaket}
                     isLoadingPaket={isLoadingPaket}
+                    isLoadingUnitList={isLoadingUnitList}
                     paketOptions={paketOptions}
                     handlePaketEntryChange={handlePaketEntryChange}
                     kelasOptions={kelasOptions}
                     tindakanOptions={tindakanOptions}
+                    unitOptions={unitOptions}
                     consumableItemOptions={consumableItemOptions}
                     isLoadingConsumableItems={isLoadingConsumableItems}
                     consumableItemMap={consumableItemMap}
@@ -1563,6 +1647,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     setSearchTindakan={setSearchTindakan}
                     isLoadingMaster={isLoadingMaster}
                     tindakanOptions={tindakanOptions}
+                    isLoadingUnitList={isLoadingUnitList}
+                    unitOptions={unitOptions}
                     isLoadingPerformers={isLoadingPerformers}
                     performers={performers}
                     roleLabelByCode={roleLabelByCode}
@@ -1577,6 +1663,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                   <PaketBhpTab
                     modalForm={modalForm}
                     isLoadingPaketBhp={isLoadingPaketBhp}
+                    isLoadingUnitList={isLoadingUnitList}
+                    unitOptions={unitOptions}
                     paketBhpOptions={paketBhpList.map((p: any) => ({
                       value: p.id,
                       label: `[${p.kodePaketBhp}] ${p.namaPaketBhp}`
@@ -1596,6 +1684,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                 children: (
                   <BhpNonPaketTab
                     modalForm={modalForm}
+                    isLoadingUnitList={isLoadingUnitList}
+                    unitOptions={unitOptions}
                     isLoadingConsumableItems={isLoadingConsumableItems}
                     consumableItemOptions={consumableItemOptions}
                     consumableItemMap={consumableItemMap}

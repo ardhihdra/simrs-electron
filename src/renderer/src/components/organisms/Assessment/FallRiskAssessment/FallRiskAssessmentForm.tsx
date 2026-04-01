@@ -10,6 +10,7 @@ import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
+import { handleFormValidationFailed, showApiError } from '@renderer/utils/form-feedback'
 
 interface FallRiskAssessmentFormProps {
   encounterId: string
@@ -272,7 +273,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
     },
     onError: (err) => {
       console.error('Failed to save fall risk assessment:', err)
-      message.error(`Gagal menyimpan data: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      showApiError(message, err, 'Gagal menyimpan data asesmen risiko jatuh')
     }
   })
 
@@ -342,9 +343,13 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
       onFinish={(values) => {
         saveMutation.mutate(values)
       }}
-      onFinishFailed={() => {
-        message.error('Mohon lengkapi semua field yang wajib diisi')
-      }}
+      onFinishFailed={(errorInfo) =>
+        handleFormValidationFailed(message, errorInfo, {
+          form,
+          fallbackMessage: 'Mohon lengkapi field yang wajib diisi.'
+        })
+      }
+      scrollToFirstError={{ behavior: 'smooth', block: 'center' }}
     >
       <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 

@@ -67,7 +67,7 @@ import { CarePlanForm } from '@renderer/components/organisms/Assessment/Careplan
 import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
 import { PrognosisForm } from '@renderer/components/organisms/Assessment/Prognosis/PrognosisForm'
 import { FunctionalAssessmentForm } from '@renderer/components/organisms/Assessment/FunctionalAssessment/FunctionalAssessmentForm'
-import { Layout, Menu, theme, Input, Empty, Modal } from 'antd'
+import { App, Layout, Menu, theme, Input, Empty, Modal } from 'antd'
 import { useState, useMemo } from 'react'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
@@ -80,6 +80,7 @@ import { MedicalCertificateForm } from '@renderer/components/organisms/Assessmen
 import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
 import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
 import { UnifiedAssessmentTab } from '@renderer/components/organisms/Assessment/UnifiedAssessment/UnifiedAssessmentTab'
+import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
 
 interface InpatientWorkspaceProps {
   encounterId: string
@@ -99,7 +100,12 @@ export const DoctorInpatientWorkspace = ({
   const [searchText, setSearchText] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
+  const { message } = App.useApp()
   const { token } = theme.useToken()
+  const handleFormSubmitCapture = useMemo(
+    () => createFormValidationSubmitCapture(message),
+    [message]
+  )
 
   const items = useMemo(
     () => [
@@ -546,7 +552,9 @@ export const DoctorInpatientWorkspace = ({
           </div>
         </Sider>
         <Layout className="">
-          <Content className="p-6 overflow-y-auto h-full">{renderContent()}</Content>
+          <Content className="p-6 overflow-y-auto h-full" onSubmitCapture={handleFormSubmitCapture}>
+            {renderContent()}
+          </Content>
         </Layout>
       </Layout>
     </div>

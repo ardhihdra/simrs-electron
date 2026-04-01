@@ -13,6 +13,7 @@ import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
 import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
 import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
+import { showApiError } from '@renderer/utils/form-feedback'
 
 const DoctorWorkspace = () => {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -40,7 +41,7 @@ const DoctorWorkspace = () => {
         navigate('/dashboard/doctor')
       }
     } catch (error) {
-      message.error('Gagal memuat data medis pasien')
+      showApiError(message, error, 'Gagal memuat data medis pasien')
       console.error(error)
     } finally {
       setLoading(false)

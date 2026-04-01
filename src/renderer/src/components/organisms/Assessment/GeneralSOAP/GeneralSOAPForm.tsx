@@ -71,8 +71,10 @@ export const GeneralSOAPForm = ({
   )
 
   const selectedPerformerId = Form.useWatch('performerId', form)
-  const selectedPerformer = performersData?.find((p: any) => p.id === selectedPerformerId)
-  const currentRole = selectedPerformer?.role
+  const findPerformerById = (performerId: number | string | undefined | null) =>
+    performersData?.find((p: any) => String(p.id) === String(performerId))
+  const selectedPerformer = findPerformerById(selectedPerformerId)
+  const currentRole = selectedPerformer?.role || profile?.hakAksesId
 
   const handleSubmit = async (values: any) => {
     try {
@@ -246,14 +248,7 @@ export const GeneralSOAPForm = ({
       heartRate: vitalSigns.pulseRate,
       respRate: vitalSigns.respiratoryRate,
       temperature: vitalSigns.temperature,
-      consciousness: physicalExamination.consciousness,
-      gcs_e: summary.vitalSigns?.gcsEye,
-      gcs_v: summary.vitalSigns?.gcsVerbal,
-      gcs_m: summary.vitalSigns?.gcsMotor,
-      gcs:
-        (summary.vitalSigns?.gcsEye || 0) +
-          (summary.vitalSigns?.gcsVerbal || 0) +
-          (summary.vitalSigns?.gcsMotor || 0) || undefined
+      consciousness: physicalExamination.consciousness
     })
 
     const vitalsParts: string[] = []
@@ -266,16 +261,6 @@ export const GeneralSOAPForm = ({
     if (vitalSigns.pulseRate) vitalsParts.push(`N: ${vitalSigns.pulseRate} x/m`)
     if (vitalSigns.respiratoryRate) vitalsParts.push(`RR: ${vitalSigns.respiratoryRate} x/m`)
     if (vitalSigns.temperature) vitalsParts.push(`S: ${vitalSigns.temperature} °C`)
-
-    const findObs = (code: string) => observationData.find((o: any) => o.code === code)
-    const gcsEye = findObs('9267-5')?.valueQuantity?.value
-    const gcsVerbal = findObs('9270-9')?.valueQuantity?.value
-    const gcsMotor = findObs('9268-3')?.valueQuantity?.value
-
-    if (gcsEye || gcsVerbal || gcsMotor) {
-      const total = (gcsEye || 0) + (gcsVerbal || 0) + (gcsMotor || 0)
-      vitalsParts.push(`GCS: E${gcsEye || '-'}V${gcsVerbal || '-'}M${gcsMotor || '-'} (${total})`)
-    }
 
     if (physicalExamination.consciousness) {
       vitalsParts.push(`Kesadaran: ${physicalExamination.consciousness}`)
@@ -345,7 +330,43 @@ export const GeneralSOAPForm = ({
     try {
       if (record.status === 'final') return
 
-      const verifierId = selectedPerformerId || (record.authorId?.[0] ? Number(record.authorId[0]) : 1)
+      const professionalAttester = record.attesters?.find((a: any) => a.mode === 'professional')
+      const attesterReferenceId = professionalAttester?.partyReference
+        ? String(professionalAttester.partyReference).split('/')[1]
+        : undefined
+      const recordAuthorId = record.authorId?.[0]
+      const profilePerformer = profile?.id ? findPerformerById(profile.id) : undefined
+      const recordAuthorPerformer = recordAuthorId ? findPerformerById(recordAuthorId) : undefined
+      const attesterPerformer = attesterReferenceId ? findPerformerById(attesterReferenceId) : undefined
+
+      const selectedDoctor = selectedPerformer?.role === 'doctor' ? selectedPerformer : undefined
+      const profileDoctor = profilePerformer?.role === 'doctor' ? profilePerformer : undefined
+      const recordDoctor = recordAuthorPerformer?.role === 'doctor' ? recordAuthorPerformer : undefined
+      const attesterDoctor = attesterPerformer?.role === 'doctor' ? attesterPerformer : undefined
+
+      const verifierPerformer =
+        selectedDoctor ||
+        profileDoctor ||
+        recordDoctor ||
+        attesterDoctor ||
+        selectedPerformer ||
+        profilePerformer ||
+        recordAuthorPerformer ||
+        attesterPerformer
+      const verifierId = verifierPerformer?.id ?? profile?.id ?? recordAuthorId ?? attesterReferenceId
+      const verifierName =
+        verifierPerformer?.name ||
+        record.author?.namaLengkap ||
+        record.authorName ||
+        professionalAttester?.partyDisplay ||
+        profile?.username ||
+        'Dokter'
+
+      const parsedVerifierId = Number(verifierId)
+      if (!Number.isFinite(parsedVerifierId) || parsedVerifierId <= 0) {
+        message.error('Petugas verifikator tidak valid. Pilih petugas dokter terlebih dahulu.')
+        return
+      }
 
       const sections =
         record.sections && record.sections.length > 0
@@ -398,8 +419,8 @@ export const GeneralSOAPForm = ({
       await upsertMutation.mutateAsync({
         encounterId,
         patientId: patientData.patient.id,
-        doctorId: Number(verifierId),
-        authorName: selectedPerformer?.name || record.authorName,
+        doctorId: parsedVerifierId,
+        authorName: verifierName,
         id: record.id,
         status: 'final',
         title: record.title || 'SOAP Umum',
@@ -490,7 +511,6 @@ export const GeneralSOAPForm = ({
               <span className="font-bold text-gray-400 w-4">O:</span>
               <div className="flex-1">
                 {tags && <div className="mb-2">{tags}</div>}
-                <div className="whitespace-pre-wrap">{remainingText || '-'}</div>
               </div>
             </div>
             <div className="flex gap-2">
@@ -776,10 +796,6 @@ export const GeneralSOAPForm = ({
                     readOnly
                     disabled
                   />
-                </Form.Item>
-
-                <Form.Item label="GCS (Total)" name="gcs" className="mb-0">
-                  <Input className="w-full" placeholder="-" readOnly disabled />
                 </Form.Item>
 
                 <Form.Item label="Kesadaran" name="consciousness" className="mb-0">

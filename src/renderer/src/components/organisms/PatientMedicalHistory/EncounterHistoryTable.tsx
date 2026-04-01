@@ -9,8 +9,7 @@ import {
   Typography,
   theme,
   Modal,
-  Tag,
-  Descriptions
+  Tag
 } from 'antd'
 import {
   EyeOutlined,
@@ -49,6 +48,19 @@ function getTypeColor(type: string): string {
   if (type === 'AMB') return 'blue'
   if (type === 'IMP') return 'green'
   if (type === 'EMER') return 'red'
+  return 'default'
+}
+
+function getDiagnosticCategoryLabel(category: string | null | undefined): string {
+  const normalized = String(category || '').trim().toLowerCase()
+  if (normalized === 'laboratory' || normalized === 'lab') return 'Laboratory'
+  if (normalized === 'radiology' || normalized === 'imaging' || normalized === 'rad') return 'Radiology'
+  return ''
+}
+
+function getDiagnosticCategoryColor(label: string): string {
+  if (label === 'Laboratory') return 'blue'
+  if (label === 'Radiology') return 'geekblue'
   return 'default'
 }
 
@@ -146,6 +158,36 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       }
     },
     {
+      title: 'Jenis LAB',
+      key: 'diagnosticType',
+      width: 140,
+      render: (_: any, record: any) => {
+        const labels: string[] = Array.from(
+          new Set<string>(
+            (record.diagnosticOrders || [])
+              .map((order: any) =>
+                getDiagnosticCategoryLabel(order.category || order.categoryDisplay || order.categories?.[0]?.code)
+              )
+              .filter((label: string): label is string => Boolean(label))
+          )
+        )
+
+        if (labels.length === 0) {
+          return <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>-</span>
+        }
+
+        return (
+          <div className="flex flex-wrap gap-1">
+            {labels.map((label) => (
+              <Tag key={label} color={getDiagnosticCategoryColor(label)} bordered={false}>
+                {label}
+              </Tag>
+            ))}
+          </div>
+        )
+      }
+    },
+    {
       title: 'Diagnosis Utama',
       dataIndex: 'primaryDiagnosis',
       key: 'primaryDiagnosis',
@@ -178,20 +220,6 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       )
     },
     {
-      title: 'Lab/Obs',
-      key: 'observations',
-      width: 80,
-      align: 'center' as const,
-      render: (_: any, record: any) => {
-        const obsCount = record.clinicals?.observations?.length ?? 0
-        return obsCount > 0 ? (
-          <Tag color="cyan" bordered={false}>{obsCount}</Tag>
-        ) : (
-          <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>-</span>
-        )
-      }
-    },
-    {
       title: 'Aksi',
       key: 'action',
       width: 150,
@@ -222,7 +250,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
             type="text"
             icon={<ExperimentOutlined />}
             size="small"
-            title="Hasil Observasi / Lab"
+            title="Hasil Lab dan Radiologi"
             onClick={(e) => {
               e.stopPropagation()
               setSelectedRecord(record)
@@ -248,14 +276,27 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
   // Map real observation data for Lab modal
   const observationColumns = [
     { title: 'Pemeriksaan', dataIndex: 'display', key: 'display',
-      render: (_: any, row: any) => row.codeCoding?.display || row.observationCode || '-' },
+      render: (_: any, row: any) => {
+        const coding = Array.isArray(row.codeCoding) ? row.codeCoding[0] : row.codeCoding
+        return coding?.display || row.matchedOrderDisplay || row.observationCode || '-'
+      } },
     { title: 'Hasil', dataIndex: 'result', key: 'result',
       render: (_: any, row: any) => {
         const vq = row.valueQuantity
         if (vq && typeof vq === 'object') {
           return `${vq.value ?? ''} ${vq.unit ?? ''}`.trim()
         }
-        return row.valueString || '-'
+        if (row.valueString) return row.valueString
+        if (row.valueInteger !== undefined && row.valueInteger !== null) return String(row.valueInteger)
+        if (row.valueBoolean !== undefined && row.valueBoolean !== null) {
+          return row.valueBoolean ? 'Ya' : 'Tidak'
+        }
+        const concept = row.valueCodeableConcept
+        if (concept && typeof concept === 'object') {
+          const coding = Array.isArray(concept.coding) ? concept.coding[0] : undefined
+          return concept.text || coding?.display || coding?.code || '-'
+        }
+        return '-'
       }
     },
     { title: 'Tanggal', dataIndex: 'effectiveDateTime', key: 'effectiveDateTime',
@@ -332,7 +373,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
         open={labModalOpen}
         title={
           <div>
-            <div>Hasil Observasi / Laboratorium</div>
+            <div>Hasil Lab dan Radiologi</div>
             <div style={{ fontSize: 12, fontWeight: 400, color: token.colorTextSecondary }}>
               {selectedRecord?.date ? dayjs(selectedRecord.date).format('DD MMM YYYY, HH:mm') : ''}{' '}
               {selectedRecord?.serviceUnit ? `• ${selectedRecord.serviceUnit}` : ''}
@@ -344,11 +385,11 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
         width={640}
       >
         {(() => {
-          const obs: any[] = selectedRecord?.clinicals?.observations ?? []
+          const obs: any[] = selectedRecord?.diagnosticResults ?? []
           if (obs.length === 0) {
             return (
               <div style={{ color: token.colorTextSecondary, textAlign: 'center', padding: '24px 0' }}>
-                Tidak ada data observasi/laboratorium untuk kunjungan ini.
+                Tidak ada hasil Lab/Radiologi untuk kunjungan ini.
               </div>
             )
           }

@@ -262,8 +262,11 @@ export const schemas = {
                             serviceUnit: z.string(),
                             doctorName: z.string(),
                             type: z.string(),
+                            status: z.string().optional().nullable(),
                             primaryDiagnosis: z.string(),
                             soapSummary: z.string().optional().nullable(),
+                            diagnosticOrders: z.array(z.any()).optional().nullable(),
+                            diagnosticResults: z.array(z.any()).optional().nullable(),
                             clinicals: z
                                 .object({
                                     compositions: z.array(z.any()),

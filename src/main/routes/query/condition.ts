@@ -87,7 +87,6 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
         const res = await client.get(`/api/module/condition/${args.encounterId}`)
 
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
-        console.log(raw)
         if (!raw || typeof raw !== 'object') {
             return { success: false, error: 'Invalid response format' }
         }

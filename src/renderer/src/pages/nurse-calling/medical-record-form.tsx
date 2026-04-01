@@ -4,7 +4,6 @@ import type { MenuProps } from 'antd'
 import {
   MonitorOutlined,
   SolutionOutlined,
-  FormOutlined,
   MenuUnfoldOutlined,
   MenuFoldOutlined,
   MedicineBoxOutlined,
@@ -189,11 +188,6 @@ const MedicalRecordForm = () => {
         icon: <SolutionOutlined />,
         label: 'Asesmen Awal'
       },
-      {
-        key: 'general-soap',
-        icon: <FormOutlined />,
-        label: 'SOAP Umum'
-      },
       ...(patientData?.poli?.name?.includes('RAWAT_INAP') ||
       patientData?.poli?.code === 'RAWAT_INAP'
         ? rawatInapMenu
@@ -283,26 +277,25 @@ const MedicalRecordForm = () => {
         return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'initial-assessment':
         return (
-          <InitialAssessmentForm
-            encounterId={encounterId}
-            patientData={patientData as any}
-            mode="outpatient"
-            role="nurse"
-          />
+          <div className="flex flex-col">
+            <InitialAssessmentForm
+              encounterId={encounterId}
+              patientData={patientData as any}
+              mode="outpatient"
+              role="nurse"
+            />
+            <GeneralSOAPForm
+              encounterId={encounterId}
+              patientData={patientData}
+              showTTVSection={true}
+              allowedRoles={['nurse']}
+            />
+          </div>
         )
       case 'triage':
         return <TriageForm encounterId={encounterId} patientData={patientData as any} />
       case 'monitoring-ttv':
         return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
-      case 'general-soap':
-        return (
-          <GeneralSOAPForm
-            encounterId={encounterId}
-            patientData={patientData}
-            showTTVSection={true}
-            allowedRoles={['nurse']}
-          />
-        )
       case 'cppt':
         return <CPPTForm encounterId={encounterId} patientData={patientData} />
       default:

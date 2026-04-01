@@ -13,6 +13,7 @@ type PatientFormValues = Omit<
   'birthDate'
 > & {
   birthDate: Dayjs
+  religion?: string
   district?: string
   village?: string
   familyEmployee?: number | null
@@ -33,6 +34,7 @@ const BIODATA_FIELD_NAMES = new Set([
   'village',
   'postalCode',
   'country',
+  'religion',
   'maritalStatus',
   'familyEmployee',
   'relatedPerson'
@@ -97,6 +99,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
           PatientAttributes & {
             district: string;
             village: string;
+            religion?: string
             allowSendToSatusehat: boolean
             familyEmployee: number | null | undefined
           }
@@ -117,6 +120,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         village: item.village ?? undefined,
         postalCode: item.postalCode ?? undefined,
         country: item.country ?? undefined,
+        religion: item.religion ?? undefined,
         maritalStatus: item.maritalStatus ?? undefined,
         familyEmployee: item.familyEmployee ?? undefined,
         allowSendToSatusehat: item.allowSendToSatusehat ?? false
@@ -172,6 +176,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         village: values.village ?? '',
         postalCode: values.postalCode ?? '',
         country: values.country ?? '',
+        religion: values.religion ?? '',
         maritalStatus: values.maritalStatus ?? '',
         familyEmployee: values.familyEmployee ?? null,
         relatedPerson: values.relatedPerson ?? [],
@@ -235,6 +240,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         'province',
         'postalCode',
         'country',
+        'religion',
         'maritalStatus'
       ])
       setCurrentStep(currentStep + 1)
@@ -411,6 +417,21 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
             </Form.Item>
             <Form.Item label="Negara" name="country">
               <Input placeholder="Negara" />
+            </Form.Item>
+            <Form.Item
+              label="Agama"
+              name="religion"
+              rules={[{ required: true, message: 'Pilih agama' }]}
+            >
+              <Select placeholder="Pilih agama">
+                <Select.Option value="Islam">Islam</Select.Option>
+                <Select.Option value="Kristen">Kristen</Select.Option>
+                <Select.Option value="Katolik">Katolik</Select.Option>
+                <Select.Option value="Hindu">Hindu</Select.Option>
+                <Select.Option value="Buddha">Buddha</Select.Option>
+                <Select.Option value="Konghucu">Konghucu</Select.Option>
+                <Select.Option value="Lainnya">Lainnya</Select.Option>
+              </Select>
             </Form.Item>
             <Form.Item
               label="Status Pernikahan"

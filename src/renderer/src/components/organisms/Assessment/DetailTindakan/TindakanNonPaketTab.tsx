@@ -10,6 +10,8 @@ interface TindakanNonPaketTabProps {
   setSearchTindakan: (value: string) => void
   isLoadingMaster: boolean
   tindakanOptions: any[]
+  isLoadingUnitList: boolean
+  unitOptions: Array<{ value: string; label: string }>
   isLoadingPerformers: boolean
   performers: any[]
   roleLabelByCode: Map<string, string>
@@ -22,6 +24,8 @@ export default function TindakanNonPaketTab({
   setSearchTindakan,
   isLoadingMaster,
   tindakanOptions,
+  isLoadingUnitList,
+  unitOptions,
   isLoadingPerformers,
   performers,
   roleLabelByCode
@@ -134,7 +138,14 @@ export default function TindakanNonPaketTab({
                       label={<span className="font-bold">Satuan</span>}
                       style={{ marginBottom: 0 }}
                     >
-                      <Input placeholder="cth: kali" />
+                      <Select
+                        showSearch
+                        allowClear
+                        loading={isLoadingUnitList}
+                        options={unitOptions}
+                        placeholder="Pilih satuan..."
+                        optionFilterProp="label"
+                      />
                     </Form.Item>
                   </Col>
                 </Row>

@@ -5,6 +5,23 @@ import { FamilyMemberHistorySchema } from 'simrs-types'
 
 export const requireSession = true
 const FamilyMemberHistorySchemaCompat = FamilyMemberHistorySchema as unknown as z.ZodTypeAny
+const FamilyMemberRelationshipPayloadSchema = z.enum([
+    'ayah',
+    'ibu',
+    'kakak',
+    'adik',
+    'saudara',
+    'anak',
+    'kakek',
+    'nenek',
+    'paman',
+    'bibi',
+    'sepupu',
+    'suami',
+    'istri',
+    'lainnya',
+    'other'
+])
 
 const FamilyMemberHistoryConditionPayloadSchema = z.object({
     diagnosisCodeId: z.number(),
@@ -17,7 +34,7 @@ export const FamilyMemberHistorySchemaPayload = z.object({
     id: z.union([z.number(), z.string()]).optional().nullable(),
     patientId: z.string(),
     status: z.string(),
-    relationship: z.string(),
+    relationship: z.union([FamilyMemberRelationshipPayloadSchema, z.string()]),
     relationshipDisplay: z.string().optional().nullable(),
     sex: z.string().optional().nullable(),
     bornDate: z.union([z.string(), z.coerce.date()]).optional().nullable(),

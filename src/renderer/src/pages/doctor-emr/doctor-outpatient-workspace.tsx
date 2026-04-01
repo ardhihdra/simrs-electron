@@ -1,4 +1,4 @@
-import { Layout, Menu, theme, Input, Empty, Modal } from 'antd'
+import { App, Layout, Menu, theme, Input, Empty, Modal } from 'antd'
 import { useState, useMemo } from 'react'
 import {
   MonitorOutlined,
@@ -71,6 +71,7 @@ import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/De
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
 import { UnifiedAssessmentTab } from '@renderer/components/organisms/Assessment/UnifiedAssessment/UnifiedAssessmentTab'
+import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
 
 interface DoctorOutpatientWorkspaceProps {
   encounterId: string
@@ -90,7 +91,12 @@ export const DoctorOutpatientWorkspace = ({
   const [searchText, setSearchText] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
+  const { message } = App.useApp()
   const { token } = theme.useToken()
+  const handleFormSubmitCapture = useMemo(
+    () => createFormValidationSubmitCapture(message),
+    [message]
+  )
 
   const items = useMemo(
     () => [
@@ -406,7 +412,10 @@ export const DoctorOutpatientWorkspace = ({
           </div>
         </Layout.Sider>
         <Layout>
-          <Layout.Content className="p-6 overflow-y-auto h-full">
+          <Layout.Content
+            className="p-6 overflow-y-auto h-full"
+            onSubmitCapture={handleFormSubmitCapture}
+          >
             {(() => {
               switch (selectedKey) {
                 case 'unified-assessment':

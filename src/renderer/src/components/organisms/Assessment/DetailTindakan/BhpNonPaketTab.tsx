@@ -1,8 +1,10 @@
-import { Form, Card, Select, Input, InputNumber, Button, Row, Col, Tooltip, Spin } from 'antd'
+import { Form, Card, Select, InputNumber, Button, Row, Col, Tooltip, Spin } from 'antd'
 import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons'
 
 interface BhpNonPaketTabProps {
   modalForm: any
+  isLoadingUnitList: boolean
+  unitOptions: Array<{ value: string; label: string }>
   isLoadingConsumableItems: boolean
   consumableItemOptions: any[]
   consumableItemMap: Map<number, any>
@@ -10,6 +12,8 @@ interface BhpNonPaketTabProps {
 
 export default function BhpNonPaketTab({
   modalForm,
+  isLoadingUnitList,
+  unitOptions,
   isLoadingConsumableItems,
   consumableItemOptions,
   consumableItemMap
@@ -85,7 +89,14 @@ export default function BhpNonPaketTab({
                     label={name === 0 ? <span className="font-bold">Satuan</span> : undefined}
                     style={{ marginBottom: 0 }}
                   >
-                    <Input placeholder="Satuan" />
+                    <Select
+                      showSearch
+                      allowClear
+                      loading={isLoadingUnitList}
+                      options={unitOptions}
+                      placeholder="Pilih satuan..."
+                      optionFilterProp="label"
+                    />
                   </Form.Item>
                 </Col>
                 <Col span={2} className="text-center flex items-end pb-0.5 justify-center">
