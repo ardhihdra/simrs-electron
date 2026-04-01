@@ -1,4 +1,4 @@
-import { client } from '@renderer/utils/client'
+import { client, rpc } from '@renderer/utils/client'
 import { queryClient } from '@renderer/query-client'
 import { message } from 'antd'
 import { useEffect, useState } from 'react'
@@ -45,6 +45,46 @@ async function invalidateLaboratoryQueries() {
       }
     })
   ])
+}
+
+async function ensureEncounterInProgress(encounterId?: string) {
+  if (!encounterId) return
+
+  const encounterResult = await rpc.query.entity({
+    model: 'encounter',
+    path: String(encounterId),
+    method: 'get'
+  })
+
+  if (!encounterResult?.success) {
+    console.warn(
+      '[useLaboratoryActions] gagal membaca encounter saat sinkronisasi status:',
+      encounterResult?.message
+    )
+    return
+  }
+
+  const encounterStatus = String(encounterResult?.result?.status || '').toUpperCase()
+
+  if (encounterStatus !== 'PLANNED') {
+    return
+  }
+
+  const updateResult = await rpc.query.entity({
+    model: 'encounter',
+    path: String(encounterId),
+    method: 'put',
+    body: {
+      status: 'IN_PROGRESS'
+    }
+  })
+
+  if (!updateResult?.success) {
+    console.warn(
+      '[useLaboratoryActions] gagal mengubah status encounter ke IN_PROGRESS:',
+      updateResult?.message
+    )
+  }
 }
 
 interface UseLaboratoryActionsReturn {
@@ -227,6 +267,8 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
       } else {
         await recordRadiologyResultMutation.mutateAsync(data)
       }
+
+      await ensureEncounterInProgress(data.encounterId)
       await invalidateLaboratoryQueries()
       message.success('Hasil pemeriksaan berhasil disimpan')
       onSuccess?.()

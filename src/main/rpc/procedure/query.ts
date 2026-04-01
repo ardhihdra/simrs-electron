@@ -26,10 +26,21 @@ export const queryProcedure = {
 
       // Append query parameters
       if (params) {
-        const queryString =
-          typeof params === 'string' ? params : new URLSearchParams(params as any).toString()
-        if (queryString) {
-          fullPath += `?${queryString}`
+        if (typeof params === 'string') {
+          fullPath += `?${params}`
+        } else {
+          const usp = new URLSearchParams()
+          Object.entries(params).forEach(([key, value]) => {
+            if (Array.isArray(value)) {
+              value.forEach((v) => usp.append(key, String(v)))
+            } else {
+              usp.set(key, String(value))
+            }
+          })
+          const queryString = usp.toString()
+          if (queryString) {
+            fullPath += `?${queryString}`
+          }
         }
       }
 

@@ -15,6 +15,12 @@ import { t } from '../'
 
 // --- RPC ---
 
+const TerminologyUnitSearchSchema = z.object({
+  query: z.string().optional(),
+  loincCode: z.string().optional(),
+  domain: z.enum(['laboratory', 'radiology']).optional()
+})
+
 export const laboratoryManagementRpc = {
   // Orders
   createOrder: t
@@ -163,7 +169,24 @@ export const laboratoryManagementRpc = {
       if (input.domain) params.append('domain', input.domain)
       if (input.category) params.append('category', input.category)
 
-      const res = await client.get(`/api/module/lab-management/terminology/service-request-codes?${params.toString()}`)
+      const res = await client.get(
+        `/api/module/lab-management/terminology/service-request-codes?${params.toString()}`
+      )
+      return await res.json()
+    }),
+
+  getUnits: t
+    .input(TerminologyUnitSearchSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, input) => {
+      const params = new URLSearchParams()
+      if (input.query) params.append('query', input.query)
+      if (input.loincCode) params.append('loincCode', input.loincCode)
+      if (input.domain) params.append('domain', input.domain)
+
+      const res = await client.get(
+        `/api/module/lab-management/terminology/units?${params.toString()}`
+      )
       return await res.json()
     }),
 
