@@ -11,3 +11,7 @@ out
 .antigravity
 .agent
 ipc-channels.d.ts
+
+.yalc
+pnpm-workspace.yaml
+.pnpm-debug.log*

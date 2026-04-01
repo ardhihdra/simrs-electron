@@ -1,9 +1,13 @@
 import { is } from '@electron-toolkit/utils'
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { ExportCsvUrlInputSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 import icon from '../../../../resources/icon.png?asset'
+import { exportCsv } from '../../routes/query/export'
+
+// --- Schemas are now in simrs-types ---
 
 export const windowRpc = {
   create: t
@@ -15,13 +19,13 @@ export const windowRpc = {
       })
     )
     .output(z.boolean())
-    .mutation(async ({ }, input) => {
+    .mutation(async (_ctx, input) => {
       try {
         const newWindow = new BrowserWindow({
           width: 1280,
           height: 800,
           show: false,
-          title: input.title || 'MavoloStudio',
+          title: input.title || 'SIMRS',
           autoHideMenuBar: true,
           ...(process.platform === 'linux' ? { icon } : {}),
           webPreferences: {
@@ -85,5 +89,17 @@ export const windowRpc = {
         console.error('Error creating window:', error)
         return false
       }
+    }),
+  exportCsvUrl: t
+    .input(ExportCsvUrlInputSchema)
+    .output(
+      z.object({
+        success: z.boolean(),
+        url: z.string().optional(),
+        error: z.string().optional()
+      })
+    )
+    .query(async (ctx, input) => {
+      return exportCsv(ctx, input)
     })
 }

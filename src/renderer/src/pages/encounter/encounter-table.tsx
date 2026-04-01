@@ -8,7 +8,7 @@ import {
 import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
-import { useDeleteEncounter } from '@renderer/hooks/query/use-encounter'
+import { useDeleteEncounter, useEncounterList } from '@renderer/hooks/query/use-encounter'
 import { singkatPoli } from '@renderer/utils/singkatPoli'
 import { EncounterRow, EncounterTableRow } from '@shared/encounter'
 import { useQuery } from '@tanstack/react-query'
@@ -265,17 +265,7 @@ export function EncounterTable() {
     isRefetching: isEncounterRefetching,
     refetch: refetchEncounter,
     isError: isEncounterError
-  } = useQuery({
-    queryKey: ['encounter-list'],
-    queryFn: () => {
-      // Fetch pure encounter list
-      // Note: Adjust the API call if specific params needed
-      return window.api.query.encounter.list({
-        // items: '100', // Example
-        // depth: 1
-      })
-    }
-  })
+  } = useEncounterList()
 
   // Encounter Filters
   const [searchPatient, setSearchPatient] = useState('')

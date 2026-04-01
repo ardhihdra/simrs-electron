@@ -1,18 +1,9 @@
-import { ApiResponseSchema, BedStatusDomainSchema } from 'simrs-types'
+import { ApiResponseSchema, BedStatusDomainSchema, RoomTransferInputSchema, RoomAvailableInputSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
-export const RoomTransferInputSchema = z.object({
-  encounterId: z.string(),
-  newRoomCodeId: z.string(),
-  newBedCodeId: z.string(),
-  newClassOfCareCodeId: z.string(),
-  transferReason: z.string(),
-  currentAssignmentId: z.string().optional()
-})
+// --- Schemas are now in simrs-types ---
 export type RoomTransferInput = z.infer<typeof RoomTransferInputSchema>
-
-export const RoomAvailableInputSchema = z.object({ paginated: z.boolean().optional() })
 export type RoomAvailableInput = z.infer<typeof RoomAvailableInputSchema>
 
 export const roomRpc = {

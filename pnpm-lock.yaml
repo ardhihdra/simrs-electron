@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  simrs-types: link:../../shared
-
 importers:
 
   .:
@@ -66,8 +63,8 @@ importers:
         specifier: ^6.37.7
         version: 6.37.7(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       simrs-types:
-        specifier: link:../../shared
-        version: link:../../shared
+        specifier: git+https://git.asmuldev.web.id/asmuldev/shared.git#1.0.2
+        version: git+https://git.asmuldev.web.id/asmuldev/shared.git#9aad96a6fe7cbd4348e69f70156377b866edbdfd(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       sqlite3:
         specifier: ^5.1.7
         version: 5.1.7
@@ -3981,6 +3978,10 @@ packages:
   simple-update-notifier@2.0.0:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
     engines: {node: '>=10'}
+
+  simrs-types@git+https://git.asmuldev.web.id/asmuldev/shared.git#9aad96a6fe7cbd4348e69f70156377b866edbdfd:
+    resolution: {commit: 9aad96a6fe7cbd4348e69f70156377b866edbdfd, repo: https://git.asmuldev.web.id/asmuldev/shared.git, type: git}
+    version: 1.0.1
 
   slice-ansi@3.0.0:
     resolution: {integrity: sha512-pSyv7bSTC7ig9Dcgbw9AuRNUb5k5V6oDudjZoMBSr13qpLBG7tB+zgCkARjq7xIUgdz5P1Qe8u+rSGdouOOIyQ==}
@@ -9088,6 +9089,23 @@ snapshots:
   simple-update-notifier@2.0.0:
     dependencies:
       semver: 7.7.2
+
+  simrs-types@git+https://git.asmuldev.web.id/asmuldev/shared.git#9aad96a6fe7cbd4348e69f70156377b866edbdfd(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7):
+    dependencies:
+      sequelize: 6.37.7(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+      typescript: 5.9.3
+      zod: 4.3.5
+    transitivePeerDependencies:
+      - ibm_db
+      - mariadb
+      - mysql2
+      - oracledb
+      - pg
+      - pg-hstore
+      - snowflake-sdk
+      - sqlite3
+      - supports-color
+      - tedious
 
   slice-ansi@3.0.0:
     dependencies:

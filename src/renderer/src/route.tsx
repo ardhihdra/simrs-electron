@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useMemo } from 'react'
-import { Link, Outlet, Route, Routes, useLocation } from 'react-router'
+import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
 import { ModuleScopeGuard } from './services/ModuleScope/guard'
 import type { PageAccessEntry } from './services/ModuleScope/type'
 import { client } from './utils/client'
@@ -27,8 +27,15 @@ import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
-import DoctorScheduleForm from './pages/doctor-schedule/doctor-schedule-form'
-import DoctorScheduleTable from './pages/doctor-schedule/doctor-schedule-table'
+import DoctorSchedule from './pages/doctor-schedule/DoctorSchedule'
+import { DoctorScheduleLegacyEditRedirect } from './pages/doctor-schedule/components/editor/DoctorScheduleLegacyEditRedirect'
+import { DoctorScheduleEditorShell } from './pages/doctor-schedule/components/editor/DoctorScheduleEditorShell'
+import DoctorScheduleCreatePage from './pages/doctor-schedule/create/page'
+import DoctorScheduleExceptionsPage from './pages/doctor-schedule/exceptions/page'
+import DoctorScheduleInfoPage from './pages/doctor-schedule/info/page'
+import DoctorSchedulePage from './pages/doctor-schedule/page'
+import DoctorScheduleQuotasPage from './pages/doctor-schedule/quotas/page'
+import DoctorScheduleSessionsPage from './pages/doctor-schedule/sessions/page'
 import ReferralRequestPage from './pages/encounter-transition/referral-request'
 import EncounterTransitionPage from './pages/encounter-transition/transition'
 import Encounter from './pages/encounter/Encounter'
@@ -67,6 +74,12 @@ import MedicationDispenseTable from './pages/medication-dispense/medication-disp
 import MedicationRequestForm from './pages/medication-request/medication-request-form'
 import MedicationRequestTable from './pages/medication-request/medication-request-table'
 import ModuleSelection from './pages/module-selection/page'
+import NonMedicQueuePage from './pages/non-medic-queue'
+import NonMedicQueueBillingKioskPage from './pages/non-medic-queue/kiosk/billing'
+import NonMedicQueueCashierKioskPage from './pages/non-medic-queue/kiosk/cashier'
+import NonMedicQueuePharmacyKioskPage from './pages/non-medic-queue/kiosk/pharmacy'
+import NonMedicQueueServicePointWorkspacePage from './pages/non-medic-queue/service-point-workspace'
+import NonMedicQueueServicePointPage from './pages/non-medic-queue/service-points'
 import NurseCalling from './pages/nurse-calling/NurseCalling'
 import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
@@ -203,16 +216,19 @@ function MainRoute() {
           <Route path="pegawai-report" element={g('/dashboard/pegawai-report', <PegawaiReport />)} />
           <Route
             path="registration/doctor-schedule"
-            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleTable />)}
-          />
-          <Route
-            path="registration/doctor-schedule/create"
-            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleForm />)}
-          />
-          <Route
-            path="registration/doctor-schedule/edit/:id"
-            element={g('/dashboard/registration/doctor-schedule', <DoctorScheduleForm />)}
-          />
+            element={g('/dashboard/registration/doctor-schedule', <DoctorSchedule />)}
+          >
+            <Route index element={<DoctorSchedulePage />} />
+            <Route path="create" element={<DoctorScheduleCreatePage />} />
+            <Route path="edit/:id" element={<DoctorScheduleLegacyEditRedirect />} />
+            <Route path=":id" element={<DoctorScheduleEditorShell />}>
+              <Route index element={<Navigate to="info" replace />} />
+              <Route path="info" element={<DoctorScheduleInfoPage />} />
+              <Route path="sessions" element={<DoctorScheduleSessionsPage />} />
+              <Route path="quotas" element={<DoctorScheduleQuotasPage />} />
+              <Route path="exceptions" element={<DoctorScheduleExceptionsPage />} />
+            </Route>
+          </Route>
           <Route
             path="registration/doctor-leave"
             element={g('/dashboard/registration/doctor-leave', <DoctorLeave />)}
@@ -289,6 +305,68 @@ function MainRoute() {
           <Route path="kasir" element={g('/dashboard/kasir', <KasirPage />)}>
             <Route index element={<KasirEncounterTable />} />
             <Route path="invoice/:encounterId" element={<InvoiceDetailPage />} />
+          </Route>
+          <Route path="non-medic-queue" element={<Outlet />}>
+            <Route
+              path="kiosk/billing"
+              element={g('/dashboard/non-medic-queue/kiosk/billing', <NonMedicQueueBillingKioskPage />)}
+            />
+            <Route
+              path="kiosk/cashier"
+              element={g('/dashboard/non-medic-queue/kiosk/cashier', <NonMedicQueueCashierKioskPage />)}
+            />
+            <Route
+              path="kiosk/pharmacy"
+              element={g('/dashboard/non-medic-queue/kiosk/pharmacy', <NonMedicQueuePharmacyKioskPage />)}
+            />
+            <Route
+              path="billing"
+              element={g(
+                '/dashboard/non-medic-queue/billing',
+                <NonMedicQueuePage
+                  title="Antrian Billing"
+                  description="Kelola pemanggilan nomor untuk layanan billing non-medis."
+                  serviceTypeCode="BILLING"
+                />
+              )}
+            />
+            <Route
+              path="cashier"
+              element={g(
+                '/dashboard/non-medic-queue/cashier',
+                <NonMedicQueuePage
+                  title="Antrian Kasir"
+                  description="Kelola pemanggilan nomor untuk layanan kasir non-medis."
+                  serviceTypeCode="CASHIER"
+                />
+              )}
+            />
+            <Route
+              path="pharmacy"
+              element={g(
+                '/dashboard/non-medic-queue/pharmacy',
+                <NonMedicQueuePage
+                  title="Antrian Farmasi"
+                  description="Kelola alur panggil, layani, dan selesai untuk antrean farmasi."
+                  serviceTypeCode="PHARMACY"
+                />
+              )}
+            />
+            <Route
+              path="service-points"
+              element={g('/dashboard/non-medic-queue/service-points', <NonMedicQueueServicePointPage />)}
+            />
+            <Route
+              path="workspace"
+              element={g('/dashboard/non-medic-queue/workspace', <NonMedicQueueServicePointWorkspacePage />)}
+            />
+            <Route
+              path="service-points/:servicePointId/workspace"
+              element={g(
+                '/dashboard/non-medic-queue/service-points/:servicePointId/workspace',
+                <NonMedicQueueServicePointWorkspacePage />
+              )}
+            />
           </Route>
           <Route path="laboratory-management" element={g('/dashboard/laboratory-management', <Outlet />)}>
             <Route index element={<LaboratoryQueue />} />

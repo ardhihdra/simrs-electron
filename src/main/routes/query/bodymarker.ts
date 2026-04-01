@@ -21,6 +21,7 @@ export const schemas = {
         args: z.object({
             encounterId: z.string(),
             markers: z.array(z.any()),
+            doctorId: z.number().optional(),
             createdBy: z.number().optional()
         }),
         result: z.object({

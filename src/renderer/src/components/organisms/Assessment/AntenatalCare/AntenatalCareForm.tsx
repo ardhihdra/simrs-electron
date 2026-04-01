@@ -21,7 +21,7 @@ import { AssessmentHeader } from '@renderer/components/organisms/Assessment/Asse
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
   useBulkCreateObservation,
-  useObservationByEncounter
+  useQueryObservationByEncounter
 } from '@renderer/hooks/query/use-observation'
 import { PatientData } from '@renderer/types/doctor.types'
 import {
@@ -87,7 +87,7 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
 
   const patientId = patientData?.patient.id
   const bulkCreateObservation = useBulkCreateObservation()
-  const { data: response, isLoading: isLoadingObs } = useObservationByEncounter(encounterId)
+  const { data: response, isLoading: isLoadingObs } = useQueryObservationByEncounter(encounterId)
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'doctor',
@@ -95,17 +95,19 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
   ])
 
   useEffect(() => {
-    if (response?.success && response.result) {
-      if (response.result.length === 0) return
+    if (response?.success && response?.result?.all) {
+      if (response.result.all.length === 0) return
+      const result = response.result.all
 
-      const parsedData = parseAncObservations(response.result)
+      // FIX ME: add better typing for this
+      const parsedData = parseAncObservations(result)
       const firstObs = response.result[0]
 
       if (parsedData.obstetricHistory?.hpht) {
-        parsedData.obstetricHistory.hpht = dayjs(parsedData.obstetricHistory.hpht)
+        parsedData.obstetricHistory.hpht = dayjs(parsedData.obstetricHistory.hpht as unknown as string)
       }
       if (parsedData.obstetricHistory?.hpl) {
-        parsedData.obstetricHistory.hpl = dayjs(parsedData.obstetricHistory.hpl)
+        parsedData.obstetricHistory.hpl = dayjs(parsedData.obstetricHistory.hpl as unknown as string)
       }
 
       const performerId = firstObs?.performers?.[0]?.practitionerId

@@ -1,6 +1,6 @@
 import z from 'zod'
-import { MedicationDispenseStatus } from './enums/ResourceEnums'
 import { MedicationRequestWithIdSchema } from './medicationRequest'
+import { MedicationDispenseStatus } from 'simrs-types'
 
 const QuantitySchema = z.object({
   value: z.number().optional(),

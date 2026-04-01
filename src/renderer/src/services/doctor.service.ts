@@ -98,7 +98,7 @@ interface BackendConcept {
     name?: string
 }
 
-const mapEncounterStatus = (status: string): PatientStatus => {
+const mapEncounterStatus = (status?: string | null): PatientStatus => {
     switch (status) {
         case 'arrived': return PatientStatus.WAITING
         case 'triaged': return PatientStatus.WAITING

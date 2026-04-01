@@ -9,16 +9,17 @@ export const queryProcedure = {
         path: z.string().optional(),
         params: z.any().optional(),
         method: z.enum(['get', 'post', 'put', 'patch', 'delete']).default('get'),
-        body: z.any().optional()
+        body: z.any().optional(),
+        listAll: z.boolean().optional()
       })
     )
     .output(z.any())
     .query(async ({ client }, args) => {
-      const { model, path, params, method, body } = args
+      const { model, path, params, method, body, listAll } = args
 
       // Construct base URL path
-      let fullPath = `/api/${model}`
-      if (path) {
+      let fullPath = `/api/${model}${listAll ? '/listAll' : ''}`
+      if (path && !listAll) {
         const cleanPath = path.startsWith('/') ? path.slice(1) : path
         fullPath += `/${cleanPath}`
       }

@@ -40,7 +40,15 @@ export const schemas = {
         }),
         result: z.object({
             success: z.boolean(),
-            result: z.array(ObservationPropsSchema).optional(),
+            result: z.object({
+                all: z.array(ObservationPropsSchema),
+                grouped: z.object({
+                    vitalSigns: z.array(ObservationPropsSchema),
+                    anamnesis: z.array(ObservationPropsSchema),
+                    physicalExam: z.array(ObservationPropsSchema),
+                    other: z.array(ObservationPropsSchema),
+                }),
+            }).optional(),
             message: z.string().optional()
         })
     },

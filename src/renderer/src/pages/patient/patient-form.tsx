@@ -1,7 +1,8 @@
 import { GeneralConsentForm } from '@renderer/components/organisms/GeneralConsentForm'
+import { SelectKepegawaian } from '@renderer/components/molecules/SelectKepegawaian'
 import { client } from '@renderer/utils/client'
 
-import { Button, DatePicker, Form, Input, message, Select, Steps } from 'antd'
+import { App, Button, DatePicker, Form, Input, Select, Steps } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
@@ -14,8 +15,28 @@ type PatientFormValues = Omit<
   birthDate: Dayjs
   district?: string
   village?: string
+  familyEmployee?: number | null
   relatedPerson?: any[]
 }
+
+const BIODATA_FIELD_NAMES = new Set([
+  'nik',
+  'name',
+  'gender',
+  'birthDate',
+  'phone',
+  'email',
+  'address',
+  'province',
+  'city',
+  'district',
+  'village',
+  'postalCode',
+  'country',
+  'maritalStatus',
+  'familyEmployee',
+  'relatedPerson'
+])
 
 // Wrapper component to isolate re-renders caused by useWatch
 const GeneralConsentWrapper = ({
@@ -53,6 +74,7 @@ export interface PatientFormComponentProps {
 
 export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormComponentProps) {
   const [form] = Form.useForm<PatientFormValues>()
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
@@ -71,7 +93,13 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
   useEffect(() => {
     const item = detail.data?.result as
       | Partial<
-          PatientAttributes & { district: string; village: string; allowSendToSatusehat: boolean }
+          // FIX ME: update type to simrs-types PatientAttributes
+          PatientAttributes & {
+            district: string;
+            village: string;
+            allowSendToSatusehat: boolean
+            familyEmployee: number | null | undefined
+          }
         >
       | undefined
     if (item) {
@@ -90,6 +118,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         postalCode: item.postalCode ?? undefined,
         country: item.country ?? undefined,
         maritalStatus: item.maritalStatus ?? undefined,
+        familyEmployee: item.familyEmployee ?? undefined,
         allowSendToSatusehat: item.allowSendToSatusehat ?? false
       })
     }
@@ -144,6 +173,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         postalCode: values.postalCode ?? '',
         country: values.country ?? '',
         maritalStatus: values.maritalStatus ?? '',
+        familyEmployee: values.familyEmployee ?? null,
         relatedPerson: values.relatedPerson ?? [],
         insuranceProvider: null,
         insuranceNumber: null,
@@ -161,6 +191,30 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       }
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleValidationFailure = (errorInfo: any) => {
+    const errorFields = Array.isArray(errorInfo?.errorFields) ? errorInfo.errorFields : []
+    const firstFieldPath = errorFields[0]?.name
+    const hasBiodataError = errorFields.some((field: any) => {
+      const fieldName = Array.isArray(field?.name) ? field.name[0] : field?.name
+      return BIODATA_FIELD_NAMES.has(String(fieldName))
+    })
+
+    if (hasBiodataError) {
+      if (currentStep !== 0) {
+        setCurrentStep(0)
+      }
+      message.error('Lengkapi Biodata Pasien terlebih dahulu sebelum melanjutkan.')
+    } else {
+      message.error('Masih ada data yang belum lengkap. Periksa kembali form.')
+    }
+
+    if (firstFieldPath) {
+      setTimeout(() => {
+        form.scrollToField(firstFieldPath, { block: 'center' })
+      }, 0)
     }
   }
 
@@ -185,7 +239,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       ])
       setCurrentStep(currentStep + 1)
     } catch (error) {
-      console.error('Validation failed:', error)
+      handleValidationFailure(error)
     }
   }
 
@@ -237,7 +291,13 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         />
       </div>
 
-      <Form form={form} layout="vertical" onFinish={onFinish} className="w-full mt-6">
+      <Form
+        form={form}
+        layout="vertical"
+        onFinish={onFinish}
+        onFinishFailed={handleValidationFailure}
+        className="w-full mt-6"
+      >
         <div style={{ display: currentStep === 0 ? 'block' : 'none' }}>
           <div className="grid grid-cols-2 gap-4">
             <Form.Item label="NIK" name="nik" rules={[{ required: false, message: 'NIK wajib' }]}>
@@ -362,6 +422,17 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
                 <Select.Option value="married">Menikah</Select.Option>
                 <Select.Option value="divorced">Cerai</Select.Option>
               </Select>
+            </Form.Item>
+            <Form.Item
+              label="Kerabat Karyawan"
+              name="familyEmployee"
+              className="col-span-2"
+              extra="Opsional. Pilih jika pasien adalah kerabat dari pegawai."
+            >
+              <SelectKepegawaian
+                allowClear
+                placeholder="Pilih pegawai yang berelasi dengan pasien"
+              />
             </Form.Item>
 
             <div className="col-span-2 mt-2">

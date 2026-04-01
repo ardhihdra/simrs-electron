@@ -1,6 +1,7 @@
-import { LogoutOutlined } from '@ant-design/icons'
+import { LogoutOutlined, SearchOutlined } from '@ant-design/icons'
 import logoUrl from '@renderer/assets/logo.png'
-import { Button, Empty, Spin } from 'antd'
+import { Button, Empty, Input, Spin } from 'antd'
+import { useState } from 'react'
 
 export type InstallationOption = {
   allowedModules: string[]
@@ -8,7 +9,7 @@ export type InstallationOption = {
   configId: number
   key: string
   label: string
-  lokasiKerjaId: number
+  lokasiKerjaId?: number
 }
 
 type ModuleSelectionSidebarProps = {
@@ -114,6 +115,9 @@ export function InstallationSection({
   onSelect,
   selectedInstallationKey
 }: InstallationSectionProps) {
+  const [search, setSearch] = useState('')
+  const filtered = installations.filter((i) => i.label.toLowerCase().includes(search.toLowerCase()))
+
   return (
     <section className="rounded-3xl border border-slate-200 bg-white/80 p-5 shadow-sm">
       <div className="mb-4 flex items-start justify-between gap-4">
@@ -128,9 +132,18 @@ export function InstallationSection({
         </div>
       </div>
 
+      <Input
+        prefix={<SearchOutlined className="text-slate-400" />}
+        placeholder="Cari instalasi..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="mb-3"
+        allowClear
+      />
+
       <div className="max-h-56 overflow-y-auto pr-1">
         <div className="grid grid-cols-2 gap-3">
-        {installations.map((installation) => {
+        {filtered.map((installation) => {
           const isSelected = installation.key === selectedInstallationKey
 
           return (
@@ -145,15 +158,15 @@ export function InstallationSection({
                   : '!border-slate-200 !bg-slate-50/80 !text-slate-700 hover:!border-blue-300 hover:!bg-blue-50 hover:!text-blue-700'
               ].join(' ')}
             >
-              <div className="flex w-full items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold">{installation.label}</div>
+              <div className="flex w-full min-w-0 items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{installation.label}</div>
                   <div className={`mt-1 text-xs ${isSelected ? 'text-blue-50' : 'text-slate-500'}`}>
                     {installation.allowedModules.length} module tersedia
                   </div>
                 </div>
                 <div
-                  className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                     isSelected ? 'bg-white/20 text-white' : 'bg-white text-slate-500'
                   }`}
                 >

@@ -1,16 +1,8 @@
-import { ApiResponseSchema } from 'simrs-types'
+import { ApiResponseSchema, PatientListInputSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
-export const PatientListInputSchema = z.object({
-  page: z.number().optional(),
-  nik: z.string().optional(),
-  name: z.string().optional()
-})
-export type PatientListInput = z.infer<typeof PatientListInputSchema>
-
-export const PatientGetByIdInputSchema = z.object({ id: z.string() })
-export type PatientGetByIdInput = z.infer<typeof PatientGetByIdInputSchema>
+// --- Schemas are now in simrs-types ---
 
 export const patientRpc = {
   list: t
