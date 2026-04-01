@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined, CloudDownloadOutlined, UploadOutlined } from '@ant-design/icons'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
-import { client } from '@renderer/utils/client'
+import { client, rpc } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { getInterpretationFromReferenceRange } from '@renderer/utils/laboratory-interpretation'
 import { App, Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload } from 'antd'
@@ -99,10 +99,6 @@ export default function RecordResultPage() {
   // Add Radiology findings RPC
   const { mutateAsync: recordRadiology, isPending: isSavingFindings } =
     client.laboratoryManagement.recordRadiologyResult.useMutation({
-      onSuccess: () => {
-        message.success('Radiology result recorded successfully')
-        navigate('/dashboard/laboratory-management/requests')
-      },
       onError: (err) => {
         message.error(err.message)
       }
@@ -171,6 +167,35 @@ export default function RecordResultPage() {
     try {
       const values = await form.validateFields()
       const serviceRequestId = String(rec.requestId || rec.id || '')
+      const encounterId = String(rec.encounterId || '')
+
+      const ensureEncounterInProgress = async () => {
+        if (!encounterId) return
+
+        const encounterResponse = await rpc.query.entity({
+          model: 'encounter',
+          path: encounterId,
+          method: 'get'
+        })
+
+        if (!encounterResponse?.success) {
+          return
+        }
+
+        const currentStatus = String(encounterResponse?.result?.status || '').toUpperCase()
+        if (currentStatus !== 'PLANNED') {
+          return
+        }
+
+        await rpc.query.entity({
+          model: 'encounter',
+          path: encounterId,
+          method: 'put',
+          body: {
+            status: 'IN_PROGRESS'
+          }
+        })
+      }
 
       if (isRadiology) {
         // Radiology Logic
@@ -223,13 +248,17 @@ export default function RecordResultPage() {
         // Record the findings
         await recordRadiology({
           serviceRequestId,
-          encounterId: rec.encounterId as string,
+          encounterId,
           patientId: rec.patientId as string,
           modalityCode: values.modalityCode as string,
           started: new Date().toISOString(),
           findings: values.findings as string,
           studyInstanceUid: returnedStudyInstanceUid
         })
+
+        await ensureEncounterInProgress()
+        message.success('Radiology result recorded successfully')
+        navigate('/dashboard/laboratory-management/requests')
       } else {
         // Lab Logic
         const observationCodeId = String(rec.testCodeId || testObj?.code || '')
@@ -246,7 +275,7 @@ export default function RecordResultPage() {
 
         await handleRecordResult({
           serviceRequestId,
-          encounterId: rec.encounterId as string,
+          encounterId,
           patientId: rec.patientId as string,
           observations: [
             {
@@ -281,7 +310,6 @@ export default function RecordResultPage() {
       </div>
     )
   }
-  console.log('RECORD', record)
 
   return (
     <div className="p-4">

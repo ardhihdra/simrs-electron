@@ -149,7 +149,9 @@ export const schemas = {
     })
   },
   update: {
-    args: EncounterSchemaWithId,
+    args: EncounterSchemaWithId.partial().extend({
+      id: z.string()
+    }),
     result: z.object({
       success: z.boolean(),
       data: EncounterSchemaWithId.extend({
@@ -421,22 +423,40 @@ export const create = async (ctx: IpcContext, args: any) => {
 export const update = async (ctx: IpcContext, args: z.infer<typeof schemas.update.args>) => {
   try {
     const client = getClient(ctx)
-    const payload = {
-      patientId: args.patientId,
-      visitDate: args.visitDate instanceof Date ? args.visitDate : new Date(String(args.visitDate)),
-      serviceType: String(args.serviceType),
-      reason: args.reason ?? null,
-      note: args.note ?? null,
-      status: String(args.status),
-      period: args.period ?? {
-        start:
-          args.visitDate instanceof Date
-            ? args.visitDate.toISOString()
-            : String(args.visitDate) || undefined
-      },
-      subject: { reference: `Patient/${args.patientId}` },
-      updatedBy: args.updatedBy ?? null
+    const payload: Record<string, unknown> = {}
+
+    if (args.patientId !== undefined) {
+      payload.patientId = args.patientId
+      payload.subject = { reference: `Patient/${args.patientId}` }
     }
+
+    if (args.visitDate !== undefined) {
+      const visitDate =
+        args.visitDate instanceof Date ? args.visitDate : new Date(String(args.visitDate))
+      payload.visitDate = visitDate
+      payload.period = args.period ?? {
+        start: visitDate.toISOString()
+      }
+    } else if (args.period !== undefined) {
+      payload.period = args.period
+    }
+
+    if (args.serviceType !== undefined) payload.serviceType = String(args.serviceType)
+    if (args.reason !== undefined) payload.reason = args.reason ?? null
+    if (args.note !== undefined) payload.note = args.note ?? null
+    if (args.status !== undefined) payload.status = String(args.status)
+    if (args.startTime !== undefined) payload.startTime = args.startTime
+    if (args.endTime !== undefined) payload.endTime = args.endTime
+    if (args.encounterType !== undefined) payload.encounterType = args.encounterType
+    if (args.arrivalType !== undefined) payload.arrivalType = args.arrivalType
+    if (args.serviceUnitId !== undefined) payload.serviceUnitId = args.serviceUnitId
+    if (args.serviceUnitCodeId !== undefined) payload.serviceUnitCodeId = args.serviceUnitCodeId
+    if (args.queueTicketId !== undefined) payload.queueTicketId = args.queueTicketId
+    if (args.partOfId !== undefined) payload.partOfId = args.partOfId
+    if (args.dischargeDisposition !== undefined) {
+      payload.dischargeDisposition = args.dischargeDisposition
+    }
+    if (args.updatedBy !== undefined) payload.updatedBy = args.updatedBy ?? null
 
     const res = await client.put(`/api/encounter/${args.id}`, payload)
 

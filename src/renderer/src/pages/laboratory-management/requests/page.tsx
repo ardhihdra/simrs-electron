@@ -101,16 +101,22 @@ function normalizeList<T>(data: unknown): T[] {
 }
 
 function normalizeCategory(item: ServiceRequestEntity): string {
-  const text = (item.categories || [])
-    .map((c) => `${c.code || ''} ${c.display || ''}`.toLowerCase())
-    .join(' ')
-
-  if (text.includes('radiology') || text.includes('imaging') || text.includes('rad')) {
+  const categoryCodes = (item.categories || []).map((c) => String(c.code || '').toUpperCase())
+  if (categoryCodes.some((code) => code === 'LABORATORY' || code === 'LAB')) {
+    return 'LABORATORY'
+  }
+  if (categoryCodes.some((code) => code === 'RADIOLOGY' || code === 'RAD')) {
     return 'RADIOLOGY'
   }
 
-  if (text.includes('laboratory') || text.includes('lab')) {
+  const displayText = (item.categories || [])
+    .map((c) => String(c.display || '').toLowerCase())
+    .join(' ')
+  if (displayText.includes('laboratory') || displayText.includes('lab')) {
     return 'LABORATORY'
+  }
+  if (displayText.includes('radiology')) {
+    return 'RADIOLOGY'
   }
 
   return 'UNKNOWN'
@@ -382,14 +388,14 @@ export default function LaboratoryRequests() {
   }
 
   const patientColumns: ColumnsType<PatientGroupRow> = [
-    {
-      title: 'No. Antrian',
-      dataIndex: 'queueNumber',
-      key: 'queueNumber',
-      render: (queueNumber: string | undefined) => (
-        <div className="font-bold">{queueNumber || '-'}</div>
-      )
-    },
+    // {
+    //   title: 'No. Antrian',
+    //   dataIndex: 'queueNumber',
+    //   key: 'queueNumber',
+    //   render: (queueNumber: string | undefined) => (
+    //     <div className="font-bold">{queueNumber || '-'}</div>
+    //   )
+    // },
     {
       title: 'Pasien',
       dataIndex: 'patient',
@@ -472,6 +478,8 @@ export default function LaboratoryRequests() {
       status: values.status
     })
   }
+
+  console.log(patientGroups)
 
   return (
     <div className="p-4">

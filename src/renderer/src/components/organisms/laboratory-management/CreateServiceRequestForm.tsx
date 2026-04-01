@@ -2,9 +2,10 @@ import { SearchOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
 import { Card, Checkbox, Empty, Form, Input, Select, Tag } from 'antd'
 import type { FormInstance } from 'antd'
+import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
 
-type ServiceRequestCategoryValue = 'laboratory' | 'imaging'
+type ServiceRequestCategoryValue = 'laboratory' | 'radiology'
 
 interface MasterServiceRequestCodeItem {
   id: number
@@ -24,11 +25,12 @@ interface SelectedServiceRequestCodeValue {
 function mapServiceRequestCategoryToTerminologyDomain(
   category?: ServiceRequestCategoryValue
 ): 'laboratory' | 'radiology' {
-  return category === 'imaging' ? 'radiology' : 'laboratory'
+  return category === 'radiology' ? 'radiology' : 'laboratory'
 }
 
 interface Props {
   form: FormInstance
+  extraFields?: () => ReactElement | null
 }
 
 interface ServiceRequestCodeSelectorProps {
@@ -184,7 +186,7 @@ function ServiceRequestCodeSelector({
   )
 }
 
-export default function CreateServiceRequestForm({ form }: Props) {
+export default function CreateServiceRequestForm({ form, extraFields }: Props) {
   const selectedCategory = Form.useWatch('category', form) as
     | ServiceRequestCategoryValue
     | undefined
@@ -206,7 +208,7 @@ export default function CreateServiceRequestForm({ form }: Props) {
         <Select
           options={[
             { value: 'laboratory', label: 'Laboratory' },
-            { value: 'imaging', label: 'Imaging (Radiology)' }
+            { value: 'radiology', label: 'Radiology' }
           ]}
         />
       </Form.Item>
@@ -251,6 +253,8 @@ export default function CreateServiceRequestForm({ form }: Props) {
       <Form.Item name="patientInstruction" label="Instruksi Pasien (opsional)">
         <Input.TextArea rows={3} placeholder="Tambahkan instruksi bila diperlukan" />
       </Form.Item>
+
+      {extraFields ? <>{extraFields()}</> : null}
     </Form>
   )
 }

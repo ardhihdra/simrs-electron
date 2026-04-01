@@ -9,6 +9,7 @@ import GenericTable from '@renderer/components/organisms/GenericTable'
 import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
 import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
 import { TableHeader } from '@renderer/components/TableHeader'
+import { useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { useCreateServiceRequest } from '@renderer/hooks/query/use-service-request'
 import { client } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
@@ -35,6 +36,9 @@ interface EncounterRow {
       name?: string
     }
   }
+  poli?: {
+    name?: string
+  }
   serviceUnitName?: string
   category?: string
   status?: string
@@ -56,8 +60,21 @@ function normalizeList<T>(data: unknown): T[] {
   )
 }
 
-function mapEncounterCategoryToServiceRequest(category?: string): 'laboratory' | 'imaging' {
-  return category === 'RADIOLOGY' ? 'imaging' : 'laboratory'
+function mapEncounterCategoryToServiceRequest(category?: string): 'laboratory' | 'radiology' {
+  return category === 'RADIOLOGY' ? 'radiology' : 'laboratory'
+}
+
+function normalizeEncounterStatus(status?: string): EncounterStatusValue | undefined {
+  const normalized = String(status || '').toUpperCase()
+  if (
+    normalized === 'PLANNED' ||
+    normalized === 'IN_PROGRESS' ||
+    normalized === 'FINISHED' ||
+    normalized === 'CANCELLED'
+  ) {
+    return normalized
+  }
+  return undefined
 }
 
 function renderEncounterStatusTag(status?: string) {
@@ -111,10 +128,12 @@ export default function LaboratoryQueue() {
   const [isServiceRequestModalOpen, setIsServiceRequestModalOpen] = useState(false)
   const [selectedEncounter, setSelectedEncounter] = useState<EncounterRow | null>(null)
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false)
+  const [isServingEncounter, setIsServingEncounter] = useState(false)
   const [queueCategory, setQueueCategory] = useState<QueueCategoryFilter>('LABORATORY')
   const [statusForm] = Form.useForm()
   const [serviceRequestForm] = Form.useForm()
 
+  const updateEncounter = useUpdateEncounter()
   const { createServiceRequest, isSubmitting: isSubmittingServiceRequest } =
     useCreateServiceRequest({
       encounterId: String(selectedEncounter?.id ?? ''),
@@ -178,27 +197,21 @@ export default function LaboratoryQueue() {
       }
     },
     {
+      title: 'Poli Asal',
+      key: 'poli',
+      render: (_, record) => <span>{record.poli?.name || record.queueTicket?.poli?.name || '-'}</span>
+    },
+    {
       title: 'Waktu Mulai',
       dataIndex: 'startTime',
       key: 'startTime',
       render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
     },
     // {
-    //   title: 'Unit Asal',
-    //   key: 'unit',
-    //   render: (_, record) =>
-    //     record.queueTicket?.serviceUnit?.display || record.serviceUnitName || '-'
+    //   title: 'Service Request',
+    //   key: 'serviceRequestId',
+    //   render: (_, record) => (record.serviceRequestId ? `SR#${record.serviceRequestId}` : '-')
     // },
-    // {
-    //   title: 'Poli Asal',
-    //   key: 'poli',
-    //   render: (_, record) => record.queueTicket?.poli?.name || '-'
-    // },
-    {
-      title: 'Service Request',
-      key: 'serviceRequestId',
-      render: (_, record) => (record.serviceRequestId ? `SR#${record.serviceRequestId}` : '-')
-    },
     {
       title: 'Status',
       dataIndex: 'status',
@@ -256,6 +269,91 @@ export default function LaboratoryQueue() {
     setIsServiceRequestModalOpen(true)
   }
 
+  const updateEncounterStatus = async (
+    encounterId: string,
+    status: EncounterStatusValue,
+    extra: Record<string, unknown> = {}
+  ) => {
+    const result = await updateEncounter.mutateAsync({
+      id: encounterId,
+      status,
+      ...extra
+    } as any)
+
+    if (result?.success === false) {
+      throw new Error(result?.error || `Gagal mengubah status encounter ke ${status}`)
+    }
+  }
+
+  const handleServeEncounter = async (record: EncounterRow) => {
+    if (!record.id) return
+
+    const currentStatus = normalizeEncounterStatus(record.status)
+    if (currentStatus === 'IN_PROGRESS') {
+      message.info('Encounter sudah dalam status IN_PROGRESS')
+      return
+    }
+
+    if (currentStatus === 'FINISHED' || currentStatus === 'CANCELLED') {
+      message.warning('Encounter dengan status FINISHED/CANCELLED tidak dapat dilayani')
+      return
+    }
+
+    try {
+      setIsServingEncounter(true)
+      const payload: Record<string, unknown> = {}
+
+      if (!record.startTime) {
+        payload.startTime = dayjs().toISOString()
+      }
+
+      await updateEncounterStatus(String(record.id), 'IN_PROGRESS', payload)
+
+      message.success('Encounter berhasil dilayani (IN_PROGRESS)')
+      await refetch()
+    } catch (error: any) {
+      message.error(error?.message || 'Gagal melayani encounter')
+    } finally {
+      setIsServingEncounter(false)
+    }
+  }
+
+  const handleFinishEncounter = async (record: EncounterRow) => {
+    if (!record.id) return
+
+    const currentStatus = normalizeEncounterStatus(record.status)
+    if (currentStatus === 'FINISHED') {
+      message.info('Encounter sudah berstatus FINISHED')
+      return
+    }
+
+    if (currentStatus === 'CANCELLED') {
+      message.warning('Encounter dengan status CANCELLED tidak dapat diselesaikan')
+      return
+    }
+
+    try {
+      setIsServingEncounter(true)
+      const now = dayjs().toISOString()
+      const payload: Record<string, unknown> = {
+        endTime: record.endTime || now
+      }
+
+      if (!record.startTime) {
+        payload.startTime = now
+      }
+
+      await updateEncounterStatus(String(record.id), 'FINISHED', payload)
+
+      message.success('Encounter berhasil diselesaikan (FINISHED)')
+      await refetch()
+    } catch (error: any) {
+      message.error(error?.message || 'Gagal menyelesaikan encounter')
+    } finally {
+      setIsServingEncounter(false)
+    }
+  }
+
   const submitEncounterStatus = async () => {
     if (!selectedEncounter?.id) return
 
@@ -275,17 +373,7 @@ export default function LaboratoryQueue() {
         payload.endTime = dayjs().toISOString()
       }
 
-      const result = await client.query.entity.useQuery({
-        model: 'encounter',
-        path: String(selectedEncounter.id),
-        method: 'put',
-        body: payload
-      })
-
-      if (!result?.isSuccess) {
-        console.error(result)
-        throw new Error('Gagal mengubah status encounter')
-      }
+      await updateEncounterStatus(String(selectedEncounter.id), values.status as EncounterStatusValue, payload)
 
       message.success('Status encounter berhasil diperbarui')
       closeStatusModal()
@@ -376,9 +464,28 @@ export default function LaboratoryQueue() {
           columns={columns}
           dataSource={filteredData}
           rowKey="id"
-          loading={isLoading || isRefetching}
+          loading={isLoading || isRefetching || isServingEncounter}
           action={{
             items: (record) => [
+              {
+                label: 'Layani',
+                onClick: () => handleServeEncounter(record),
+                disabled: normalizeEncounterStatus(record.status) !== 'PLANNED'
+              },
+              {
+                label: 'Selesai',
+                danger: true,
+                confirm: {
+                  title: 'Selesaikan encounter ini?',
+                  description: 'Status encounter akan diubah menjadi FINISHED.',
+                  okText: 'Ya, Selesai',
+                  cancelText: 'Batal'
+                },
+                onClick: () => handleFinishEncounter(record),
+                disabled: !['PLANNED', 'IN_PROGRESS'].includes(
+                  String(normalizeEncounterStatus(record.status) || '')
+                )
+              },
               {
                 label: 'Ubah Status',
                 onClick: () => handleOpenStatusModal(record)
@@ -395,7 +502,7 @@ export default function LaboratoryQueue() {
       <CreateAncillaryModal open={isModalOpen} onClose={handleCloseModal} />
 
       <Modal
-        title={`Ubah Status Encounter${selectedEncounter?.id ? ` - ${selectedEncounter.id}` : ''}`}
+        title={`Ubah Status Encounter`}
         open={isStatusModalOpen}
         onCancel={closeStatusModal}
         footer={[
