@@ -18,8 +18,8 @@ export interface ItemAttributes {
     name?: string | null
     categoryType?: string | null
   } | null
-  isObatKeras?: boolean | null
-  bpjs?: boolean | null
+  itemCategoryCode?: string | null
+  itemGroupCode?: string | null
   fpktl?: boolean | null
   prb?: boolean | null
   oen?: boolean | null
@@ -36,8 +36,8 @@ export interface ItemOption {
   unitCode: string
   categoryType: string
   // Extend with all flags from attributes
-  isObatKeras?: boolean | null
-  bpjs?: boolean | null
+  itemCategoryCode?: string | null
+  itemGroupCode?: string | null
   fpktl?: boolean | null
   prb?: boolean | null
   oen?: boolean | null
@@ -86,8 +86,8 @@ export const ItemSelectorModal = ({
         (item.restriksi && item.restriksi.toLowerCase().includes(q))
 
       const matchCategory = !selectedCategory || item.categoryType === selectedCategory
-      const matchBpjs = selectedBpjs === undefined || item.bpjs === selectedBpjs
-      const matchKeras = selectedKeras === undefined || item.isObatKeras === selectedKeras
+      const matchBpjs = selectedBpjs === undefined || (item.itemCategoryCode === 'K06') === selectedBpjs
+      const matchKeras = selectedKeras === undefined || (item.itemGroupCode === 'G10') === selectedKeras
 
       return matchSearch && matchCategory && matchBpjs && matchKeras
     })
@@ -119,8 +119,8 @@ export const ItemSelectorModal = ({
       width: 200,
       render: (_: any, record: ItemOption) => (
         <Space wrap size={[4, 4]}>
-          {record.bpjs && <Tag color="cyan">BPJS</Tag>}
-          {record.isObatKeras && <Tag color="red">KERAS</Tag>}
+          {record.itemCategoryCode === 'K06' && <Tag color="cyan">BPJS</Tag>}
+          {record.itemGroupCode === 'G10' && <Tag color="red">KERAS</Tag>}
           {record.fpktl && <Tag color="purple">FPKTL</Tag>}
           {record.prb && <Tag color="orange">PRB</Tag>}
           {record.oen && <Tag color="magenta">OEN</Tag>}
