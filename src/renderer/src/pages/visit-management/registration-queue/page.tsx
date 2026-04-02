@@ -253,23 +253,24 @@ export default function RegistrationQueue({
                   onClick: () => handleTriagedCallToPoli(record)
                 })
               } else if (record.status === 'IN_PROGRESS') {
-                actions.push(
-                  {
-                    label: 'Pulangkan',
-                    icon: <CheckCircleOutlined />,
-                    onClick: () => setDischargeModal({ open: true, record })
-                  },
-                  {
-                    label: 'Rujuk',
-                    icon: <FileTextOutlined />,
-                    onClick: () => setReferralModal({ open: true, record })
-                  },
-                  {
-                    label: 'Batal',
-                    danger: true,
-                    onClick: () => handleCancelEncounter(record)
-                  }
-                )
+                actions
+                  .push
+                  // {
+                  //   label: 'Pulangkan',
+                  //   icon: <CheckCircleOutlined />,
+                  //   onClick: () => setDischargeModal({ open: true, record })
+                  // },
+                  // {
+                  //   label: 'Rujuk',
+                  //   icon: <FileTextOutlined />,
+                  //   onClick: () => setReferralModal({ open: true, record })
+                  // },
+                  // {
+                  //   label: 'Batal Kunjungan',
+                  //   danger: true,
+                  //   onClick: () => handleCancelEncounter(record)
+                  // }
+                  ()
               }
 
               if (record.paymentMethod === 'bpjs' && record.patientId && !record.sepId) {
