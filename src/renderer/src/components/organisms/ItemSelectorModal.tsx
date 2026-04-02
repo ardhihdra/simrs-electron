@@ -137,14 +137,14 @@ export const ItemSelectorModal = ({
               <span className="font-bold text-gray-600">RESTRIKSI:</span> {record.restriksi}
             </div>
           )}
-              {record.peresepanMaksimal && (
-                <div className="text-[11px] leading-tight">
-                  <span className="font-bold text-gray-600">MAX:</span>{' '}
-                  {typeof record.peresepanMaksimal === 'object' && record.peresepanMaksimal !== null
-                    ? `${record.peresepanMaksimal.qty || ''} ${record.peresepanMaksimal.unit || ''} / ${record.peresepanMaksimal.per || ''}`
-                    : String(record.peresepanMaksimal || '-')}
-                </div>
-              )}
+          {record.peresepanMaksimal && (
+            <div className="text-[11px] leading-tight">
+              <span className="font-bold text-gray-600">MAX:</span>{' '}
+              {typeof record.peresepanMaksimal === 'object' && record.peresepanMaksimal !== null
+                ? `${record.peresepanMaksimal.qty || ''} ${record.peresepanMaksimal.unit || ''} / ${record.peresepanMaksimal.per || ''}`
+                : String(record.peresepanMaksimal || '-')}
+            </div>
+          )}
         </Space>
       )
     },

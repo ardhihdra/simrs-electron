@@ -437,37 +437,39 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }, [consumableItems, stockByItemMap])
 
   const consumableItemOptions = useMemo((): ItemOption[] => {
-    return consumableItems.map((item) => {
-      const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
-      const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
-      const unitName = item.unit?.nama ?? unitCode
-      
-      const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
-      const name = item.nama ?? code
-      const displayName = name || code || String(item.id)
-      const label = unitName ? `${displayName} (${unitName})` : displayName
-      
-      const categoryId = typeof item.itemCategoryId === 'number' ? item.itemCategoryId : (item.category?.id ?? null)
-      const categoryType = item.category?.categoryType?.toLowerCase() || 'item'
+    return (consumableItems || [])
+      .filter((item) => item.itemGroupCode === 'G08') // Filter only BHP
+      .map((item) => {
+        const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
+        const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
+        const unitName = item.unit?.nama ?? unitCode
+        
+        const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+        const name = item.nama ?? code
+        const displayName = name || code || String(item.id)
+        const label = unitName ? `${displayName} (${unitName})` : displayName
+        
+        const categoryId = typeof item.itemCategoryId === 'number' ? item.itemCategoryId : (item.category?.id ?? null)
+        const categoryType = item.category?.categoryType?.toLowerCase() || 'item'
 
-      return {
-        value: item.id as number,
-        label,
-        unitCode,
-        categoryId,
-        categoryType,
-        itemCategoryCode: item.itemCategoryCode,
-        itemGroupCode: item.itemGroupCode,
-        fpktl: item.fpktl,
-        prb: item.prb,
-        oen: item.oen,
-        sediaanId: item.sediaanId,
-        peresepanMaksimal: item.peresepanMaksimal,
-        restriksi: item.restriksi,
-        kekuatan: item.kekuatan,
-        satuanId: item.satuanId
-      }
-    })
+        return {
+          value: item.id as number,
+          label,
+          unitCode,
+          categoryId,
+          categoryType,
+          itemCategoryCode: item.itemCategoryCode,
+          itemGroupCode: item.itemGroupCode,
+          fpktl: item.fpktl,
+          prb: item.prb,
+          oen: item.oen,
+          sediaanId: item.sediaanId,
+          peresepanMaksimal: item.peresepanMaksimal,
+          restriksi: item.restriksi,
+          kekuatan: item.kekuatan,
+          satuanId: item.satuanId
+        }
+      })
   }, [consumableItems])
 
   const roleByKomponenId = useMemo(
