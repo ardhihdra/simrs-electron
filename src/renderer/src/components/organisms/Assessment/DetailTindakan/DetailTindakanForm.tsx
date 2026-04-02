@@ -495,12 +495,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
           if (stock === undefined) {
             if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             } else if (allowedItemIdSet.size === 0) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             }
           } else if (stock <= 0) {
-            outOfStock.push(item.nama)
+            outOfStock.push(item.nama || '')
           }
         }
       }
@@ -514,7 +514,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
       return {
         value: p.id,
-        label: `${p.namaPaketBhp}${statusText}`,
+        label: `${p.namaPaketBhp || 'Paket Tanpa Nama'}${statusText}`,
         disabled: statusText !== ''
       }
     })
@@ -548,12 +548,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
           if (stock === undefined) {
             if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             } else if (allowedItemIdSet.size === 0) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             }
           } else if (stock <= 0) {
-            outOfStock.push(item.nama)
+            outOfStock.push(item.nama || '')
           }
         }
       }
