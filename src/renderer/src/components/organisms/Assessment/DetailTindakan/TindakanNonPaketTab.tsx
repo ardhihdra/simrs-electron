@@ -143,31 +143,17 @@ export default function TindakanNonPaketTab({
                   size="small"
                   className="mt-4!"
                   title={<span className="font-semibold">Tenaga Medis Pelaksana</span>}
-                  extra={
-                    <Form.List name={[field.name, 'petugasList']}>
-                      {(_, { add: addPetugas }) => (
-                        <Button
-                          type="dashed"
-                          size="small"
-                          icon={<PlusCircleOutlined />}
-                          onClick={() => addPetugas({ pegawaiId: undefined, roleTenaga: undefined })}
-                        >
-                          Tambah Petugas
-                        </Button>
-                      )}
-                    </Form.List>
-                  }
                 >
                   <Form.List name={[field.name, 'petugasList']}>
-                    {(petugasFields, { remove: removePetugas }) => (
+                    {(petugasFields) => (
                       <div className="flex flex-col gap-2">
                         {petugasFields.length === 0 && (
                           <div className="text-xs" style={{ color: token.colorTextTertiary }}>
-                            Belum ada tenaga medis. Klik &quot;Tambah Petugas&quot; untuk menambahkan.
+                            Role tenaga medis akan muncul otomatis setelah tindakan dan kelas dipilih.
                           </div>
                         )}
-                        {petugasFields.map(({ key: pKey, name: pName, ...pRestField }, index) => (
-                          <Row key={`${pKey}-${index}`} gutter={8} align="middle">
+                        {petugasFields.map(({ key: pKey, name: pName, ...pRestField }) => (
+                          <Row key={pKey} gutter={8} align="middle">
                             <Col span={12}>
                               <Form.Item
                                 {...pRestField}
@@ -204,32 +190,45 @@ export default function TindakanNonPaketTab({
                               <Form.Item
                                 {...pRestField}
                                 name={[pName, 'roleTenaga']}
+                                rules={[{ required: true, message: 'Role belum tersedia' }]}
+                                style={{ display: 'none' }}
+                              >
+                                <Input />
+                              </Form.Item>
+                              <Form.Item
                                 label={
                                   pName === 0 ? (
                                     <span className="font-bold">Role / Peran</span>
                                   ) : undefined
                                 }
-                                rules={[{ required: true, message: 'Pilih role' }]}
                                 style={{ marginBottom: 0 }}
                               >
-                                <Select placeholder="Pilih role...">
-                                  {Array.from(roleLabelByCode.entries()).map(([code, label]) => (
-                                    <Select.Option key={code} value={code}>
-                                      {label}
-                                    </Select.Option>
-                                  ))}
-                                </Select>
+                                <Input
+                                  disabled
+                                  value={
+                                    roleLabelByCode.get(
+                                      modalForm.getFieldValue([
+                                        'tindakanList',
+                                        field.name,
+                                        'petugasList',
+                                        pName,
+                                        'roleTenaga'
+                                      ]) || ''
+                                    ) ||
+                                    modalForm.getFieldValue([
+                                      'tindakanList',
+                                      field.name,
+                                      'petugasList',
+                                      pName,
+                                      'roleTenaga'
+                                    ]) ||
+                                    '-'
+                                  }
+                                />
                               </Form.Item>
                             </Col>
-                            <Col span={3} className="flex items-end pb-0.5">
+                            <Col span={3} className="flex items-end pb-0.5 justify-center">
                               {pName === 0 && <div className="h-[22px]" />}
-                              <Button
-                                type="text"
-                                danger
-                                size="small"
-                                icon={<MinusCircleOutlined />}
-                                onClick={() => removePetugas(pName)}
-                              />
                             </Col>
                           </Row>
                         ))}

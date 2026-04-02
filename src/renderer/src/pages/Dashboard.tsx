@@ -480,6 +480,7 @@ function Dashboard() {
     '/dashboard/rawat-inap',
     '/dashboard/poli',
     '/dashboard/kasir',
+	'/dashboard/non-medic-queue'
   ]
 	const isRegisteredPath = (path: string): boolean => {
 		if (path === DASHBOARD_ROOT_KEY) return true;

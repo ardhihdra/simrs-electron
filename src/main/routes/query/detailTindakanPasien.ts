@@ -139,6 +139,9 @@ export const byEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.
         const client = getClient(ctx)
         const url = `/api/detailtindakanpasien/read/${args.encounterId}`
         const res = await client.get(url)
+        if (res.status === 404) {
+            return { success: true, result: [] }
+        }
 
         const ListSchema = BackendListSchema(DetailTindakanPasienSchemaCompat)
         const result = await parseBackendResponse(res, ListSchema)

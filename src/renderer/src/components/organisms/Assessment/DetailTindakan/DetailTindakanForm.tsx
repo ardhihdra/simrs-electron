@@ -1755,12 +1755,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   return (
     <div className="flex flex-col gap-4">
       <Card
-        title={
-          <Space>
-            <HistoryOutlined />
-            Detail Tindakan Medis
-          </Space>
-        }
+        title={"Detail Tindakan Medis"}
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenModal}>
             Catat Tindakan Baru

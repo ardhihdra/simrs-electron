@@ -113,7 +113,15 @@ export const useDetailTindakanByEncounter = (encounterId: string | undefined) =>
             if (!res.success) throw new Error(res.error ?? 'Gagal mengambil detail tindakan')
             return (res.result ?? []) as unknown as DetailTindakanPasienItem[]
         },
-        enabled: !!encounterId
+        enabled: !!encounterId,
+        retry: (failureCount, error) => {
+            const msg =
+                error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
+            if (msg.includes('404') || msg.includes('tidak ditemukan') || msg.includes('not found')) {
+                return false
+            }
+            return failureCount < 1
+        }
     })
 }
 

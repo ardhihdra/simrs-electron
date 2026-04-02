@@ -39,6 +39,7 @@ import { getSyncSummary } from '@renderer/utils/satu-sehat'
 import { SatuSehatSyncStatus } from '@renderer/types/satu-sehat'
 import { SyncPopoverContent } from './components/sync-popover-content'
 import { useSearchParams } from 'react-router'
+import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
 
 const { RangePicker } = DatePicker
 
@@ -100,6 +101,12 @@ export const DoctorPatientList = () => {
   const [activeStatus, setActiveStatus] = useState<string>('all')
   const [isBulkSyncing, setIsBulkSyncing] = useState(false)
   const [syncingRows, setSyncingRows] = useState<Record<string, boolean>>({})
+  const [dischargeModal, setDischargeModal] = useState<{
+    open: boolean
+    record?: { patientName: string; encounterId: string }
+  }>({
+    open: false
+  })
   const isDoctorRole = session?.hakAksesId === 'doctor'
   const doctorTargetId =
     isDoctorRole && session?.kepegawaianId != null ? String(session.kepegawaianId) : undefined
@@ -244,6 +251,21 @@ export const DoctorPatientList = () => {
 
   const handleViewRecord = (record: PatientListTableData) => {
     window.open(`#/dashboard/doctor/${record.encounterId}`, '_blank')
+  }
+
+  const handleFinishEncounter = (record: PatientListTableData) => {
+    if (!record.encounterId) {
+      message.warning('Encounter tidak ditemukan.')
+      return
+    }
+
+    setDischargeModal({
+      open: true,
+      record: {
+        patientName: record.patient?.name || '-',
+        encounterId: record.encounterId
+      }
+    })
   }
 
   const handleBulkSyncSatusehat = async () => {
@@ -596,7 +618,7 @@ export const DoctorPatientList = () => {
     {
       title: 'Aksi',
       key: 'action',
-      width: 200,
+      width: 320,
       align: 'center',
       fixed: 'right',
       render: (_, record) => {
@@ -640,6 +662,18 @@ export const DoctorPatientList = () => {
             >
               Periksa
             </Button>
+            {record.status === 'IN_PROGRESS' && (
+              <Button
+                icon={<CheckCircleOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleFinishEncounter(record)
+                }}
+                size="small"
+              >
+                Selesaikan Pemeriksaan
+              </Button>
+            )}
             <Button
               ghost={isSynced}
               icon={
@@ -1014,6 +1048,13 @@ export const DoctorPatientList = () => {
           />
         </Spin>
       </Card>
+
+      <DischargeModal
+        open={dischargeModal.open}
+        record={dischargeModal.record}
+        onClose={() => setDischargeModal({ open: false, record: undefined })}
+        onSuccess={() => refetch()}
+      />
     </div>
   )
 }

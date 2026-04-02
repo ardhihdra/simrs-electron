@@ -21,9 +21,9 @@ import {
   SearchOutlined,
   TeamOutlined,
   ClockCircleOutlined,
-  CheckCircleOutlined,
   UserAddOutlined,
-  MedicineBoxOutlined
+  MedicineBoxOutlined,
+  SoundOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -65,12 +65,11 @@ type ScopedPoli = {
   lokasiKerjaId?: number
 }
 
-const NURSE_VISIBLE_STATUSES = ['TRIAGE', 'TRIAGED'] as const
+const NURSE_VISIBLE_STATUSES = ['TRIAGE'] as const
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
   all: { label: 'Semua', color: '', dotColor: '#6b7280' },
-  TRIAGE: { label: 'Pemeriksaan Awal', color: 'gold', dotColor: '#f59e0b' },
-  TRIAGED: { label: 'Siap Diperiksa', color: 'blue', dotColor: '#3b82f6' }
+  TRIAGE: { label: 'Pemeriksaan Awal', color: 'gold', dotColor: '#f59e0b' }
 }
 
 const normalizePoliCode = (value: string | number) => String(value).trim().toLowerCase()
@@ -88,7 +87,7 @@ const parseQueueNumber = (value?: number | string) => {
 }
 
 const PatientQueueTable = () => {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const { token } = theme.useToken()
   const navigate = useNavigate()
   const { poliCode: rawPoliCode } = useParams<{ poliCode?: string }>()
@@ -163,6 +162,7 @@ const PatientQueueTable = () => {
     queueDate: queueDate.format('YYYY-MM-DD'),
     status: [...NURSE_VISIBLE_STATUSES]
   })
+  const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
 
   useEffect(() => {
     const intervalId = window.setInterval(() => {
@@ -256,6 +256,33 @@ const PatientQueueTable = () => {
     window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
   }
 
+  const handleMoveToPoliQueue = (record: PatientQueueTableData) => {
+    if (!record.queueId) {
+      message.error('ID Antrian tidak ditemukan')
+      return
+    }
+
+    modal.confirm({
+      title: 'Selesai & Pindahkan ke Antrean Poli?',
+      content:
+        'Pemeriksaan awal sudah selesai? Status antrian pasien akan dipindah menjadi "Siap Diperiksa" oleh Dokter.',
+      okText: 'Ya, Lanjutkan',
+      cancelText: 'Batal',
+      onOk: async () => {
+        try {
+          await updateStatusMutation.mutateAsync({
+            queueId: record.queueId,
+            action: 'TRIAGE_DONE'
+          })
+          message.success('Status antrian berhasil diperbarui')
+          refetch()
+        } catch (error: any) {
+          message.error(error.message || 'Gagal memproses antrian')
+        }
+      }
+    })
+  }
+
   const getStatusTag = (status: string) => {
     const cfg = STATUS_CONFIG[status]
     if (!cfg) return <Tag>{status}</Tag>
@@ -267,7 +294,6 @@ const PatientQueueTable = () => {
   }
 
   const totalTriage = patientQueue.filter((p) => p.status === 'TRIAGE').length
-  const totalTriaged = patientQueue.filter((p) => p.status === 'TRIAGED').length
 
   const columns: ColumnsType<PatientQueueTableData> = [
     {
@@ -417,12 +443,12 @@ const PatientQueueTable = () => {
     {
       title: 'Aksi',
       key: 'action',
-      width: 220,
+      width: 280,
       align: 'center',
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          {(record.status === 'TRIAGED' || record.status === 'TRIAGE') && (
+          {record.status === 'TRIAGE' && (
             <Button
               type="primary"
               icon={<MedicineBoxOutlined />}
@@ -431,9 +457,25 @@ const PatientQueueTable = () => {
                 handleExaminePatient(record)
               }}
               size="small"
+              disabled={updateStatusMutation.isPending}
               style={{ background: '#f97316', borderColor: '#f97316' }}
             >
               Periksa
+            </Button>
+          )}
+          {record.status === 'TRIAGE' && (
+            <Button
+              type="primary"
+              icon={<SoundOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleMoveToPoliQueue(record)
+              }}
+              size="small"
+              loading={updateStatusMutation.isPending}
+              disabled={updateStatusMutation.isPending}
+            >
+              Pindahkan ke Poli
             </Button>
           )}
         </Space>
@@ -499,7 +541,7 @@ const PatientQueueTable = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div
               className="rounded-xl px-4 py-3 flex items-center gap-3"
               style={{
@@ -541,28 +583,6 @@ const PatientQueueTable = () => {
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
                   Pemeriksaan Awal
-                </div>
-              </div>
-            </div>
-            <div
-              className="rounded-xl px-4 py-3 flex items-center gap-3"
-              style={{
-                background: 'rgba(255,255,255,0.10)',
-                border: '1px solid rgba(255,255,255,0.15)'
-              }}
-            >
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: `${token.colorSuccess}33` }}
-              >
-                <CheckCircleOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-                  {totalTriaged}
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
-                  Siap Diperiksa
                 </div>
               </div>
             </div>
