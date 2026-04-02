@@ -1,4 +1,4 @@
-import { CheckCircleOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, FileTextOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
 import CallQueueModal from '@renderer/components/organisms/visit-management/CallQueueModal'
@@ -232,45 +232,46 @@ export default function RegistrationQueue({
                   type: 'primary',
                   onClick: () => setConfirmModal({ open: true, queue: record })
                 })
-              } else if (['RESERVED', 'REGISTERED'].includes(record.status)) {
-                actions.push({
-                  label: 'Panggil',
-                  icon: <SoundOutlined />,
-                  onClick: () => setCallConfirmModal({ open: true, record })
-                })
-              } else if (record.status === 'CALLED') {
-                actions.push({
-                  label: 'Konfirmasi Tujuan',
-                  icon: <CheckCircleOutlined />,
-                  type: 'primary',
-                  onClick: () => setCallModal({ open: true, record })
-                })
-              } else if (record.status === 'TRIAGED') {
-                actions.push({
-                  label: 'Panggil ke Poli',
-                  icon: <SoundOutlined />,
-                  type: 'primary',
-                  onClick: () => handleTriagedCallToPoli(record)
-                })
-              } else if (record.status === 'IN_PROGRESS') {
-                actions.push(
-                  {
-                    label: 'Pulangkan',
-                    icon: <CheckCircleOutlined />,
-                    onClick: () => setDischargeModal({ open: true, record })
-                  },
-                  {
-                    label: 'Rujuk',
-                    icon: <FileTextOutlined />,
-                    onClick: () => setReferralModal({ open: true, record })
-                  },
-                  {
-                    label: 'Batal',
-                    danger: true,
-                    onClick: () => handleCancelEncounter(record)
-                  }
-                )
               }
+              // } else if (['RESERVED', 'REGISTERED'].includes(record.status)) {
+              //   actions.push({
+              //     label: 'Panggil',
+              //     icon: <SoundOutlined />,
+              //     onClick: () => setCallConfirmModal({ open: true, record })
+              //   })
+              // } else if (record.status === 'CALLED') {
+              //   actions.push({
+              //     label: 'Konfirmasi Tujuan',
+              //     icon: <CheckCircleOutlined />,
+              //     type: 'primary',
+              //     onClick: () => setCallModal({ open: true, record })
+              //   })
+              // } else if (record.status === 'TRIAGED') {
+              //   actions.push({
+              //     label: 'Panggil ke Poli',
+              //     icon: <SoundOutlined />,
+              //     type: 'primary',
+              //     onClick: () => handleTriagedCallToPoli(record)
+              //   })
+              // } else if (record.status === 'IN_PROGRESS') {
+              //   actions.push(
+              //     {
+              //       label: 'Pulangkan',
+              //       icon: <CheckCircleOutlined />,
+              //       onClick: () => setDischargeModal({ open: true, record })
+              //     },
+              //     {
+              //       label: 'Rujuk',
+              //       icon: <FileTextOutlined />,
+              //       onClick: () => setReferralModal({ open: true, record })
+              //     },
+              //     {
+              //       label: 'Batal',
+              //       danger: true,
+              //       onClick: () => handleCancelEncounter(record)
+              //     }
+              //   )
+              // }
 
               if (record.paymentMethod === 'bpjs' && record.patientId && !record.sepId) {
                 actions.push({
