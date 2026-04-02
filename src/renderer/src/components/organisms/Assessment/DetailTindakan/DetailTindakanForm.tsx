@@ -269,7 +269,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         if (active?.kodeLokasiKerja) return String(active.kodeLokasiKerja).trim().toUpperCase()
         if (active?.lokasiKerja?.kode) return String(active.lokasiKerja.kode).trim().toUpperCase()
       }
-    } catch {}
+    } catch { /* empty */ }
     return 'GUDANG' // fallback
   }, [lokasiKerjaFromSession, myEmployeeData])
 
@@ -352,7 +352,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           if (key) map.set(key, Number(qty || 0))
         })
       }
-    } catch {}
+    } catch { /* empty */ }
     return map
   }, [fallbackBatchStocks])
 
@@ -371,7 +371,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         const idVal = Number(it.itemId ?? it.id)
         if (Number.isFinite(idVal) && idVal > 0) set.add(idVal)
       })
-    } catch {}
+    } catch { /* empty */ }
     return set
   }, [locationStockData, currentWorkLocation])
 

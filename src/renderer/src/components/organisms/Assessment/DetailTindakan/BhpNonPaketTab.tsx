@@ -4,8 +4,6 @@ import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons'
 
 interface BhpNonPaketTabProps {
   modalForm: any
-  isLoadingUnitList: boolean
-  unitOptions: Array<{ value: string; label: string }>
   isLoadingConsumableItems: boolean
   consumableItemOptions: any[]
   consumableItemMap: Map<number, any>
@@ -14,8 +12,6 @@ interface BhpNonPaketTabProps {
 
 export default function BhpNonPaketTab({
   modalForm,
-  isLoadingUnitList,
-  unitOptions,
   isLoadingConsumableItems,
   consumableItemOptions,
   consumableItemMap,
@@ -75,7 +71,7 @@ export default function BhpNonPaketTab({
                       onChange={(value) => {
                         try {
                           console.log('[BHP-NONPAKET] selected itemId:', value)
-                        } catch { }
+                        } catch { /* empty */ }
                         if (!value) {
                           modalForm.setFieldValue(['bhpList', name, 'satuan'], undefined)
                           return
@@ -86,7 +82,7 @@ export default function BhpNonPaketTab({
                           const stock = stockByItemMap.get(kode) || 0
                           console.log('[BHP-NONPAKET] selected item detail:', selectedItem)
                           console.log('[BHP-NONPAKET] selected item stock:', { kode, stock })
-                        } catch { }
+                        } catch { /* empty */ }
                         if (!selectedItem) return
 
                         const rules = selectedItem.buyPriceRules || []

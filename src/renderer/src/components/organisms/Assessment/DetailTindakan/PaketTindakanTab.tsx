@@ -8,12 +8,10 @@ interface PaketTindakanTabProps {
   token: any
   setSearchPaket: (value: string) => void
   isLoadingPaket: boolean
-  isLoadingUnitList: boolean
   paketOptions: any[]
   handlePaketEntryChange: (entryIndex: number, rawPaketId?: number) => void
   kelasOptions: Array<{ value: string; label: string }>
   tindakanOptions: any[]
-  unitOptions: Array<{ value: string; label: string }>
   consumableItemOptions: any[]
   isLoadingConsumableItems: boolean
   consumableItemMap: Map<number, any>
@@ -27,12 +25,10 @@ export default function PaketTindakanTab({
   token,
   setSearchPaket,
   isLoadingPaket,
-  isLoadingUnitList,
   paketOptions,
   handlePaketEntryChange,
   kelasOptions,
   tindakanOptions,
-  unitOptions,
   consumableItemOptions,
   isLoadingConsumableItems,
   consumableItemMap,
@@ -231,14 +227,7 @@ export default function PaketTindakanTab({
                                 }
                                 style={{ marginBottom: 0 }}
                               >
-                                <Select
-                                  showSearch
-                                  allowClear
-                                  loading={isLoadingUnitList}
-                                  options={unitOptions}
-                                  placeholder="Pilih satuan..."
-                                  optionFilterProp="label"
-                                />
+                                <Input placeholder="cth: kali" />
                               </Form.Item>
                             </Col>
                             <Col span={2} className="flex items-end pb-0.5 justify-center">
@@ -347,14 +336,7 @@ export default function PaketTindakanTab({
                                 name={[name, 'satuan']}
                                 style={{ marginBottom: 0 }}
                               >
-                                <Select
-                                  showSearch
-                                  allowClear
-                                  loading={isLoadingUnitList}
-                                  options={unitOptions}
-                                  placeholder="Pilih satuan..."
-                                  optionFilterProp="label"
-                                />
+                                <Input placeholder="Satuan" />
                               </Form.Item>
                             </Col>
                           </Row>

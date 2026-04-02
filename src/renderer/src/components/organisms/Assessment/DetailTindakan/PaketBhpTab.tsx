@@ -1,11 +1,9 @@
-import { Form, Card, Select, InputNumber, Button, Row, Col, Spin, Collapse } from 'antd'
+import { Form, Card, Select, Input, InputNumber, Button, Row, Col, Spin, Collapse } from 'antd'
 import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons'
 
 interface PaketBhpTabProps {
   modalForm: any
   isLoadingPaketBhp: boolean
-  isLoadingUnitList: boolean
-  unitOptions: Array<{ value: string; label: string }>
   paketBhpOptions: any[]
   setSearchPaketBhp: (val: string) => void
   paketBhpCache: Record<number, any>
@@ -18,8 +16,6 @@ interface PaketBhpTabProps {
 export default function PaketBhpTab({
   modalForm,
   isLoadingPaketBhp,
-  isLoadingUnitList,
-  unitOptions,
   paketBhpOptions,
   setSearchPaketBhp,
   paketBhpCache,
