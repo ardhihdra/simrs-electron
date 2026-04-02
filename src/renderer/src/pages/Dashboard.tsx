@@ -163,13 +163,31 @@ const items: DashboardMenuItem[] = [
 				key: "/dashboard/rawat-inap/ranap-2/class1",
 				icon: <CalendarOutlined />,
 			},
-		],
-	},
-	{
-		label: "Farmasi",
-		key: "/dashboard/medicine",
-		icon: <WalletOutlined />,
-		module: Modules.FARMASI,
+			],
+		},
+		{
+			label: "Kamar Operasi (OK)",
+			key: "/dashboard/ok",
+			icon: <FileTextOutlined />,
+			module: Modules.OK,
+			children: [
+				{
+					label: "Pengajuan OK",
+					key: "/dashboard/ok/pengajuan",
+					icon: <FileAddOutlined />,
+				},
+				{
+					label: "Antrian & Verifikasi OK",
+					key: "/dashboard/ok/verifikasi",
+					icon: <UnorderedListOutlined />,
+				},
+			],
+		},
+		{
+			label: "Farmasi",
+			key: "/dashboard/medicine",
+			icon: <WalletOutlined />,
+			module: Modules.FARMASI,
 		children: [
 			{ label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
 			{
@@ -475,13 +493,14 @@ function Dashboard() {
     '/dashboard/laboratory-management',
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
-    '/dashboard/doctor',
-    '/dashboard/nurse-calling',
-    '/dashboard/rawat-inap',
-    '/dashboard/poli',
-    '/dashboard/kasir',
-	'/dashboard/non-medic-queue'
-  ]
+	    '/dashboard/doctor',
+	    '/dashboard/nurse-calling',
+	    '/dashboard/rawat-inap',
+	    '/dashboard/poli',
+	    '/dashboard/kasir',
+		'/dashboard/ok',
+		'/dashboard/non-medic-queue'
+	  ]
 	const isRegisteredPath = (path: string): boolean => {
 		if (path === DASHBOARD_ROOT_KEY) return true;
 		return registeredPrefixes.some((prefix) => path.startsWith(prefix));
