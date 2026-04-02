@@ -1,14 +1,14 @@
 import { SaveOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
-import { App, Button, Card, Col, Form, Input, Modal, Row, Select } from 'antd'
+import { App, Button, Card, Col, Form, Modal, Row, Select } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 
 interface PatientItem {
   id: string
   name?: string
   identifier?: string
-  mrn?: string
+  medicalRecordNumber?: string
 }
 
 interface ServiceRequestItem {
@@ -130,17 +130,18 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
     return params
   }, [patientId])
 
-  const { data: serviceRequestsData, isLoading: isLoadingServiceRequests } = client.query.entity.useQuery(
-    {
-      model: 'serviceRequest',
-      method: 'get',
-      params: serviceRequestParams
-    },
-    {
-      enabled: open && !!patientId,
-      queryKey: ['ancillary-service-request', serviceRequestParams]
-    } as any
-  )
+  const { data: serviceRequestsData, isLoading: isLoadingServiceRequests } =
+    client.query.entity.useQuery(
+      {
+        model: 'serviceRequest',
+        method: 'get',
+        params: serviceRequestParams
+      },
+      {
+        enabled: open && !!patientId,
+        queryKey: ['ancillary-service-request', serviceRequestParams]
+      } as any
+    )
 
   const doctorParams = useMemo(() => {
     const params: Record<string, string> = {
@@ -171,9 +172,9 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
 
   const patientOptions = useMemo(() => {
     const patients = normalizeList<PatientItem>(patientsData)
-    return patients.map((p) => ({
+    return patients.map((p: any) => ({
       value: String(p.id),
-      label: `${p.name || 'Unknown Patient'} (${p.identifier || p.mrn || p.id})`
+      label: `${p.name || 'Unknown Patient'} (${p.mrn || p.medicalRecordNumber})`
     }))
   }, [patientsData])
 
@@ -200,7 +201,7 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
       .filter((item) => isDoctorPegawai(item))
       .map((item) => ({
         value: Number(item.id),
-        label: `${item.namaLengkap || 'Dokter'} (${item.nik || item.id})`
+        label: `${item.namaLengkap || 'Dokter'}`
       }))
   }, [doctorsData])
 
@@ -281,7 +282,12 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
           layout="vertical"
           onFinish={handleSubmit}
           onFinishFailed={(errorInfo) =>
-            notifyFormValidationError(form, message, errorInfo, 'Lengkapi data encounter penunjang terlebih dahulu.')
+            notifyFormValidationError(
+              form,
+              message,
+              errorInfo,
+              'Lengkapi data encounter penunjang terlebih dahulu.'
+            )
           }
         >
           <Row gutter={24}>
@@ -316,19 +322,22 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
                   />
                 </Form.Item>
 
-                <Form.Item name="serviceRequestId" label="Service Request (opsional)">
+                {/* Service Request Dibuat setelah antrian */}
+                {/* <Form.Item name="serviceRequestId" label="Service Request (opsional)">
                   <Select
                     showSearch
                     allowClear
                     placeholder={
-                      patientId ? 'Pilih service request (opsional)' : 'Pilih pasien terlebih dahulu'
+                      patientId
+                        ? 'Pilih service request (opsional)'
+                        : 'Pilih pasien terlebih dahulu'
                     }
                     loading={isLoadingServiceRequests}
                     disabled={!patientId}
                     options={serviceRequestOptions}
                     optionFilterProp="label"
                   />
-                </Form.Item>
+                </Form.Item> */}
 
                 <Form.Item
                   name="arrivalType"
@@ -367,34 +376,43 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
                   />
                 </Form.Item>
 
-                <Form.Item
-                  name="requestedByPractitionerId"
-                  label="Requested By Practitioner ID (opsional)"
-                >
-                  <Input placeholder="Contoh: 123" />
+                <Form.Item name="requestedByPractitionerId" label="Dokter Pengirim (opsional)">
+                  <Select
+                    showSearch
+                    allowClear
+                    placeholder="Pilih Dokter Pengirim"
+                    loading={isLoadingDoctors}
+                    options={doctorOptions}
+                    optionFilterProp="label"
+                    filterOption={false}
+                    onSearch={setDoctorSearch}
+                    notFoundContent="Dokter tidak ditemukan"
+                  />
                 </Form.Item>
 
-                <Form.Item name="episodeOfCareId" label="Episode Of Care ID (opsional)">
+                {/* <Form.Item name="episodeOfCareId" label="Episode Of Care ID (opsional)">
                   <Input placeholder="UUID episode of care" />
-                </Form.Item>
+                </Form.Item> */}
               </Card>
 
-              <Card title="Ringkasan" size="small">
-                <div className="text-sm text-gray-600 flex flex-col gap-2">
-                  <div>
-                    <span className="font-medium">Pasien:</span> {selectedPatient?.name || '-'} (
-                    {selectedPatient?.identifier || selectedPatient?.mrn || patientId || '-'})
+              <div className="mt-4">
+                <Card title="Ringkasan" size="small">
+                  <div className="text-sm text-gray-600 flex flex-col gap-2">
+                    <div>
+                      <span className="font-medium">Pasien:</span> {selectedPatient?.name || '-'} (
+                      {selectedPatient?.medicalRecordNumber || '-'})
+                    </div>
+                    <div>
+                      <span className="font-medium">Jumlah Service Request Tersedia:</span>{' '}
+                      {serviceRequestOptions.length}
+                    </div>
+                    <div>
+                      <span className="font-medium">Catatan:</span> Service Request dan unit tujuan
+                      tidak wajib saat pembuatan encounter.
+                    </div>
                   </div>
-                  <div>
-                    <span className="font-medium">Jumlah Service Request Tersedia:</span>{' '}
-                    {serviceRequestOptions.length}
-                  </div>
-                  <div>
-                    <span className="font-medium">Catatan:</span> Service Request dan unit tujuan tidak
-                    wajib saat pembuatan encounter.
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </div>
             </Col>
           </Row>
         </Form>

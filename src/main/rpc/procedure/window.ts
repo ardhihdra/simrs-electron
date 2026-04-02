@@ -1,22 +1,13 @@
 import { is } from '@electron-toolkit/utils'
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { ExportCsvUrlInputSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 import icon from '../../../../resources/icon.png?asset'
 import { exportCsv } from '../../routes/query/export'
 
-const ExportCsvUrlInputSchema = z.object({
-  entity: z.string(),
-  usePagination: z.boolean().optional(),
-  page: z.number().optional(),
-  items: z.number().optional(),
-  q: z.string().optional(),
-  fields: z.string().optional(),
-  filter: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional()
-})
+// --- Schemas are now in simrs-types ---
 
 export const windowRpc = {
   create: t
@@ -28,13 +19,13 @@ export const windowRpc = {
       })
     )
     .output(z.boolean())
-    .mutation(async ({ }, input) => {
+    .mutation(async (_ctx, input) => {
       try {
         const newWindow = new BrowserWindow({
           width: 1280,
           height: 800,
           show: false,
-          title: input.title || 'MavoloStudio',
+          title: input.title || 'SIMRS',
           autoHideMenuBar: true,
           ...(process.platform === 'linux' ? { icon } : {}),
           webPreferences: {

@@ -1,15 +1,22 @@
-import { SearchOutlined } from '@ant-design/icons'
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  SearchOutlined,
+  SyncOutlined
+} from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
+import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
+import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
 import { TableHeader } from '@renderer/components/TableHeader'
-import { client } from '@renderer/utils/client'
+import { useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { useCreateServiceRequest } from '@renderer/hooks/query/use-service-request'
+import { client } from '@renderer/utils/client'
+import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { App, Button, Form, Input, Modal, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
-import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
-import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
-import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
 
 interface EncounterRow {
   id: string
@@ -29,6 +36,9 @@ interface EncounterRow {
       name?: string
     }
   }
+  poli?: {
+    name?: string
+  }
   serviceUnitName?: string
   category?: string
   status?: string
@@ -38,14 +48,75 @@ interface EncounterRow {
 }
 
 type EncounterStatusValue = 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
+type QueueCategoryFilter = 'LABORATORY' | 'RADIOLOGY'
 
 function normalizeList<T>(data: unknown): T[] {
   const raw = data as { result?: T[]; data?: T[] } | T[]
-  return ((raw as { result?: T[]; data?: T[] })?.result ?? (raw as { data?: T[] })?.data ?? (raw as T[]) ?? [])
+  return (
+    (raw as { result?: T[]; data?: T[] })?.result ??
+    (raw as { data?: T[] })?.data ??
+    (raw as T[]) ??
+    []
+  )
 }
 
-function mapEncounterCategoryToServiceRequest(category?: string): 'laboratory' | 'imaging' {
-  return category === 'RADIOLOGY' ? 'imaging' : 'laboratory'
+function mapEncounterCategoryToServiceRequest(category?: string): 'laboratory' | 'radiology' {
+  return category === 'RADIOLOGY' ? 'radiology' : 'laboratory'
+}
+
+function normalizeEncounterStatus(status?: string): EncounterStatusValue | undefined {
+  const normalized = String(status || '').toUpperCase()
+  if (
+    normalized === 'PLANNED' ||
+    normalized === 'IN_PROGRESS' ||
+    normalized === 'FINISHED' ||
+    normalized === 'CANCELLED'
+  ) {
+    return normalized
+  }
+  return undefined
+}
+
+function renderEncounterStatusTag(status?: string) {
+  const normalizedStatus = status?.toUpperCase() ?? '-'
+
+  if (normalizedStatus === 'PLANNED') {
+    return (
+      <Tag icon={<ClockCircleOutlined />} color="default">
+        {normalizedStatus}
+      </Tag>
+    )
+  }
+
+  if (normalizedStatus === 'IN_PROGRESS') {
+    return (
+      <Tag icon={<SyncOutlined spin />} color="processing">
+        {normalizedStatus}
+      </Tag>
+    )
+  }
+
+  if (normalizedStatus === 'FINISHED') {
+    return (
+      <Tag icon={<CheckCircleOutlined />} color="success">
+        {normalizedStatus}
+      </Tag>
+    )
+  }
+
+  if (normalizedStatus === 'CANCELLED') {
+    return (
+      <Tag icon={<CloseCircleOutlined />} color="error">
+        {normalizedStatus}
+      </Tag>
+    )
+  }
+
+  return (
+    <Tag icon={<ClockCircleOutlined />} color="blue">
+      {normalizedStatus}
+    </Tag>
+  )
 }
 
 export default function LaboratoryQueue() {
@@ -57,14 +128,18 @@ export default function LaboratoryQueue() {
   const [isServiceRequestModalOpen, setIsServiceRequestModalOpen] = useState(false)
   const [selectedEncounter, setSelectedEncounter] = useState<EncounterRow | null>(null)
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false)
+  const [isServingEncounter, setIsServingEncounter] = useState(false)
+  const [queueCategory, setQueueCategory] = useState<QueueCategoryFilter>('LABORATORY')
   const [statusForm] = Form.useForm()
   const [serviceRequestForm] = Form.useForm()
 
-  const { createServiceRequest, isSubmitting: isSubmittingServiceRequest } = useCreateServiceRequest({
-    encounterId: String(selectedEncounter?.id ?? ''),
-    patientId: String(selectedEncounter?.patientId ?? ''),
-    practitionerId: selectedEncounter?.practitionerId,
-  })
+  const updateEncounter = useUpdateEncounter()
+  const { createServiceRequest, isSubmitting: isSubmittingServiceRequest } =
+    useCreateServiceRequest({
+      encounterId: String(selectedEncounter?.id ?? ''),
+      patientId: String(selectedEncounter?.patientId ?? ''),
+      practitionerId: selectedEncounter?.practitionerId
+    })
   const selectedStatus = Form.useWatch('status', statusForm) as EncounterStatusValue | undefined
 
   const {
@@ -76,7 +151,7 @@ export default function LaboratoryQueue() {
     model: 'encounter',
     method: 'get',
     params: {
-      category: 'LABORATORY'
+      category: queueCategory
     }
   })
 
@@ -99,14 +174,12 @@ export default function LaboratoryQueue() {
     {
       title: 'Pasien',
       key: 'patient',
-      render: (_, record) => (
+      render: (_, record: any) => (
         <div>
           <div className="font-medium text-blue-600">
             {record.patientName || record.patient?.name || 'Unknown Patient'}
           </div>
-          <div className="text-xs text-gray-500">
-            {record.patientMrNo || record.patient?.mrn || record.patientId}
-          </div>
+          <div className="text-xs text-gray-500">{record.patient?.medicalRecordNumber || '-'}</div>
         </div>
       )
     },
@@ -124,37 +197,37 @@ export default function LaboratoryQueue() {
       }
     },
     {
+      title: 'Poli Asal',
+      key: 'poli',
+      render: (_, record) => <span>{record.poli?.name || record.queueTicket?.poli?.name || '-'}</span>
+    },
+    {
       title: 'Waktu Mulai',
       dataIndex: 'startTime',
       key: 'startTime',
       render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
     },
-    {
-      title: 'Unit Asal',
-      key: 'unit',
-      render: (_, record) =>
-        record.queueTicket?.serviceUnit?.display || record.serviceUnitName || '-'
-    },
-    {
-      title: 'Poli Asal',
-      key: 'poli',
-      render: (_, record) => record.queueTicket?.poli?.name || '-'
-    },
-    {
-      title: 'Service Request',
-      key: 'serviceRequestId',
-      render: (_, record) => (record.serviceRequestId ? `SR#${record.serviceRequestId}` : '-')
-    },
+    // {
+    //   title: 'Service Request',
+    //   key: 'serviceRequestId',
+    //   render: (_, record) => (record.serviceRequestId ? `SR#${record.serviceRequestId}` : '-')
+    // },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      render: (status: string) => <Tag color="blue">{status?.toUpperCase()}</Tag>
+      render: (status: string) => renderEncounterStatusTag(status)
     }
   ]
 
-  const onSearch = (values: { patientName?: string }) => {
+  const onSearch = (values: { patientName?: string; category?: QueueCategoryFilter }) => {
     setSearchText(values.patientName || '')
+    setQueueCategory(values.category || 'LABORATORY')
+  }
+
+  const handleResetFilters = () => {
+    setSearchText('')
+    setQueueCategory('LABORATORY')
   }
 
   const closeStatusModal = () => {
@@ -190,11 +263,95 @@ export default function LaboratoryQueue() {
       category: mapEncounterCategoryToServiceRequest(record.category),
       priority: 'routine',
       system: 'http://loinc.org',
-      code: undefined,
-      display: undefined,
+      selectedServiceRequestCodes: [],
       patientInstruction: undefined
     })
     setIsServiceRequestModalOpen(true)
+  }
+
+  const updateEncounterStatus = async (
+    encounterId: string,
+    status: EncounterStatusValue,
+    extra: Record<string, unknown> = {}
+  ) => {
+    const result = await updateEncounter.mutateAsync({
+      id: encounterId,
+      status,
+      ...extra
+    } as any)
+
+    if (result?.success === false) {
+      throw new Error(result?.error || `Gagal mengubah status encounter ke ${status}`)
+    }
+  }
+
+  const handleServeEncounter = async (record: EncounterRow) => {
+    if (!record.id) return
+
+    const currentStatus = normalizeEncounterStatus(record.status)
+    if (currentStatus === 'IN_PROGRESS') {
+      message.info('Encounter sudah dalam status IN_PROGRESS')
+      return
+    }
+
+    if (currentStatus === 'FINISHED' || currentStatus === 'CANCELLED') {
+      message.warning('Encounter dengan status FINISHED/CANCELLED tidak dapat dilayani')
+      return
+    }
+
+    try {
+      setIsServingEncounter(true)
+      const payload: Record<string, unknown> = {}
+
+      if (!record.startTime) {
+        payload.startTime = dayjs().toISOString()
+      }
+
+      await updateEncounterStatus(String(record.id), 'IN_PROGRESS', payload)
+
+      message.success('Encounter berhasil dilayani (IN_PROGRESS)')
+      await refetch()
+    } catch (error: any) {
+      message.error(error?.message || 'Gagal melayani encounter')
+    } finally {
+      setIsServingEncounter(false)
+    }
+  }
+
+  const handleFinishEncounter = async (record: EncounterRow) => {
+    if (!record.id) return
+
+    const currentStatus = normalizeEncounterStatus(record.status)
+    if (currentStatus === 'FINISHED') {
+      message.info('Encounter sudah berstatus FINISHED')
+      return
+    }
+
+    if (currentStatus === 'CANCELLED') {
+      message.warning('Encounter dengan status CANCELLED tidak dapat diselesaikan')
+      return
+    }
+
+    try {
+      setIsServingEncounter(true)
+      const now = dayjs().toISOString()
+      const payload: Record<string, unknown> = {
+        endTime: record.endTime || now
+      }
+
+      if (!record.startTime) {
+        payload.startTime = now
+      }
+
+      await updateEncounterStatus(String(record.id), 'FINISHED', payload)
+
+      message.success('Encounter berhasil diselesaikan (FINISHED)')
+      await refetch()
+    } catch (error: any) {
+      message.error(error?.message || 'Gagal menyelesaikan encounter')
+    } finally {
+      setIsServingEncounter(false)
+    }
   }
 
   const submitEncounterStatus = async () => {
@@ -216,24 +373,19 @@ export default function LaboratoryQueue() {
         payload.endTime = dayjs().toISOString()
       }
 
-      const result = await client.query.entity.useQuery({
-        model: 'encounter',
-        path: String(selectedEncounter.id),
-        method: 'put',
-        body: payload
-      })
-
-      if (!result?.isSuccess) {
-        console.error(result)
-        throw new Error('Gagal mengubah status encounter')
-      }
+      await updateEncounterStatus(String(selectedEncounter.id), values.status as EncounterStatusValue, payload)
 
       message.success('Status encounter berhasil diperbarui')
       closeStatusModal()
       await refetch()
     } catch (error: any) {
       if (hasValidationErrors(error)) {
-        notifyFormValidationError(statusForm, message, error, 'Lengkapi data status encounter terlebih dahulu.')
+        notifyFormValidationError(
+          statusForm,
+          message,
+          error,
+          'Lengkapi data status encounter terlebih dahulu.'
+        )
         return
       }
       message.error(error?.message || 'Gagal mengubah status encounter')
@@ -247,15 +399,18 @@ export default function LaboratoryQueue() {
     try {
       const values = await serviceRequestForm.validateFields()
       await createServiceRequest(values)
-      message.success('Service request baru berhasil dibuat')
       closeServiceRequestModal()
       await refetch()
     } catch (error: any) {
       if (hasValidationErrors(error)) {
-        notifyFormValidationError(serviceRequestForm, message, error, 'Lengkapi data service request terlebih dahulu.')
+        notifyFormValidationError(
+          serviceRequestForm,
+          message,
+          error,
+          'Lengkapi data service request terlebih dahulu.'
+        )
         return
       }
-      message.error(error?.message || 'Gagal membuat service request')
     }
   }
 
@@ -269,6 +424,7 @@ export default function LaboratoryQueue() {
         title="Management Penunjang (Lab & Rad)"
         subtitle="Daftar encounter aktif dan pembuatan encounter penunjang"
         onSearch={onSearch}
+        onReset={handleResetFilters}
         onRefresh={() => {
           refetch()
         }}
@@ -278,6 +434,21 @@ export default function LaboratoryQueue() {
         createLabel="Registrasi Penunjang Baru"
         loading={isLoading || isRefetching}
       >
+        <Form.Item
+          initialValue="LABORATORY"
+          name="category"
+          style={{ minWidth: 220 }}
+          label="Kategori Antrian"
+        >
+          <Select
+            size="large"
+            onChange={(value: QueueCategoryFilter) => setQueueCategory(value)}
+            options={[
+              { value: 'LABORATORY', label: 'Laboratorium' },
+              { value: 'RADIOLOGY', label: 'Radiology' }
+            ]}
+          />
+        </Form.Item>
         <Form.Item name="patientName" style={{ width: '100%' }} label="Pasien">
           <Input
             placeholder="Cari Nama / No. RM Pasien yang sedang dilayani"
@@ -293,9 +464,28 @@ export default function LaboratoryQueue() {
           columns={columns}
           dataSource={filteredData}
           rowKey="id"
-          loading={isLoading || isRefetching}
+          loading={isLoading || isRefetching || isServingEncounter}
           action={{
             items: (record) => [
+              {
+                label: 'Layani',
+                onClick: () => handleServeEncounter(record),
+                disabled: normalizeEncounterStatus(record.status) !== 'PLANNED'
+              },
+              {
+                label: 'Selesai',
+                danger: true,
+                confirm: {
+                  title: 'Selesaikan encounter ini?',
+                  description: 'Status encounter akan diubah menjadi FINISHED.',
+                  okText: 'Ya, Selesai',
+                  cancelText: 'Batal'
+                },
+                onClick: () => handleFinishEncounter(record),
+                disabled: !['PLANNED', 'IN_PROGRESS'].includes(
+                  String(normalizeEncounterStatus(record.status) || '')
+                )
+              },
               {
                 label: 'Ubah Status',
                 onClick: () => handleOpenStatusModal(record)
@@ -312,7 +502,7 @@ export default function LaboratoryQueue() {
       <CreateAncillaryModal open={isModalOpen} onClose={handleCloseModal} />
 
       <Modal
-        title={`Ubah Status Encounter${selectedEncounter?.id ? ` - ${selectedEncounter.id}` : ''}`}
+        title={`Ubah Status Encounter`}
         open={isStatusModalOpen}
         onCancel={closeStatusModal}
         footer={[
@@ -354,7 +544,7 @@ export default function LaboratoryQueue() {
       </Modal>
 
       <Modal
-        title={`Buat Service Request Baru${selectedEncounter?.id ? ` - ${selectedEncounter.id}` : ''}`}
+        title={`Buat Service Request Baru`}
         open={isServiceRequestModalOpen}
         onCancel={closeServiceRequestModal}
         footer={[

@@ -65,7 +65,7 @@ export default function DoctorLeaveForm() {
       }
       return fn(payload)
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['doctorLeave', 'list'] })
         navigate('/dashboard/registration/doctor-leave')
@@ -92,7 +92,7 @@ export default function DoctorLeaveForm() {
       }
       return fn(payload)
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['doctorLeave', 'list'] })
         navigate('/dashboard/registration/doctor-leave')

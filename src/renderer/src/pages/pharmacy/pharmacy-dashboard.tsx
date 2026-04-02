@@ -137,11 +137,11 @@ function mapStatusForSummary(rawStatus?: string): string {
 }
 
 function getStatusLabel(statusKey: string): string {
-	if (statusKey === 'completed') return 'Completed'
-	if (statusKey === 'return') return 'Return'
-	if (statusKey === 'cancel') return 'Cancel'
-	if (statusKey === 'pending') return 'Pending'
-	if (statusKey === 'hold') return 'Hold'
+	if (statusKey === 'completed') return 'Selesai'
+	if (statusKey === 'return') return 'Void/Kembali'
+	if (statusKey === 'cancel') return 'Dibatalkan'
+	if (statusKey === 'pending') return 'Persiapan/Proses'
+	if (statusKey === 'hold') return 'Tertunda'
 	return 'Lainnya'
 }
 

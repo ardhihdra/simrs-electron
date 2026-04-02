@@ -13,3 +13,5 @@ out
 ipc-channels.d.ts
 
 .yalc
+pnpm-workspace.yaml
+.pnpm-debug.log*

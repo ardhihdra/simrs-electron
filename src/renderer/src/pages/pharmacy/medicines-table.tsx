@@ -40,7 +40,8 @@ interface InventoryStockResponse {
 const LOW_STOCK_THRESHOLD_MEDICINE = 20
 
 const columns = [
-  { title: 'Medicine', dataIndex: 'name', key: 'name' },
+  { title: 'Kode', dataIndex: 'code', key: 'code', width: 100, render: (val: string) => val || '-' },
+  { title: 'Nama Obat', dataIndex: 'name', key: 'name' },
   {
     title: 'Category',
     dataIndex: 'category',
@@ -147,7 +148,7 @@ function RowActions({ record }: { record: MedicineAttributes }) {
     {
       key: 'delete',
       danger: true,
-      label: 'Delete',
+      label: 'Hapus',
       icon: <DeleteOutlined />,
       onClick: () => typeof record.id === 'number' && deleteMutation.mutate(record.id)
     }

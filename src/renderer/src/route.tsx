@@ -75,6 +75,12 @@ import MedicationDispenseTable from './pages/medication-dispense/medication-disp
 import MedicationRequestForm from './pages/medication-request/medication-request-form'
 import MedicationRequestTable from './pages/medication-request/medication-request-table'
 import ModuleSelection from './pages/module-selection/page'
+import NonMedicQueuePage from './pages/non-medic-queue'
+import NonMedicQueueBillingKioskPage from './pages/non-medic-queue/kiosk/billing'
+import NonMedicQueueCashierKioskPage from './pages/non-medic-queue/kiosk/cashier'
+import NonMedicQueuePharmacyKioskPage from './pages/non-medic-queue/kiosk/pharmacy'
+import NonMedicQueueServicePointWorkspacePage from './pages/non-medic-queue/service-point-workspace'
+import NonMedicQueueServicePointPage from './pages/non-medic-queue/service-points'
 import NurseCalling from './pages/nurse-calling/NurseCalling'
 import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
@@ -320,10 +326,69 @@ function MainRoute() {
             <Route index element={<KasirEncounterTable />} />
             <Route path="invoice/:encounterId" element={<InvoiceDetailPage />} />
           </Route>
-          <Route
-            path="laboratory-management"
-            element={g('/dashboard/laboratory-management', <Outlet />)}
-          >
+          <Route path="non-medic-queue" element={<Outlet />}>
+            <Route
+              path="kiosk/billing"
+              element={g('/dashboard/non-medic-queue/kiosk/billing', <NonMedicQueueBillingKioskPage />)}
+            />
+            <Route
+              path="kiosk/cashier"
+              element={g('/dashboard/non-medic-queue/kiosk/cashier', <NonMedicQueueCashierKioskPage />)}
+            />
+            <Route
+              path="kiosk/pharmacy"
+              element={g('/dashboard/non-medic-queue/kiosk/pharmacy', <NonMedicQueuePharmacyKioskPage />)}
+            />
+            <Route
+              path="billing"
+              element={g(
+                '/dashboard/non-medic-queue/billing',
+                <NonMedicQueuePage
+                  title="Antrian Billing"
+                  description="Kelola pemanggilan nomor untuk layanan billing non-medis."
+                  serviceTypeCode="BILLING"
+                />
+              )}
+            />
+            <Route
+              path="cashier"
+              element={g(
+                '/dashboard/non-medic-queue/cashier',
+                <NonMedicQueuePage
+                  title="Antrian Kasir"
+                  description="Kelola pemanggilan nomor untuk layanan kasir non-medis."
+                  serviceTypeCode="CASHIER"
+                />
+              )}
+            />
+            <Route
+              path="pharmacy"
+              element={g(
+                '/dashboard/non-medic-queue/pharmacy',
+                <NonMedicQueuePage
+                  title="Antrian Farmasi"
+                  description="Kelola alur panggil, layani, dan selesai untuk antrean farmasi."
+                  serviceTypeCode="PHARMACY"
+                />
+              )}
+            />
+            <Route
+              path="service-points"
+              element={g('/dashboard/non-medic-queue/service-points', <NonMedicQueueServicePointPage />)}
+            />
+            <Route
+              path="workspace"
+              element={g('/dashboard/non-medic-queue/workspace', <NonMedicQueueServicePointWorkspacePage />)}
+            />
+            <Route
+              path="service-points/:servicePointId/workspace"
+              element={g(
+                '/dashboard/non-medic-queue/service-points/:servicePointId/workspace',
+                <NonMedicQueueServicePointWorkspacePage />
+              )}
+            />
+          </Route>
+          <Route path="laboratory-management" element={g('/dashboard/laboratory-management', <Outlet />)}>
             <Route index element={<LaboratoryQueue />} />
             <Route path="queue" element={<LaboratoryQueue />} />
             <Route path="requests" element={<LaboratoryRequests />} />

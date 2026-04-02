@@ -1,22 +1,22 @@
 import { ArrowLeftOutlined, CloudDownloadOutlined, UploadOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload, App } from 'antd'
-import { useLocation, useNavigate } from 'react-router'
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
-import { client } from '@renderer/utils/client'
+import { client, rpc } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
+import { getInterpretationFromReferenceRange } from '@renderer/utils/laboratory-interpretation'
+import { App, Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload } from 'antd'
 import { useEffect, useState } from 'react'
-import { Interpretation } from 'simrs-types'
+import { useLocation, useNavigate } from 'react-router'
 
 type DicomSourceMode = 'upload' | 'modality'
 
-//  Do we actually need Abnormal, Critical High/Low? if so add it as 
-const interpretationMap: Record<string, Interpretation> = {
-  NORMAL: Interpretation.NORMAL,
-  HIGH: Interpretation.HIGH,
-  LOW: Interpretation.LOW,
-  ABNORMAL: Interpretation.CRITICAL,
-  CRITICAL_HIGH: Interpretation.CRITICAL,
-  CRITICAL_LOW: Interpretation.CRITICAL
+//  Do we actually need Abnormal, Critical High/Low? if so add it as
+const interpretationMap: Record<string, string> = {
+  NORMAL: 'NORMAL',
+  HIGH: 'HIGH',
+  LOW: 'LOW',
+  ABNORMAL: 'CRITICAL',
+  CRITICAL_HIGH: 'CRITICAL',
+  CRITICAL_LOW: 'CRITICAL'
 }
 
 const { Title, Text } = Typography
@@ -44,8 +44,38 @@ export default function RecordResultPage() {
   const terminologyResult = (terminologyData as Record<string, unknown>)?.result as
     | { laboratory?: Record<string, unknown>[]; radiology?: Record<string, unknown>[] }
     | undefined
-  const firstTermItem =
-    terminologyResult?.laboratory?.[0] ?? terminologyResult?.radiology?.[0]
+  const firstTermItem = terminologyResult?.laboratory?.[0] ?? terminologyResult?.radiology?.[0]
+  const terminologyDomain = (
+    (firstTermItem?.domain as string | undefined) === 'radiology' ? 'radiology' : 'laboratory'
+  ) as 'laboratory' | 'radiology'
+
+  const { data: unitData, isLoading: isLoadingUnits } =
+    client.laboratoryManagement.getUnits.useQuery(
+      {
+        loincCode: (record?.test as any)?.code || '',
+        domain: terminologyDomain
+      },
+      {
+        enabled: !!(record?.test as any)?.code,
+        queryKey: [
+          'terminology-units-by-loinc',
+          { loincCode: (record?.test as any)?.code, domain: terminologyDomain }
+        ]
+      }
+    )
+
+  const unitOptions = (
+    ((unitData as Record<string, unknown>)?.result as Record<string, string>[] | undefined) ?? []
+  ).map((item) => ({
+    value: item.code,
+    label: item.display
+  }))
+  const defaultUnit =
+    (typeof (firstTermItem as Record<string, unknown> | undefined)?.ucum === 'string'
+      ? ((firstTermItem as Record<string, string>).ucum as string)
+      : undefined) || unitOptions[0]?.value
+  const resultValue = Form.useWatch('value', form) as string | undefined
+  const referenceRangeValue = Form.useWatch('referenceRange', form) as string | undefined
 
   // PACS study search — generic, autofills with patientId on mount
   const patientId = (record as Record<string, unknown>)?.patientId as string | undefined
@@ -61,16 +91,6 @@ export default function RecordResultPage() {
   const pacsStudies =
     ((pacsStudiesData as Record<string, unknown>)?.result as Record<string, unknown>[]) || []
 
-  useEffect(() => {
-    if (firstTermItem) {
-      if (firstTermItem.loinc === testObj?.code && (firstTermItem as Record<string, string>).ucum) {
-        form.setFieldsValue({
-          unit: (firstTermItem as Record<string, string>).ucum
-        })
-      }
-    }
-  }, [firstTermItem, form, testObj?.code])
-
   const { handleRecordResult, loading } = useLaboratoryActions(() => {
     message.success('Result recorded successfully')
     navigate('/dashboard/laboratory-management/requests')
@@ -79,10 +99,6 @@ export default function RecordResultPage() {
   // Add Radiology findings RPC
   const { mutateAsync: recordRadiology, isPending: isSavingFindings } =
     client.laboratoryManagement.recordRadiologyResult.useMutation({
-      onSuccess: () => {
-        message.success('Radiology result recorded successfully')
-        navigate('/dashboard/laboratory-management/requests')
-      },
       onError: (err) => {
         message.error(err.message)
       }
@@ -118,10 +134,68 @@ export default function RecordResultPage() {
     testObj?.code?.startsWith('RAD') ||
     rec?.modality
 
+  useEffect(() => {
+    if (isRadiology || !defaultUnit) {
+      return
+    }
+
+    const currentUnit = form.getFieldValue('unit') as string | undefined
+    if (!currentUnit) {
+      form.setFieldsValue({
+        unit: defaultUnit
+      })
+    }
+  }, [defaultUnit, form, isRadiology])
+
+  useEffect(() => {
+    if (isRadiology) {
+      return
+    }
+
+    const nextInterpretation = getInterpretationFromReferenceRange(resultValue, referenceRangeValue)
+    if (!nextInterpretation) {
+      return
+    }
+
+    const currentInterpretation = form.getFieldValue('interpretation') as string | undefined
+    if (currentInterpretation !== nextInterpretation) {
+      form.setFieldValue('interpretation', nextInterpretation)
+    }
+  }, [form, isRadiology, referenceRangeValue, resultValue])
+
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
       const serviceRequestId = String(rec.requestId || rec.id || '')
+      const encounterId = String(rec.encounterId || '')
+
+      const ensureEncounterInProgress = async () => {
+        if (!encounterId) return
+
+        const encounterResponse = await rpc.query.entity({
+          model: 'encounter',
+          path: encounterId,
+          method: 'get'
+        })
+
+        if (!encounterResponse?.success) {
+          return
+        }
+
+        const currentStatus = String(encounterResponse?.result?.status || '').toUpperCase()
+        if (currentStatus !== 'PLANNED') {
+          return
+        }
+
+        await rpc.query.entity({
+          model: 'encounter',
+          path: encounterId,
+          method: 'put',
+          body: {
+            status: 'IN_PROGRESS'
+          }
+        })
+      }
 
       if (isRadiology) {
         // Radiology Logic
@@ -174,13 +248,17 @@ export default function RecordResultPage() {
         // Record the findings
         await recordRadiology({
           serviceRequestId,
-          encounterId: rec.encounterId as string,
+          encounterId,
           patientId: rec.patientId as string,
           modalityCode: values.modalityCode as string,
           started: new Date().toISOString(),
           findings: values.findings as string,
           studyInstanceUid: returnedStudyInstanceUid
         })
+
+        await ensureEncounterInProgress()
+        message.success('Radiology result recorded successfully')
+        navigate('/dashboard/laboratory-management/requests')
       } else {
         // Lab Logic
         const observationCodeId = String(rec.testCodeId || testObj?.code || '')
@@ -197,7 +275,7 @@ export default function RecordResultPage() {
 
         await handleRecordResult({
           serviceRequestId,
-          encounterId: rec.encounterId as string,
+          encounterId,
           patientId: rec.patientId as string,
           observations: [
             {
@@ -206,7 +284,7 @@ export default function RecordResultPage() {
               unit: values.unit as string,
               referenceRange: values.referenceRange as string,
               interpretation:
-                interpretationMap[String(values.interpretation || 'NORMAL')] || 'NORMAL',
+                (interpretationMap[String(values.interpretation || 'NORMAL')] as any) || 'NORMAL',
               observedAt: new Date().toISOString()
             }
           ]
@@ -232,7 +310,6 @@ export default function RecordResultPage() {
       </div>
     )
   }
-  console.log('RECORD', record)
 
   return (
     <div className="p-4">
@@ -261,7 +338,12 @@ export default function RecordResultPage() {
           layout="vertical"
           onFinish={handleSubmit}
           onFinishFailed={(errorInfo) =>
-            notifyFormValidationError(form, message, errorInfo, 'Form hasil pemeriksaan belum lengkap.')
+            notifyFormValidationError(
+              form,
+              message,
+              errorInfo,
+              'Form hasil pemeriksaan belum lengkap.'
+            )
           }
         >
           {isRadiology ? (
@@ -397,7 +479,17 @@ export default function RecordResultPage() {
 
               <div className="grid grid-cols-3 gap-4">
                 <Form.Item name="unit" label="Satuan">
-                  <Input placeholder="Satuan" />
+                  <Select
+                    showSearch
+                    allowClear
+                    loading={isLoadingUnits}
+                    placeholder={isLoadingUnits ? 'Memuat satuan...' : 'Pilih satuan'}
+                    options={unitOptions}
+                    optionFilterProp="label"
+                    notFoundContent={
+                      isLoadingUnits ? <Spin size="small" /> : 'Satuan tidak tersedia'
+                    }
+                  />
                 </Form.Item>
                 <Form.Item name="referenceRange" label="Nilai Rujukan">
                   <Input placeholder="Nilai Rujukan" />

@@ -1,4 +1,14 @@
-import { ExperimentOutlined, FileTextOutlined } from '@ant-design/icons'
+import {
+  CameraOutlined,
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloseCircleOutlined,
+  ExperimentOutlined,
+  FileTextOutlined,
+  PauseCircleOutlined,
+  SyncOutlined,
+  ThunderboltOutlined
+} from '@ant-design/icons'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
@@ -91,16 +101,22 @@ function normalizeList<T>(data: unknown): T[] {
 }
 
 function normalizeCategory(item: ServiceRequestEntity): string {
-  const text = (item.categories || [])
-    .map((c) => `${c.code || ''} ${c.display || ''}`.toLowerCase())
-    .join(' ')
-
-  if (text.includes('radiology') || text.includes('imaging') || text.includes('rad')) {
+  const categoryCodes = (item.categories || []).map((c) => String(c.code || '').toUpperCase())
+  if (categoryCodes.some((code) => code === 'LABORATORY' || code === 'LAB')) {
+    return 'LABORATORY'
+  }
+  if (categoryCodes.some((code) => code === 'RADIOLOGY' || code === 'RAD')) {
     return 'RADIOLOGY'
   }
 
-  if (text.includes('laboratory') || text.includes('lab')) {
+  const displayText = (item.categories || [])
+    .map((c) => String(c.display || '').toLowerCase())
+    .join(' ')
+  if (displayText.includes('laboratory') || displayText.includes('lab')) {
     return 'LABORATORY'
+  }
+  if (displayText.includes('radiology')) {
+    return 'RADIOLOGY'
   }
 
   return 'UNKNOWN'
@@ -128,6 +144,102 @@ function priorityColor(priority: string): string {
   if (priority === 'STAT') return 'red'
   if (priority === 'URGENT' || priority === 'ASAP') return 'orange'
   return 'default'
+}
+
+function renderCategoryTag(category: string) {
+  if (category === 'RADIOLOGY') {
+    return (
+      <Tag icon={<CameraOutlined />} color="purple">
+        {category}
+      </Tag>
+    )
+  }
+
+  if (category === 'LABORATORY') {
+    return (
+      <Tag icon={<ExperimentOutlined />} color="orange">
+        {category}
+      </Tag>
+    )
+  }
+
+  return (
+    <Tag icon={<FileTextOutlined />} color="default">
+      {category}
+    </Tag>
+  )
+}
+
+function renderPriorityTag(priority: string) {
+  if (priority === 'STAT') {
+    return (
+      <Tag icon={<ThunderboltOutlined />} color="red">
+        {priority}
+      </Tag>
+    )
+  }
+
+  if (priority === 'URGENT' || priority === 'ASAP') {
+    return (
+      <Tag icon={<ThunderboltOutlined />} color="orange">
+        {priority}
+      </Tag>
+    )
+  }
+
+  return (
+    <Tag icon={<ClockCircleOutlined />} color={priorityColor(priority)}>
+      {priority}
+    </Tag>
+  )
+}
+
+function renderStatusTag(status: string) {
+  if (status === 'ACTIVE' || status === 'REQUESTED') {
+    return (
+      <Tag icon={<ClockCircleOutlined />} color={statusColor(status)}>
+        {status}
+      </Tag>
+    )
+  }
+
+  if (status === 'ON-HOLD') {
+    return (
+      <Tag icon={<PauseCircleOutlined />} color={statusColor(status)}>
+        {status}
+      </Tag>
+    )
+  }
+
+  if (status === 'IN_PROGRESS' || status === 'DRAFT') {
+    return (
+      <Tag icon={<SyncOutlined spin={status === 'IN_PROGRESS'} />} color={statusColor(status)}>
+        {status}
+      </Tag>
+    )
+  }
+
+  if (status === 'COMPLETED') {
+    return (
+      <Tag icon={<CheckCircleOutlined />} color={statusColor(status)}>
+        {status}
+      </Tag>
+    )
+  }
+
+  if (status === 'REVOKED' || status === 'ENTERED_IN_ERROR' || status === 'CANCELLED') {
+    return (
+      <Tag icon={<CloseCircleOutlined />} color={statusColor(status)}>
+        {status}
+      </Tag>
+    )
+  }
+
+  return (
+    <Tag icon={<FileTextOutlined />} color={statusColor(status)}>
+      {status}
+    </Tag>
+  )
 }
 
 function canCollectSpecimen(record: NormalizedRequest): boolean {
@@ -276,12 +388,14 @@ export default function LaboratoryRequests() {
   }
 
   const patientColumns: ColumnsType<PatientGroupRow> = [
-    {
-      title: 'No. Antrian',
-      dataIndex: 'queueNumber',
-      key: 'queueNumber',
-      render: (queueNumber: string | undefined) => <div className="font-bold">{queueNumber || '-'}</div>
-    },
+    // {
+    //   title: 'No. Antrian',
+    //   dataIndex: 'queueNumber',
+    //   key: 'queueNumber',
+    //   render: (queueNumber: string | undefined) => (
+    //     <div className="font-bold">{queueNumber || '-'}</div>
+    //   )
+    // },
     {
       title: 'Pasien',
       dataIndex: 'patient',
@@ -302,11 +416,17 @@ export default function LaboratoryRequests() {
       title: 'Selesai',
       key: 'completed',
       render: (_, record) => {
-        const completedCount = record.requests.filter((request) => request.status === 'COMPLETED').length
+        const completedCount = record.requests.filter(
+          (request) => request.status === 'COMPLETED'
+        ).length
         const totalCount = record.requests.length
         const allCompleted = totalCount > 0 && completedCount === totalCount
 
-        return <Tag color={allCompleted ? 'green' : 'default'}>{completedCount} / {totalCount}</Tag>
+        return (
+          <Tag color={allCompleted ? 'green' : 'default'}>
+            {completedCount} / {totalCount}
+          </Tag>
+        )
       }
     }
   ]
@@ -323,28 +443,30 @@ export default function LaboratoryRequests() {
       title: 'Pemeriksaan',
       dataIndex: 'test',
       key: 'test',
-      render: (test: NormalizedRequest['test']) => <span className="font-medium">{test?.display || '-'}</span>
+      render: (test: NormalizedRequest['test']) => (
+        <span className="font-medium">{test?.display || '-'}</span>
+      )
     },
     {
       title: 'Kategori',
       dataIndex: ['test', 'category'],
       key: 'category',
       width: 120,
-      render: (category: string) => <Tag color={category === 'RADIOLOGY' ? 'purple' : 'orange'}>{category}</Tag>
+      render: (category: string) => renderCategoryTag(category)
     },
     {
       title: 'Prioritas',
       dataIndex: 'priority',
       key: 'priority',
       width: 100,
-      render: (priority: string) => <Tag color={priorityColor(priority)}>{priority}</Tag>
+      render: (priority: string) => renderPriorityTag(priority)
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       width: 140,
-      render: (status: string) => <Tag color={statusColor(status)}>{status}</Tag>
+      render: (status: string) => renderStatusTag(status)
     }
   ]
 
@@ -356,6 +478,8 @@ export default function LaboratoryRequests() {
       status: values.status
     })
   }
+
+  console.log(patientGroups)
 
   return (
     <div className="p-4">
@@ -397,7 +521,8 @@ export default function LaboratoryRequests() {
                 {
                   key: 'requestedAt',
                   label: 'Tgl. Order',
-                  render: (value) => (value ? dayjs(value as string).format('DD/MM/YYYY HH:mm') : '-')
+                  render: (value) =>
+                    value ? dayjs(value as string).format('DD/MM/YYYY HH:mm') : '-'
                 },
                 { key: 'test.display', label: 'Pemeriksaan' },
                 { key: 'test.category', label: 'Kategori' },

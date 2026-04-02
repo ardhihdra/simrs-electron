@@ -3,7 +3,7 @@ import { MedicationDispenseWithIdSchema } from '@main/models/medicationDispense'
 import { MedicationRequestWithIdSchema } from '@main/models/medicationRequest'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
-import { MedicationDispenseStatusSchema, MedicationDispenseStatusEnum } from 'simrs-types'
+import { MedicationDispenseStatusSchema, MedicationDispenseStatus } from 'simrs-types'
 
 interface QuantityInfo {
   value?: number
@@ -48,7 +48,7 @@ export const schemas = {
           MedicationDispenseWithIdSchema,
           z.object({
             id: z.number().optional(),
-            status: z.enum(MedicationDispenseStatusEnum).optional()
+            status: MedicationDispenseStatusSchema.optional()
           })
         ])
         .optional(),
@@ -65,15 +65,8 @@ export const schemas = {
           unit: z.string().optional()
         })
         .optional(),
-      telaahResults: z.object({
-        kejelasanResep: z.boolean(),
-        tepatPasien: z.boolean(),
-        tepatObat: z.boolean(),
-        tepatDosis: z.boolean(),
-        tepatWaktu: z.boolean(),
-        tepatRute: z.boolean(),
-        identitasDokter: z.boolean()
-      }).optional()
+      selectedBatches: z.any().optional(),
+      telaahResults: z.any().optional()
     }),
     result: z.object({
       success: z.boolean(),
@@ -164,7 +157,7 @@ export const moduleSchemas = {
       result: z
         .object({
           id: z.number().optional(),
-          status: z.enum(MedicationDispenseStatusEnum).optional()
+          status: MedicationDispenseStatusSchema.optional()
         })
         .optional(),
       error: z.string().optional(),
@@ -653,7 +646,7 @@ export const createFromRequest = async (
       const payload = {
         patientId: request.patientId,
         authorizingPrescriptionId: request.id as number,
-        status: MedicationDispenseStatusEnum.IN_PROGRESS,
+        status: MedicationDispenseStatus.IN_PROGRESS,
         quantity: {
           value,
           unit: quantity?.unit
@@ -661,6 +654,7 @@ export const createFromRequest = async (
         encounterId,
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
+        selectedBatches: args.selectedBatches,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
         note: (() => {
           const notes: any[] = []
@@ -726,7 +720,7 @@ export const createFromRequest = async (
         itemId: request.itemId as number,
         patientId: request.patientId,
         authorizingPrescriptionId: request.id,
-        status: MedicationDispenseStatusEnum.IN_PROGRESS,
+        status: MedicationDispenseStatus.IN_PROGRESS,
         quantity: {
           value,
           unit
@@ -734,6 +728,7 @@ export const createFromRequest = async (
         encounterId,
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
+        selectedBatches: args.selectedBatches,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
         note: (() => {
           const notes: any[] = []

@@ -1,84 +1,25 @@
-import { ApiResponseSchema, Interpretation } from 'simrs-types'
+import {
+  ApiResponseSchema,
+  Interpretation,
+  LabPrioritySchema,
+  LabServiceRequestStatusSchema,
+  CreateLabOrderSchema,
+  CollectSpecimenSchema,
+  RecordLabResultSchema,
+  RecordRadiologyResultSchema,
+  UploadRadiologyDicomSchema,
+  ServiceRequestCodeSearchSchema
+} from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
-// --- Enums / Types ---
-const LabPrioritySchema = z.enum(['ROUTINE', 'URGENT', 'STAT'])
-const LabServiceRequestStatusSchema = z.enum([
-  'DRAFT',
-  'ACTIVE',
-  'COMPLETED',
-  'CANCELLED',
-  'REVOKED',
-  'ENTERED_IN_ERROR'
-])
+// --- RPC ---
 
-// --- Schemas ---
-
-// Create Order
-const CreateLabOrderItemSchema = z.object({
-  testCodeId: z.string(),
-  priority: LabPrioritySchema
-})
-
-export const CreateLabOrderSchema = z.object({
-  encounterId: z.string().uuid(),
-  patientId: z.string().uuid(),
-  items: z.array(CreateLabOrderItemSchema),
-  requesterPractitionerId: z.string().uuid().optional(),
-  requesterOrganizationId: z.string().uuid().optional()
-})
-
-// Collect Specimen
-export const CollectSpecimenSchema = z.object({
-  serviceRequestId: z.union([z.string(), z.number()]).transform((value) => String(value)),
-  typeCodeId: z.string().uuid()
-})
-
-// Record Result
-const RecordLabResultObservationSchema = z.object({
-  observationCodeId: z.string().min(1),
-  value: z.string(),
-  unit: z.string().optional(),
-  referenceRange: z.string().optional(),
-  interpretation: z.nativeEnum(Interpretation).optional(),
-  observedAt: z.string().optional() // Date string
-})
-
-export const RecordLabResultSchema = z.object({
-  serviceRequestId: z.union([z.string(), z.number()]).transform((value) => String(value)),
-  encounterId: z.string().uuid(),
-  patientId: z.string().uuid(),
-  observations: z.array(RecordLabResultObservationSchema)
-})
-
-export const RecordRadiologyResultSchema = z.object({
-  serviceRequestId: z.union([z.string(), z.number()]).transform((value) => String(value)),
-  encounterId: z.string().uuid(),
-  patientId: z.string().uuid(),
-  modalityCode: z.string(),
-  findings: z.string(),
-  studyInstanceUid: z.string().optional(),
-  started: z.string().optional() // Date string
-})
-
-export const UploadRadiologyDicomSchema = z.object({
-  patientId: z.string().uuid(),
-  encounterId: z.string().uuid(),
-  uploadedBy: z.string(),
-  source: z.string(),
-  files: z.array(z.string()) // Base64 dataURIs
-})
-
-// Terminology Search
-export const ServiceRequestCodeSearchSchema = z.object({
+const TerminologyUnitSearchSchema = z.object({
   query: z.string().optional(),
   loincCode: z.string().optional(),
-  domain: z.enum(['laboratory', 'radiology']).optional(),
-  category: z.string().optional(),
+  domain: z.enum(['laboratory', 'radiology']).optional()
 })
-
-// --- RPC ---
 
 export const laboratoryManagementRpc = {
   // Orders
@@ -228,7 +169,24 @@ export const laboratoryManagementRpc = {
       if (input.domain) params.append('domain', input.domain)
       if (input.category) params.append('category', input.category)
 
-      const res = await client.get(`/api/module/lab-management/terminology/service-request-codes?${params.toString()}`)
+      const res = await client.get(
+        `/api/module/lab-management/terminology/service-request-codes?${params.toString()}`
+      )
+      return await res.json()
+    }),
+
+  getUnits: t
+    .input(TerminologyUnitSearchSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, input) => {
+      const params = new URLSearchParams()
+      if (input.query) params.append('query', input.query)
+      if (input.loincCode) params.append('loincCode', input.loincCode)
+      if (input.domain) params.append('domain', input.domain)
+
+      const res = await client.get(
+        `/api/module/lab-management/terminology/units?${params.toString()}`
+      )
       return await res.json()
     }),
 

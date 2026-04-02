@@ -8,6 +8,7 @@ import {
   FileTextOutlined,
   LeftCircleFilled,
   MedicineBoxOutlined,
+  PhoneOutlined,
   RightCircleFilled,
   UnorderedListOutlined,
   UserOutlined,
@@ -22,36 +23,16 @@ import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
+import { Modules } from 'simrs-types'
+import type { MenuProps } from "antd";
+import { Menu, theme } from "antd";
+import { ItemType } from "antd/es/menu/interface";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router";
+
 
 // Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
-const Modules = {
-  REGISTRASI: 'REGISTRASI',
-  ANTRIAN: 'ANTRIAN',
-  RAWAT_JALAN: 'RAWAT_JALAN',
-  RAWAT_INAP: 'RAWAT_INAP',
-  OK: 'OK',
-  VK: 'VK',
-  MCU: 'MCU',
-  RAWAT_DARURAT: 'RAWAT_DARURAT',
-  LAB: 'LAB',
-  RADIOLOGI: 'RADIOLOGI',
-  REKAM_MEDIK: 'REKAM_MEDIK',
-  FARMASI: 'FARMASI',
-  KEUANGAN: 'KEUANGAN',
-  PONEK: 'PONEK',
-  GUDANG_FARMASI: 'GUDANG_FARMASI',
-  GUDANG_UMUM: 'GUDANG_UMUM',
-  SYSTEM_ADMIN: 'SYSTEM_ADMIN',
-  BILLING_KASIR: 'BILLING_KASIR',
-  MOBILE_PASIEN: 'MOBILE_PASIEN'
-} as const
-type Module = (typeof Modules)[keyof typeof Modules]
-
-import type { MenuProps } from 'antd'
-import { Menu, theme } from 'antd'
-import { ItemType } from 'antd/es/menu/interface'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { Outlet, useLocation, useNavigate } from 'react-router'
+type Module = (typeof Modules)[keyof typeof Modules];
 
 // const SendNotificationButton = () => {
 //   const { message } = AntdApp.useApp()
@@ -92,177 +73,239 @@ type DashboardMenuItem = DashboardMenuChild & {
 const DASHBOARD_ROOT_KEY = '/dashboard'
 
 const items: DashboardMenuItem[] = [
-  {
-    label: 'Dashboard',
-    key: DASHBOARD_ROOT_KEY,
-    icon: <DashboardOutlined />
-  },
-  {
-    label: 'Registrasi',
-    key: '/dashboard/registration',
-    icon: <CalendarOutlined />,
-    module: Modules.REGISTRASI,
-    children: [
-      { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
-      { label: 'Pendaftaran', key: '/dashboard/registration', icon: <DashboardOutlined /> },
-      {
-        label: 'Antrian Pasien',
-        key: '/dashboard/registration/select',
-        icon: <DashboardOutlined />
-      },
-      {
-        label: 'Antrian Mendatang',
-        key: '/dashboard/registration/upcoming-queue',
-        icon: <UnorderedListOutlined />
-      },
-      {
-        label: 'Kioska',
-        key: '/dashboard/registration/kioska',
-        icon: <BarcodeOutlined />
-      },
-      // {
-      //   label: 'Daftar Kunjungan',
-      //   key: '/dashboard/registration/active-encounters',
-      //   icon: <UnorderedListOutlined />
-      // },
-      { label: 'Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
-      {
-        label: 'Jadwal Dokter',
-        key: '/dashboard/registration/doctor-schedule',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Monitor Antrian Dokter',
-        key: '/dashboard/queue/monitor',
-        icon: <UnorderedListOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Rawat Jalan',
-    key: '/dashboard/poli',
-    icon: <CalendarOutlined />,
-    module: Modules.RAWAT_JALAN,
-    children: [
-      { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
-      { label: 'Rekam Medis Dokter', key: '/dashboard/doctor', icon: <FileTextOutlined /> }
-    ]
-  },
-  {
-    label: 'Rawat Inap',
-    key: '/dashboard/rawat-inap',
-    icon: <CalendarOutlined />,
-    module: Modules.RAWAT_INAP,
-    children: [
-      {
-        label: 'Rawat Inap 1',
-        key: '/dashboard/rawat-inap/ranap-1/class-1',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Rawat Inap 2',
-        key: '/dashboard/rawat-inap/ranap-2/class1',
-        icon: <CalendarOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Farmasi',
-    key: '/dashboard/medicine',
-    icon: <WalletOutlined />,
-    module: Modules.FARMASI,
-    children: [
-      { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
-      {
-        label: 'Permintaan Obat (Resep)',
-        key: '/dashboard/medicine/medication-requests',
-        icon: <FileAddOutlined />
-      },
-      {
-        label: 'Penyerahan Obat',
-        key: '/dashboard/medicine/medication-dispenses',
-        icon: <MedicineBoxOutlined />
-      },
-      {
-        label: 'Kategori Item',
-        key: '/dashboard/medicine/medicine-categories',
-        icon: <UnorderedListOutlined />
-      },
-      { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
-      {
-        label: 'Obat dan Barang Umum',
-        key: '/dashboard/medicine/items',
-        icon: <ExperimentOutlined />
-      },
-      {
-        label: 'Obat dan Barang BPJS',
-        key: '/dashboard/medicine/items-bpjs',
-        icon: <ExperimentOutlined />
-      },
-      {
-        label: 'Transaksi Penjualan Barang',
-        key: '/dashboard/medicine/item-purchase',
-        icon: <WalletOutlined />
-      },
-      { label: 'Laporan', key: '/dashboard/medicine/report', icon: <FileTextOutlined /> }
-    ]
-  },
-  {
-    label: 'Laboratorium',
-    key: '/dashboard/laboratory-management',
-    icon: <ExperimentOutlined />,
-    module: Modules.LAB,
-    children: [
-      {
-        label: 'Antrian',
-        key: '/dashboard/laboratory-management/queue',
-        icon: <UnorderedListOutlined />
-      },
-      {
-        label: 'Permintaan',
-        key: '/dashboard/laboratory-management/requests',
-        icon: <FileAddOutlined />
-      },
-      {
-        label: 'Hasil',
-        key: '/dashboard/laboratory-management/results',
-        icon: <FileTextOutlined />
-      },
-      {
-        label: 'Laporan',
-        key: '/dashboard/laboratory-management/reports',
-        icon: <FileSearchOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Kasir & Billing',
-    key: '/dashboard/kasir',
-    icon: <WalletOutlined />,
-    module: Modules.BILLING_KASIR,
-    children: [
-      {
-        label: 'Tagihan Pasien',
-        key: '/dashboard/kasir',
-        icon: <FileTextOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Sistem',
-    key: '/dashboard/pegawai',
-    icon: <DashboardOutlined />,
-    module: Modules.SYSTEM_ADMIN,
-    children: [
-      { label: 'Data Petugas Medis', key: '/dashboard/pegawai', icon: <UserOutlined /> },
-      {
-        label: 'Lap Data Petugas Medis',
-        key: '/dashboard/pegawai-report',
-        icon: <DashboardOutlined />
-      }
-    ]
-  }
-]
+	{
+		label: "Dashboard",
+		key: DASHBOARD_ROOT_KEY,
+		icon: <DashboardOutlined />,
+	},
+	{
+		label: "Registrasi",
+		key: "/dashboard/registration",
+		icon: <CalendarOutlined />,
+		module: Modules.REGISTRASI,
+		children: [
+			{ label: "Pasien", key: "/dashboard/patient", icon: <UserOutlined /> },
+			{
+				label: "Pendaftaran",
+				key: "/dashboard/registration",
+				icon: <DashboardOutlined />,
+			},
+			{
+				label: "Antrian Pasien",
+				key: "/dashboard/registration/select",
+				icon: <DashboardOutlined />,
+			},
+			{
+				label: "Antrian Mendatang",
+				key: "/dashboard/registration/upcoming-queue",
+				icon: <UnorderedListOutlined />,
+			},
+			{
+				label: "Kioska",
+				key: "/dashboard/registration/kioska",
+				icon: <BarcodeOutlined />,
+			},
+			// {
+			//   label: 'Daftar Kunjungan',
+			//   key: '/dashboard/registration/active-encounters',
+			//   icon: <UnorderedListOutlined />
+			// },
+			{ label: "Antrian", key: "/dashboard/queue", icon: <CalendarOutlined /> },
+			{
+				label: "Monitor Antrian Dokter",
+				key: "/dashboard/queue/monitor",
+				icon: <UnorderedListOutlined />,
+			},
+			{
+				label: "Jadwal Dokter",
+				key: "/dashboard/registration/doctor-schedule",
+				icon: <CalendarOutlined />,
+			},
+		],
+	},
+	{
+		label: "Rawat Jalan",
+		key: "/dashboard/poli",
+		icon: <CalendarOutlined />,
+		module: Modules.RAWAT_JALAN,
+		children: [
+			{ label: "Poli", key: "/dashboard/poli", icon: <CalendarOutlined /> },
+			{
+				label: "Poli Umum",
+				key: "/dashboard/poli/umum",
+				icon: <CalendarOutlined />,
+			},
+			{
+				label: "Rekam Medis Dokter",
+				key: "/dashboard/doctor",
+				icon: <FileTextOutlined />,
+			},
+			{
+				label: "Pemanggilan Pasien",
+				key: "/dashboard/nurse-calling",
+				icon: <PhoneOutlined />,
+			},
+		],
+	},
+	{
+		label: "Rawat Inap",
+		key: "/dashboard/rawat-inap",
+		icon: <CalendarOutlined />,
+		module: Modules.RAWAT_INAP,
+		children: [
+			{
+				label: "Rawat Inap 1",
+				key: "/dashboard/rawat-inap/ranap-1/class-1",
+				icon: <CalendarOutlined />,
+			},
+			{
+				label: "Rawat Inap 2",
+				key: "/dashboard/rawat-inap/ranap-2/class1",
+				icon: <CalendarOutlined />,
+			},
+		],
+	},
+	{
+		label: "Farmasi",
+		key: "/dashboard/medicine",
+		icon: <WalletOutlined />,
+		module: Modules.FARMASI,
+		children: [
+			{ label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
+			{
+				label: 'Permintaan Obat (Resep)',
+				key: '/dashboard/medicine/medication-requests',
+				icon: <FileAddOutlined />
+			},
+			{
+				label: 'Penyerahan Obat',
+				key: '/dashboard/medicine/medication-dispenses',
+				icon: <MedicineBoxOutlined />
+			},
+			// {
+			//   label: 'Kategori Item',
+			//   key: '/dashboard/medicine/medicine-categories',
+			//   icon: <UnorderedListOutlined />
+			// },
+			// { label: 'Kode KFA', key: '/dashboard/medicine/kfa-codes', icon: <UnorderedListOutlined /> },
+			// { label: 'Obat dan Barang Umum', key: '/dashboard/medicine/items', icon: <ExperimentOutlined /> },
+			// { label: 'Obat dan Barang BPJS', key: '/dashboard/medicine/items-bpjs', icon: <ExperimentOutlined /> },
+			{
+				label: 'Transaksi Penjualan Barang',
+				key: '/dashboard/medicine/item-purchase',
+				icon: <WalletOutlined />
+			},
+			{ label: 'Laporan', key: '/dashboard/medicine/report', icon: <FileTextOutlined /> },
+		],
+	},
+	{
+		label: "Laboratorium",
+		key: "/dashboard/laboratory-management",
+		icon: <ExperimentOutlined />,
+		module: Modules.LAB,
+		children: [
+			{
+				label: "Antrian",
+				key: "/dashboard/laboratory-management/queue",
+				icon: <UnorderedListOutlined />,
+			},
+			{
+				label: "Permintaan",
+				key: "/dashboard/laboratory-management/requests",
+				icon: <FileAddOutlined />,
+			},
+			{
+				label: "Hasil",
+				key: "/dashboard/laboratory-management/results",
+				icon: <FileTextOutlined />,
+			},
+			{
+				label: "Laporan",
+				key: "/dashboard/laboratory-management/reports",
+				icon: <FileSearchOutlined />,
+			},
+		],
+	},
+	{
+		label: "Kasir & Billing",
+		key: "/dashboard/kasir",
+		icon: <WalletOutlined />,
+		module: Modules.BILLING_KASIR,
+		children: [
+			{
+				label: "Tagihan Pasien",
+				key: "/dashboard/kasir",
+				icon: <FileTextOutlined />,
+			},
+		],
+	},
+	{
+		label: "Antrian Non-Medis",
+		key: "/dashboard/non-medic-queue",
+		icon: <UnorderedListOutlined />,
+		module: Modules.BILLING_KASIR,
+		children: [
+			{
+				label: "KIOSK Billing",
+				key: "/dashboard/non-medic-queue/kiosk/billing",
+				icon: <BarcodeOutlined />,
+			},
+			{
+				label: "KIOSK Kasir",
+				key: "/dashboard/non-medic-queue/kiosk/cashier",
+				icon: <BarcodeOutlined />,
+			},
+			{
+				label: "KIOSK Farmasi",
+				key: "/dashboard/non-medic-queue/kiosk/pharmacy",
+				icon: <BarcodeOutlined />,
+			},
+			{
+				label: "Billing",
+				key: "/dashboard/non-medic-queue/billing",
+				icon: <WalletOutlined />,
+			},
+			{
+				label: "Kasir",
+				key: "/dashboard/non-medic-queue/cashier",
+				icon: <WalletOutlined />,
+			},
+			{
+				label: "Farmasi",
+				key: "/dashboard/non-medic-queue/pharmacy",
+				icon: <MedicineBoxOutlined />,
+			},
+			{
+				label: "Service Point",
+				key: "/dashboard/non-medic-queue/service-points",
+				icon: <UnorderedListOutlined />,
+			},
+			{
+				label: "Workspace Counter",
+				key: "/dashboard/non-medic-queue/workspace",
+				icon: <PhoneOutlined />,
+			},
+		],
+	},
+	{
+		label: "Sistem",
+		key: "/dashboard/pegawai",
+		icon: <DashboardOutlined />,
+		module: Modules.SYSTEM_ADMIN,
+		children: [
+			{
+				label: "Data Petugas Medis",
+				key: "/dashboard/pegawai",
+				icon: <UserOutlined />,
+			},
+			{
+				label: "Lap Data Petugas Medis",
+				key: "/dashboard/pegawai-report",
+				icon: <DashboardOutlined />,
+			},
+		],
+	},
+];
 
 const isPageNotRegistered = (access: PageAccessEntry | null) => {
   return (
@@ -405,10 +448,10 @@ function Dashboard() {
   console.log('session', session)
   console.log('profile', profile)
 
-  if (!Object.keys(pageAccessMap).length) {
-    console.error('PageAccess map not found!')
-  }
-  const visibleItems = filterItemsBySession(dynamicItems, pageAccessMap, session)
+	if (!Object.keys(pageAccessMap).length) {
+		console.error("PageAccess map not found!");
+	}
+ const visibleItems = filterItemsBySession(dynamicItems, pageAccessMap, session)
   const registeredPrefixes = [
     '/dashboard/expense',
     '/dashboard/patient',
@@ -436,109 +479,89 @@ function Dashboard() {
     '/dashboard/nurse-calling',
     '/dashboard/rawat-inap',
     '/dashboard/poli',
-    '/dashboard/kasir'
+    '/dashboard/kasir',
   ]
-  const isRegisteredPath = (path: string): boolean => {
-    if (path === DASHBOARD_ROOT_KEY) return true
-    return registeredPrefixes.some((prefix) => path.startsWith(prefix))
-  }
-  const findLabelByPath = (path: string): string => {
-    const top = visibleItems.find((i) => path.startsWith(i.key))
-    if (top && path === top.key) return top.label
-    for (const i of visibleItems) {
-      const child = (i.children || []).find((c) => path.startsWith(c.key))
-      if (child) return child.label
-    }
-    return top ? top.label : path
-  }
-  const getTopKeyFromPath = (path: string): string => {
-    if (path.startsWith('/dashboard/doctor')) {
-      return '/dashboard/poli'
-    }
-    for (const top of visibleItems) {
-      const children = Array.isArray(top.children) ? top.children : []
-      const match = children.find((c) => path.startsWith(c.key))
-      if (match) return top.key
-    }
-    const sorted = [...visibleItems].sort((a, b) => b.key.length - a.key.length)
-    const found = sorted.find((item) => path.startsWith(item.key))
-    return found?.key || visibleItems[0]?.key || DASHBOARD_ROOT_KEY
-  }
-  const initialTop = getTopKeyFromPath(location.pathname)
-  const [activeTop, setActiveTop] = useState<string>(initialTop)
-  const childrenOfTop = (key: string) => {
-    const top = visibleItems.find((i) => i.key === key)
-    if (!top) return [] as ItemType[]
-    if (Array.isArray(top.children) && top.children.length > 0) {
-      return top.children.map((c) => ({
-        label: c.label,
-        key: c.key,
-        icon: c.icon
-      })) as ItemType[]
-    }
-    return [{ label: top.label, key: top.key, icon: top.icon } as ItemType]
-  }
-  const childKeysOfTop = (key: string): string[] => {
-    const top = visibleItems.find((i) => i.key === key)
-    if (!top) return []
-    if (Array.isArray(top.children) && top.children.length > 0)
-      return top.children.map((c) => c.key)
-    return [top.key]
-  }
-  const [sideItems, setSideItems] = useState<ItemType[]>(childrenOfTop(initialTop))
-  const initialSide = location.pathname.startsWith(initialTop)
-    ? location.pathname
-    : (sideItems[0]?.key as string)
-  const [activeSide, setActiveSide] = useState<string>(initialSide)
-  const [collapsed, setCollapsed] = useState(false)
+	const isRegisteredPath = (path: string): boolean => {
+		if (path === DASHBOARD_ROOT_KEY) return true;
+		return registeredPrefixes.some((prefix) => path.startsWith(prefix));
+	};
+	const findLabelByPath = (path: string): string => {
+		const top = visibleItems.find((i) => path.startsWith(i.key));
+		if (top && path === top.key) return top.label;
+		for (const i of visibleItems) {
+			const child = (i.children || []).find((c) => path.startsWith(c.key));
+			if (child) return child.label;
+		}
+		return top ? top.label : path;
+	};
+	const getTopKeyFromPath = (path: string): string => {
+		if (
+			path.startsWith("/dashboard/doctor") &&
+			visibleItems.some((item) => item.key === "/dashboard/doctor")
+		) {
+			return "/dashboard/doctor";
+		}
+		for (const top of visibleItems) {
+			const children = Array.isArray(top.children) ? top.children : [];
+			const match = children.find((c) => path.startsWith(c.key));
+			if (match) return top.key;
+		}
+		const sorted = [...visibleItems].sort(
+			(a, b) => b.key.length - a.key.length,
+		);
+		const found = sorted.find((item) => path.startsWith(item.key));
+		return found?.key || visibleItems[0]?.key || DASHBOARD_ROOT_KEY;
+	};
+	const initialTop = getTopKeyFromPath(location.pathname);
+	const [activeTop, setActiveTop] = useState<string>(initialTop);
+	const childrenOfTop = (key: string) => {
+		const top = visibleItems.find((i) => i.key === key);
+		if (!top) return [] as ItemType[];
+		if (Array.isArray(top.children) && top.children.length > 0) {
+			return top.children.map((c) => ({
+				label: c.label,
+				key: c.key,
+				icon: c.icon,
+			})) as ItemType[];
+		}
+		return [{ label: top.label, key: top.key, icon: top.icon } as ItemType];
+	};
+	const childKeysOfTop = (key: string): string[] => {
+		const top = visibleItems.find((i) => i.key === key);
+		if (!top) return [];
+		if (Array.isArray(top.children) && top.children.length > 0)
+			return top.children.map((c) => c.key);
+		return [top.key];
+	};
+	const [sideItems, setSideItems] = useState<ItemType[]>(
+		childrenOfTop(initialTop),
+	);
+	const initialSide = location.pathname.startsWith(initialTop)
+		? location.pathname
+		: (sideItems[0]?.key as string);
+	const [activeSide, setActiveSide] = useState<string>(initialSide);
+	const [collapsed, setCollapsed] = useState(false);
 
-  const navigate = useNavigate()
-  const onSideClick: MenuProps['onClick'] = (e) => {
-    const key = String(e.key)
-    const role = session?.hakAksesId
-
-    const poliMeta = poliKeyMeta[key]
-    if (poliMeta) {
-      if (role === 'doctor') {
-        const params = new URLSearchParams({
-          from: 'poli-select',
-          poliCode: poliMeta.code,
-          poliName: poliMeta.name
-        })
-        navigate(`/dashboard/doctor?${params.toString()}`)
-        setActiveSide(key)
-        return
-      }
-
-      if (role === 'nurse') {
-        navigate(key)
-        setActiveSide(key)
-        return
-      }
-
-      const params = new URLSearchParams({ selectPoli: poliMeta.code })
-      navigate(`/dashboard/poli?${params.toString()}`)
-      setActiveSide(key)
-      return
-    }
-
-    navigate(key)
-    setActiveSide(key)
-  }
-  const topItems = visibleItems.map((i) => ({
-    label: i.label,
-    key: i.key,
-    icon: i.icon
-  })) as ItemType[]
-  const onTopClick: MenuProps['onClick'] = (e) => {
-    const key = String(e.key)
-    setActiveTop(key)
-    const children = childrenOfTop(key)
-    setSideItems(children)
-    const nextSide = (children[0]?.key as string) || key
-    setActiveSide(nextSide)
-    navigate(key)
-  }
+	const navigate = useNavigate();
+	const onSideClick: MenuProps["onClick"] = (e) => {
+		const key = String(e.key);
+		navigate(key);
+		setActiveSide(key);
+	};
+	const topItems = visibleItems.map((i) => ({
+		label: i.label,
+		key: i.key,
+		icon: i.icon,
+	})) as ItemType[];
+	const onTopClick: MenuProps["onClick"] = (e) => {
+		const key = String(e.key);
+		setActiveTop(key);
+		const children = childrenOfTop(key);
+		setSideItems(children);
+		const nextSide = (children[0]?.key as string) || key;
+		setActiveSide(nextSide);
+		navigate(key);
+	};
 
   useEffect(() => {
     const newTop = getTopKeyFromPath(location.pathname)

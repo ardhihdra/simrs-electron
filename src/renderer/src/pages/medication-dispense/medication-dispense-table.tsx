@@ -19,7 +19,12 @@ import {
   MedicineBoxOutlined,
   ReloadOutlined,
   FileTextOutlined,
-  SearchOutlined
+  SearchOutlined,
+  ClockCircleOutlined,
+  StopOutlined,
+  PauseCircleOutlined,
+  QuestionCircleOutlined,
+  InfoCircleOutlined
 } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
@@ -27,6 +32,7 @@ import { useNavigate, useLocation } from 'react-router'
 import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
 import { printMedicationLabels } from './component/print-medication-label'
+import { SerahkanObatModal, type SerahkanObatFormValues } from './component/serahkan-obat-modal'
 
 type PatientNameEntry = {
   text?: string
@@ -103,6 +109,8 @@ interface MedicationDispenseAttributes {
   authorizingPrescription?: AuthorizingPrescriptionInfo | null
   paymentStatus?: string
   encounter?: { encounterType?: string }
+  identifier?: Array<{ system: string; value: string }> | null
+  fhirId?: string | null
 }
 
 interface MedicationDispenseListArgs {
@@ -175,6 +183,7 @@ interface DispenseItemRow {
   fhirId?: string
   batch?: string
   expiryDate?: string
+  paymentStatus?: string
   children?: DispenseItemRow[]
 }
 
@@ -193,29 +202,71 @@ interface ParentRow {
 type StatusFilter = 'all' | 'completed' | 'return'
 
 function getStatusLabel(status: string): string {
-  if (status === 'entered-in-error') return 'return'
-  if (status === 'cancelled' || status === 'stopped' || status === 'declined') return 'cancel'
-  if (status === 'preparation') return 'pending'
-  if (status === 'in-progress') return 'on process'
-  if (status === 'on-hold') return 'hold'
+  if (status === 'entered-in-error') return 'Void/Kembali'
+  if (status === 'cancelled' || status === 'stopped' || status === 'declined') return 'Dibatalkan'
+  if (status === 'preparation') return 'Persiapan'
+  if (status === 'in-progress') return 'Diproses'
+  if (status === 'on-hold') return 'Tertunda'
+  if (status === 'completed') return 'Selesai'
   return status
 }
 
-function RowActions({ record, patient }: { record: DispenseItemRow; patient?: PatientInfo }) {
+function getStatusTag(status: string) {
+  const label = getStatusLabel(status)
+  if (status === 'completed') return <Tag color="green" icon={<CheckCircleOutlined />}>{label}</Tag>
+  if (status === 'entered-in-error') return <Tag color="volcano" icon={<ReloadOutlined />}>{label}</Tag>
+  if (status === 'cancelled' || status === 'stopped' || status === 'declined') return <Tag color="red" icon={<StopOutlined />}>{label}</Tag>
+  if (status === 'preparation') return <Tag color="blue" icon={<InfoCircleOutlined />}>{label}</Tag>
+  if (status === 'in-progress') return <Tag color="geekblue" icon={<SyncOutlined spin />}>{label}</Tag>
+  if (status === 'on-hold') return <Tag color="orange" icon={<PauseCircleOutlined />}>{label}</Tag>
+  return <Tag color="default">{label}</Tag>
+}
+
+interface RowActionsProps {
+  record: DispenseItemRow
+  patient?: PatientInfo
+  employees: Array<{ id: number; namaLengkap: string }>
+  employeeNameById: Map<number, string>
+}
+
+function RowActions({ record, patient, employees, employeeNameById }: RowActionsProps) {
   const { message } = AntdApp.useApp()
+  const [serahkanModalOpen, setSerahkanModalOpen] = useState(false)
 
   const updateMutation = useMutation({
     mutationKey: ['medicationDispense', 'update', 'complete'],
-    mutationFn: async () => {
+    mutationFn: async (formValues: SerahkanObatFormValues) => {
       if (typeof record.id !== 'number') {
         throw new Error('ID MedicationDispense tidak valid.')
       }
       const fn = window.api?.query?.medicationDispense?.update
       if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
-      const payload: { id: number; status: 'completed'; whenHandedOver: string } = {
+
+      const penyiapNama = employeeNameById.get(formValues.penyiapObatId) ?? ''
+      const penyerahNama = employeeNameById.get(formValues.penyerahObatId) ?? ''
+
+      const pioAnnotation = {
+        text: `PIO: ${JSON.stringify({
+          hubungan: formValues.hubunganPenerima,
+          namaPenerima: formValues.namaPenerima,
+          penyiapObatId: formValues.penyiapObatId,
+          penyiapObatNama: penyiapNama,
+          penyerahObatId: formValues.penyerahObatId,
+          penyerahObatNama: penyerahNama
+        })}`
+      }
+
+      const receiverDisplay = formValues.hubunganPenerima === 'Sendiri'
+        ? 'Sendiri (Pasien)'
+        : `${formValues.hubunganPenerima} - ${formValues.namaPenerima}`
+
+      const payload = {
         id: record.id,
-        status: 'completed',
-        whenHandedOver: new Date().toISOString()
+        status: 'completed' as const,
+        whenHandedOver: new Date().toISOString(),
+        performerId: formValues.penyerahObatId,
+        note: [pioAnnotation],
+        receiver: [{ display: receiverDisplay }]
       }
       const res = await fn(payload as never)
       if (!res.success) {
@@ -224,6 +275,7 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
       return res
     },
     onSuccess: () => {
+      setSerahkanModalOpen(false)
       queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
       message.success('Obat berhasil diserahkan')
     },
@@ -269,79 +321,25 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
   const quantityToDispense = typeof record.quantity === 'number' ? record.quantity : 0
   const hasStockInfo = typeof record.availableStock === 'number'
   const isStockInsufficient = hasStockInfo && quantityToDispense > (record.availableStock as number)
+  const isPaid = record.paymentStatus === 'Lunas'
   const canComplete =
-    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient
+    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid
   const canVoid = isCompleted && typeof record.id === 'number'
   const isKomposisi = record.jenis === 'Komposisi'
 
   const handlePrintLabel = () => {
     const patientLabel = getPatientDisplayName(patient)
-    const name = record.medicineName ?? 'Obat'
-    const quantityValue = typeof record.quantity === 'number' ? record.quantity : 0
-    const unitLabel = record.unit ?? ''
-    const instructionText = record.instruksi ?? ''
-
-    const parts: string[] = []
-    if (patientLabel.trim().length > 0) {
-      parts.push(`Pasien: ${patientLabel}`)
-    }
-    parts.push(`Nama Obat: ${name}`)
-    parts.push(`Qty: ${quantityValue} ${unitLabel}`.trim())
-    if (instructionText.trim().length > 0) {
-      parts.push(`Instruksi: ${instructionText}`)
-    }
-
-    if (parts.length === 0) {
-      message.info('Data label obat tidak tersedia')
-      return
-    }
-
-    const htmlLines = parts.map((line) => `<div class="line">${line}</div>`).join('')
-    const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8" />
-  <title>Label Obat</title>
-  <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 12px; margin: 8px; }
-    .label { border: 1px solid #000; padding: 4px 8px; max-width: 320px; }
-    .line { margin-bottom: 2px; }
-  </style>
-</head>
-<body>
-  <div class="label">
-    ${htmlLines}
-  </div>
-</body>
-</html>`
-
-    const iframe = document.createElement('iframe')
-    iframe.style.position = 'fixed'
-    iframe.style.right = '0'
-    iframe.style.bottom = '0'
-    iframe.style.width = '0'
-    iframe.style.height = '0'
-    iframe.style.border = '0'
-    document.body.appendChild(iframe)
-
-    const iframeWindow = iframe.contentWindow
-    if (!iframeWindow) {
-      message.info('Gagal menyiapkan tampilan cetak label')
-      iframe.remove()
-      return
-    }
-
-    const doc = iframeWindow.document
-    doc.open()
-    doc.write(html)
-    doc.close()
-
-    iframeWindow.focus()
-    iframeWindow.print()
-
-    setTimeout(() => {
-      iframe.remove()
-    }, 1000)
+    printMedicationLabels({
+        patientName: patientLabel,
+        items: [{
+            medicineName: record.medicineName,
+            quantity: record.quantity,
+            unit: record.unit,
+            instruksi: record.instruksi,
+            expiryDate: (record as any).expiryDate,
+            batch: (record as any).batch
+        }]
+    })
   }
 
   return (
@@ -353,7 +351,7 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
             size="small"
             disabled={updateMutation.isPending || isStockInsufficient}
             loading={updateMutation.isPending}
-            onClick={() => updateMutation.mutate()}
+            onClick={() => setSerahkanModalOpen(true)}
           >
             Serahkan Obat
           </Button>
@@ -391,6 +389,18 @@ function RowActions({ record, patient }: { record: DispenseItemRow; patient?: Pa
           Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
         </div>
       )}
+      {!isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
+        <div className="text-xs text-orange-500">
+          Pembayaran belum lunas, tidak dapat menyerahkan obat.
+        </div>
+      )}
+      <SerahkanObatModal
+        open={serahkanModalOpen}
+        loading={updateMutation.isPending}
+        employees={employees}
+        onSubmit={(values) => updateMutation.mutate(values)}
+        onCancel={() => setSerahkanModalOpen(false)}
+      />
     </div>
   )
 }
@@ -400,7 +410,12 @@ function getPatientDisplayName(patient?: PatientInfo): string {
 
   if (typeof patient.name === 'string') {
     const trimmed = patient.name.trim()
-    if (trimmed.length > 0) return trimmed
+    if (trimmed.length > 0) {
+      const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
+      const localMrn = identifiers.find((id) => id.system === 'local-mrn')
+      const mrn = patient.mrNo || localMrn?.value || ''
+      return mrn ? `${trimmed} (${mrn})` : trimmed
+    }
   }
 
   const firstName: PatientNameEntry | undefined =
@@ -412,16 +427,14 @@ function getPatientDisplayName(patient?: PatientInfo): string {
     .join(' ')
     .trim()
 
-  const baseName = nameFromText || nameFromGivenFamily
+  const baseName = nameFromText || nameFromGivenFamily || 'Tanpa nama'
 
   const identifiers = Array.isArray(patient.identifier) ? patient.identifier : []
   const localMrn = identifiers.find((id) => id.system === 'local-mrn')
   const mrn = patient.mrNo || localMrn?.value || ''
 
-  if (baseName && mrn) return `${baseName} (${mrn})`
-  if (baseName) return baseName
-  if (mrn) return mrn
-  return 'Tanpa nama'
+  if (mrn) return `${baseName} (${mrn})`
+  return baseName
 }
 
 function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
@@ -530,25 +543,17 @@ const columns = [
     dataIndex: 'encounterType',
     key: 'encounterType',
     render: (val: string) => {
-      if (val === 'AMB') return <Tag color="green">Rawat Jalan</Tag>
-      if (val === 'EMER') return <Tag color="red">IGD</Tag>
-      if (val === 'IMP') return <Tag color="blue">Rawat Inap</Tag>
-      return '-'
+      if (val === 'AMB' || val === 'ambulatory') return <Tag color="green">Rawat Jalan</Tag>
+      if (val === 'EMER' || val === 'emergency') return <Tag color="red">IGD</Tag>
+      if (val === 'IMP' || val === 'inpatient') return <Tag color="blue">Rawat Inap</Tag>
+      return <Tag color="default">Pasien Luar</Tag>
     }
   },
   {
     title: 'Status Penyerahan',
     dataIndex: 'status',
     key: 'status',
-    render: (val: string) => {
-      const color =
-        val === 'completed'
-          ? 'green'
-          : val === 'cancelled' || val === 'entered-in-error'
-            ? 'red'
-            : 'default'
-      return <Tag color={color}>{getStatusLabel(val)}</Tag>
-    }
+    render: (val: string) => getStatusTag(val)
   },
   {
     title: 'Pembayaran',
@@ -557,7 +562,8 @@ const columns = [
     render: (val: string | undefined) => {
       const status = val || 'Belum Ditagihkan'
       const color = status === 'Lunas' ? 'green' : status === 'Sebagian' ? 'orange' : 'volcano'
-      return <Tag color={color}>{status}</Tag>
+      const icon = status === 'Lunas' ? <CheckCircleOutlined /> : status === 'Sebagian' ? <ClockCircleOutlined /> : <CloseCircleOutlined />
+      return <Tag color={color} icon={icon}>{status}</Tag>
     }
   },
   {
@@ -662,6 +668,16 @@ export function MedicationDispenseTable() {
       }
     })
     return map
+  }, [employeeData])
+  const employeeList = useMemo(() => {
+    const source = Array.isArray(employeeData?.result)
+      ? (employeeData.result as Array<{ id?: number; namaLengkap?: string }>)
+      : []
+    return source
+      .filter((e): e is { id: number; namaLengkap: string } =>
+        typeof e.id === 'number' && typeof e.namaLengkap === 'string'
+      )
+      .map((e) => ({ id: e.id, namaLengkap: e.namaLengkap }))
   }, [employeeData])
   const itemApi = (
     window.api?.query as {
@@ -919,14 +935,33 @@ export function MedicationDispenseTable() {
               if (!ingName && typeof ingItemId === 'number') {
                 ingName = itemNameById.get(ingItemId)
               }
+
+              let ingBatch: string | undefined
+              let ingExpiryDate: string | undefined
+
+              // Fallback for ingredients: look in identifiers if the dispense record has them
+              const ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
+              if (ingKode) {
+                const batchId = item.identifier?.find((id: any) => id.system === `batch-number-${ingKode}`)
+                const expId = item.identifier?.find((id: any) => id.system === `expiry-date-${ingKode}`)
+                if (batchId) ingBatch = batchId.value
+                if (expId) ingExpiryDate = expId.value
+              }
+
+              // Secondary fallback for legacy data
+              if (!ingBatch && ing.batchNumber) ingBatch = ing.batchNumber
+              if (!ingExpiryDate && ing.expiryDate) ingExpiryDate = ing.expiryDate
+
               return {
-                key: `${key}-ing-${idx}`,
+                key: `${key}-${item.id ?? 'grp'}-ing-${idx}`,
                 jenis: 'Komposisi',
                 medicineName: ingName ?? 'Komposisi',
-                quantity: typeof ing.quantity === 'number' ? ing.quantity : undefined,
+                quantity: typeof ing.quantity === 'number' ? Math.round(ing.quantity) : undefined,
                 unit: ing.unitCode ?? ing.unit,
                 status: '',
-                instruksi: ing.note ?? ing.instruction
+                instruksi: ing.note ?? ing.instruction,
+                batch: ingBatch,
+                expiryDate: ingExpiryDate
               }
             })
           }
@@ -948,14 +983,33 @@ export function MedicationDispenseTable() {
             if (!ingName && typeof ingItemId === 'number') {
               ingName = itemNameById.get(ingItemId)
             }
+
+            let ingBatch: string | undefined
+            let ingExpiryDate: string | undefined
+
+            // Fallback for ingredients: look in identifiers if the dispense record has them
+            const ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
+            if (ingKode) {
+              const batchId = item.identifier?.find((id: any) => id.system === `batch-number-${ingKode}`)
+              const expId = item.identifier?.find((id: any) => id.system === `expiry-date-${ingKode}`)
+              if (batchId) ingBatch = batchId.value
+              if (expId) ingExpiryDate = expId.value
+            }
+
+            // Secondary fallback for legacy data
+            if (!ingBatch && ing.batchNumber) ingBatch = ing.batchNumber
+            if (!ingExpiryDate && ing.expiryDate) ingExpiryDate = ing.expiryDate
+
             return {
-              key: `${key}-${item.id}-ing-${idx}`,
+              key: `${key}-${item.id ?? 'racik'}-ing-${idx}`,
               jenis: 'Komposisi',
               medicineName: ingName ?? 'Komposisi',
-              quantity: typeof ing.quantity === 'number' ? ing.quantity : undefined,
+              quantity: typeof ing.quantity === 'number' ? Math.round(ing.quantity) : undefined,
               unit: ing.unitCode ?? ing.unit,
               status: '',
-              instruksi: ing.note ?? ing.instruction
+              instruksi: ing.note ?? ing.instruction,
+              batch: ingBatch,
+              expiryDate: ingExpiryDate
             }
           })
         }
@@ -966,21 +1020,32 @@ export function MedicationDispenseTable() {
         id: item.id,
         jenis,
         medicineName,
-        quantity: typeof quantityValue === 'number' ? quantityValue : undefined,
+        quantity: typeof quantityValue === 'number' ? Math.round(quantityValue) : undefined,
         unit: quantityUnit,
         status: item.status,
         performerName: item.performer?.name,
         instruksi,
         availableStock:
           typeof item.medication?.stock === 'number' ? item.medication.stock : undefined,
+        paymentStatus: item.paymentStatus,
         fhirId:
-          typeof (item as any).fhirId === 'string' && (item as any).fhirId.trim().length > 0
-            ? (item as any).fhirId.trim()
+          typeof item.fhirId === 'string' && item.fhirId.trim().length > 0
+            ? item.fhirId.trim()
             : undefined,
         children
       }
-      // Extract batch info for non-compound items from prescription supportingInformation
-      if (isItem && Array.isArray(prescription?.supportingInformation)) {
+
+      // Extract batch info from identifiers (New priority)
+      if (Array.isArray(item.identifier)) {
+        const identifiers = item.identifier
+        const batchId = identifiers.find((id) => id.system === 'batch-number' || id.system.startsWith('batch-number-'))
+        const expiryId = identifiers.find((id) => id.system === 'expiry-date' || id.system.startsWith('expiry-date-'))
+        if (batchId) rowItem.batch = batchId.value
+        if (expiryId) rowItem.expiryDate = expiryId.value
+      }
+
+      // Fallback: Extract batch info for non-compound items from prescription supportingInformation
+      if (!rowItem.batch && !rowItem.expiryDate && isItem && Array.isArray(prescription?.supportingInformation)) {
         const batchInfo = (prescription.supportingInformation as Array<Record<string, unknown>>)
           .find((info) => info.resourceType === 'StockBatch')
         if (batchInfo) {
@@ -1286,7 +1351,7 @@ export function MedicationDispenseTable() {
                       title: 'Aksi',
                       key: 'action',
                       render: (_: DispenseItemRow, row: DispenseItemRow) => (
-                        <RowActions record={row} patient={record.patient} />
+                        <RowActions record={row} patient={record.patient} employees={employeeList} employeeNameById={employeeNameById} />
                       )
                     }
                   ]

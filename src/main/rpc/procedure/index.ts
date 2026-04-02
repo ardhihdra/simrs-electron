@@ -3,6 +3,7 @@ import { kasirRpc } from './kasir'
 import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
+import { nonMedicQueueRpc } from './non-medic-queue'
 import { pageAccessRpc } from './pageAccess'
 import { patientRpc } from './patient'
 import { practitionerRpc } from './practitioner'
@@ -26,6 +27,7 @@ export const rpcRouter = {
   wilayah: wilayahRpc,
   window: windowRpc,
   module: mmoduleRpc,
+  nonMedicQueue: nonMedicQueueRpc,
   registration: registrationRpc,
   query: queryProcedure,
   pageAccess: pageAccessRpc,

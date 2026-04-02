@@ -1,7 +1,6 @@
 import z from 'zod'
-import { MedicationDispenseStatus } from './enums/ResourceEnums'
 import { MedicationRequestWithIdSchema } from './medicationRequest'
-import { MedicationDispenseStatusEnum } from 'simrs-types'
+import { MedicationDispenseStatus } from 'simrs-types'
 
 const QuantitySchema = z.object({
   value: z.number().optional(),
@@ -39,7 +38,7 @@ const DosageInstructionEntrySchema = z.object({
 })
 
 export const MedicationDispenseSchema = z.object({
-  status: z.nativeEnum(MedicationDispenseStatusEnum),
+  status: z.nativeEnum(MedicationDispenseStatus),
   itemId: z.number().nullable().optional(),
   patientId: z.string(),
   encounterId: z.string().nullable().optional(),
@@ -48,7 +47,9 @@ export const MedicationDispenseSchema = z.object({
   whenPrepared: z.string().or(z.date()).nullable().optional(),
   whenHandedOver: z.string().or(z.date()).nullable().optional(),
   performerId: z.number().nullable().optional(),
-  dosageInstruction: z.array(DosageInstructionEntrySchema).nullable().optional()
+  dosageInstruction: z.array(DosageInstructionEntrySchema).nullable().optional(),
+  note: z.array(z.object({ text: z.string().optional() }).passthrough()).nullable().optional(),
+  receiver: z.array(z.object({ display: z.string().optional() }).passthrough()).nullable().optional()
 })
 
 export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({

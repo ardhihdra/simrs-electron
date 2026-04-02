@@ -1,10 +1,31 @@
 import { ArrowLeftOutlined, EyeOutlined, FileImageOutlined } from '@ant-design/icons'
+import { client } from '@renderer/utils/client'
 import { Button, Card, Descriptions, Empty, Spin, Table, Tag, Typography } from 'antd'
 import dayjs from 'dayjs'
 import { useNavigate, useParams } from 'react-router'
-import { client } from '@renderer/utils/client'
 
 const { Title, Text, Paragraph } = Typography
+
+interface LabObservationReport {
+  id: string
+  observationCodeId: string
+  value: string
+  unit?: string
+  referenceRange?: string
+  interpretation?: string
+  status: string
+  observedAt?: string | null
+  finalizedAt?: string | null
+}
+
+interface LabServiceRequestReport {
+  id: string
+  testCodeId: string
+  priority: string
+  status: string
+  specimens: unknown[]
+  observations: LabObservationReport[]
+}
 
 interface ImagingStudyReport {
   id: string
@@ -23,16 +44,54 @@ interface ImagingStudyReport {
   }
 }
 
+interface LabReportResponse {
+  encounterId: string
+  patientId: string
+  patient?: {
+    name?: string
+    medicalRecordNumber?: string
+    mrn?: string
+  }
+  queueTicket?: {
+    number?: string
+    date?: string
+    status?: string
+  }
+  serviceRequests?: LabServiceRequestReport[]
+  imagingStudies?: ImagingStudyReport[]
+}
+
+function getInterpretationColor(value?: string): string {
+  if (!value) return 'default'
+  if (value === 'NORMAL') return 'green'
+  if (value === 'HIGH') return 'volcano'
+  if (value === 'LOW') return 'blue'
+  if (value === 'CRITICAL' || value === 'CRITICAL_HIGH' || value === 'CRITICAL_LOW') return 'red'
+  if (value === 'ABNORMAL') return 'orange'
+  return 'default'
+}
+
+function getStatusColor(value?: string): string {
+  if (!value) return 'default'
+  if (value === 'COMPLETED' || value === 'FINAL') return 'green'
+  if (value === 'REQUESTED' || value === 'PRELIMINARY') return 'gold'
+  if (value === 'IN_PROGRESS') return 'blue'
+  if (value === 'CANCELLED') return 'red'
+  return 'default'
+}
+
 export default function LabReportDetailPage() {
   const navigate = useNavigate()
   const { id } = useParams()
-  const { data, isLoading } = client.laboratoryManagement.getReport.useQuery({encounterId: id!}, {
-    enabled: !!id,
-    queryKey: ['laboratoryManagement.getReport', {encounterId:id!}]
-  })
+  const { data, isLoading } = client.laboratoryManagement.getReport.useQuery(
+    { encounterId: id! },
+    {
+      enabled: !!id,
+      queryKey: ['laboratoryManagement.getReport', { encounterId: id! }]
+    }
+  )
 
-  // The RPC returns encounter.toJSON()
-  const encounter = data?.result || data
+  const report = (data?.result || data) as LabReportResponse | undefined
 
   if (isLoading) {
     return (
@@ -42,158 +101,194 @@ export default function LabReportDetailPage() {
     )
   }
 
-  if (!encounter) {
+  if (!report) {
     return <div>Report not found</div>
   }
 
-  // Flatten observations for the table
-  const observations =
-    encounter.labServiceRequests?.flatMap((req: Record<string, unknown>) => {
-      const serviceCode = req.serviceCode as Record<string, string> | undefined
-      return ((req.observations as Record<string, unknown>[]) || []).map((obs: Record<string, unknown>) => ({
-        key: obs.id as string,
-        display: serviceCode?.display,
-        systemUri: serviceCode?.systemUri,
-        code: serviceCode?.code,
-        value: obs.value as string,
-        unit: obs.unit as string,
-        referenceRange: obs.referenceRange as string,
-        interpretation: obs.interpretation as string,
-      }))
-    }) || []
+  const serviceRequests = Array.isArray(report.serviceRequests) ? report.serviceRequests : []
+  const imagingStudies = Array.isArray(report.imagingStudies) ? report.imagingStudies : []
+  const observationRows = serviceRequests.flatMap((request) =>
+    (request.observations || []).map((observation) => ({
+      key: observation.id,
+      serviceRequestId: request.id,
+      testCodeId: request.testCodeId,
+      requestStatus: request.status,
+      requestPriority: request.priority,
+      ...observation
+    }))
+  )
 
-  // Imaging studies from the unified endpoint
-  const imagingStudies: ImagingStudyReport[] = encounter.imagingStudies || []
-
-  const columns = [
+  const observationColumns = [
     {
-      title: 'Code',
-      dataIndex: 'code',
-      key: 'code',
-      render: (text: string, row: { systemUri?: string }) => <strong>{row.systemUri}/{text}</strong>
+      title: 'Kode Observasi',
+      dataIndex: 'observationCodeId',
+      key: 'observationCodeId',
+      render: (value: string) => <strong>{value}</strong>
     },
     {
-      title: 'Test Name',
-      dataIndex: 'display',
-      key: 'display'
-    },
-    {
-      title: 'Result',
+      title: 'Hasil',
       dataIndex: 'value',
       key: 'value',
-      render: (text: string) => <strong>{text}</strong>
+      render: (value: string) => <strong>{value}</strong>
     },
     {
-      title: 'Unit',
+      title: 'Satuan',
       dataIndex: 'unit',
-      key: 'unit'
+      key: 'unit',
+      render: (value?: string) => value || '-'
     },
     {
-      title: 'Ref. Range',
+      title: 'Nilai Rujukan',
       dataIndex: 'referenceRange',
-      key: 'referenceRange'
+      key: 'referenceRange',
+      render: (value?: string) => value || '-'
     },
     {
-      title: 'Interpretation',
+      title: 'Interpretasi',
       dataIndex: 'interpretation',
       key: 'interpretation',
-      render: (tag: string) => {
-        let color = 'default'
-        if (tag === 'HIGH' || tag === 'CRITICAL_HIGH') color = 'red'
-        if (tag === 'LOW' || tag === 'CRITICAL_LOW') color = 'blue'
-        if (tag === 'NORMAL') color = 'green'
-
-        return tag ? <Tag color={color}>{tag}</Tag> : '-'
-      }
+      render: (value?: string) =>
+        value ? <Tag color={getInterpretationColor(value)}>{value}</Tag> : '-'
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (value: string) => <Tag color={getStatusColor(value)}>{value}</Tag>
+    },
+    {
+      title: 'Waktu Hasil',
+      dataIndex: 'observedAt',
+      key: 'observedAt',
+      render: (value?: string | null) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-')
     }
   ]
 
-  console.log("encounter",encounter)
+  const patientName = report.patient?.name || '-'
+  const medicalRecordNumber = report.patient?.medicalRecordNumber || report.patient?.mrn || '-'
+  console.log(report)
   return (
     <div className="p-4">
       <div className="mb-4">
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>Back</Button>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+          Back
+        </Button>
       </div>
 
       <Title level={3}>Diagnostic Result Report</Title>
 
-      <div className="mb-4">
-        <Card title="Patient Information" className="mb-4">
-          <Descriptions column={2}>
-            <Descriptions.Item label="Patient Name">{encounter.patient?.name}</Descriptions.Item>
-            <Descriptions.Item label="Medical Record Number">{encounter.patient?.medicalRecordNumber}</Descriptions.Item>
-            <Descriptions.Item label="Encounter Date">
-              {dayjs(encounter.startTime).format('YYYY-MM-DD HH:mm')}
+      <Card title="Report Information" className="mb-4">
+        <Descriptions column={2}>
+          <Descriptions.Item label="Patient Name">{patientName}</Descriptions.Item>
+          <Descriptions.Item label="Medical Record Number">{medicalRecordNumber}</Descriptions.Item>
+          <Descriptions.Item label="Jumlah Service Request">
+            {serviceRequests.length}
+          </Descriptions.Item>
+          <Descriptions.Item label="Jumlah Imaging Study">
+            {imagingStudies.length}
+          </Descriptions.Item>
+          {report.queueTicket?.number ? (
+            <Descriptions.Item label="Nomor Antrian">{report.queueTicket.number}</Descriptions.Item>
+          ) : null}
+          {report.queueTicket?.status ? (
+            <Descriptions.Item label="Status Antrian">
+              <Tag color={getStatusColor(report.queueTicket.status)}>
+                {report.queueTicket.status}
+              </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="Status">
-              <Tag color="green">{encounter.status}</Tag>
-            </Descriptions.Item>
-          </Descriptions>
-        </Card>
-      </div>
+          ) : null}
+        </Descriptions>
+      </Card>
 
-      {/* Lab Results Section */}
-      {observations.length > 0 && (
-        <Card title="Laboratory Results" className="mb-4">
-          <Table
-            dataSource={observations}
-            columns={columns}
-            pagination={false}
-            bordered
-            size="middle"
-          />
-        </Card>
+      {observationRows.length > 0 && (
+        <div className="my-4">
+          <Card title="Laboratory Results" className="mb-4">
+            <Table
+              dataSource={observationRows}
+              columns={observationColumns}
+              pagination={false}
+              bordered
+              size="middle"
+              scroll={{ x: 1200 }}
+            />
+          </Card>
+        </div>
       )}
 
-      {/* Imaging / Radiology Results Section */}
       {imagingStudies.length > 0 && (
-        <Card title="Radiology / Imaging Results" className="mb-4">
-          {imagingStudies.map((study) => (
-            <Card
-              key={study.id}
-              type="inner"
-              className="mb-3"
-              title={
-                <span>
-                  <FileImageOutlined className="mr-2" />
-                  {study.modalityCode} — {dayjs(study.started).format('YYYY-MM-DD')}
-                </span>
-              }
-              extra={
-                <Tag color={study.reportStatus === 'FINAL' ? 'green' : 'orange'}>
-                  {study.reportStatus}
-                </Tag>
-              }
-            >
-              <Descriptions column={2} size="small" bordered>
-                <Descriptions.Item label="Modality">{study.modalityCode}</Descriptions.Item>
-                <Descriptions.Item label="Study Date">{dayjs(study.started).format('YYYY-MM-DD HH:mm')}</Descriptions.Item>
-                <Descriptions.Item label="Study Instance UID" span={2}>
-                  <Text copyable code>{study.studyInstanceUID}</Text><Button 
-                  onClick={() => (client.window as any).create({url:`http://localhost:3000/viewer?StudyInstanceUIDs=${study.studyInstanceUID}`, title: study.modalityCode})} size='small' icon={<EyeOutlined />}></Button>
-                </Descriptions.Item>
-              </Descriptions>
-
-              {study.diagnosticReport ? (
-                <div className="mt-4">
-                  <Title level={5}>Findings</Title>
-                  <Paragraph style={{ whiteSpace: 'pre-wrap', background: '#f9f9f9', padding: 12, borderRadius: 6 }}>
-                    {study.diagnosticReport.conclusion || 'No findings recorded.'}
-                  </Paragraph>
-                  <Text type="secondary">
-                    Report issued: {dayjs(study.diagnosticReport.issued).format('YYYY-MM-DD HH:mm')}
-                    {' · '}Status: <Tag color={study.diagnosticReport.status === 'final' ? 'green' : 'blue'}>{study.diagnosticReport.status}</Tag>
-                  </Text>
-                </div>
-              ) : (
-                <Empty description="No diagnostic report linked" className="mt-4" />
-              )}
-            </Card>
-          ))}
-        </Card>
+        <div className="my-4">
+          <Card title="Radiology / Imaging Results" className="mb-4">
+            {imagingStudies.map((study) => (
+              <Card
+                key={study.id}
+                type="inner"
+                className="mb-3"
+                title={
+                  <span>
+                    <FileImageOutlined className="mr-2" />
+                    {study.modalityCode} - {dayjs(study.started).format('YYYY-MM-DD')}
+                  </span>
+                }
+                extra={
+                  <Tag color={study.reportStatus === 'FINAL' ? 'green' : 'orange'}>
+                    {study.reportStatus}
+                  </Tag>
+                }
+              >
+                <Descriptions column={2} size="small" bordered>
+                  <Descriptions.Item label="Modality">{study.modalityCode}</Descriptions.Item>
+                  <Descriptions.Item label="Study Date">
+                    {dayjs(study.started).format('YYYY-MM-DD HH:mm')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Study Instance UID" span={2}>
+                    <Text copyable code>
+                      {study.studyInstanceUID}
+                    </Text>
+                    <Button
+                      onClick={() =>
+                        (client.window as any).create({
+                          url: `http://localhost:3000/viewer?StudyInstanceUIDs=${study.studyInstanceUID}`,
+                          title: study.modalityCode
+                        })
+                      }
+                      size="small"
+                      icon={<EyeOutlined />}
+                      className="ml-2"
+                    />
+                  </Descriptions.Item>
+                </Descriptions>
+                {study.diagnosticReport ? (
+                  <div className="mt-4">
+                    <Title level={5}>Findings</Title>
+                    <Paragraph
+                      style={{
+                        whiteSpace: 'pre-wrap',
+                        background: '#f9f9f9',
+                        padding: 12,
+                        borderRadius: 6
+                      }}
+                    >
+                      {study.diagnosticReport.conclusion || 'No findings recorded.'}
+                    </Paragraph>
+                    <Text type="secondary">
+                      Report issued:{' '}
+                      {dayjs(study.diagnosticReport.issued).format('YYYY-MM-DD HH:mm')}
+                      {' · '}Status:{' '}
+                      <Tag color={study.diagnosticReport.status === 'final' ? 'green' : 'blue'}>
+                        {study.diagnosticReport.status}
+                      </Tag>
+                    </Text>
+                  </div>
+                ) : (
+                  <Empty description="No diagnostic report linked" className="mt-4" />
+                )}
+              </Card>
+            ))}
+          </Card>
+        </div>
       )}
 
-      {observations.length === 0 && imagingStudies.length === 0 && (
+      {observationRows.length === 0 && imagingStudies.length === 0 && (
         <Card>
           <Empty description="No results available for this encounter" />
         </Card>

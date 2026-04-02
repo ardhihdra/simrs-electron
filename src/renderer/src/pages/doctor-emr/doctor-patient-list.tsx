@@ -1,33 +1,33 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Table,
-  Card,
-  Tag,
-  Button,
-  Spin,
-  Input,
-  DatePicker,
-  Space,
-  Row,
-  Col,
-  message,
-  Popconfirm,
-  App,
-  Badge,
-  theme
-} from 'antd'
-import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  CloudSyncOutlined,
+  DownloadOutlined,
+  ExceptionOutlined,
   EyeOutlined,
   ReloadOutlined,
   SearchOutlined,
-  CloudSyncOutlined,
   SyncOutlined,
-  DownloadOutlined,
-  TeamOutlined,
-  CheckCircleOutlined,
-  ClockCircleOutlined,
-  ExceptionOutlined
+  TeamOutlined
 } from '@ant-design/icons'
+import {
+  App,
+  Badge,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Input,
+  message,
+  Popconfirm,
+  Row,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  theme
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
 import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
@@ -35,10 +35,10 @@ import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import dayjs from 'dayjs'
 import logoUrl from '@renderer/assets/logo.png'
-import { useSearchParams } from 'react-router'
 import { getSyncSummary } from '@renderer/utils/satu-sehat'
 import { SatuSehatSyncStatus } from '@renderer/types/satu-sehat'
 import { SyncPopoverContent } from './components/sync-popover-content'
+import { useSearchParams } from 'react-router'
 
 const { RangePicker } = DatePicker
 
@@ -659,7 +659,7 @@ export const DoctorPatientList = () => {
               }}
               size="small"
               loading={isSyncing}
-              style={syncStyle}
+              style={syncStyle as any}
               title={
                 s && isSynced
                   ? `Encounter: ✅ | ${getSyncSummary(s).totalSynced}/${getSyncSummary(s).totalResources} resource sync`

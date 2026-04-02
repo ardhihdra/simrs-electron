@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import {
   Form,
   Button,
@@ -26,6 +27,7 @@ import {
 import dayjs from 'dayjs'
 
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useMasterTindakanList } from '@renderer/hooks/query/use-master-tindakan'
 import {
   useMasterPaketTindakanList,
@@ -63,21 +65,12 @@ interface ConsumableItem {
   kode: string
   nama: string
   kodeUnit?: string | null
-  kind?: 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL' | null
   sellingPrice?: number | null
-}
-
-interface UnitListResponse {
-  success: boolean
-  result?: UnitListItem[]
-  message?: string
-  error?: string
-}
-
-interface UnitListItem {
-  id: number
-  nama?: string | null
-  kode?: string | null
+  category?: {
+    id?: number
+    name?: string | null
+    categoryType?: string | null
+  } | null
 }
 
 const kelasOptions = [
@@ -154,6 +147,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const [editingId, setEditingId] = useState<number | null>(null)
   const [initialPetugas, setInitialPetugas] = useState<any[]>([])
   const [initialPaketPetugas, setInitialPaketPetugas] = useState<Record<string, any[]>>({})
+  const { profile } = useMyProfile()
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
 
@@ -171,7 +165,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const { data: paketList = [], isLoading: isLoadingPaket } = useMasterPaketTindakanList({
     q: searchPaket || undefined,
-    items: 10
+    items: 10,
+    depth: 1
   })
 
   useEffect(() => {
@@ -191,7 +186,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const { data: paketBhpList = [], isLoading: isLoadingPaketBhp } = useMasterPaketBhpList({
     q: searchPaketBhp || undefined,
-    items: 10
+    items: 10,
+    depth: 1
   })
 
   useEffect(() => {
@@ -210,37 +206,183 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }, [paketBhpList])
 
   const { data: consumableItems = [], isLoading: isLoadingConsumableItems } = useQuery({
-    queryKey: ['item', 'consumable-list'],
+    queryKey: ['item', 'bhp-list'],
     queryFn: async (): Promise<ConsumableItem[]> => {
-      const fn = window.api?.query?.item?.list as (() => Promise<ItemListResponse>) | undefined
+      const fn = window.api?.query?.item?.list as any
       if (!fn) throw new Error('API master item tidak tersedia')
 
-      const res = await fn()
+      const res = await fn({ items: 1000, depth: 1 })
       if (!res.success) {
         throw new Error(res.message || res.error || 'Gagal mengambil data item')
       }
 
-      const list = Array.isArray(res.result) ? res.result : []
-      return list.filter((item) => item?.kind === 'CONSUMABLE')
+      const list = (Array.isArray(res.result) ? res.result : []) as ConsumableItem[]
+      
+      return list.filter((item) => {
+        const categoryType = typeof item?.category?.categoryType === 'string' 
+          ? item.category.categoryType.toLowerCase() 
+          : ''
+        return categoryType === 'bhp'
+      })
     },
     staleTime: 5 * 60 * 1000
   })
 
-  const { data: unitSource, isLoading: isLoadingUnitList } = useQuery({
-    queryKey: ['unit', 'list', 'detail-tindakan-form'],
-    queryFn: async (): Promise<UnitListItem[]> => {
-      const fn = window.api?.query?.unit?.list as (() => Promise<UnitListResponse>) | undefined
-      if (!fn) throw new Error('API unit tidak tersedia')
+  // Resolve Doctor Location
+  const session = useModuleScopeStore((state) => state.session)
 
-      const res = await fn()
-      if (!res.success) {
-        throw new Error(res.message || res.error || 'Gagal mengambil data unit')
+  const { data: myEmployeeData } = useQuery({
+    queryKey: ['kepegawaian', 'getById', profile?.id],
+    queryFn: async () => {
+      const api = (window.api?.query as any)?.kepegawaian
+      const pid = Number(profile?.id)
+      if (!api?.getById || !Number.isFinite(pid) || pid <= 0) return null
+      const res = await api.getById({ id: pid })
+      const plain = (res?.result ?? res?.data ?? null) as any
+      return plain || null
+    },
+    enabled: Number.isFinite(Number(profile?.id))
+  })
+
+  const { data: lokasiKerjaFromSession } = useQuery({
+    queryKey: ['lokasiKerja', 'by-id', session?.lokasiKerjaId],
+    queryFn: async () => {
+      const api = (window.api?.query as any)?.lokasiKerja
+      const id = Number(session?.lokasiKerjaId)
+      if (!api?.read || !Number.isFinite(id) || id <= 0) return null
+      const res = await api.read({ id })
+      const plain = (res?.result ?? res?.data ?? null) as any
+      if (!plain) return null
+      return { id: Number(plain.id), kode: String(plain.kode || '').trim().toUpperCase(), nama: String(plain.nama || '') }
+    },
+    enabled: !!session?.lokasiKerjaId
+  })
+
+  const currentWorkLocation = useMemo(() => {
+    try {
+      if (lokasiKerjaFromSession?.kode) {
+        return lokasiKerjaFromSession.kode
       }
+      if (myEmployeeData) {
+        const contracts = Array.isArray(myEmployeeData.kontrakPegawai) ? myEmployeeData.kontrakPegawai : []
+        const active = contracts[0] // list.ts sorts by date desc
+        if (active?.kodeLokasiKerja) return String(active.kodeLokasiKerja).trim().toUpperCase()
+        if (active?.lokasiKerja?.kode) return String(active.lokasiKerja.kode).trim().toUpperCase()
+      }
+    } catch {}
+    return 'GUDANG' // fallback
+  }, [lokasiKerjaFromSession, myEmployeeData])
 
-      return Array.isArray(res.result) ? res.result : []
+  // Fetch Stock for Doctor Location
+  const { data: locationStockData } = useQuery({
+    queryKey: ['inventoryStock', 'by-location', currentWorkLocation],
+    queryFn: async () => {
+      const api = (window.api?.query as any)?.inventoryStock
+      const fn = api?.listByLocation
+      console.log('[BHP][Debug] call by-location, fn exists:', !!fn, 'kodeLokasi:', currentWorkLocation)
+      if (!fn) return null
+      let res: any = null
+      try {
+        res = await fn({ kodeLokasi: String(currentWorkLocation || '').trim().toUpperCase(), items: 1000 })
+      } catch (e) {
+        console.error('[BHP][Debug] by-location error:', e)
+        return null
+      }
+      console.log('[BHP][Debug] by-location response:', res)
+      if (res && typeof res === 'object') {
+        if (res.success === true && Array.isArray(res.result)) return res.result
+        if (Array.isArray((res as any).data)) return (res as any).data
+      }
+      if (Array.isArray(res)) return res
+      return null
     },
-    staleTime: 5 * 60 * 1000
+    enabled: !!currentWorkLocation && String(currentWorkLocation).trim().length > 0
   })
+
+  const locationStockByItemMap = useMemo(() => {
+    const map = new Map<string, number>()
+    try {
+      const locs = Array.isArray(locationStockData) ? locationStockData : []
+      const target = String(currentWorkLocation || '').trim().toUpperCase()
+      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
+      const items = Array.isArray(current?.items) ? current.items : []
+      items.forEach((it: any) => {
+        const kode = String(it.kodeItem || '').trim().toUpperCase()
+        if (kode) map.set(kode, Number(it.availableStock || 0))
+      })
+    } catch (err) {
+      console.error('[BHP][Debug] Error build map:', err)
+    }
+    return map
+  }, [locationStockData, currentWorkLocation])
+
+  const { data: fallbackBatchStocks } = useQuery({
+    queryKey: ['inventoryStock', 'batches-by-location', currentWorkLocation, (consumableItems || []).map((i) => i.kode).join(',')],
+    queryFn: async () => {
+      const api = (window.api?.query as any)?.inventoryStock
+      const fn = api?.listBatchesByLocation
+      const kodeLokasi = String(currentWorkLocation || '').trim().toUpperCase()
+      if (!fn || !kodeLokasi) return null
+      const codes = (consumableItems || [])
+        .map((it) => String(it.kode || '').trim().toUpperCase())
+        .filter((s) => !!s)
+      const out: Record<string, number> = {}
+      for (const kodeItem of codes.slice(0, 100)) {
+        try {
+          const res = await fn({ kodeItem, kodeLokasi })
+          const arr = Array.isArray((res as any)?.result) ? (res as any).result : Array.isArray(res) ? (res as any) : []
+          const total = arr.reduce((sum: number, b: any) => sum + Number(b?.availableStock || 0), 0)
+          out[kodeItem] = total
+        } catch (e) {
+          console.warn('[BHP][Debug] fallback listBatchesByLocation error for', kodeItem, e)
+        }
+      }
+      return out
+    },
+    enabled: !locationStockData || (Array.isArray(locationStockData) && locationStockData.length === 0)
+  })
+
+  const fallbackStockByItemMap = useMemo(() => {
+    const map = new Map<string, number>()
+    try {
+      const obj = fallbackBatchStocks as Record<string, number> | null
+      if (obj && typeof obj === 'object') {
+        Object.entries(obj).forEach(([kode, qty]) => {
+          const key = String(kode || '').trim().toUpperCase()
+          if (key) map.set(key, Number(qty || 0))
+        })
+      }
+    } catch {}
+    return map
+  }, [fallbackBatchStocks])
+
+  const stockByItemMap = useMemo(() => {
+    return locationStockByItemMap.size > 0 ? locationStockByItemMap : fallbackStockByItemMap
+  }, [locationStockByItemMap, fallbackStockByItemMap])
+
+  const allowedItemIdSet = useMemo(() => {
+    const set = new Set<number>()
+    try {
+      const locs = Array.isArray(locationStockData) ? locationStockData : []
+      const target = String(currentWorkLocation || '').trim().toUpperCase()
+      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
+      const items = Array.isArray(current?.items) ? current.items : []
+      items.forEach((it: any) => {
+        const idVal = Number(it.itemId ?? it.id)
+        if (Number.isFinite(idVal) && idVal > 0) set.add(idVal)
+      })
+    } catch {}
+    return set
+  }, [locationStockData, currentWorkLocation])
+
+  useEffect(() => {
+    console.log('[BHP][Debug] profile:', profile)
+    console.log('[BHP][Debug] myEmployeeData:', myEmployeeData)
+    console.log('[BHP][Debug] session:', session)
+    console.log('[BHP][Debug] lokasiKerjaFromSession:', lokasiKerjaFromSession)
+    console.log('[BHP][Debug] currentWorkLocation:', currentWorkLocation)
+    console.log('[BHP][Debug] locationStockData:', locationStockData)
+  }, [profile, myEmployeeData, currentWorkLocation, locationStockData])
 
   const { data: listJenisKomponen = [] } = useMasterJenisKomponenList({
     isUntukMedis: true,
@@ -256,8 +398,6 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const currentTindakanList = Form.useWatch('tindakanList', modalForm)
   const paketEntriesWatcher = Form.useWatch('paketEntries', modalForm)
-  const paketBhpEntriesWatcher = Form.useWatch('paketBhpEntries', modalForm)
-  const bhpListWatcher = Form.useWatch('bhpList', modalForm)
   const assessmentDateWatcher = Form.useWatch('assessment_date', modalForm)
 
   const getDetailMasterTindakan = (detail: any) =>
@@ -285,76 +425,150 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     [consumableItems]
   )
 
-  const consumableItemOptions = useMemo(
-    () =>
-      consumableItems.map((item) => ({
-        value: item.id,
-        label: `[${item.kode}] ${item.nama}`,
-        searchLabel: `${item.kode} ${item.nama}`.toLowerCase()
-      })),
-    [consumableItems]
-  )
-
-  const normalizeUnitCode = useCallback((value: unknown) => {
-    return String(value ?? '')
-      .trim()
-      .toUpperCase()
-  }, [])
-
-  const unitOptions = useMemo(() => {
-    const optionMap = new Map<string, string>()
-    const registerUnit = (rawCode: unknown, rawName?: unknown) => {
-      const code = normalizeUnitCode(rawCode)
-      if (!code || optionMap.has(code)) return
-
-      const unitName = typeof rawName === 'string' ? rawName.trim() : ''
-      optionMap.set(code, unitName ? `${code} - ${unitName}` : code)
+  useEffect(() => {
+    try {
+      const preview = (consumableItems || []).slice(0, 10).map((i) => ({
+        id: i.id,
+        kode: i.kode,
+        nama: i.nama
+      }))
+      console.log('[BHP][Debug] consumableItems preview:', preview, 'total:', (consumableItems || []).length)
+      const stockPreview = Array.from(stockByItemMap.entries()).slice(0, 10)
+      console.log('[BHP][Debug] stockByItemMap preview:', stockPreview, 'size:', stockByItemMap.size)
+    } catch (e) {
+      console.log('[BHP][Debug] consumableItems log error:', e)
     }
+  }, [consumableItems, stockByItemMap])
 
-    ;(unitSource || []).forEach((unit) => registerUnit(unit?.kode, unit?.nama))
-    ;(consumableItems || []).forEach((item) => registerUnit(item?.kodeUnit))
-    ;(masterTindakanList || []).forEach((item) => registerUnit(item?.satuan))
-
-    ;(Array.isArray(currentTindakanList) ? currentTindakanList : []).forEach((item: any) =>
-      registerUnit(item?.satuan)
-    )
-    ;(Array.isArray(bhpListWatcher) ? bhpListWatcher : []).forEach((item: any) =>
-      registerUnit(item?.satuan)
-    )
-
-    ;(Array.isArray(paketEntriesWatcher) ? paketEntriesWatcher : []).forEach((entry: any) => {
-      ;(Array.isArray(entry?.tindakanList) ? entry.tindakanList : []).forEach((item: any) =>
-        registerUnit(item?.satuan)
-      )
-      ;(Array.isArray(entry?.bhpList) ? entry.bhpList : []).forEach((item: any) =>
-        registerUnit(item?.satuan)
-      )
+  const consumableItemOptions = useMemo(() => {
+    const noLocationStock = allowedItemIdSet.size === 0 && stockByItemMap.size === 0
+    const filtered = noLocationStock
+      ? consumableItems
+      : consumableItems.filter((item) => {
+          const kode = String(item.kode || '').trim().toUpperCase()
+          const idNum = Number(item.id)
+          if (!kode || !Number.isFinite(idNum)) return false
+          if (allowedItemIdSet.size > 0) {
+            return allowedItemIdSet.has(idNum)
+          }
+          return stockByItemMap.has(kode)
+        })
+    return filtered.map((item) => {
+      const kode = String(item.kode || '').trim().toUpperCase()
+      const stock = stockByItemMap.get(kode) || 0
+      const isOutOfStock = stock <= 0
+      const stockText = isOutOfStock ? ' (Stok Kosong)' : ` (Stok: ${stock})`
+      return {
+        value: item.id,
+        label: `${item.nama}${stockText}`,
+        searchLabel: `${item.kode} ${item.nama}`.toLowerCase(),
+        disabled: isOutOfStock
+      }
     })
-
-    ;(Array.isArray(paketBhpEntriesWatcher) ? paketBhpEntriesWatcher : []).forEach((entry: any) => {
-      ;(Array.isArray(entry?.bhpList) ? entry.bhpList : []).forEach((item: any) =>
-        registerUnit(item?.satuan)
-      )
-    })
-
-    return Array.from(optionMap.entries())
-      .sort(([codeA], [codeB]) => codeA.localeCompare(codeB))
-      .map(([value, label]) => ({ value, label }))
-  }, [
-    bhpListWatcher,
-    consumableItems,
-    currentTindakanList,
-    masterTindakanList,
-    normalizeUnitCode,
-    paketBhpEntriesWatcher,
-    paketEntriesWatcher,
-    unitSource
-  ])
+  }, [consumableItems, stockByItemMap, allowedItemIdSet])
 
   const roleByKomponenId = useMemo(
     () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),
     [listJenisKomponen]
   )
+
+  const filteredPaketBhpOptions = useMemo(() => {
+    return (paketBhpList || []).map((p: any) => {
+      const listBhp = Array.isArray(p.listBhp) ? p.listBhp : []
+      const missingFromLocation: string[] = []
+      const outOfStock: string[] = []
+
+      const noLocationStock = allowedItemIdSet.size === 0 && stockByItemMap.size === 0
+
+      if (!noLocationStock && listBhp.length > 0) {
+        for (const bhp of listBhp) {
+          const item = consumableItemMap.get(Number(bhp.itemId))
+          if (!item) {
+            missingFromLocation.push(`ID:${bhp.itemId}`)
+            continue
+          }
+          const kode = String(item.kode || '').trim().toUpperCase()
+          const stock = stockByItemMap.get(kode)
+
+          if (stock === undefined) {
+            if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
+              missingFromLocation.push(item.nama)
+            } else if (allowedItemIdSet.size === 0) {
+              missingFromLocation.push(item.nama)
+            }
+          } else if (stock <= 0) {
+            outOfStock.push(item.nama)
+          }
+        }
+      }
+
+      let statusText = ''
+      if (missingFromLocation.length > 0) {
+        statusText = ` (Item tdk tersedia di lokasi: ${missingFromLocation.join(', ')})`
+      } else if (outOfStock.length > 0) {
+        statusText = ` (Stok habis: ${outOfStock.join(', ')})`
+      }
+
+      return {
+        value: p.id,
+        label: `${p.namaPaketBhp}${statusText}`,
+        disabled: statusText !== ''
+      }
+    })
+  }, [paketBhpList, consumableItemMap, stockByItemMap, allowedItemIdSet])
+
+  const filteredPaketOptions = useMemo(() => {
+    return (paketList || []).map((p: any) => {
+      const directBhp = Array.isArray(p.listBHP) ? p.listBHP : []
+      const detailItems = Array.isArray(p.detailItems || p.listTindakan)
+        ? p.detailItems || p.listTindakan
+        : []
+      const indirectBhp = detailItems.flatMap((di: any) =>
+        Array.isArray(di.bhpList) ? di.bhpList : []
+      )
+      const allBhp = [...directBhp, ...indirectBhp]
+
+      const missingFromLocation: string[] = []
+      const outOfStock: string[] = []
+
+      const noLocationStock = allowedItemIdSet.size === 0 && stockByItemMap.size === 0
+
+      if (!noLocationStock && allBhp.length > 0) {
+        for (const bhp of allBhp) {
+          const item = consumableItemMap.get(Number(bhp.itemId))
+          if (!item) {
+            missingFromLocation.push(`ID:${bhp.itemId}`)
+            continue
+          }
+          const kode = String(item.kode || '').trim().toUpperCase()
+          const stock = stockByItemMap.get(kode)
+
+          if (stock === undefined) {
+            if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
+              missingFromLocation.push(item.nama)
+            } else if (allowedItemIdSet.size === 0) {
+              missingFromLocation.push(item.nama)
+            }
+          } else if (stock <= 0) {
+            outOfStock.push(item.nama)
+          }
+        }
+      }
+
+      let statusText = ''
+      if (missingFromLocation.length > 0) {
+        statusText = ` (Item tdk tersedia di lokasi: ${missingFromLocation.join(', ')})`
+      } else if (outOfStock.length > 0) {
+        statusText = ` (Stok habis: ${outOfStock.join(', ')})`
+      }
+
+      return {
+        value: p.id,
+        label: `${p.namaPaket}${statusText}`,
+        disabled: statusText !== ''
+      }
+    })
+  }, [paketList, consumableItemMap, stockByItemMap, allowedItemIdSet])
 
   const roleLabelByCode = useMemo(
     () => new Map((listJenisKomponen || []).map((item) => [item.kode, item.label])),
@@ -915,13 +1129,14 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       Array.isArray(values?.paketBhpEntries) ? values.paketBhpEntries : []
     ).flatMap((entry: any) => {
       const itemLists = Array.isArray(entry?.bhpList) ? entry.bhpList : []
+      const entryJumlah = Number(entry?.jumlah || 1)
       return itemLists
         .filter((item: any) => item?.itemId && Number(item.jumlah) > 0)
         .map((item: any) => ({
           paketBhpId: entry.paketBhpId,
           paketBhpDetailId: item.paketBhpDetailId ?? 0,
           itemId: item.itemId,
-          jumlah: Number(item.jumlah),
+          jumlah: Number(item.jumlah) * entryJumlah,
           satuan: item.satuan
         }))
     })
@@ -1540,7 +1755,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   return (
     <div className="flex flex-col gap-4">
       <Card
-        title="Detail Tindakan Medis"
+        title={
+          <Space>
+            <HistoryOutlined />
+            Detail Tindakan Medis
+          </Space>
+        }
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenModal}>
             Catat Tindakan Baru
@@ -1620,12 +1840,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     token={token}
                     setSearchPaket={setSearchPaket}
                     isLoadingPaket={isLoadingPaket}
-                    isLoadingUnitList={isLoadingUnitList}
-                    paketOptions={paketOptions}
+                    paketOptions={filteredPaketOptions}
                     handlePaketEntryChange={handlePaketEntryChange}
                     kelasOptions={kelasOptions}
                     tindakanOptions={tindakanOptions}
-                    unitOptions={unitOptions}
                     consumableItemOptions={consumableItemOptions}
                     isLoadingConsumableItems={isLoadingConsumableItems}
                     consumableItemMap={consumableItemMap}
@@ -1647,8 +1865,6 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     setSearchTindakan={setSearchTindakan}
                     isLoadingMaster={isLoadingMaster}
                     tindakanOptions={tindakanOptions}
-                    isLoadingUnitList={isLoadingUnitList}
-                    unitOptions={unitOptions}
                     isLoadingPerformers={isLoadingPerformers}
                     performers={performers}
                     roleLabelByCode={roleLabelByCode}
@@ -1663,17 +1879,13 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                   <PaketBhpTab
                     modalForm={modalForm}
                     isLoadingPaketBhp={isLoadingPaketBhp}
-                    isLoadingUnitList={isLoadingUnitList}
-                    unitOptions={unitOptions}
-                    paketBhpOptions={paketBhpList.map((p: any) => ({
-                      value: p.id,
-                      label: `[${p.kodePaketBhp}] ${p.namaPaketBhp}`
-                    }))}
+                    paketBhpOptions={filteredPaketBhpOptions}
                     setSearchPaketBhp={setSearchPaketBhp}
                     paketBhpCache={paketBhpCache}
                     isLoadingConsumableItems={isLoadingConsumableItems}
                     consumableItemOptions={consumableItemOptions}
                     consumableItemMap={consumableItemMap}
+                    stockByItemMap={stockByItemMap}
                   />
                 )
               },
@@ -1684,11 +1896,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                 children: (
                   <BhpNonPaketTab
                     modalForm={modalForm}
-                    isLoadingUnitList={isLoadingUnitList}
-                    unitOptions={unitOptions}
                     isLoadingConsumableItems={isLoadingConsumableItems}
                     consumableItemOptions={consumableItemOptions}
                     consumableItemMap={consumableItemMap}
+                    stockByItemMap={stockByItemMap}
                   />
                 )
               }

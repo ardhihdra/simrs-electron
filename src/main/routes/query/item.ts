@@ -60,37 +60,7 @@ export const schemas = {
 
 } as const
 
-const DomainItemSchema = z.object({
-  id: z.number(),
-  kodeUnit: z.string(),
-  nama: z.string(),
-  kode: z.string(),
-  kind: ItemKindSchema.nullable().optional(),
-  minimumStock: z.number().nullable().optional(),
-  stock: z.number().nullable().optional(),
-  itemCategoryId: z.number().nullable().optional(),
-  buyingPrice: z.number().nullable().optional(),
-  sellingPrice: z.number().nullable().optional(),
-  kfaCode: z.string().nullable().optional(),
-  snomedCode: z.string().nullable().optional(),
-  buyPriceRules: z
-    .object({ unitCode: z.string(), qty: z.number().positive(), price: z.number().nonnegative() })
-    .array()
-    .nullable()
-    .optional(),
-  sellPriceRules: z
-    .object({ unitCode: z.string(), qty: z.number().positive(), price: z.number().nonnegative() })
-    .array()
-    .nullable()
-    .optional(),
-  fhirId: z.string().nullable().optional(),
-  createdBy: z.string().nullable().optional(),
-  updatedBy: z.string().nullable().optional(),
-  createdAt: z.union([z.date(), z.string()]).nullable().optional(),
-  updatedAt: z.union([z.date(), z.string()]).nullable().optional(),
-  deletedAt: z.union([z.date(), z.string()]).nullable().optional(),
-  deletedBy: z.union([z.date(), z.string()]).nullable().optional()
-})
+const DomainItemSchema = z.any()
 
 const BackendCreateUpdateSchema = z.object({
   success: z.boolean(),
@@ -121,7 +91,7 @@ const BackendGetDetailSchema = z.object({
 
 export const list = async (ctx: IpcContext) => {
   const client = createBackendClient(ctx)
-  const res = await client.get('/api/module/item/items?items=100&depth=1')
+  const res = await client.get('/api/module/item/items?items=1000&depth=1')
   const result = await parseBackendResponse(res, BackendListSchema(DomainItemSchema))
   return result ? { success: true, result } : { success: false }
 }
