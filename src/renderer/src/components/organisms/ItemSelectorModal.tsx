@@ -120,6 +120,7 @@ export const ItemSelectorModal = ({
       render: (_: any, record: ItemOption) => (
         <Space wrap size={[4, 4]}>
           {record.itemCategoryCode === 'K06' && <Tag color="cyan">BPJS</Tag>}
+          {record.itemGroupCode === 'G08' && <Tag color="green">BHP</Tag>}
           {record.itemGroupCode === 'G10' && <Tag color="red">KERAS</Tag>}
           {record.fpktl && <Tag color="purple">FPKTL</Tag>}
           {record.prb && <Tag color="orange">PRB</Tag>}
