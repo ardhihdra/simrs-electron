@@ -9,13 +9,14 @@ import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { useNavigate, useParams } from 'react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { queryClient } from '@renderer/query-client'
-import dayjs from 'dayjs'
+import * as dayjs from 'dayjs'
 import { PatientAttributes } from 'simrs-types'
 import { ItemPrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/ItemPrescriptionForm'
 import { CompoundPrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/CompoundPrescriptionForm'
 import { PatientSelectorWithService, PatientSelectorValue } from '@renderer/components/organisms/PatientSelectorWithService'
 import { MedicationOtherItemsTable } from './components/MedicationOtherItemsTable'
 import { MedicationCompoundsSection } from './components/MedicationCompoundsSection'
+import { ItemSelectorModal, ItemAttributes } from '@renderer/components/organisms/ItemSelectorModal'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 // Enums copied locally to avoid import issues with main process
@@ -301,24 +302,6 @@ export function MedicationRequestForm() {
     enabled: isEdit
   })
 
-  interface ItemAttributes {
-    id?: number
-    nama?: string
-    kode?: string
-    kodeUnit?: string
-    unit?: {
-      id?: number
-      kode?: string
-      nama?: string
-    } | null
-    itemCategoryId?: number | null
-    category?: {
-      id?: number
-      name?: string | null
-      categoryType?: string | null
-    } | null
-  }
-
   type ItemListResponse = {
     success: boolean
     result?: ItemAttributes[]
@@ -388,16 +371,18 @@ export function MedicationRequestForm() {
     }
   })
 
-  const farmKodeSet = useMemo(() => {
+  const farmStockMap = useMemo(() => {
     const arr = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
-    const farm = arr.find(l => l.kodeLokasi === 'FARM')
+    const farm = arr.find((l) => l.kodeLokasi === 'FARM')
     const items = farm?.items ?? []
-    const set = new Set<string>()
+    const map = new Map<string, number>()
     for (const it of items) {
       const kode = (it.kodeItem || '').trim().toUpperCase()
-      if (kode && it.availableStock > 0) set.add(kode)
+      if (kode && it.availableStock > 0) {
+        map.set(kode, it.availableStock)
+      }
     }
-    return set
+    return map
   }, [inventoryByLocation?.result])
   useEffect(() => {
     if (inventoryByLocation?.result) {
@@ -405,10 +390,10 @@ export function MedicationRequestForm() {
         const arr = inventoryByLocation.result
         const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
         const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
-        console.log('[MR][Stock] farmKodeSet size:', farmKodeSet.size, 'farm items total:', totalItems)
-      } catch { }
+        console.log('[MR][Stock] farmStockMap size:', farmStockMap.size, 'farm items total:', totalItems)
+      } catch {}
     }
-  }, [inventoryByLocation?.result, farmKodeSet.size])
+  }, [inventoryByLocation?.result, farmStockMap.size])
 
   const { data: itemCategoryData } = useQuery({
     queryKey: ['itemCategory', 'list'],
@@ -503,12 +488,19 @@ export function MedicationRequestForm() {
     const filteredByLocation = source.filter((item) => {
       const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
       if (!code) return false
-      return farmKodeSet.has(code)
+      return farmStockMap.has(code)
     })
 
     try {
-      console.log('[MR][Items] source count:', source.length, 'farmKodeSet size:', farmKodeSet.size, 'filteredByLocation count:', filteredByLocation.length)
-    } catch { }
+      console.log(
+        '[MR][Items] source count:',
+        source.length,
+        'farmStockMap size:',
+        farmStockMap.size,
+        'filteredByLocation count:',
+        filteredByLocation.length
+      )
+    } catch {}
 
     let opts = filteredByLocation
       .filter((item) => typeof item.id === 'number')
@@ -541,7 +533,17 @@ export function MedicationRequestForm() {
           label,
           unitCode,
           categoryId,
-          categoryType
+          categoryType,
+          isObatKeras: item.isObatKeras,
+          bpjs: item.bpjs,
+          fpktl: item.fpktl,
+          prb: item.prb,
+          oen: item.oen,
+          sediaanId: item.sediaanId,
+          peresepanMaksimal: item.peresepanMaksimal,
+          restriksi: item.restriksi,
+          kekuatan: item.kekuatan,
+          satuanId: item.satuanId
         }
       })
     // Fallback from inventory stock if master items are empty
@@ -556,7 +558,24 @@ export function MedicationRequestForm() {
             const value = it.itemId as number
             const label = it.unit ? `${it.namaItem || it.kodeItem} (${it.unit})` : (it.namaItem || it.kodeItem)
             const unitCode = typeof it.unitCode === 'string' && it.unitCode.trim().length > 0 ? it.unitCode.trim().toUpperCase() : (typeof it.unit === 'string' ? it.unit : '')
-            return { value, label, unitCode, categoryId: null, categoryType: 'obat' }
+            
+            return {
+              value,
+              label,
+              unitCode,
+              categoryId: null,
+              categoryType: 'obat',
+              isObatKeras: it.isObatKeras,
+              bpjs: it.bpjs,
+              fpktl: it.fpktl,
+              prb: it.prb,
+              oen: it.oen,
+              sediaanId: it.sediaanId,
+              peresepanMaksimal: it.peresepanMaksimal,
+              restriksi: it.restriksi,
+              kekuatan: it.kekuatan,
+              satuanId: it.satuanId
+            }
           })
         if (fromFarm.length > 0) {
           console.log('[MR][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
@@ -571,7 +590,7 @@ export function MedicationRequestForm() {
       console.log('[MR][Items][Options] count:', opts.length, 'preview:', preview)
     } catch { }
     return opts
-  }, [itemSource?.result, itemCategoryMap, farmKodeSet, inventoryByLocation?.result])
+  }, [itemSource?.result, itemCategoryMap, farmStockMap, inventoryByLocation?.result])
 
   const extractEncounters = (src: EncounterListPayload): EncounterOptionSource[] => {
     const a = src?.result
@@ -1719,14 +1738,14 @@ export function MedicationRequestForm() {
           {/*    <ItemPrescriptionForm
                name="otherItems"
                title="Obat dan Barang"
-               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               itemOptions={itemOptions}
                loading={itemLoading}
              />
 
              <CompoundPrescriptionForm
                name="compounds"
                title="Daftar Obat Racikan"
-               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               itemOptions={itemOptions}
                loading={itemLoading}
              />
            </div> */}

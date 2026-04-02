@@ -1,5 +1,6 @@
-import { Form, Card, Select, Input, InputNumber, Switch, Button, Row, Col, Spin } from 'antd'
-import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons'
+import { Form, Card, Select, Input, InputNumber, Switch, Button, Row, Col } from 'antd'
+import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
+import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
 
 const { TextArea } = Input
 
@@ -13,19 +14,37 @@ interface TindakanNonPaketTabProps {
   isLoadingPerformers: boolean
   performers: any[]
   roleLabelByCode: Map<string, string>
+  setProcedureSelectorState: (state: { open: boolean; onSelect?: (item: MasterTindakanItem) => void }) => void
+  masterTindakanList: MasterTindakanItem[]
 }
 
 export default function TindakanNonPaketTab({
   modalForm,
   token,
   kelasOptions,
-  setSearchTindakan,
-  isLoadingMaster,
-  tindakanOptions,
   isLoadingPerformers,
   performers,
-  roleLabelByCode
+  roleLabelByCode,
+  setProcedureSelectorState,
+  masterTindakanList
 }: TindakanNonPaketTabProps) {
+
+  const handleSelectProcedure = (name: number, proc: MasterTindakanItem) => {
+    modalForm.setFieldValue(['tindakanList', name, 'masterTindakanId'], proc.id)
+    if (proc.satuan) {
+      modalForm.setFieldValue(['tindakanList', name, 'satuan'], proc.satuan)
+    }
+  }
+
+  const openSelector = (name: number) => {
+    setProcedureSelectorState({
+      open: true,
+      onSelect: (proc) => handleSelectProcedure(name, proc)
+    })
+  }
+
+  const masterTindakanMap = new Map(masterTindakanList.map(t => [t.id, t]))
+
   return (
     <Card
       size="small"
@@ -66,7 +85,7 @@ export default function TindakanNonPaketTab({
                       type="text"
                       danger
                       size="small"
-                      icon={<MinusCircleOutlined />}
+                      icon={<DeleteOutlined />}
                       onClick={() => remove(field.name)}
                     >
                       Hapus Tindakan
@@ -76,24 +95,33 @@ export default function TindakanNonPaketTab({
               >
                 <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-4 md:items-end">
                   <Form.Item
-                    {...field}
-                    name={[field.name, 'masterTindakanId']}
-                    label={<span className="font-bold">Pilih Tindakan</span>}
-                    rules={[{ required: true, message: 'Pilih tindakan' }]}
-                    className="col-span-1 md:col-span-2 mb-0"
+                    noStyle
+                    shouldUpdate={(prev, curr) => prev.tindakanList?.[index]?.masterTindakanId !== curr.tindakanList?.[index]?.masterTindakanId}
                   >
-                    <Select
-                      showSearch
-                      allowClear
-                      placeholder="Cari tindakan..."
-                      filterOption={false}
-                      onSearch={(val) => setSearchTindakan(val)}
-                      loading={isLoadingMaster}
-                      options={tindakanOptions}
-                      notFoundContent={
-                        isLoadingMaster ? <Spin size="small" /> : 'Tindakan tidak ditemukan'
-                      }
-                    />
+                    {({ getFieldValue }) => {
+                      const id = getFieldValue(['tindakanList', index, 'masterTindakanId'])
+                      const proc = id ? masterTindakanMap.get(id) : null
+                      const displayLabel = proc ? `${proc.namaTindakan} (${proc.kodeTindakan})` : 'Cari Tindakan...'
+
+                      return (
+                        <Form.Item
+                          {...field}
+                          name={[field.name, 'masterTindakanId']}
+                          label={<span className="font-bold">Pilih Tindakan</span>}
+                          rules={[{ required: true, message: 'Pilih tindakan' }]}
+                          className="col-span-1 md:col-span-2 mb-0"
+                        >
+                          <Button 
+                            block 
+                            style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            onClick={() => openSelector(index)}
+                          >
+                            <span className="truncate">{displayLabel}</span>
+                            <SearchOutlined className="text-gray-400" />
+                          </Button>
+                        </Form.Item>
+                      )
+                    }}
                   </Form.Item>
                   <Form.Item
                     {...field}
@@ -166,8 +194,8 @@ export default function TindakanNonPaketTab({
                             Belum ada tenaga medis. Klik &quot;Tambah Petugas&quot; untuk menambahkan.
                           </div>
                         )}
-                        {petugasFields.map(({ key: pKey, name: pName, ...pRestField }, index) => (
-                          <Row key={`${pKey}-${index}`} gutter={8} align="middle">
+                        {petugasFields.map(({ key: pKey, name: pName, ...pRestField }) => (
+                          <Row key={`${pKey}-${pName}`} gutter={8} align="middle">
                             <Col span={12}>
                               <Form.Item
                                 {...pRestField}
@@ -187,7 +215,7 @@ export default function TindakanNonPaketTab({
                                   loading={isLoadingPerformers}
                                   optionFilterProp="children"
                                   filterOption={(input, option) =>
-                                    (option?.children as unknown as string)
+                                    String(option?.children ?? '')
                                       .toLowerCase()
                                       .includes(input.toLowerCase())
                                   }
@@ -227,7 +255,7 @@ export default function TindakanNonPaketTab({
                                 type="text"
                                 danger
                                 size="small"
-                                icon={<MinusCircleOutlined />}
+                                icon={<DeleteOutlined />}
                                 onClick={() => removePetugas(pName)}
                               />
                             </Col>
