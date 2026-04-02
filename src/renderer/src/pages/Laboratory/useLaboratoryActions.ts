@@ -118,16 +118,161 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     }
   )
 
+  const escapeHtml = (value: unknown): string =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;')
+
+  const formatPrintableDate = (value?: string | Date | null): string => {
+    if (!value) return '-'
+    const parsed = new Date(value)
+    if (Number.isNaN(parsed.getTime())) return '-'
+    return parsed.toLocaleString('id-ID')
+  }
+
+  const resolvePatientName = async (patientId?: string): Promise<string> => {
+    if (!patientId) return 'Pasien tidak ditemukan'
+
+    try {
+      const patientResult = await rpc.query.entity({
+        model: 'patient',
+        path: String(patientId),
+        method: 'get'
+      })
+
+      const patient = patientResult?.result || patientResult?.data
+      return String(patient?.name || patient?.fullName || 'Pasien tidak ditemukan')
+    } catch {
+      return 'Pasien tidak ditemukan'
+    }
+  }
+
+  const resolveServiceRequestMeta = async (encounterId: string) => {
+    const metadata = new Map<
+      string,
+      {
+        testName: string
+        loinc: string
+        requestedAt?: string
+      }
+    >()
+
+    const serviceRequestApi = window.api?.query?.serviceRequest?.getByEncounter
+    if (!serviceRequestApi) return metadata
+
+    try {
+      const serviceRequestResult = await serviceRequestApi({ encounterId })
+      const serviceRequests = Array.isArray(serviceRequestResult?.result) ? serviceRequestResult.result : []
+
+      for (const request of serviceRequests) {
+        const requestId = String(request?.id || '')
+        if (!requestId) continue
+
+        const coded = Array.isArray(request?.codes) ? request.codes[0] : undefined
+        const fallbackTest = request?.test || request?.serviceCode
+        const testName = String(
+          coded?.display || fallbackTest?.display || request?.testDisplay || fallbackTest?.name || 'Pemeriksaan'
+        )
+        const loinc = String(coded?.code || fallbackTest?.code || '-')
+        const requestedAt = request?.authoredOn || request?.autheredOn || request?.occurrenceDateTime || request?.createdAt
+
+        metadata.set(requestId, { testName, loinc, requestedAt })
+      }
+    } catch {
+      // ignore metadata fetch failure; print still proceeds with fallback labels
+    }
+
+    return metadata
+  }
+
   // Effect to handle printing when data is fetched
   useEffect(() => {
     if (!printEncounterId) return
 
-    // accessing result directly as per new schema output
-    if (!isPrinting && reportDataResponse?.result) {
-      try {
-        const reportData = reportDataResponse.result
+    if (!isPrinting && isPrintError) {
+      message.error(printError?.message || 'Failed to fetch report')
+      setPrintEncounterId(null)
+      setLoading(null)
+      return
+    }
 
-        // Use iframe for printing in proper Electron way
+    if (isPrinting || !reportDataResponse?.result) return
+
+    const generatePrintView = async () => {
+      try {
+        const reportData = reportDataResponse.result as any
+        const patientName = reportData?.patient?.name || (await resolvePatientName(reportData?.patientId))
+        const serviceRequestMeta = await resolveServiceRequestMeta(String(printEncounterId))
+        const serviceRequests = Array.isArray(reportData?.serviceRequests) ? reportData.serviceRequests : []
+
+        const reportDateCandidates: Array<string | Date> = []
+        if (reportData?.queueTicket?.date) {
+          reportDateCandidates.push(reportData.queueTicket.date)
+        }
+
+        const testSections = serviceRequests
+          .map((req: any, index: number) => {
+            const reqMeta = serviceRequestMeta.get(String(req?.id || ''))
+            const testName = req?.testDisplay || reqMeta?.testName || `Pemeriksaan ${index + 1}`
+            const loincCode = req?.testLoinc || reqMeta?.loinc || '-'
+            if (req?.requestedAt) reportDateCandidates.push(req.requestedAt)
+            if (reqMeta?.requestedAt) reportDateCandidates.push(reqMeta.requestedAt)
+
+            const observations = Array.isArray(req?.observations) ? req.observations : []
+            const rows =
+              observations.length > 0
+                ? observations
+                    .map((obs: any, obsIndex: number) => {
+                      if (obs?.observedAt) reportDateCandidates.push(obs.observedAt)
+                      if (obs?.finalizedAt) reportDateCandidates.push(obs.finalizedAt)
+
+                          return `
+                        <tr>
+                          <td>${escapeHtml(obs?.observationDisplay || obs?.display || `Parameter ${obsIndex + 1}`)}</td>
+                          <td>${escapeHtml(obs?.value || '-')}</td>
+                          <td>${escapeHtml(obs?.unit || '-')}</td>
+                          <td>${escapeHtml(obs?.referenceRange || '-')}</td>
+                          <td>${escapeHtml(obs?.interpretation || '-')}</td>
+                        </tr>
+                      `
+                    })
+                    .join('')
+                : `
+                    <tr>
+                      <td colspan="5" style="text-align:center;color:#6b7280;">Belum ada hasil observasi</td>
+                    </tr>
+                  `
+
+            return `
+              <section class="test-section">
+                <h3>${escapeHtml(testName)}</h3>
+                <p class="meta"><strong>Kode LOINC:</strong> ${escapeHtml(loincCode)}</p>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Parameter</th>
+                      <th>Hasil</th>
+                      <th>Unit</th>
+                      <th>Nilai Rujukan</th>
+                      <th>Interpretasi</th>
+                    </tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </section>
+            `
+          })
+          .join('')
+
+        const validDateCandidates = reportDateCandidates
+          .map((item) => new Date(item))
+          .filter((item) => !Number.isNaN(item.getTime()))
+          .sort((a, b) => b.getTime() - a.getTime())
+        const reportDate = formatPrintableDate(validDateCandidates[0] || new Date())
+
         const iframe = document.createElement('iframe')
         iframe.style.position = 'fixed'
         iframe.style.left = '-9999px'
@@ -135,7 +280,6 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
         iframe.style.width = '0'
         iframe.style.height = '0'
         iframe.style.border = 'none'
-
         document.body.appendChild(iframe)
 
         const contentWindow = iframe.contentWindow
@@ -144,74 +288,44 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
         if (doc && contentWindow) {
           doc.open()
           doc.write(`
-                <html>
-                    <head>
-                        <title>Lab Report - ${reportData.patient?.name}</title>
-                        <style>
-                            body { font-family: sans-serif; padding: 20px; }
-                            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-                            th { background-color: #f2f2f2; }
-                            .header { margin-bottom: 20px; }
-                            @media print {
-                                body { -webkit-print-color-adjust: exact; }
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h2>Laboratory Report</h2>
-                            <p><strong>Patient:</strong> ${reportData.patient?.name} (ID: ${
-                              reportData.patientId
-                            })</p>
-                            <p><strong>Date:</strong> ${new Date(reportData.startTime).toLocaleDateString()}</p>
-                        </div>
-                        
-                        ${reportData.labServiceRequests
-                          ?.map(
-                            (req: any) => `
-                            <h3>Order: ${req.testCode?.display || req.serviceCode?.display || req.serviceCodeId || 'Test'}</h3>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Test</th>
-                                        <th>Result</th>
-                                        <th>Unit</th>
-                                        <th>Ref Range</th>
-                                        <th>Interpretation</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${req.observations
-                                      ?.map(
-                                        (obs: any) => `
-                                        <tr>
-                                            <td>${obs.observationCodeId}</td>
-                                            <td>${obs.value}</td>
-                                            <td>${obs.unit}</td>
-                                            <td>${obs.referenceRange || '-'}</td>
-                                            <td>${obs.interpretation || '-'}</td>
-                                        </tr>
-                                    `
-                                      )
-                                      .join('')}
-                                </tbody>
-                            </table>
-                        `
-                          )
-                          .join('')}
-                    </body>
-                </html>
-             `)
+            <html>
+              <head>
+                <title>Laporan Laboratorium</title>
+                <style>
+                  body { font-family: Arial, sans-serif; padding: 24px; color: #111827; }
+                  h1 { margin: 0 0 16px; font-size: 32px; }
+                  h3 { margin: 0 0 8px; font-size: 18px; }
+                  p { margin: 4px 0; }
+                  .header { margin-bottom: 20px; }
+                  .meta { color: #374151; margin-bottom: 12px; }
+                  .test-section { margin-top: 20px; page-break-inside: avoid; }
+                  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+                  th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; font-size: 13px; }
+                  th { background-color: #f3f4f6; }
+                  @media print {
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="header">
+                  <h1>Laboratory Report</h1>
+                  <p><strong>Pasien:</strong> ${escapeHtml(patientName)}</p>
+                  <p><strong>Tanggal Laporan:</strong> ${escapeHtml(reportDate)}</p>
+                </div>
+                ${testSections || '<p>Tidak ada data pemeriksaan.</p>'}
+              </body>
+            </html>
+          `)
           doc.close()
 
-          // Wait for content to load/render slightly
           setTimeout(() => {
             contentWindow.focus()
             contentWindow.print()
-            // Cleanup
             setTimeout(() => {
-              document.body.removeChild(iframe)
+              if (document.body.contains(iframe)) {
+                document.body.removeChild(iframe)
+              }
             }, 1000)
           }, 500)
         }
@@ -222,11 +336,9 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
         setPrintEncounterId(null)
         setLoading(null)
       }
-    } else if (!isPrinting && isPrintError) {
-      message.error(printError?.message || 'Failed to fetch report')
-      setPrintEncounterId(null)
-      setLoading(null)
     }
+
+    void generatePrintView()
   }, [printEncounterId, isPrinting, reportDataResponse, isPrintError, printError])
 
   const handleCreateOrder = async (data: any) => {
