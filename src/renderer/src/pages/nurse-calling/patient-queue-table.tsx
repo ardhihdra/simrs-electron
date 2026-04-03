@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { useMemo, useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router'
 import {
   Table,
   Button,
@@ -17,174 +17,270 @@ import {
   theme
 } from 'antd'
 import {
-  PhoneOutlined,
   ReloadOutlined,
   SearchOutlined,
   TeamOutlined,
   ClockCircleOutlined,
-  CheckCircleOutlined,
   UserAddOutlined,
-  MedicineBoxOutlined
+  MedicineBoxOutlined,
+  SoundOutlined
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
-import { useQuery } from '@tanstack/react-query'
 import dayjs from 'dayjs'
-import { PatientQueue, Poli, Gender } from '../../types/nurse.types'
-import { getPolis } from '../../services/nurse.service'
-import { EncounterStatus, EncounterType, ArrivalType } from '@shared/encounter'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
+import { client } from '@renderer/utils/client'
+import { PatientQueue, Gender } from '../../types/nurse.types'
 
 const { Option } = Select
-const { RangePicker } = DatePicker
 
 interface PatientQueueTableData extends Omit<PatientQueue, 'status'> {
+  no: number
   key: string
   status: string
+  queueId: string
   encounterType?: string
 }
 
+type QueueRow = {
+  queueId?: string
+  id?: string
+  queueNumber?: number | string
+  formattedQueueNumber?: string
+  queueDate?: string
+  patientId?: string
+  patientName?: string
+  patientBirthDate?: string | Date
+  patientMedicalRecordNumber?: string
+  doctorName?: string
+  poliCodeId?: number | string
+  poliName?: string
+  status?: string
+  encounterId?: string
+}
+
+type ScopedPoli = {
+  id: string
+  name: string
+  code: string
+  lokasiKerjaId?: number
+}
+
+const NURSE_VISIBLE_STATUSES = ['TRIAGE'] as const
+
 const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
   all: { label: 'Semua', color: '', dotColor: '#6b7280' },
-  PLANNED: { label: 'Menunggu', color: 'blue', dotColor: '#3b82f6' },
-  IN_PROGRESS: { label: 'Diperiksa', color: 'orange', dotColor: '#f97316' },
-  FINISHED: { label: 'Selesai', color: 'green', dotColor: '#22c55e' },
-  CANCELLED: { label: 'Dibatalkan', color: 'red', dotColor: '#ef4444' }
+  TRIAGE: { label: 'Pemeriksaan Awal', color: 'gold', dotColor: '#f59e0b' }
+}
+
+const normalizePoliCode = (value: string | number) => String(value).trim().toLowerCase()
+const decodePoliCode = (value: string) => {
+  try {
+    return decodeURIComponent(value)
+  } catch {
+    return value
+  }
+}
+
+const parseQueueNumber = (value?: number | string) => {
+  const parsed = Number.parseInt(String(value ?? '0'), 10)
+  return Number.isFinite(parsed) ? parsed : 0
 }
 
 const PatientQueueTable = () => {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const { token } = theme.useToken()
   const navigate = useNavigate()
-  const [calling, setCalling] = useState<string | null>(null)
-  const [polis, setPolis] = useState<Poli[]>([])
+  const { poliCode: rawPoliCode } = useParams<{ poliCode?: string }>()
+  const { session } = useModuleScopeStore()
+  const isAdministrator = session?.hakAksesId === 'administrator'
+  const routePoliCode = rawPoliCode ? normalizePoliCode(decodePoliCode(rawPoliCode)) : undefined
+  const isPoliLockedFromRoute = Boolean(routePoliCode)
 
   const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
-  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>(null)
+  const [queueDate, setQueueDate] = useState<dayjs.Dayjs>(dayjs())
   const [activeStatus, setActiveStatus] = useState<string>('all')
 
-  const {
-    data: encounterData,
-    isLoading,
-    refetch
-  } = useQuery({
-    queryKey: ['encounter', 'list', selectedPoli, searchText, activeStatus, dateRange],
-    queryFn: () => {
-      const fn = window.api?.query?.encounter?.list
-      if (!fn) throw new Error('API encounter tidak tersedia')
-
-      const params: any = {}
-
-      if (searchText) params.q = searchText
-
-      if (activeStatus && activeStatus !== 'all') params.status = activeStatus
-
-      if (selectedPoli) {
-        const selectedPoliData = polis.find((p) => p.id === selectedPoli)
-        if (selectedPoliData) {
-          params.serviceType = selectedPoliData.name
-        }
-      }
-
-      if (dateRange) {
-        params.startDate = dateRange[0].startOf('day').toISOString()
-        params.endDate = dateRange[1].endOf('day').toISOString()
-      }
-
-      params.sortBy = 'updatedAt'
-      params.sortOrder = 'DESC'
-
-      return fn(params)
-    },
-    enabled: polis.length > 0
-  })
-
-  const patientQueue: PatientQueueTableData[] = (encounterData?.result || []).map(
-    (enc: any, index: number) => {
-      const birthDate = enc.patient?.birthDate ? dayjs(enc.patient.birthDate) : null
-      const age = birthDate ? dayjs().diff(birthDate, 'year') : 0
-
-      return {
-        no: index + 1,
-        key: enc.id,
-        id: enc.id,
-        encounterId: enc.id,
-        queueNumber: enc.queueTicket?.queueNumber || 0,
-        patient: {
-          id: enc.patient?.id || '',
-          name: enc.patient?.name || 'Unknown',
-          medicalRecordNumber: enc.patient?.medicalRecordNumber || '',
-          gender: enc.patient?.gender === 'male' ? Gender.MALE : Gender.FEMALE,
-          birthDate: enc.patient?.birthDate || '',
-          age: age,
-          phone: '',
-          address: '',
-          identityNumber: enc.patient?.nik || ''
-        },
-        poli: {
-          id: enc.queueTicket?.poli?.id?.toString() || '1',
-          code: 'POL',
-          name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-'
-        },
-        doctor: {
-          id: enc.queueTicket?.practitioner?.id?.toString() || 'doc1',
-          name: enc.queueTicket?.practitioner?.namaLengkap || 'Dr. Umum',
-          specialization: 'General',
-          sipNumber: enc.queueTicket?.practitioner?.nik || '123'
-        },
-        status: enc.status || 'unknown',
-        registrationDate: enc.startTime || enc.createdAt || enc.visitDate,
-        encounterType: enc.encounterType
-      }
-    }
-  )
-
-  const loadPolis = async () => {
-    try {
-      const data = await getPolis()
-      setPolis(data)
-    } catch (error) {
-      console.error('Error loading polis:', error)
-    }
-  }
+  const { data: poliData, isLoading: isPoliLoading } = client.visitManagement.poli.useQuery({})
+  const scopedPolis = useMemo<ScopedPoli[]>(() => {
+    const allPolis = poliData?.result ?? []
+    return allPolis
+      .map((poli) => ({
+        id: String(poli.id),
+        name: poli.name,
+        code: String(poli.code || poli.id),
+        lokasiKerjaId:
+          typeof poli.location?.id === 'number'
+            ? poli.location.id
+            : Number.parseInt(String(poli.location?.id), 10)
+      }))
+      .filter((poli) => {
+        if (isAdministrator) return true
+        if (!session) return false
+        return poli.lokasiKerjaId === session.lokasiKerjaId
+      })
+  }, [isAdministrator, poliData?.result, session])
+  const scopedPoliIdSet = useMemo(() => new Set(scopedPolis.map((poli) => poli.id)), [scopedPolis])
+  const routePoli = useMemo(() => {
+    if (!routePoliCode) return undefined
+    return scopedPolis.find((poli) => normalizePoliCode(poli.code) === routePoliCode)
+  }, [routePoliCode, scopedPolis])
 
   useEffect(() => {
-    loadPolis()
-  }, [])
+    if (!routePoliCode) return
+    if (isPoliLoading) return
 
-  const handleCallPatient = async (record: PatientQueueTableData) => {
-    setCalling(record.id)
-    try {
-      const fn = window.api?.query?.encounter?.update
-      if (!fn) throw new Error('API encounter update tidak tersedia')
-
-      const response = await fn({
-        id: record.encounterId!,
-        status: EncounterStatus.IN_PROGRESS,
-        patientId: record.patient.id,
-        visitDate: record.registrationDate,
-        serviceType: record.poli.name,
-        encounterType: EncounterType.AMB,
-        arrivalType: ArrivalType.WALK_IN
-      })
-
-      if (response.success) {
-        message.success('Pasien berhasil dipanggil — klik Periksa untuk membuka form')
-        refetch()
-        // Tidak redirect; dokter klik Periksa sendiri saat siap
-      } else {
-        message.error('Gagal memanggil pasien')
-        message.error(response.error)
-      }
-    } catch (error) {
-      message.error('Gagal memanggil pasien')
-      console.error(error)
-    } finally {
-      setCalling(null)
+    if (!routePoli) {
+      message.error('Poli tidak ditemukan atau tidak sesuai lokasi kerja.')
+      navigate('/dashboard/poli', { replace: true })
+      return
     }
-  }
+
+    if (selectedPoli !== routePoli.id) {
+      setSelectedPoli(routePoli.id)
+    }
+  }, [isPoliLoading, message, navigate, routePoli, routePoliCode, selectedPoli])
+
+  useEffect(() => {
+    if (isPoliLockedFromRoute) return
+    setSelectedPoli(undefined)
+  }, [isPoliLockedFromRoute])
+
+  useEffect(() => {
+    if (routePoliCode) return
+    if (!selectedPoli) return
+    if (!scopedPoliIdSet.has(selectedPoli)) {
+      setSelectedPoli(undefined)
+    }
+  }, [routePoliCode, scopedPoliIdSet, selectedPoli])
+
+  const {
+    data: queueData,
+    isLoading,
+    refetch
+  } = client.registration.getQueues.useQuery({
+    queueDate: queueDate.format('YYYY-MM-DD'),
+    status: [...NURSE_VISIBLE_STATUSES]
+  })
+  const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      refetch()
+    }, 5000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [refetch])
+
+  const filteredQueues = useMemo(() => {
+    const rows = (queueData?.result || []) as QueueRow[]
+    const search = searchText.trim().toLowerCase()
+
+    return rows
+      .filter((row) => {
+        const queueStatus = String(row.status || '')
+        if (
+          !NURSE_VISIBLE_STATUSES.includes(queueStatus as (typeof NURSE_VISIBLE_STATUSES)[number])
+        ) {
+          return false
+        }
+
+        const queuePoliId = row.poliCodeId != null ? String(row.poliCodeId) : ''
+        if (!queuePoliId || !scopedPoliIdSet.has(queuePoliId)) return false
+        if (selectedPoli && queuePoliId !== selectedPoli) return false
+
+        if (!search) return true
+        const patientName = String(row.patientName || '').toLowerCase()
+        const queueLabel = String(row.formattedQueueNumber || row.queueNumber || '').toLowerCase()
+        return patientName.includes(search) || queueLabel.includes(search)
+      })
+      .filter((row) => (activeStatus === 'all' ? true : row.status === activeStatus))
+  }, [activeStatus, queueData?.result, scopedPoliIdSet, searchText, selectedPoli])
+
+  const activePoliName = useMemo(() => {
+    if (selectedPoli) {
+      return scopedPolis.find((poli) => poli.id === selectedPoli)?.name ?? '-'
+    }
+    return 'Semua Poli (Lokasi Kerja Anda)'
+  }, [scopedPolis, selectedPoli])
+
+  const patientQueue: PatientQueueTableData[] = useMemo(
+    () =>
+      filteredQueues.map((row, index) => {
+        const queueId = String(row.queueId || row.id || '')
+        const registrationDate = row.queueDate || queueDate.toISOString()
+        return {
+          no: index + 1,
+          key: queueId || String(index),
+          id: queueId || String(index),
+          queueId,
+          encounterId: row.encounterId,
+          queueNumber: parseQueueNumber(row.queueNumber),
+          patient: {
+            id: String(row.patientId || ''),
+            name: row.patientName || 'Unknown',
+            medicalRecordNumber: row.patientMedicalRecordNumber || '-',
+            gender: Gender.MALE,
+            birthDate: row.patientBirthDate ? String(row.patientBirthDate) : '',
+            age: row.patientBirthDate ? dayjs().diff(dayjs(row.patientBirthDate), 'year') : 0,
+            phone: '',
+            address: '',
+            identityNumber: ''
+          },
+          poli: {
+            id: String(row.poliCodeId || ''),
+            code: String(row.poliCodeId || ''),
+            name: row.poliName || '-'
+          },
+          doctor: {
+            id: '',
+            name: row.doctorName || '-',
+            specialization: 'General',
+            sipNumber: '-'
+          },
+          status: String(row.status || ''),
+          registrationDate,
+          encounterType: 'AMB'
+        }
+      }),
+    [filteredQueues, queueDate]
+  )
 
   const handleExaminePatient = (record: PatientQueueTableData) => {
+    if (!record.encounterId) {
+      message.warning('Encounter belum tersedia untuk pasien ini.')
+      return
+    }
     window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
+  }
+
+  const handleMoveToPoliQueue = (record: PatientQueueTableData) => {
+    if (!record.queueId) {
+      message.error('ID Antrian tidak ditemukan')
+      return
+    }
+
+    modal.confirm({
+      title: 'Selesai & Pindahkan ke Antrean Poli?',
+      content:
+        'Pemeriksaan awal sudah selesai? Status antrian pasien akan dipindah menjadi "Siap Diperiksa" oleh Dokter.',
+      okText: 'Ya, Lanjutkan',
+      cancelText: 'Batal',
+      onOk: async () => {
+        try {
+          await updateStatusMutation.mutateAsync({
+            queueId: record.queueId,
+            action: 'TRIAGE_DONE'
+          })
+          message.success('Status antrian berhasil diperbarui')
+          refetch()
+        } catch (error: any) {
+          message.error(error.message || 'Gagal memproses antrian')
+        }
+      }
+    })
   }
 
   const getStatusTag = (status: string) => {
@@ -197,9 +293,7 @@ const PatientQueueTable = () => {
     )
   }
 
-  const totalWaiting = patientQueue.filter((p) => p.status === 'PLANNED').length
-  const totalInProgress = patientQueue.filter((p) => p.status === 'IN_PROGRESS').length
-  const totalFinished = patientQueue.filter((p) => p.status === 'FINISHED').length
+  const totalTriage = patientQueue.filter((p) => p.status === 'TRIAGE').length
 
   const columns: ColumnsType<PatientQueueTableData> = [
     {
@@ -269,76 +363,72 @@ const PatientQueueTable = () => {
               >
                 {record.patient.medicalRecordNumber || '-'}
               </span>
-              <span style={{ fontSize: 10, color: token.colorTextTertiary }}>
-                {record.patient.gender === 'MALE' ? '♂' : '♀'} {record.patient.age}th
-              </span>
             </div>
           </div>
         </div>
       )
     },
     {
-      title: 'Unit / Jenis',
-      key: 'unitJenis',
-      width: 160,
-      render: (_, record) => {
-        const poliName = record.poli.name
-        const displayPoli =
-          poliName === 'RAWAT_INAP'
-            ? 'Rawat Inap'
-            : poliName === 'RAWAT_JALAN'
-              ? 'Rawat Jalan'
-              : poliName === 'IGD'
-                ? 'IGD'
-                : poliName
-                    .toLowerCase()
-                    .replace(/_/g, ' ')
-                    .replace(/\b\w/g, (l) => l.toUpperCase())
-
-        let typeLabel = record.encounterType || '-'
-        let typeColor = 'default'
-        switch (record.encounterType) {
-          case 'EMER':
-            typeLabel = 'IGD'
-            typeColor = 'red'
-            break
-          case 'AMB':
-            typeLabel = 'Rawat Jalan'
-            typeColor = 'blue'
-            break
-          case 'IMP':
-            typeLabel = 'Rawat Inap'
-            typeColor = 'green'
-            break
-        }
-
-        return (
-          <div>
-            <div
-              style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}
-              className="truncate"
-            >
-              {displayPoli}
-            </div>
-            <Tag color={typeColor} bordered={false} className="mt-0.5 text-[10px] font-medium m-0">
-              {typeLabel}
-            </Tag>
-          </div>
-        )
-      }
+      title: 'Jenis Kelamin',
+      key: 'gender',
+      width: 120,
+      render: (_, record) => (
+        <span style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}>
+          {record.patient.gender === Gender.MALE ? 'Laki-laki' : 'Perempuan'}
+        </span>
+      )
     },
     {
-      title: 'Tgl Kunjungan',
+      title: 'Umur',
+      key: 'age',
+      width: 80,
+      render: (_, record) => (
+        <span style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}>
+          {record.patient.age} th
+        </span>
+      )
+    },
+    {
+      title: 'Unit / Jenis',
+      key: 'unitJenis',
+      width: 180,
+      render: (_, record) => (
+        <div>
+          <div
+            style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}
+            className="truncate"
+          >
+            {record.poli.name}
+          </div>
+          <Tag color="blue" bordered={false} className="mt-0.5 text-[10px] font-medium m-0">
+            Rawat Jalan
+          </Tag>
+        </div>
+      )
+    },
+    {
+      title: 'Dokter Tujuan',
+      key: 'doctor',
+      width: 150,
+      render: (_, record) => (
+        <div
+          style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}
+          className="truncate"
+          title={record.doctor.name}
+        >
+          {record.doctor.name}
+        </div>
+      )
+    },
+    {
+      title: 'Tgl Antrian',
       dataIndex: 'registrationDate',
       key: 'registrationDate',
-      width: 135,
+      width: 140,
       render: (date: string) => (
         <div>
           <div style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}>
             {date ? dayjs(date).format('DD MMM YYYY') : '-'}
-          </div>
-          <div style={{ fontSize: 12, color: token.colorTextTertiary }}>
-            {date ? dayjs(date).format('HH:mm') : ''}
           </div>
         </div>
       )
@@ -347,59 +437,46 @@ const PatientQueueTable = () => {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 130,
+      width: 150,
       render: (status: string) => getStatusTag(status)
     },
     {
       title: 'Aksi',
       key: 'action',
-      width: 200,
+      width: 280,
       align: 'center',
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          {record.status === 'PLANNED' && (
+          {record.status === 'TRIAGE' && (
             <Button
               type="primary"
-              icon={<PhoneOutlined />}
+              icon={<MedicineBoxOutlined />}
               onClick={(e) => {
                 e.stopPropagation()
-                handleCallPatient(record)
+                handleExaminePatient(record)
               }}
-              loading={calling === record.id}
               size="small"
+              disabled={updateStatusMutation.isPending}
+              style={{ background: '#f97316', borderColor: '#f97316' }}
             >
-              Panggil
+              Periksa
             </Button>
           )}
-          {record.status === 'IN_PROGRESS' && (
-            <>
-              <Button
-                type="primary"
-                icon={<PhoneOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleCallPatient(record)
-                }}
-                loading={calling === record.id}
-                size="small"
-                ghost
-              >
-                Panggil Ulang
-              </Button>
-              <Button
-                type="primary"
-                icon={<MedicineBoxOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleExaminePatient(record)
-                }}
-                size="small"
-                style={{ background: '#f97316', borderColor: '#f97316' }}
-              >
-                Periksa
-              </Button>
-            </>
+          {record.status === 'TRIAGE' && (
+            <Button
+              type="primary"
+              icon={<SoundOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleMoveToPoliQueue(record)
+              }}
+              size="small"
+              loading={updateStatusMutation.isPending}
+              disabled={updateStatusMutation.isPending}
+            >
+              Pindahkan ke Poli
+            </Button>
           )}
         </Space>
       )
@@ -420,7 +497,6 @@ const PatientQueueTable = () => {
 
   return (
     <div className="flex flex-col gap-4 h-full">
-      {/* Header Card */}
       <Card
         styles={{ body: { padding: '20px 24px' } }}
         variant="borderless"
@@ -429,7 +505,6 @@ const PatientQueueTable = () => {
         }}
       >
         <div className="flex flex-col gap-5">
-          {/* Title Row */}
           <div className="flex justify-between items-start">
             <div>
               <div className="flex items-center gap-3 mb-1">
@@ -440,12 +515,17 @@ const PatientQueueTable = () => {
                   />
                 </div>
                 <h1 className="text-xl font-bold text-white m-0 leading-tight">
-                  Antrian &amp; Pemanggilan Pasien
+                  Antrian Pemeriksaan Awal
                 </h1>
               </div>
               <p className="text-sm text-blue-200 m-0 ml-12">
-                Manajemen antrian dan proses pemanggilan pasien ke ruang periksa
+                Menampilkan pasien yang sudah dipanggil ke pemeriksaan awal (triase)
               </p>
+              <div className="ml-12 mt-2 flex flex-wrap items-center gap-2">
+                {/* <Tag color="blue" bordered={false} className="m-0 font-medium">
+                  Poli Aktif: {activePoliName}
+                </Tag> */}
+              </div>
             </div>
             <Button
               icon={<ReloadOutlined />}
@@ -461,8 +541,7 @@ const PatientQueueTable = () => {
             </Button>
           </div>
 
-          {/* Stats Row */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div
               className="rounded-xl px-4 py-3 flex items-center gap-3"
               style={{
@@ -500,54 +579,10 @@ const PatientQueueTable = () => {
               </div>
               <div>
                 <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-                  {totalWaiting}
+                  {totalTriage}
                 </div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
-                  Menunggu
-                </div>
-              </div>
-            </div>
-            <div
-              className="rounded-xl px-4 py-3 flex items-center gap-3"
-              style={{
-                background: 'rgba(255,255,255,0.10)',
-                border: '1px solid rgba(255,255,255,0.15)'
-              }}
-            >
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: `${token.colorWarning}33` }}
-              >
-                <PhoneOutlined style={{ color: token.colorWarningBg, fontSize: 16 }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-                  {totalInProgress}
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
-                  Sedang Diperiksa
-                </div>
-              </div>
-            </div>
-            <div
-              className="rounded-xl px-4 py-3 flex items-center gap-3"
-              style={{
-                background: 'rgba(255,255,255,0.10)',
-                border: '1px solid rgba(255,255,255,0.15)'
-              }}
-            >
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-                style={{ background: `${token.colorSuccess}33` }}
-              >
-                <CheckCircleOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
-                  {totalFinished}
-                </div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
-                  Selesai
+                  Pemeriksaan Awal
                 </div>
               </div>
             </div>
@@ -555,7 +590,6 @@ const PatientQueueTable = () => {
         </div>
       </Card>
 
-      {/* Filter Card */}
       <Card styles={{ body: { padding: '16px 20px' } }} variant="borderless">
         <Row gutter={[16, 12]} align="bottom">
           <Col xs={24} md={8}>
@@ -572,7 +606,7 @@ const PatientQueueTable = () => {
               Cari Pasien
             </div>
             <Input
-              placeholder="Nama Pasien / No. Rekam Medis"
+              placeholder="Nama Pasien / Nomor Antrian"
               prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
@@ -593,13 +627,14 @@ const PatientQueueTable = () => {
               Unit Pelayanan
             </div>
             <Select
-              placeholder="-- Semua Unit --"
+              placeholder={isPoliLockedFromRoute ? '-- Unit Terkunci --' : '-- Semua Unit --'}
               className="w-full"
-              allowClear
+              allowClear={!isPoliLockedFromRoute}
+              disabled={isPoliLockedFromRoute}
               value={selectedPoli}
               onChange={setSelectedPoli}
             >
-              {polis.map((poli) => (
+              {scopedPolis.map((poli) => (
                 <Option key={poli.id} value={poli.id}>
                   {poli.name}
                 </Option>
@@ -617,18 +652,18 @@ const PatientQueueTable = () => {
                 letterSpacing: '0.05em'
               }}
             >
-              Periode Kunjungan
+              Tanggal Antrian
             </div>
-            <RangePicker
+            <DatePicker
               className="w-full"
-              value={dateRange}
-              onChange={(dates) => setDateRange(dates as any)}
+              value={queueDate}
+              onChange={(value) => setQueueDate(value || dayjs())}
               format="DD MMM YYYY"
+              allowClear={false}
             />
           </Col>
         </Row>
 
-        {/* Status Tab Bar */}
         <div
           className="flex gap-1.5 mt-4 pt-4 flex-wrap"
           style={{ borderTop: `1px solid ${token.colorBorderSecondary}` }}
@@ -682,9 +717,8 @@ const PatientQueueTable = () => {
         </div>
       </Card>
 
-      {/* Table Card */}
       <Card className="flex-1 overflow-hidden flex flex-col" variant="borderless">
-        <Spin spinning={isLoading}>
+        <Spin spinning={isLoading || isPoliLoading}>
           <Table
             columns={columns}
             dataSource={patientQueue}
@@ -693,7 +727,7 @@ const PatientQueueTable = () => {
               showTotal: (total) => `Total ${total} pasien`,
               showSizeChanger: true
             }}
-            scroll={{ x: 1050, y: 'calc(100vh - 460px)' }}
+            scroll={{ x: 1250, y: 'calc(100vh - 460px)' }}
             className="flex-1"
             size="middle"
           />

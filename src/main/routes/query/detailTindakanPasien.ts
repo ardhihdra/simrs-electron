@@ -1,25 +1,11 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
+import { DetailTindakanPasienSchema } from 'simrs-types'
 
 export const requireSession = true
 
-const DetailTindakanPasienSchema = z.object({
-    id: z.number(),
-    encounterId: z.string(),
-    patientId: z.string(),
-    tanggalTindakan: z.union([z.string(), z.date()]),
-    cyto: z.boolean().optional().nullable(),
-    catatanTambahan: z.string().optional().nullable(),
-    status: z.string().optional(),
-    createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional(),
-    tindakanPelaksanaList: z.any().array().optional().nullable(),
-    tindakanPaket: z.any().array().optional().nullable(),
-    tindakanNonPaket: z.any().array().optional().nullable(),
-    paketBhp: z.any().array().optional().nullable(),
-    bhpNonPaket: z.any().array().optional().nullable()
-}).passthrough()
+const DetailTindakanPasienSchemaCompat = DetailTindakanPasienSchema as unknown as z.ZodTypeAny
 
 const PetugasListSchema = z.object({
     pegawaiId: z.number(),
@@ -81,7 +67,11 @@ export const schemas = {
             page: z.number().optional(),
             items: z.number().optional()
         }).optional(),
-        result: z.any()
+        result: z.object({
+            success: z.boolean(),
+            result: z.array(DetailTindakanPasienSchemaCompat).optional(),
+            error: z.string().optional()
+        })
     },
     create: {
         args: CreateDetailTindakanSchema,
@@ -113,7 +103,7 @@ export const schemas = {
         args: z.object({ encounterId: z.string() }),
         result: z.object({
             success: z.boolean(),
-            result: DetailTindakanPasienSchema.array().optional(),
+            result: z.array(DetailTindakanPasienSchemaCompat).optional(),
             error: z.string().optional()
         })
     }
@@ -135,7 +125,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         const url = `/api/detailtindakanpasien${queryString ? `?${queryString}` : ''}`
         const res = await client.get(url)
 
-        const ListSchema = BackendListSchema(DetailTindakanPasienSchema)
+        const ListSchema = BackendListSchema(DetailTindakanPasienSchemaCompat)
         const result = await parseBackendResponse(res, ListSchema)
         return { success: true, result: result ?? [] }
     } catch (err) {
@@ -149,8 +139,11 @@ export const byEncounter = async (ctx: IpcContext, args: z.infer<typeof schemas.
         const client = getClient(ctx)
         const url = `/api/detailtindakanpasien/read/${args.encounterId}`
         const res = await client.get(url)
+        if (res.status === 404) {
+            return { success: true, result: [] }
+        }
 
-        const ListSchema = BackendListSchema(DetailTindakanPasienSchema)
+        const ListSchema = BackendListSchema(DetailTindakanPasienSchemaCompat)
         const result = await parseBackendResponse(res, ListSchema)
         return { success: true, result: result ?? [] }
     } catch (err) {

@@ -13,6 +13,11 @@ import { useNavigate } from 'react-router'
 import { PatientAttributes } from 'simrs-types'
 import RegistrationSheet from './components/RegistrationSheet'
 
+type PatientTableRow = PatientAttributes & {
+  no: number
+  religion?: string | null
+}
+
 const PatientTable = () => {
   const navigate = useNavigate()
   const [filter, setFilter] = useState({ nik: '', name: '', medicalRecordNumber: '', address: '' })
@@ -40,7 +45,7 @@ const PatientTable = () => {
     }
   })
 
-  const columns: ColumnsType<PatientAttributes & { no: number }> = [
+  const columns: ColumnsType<PatientTableRow> = [
     { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
     { title: 'RM', dataIndex: 'medicalRecordNumber', key: 'medicalRecordNumber' },
     { title: 'NIK', dataIndex: 'nik', key: 'nik' },
@@ -52,6 +57,12 @@ const PatientTable = () => {
       render: (value: string) => (value === 'male' ? 'Laki-laki' : 'Perempuan')
     },
     {
+      title: 'Agama',
+      dataIndex: 'religion',
+      key: 'religion',
+      render: (value?: string | null) => value || '-'
+    },
+    {
       title: 'Tgl Lahir',
       dataIndex: 'birthDate',
       key: 'birthDate',
@@ -60,7 +71,11 @@ const PatientTable = () => {
     { title: 'Alamat', dataIndex: 'address', key: 'address' }
   ]
 
-  const dataSource = (queryData?.result || []).map((item, idx) => ({ ...item, no: idx + 1 }))
+  const dataSource: PatientTableRow[] = (queryData?.result || []).map((item, idx) => ({
+    ...(item as PatientAttributes),
+    religion: (item as { religion?: string | null }).religion,
+    no: idx + 1
+  }))
 
   const onFinish = async (values: any) => {
     setOpenRegistration(false)
@@ -96,6 +111,7 @@ const PatientTable = () => {
               { key: 'nik', label: 'NIK' },
               { key: 'name', label: 'Nama' },
               { key: 'gender', label: 'Gender' },
+              { key: 'religion', label: 'Agama' },
               { key: 'birthDate', label: 'Tgl Lahir' },
               { key: 'address', label: 'Alamat' }
             ]}

@@ -57,20 +57,20 @@ type Module = (typeof Modules)[keyof typeof Modules];
 //   )
 // }
 
-const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = true;
+const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = true
 
 type DashboardMenuChild = {
-	label: string;
-	key: string;
-	icon: ReactNode;
-};
+  label: string
+  key: string
+  icon: ReactNode
+}
 
 type DashboardMenuItem = DashboardMenuChild & {
-	module?: Module;
-	children?: DashboardMenuChild[];
-};
+  module?: Module
+  children?: DashboardMenuChild[]
+}
 
-const DASHBOARD_ROOT_KEY = "/dashboard";
+const DASHBOARD_ROOT_KEY = '/dashboard'
 
 const items: DashboardMenuItem[] = [
 	{
@@ -163,13 +163,31 @@ const items: DashboardMenuItem[] = [
 				key: "/dashboard/rawat-inap/ranap-2/class1",
 				icon: <CalendarOutlined />,
 			},
-		],
-	},
-	{
-		label: "Farmasi",
-		key: "/dashboard/medicine",
-		icon: <WalletOutlined />,
-		module: Modules.FARMASI,
+			],
+		},
+		{
+			label: "Kamar Operasi (OK)",
+			key: "/dashboard/ok",
+			icon: <FileTextOutlined />,
+			module: Modules.OK,
+			children: [
+				{
+					label: "Pengajuan OK",
+					key: "/dashboard/ok/pengajuan",
+					icon: <FileAddOutlined />,
+				},
+				{
+					label: "Antrian & Verifikasi OK",
+					key: "/dashboard/ok/verifikasi",
+					icon: <UnorderedListOutlined />,
+				},
+			],
+		},
+		{
+			label: "Farmasi",
+			key: "/dashboard/medicine",
+			icon: <WalletOutlined />,
+			module: Modules.FARMASI,
 		children: [
 			{ label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
 			{
@@ -308,141 +326,181 @@ const items: DashboardMenuItem[] = [
 ];
 
 const isPageNotRegistered = (access: PageAccessEntry | null) => {
-	return (
-		!access ||
-		(!access.allowedModules.length &&
-			!access.roles.length &&
-			!access.allowedLokasiKerjaIds.length)
-	);
-};
+  return (
+    !access ||
+    (!access.allowedModules.length && !access.roles.length && !access.allowedLokasiKerjaIds.length)
+  )
+}
 
 const filterChildrenBySession = (
-	children: DashboardMenuChild[] | undefined,
-	pageAccessMap: Record<string, PageAccessEntry>,
-	session: ScopeSession | null,
+  children: DashboardMenuChild[] | undefined,
+  pageAccessMap: Record<string, PageAccessEntry>,
+  session: ScopeSession | null
 ): DashboardMenuChild[] => {
-	if (!children?.length) return [];
-	if (!session) return [];
+  if (!children?.length) return []
+  if (!session) return []
 
-	return children.filter((child) => {
-		const access = pageAccessMap[child.key];
-		if (isPageNotRegistered(access)) {
-			console.error(
-				"page not registered! please register to PageAccount seeder",
-				child,
-				access,
-			);
-			return DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE;
-		}
-		return isPageVisible(access, session);
-	});
-};
+  return children.filter((child) => {
+    const access = pageAccessMap[child.key]
+    if (isPageNotRegistered(access)) {
+      console.error('page not registered! please register to PageAccount seeder', child, access)
+      return DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
+    }
+    return isPageVisible(access, session)
+  })
+}
 
 const filterItemsBySession = (
-	menuItems: DashboardMenuItem[],
-	pageAccessMap: Record<string, PageAccessEntry>,
-	session: ScopeSession | null,
+  menuItems: DashboardMenuItem[],
+  pageAccessMap: Record<string, PageAccessEntry>,
+  session: ScopeSession | null
 ) => {
-	return menuItems.reduce<DashboardMenuItem[]>((result, item) => {
-		if (item.key === DASHBOARD_ROOT_KEY) {
-			result.push({
-				...item,
-				...(item.children
-					? {
-							children: filterChildrenBySession(
-								item.children,
-								pageAccessMap,
-								session,
-							),
-						}
-					: {}),
-			});
-			return result;
-		}
+  return menuItems.reduce<DashboardMenuItem[]>((result, item) => {
+    if (item.key === DASHBOARD_ROOT_KEY) {
+      result.push({
+        ...item,
+        ...(item.children
+          ? {
+              children: filterChildrenBySession(item.children, pageAccessMap, session)
+            }
+          : {})
+      })
+      return result
+    }
 
-		if (!session) return result;
+    if (!session) return result
 
-		const access = pageAccessMap[item.key];
-		const visibleChildren = filterChildrenBySession(
-			item.children,
-			pageAccessMap,
-			session,
-		);
+    const access = pageAccessMap[item.key]
+    const visibleChildren = filterChildrenBySession(item.children, pageAccessMap, session)
 
-		// Parent is visible if its own access passes OR if it has visible children
-		const parentVisible = isPageNotRegistered(access)
-			? DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
-			: isPageVisible(access, session);
+    // Parent is visible if its own access passes OR if it has visible children
+    const parentVisible = isPageNotRegistered(access)
+      ? DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE
+      : isPageVisible(access, session)
 
-		if (parentVisible || visibleChildren.length > 0) {
-			result.push({
-				...item,
-				...(item.children ? { children: visibleChildren } : {}),
-			});
-		}
+    if (parentVisible || visibleChildren.length > 0) {
+      result.push({
+        ...item,
+        ...(item.children ? { children: visibleChildren } : {})
+      })
+    }
 
-		return result;
-	}, []);
-};
+    return result
+  }, [])
+}
 
 function Dashboard() {
-	const { token } = theme.useToken();
-	const location = useLocation();
-	const session = useModuleScopeStore((state) => state.session);
-	const visibleModuleState = getModuleScopeState(session);
+  const { token } = theme.useToken()
+  const location = useLocation()
+  const session = useModuleScopeStore((state) => state.session)
+  const visibleModuleState = getModuleScopeState(session)
 
-	const { data: pageAccessData } = client.pageAccess.list.useQuery({});
-	const pageAccessMap = useMemo(() => {
-		const map: Record<string, PageAccessEntry> = {};
-		for (const item of pageAccessData?.result ?? []) {
-			map[item.page_path] = {
-				allowedModules: (item.allowedModules as string[] | undefined) ?? [],
-				roles: (item.roles as string[] | undefined) ?? [],
-				allowedLokasiKerjaIds:
-					(item.allowedLokasiKerjaIds as number[] | undefined) ?? [],
-			};
-		}
-		return map;
-	}, [pageAccessData]);
+  const { data: poliData } = client.visitManagement.poli.useQuery({})
+  const isAdministrator = session?.hakAksesId === 'administrator'
+  const listPoli = useMemo(
+    () =>
+      (poliData?.result ?? [])
+        .map((poli) => ({
+          id: poli.id,
+          name: poli.name,
+          code: poli.code || poli.id.toString(),
+          lokasiKerjaId: poli.location?.id
+        }))
+        .filter((poli) => {
+          if (isAdministrator) return true
+          return poli.lokasiKerjaId === session?.lokasiKerjaId
+        })
+        .sort((a, b) => a.name.localeCompare(b.name, 'id')),
+    [isAdministrator, poliData?.result, session?.lokasiKerjaId]
+  )
 
-	const { profile } = useMyProfile();
-	console.log("session", session);
-	console.log("profile", profile);
+  // Map from normalized poli key → original poli metadata (for role-aware navigation)
+  const poliKeyMeta = useMemo(() => {
+    const map: Record<string, { code: string; name: string }> = {}
+    listPoli.forEach((poli) => {
+      const key = `/dashboard/poli/${String(poli.code).trim().toLowerCase()}`
+      map[key] = { code: String(poli.code).trim().toLowerCase(), name: poli.name }
+    })
+    return map
+  }, [listPoli])
+
+  const dynamicItems = useMemo(() => {
+    return items.map((item) => {
+      if (item.key === '/dashboard/poli') {
+        const dynamicPoliChildren = listPoli.map((poli) => {
+          const lowerName = poli.name.toLowerCase()
+          const nameWithPrefix = lowerName.startsWith('poli') ? poli.name : `Poli ${poli.name}`
+
+          return {
+            label: nameWithPrefix,
+            key: `/dashboard/poli/${String(poli.code).trim().toLowerCase()}`,
+            icon: <CalendarOutlined />
+          }
+        })
+        return {
+          ...item,
+          children: [
+            { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
+            ...dynamicPoliChildren
+          ]
+        }
+      }
+      return item
+    })
+  }, [listPoli])
+
+  const { data: pageAccessData } = client.pageAccess.list.useQuery({})
+  const pageAccessMap = useMemo(() => {
+    const map: Record<string, PageAccessEntry> = {}
+    for (const item of pageAccessData?.result ?? []) {
+      map[item.page_path] = {
+        allowedModules: (item.allowedModules as string[] | undefined) ?? [],
+        roles: (item.roles as string[] | undefined) ?? [],
+        allowedLokasiKerjaIds: (item.allowedLokasiKerjaIds as number[] | undefined) ?? []
+      }
+    }
+    return map
+  }, [pageAccessData])
+
+  const { profile } = useMyProfile()
+  console.log('session', session)
+  console.log('profile', profile)
 
 	if (!Object.keys(pageAccessMap).length) {
 		console.error("PageAccess map not found!");
 	}
-	const visibleItems = filterItemsBySession(items, pageAccessMap, session);
-	const registeredPrefixes = [
-		"/dashboard/expense",
-		"/dashboard/patient",
-		"/dashboard/encounter",
-		"/dashboard/income",
-		"/dashboard/registration/jaminan",
-		"/dashboard/registration/medical-staff-schedule",
-		"/dashboard/pegawai",
-		"/dashboard/registration",
-		"/dashboard/registration/doctor-schedule",
-		"/dashboard/registration/medical-staff-schedule",
-		"/dashboard/queue",
-		"/dashboard/diagnostic",
-		"/dashboard/services",
-		"/dashboard/service-request",
-		"/dashboard/pharmacy",
-		"/dashboard/pendaftaran",
-		"/dashboard/registration/doctor-leave",
-		"/dashboard/pharmacy",
-		"/dashboard/laboratory",
-		"/dashboard/laboratory-management",
-		"/dashboard/medicine",
-		"/dashboard/registration/doctor-leave",
-		"/dashboard/doctor",
-		"/dashboard/nurse-calling",
-		"/dashboard/rawat-inap",
-		"/dashboard/poli",
-		"/dashboard/kasir",
-		"/dashboard/non-medic-queue",
-	];
+ const visibleItems = filterItemsBySession(dynamicItems, pageAccessMap, session)
+  const registeredPrefixes = [
+    '/dashboard/expense',
+    '/dashboard/patient',
+    '/dashboard/encounter',
+    '/dashboard/income',
+    '/dashboard/registration/jaminan',
+    '/dashboard/registration/medical-staff-schedule',
+    '/dashboard/pegawai',
+    '/dashboard/registration',
+    '/dashboard/registration/doctor-schedule',
+    '/dashboard/registration/medical-staff-schedule',
+    '/dashboard/queue',
+    '/dashboard/diagnostic',
+    '/dashboard/services',
+    '/dashboard/service-request',
+    '/dashboard/pharmacy',
+    '/dashboard/pendaftaran',
+    '/dashboard/registration/doctor-leave',
+    '/dashboard/pharmacy',
+    '/dashboard/laboratory',
+    '/dashboard/laboratory-management',
+    '/dashboard/medicine',
+    '/dashboard/registration/doctor-leave',
+	    '/dashboard/doctor',
+	    '/dashboard/nurse-calling',
+	    '/dashboard/rawat-inap',
+	    '/dashboard/poli',
+	    '/dashboard/kasir',
+		'/dashboard/ok',
+		'/dashboard/non-medic-queue'
+	  ]
 	const isRegisteredPath = (path: string): boolean => {
 		if (path === DASHBOARD_ROOT_KEY) return true;
 		return registeredPrefixes.some((prefix) => path.startsWith(prefix));
@@ -522,137 +580,144 @@ function Dashboard() {
 		setSideItems(children);
 		const nextSide = (children[0]?.key as string) || key;
 		setActiveSide(nextSide);
-		navigate(key === "/dashboard/non-medic-queue" ? nextSide : key);
+		navigate(key);
 	};
 
-	useEffect(() => {
-		const newTop = getTopKeyFromPath(location.pathname);
-		setActiveTop(newTop);
-		const children = childrenOfTop(newTop);
-		setSideItems(children);
-		const childKeys = childKeysOfTop(newTop);
-		const match = childKeys
-			.filter((key) => location.pathname.startsWith(key))
-			.sort((a, b) => b.length - a.length)[0];
+  useEffect(() => {
+    const newTop = getTopKeyFromPath(location.pathname)
+    setActiveTop(newTop)
+    const children = childrenOfTop(newTop)
+    setSideItems(children)
+    const childKeys = childKeysOfTop(newTop)
 
-		setActiveSide(match || (children[0]?.key as string));
-	}, [location.pathname, session, visibleModuleState.visibleModules.join("|")]);
+    if (location.pathname.startsWith('/dashboard/doctor')) {
+      const searchParams = new URLSearchParams(location.search)
+      const poliCode = searchParams.get('poliCode')
+      if (poliCode) {
+        const poliKey = `/dashboard/poli/${poliCode.trim().toLowerCase()}`
+        if (childKeys.includes(poliKey)) {
+          setActiveSide(poliKey)
+          return
+        }
+      }
+    }
 
-	const isWorkspaceRoute =
-		location.pathname.match(
-			/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/,
-		) !== null;
+    const match = childKeys
+      .filter((key) => location.pathname.startsWith(key))
+      .sort((a, b) => b.length - a.length)[0]
 
-	if (isWorkspaceRoute) {
-		return (
-			<div
-				className="h-screen w-screen overflow-hidden"
-				style={{ backgroundColor: token.colorBgLayout }}
-			>
-				<Outlet />
-			</div>
-		);
-	}
+    setActiveSide(match || (children[0]?.key as string))
+  }, [location.pathname, location.search, session, visibleModuleState.visibleModules.join('|')])
 
-	return (
-		<div className="h-screen flex overflow-hidden">
-			<aside
-				style={{
-					backgroundColor: token.colorBgContainer,
-					borderRight: `1px solid ${token.colorBorderSecondary}`,
-				}}
-				className={`${collapsed ? "w-20" : "w-64"} flex flex-col transition-all duration-300`}
-			>
-				<div
-					style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
-					className="h-14 px-4 flex items-center justify-center"
-				>
-					<div className="flex items-center justify-center gap-2">
-						<img src={logoUrl} alt="Logo" className="w-8 h-8" />
-						<span
-							style={{ color: token.colorText }}
-							className={`${collapsed ? "hidden" : "font-semibold text-lg"}`}
-						>
-							SIMRS
-						</span>
-					</div>
-				</div>
-				<Menu
-					onClick={onSideClick}
-					selectedKeys={[activeSide]}
-					mode="inline"
-					inlineCollapsed={collapsed}
-					items={sideItems}
-					style={{ borderInlineEnd: 0, backgroundColor: "transparent" }}
-				/>
-				<div className="mt-auto px-4 py-3 flex justify-center">
-					<button
-						aria-label="Toggle sidebar"
-						className="p-2 rounded-full transition-colors flex items-center justify-center border-none cursor-pointer"
-						style={{
-							backgroundColor: token.colorBgLayout,
-							color: token.colorPrimary,
-							width: 36,
-							height: 36,
-						}}
-						onClick={() => setCollapsed((p) => !p)}
-					>
-						{collapsed ? <RightCircleFilled /> : <LeftCircleFilled />}
-					</button>
-				</div>
-			</aside>
-			<div
-				className={`flex-1 transition-all duration-300 flex flex-col overflow-y-auto h-full ${collapsed ? "max-w-[calc(100vw-5rem)]" : "max-w-[calc(100vw-16rem)]"}`}
-			>
-				<header
-					className="sticky top-0 z-50 px-4 flex items-center justify-between gap-4 transition-colors"
-					style={{
-						height: 56,
-						minHeight: 56,
-						maxHeight: 56,
-						backgroundColor: token.colorBgContainer,
-						borderBottom: `1px solid ${token.colorBorderSecondary}`,
-					}}
-				>
-					<Menu
-						mode="horizontal"
-						onClick={onTopClick}
-						selectedKeys={[activeTop]}
-						items={topItems}
-						style={{
-							minWidth: 0,
-							flex: "auto",
-							height: 55,
-							lineHeight: "55px",
-							overflow: "hidden",
-							backgroundColor: "transparent",
-							borderBottom: "none",
-						}}
-					/>
-					{/* <SendNotificationButton /> */}
-					<NotificationBell />
-					<ProfileMenu />
-				</header>
-				<div
-					className="p-4 flex-1"
-					style={{ backgroundColor: token.colorBgLayout }}
-				>
-					{isRegisteredPath(location.pathname) ? (
-						<Outlet />
-					) : (
-						<div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-							<div
-								className="text-base md:text-lg font-medium"
-								style={{ color: token.colorText }}
-							>
-								{findLabelByPath(location.pathname)}
-							</div>
-						</div>
-					)}
-				</div>
-			</div>
-		</div>
-	);
+  const isWorkspaceRoute =
+    location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+
+  if (isWorkspaceRoute) {
+    return (
+      <div
+        className="h-screen w-screen overflow-hidden"
+        style={{ backgroundColor: token.colorBgLayout }}
+      >
+        <Outlet />
+      </div>
+    )
+  }
+
+  return (
+    <div className="h-screen flex overflow-hidden">
+      <aside
+        style={{
+          backgroundColor: token.colorBgContainer,
+          borderRight: `1px solid ${token.colorBorderSecondary}`
+        }}
+        className={`${collapsed ? 'w-20' : 'w-64'} flex flex-col transition-all duration-300`}
+      >
+        <div
+          style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+          className="h-14 px-4 flex items-center justify-center"
+        >
+          <div className="flex items-center justify-center gap-2">
+            <img src={logoUrl} alt="Logo" className="w-8 h-8" />
+            <span
+              style={{ color: token.colorText }}
+              className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}
+            >
+              SIMRS
+            </span>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <Menu
+            onClick={onSideClick}
+            selectedKeys={[activeSide]}
+            mode="inline"
+            inlineCollapsed={collapsed}
+            items={sideItems}
+            style={{ borderInlineEnd: 0, backgroundColor: 'transparent' }}
+          />
+        </div>
+        <div className="mt-auto px-4 py-3 flex justify-center">
+          <button
+            aria-label="Toggle sidebar"
+            className="p-2 rounded-full transition-colors flex items-center justify-center border-none cursor-pointer"
+            style={{
+              backgroundColor: token.colorBgLayout,
+              color: token.colorPrimary,
+              width: 36,
+              height: 36
+            }}
+            onClick={() => setCollapsed((p) => !p)}
+          >
+            {collapsed ? <RightCircleFilled /> : <LeftCircleFilled />}
+          </button>
+        </div>
+      </aside>
+      <div
+        className={`flex-1 transition-all duration-300 flex flex-col overflow-y-auto h-full ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
+      >
+        <header
+          className="sticky top-0 z-50 px-4 flex items-center justify-between gap-4 transition-colors"
+          style={{
+            height: 56,
+            minHeight: 56,
+            maxHeight: 56,
+            backgroundColor: token.colorBgContainer,
+            borderBottom: `1px solid ${token.colorBorderSecondary}`
+          }}
+        >
+          <Menu
+            mode="horizontal"
+            onClick={onTopClick}
+            selectedKeys={[activeTop]}
+            items={topItems}
+            style={{
+              minWidth: 0,
+              flex: 'auto',
+              height: 55,
+              lineHeight: '55px',
+              overflow: 'hidden',
+              backgroundColor: 'transparent',
+              borderBottom: 'none'
+            }}
+          />
+          {/* <SendNotificationButton /> */}
+          <NotificationBell />
+          <ProfileMenu />
+        </header>
+        <div className="p-4 flex-1" style={{ backgroundColor: token.colorBgLayout }}>
+          {isRegisteredPath(location.pathname) ? (
+            <Outlet />
+          ) : (
+            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
+              <div className="text-base md:text-lg font-medium" style={{ color: token.colorText }}>
+                {findLabelByPath(location.pathname)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
-export default Dashboard;
+export default Dashboard

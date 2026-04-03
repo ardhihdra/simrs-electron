@@ -114,6 +114,49 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
           </Form.Item>
         </Col>
       </Row>
+      <div className="text-xs font-bold text-gray-500 mt-6 mb-2 uppercase tracking-tight">
+        Antropometri
+      </div>
+      <Row gutter={16}>
+        <Col span={6}>
+          <Form.Item
+            label="Tinggi Badan (cm)"
+            name={['vitalSigns', 'height']}
+            className="mb-0"
+          >
+            <InputNumber placeholder="0" className="w-full" min={0} addonAfter="cm" />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item
+            label="Berat Badan (kg)"
+            name={['vitalSigns', 'weight']}
+            className="mb-0"
+          >
+            <InputNumber placeholder="0" className="w-full" min={0} addonAfter="kg" />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item
+            label="IMT / BMI (kg/m2)"
+            name={['vitalSigns', 'bmi']}
+            className="mb-0"
+            tooltip="Indeks Massa Tubuh (Body Mass Index)"
+          >
+            <InputNumber placeholder="0" className="w-full" min={0} step={0.01} addonAfter="kg/m²" />
+          </Form.Item>
+        </Col>
+        <Col span={6}>
+          <Form.Item
+            label="LPB / BSA (m2)"
+            name={['vitalSigns', 'bsa']}
+            className="mb-0"
+            tooltip="Luas Permukaan Tubuh (Body Surface Area)"
+          >
+            <InputNumber placeholder="0" className="w-full" min={0} step={0.01} addonAfter="m²" />
+          </Form.Item>
+        </Col>
+      </Row>
     </Card>
   )
 }

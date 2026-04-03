@@ -31,6 +31,39 @@ interface EncounterHistoryTableProps {
   onRowClick?: (record: any) => void
 }
 
+/**
+ * Maps DB enum values (AMB, IMP, EMER) to display labels.
+ */
+const ENCOUNTER_TYPE_LABEL: Record<string, string> = {
+  AMB: 'Rawat Jalan',
+  IMP: 'Rawat Inap',
+  EMER: 'IGD',
+}
+
+function getTypeLabel(type: string): string {
+  return ENCOUNTER_TYPE_LABEL[type] ?? type
+}
+
+function getTypeColor(type: string): string {
+  if (type === 'AMB') return 'blue'
+  if (type === 'IMP') return 'green'
+  if (type === 'EMER') return 'red'
+  return 'default'
+}
+
+function getDiagnosticCategoryLabel(category: string | null | undefined): string {
+  const normalized = String(category || '').trim().toLowerCase()
+  if (normalized === 'laboratory' || normalized === 'lab') return 'Laboratory'
+  if (normalized === 'radiology' || normalized === 'imaging' || normalized === 'rad') return 'Radiology'
+  return ''
+}
+
+function getDiagnosticCategoryColor(label: string): string {
+  if (label === 'Laboratory') return 'blue'
+  if (label === 'Radiology') return 'geekblue'
+  return 'default'
+}
+
 export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
   patientId,
   onRowClick
@@ -57,48 +90,108 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
     dateTo: dateRange?.[1] ? dateRange[1].toISOString() : undefined
   })
 
-  // Columns Configuration
   const columns = [
     {
       title: 'Tanggal & Waktu',
       dataIndex: 'date',
       key: 'date',
-      render: (text: string) => dayjs(text).format('DD MMM YYYY, HH:mm'),
-      width: 160
+      render: (text: string) => (
+        <div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>
+            {dayjs(text).format('DD MMM YYYY')}
+          </div>
+          <div style={{ fontSize: 11, color: token.colorTextTertiary }}>
+            {dayjs(text).format('HH:mm')}
+          </div>
+        </div>
+      ),
+      width: 130
     },
     {
       title: 'Unit Layanan',
       dataIndex: 'serviceUnit',
       key: 'serviceUnit',
-      width: 180
+      width: 150,
+      render: (text: string) => (
+        <span style={{ fontSize: 13 }}>{text || '-'}</span>
+      )
     },
     {
       title: 'Dokter Pemeriksa',
       dataIndex: 'doctorName',
       key: 'doctorName',
-      width: 200
+      width: 180,
+      render: (text: string) => (
+        <span style={{ fontSize: 13 }}>{text || '-'}</span>
+      )
     },
     {
       title: 'Jenis',
       dataIndex: 'type',
       key: 'type',
-      width: 120,
+      width: 110,
       render: (text: string) => (
-        <Text style={{ textTransform: 'capitalize' }}>
-          {text === 'ambulatory'
-            ? 'Rawat Jalan'
-            : text === 'inpatient'
-              ? 'Rawat Inap'
-              : text === 'emergency'
-                ? 'IGD'
-                : text}
-        </Text>
+        <Tag color={getTypeColor(text)} bordered={false}>
+          {getTypeLabel(text)}
+        </Tag>
       )
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      width: 110,
+      render: (text: string) => {
+        const statusConfig: Record<string, { label: string; color: string }> = {
+          IN_PROGRESS: { label: 'Berlangsung', color: 'orange' },
+          FINISHED: { label: 'Selesai', color: 'green' },
+          CANCELLED: { label: 'Dibatalkan', color: 'red' },
+          DISCHARGED: { label: 'Pulang', color: 'blue' },
+          PLANNED: { label: 'Terjadwal', color: 'default' },
+        }
+        const cfg = statusConfig[text]
+        return cfg ? (
+          <Tag color={cfg.color} bordered={false}>{cfg.label}</Tag>
+        ) : (
+          <span>{text || '-'}</span>
+        )
+      }
+    },
+    {
+      title: 'Jenis LAB',
+      key: 'diagnosticType',
+      width: 140,
+      render: (_: any, record: any) => {
+        const labels: string[] = Array.from(
+          new Set<string>(
+            (record.diagnosticOrders || [])
+              .map((order: any) =>
+                getDiagnosticCategoryLabel(order.category || order.categoryDisplay || order.categories?.[0]?.code)
+              )
+              .filter((label: string): label is string => Boolean(label))
+          )
+        )
+
+        if (labels.length === 0) {
+          return <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>-</span>
+        }
+
+        return (
+          <div className="flex flex-wrap gap-1">
+            {labels.map((label) => (
+              <Tag key={label} color={getDiagnosticCategoryColor(label)} bordered={false}>
+                {label}
+              </Tag>
+            ))}
+          </div>
+        )
+      }
     },
     {
       title: 'Diagnosis Utama',
       dataIndex: 'primaryDiagnosis',
       key: 'primaryDiagnosis',
+      width: 200,
       render: (text: string, record: any) => (
         <Popover
           content={
@@ -107,7 +200,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
               <div className="mb-2">{text || 'Tidak ada'}</div>
               {record.soapSummary && (
                 <>
-                  <div className="font-semibold mb-1">SOAP Summary</div>
+                  <div className="font-semibold mb-1">SOAP Ringkas</div>
                   <div className="whitespace-pre-wrap text-sm">{record.soapSummary}</div>
                 </>
               )}
@@ -118,7 +211,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
           placement="topLeft"
         >
           <div className="flex items-center gap-1 cursor-pointer">
-            <span className="truncate max-w-[200px]" style={{ color: token.colorPrimary }}>
+            <span className="truncate max-w-[180px]" style={{ color: token.colorPrimary, fontSize: 13 }}>
               {text || 'Tidak ada spesifikasi'}
             </span>
             <InfoCircleOutlined className="text-gray-400" />
@@ -129,7 +222,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
     {
       title: 'Aksi',
       key: 'action',
-      width: 180,
+      width: 150,
       render: (_: any, record: any) => (
         <div className="flex gap-2">
           <Button
@@ -157,7 +250,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
             type="text"
             icon={<ExperimentOutlined />}
             size="small"
-            title="Hasil Lab/Rad"
+            title="Hasil Lab dan Radiologi"
             onClick={(e) => {
               e.stopPropagation()
               setSelectedRecord(record)
@@ -180,11 +273,34 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
     }
   ]
 
-  const dummyLabData = [
-    { id: 1, test: 'Hemoglobin', result: '14.2 g/dL', ref: '13.0 - 17.0', status: 'Normal' },
-    { id: 2, test: 'Leukosit', result: '9,500 /uL', ref: '4,000 - 10,000', status: 'Normal' },
-    { id: 3, test: 'Trombosit', result: '140,000 /uL', ref: '150,000 - 450,000', status: 'Low' },
-    { id: 4, test: 'Gula Darah Puasa', result: '110 mg/dL', ref: '< 100', status: 'High' }
+  // Map real observation data for Lab modal
+  const observationColumns = [
+    { title: 'Pemeriksaan', dataIndex: 'display', key: 'display',
+      render: (_: any, row: any) => {
+        const coding = Array.isArray(row.codeCoding) ? row.codeCoding[0] : row.codeCoding
+        return coding?.display || row.matchedOrderDisplay || row.observationCode || '-'
+      } },
+    { title: 'Hasil', dataIndex: 'result', key: 'result',
+      render: (_: any, row: any) => {
+        const vq = row.valueQuantity
+        if (vq && typeof vq === 'object') {
+          return `${vq.value ?? ''} ${vq.unit ?? ''}`.trim()
+        }
+        if (row.valueString) return row.valueString
+        if (row.valueInteger !== undefined && row.valueInteger !== null) return String(row.valueInteger)
+        if (row.valueBoolean !== undefined && row.valueBoolean !== null) {
+          return row.valueBoolean ? 'Ya' : 'Tidak'
+        }
+        const concept = row.valueCodeableConcept
+        if (concept && typeof concept === 'object') {
+          const coding = Array.isArray(concept.coding) ? concept.coding[0] : undefined
+          return concept.text || coding?.display || coding?.code || '-'
+        }
+        return '-'
+      }
+    },
+    { title: 'Tanggal', dataIndex: 'effectiveDateTime', key: 'effectiveDateTime',
+      render: (val: string) => val ? dayjs(val).format('DD MMM YYYY, HH:mm') : '-' }
   ]
 
   return (
@@ -205,15 +321,14 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
         <Select
           placeholder="Jenis Kunjungan"
           allowClear
-          style={{ width: 150 }}
+          style={{ width: 160 }}
           onChange={(value) => setEncounterType(value)}
           options={[
-            { value: 'ambulatory', label: 'Rawat Jalan' },
-            { value: 'inpatient', label: 'Rawat Inap' },
-            { value: 'emergency', label: 'IGD' }
+            { value: 'AMB', label: 'Rawat Jalan' },
+            { value: 'IMP', label: 'Rawat Inap' },
+            { value: 'EMER', label: 'IGD' }
           ]}
         />
-        {/* Could add Doctor Select here if generic doctor list is available */}
       </div>
 
       <Table
@@ -226,9 +341,9 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
           pageSize: pageSize,
           total: data?.result?.total || 0,
           showSizeChanger: true,
-          onChange: (page, pageSize) => {
-            setPage(page)
-            setPageSize(pageSize)
+          onChange: (pg, ps) => {
+            setPage(pg)
+            setPageSize(ps)
           }
         }}
         onRow={(record) => ({
@@ -238,46 +353,56 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
           className: 'cursor-pointer hover:bg-gray-50'
         })}
         size="small"
+        scroll={{ x: 1100 }}
       />
 
+      {/* SOAP Modal */}
       <Modal
         open={soapModalOpen}
         title="Catatan SOAP"
         onCancel={() => setSoapModalOpen(false)}
         footer={null}
       >
-        <div className="whitespace-pre-wrap font-mono text-sm p-4 rounded border border-white/10">
+        <div className="whitespace-pre-wrap font-mono text-sm p-4 rounded border border-gray-100 bg-gray-50">
           {selectedRecord?.soapSummary || 'Tidak ada catatan SOAP untuk kunjungan ini.'}
         </div>
       </Modal>
 
+      {/* Observations / Lab Modal — real data from API */}
       <Modal
         open={labModalOpen}
-        title={`Hasil Lab/Rad - Dummy`}
+        title={
+          <div>
+            <div>Hasil Lab dan Radiologi</div>
+            <div style={{ fontSize: 12, fontWeight: 400, color: token.colorTextSecondary }}>
+              {selectedRecord?.date ? dayjs(selectedRecord.date).format('DD MMM YYYY, HH:mm') : ''}{' '}
+              {selectedRecord?.serviceUnit ? `• ${selectedRecord.serviceUnit}` : ''}
+            </div>
+          </div>
+        }
         onCancel={() => setLabModalOpen(false)}
         footer={null}
-        width={600}
+        width={640}
       >
-        <div className="mb-4 text-gray-500 text-sm">
-          {selectedRecord?.date ? dayjs(selectedRecord.date).format('DD MMM YYYY, HH:mm') : ''} •{' '}
-          {selectedRecord?.serviceUnit}
-        </div>
-        <Table
-          dataSource={dummyLabData}
-          rowKey="id"
-          columns={[
-            { title: 'Pemeriksaan', dataIndex: 'test' },
-            { title: 'Hasil', dataIndex: 'result' },
-            { title: 'Nilai Rujukan', dataIndex: 'ref' },
-            {
-              title: 'Status',
-              dataIndex: 'status',
-              render: (val: string) => <Tag color={val === 'Normal' ? 'green' : 'red'}>{val}</Tag>
-            }
-          ]}
-          pagination={false}
-          size="small"
-        />
+        {(() => {
+          const obs: any[] = selectedRecord?.diagnosticResults ?? []
+          if (obs.length === 0) {
+            return (
+              <div style={{ color: token.colorTextSecondary, textAlign: 'center', padding: '24px 0' }}>
+                Tidak ada hasil Lab/Radiologi untuk kunjungan ini.
+              </div>
+            )
+          }
+          return (
+            <Table
+              dataSource={obs}
+              rowKey="id"
+              columns={observationColumns}
+              pagination={false}
+              size="small"
+            />
+          )
+        })()}
       </Modal>
 
       <ClinicalHistoryModal

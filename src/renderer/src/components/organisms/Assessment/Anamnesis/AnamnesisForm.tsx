@@ -1,5 +1,5 @@
 import { SaveOutlined } from '@ant-design/icons'
-import { App, Button, Card, Form, Select, Spin, Input } from 'antd'
+import { App, Button, Card, Form, Spin, Input } from 'antd'
 import dayjs from 'dayjs'
 import React, { useEffect, useState } from 'react'
 import {
@@ -13,11 +13,9 @@ import {
   createConditionBatch
 } from '@renderer/utils/builders/condition-builder'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
-import { useDiagnosisCodeList } from '@renderer/hooks/query/use-diagnosis-code'
 import { PatientData } from '@renderer/types/doctor.types'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 
-const { Option } = Select
 const { TextArea } = Input
 
 export interface AnamnesisFormProps {
@@ -37,17 +35,6 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({
   const [form] = Form.useForm()
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const [diagnosisOptions, setDiagnosisOptions] = useState<
-    Array<{ id: string; code: string; display: string; id_display?: string }>
-  >([])
-  const [diagnosisSearch, setDiagnosisSearch] = useState('')
-  const [debouncedDiagnosisSearch, setDebouncedDiagnosisSearch] = useState('')
-
-  const { data: masterDiagnosis, isLoading: searchingDiagnosis } = useDiagnosisCodeList({
-    q: debouncedDiagnosisSearch,
-    items: 20
-  })
-
   const bulkCreateCondition = useBulkCreateCondition()
 
   const patientId = patientData.patient.id
@@ -58,19 +45,6 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({
     'nurse',
     'doctor'
   ])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedDiagnosisSearch(diagnosisSearch)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [diagnosisSearch])
-
-  useEffect(() => {
-    if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
-      setDiagnosisOptions(masterDiagnosis)
-    }
-  }, [masterDiagnosis, debouncedDiagnosisSearch])
 
   useEffect(() => {
     const conditions = conditionResponse?.result
@@ -85,31 +59,10 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({
         form.setFieldsValue({
           anamnesis: {
             chiefComplaint: anamnesis.chiefComplaint,
-            chiefComplaint_codeId: anamnesis.chiefComplaint_codeId,
             historyOfPastIllness: anamnesis.historyOfPastIllness,
-            associatedSymptoms: anamnesis.associatedSymptoms,
-            associatedSymptoms_codeId: anamnesis.associatedSymptoms_codeId
+            associatedSymptoms: anamnesis.associatedSymptoms
           }
         })
-
-        const opts: Array<{ id: string; code: string; display: string }> = []
-        const parseDisplay = (codeId: string | undefined, codeDisplay: string | undefined) => {
-          if (!codeId || !codeDisplay) return
-          const dashIdx = codeDisplay.indexOf(' - ')
-          const code = dashIdx >= 0 ? codeDisplay.slice(0, dashIdx) : codeDisplay
-          const display = dashIdx >= 0 ? codeDisplay.slice(dashIdx + 3) : codeDisplay
-          opts.push({ id: codeId, code, display })
-        }
-        parseDisplay(anamnesis.chiefComplaint_codeId, anamnesis.chiefComplaint_codeDisplay)
-        parseDisplay(anamnesis.associatedSymptoms_codeId, anamnesis.associatedSymptoms_codeDisplay)
-
-        if (opts.length > 0) {
-          setDiagnosisOptions((prev) => {
-            const existingIds = new Set(prev.map((o) => String(o.id)))
-            const newOpts = opts.filter((o) => !existingIds.has(String(o.id)))
-            return newOpts.length > 0 ? [...prev, ...newOpts] : prev
-          })
-        }
       }
     }
   }, [conditionResponse, form])
@@ -136,20 +89,18 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({
         : dayjs().toISOString()
       const conditionsToCreate: ConditionBuilderOptions[] = []
 
-      if (anamnesis?.chiefComplaint_codeId) {
+      if (anamnesis?.chiefComplaint) {
         conditionsToCreate.push({
           category: CONDITION_CATEGORIES.CHIEF_COMPLAINT,
           notes: anamnesis.chiefComplaint,
-          diagnosisCodeId: Number(anamnesis.chiefComplaint_codeId),
           recordedDate
         })
       }
 
-      if (anamnesis?.associatedSymptoms_codeId) {
+      if (anamnesis?.associatedSymptoms) {
         conditionsToCreate.push({
           category: CONDITION_CATEGORIES.ASSOCIATED_SYMPTOMS,
           notes: anamnesis.associatedSymptoms,
-          diagnosisCodeId: Number(anamnesis.associatedSymptoms_codeId),
           recordedDate
         })
       }
@@ -189,10 +140,6 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({
     }
   }
 
-  const handleDiagnosisSearch = (value: string) => {
-    setDiagnosisSearch(value)
-  }
-
   return (
     <Form
       form={form}
@@ -209,90 +156,20 @@ export const AnamnesisForm: React.FC<AnamnesisFormProps> = ({
         )}
 
         <Card title="Anamnesis" className="mt-4!">
-          <Form.Item label="Keluhan Utama" className="" required>
-            <Form.Item
-              name={['anamnesis', 'chiefComplaint_codeId']}
-              style={{ marginBottom: 16 }}
-              rules={[
-                {
-                  required: true,
-                  message: 'Kode ICD-10/SNOMED wajib dipilih untuk sinkronisasi SatuSehat'
-                }
-              ]}
-            >
-              <Select
-                showSearch
-                filterOption={false}
-                onSearch={handleDiagnosisSearch}
-                placeholder="Cari kode ICD-10/SNOMED untuk keluhan utama..."
-                className="w-full mb-2"
-                notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
-                onSelect={(_, option: any) => {
-                  form.setFieldValue(['anamnesis', 'chiefComplaint'], option['data-display'])
-                }}
-                allowClear
-              >
-                {diagnosisOptions.map((d) => (
-                  <Option
-                    key={d.id}
-                    value={d.id}
-                    label={`${d.code} - ${d.id_display || d.display}`}
-                    data-display={d.id_display || d.display}
-                  >
-                    {d.code} - {d.id_display || d.display}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item
-              label="Detail Keluhan Utama"
-              name={['anamnesis', 'chiefComplaint']}
-              rules={[{ required: true, message: 'Wajib diisi' }]}
-            >
-              <TextArea rows={2} placeholder="Masukkan catatan tambahan keluhan utama pasien..." />
-            </Form.Item>
+          <Form.Item
+            label={<span className="font-semibold">Keluhan Utama</span>}
+            name={['anamnesis', 'chiefComplaint']}
+            rules={[{ required: true, message: 'Keluhan utama wajib diisi' }]}
+          >
+            <TextArea rows={3} placeholder="Masukkan keluhan utama pasien..." />
           </Form.Item>
 
-          <Form.Item label="Keluhan Penyerta" className="mb-0" required>
-            <Form.Item
-              name={['anamnesis', 'associatedSymptoms_codeId']}
-              style={{ marginBottom: 16 }}
-              rules={[
-                {
-                  required: true,
-                  message: 'Kode ICD-10/SNOMED wajib dipilih untuk sinkronisasi SatuSehat'
-                }
-              ]}
-            >
-              <Select
-                showSearch
-                filterOption={false}
-                onSearch={handleDiagnosisSearch}
-                placeholder="Cari kode ICD-10/SNOMED untuk keluhan penyerta..."
-                className="w-full mb-2"
-                onSelect={(_, option: any) => {
-                  form.setFieldValue(['anamnesis', 'associatedSymptoms'], option['data-display'])
-                }}
-                allowClear
-              >
-                {diagnosisOptions.map((d) => (
-                  <Option
-                    key={d.id}
-                    value={d.id}
-                    label={`${d.code} - ${d.id_display || d.display}`}
-                    data-display={d.id_display || d.display}
-                  >
-                    {d.code} - {d.id_display || d.display}
-                  </Option>
-                ))}
-              </Select>
-            </Form.Item>
-            <Form.Item name={['anamnesis', 'associatedSymptoms']}>
-              <TextArea
-                rows={2}
-                placeholder="Masukkan catatan tambahan keluhan penyerta (jika ada)..."
-              />
-            </Form.Item>
+          <Form.Item
+            label={<span className="font-semibold">Keluhan Penyerta</span>}
+            name={['anamnesis', 'associatedSymptoms']}
+            className="mb-0"
+          >
+            <TextArea rows={3} placeholder="Masukkan keluhan penyerta pasien (jika ada)..." />
           </Form.Item>
         </Card>
 

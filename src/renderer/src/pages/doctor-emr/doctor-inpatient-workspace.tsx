@@ -47,8 +47,8 @@ import { CardiologyForm } from '@renderer/components/organisms/Assessment/Cardio
 import { ENTForm } from '@renderer/components/organisms/Assessment/ENT/ENTForm'
 import { FallRiskAssessmentForm } from '@renderer/components/organisms/Assessment/FallRiskAssessment/FallRiskAssessmentForm'
 import { GCSAssessmentForm } from '@renderer/components/organisms/Assessment/GCSAssessment/GCSAssessmentForm'
-import { InformedConsentForm } from '@renderer/components/organisms/InformedConsentForm'
 import { EncounterTimeline } from '@renderer/components/organisms/EncounterTimeline'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
 import { LabRadOrderForm } from '@renderer/components/organisms/LabRadOrderForm'
 import { NutritionScreeningForm } from '@renderer/components/organisms/Assessment/NutritionScreening/NutritionScreeningForm'
 import { PrescriptionForm } from '@renderer/components/organisms/Assessment/Prescription/PrescriptionForm'
@@ -67,7 +67,7 @@ import { CarePlanForm } from '@renderer/components/organisms/Assessment/Careplan
 import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
 import { PrognosisForm } from '@renderer/components/organisms/Assessment/Prognosis/PrognosisForm'
 import { FunctionalAssessmentForm } from '@renderer/components/organisms/Assessment/FunctionalAssessment/FunctionalAssessmentForm'
-import { Layout, Menu, theme, Input, Empty, Modal } from 'antd'
+import { App, Layout, Menu, theme, Input, Empty, Modal } from 'antd'
 import { useState, useMemo } from 'react'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
@@ -80,26 +80,32 @@ import { MedicalCertificateForm } from '@renderer/components/organisms/Assessmen
 import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
 import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
 import { UnifiedAssessmentTab } from '@renderer/components/organisms/Assessment/UnifiedAssessment/UnifiedAssessmentTab'
+import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
 
 interface InpatientWorkspaceProps {
   encounterId: string
   patientData: any
   patientInfoCardData: any
-  onEditStatus: () => void
+  action?: React.ReactNode
 }
 
 export const DoctorInpatientWorkspace = ({
   encounterId,
   patientData,
   patientInfoCardData,
-  onEditStatus
+  action
 }: InpatientWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('info')
   const [searchText, setSearchText] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
+  const { message } = App.useApp()
   const { token } = theme.useToken()
+  const handleFormSubmitCapture = useMemo(
+    () => createFormValidationSubmitCapture(message),
+    [message]
+  )
 
   const items = useMemo(
     () => [
@@ -121,13 +127,18 @@ export const DoctorInpatientWorkspace = ({
       {
         key: 'unified-assessment',
         icon: <SolutionOutlined />,
-        label: 'Custom Asesmen'
+        label: 'Asesmen Terpadu'
       },
       {
         key: 'assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Pasien',
         children: [
+          {
+            key: 'initial-assessment',
+            icon: <FormOutlined />,
+            label: 'Asesmen Awal'
+          },
           { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
           { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
           { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
@@ -210,11 +221,6 @@ export const DoctorInpatientWorkspace = ({
         icon: <ReconciliationOutlined />,
         label: 'Administrasi',
         children: [
-          {
-            key: 'informed-consent',
-            icon: <SafetyCertificateOutlined />,
-            label: 'Informed Consent'
-          },
           { key: 'referral', icon: <DisconnectOutlined />, label: 'Rujukan' },
           { key: 'discharge-summary', icon: <ContainerOutlined />, label: 'Resume Medis' },
           { key: 'medical-certificate', icon: <FileTextOutlined />, label: 'Surat Keterangan' },
@@ -289,7 +295,7 @@ export const DoctorInpatientWorkspace = ({
       case 'unified-assessment':
         return <UnifiedAssessmentTab encounterId={encounterId} patientData={patientData} />
       case 'info':
-        return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
+        return <PatientInfoCard patientData={patientInfoCardData} action={action} />
       case 'medical-history':
         return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
@@ -297,6 +303,15 @@ export const DoctorInpatientWorkspace = ({
           <div className="space-y-4">
             <EncounterTimeline encounterId={encounterId} />
           </div>
+        )
+      case 'initial-assessment':
+        return (
+          <InitialAssessmentForm
+            encounterId={encounterId}
+            patientData={patientData}
+            mode="inpatient"
+            role="doctor"
+          />
         )
       case 'anamnesis':
         return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
@@ -372,8 +387,6 @@ export const DoctorInpatientWorkspace = ({
         return (
           <DiagnosticResultViewer encounterId={encounterId} patientId={patientData.patient.id} />
         )
-      case 'informed-consent':
-        return <InformedConsentForm encounterId={encounterId} patientData={patientData} />
       case 'referral':
         return (
           <ReferralForm
@@ -539,7 +552,9 @@ export const DoctorInpatientWorkspace = ({
           </div>
         </Sider>
         <Layout className="">
-          <Content className="p-6 overflow-y-auto h-full">{renderContent()}</Content>
+          <Content className="p-6 overflow-y-auto h-full" onSubmitCapture={handleFormSubmitCapture}>
+            {renderContent()}
+          </Content>
         </Layout>
       </Layout>
     </div>

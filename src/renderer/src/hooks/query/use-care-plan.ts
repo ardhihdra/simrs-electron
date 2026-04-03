@@ -19,6 +19,7 @@ export interface CarePlanGoalInput {
 }
 
 export interface CreateCarePlanInput {
+    [key: string]: unknown
     encounterId: string
     patientId: string
     performerId?: string

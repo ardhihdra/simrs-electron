@@ -2,6 +2,7 @@ import { queryClient } from "@renderer/query-client"
 import { useMutation, useQuery } from "@tanstack/react-query"
 
 export interface ObservationInput {
+    [key: string]: unknown
     category: string
     code: string
     display?: string
@@ -25,6 +26,11 @@ export interface ObservationInput {
     }>
     referenceRange?: Array<{ low?: unknown; high?: unknown; text?: string }>
     bodySites?: Array<{
+        code: string
+        display?: string
+        system?: string
+    }>
+    methods?: Array<{
         code: string
         display?: string
         system?: string
@@ -73,10 +79,14 @@ export const useBulkCreateObservation = () => {
 export const useQueryObservationByEncounter = (encounterId?: string, additionalQueryKey?: string[]) => {
     return useQuery({
         queryKey: ['observation', 'by-encounter', encounterId, ...(additionalQueryKey || [])],
-        queryFn: () => {
+        queryFn: async () => {
             const fn = window.api?.query?.observation?.getByEncounter
             if (!fn || !encounterId) throw new Error('API observation tidak tersedia')
-            return fn({ encounterId })
+            const res = await fn({ encounterId })
+            if (res && typeof res === 'object' && 'success' in res && res.success === false) {
+                throw new Error((res as any).error || (res as any).message || 'Gagal memuat data observasi')
+            }
+            return res
         },
         enabled: !!encounterId
     })
@@ -85,10 +95,14 @@ export const useQueryObservationByEncounter = (encounterId?: string, additionalQ
 export const useObservationList = (params?: ObservationListParams) => {
     return useQuery({
         queryKey: ['observation', 'list', params],
-        queryFn: () => {
+        queryFn: async () => {
             const fn = window.api?.query?.observation?.list
             if (!fn) throw new Error('API observation tidak tersedia')
-            return fn(params)
+            const res = await fn(params)
+            if (res && typeof res === 'object' && 'success' in res && res.success === false) {
+                throw new Error((res as any).error || (res as any).message || 'Gagal memuat data observasi')
+            }
+            return res
         }
     })
 }

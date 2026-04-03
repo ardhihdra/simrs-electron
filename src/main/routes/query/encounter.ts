@@ -4,10 +4,6 @@ import { BackendListSchema, getClient, parseBackendResponse } from '@main/utils/
 import { EncounterSchema } from 'simrs-types'
 import z from 'zod'
 
-// ---------------------------------------------------------------------------
-// Shared sub-schemas
-// ---------------------------------------------------------------------------
-
 const SyncLogSchema = z.object({
   internalResourceId: z.string(),
   status: z.string(),
@@ -106,10 +102,6 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
   labServiceRequests: z.array(z.any()).optional(),
   satuSehatSyncStatus: SatuSehatSyncStatusSchema
 })
-
-// ---------------------------------------------------------------------------
-// Schemas (IPC contract)
-// ---------------------------------------------------------------------------
 
 export const EncounterSchemaPayload = EncounterSchema.extend({
   id: z.string().nullable().optional(),
@@ -318,11 +310,11 @@ export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
 
     const transformedResult = Array.isArray(Result)
       ? Result.map((encounter: any) => ({
-          ...encounter,
-          visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
-          serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
-          status: encounter.status ? String(encounter.status) : 'UNKNOWN'
-        }))
+        ...encounter,
+        visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
+        serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
+        status: encounter.status ? String(encounter.status) : 'UNKNOWN'
+      }))
       : Result
 
     return transformedResult ? { success: true, result: transformedResult } : { success: false }
@@ -683,15 +675,40 @@ export const getPatientEncountersPg = async (
       `/api/module/encounter/patient/${args.patientId}/encounters?${queryParams.toString()}`
     )
 
-    const schema = z.object({
-      success: z.boolean(),
+    const raw = await res
+      .json()
+      .catch(() => ({ success: false, error: `HTTP ${res.status}` })) as Record<string, unknown>
+
+    if (!res.ok || raw?.success !== true) {
+      const rawError = raw?.error
+      const msg =
+        typeof rawError === 'string'
+          ? rawError
+          : Array.isArray(rawError)
+            ? JSON.stringify(rawError)
+            : rawError && typeof rawError === 'object'
+              ? JSON.stringify(rawError)
+              : typeof raw?.message === 'string'
+                ? raw.message
+                : `HTTP ${res.status}`
+
+      console.error('[PATIENT ENCOUNTERS PG] Backend error:', msg)
+      return { success: false, result: null, error: msg }
+    }
+
+    const successSchema = z.object({
+      success: z.literal(true),
       result: schemas.getPatientEncountersPg.result.shape.result,
       message: z.string().optional(),
       error: z.any().optional()
     })
 
-    const parsedResult = (await parseBackendResponse(res, schema)) as any
-    return { success: true, result: parsedResult }
+    const parsed = successSchema.safeParse(raw)
+    if (!parsed.success) {
+      return { success: false, result: null, error: parsed.error.message }
+    }
+
+    return { success: true, result: parsed.data.result }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[PATIENT ENCOUNTERS PG] Error:', msg)

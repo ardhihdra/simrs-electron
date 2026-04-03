@@ -1,5 +1,5 @@
 import { Card, Col, DatePicker, Form, Row, Select } from 'antd'
-import React, { useEffect, useMemo } from 'react'
+import React, { useEffect } from 'react'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 
 const { Option } = Select
@@ -12,31 +12,36 @@ interface Performer {
 interface AssessmentHeaderProps {
   performers?: Performer[]
   loading?: boolean
+  /** @deprecated No longer used as we now show all performers by default */
   filterWithLogin?: boolean
+  /** If true, will automatically set the value to current login if empty or when requested */
+  forceCurrentLogin?: boolean
 }
 
 export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
   performers = [],
   loading = false,
-  filterWithLogin = true
+  forceCurrentLogin = false
 }) => {
   const form = Form.useFormInstance()
   const { profile } = useMyProfile()
 
-  const filteredPerformers = useMemo(() => {
-    if (!filterWithLogin) return performers
-    const role = profile?.hakAksesId
-    if (role === 'doctor' || role === 'nurse') {
-      return performers.filter((p) => p.id === profile?.id)
-    }
-    return performers
-  }, [filterWithLogin, performers, profile])
-
   useEffect(() => {
-    if (filteredPerformers.length === 1) {
-      form.setFieldValue('performerId', filteredPerformers[0].id)
+    const currentPerformer = form.getFieldValue('performerId')
+
+    // Logic: override if forced OR if empty
+    if (profile?.id && performers.length > 0) {
+      const isCurrentNotFoundInList =
+        currentPerformer && !performers.some((p) => String(p.id) === String(currentPerformer))
+
+      if (!currentPerformer || forceCurrentLogin || isCurrentNotFoundInList) {
+        const found = performers.find((p) => String(p.id) === String(profile.id))
+        if (found) {
+          form.setFieldValue('performerId', found.id)
+        }
+      }
     }
-  }, [filteredPerformers, form])
+  }, [performers, profile, form, forceCurrentLogin])
 
   return (
     <Card className="">
@@ -45,7 +50,7 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
           <Form.Item
             label={<span className="font-semibold">Tanggal Asesmen</span>}
             name="assessment_date"
-            rules={[{ required: true }]}
+            rules={[{ required: true, message: 'Wajib memilih tanggal asesmen' }]}
             className="mb-0"
           >
             <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
@@ -64,11 +69,13 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
               loading={loading}
               optionFilterProp="children"
               filterOption={(input, option) =>
-                (option?.children as unknown as string).toLowerCase().includes(input.toLowerCase())
+                String(option?.children ?? '')
+                  .toLowerCase()
+                  .includes(input.toLowerCase())
               }
             >
-              {filteredPerformers.map((p) => (
-                <Option key={p.id} value={p.id}>
+              {performers.map((p) => (
+                <Option key={String(p.id)} value={p.id}>
                   {p.name}
                 </Option>
               ))}

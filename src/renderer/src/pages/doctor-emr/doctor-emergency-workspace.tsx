@@ -53,7 +53,7 @@ import { CardiologyForm } from '../../components/organisms/Assessment/Cardiology
 import { ENTForm } from '../../components/organisms/Assessment/ENT/ENTForm'
 import { ReferralForm } from '../../components/organisms/ReferralForm'
 import { VitalSignsMonitoringForm } from '../../components/organisms/Assessment/VitalSignsMonitoring/VitalSignsMonitoringForm'
-import { Empty, Input, Layout, Menu, Modal, theme } from 'antd'
+import { App, Empty, Input, Layout, Menu, Modal, theme } from 'antd'
 import { useMemo, useState } from 'react'
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
@@ -69,9 +69,11 @@ import { NutritionOrderForm } from '@renderer/components/organisms/Assessment/Nu
 import EducationForm from '@renderer/components/organisms/Assessment/Education/EducationForm'
 
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
 import { MedicalCertificateForm } from '@renderer/components/organisms/Assessment/MedicalCertificate/MedicalCertificateForm'
 import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
 import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
+import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
 
 const { Sider, Content } = Layout
 
@@ -81,21 +83,26 @@ interface DoctorEmergencyWorkspaceProps {
   encounterId: string
   patientData: any
   patientInfoCardData: any
-  onEditStatus: () => void
+  action?: React.ReactNode
 }
 
 export const DoctorEmergencyWorkspace = ({
   encounterId,
   patientData,
   patientInfoCardData,
-  onEditStatus
+  action
 }: DoctorEmergencyWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('info')
   const [searchText, setSearchText] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
+  const { message } = App.useApp()
   const { token } = theme.useToken()
+  const handleFormSubmitCapture = useMemo(
+    () => createFormValidationSubmitCapture(message),
+    [message]
+  )
 
   const items = useMemo(
     () => [
@@ -139,6 +146,11 @@ export const DoctorEmergencyWorkspace = ({
         icon: <FormOutlined />,
         label: 'Asesmen Pasien',
         children: [
+          {
+            key: 'initial-assessment',
+            icon: <FormOutlined />,
+            label: 'Asesmen Awal'
+          },
           { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
           { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
           { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
@@ -277,11 +289,20 @@ export const DoctorEmergencyWorkspace = ({
   const renderContent = () => {
     switch (selectedKey) {
       case 'info':
-        return <PatientInfoCard patientData={patientInfoCardData} onEditStatus={onEditStatus} />
+        return <PatientInfoCard patientData={patientInfoCardData} action={action} />
       case 'medical-history':
         return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
         return <EncounterTimeline encounterId={encounterId} />
+      case 'initial-assessment':
+        return (
+          <InitialAssessmentForm
+            encounterId={encounterId}
+            patientData={patientData}
+            mode="outpatient"
+            role="doctor"
+          />
+        )
       case 'triage':
         return <TriageForm encounterId={encounterId} patientData={patientData} />
       case 'gcs':
@@ -519,7 +540,9 @@ export const DoctorEmergencyWorkspace = ({
         </Sider>
 
         <Layout>
-          <Content className="p-6 overflow-y-auto h-full">{renderContent()}</Content>
+          <Content className="p-6 overflow-y-auto h-full" onSubmitCapture={handleFormSubmitCapture}>
+            {renderContent()}
+          </Content>
         </Layout>
       </Layout>
     </div>
