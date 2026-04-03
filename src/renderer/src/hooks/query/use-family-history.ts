@@ -1,10 +1,27 @@
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { queryClient } from "@renderer/query-client"
 
+export type FamilyHistoryRelationship =
+    | 'ayah'
+    | 'ibu'
+    | 'kakak'
+    | 'adik'
+    | 'saudara'
+    | 'anak'
+    | 'kakek'
+    | 'nenek'
+    | 'paman'
+    | 'bibi'
+    | 'sepupu'
+    | 'suami'
+    | 'istri'
+    | 'lainnya'
+    | 'other'
+
 export interface FamilyHistoryInput {
     patientId: string
     status: string
-    relationship: string
+    relationship: FamilyHistoryRelationship | string
     relationshipDisplay?: string
     sex?: string
     bornDate?: string

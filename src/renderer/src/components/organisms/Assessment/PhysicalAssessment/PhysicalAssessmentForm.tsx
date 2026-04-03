@@ -69,10 +69,9 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
 
   const bulkCreateObservation = useBulkCreateObservation()
   const { data: result, isLoading } = useQueryObservationByEncounter(encounterId)
-  const observationData = result?.result?.all
+  const observationData = result?.result
 
-  const { data: bodyMarkerData, isLoading: isLoadingBodyMarker } =
-    useBodyMarkerByEncounter(encounterId)
+  const { data: bodyMarkerData } = useBodyMarkerByEncounter(encounterId)
   const bulkCreateBodyMarker = useBulkCreateBodyMarker()
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
@@ -438,7 +437,7 @@ export const PhysicalAssessmentForm: React.FC<PhysicalAssessmentFormProps> = ({
                 </Form.Item>
 
                 <div className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-tight">
-                  Tanda-tanda Vital & Antropometri
+                  Antropometri
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
                   <Form.Item

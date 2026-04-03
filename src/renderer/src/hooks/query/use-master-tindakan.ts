@@ -1,25 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-
-export const CATEGORY_BPJS_VALUES = [
-    'Prosedur Non Bedah',
-    'Prosedur Bedah',
-    'Tenaga Ahli',
-    'Keperawatan',
-    'Radiologi',
-    'Laboratorium',
-    'Rehabilitasi',
-    'Kamar / Akomodasi',
-    'Obat',
-    'Alkes',
-    'BHP',
-    'Pelayanan Darah',
-    'Rawat Intensif',
-    'Konsultasi',
-    'Penunjang',
-    'Sewa Alat'
-] as const
-
-export type CategoryBpjs = typeof CATEGORY_BPJS_VALUES[number]
+import type { CategoryBpjs } from 'simrs-types'
 
 export interface MasterTindakanItem {
     id: number

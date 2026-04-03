@@ -3,28 +3,16 @@ import { IpcContext } from '@main/ipc/router'
 import {
     getClient
 } from '@main/utils/backendClient'
+import { ObservationSchema } from 'simrs-types'
 
 export const requireSession = true
 
-const ObservationPropsSchema = z.object({
-    id: z.string().optional(),
-    status: z.string().optional(),
-    subjectId: z.string().optional(),
-    encounterId: z.string().optional(),
-    effectiveDateTime: z.string().optional(),
-    issued: z.string().optional(),
-    valueQuantity: z.any().optional(),
-    valueString: z.any().nullable().optional(),
-    valueBoolean: z.any().nullable().optional(),
-    categories: z.array(z.any()).optional(),
-    codeCoding: z.array(z.any()).optional(),
-    performers: z.array(z.any()).optional(),
-    bodySites: z.array(z.any()).optional(),
-    interpretations: z.array(z.any()).optional(),
-    methods: z.array(z.any()).optional(),
-    components: z.array(z.any()).optional(),
-    notes: z.array(z.any()).optional(),
-}).passthrough()
+export const ObservationSchemaPayload = ObservationSchema.extend({
+    id: z.union([z.string(), z.number()]).optional().nullable(),
+    effectiveDateTime: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    issued: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    valueDateTime: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+})
 
 const PaginationSchema = z.object({
     page: z.number(),
@@ -33,6 +21,19 @@ const PaginationSchema = z.object({
     limit: z.number()
 }).passthrough()
 
+const ObservationListArgsSchema = z.object({
+    page: z.string().optional(),
+    items: z.string().optional(),
+    sortBy: z.union([z.string(), z.array(z.string())]).optional(),
+    sortOrder: z.string().optional(),
+    encounterId: z.string().optional(),
+    patientId: z.string().optional(),
+    category: z.string().optional(),
+    status: z.string().optional(),
+    startDate: z.string().optional(),
+    endDate: z.string().optional(),
+}).optional()
+
 export const schemas = {
     getByEncounter: {
         args: z.object({
@@ -40,15 +41,7 @@ export const schemas = {
         }),
         result: z.object({
             success: z.boolean(),
-            result: z.object({
-                all: z.array(ObservationPropsSchema),
-                grouped: z.object({
-                    vitalSigns: z.array(ObservationPropsSchema),
-                    anamnesis: z.array(ObservationPropsSchema),
-                    physicalExam: z.array(ObservationPropsSchema),
-                    other: z.array(ObservationPropsSchema),
-                }),
-            }).optional(),
+            result: z.array(ObservationSchema).optional(),
             message: z.string().optional()
         })
     },
@@ -56,27 +49,29 @@ export const schemas = {
         args: z.object({
             encounterId: z.string(),
             patientId: z.string(),
-            observations: z.array(z.any()),
+            observations: z.array(ObservationSchemaPayload),
             performerId: z.union([z.number(), z.string(), z.null()]).optional(),
             performerName: z.string().optional()
         }),
         result: z.object({
             success: z.boolean(),
-            result: z.array(ObservationPropsSchema).optional(),
+            result: z.array(ObservationSchema).optional(),
             message: z.string().optional()
         })
     },
     list: {
-        args: z.any().optional(),
+        args: ObservationListArgsSchema,
         result: z.object({
             success: z.boolean(),
-            result: z.array(ObservationPropsSchema).optional(),
+            result: z.array(ObservationSchema).optional(),
             message: z.string().optional(),
             pagination: PaginationSchema.optional()
         })
     },
     update: {
-        args: z.any(),
+        args: ObservationSchemaPayload.extend({
+            id: z.union([z.number(), z.string()])
+        }),
         result: z.object({
             success: z.boolean(),
             message: z.string().optional()
@@ -98,9 +93,11 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
         const client = getClient(ctx)
         const res = await client.get(`/api/module/observation/${args.encounterId}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
+
         return raw as any
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
+        console.error(`[QUERY:OBSERVATION] getByEncounter Error:`, msg)
         return { success: false, error: msg }
     }
 }

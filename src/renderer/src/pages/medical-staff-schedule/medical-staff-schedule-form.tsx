@@ -115,7 +115,7 @@ export function MedicalStaffScheduleForm() {
         )
       return fn(data)
     },
-    onSuccess: (data: BackendResponse<typeof MedicalStaffScheduleSchemaWithId>) => {
+    onSuccess: (data) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['medicalStaffSchedule', 'list'] })
         navigate('/dashboard/registration/medical-staff-schedule')
@@ -139,7 +139,7 @@ export function MedicalStaffScheduleForm() {
         )
       return fn(data)
     },
-    onSuccess: (data: BackendResponse<typeof MedicalStaffScheduleSchemaWithId>) => {
+    onSuccess: (data) => {
       if (data?.success) {
         queryClient.invalidateQueries({ queryKey: ['medicalStaffSchedule', 'list'] })
         queryClient.invalidateQueries({ queryKey: ['medicalStaffSchedule', 'detail', id] })

@@ -95,13 +95,17 @@ export const AntenatalCareForm: React.FC<AntenatalCareFormProps> = ({
   ])
 
   useEffect(() => {
-    if (response?.success && response?.result?.all) {
-      if (response.result.all.length === 0) return
-      const result = response.result.all
+    const observations = Array.isArray(response?.result) 
+      ? response.result 
+      : response?.result
+
+    if (response?.success && observations) {
+      if (observations.length === 0) return
+      const result = observations
 
       // FIX ME: add better typing for this
       const parsedData = parseAncObservations(result)
-      const firstObs = response.result[0]
+      const firstObs = observations[0]
 
       if (parsedData.obstetricHistory?.hpht) {
         parsedData.obstetricHistory.hpht = dayjs(parsedData.obstetricHistory.hpht as unknown as string)

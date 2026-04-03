@@ -24,6 +24,7 @@ import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
 import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
+import OKSubmissionPage from './pages/ok/ok-submission-page'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
@@ -110,35 +111,37 @@ import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
 import RegistrationPage from './pages/visit-management/registration'
 import RegistrationQueue from './pages/visit-management/registration-queue'
+import AntrianVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
+import DetailVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/DetailVerifikasiPage'
 import RegistrationSelect from './pages/visit-management/registration-select'
 import UpcomingQueuePage from './pages/visit-management/upcoming-queue'
 import { Typography } from 'antd'
 
 const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode) => (
-    <ModuleScopeGuard access={access} fallback={<Typography>No access to this page</Typography>}>
-      {element}
-    </ModuleScopeGuard>
+  <ModuleScopeGuard access={access} fallback={<Typography>No access to this page</Typography>}>
+    {element}
+  </ModuleScopeGuard>
 )
 
 function MainRoute() {
-    const location = useLocation()
+  const location = useLocation()
 
-    const { data: pageAccessData } = client.pageAccess.list.useQuery({})
-    const pageAccessMap = useMemo(() => {
-        const map: Record<string, PageAccessEntry> = {}
-        for (const item of pageAccessData?.result ?? []) {
-            map[item.page_path] = {
-                allowedModules: (item.allowedModules as string[] | undefined) ?? [],
-                roles: (item.roles as string[] | undefined) ?? [],
-                allowedLokasiKerjaIds: (item.allowedLokasiKerjaIds as number[] | undefined) ?? [],
-            }
-        }
-        return map
-    }, [pageAccessData])
+  const { data: pageAccessData } = client.pageAccess.list.useQuery({})
+  const pageAccessMap = useMemo(() => {
+    const map: Record<string, PageAccessEntry> = {}
+    for (const item of pageAccessData?.result ?? []) {
+      map[item.page_path] = {
+        allowedModules: (item.allowedModules as string[] | undefined) ?? [],
+        roles: (item.roles as string[] | undefined) ?? [],
+        allowedLokasiKerjaIds: (item.allowedLokasiKerjaIds as number[] | undefined) ?? []
+      }
+    }
+    return map
+  }, [pageAccessData])
 
-    const g = (path: string, element: ReactNode) => withModuleGuard(pageAccessMap[path], element)
+  const g = (path: string, element: ReactNode) => withModuleGuard(pageAccessMap[path], element)
 
-    return (
+  return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
       <Route path="/iframe-view" element={<IframeView />} />
       <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
@@ -173,7 +176,10 @@ function MainRoute() {
             <Route path="referral-request/:id" element={<ReferralRequestPage />} />
             <Route path="triage" element={<TriagePage />} />
           </Route>
-          <Route path="service-request" element={g('/dashboard/service-request', <ServiceRequest />)}>
+          <Route
+            path="service-request"
+            element={g('/dashboard/service-request', <ServiceRequest />)}
+          >
             <Route index element={<ServiceRequestTable />} />
             <Route path="create" element={<ServiceRequestForm />} />
             <Route path="edit/:id" element={<ServiceRequestForm />} />
@@ -195,7 +201,10 @@ function MainRoute() {
             <Route index element={<IncomeTable />} />
             <Route path="create" element={<IncomeForm />} />
           </Route>
-          <Route path="registration/jaminan" element={g('/dashboard/registration/jaminan', <Jaminan />)}>
+          <Route
+            path="registration/jaminan"
+            element={g('/dashboard/registration/jaminan', <Jaminan />)}
+          >
             <Route index element={<JaminanTable />} />
             <Route path="create" element={<JaminanForm />} />
             <Route path="edit/:id" element={<JaminanForm />} />
@@ -213,7 +222,10 @@ function MainRoute() {
             <Route path="create" element={<PegawaiForm />} />
             <Route path="edit/:id" element={<PegawaiForm />} />
           </Route>
-          <Route path="pegawai-report" element={g('/dashboard/pegawai-report', <PegawaiReport />)} />
+          <Route
+            path="pegawai-report"
+            element={g('/dashboard/pegawai-report', <PegawaiReport />)}
+          />
           <Route
             path="registration/doctor-schedule"
             element={g('/dashboard/registration/doctor-schedule', <DoctorSchedule />)}
@@ -244,7 +256,9 @@ function MainRoute() {
           </Route>
           <Route path="poli" element={<Outlet />}>
             <Route index element={<PoliSelect />} />
-            <Route path="umum" element={<div>Poli Umum Workspace Placeholder</div>} />
+            <Route path=":poliCode" element={g('/dashboard/nurse-calling', <NurseCalling />)}>
+              <Route index element={<PatientQueueTable />} />
+            </Route>
           </Route>
           <Route path="medicine" element={g('/dashboard/medicine', <Pharmacy />)}>
             <Route index element={<PharmacyDashboard />} />
@@ -279,6 +293,12 @@ function MainRoute() {
           <Route path="doctor" element={g('/dashboard/doctor', <DoctorEMR />)}>
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
+          </Route>
+          <Route path="ok" element={g('/dashboard/ok', <Outlet />)}>
+            <Route index element={<OKSubmissionPage />} />
+            <Route path="pengajuan" element={<OKSubmissionPage />} />
+            <Route path="verifikasi" element={<AntrianVerifikasiPage />} />
+            <Route path="verifikasi/:id" element={<DetailVerifikasiPage />} />
           </Route>
           <Route path="services" element={g('/dashboard/services', <Services />)}>
             <Route index element={<PemeriksaanUtamaPage />} />

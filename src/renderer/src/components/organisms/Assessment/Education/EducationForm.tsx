@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Form, Input, Button, Card, Table, Space, App, Spin, AutoComplete } from 'antd'
+import { Form, Input, Button, Card, Table, Space, App, Spin, Select } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -12,6 +12,8 @@ import { PROCEDURE_MAP } from '../../../../config/maps/procedure-maps'
 import { DIAGNOSIS_MAP } from '../../../../config/maps/condition-maps'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+
+const { Option } = Select
 
 interface MedicalProcedure {
   id: string
@@ -54,12 +56,12 @@ export const EducationForm = ({ encounterId, patientData }: EducationFormProps) 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
   useEffect(() => {
-    if (debouncedProcedureSearch.length >= 2 && masterProcedures) {
+    if (masterProcedures) {
       setProcedureOptions(masterProcedures as unknown as MedicalProcedure[])
     } else {
       setProcedureOptions([])
     }
-  }, [masterProcedures, debouncedProcedureSearch])
+  }, [masterProcedures])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedProcedureSearch(procedureSearch), 500)
@@ -109,7 +111,7 @@ export const EducationForm = ({ encounterId, patientData }: EducationFormProps) 
       procedure: {
         id: procedure.id,
         code: procedure.code,
-        name: procedure.name,
+        name: procedure.id_display || procedure.display || procedure.name,
         system: PROCEDURE_MAP[procedure.system] || procedure.system,
         icd9Code: procedure.code
       },
@@ -184,13 +186,6 @@ export const EducationForm = ({ encounterId, patientData }: EducationFormProps) 
   }
 
   const procedureColumns: ColumnsType<ProcedureTableData> = [
-    // {
-    //   title: 'Kode',
-    //   dataIndex: ['procedure', 'icd9Code'],
-    //   key: 'icd9Code',
-    //   width: 150,
-    //   render: (code: string | undefined) => code || '-'
-    // },
     {
       title: 'Nama Edukasi',
       dataIndex: ['procedure', 'name'],
@@ -254,18 +249,24 @@ export const EducationForm = ({ encounterId, patientData }: EducationFormProps) 
       <Card title="Edukasi Pasien & Keluarga">
         <Space direction="vertical" className="w-full" size="large">
           <Form.Item label="Cari dan Tambah Edukasi" name="procedureSearch">
-            <AutoComplete
-              options={procedureOptions.map((p) => ({
-                value: p.id,
-                label: `${p.code} - ${p.id_display || p.display}`
-              }))}
+            <Select
+              showSearch
+              placeholder="Ketik kode atau nama edukasi"
               onSearch={(v) => setProcedureSearch(v)}
               onSelect={handleAddProcedure}
-              placeholder="Ketik kode atau nama edukasi (min 2 karakter)"
+              filterOption={false}
               className="w-full"
               value={procedureSearch}
+              defaultActiveFirstOption={true}
               notFoundContent={isLoadingMasterProcedures ? <Spin size="small" /> : null}
-            />
+              allowClear
+            >
+              {procedureOptions.slice(0, procedureSearch.length > 0 ? 20 : 5).map((p) => (
+                <Option key={p.id} value={p.id}>
+                  {p.code} - {p.id_display || p.display}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Table

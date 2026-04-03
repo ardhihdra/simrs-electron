@@ -1,19 +1,11 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { parseBackendResponse, BackendListSchema, getClient } from '@main/utils/backendClient'
+import { MasterJenisKomponenSchema } from 'simrs-types'
 
 export const requireSession = true
 
-const MasterJenisKomponenSchema = z.object({
-    id: z.number(),
-    kode: z.string(),
-    label: z.string(),
-    isUntukMedis: z.boolean(),
-    keterangan: z.string().optional().nullable(),
-    aktif: z.boolean().optional(),
-    createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
-})
+const MasterJenisKomponenSchemaCompat = MasterJenisKomponenSchema as unknown as z.ZodTypeAny
 
 export const schemas = {
     list: {
@@ -26,7 +18,11 @@ export const schemas = {
             isUntukMedis: z.boolean().optional(),
             status: z.string().optional()
         }).optional(),
-        result: z.any()
+        result: z.object({
+            success: z.boolean(),
+            result: z.array(MasterJenisKomponenSchemaCompat).optional(),
+            error: z.string().optional()
+        })
     }
 } as const
 
@@ -47,7 +43,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         const url = `/api/masterjeniskomponen${queryString ? `?${queryString}` : ''}`
         const res = await client.get(url)
 
-        const ListSchema = BackendListSchema(MasterJenisKomponenSchema)
+        const ListSchema = BackendListSchema(MasterJenisKomponenSchemaCompat)
         const result = await parseBackendResponse(res, ListSchema)
         return { success: true, result: result ?? [] }
     } catch (err) {

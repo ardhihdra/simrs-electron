@@ -1,37 +1,26 @@
 import { IpcContext } from '@main/ipc/router'
 import { getClient, parseBackendResponse } from '@main/utils/backendClient'
-import { error } from 'console'
 import z from 'zod'
+import { FollowUpScheduleSchema } from 'simrs-types'
 
-export const FollowUpScheduleSchema = z.object({
-    id: z.string().optional(),
-    encounterId: z.string(),
-    patientId: z.string(),
-    doctorId: z.number(),
-    followUpDate: z.union([z.string(), z.date()]),
-    polyclinicId: z.number().optional().nullable(),
-    controlType: z.string().optional().nullable(),
-    diagnosis: z.string().optional().nullable(),
-    notes: z.string().optional().nullable(),
-    createdAt: z.string().optional(),
-    doctor: z.object({
-        id: z.number(),
-        namaLengkap: z.string(),
-        nik: z.string().optional().nullable()
-    }).optional().nullable(),
-    polyclinic: z.object({
-        id: z.number(),
-        name: z.string()
-    }).optional().nullable()
+const FollowUpScheduleSchemaCompat = FollowUpScheduleSchema as unknown as z.ZodTypeAny
+
+export const FollowUpScheduleSchemaPayload = FollowUpScheduleSchema.extend({
+    id: z.string().optional().nullable(),
+    followUpDate: z.union([z.string(), z.coerce.date()]),
+    createdAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    updatedAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    doctor: z.any().optional().nullable(),
+    polyclinic: z.any().optional().nullable()
 })
 
 export const schemas = {
     create: {
-        args: FollowUpScheduleSchema,
+        args: FollowUpScheduleSchemaPayload,
         result: z.object({
             success: z.boolean(),
             message: z.string().optional(),
-            result: FollowUpScheduleSchema.optional(),
+            result: FollowUpScheduleSchemaCompat.optional().nullable(),
             error: z.string().optional()
         })
     },
@@ -40,10 +29,11 @@ export const schemas = {
             encounterId: z.string().optional(),
             patientId: z.string().optional(),
             polyclinicId: z.union([z.string(), z.number()]).optional()
-        }),
+        }).optional(),
         result: z.object({
             success: z.boolean(),
-            result: z.array(FollowUpScheduleSchema).optional(),
+            result: z.array(FollowUpScheduleSchemaCompat).optional().nullable(),
+            message: z.string().optional(),
             error: z.string().optional()
         })
     },
@@ -69,8 +59,8 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
         }
 
         const res = await client.post('/api/followupschedule', payload)
-        const parsedResult = (await parseBackendResponse(res, schemas.create.result)) as any
-        return { success: true, ...parsedResult }
+        const parsedResult = (await parseBackendResponse(res, schemas.create.result as any)) as any
+        return { success: true, result: parsedResult }
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
         console.error('[FOLLOW UP SCHEDULE] Error create:', msg)
@@ -83,15 +73,16 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
         const client = getClient(ctx)
         const queryParams = new URLSearchParams()
 
-        Object.entries(args).forEach(([key, value]) => {
+        Object.entries(args || {}).forEach(([key, value]) => {
             if (value !== undefined && value !== null && value !== '') {
                 queryParams.append(key, String(value))
             }
         })
 
-        const res = await client.get(`/api/followupschedule?${queryParams.toString()}`)
-        const parsedResult = (await parseBackendResponse(res, schemas.list.result)) as any
-        return { success: true, result: parsedResult?.result || parsedResult || [] }
+        const queryString = queryParams.toString()
+        const res = await client.get(`/api/followupschedule${queryString ? `?${queryString}` : ''}`)
+        const parsedResult = (await parseBackendResponse(res, schemas.list.result as any)) as any
+        return { success: true, result: parsedResult || [] }
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
         console.error('[FOLLOW UP SCHEDULE] Error list:', msg)
@@ -103,8 +94,19 @@ export const remove = async (ctx: IpcContext, args: z.infer<typeof schemas.remov
     try {
         const client = getClient(ctx)
         const res = await client.delete(`/api/followupschedule/${args.id}`)
-        const parsedResult = (await parseBackendResponse(res, schemas.remove.result)) as any
-        return { success: true, ...parsedResult }
+        const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
+
+        const parsed = schemas.remove.result.safeParse(raw)
+        if (!res.ok || !parsed.success || !parsed.data.success) {
+            return {
+                success: false,
+                error: parsed.success
+                    ? parsed.data.error || parsed.data.message || `HTTP ${res.status}`
+                    : parsed.error.message
+            }
+        }
+
+        return parsed.data
     } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err)
         console.error('[FOLLOW UP SCHEDULE] Error remove:', msg)

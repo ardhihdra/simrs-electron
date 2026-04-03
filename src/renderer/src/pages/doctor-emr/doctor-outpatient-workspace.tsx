@@ -1,4 +1,4 @@
-import { Layout, Menu, theme, Input, Empty, Modal } from 'antd'
+import { App, Layout, Menu, theme, Input, Empty, Modal } from 'antd'
 import { useState, useMemo } from 'react'
 import {
   MonitorOutlined,
@@ -33,6 +33,7 @@ import {
   HeartOutlined
 } from '@ant-design/icons'
 import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
+import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment/InitialAssessment/InitialAssessmentForm'
 import { AllergyForm } from '../../components/organisms/Assessment/Allergy/AllergyForm'
 import { MedicationForm } from '../../components/organisms/Assessment/Medication/MedicationForm'
 import { PastDiseaseForm } from '../../components/organisms/Assessment/PastDisease/PastDiseaseForm'
@@ -70,26 +71,32 @@ import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/De
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
 import { UnifiedAssessmentTab } from '@renderer/components/organisms/Assessment/UnifiedAssessment/UnifiedAssessmentTab'
+import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
 
 interface DoctorOutpatientWorkspaceProps {
   encounterId: string
   patientData: any
   patientInfoCardData: any
-  onEditStatus: () => void
+  action?: React.ReactNode
 }
 
 export const DoctorOutpatientWorkspace = ({
   encounterId,
   patientData,
   patientInfoCardData,
-  onEditStatus
+  action
 }: DoctorOutpatientWorkspaceProps) => {
   const [collapsed, setCollapsed] = useState(false)
   const [selectedKey, setSelectedKey] = useState('info')
   const [searchText, setSearchText] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
+  const { message } = App.useApp()
   const { token } = theme.useToken()
+  const handleFormSubmitCapture = useMemo(
+    () => createFormValidationSubmitCapture(message),
+    [message]
+  )
 
   const items = useMemo(
     () => [
@@ -111,13 +118,18 @@ export const DoctorOutpatientWorkspace = ({
       {
         key: 'unified-assessment',
         icon: <SolutionOutlined />,
-        label: 'Custom Asesmen'
+        label: 'Asesmen Terpadu'
       },
       {
         key: 'assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Pasien',
         children: [
+          {
+            key: 'initial-assessment',
+            icon: <FormOutlined />,
+            label: 'Asesmen Awal'
+          },
           { key: 'anamnesis', icon: <ReadOutlined />, label: 'Anamnesis' },
           { key: 'past-disease', icon: <HistoryOutlined />, label: 'Riwayat Penyakit Terdahulu' },
           { key: 'allergy', icon: <AlertOutlined />, label: 'Alergi' },
@@ -400,7 +412,10 @@ export const DoctorOutpatientWorkspace = ({
           </div>
         </Layout.Sider>
         <Layout>
-          <Layout.Content className="p-6 overflow-y-auto h-full">
+          <Layout.Content
+            className="p-6 overflow-y-auto h-full"
+            onSubmitCapture={handleFormSubmitCapture}
+          >
             {(() => {
               switch (selectedKey) {
                 case 'unified-assessment':
@@ -411,13 +426,22 @@ export const DoctorOutpatientWorkspace = ({
                   return (
                     <PatientInfoCard
                       patientData={patientInfoCardData}
-                      onEditStatus={onEditStatus}
+                      action={action}
                     />
                   )
                 case 'medical-history':
                   return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
                 case 'overview':
                   return <EncounterTimeline encounterId={encounterId || ''} />
+                case 'initial-assessment':
+                  return (
+                    <InitialAssessmentForm
+                      encounterId={encounterId!}
+                      patientData={patientData}
+                      mode="outpatient"
+                      role="doctor"
+                    />
+                  )
                 case 'anamnesis':
                   return <AnamnesisForm encounterId={encounterId!} patientData={patientData} />
                 case 'past-disease':

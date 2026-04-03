@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Form, Input, Button, Card, Table, Space, App, Spin, AutoComplete } from 'antd'
+import { Form, Input, Button, Card, Table, Space, App, Spin, Checkbox, Select } from 'antd'
 import { SaveOutlined, DeleteOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
@@ -9,6 +9,8 @@ import { useProcedureByEncounter } from '../../../../hooks/query/use-procedure'
 import { useMasterProcedureList } from '../../../../hooks/query/use-master-procedure'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
+
+const { Option } = Select
 
 interface MedicalProcedure {
   id: string
@@ -50,12 +52,12 @@ export const ProceduresForm = ({ encounterId, patientData }: ProceduresFormProps
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
   useEffect(() => {
-    if (debouncedProcedureSearch.length >= 2 && masterProcedures) {
+    if (masterProcedures) {
       setProcedureOptions(masterProcedures as unknown as MedicalProcedure[])
     } else {
       setProcedureOptions([])
     }
-  }, [masterProcedures, debouncedProcedureSearch])
+  }, [masterProcedures])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedProcedureSearch(procedureSearch), 500)
@@ -105,7 +107,7 @@ export const ProceduresForm = ({ encounterId, patientData }: ProceduresFormProps
       procedure: {
         id: procedure.id,
         code: procedure.code,
-        name: procedure.name,
+        name: procedure.id_display || procedure.display || procedure.name,
         system: PROCEDURE_MAP[procedure.system] || procedure.system,
         icd9Code: procedure.code
       },
@@ -235,19 +237,25 @@ export const ProceduresForm = ({ encounterId, patientData }: ProceduresFormProps
 
       <Card title="Tindakan Medis (ICD-9-CM)">
         <Space direction="vertical" className="w-full" size="large">
-          <Form.Item label="Cari dan Tambah Tindakan" name="procedureSearch">
-            <AutoComplete
-              options={procedureOptions.map((p) => ({
-                value: p.id,
-                label: `${p.code} - ${p.id_display || p.display}`
-              }))}
+          <Form.Item label="Cari dan Tambah Tindakan (ICD-9-CM)" name="procedureSearch">
+            <Select
+              showSearch
+              placeholder="Ketik kode ICD-9 atau nama tindakan"
               onSearch={(v) => setProcedureSearch(v)}
               onSelect={handleAddProcedure}
-              placeholder="Ketik kode ICD-9 atau nama tindakan (min 2 karakter)"
+              filterOption={false}
               className="w-full"
               value={procedureSearch}
+              defaultActiveFirstOption={true}
               notFoundContent={isLoadingMasterProcedures ? <Spin size="small" /> : null}
-            />
+              allowClear
+            >
+              {procedureOptions.slice(0, procedureSearch.length > 0 ? 20 : 5).map((p) => (
+                <Option key={p.id} value={p.id}>
+                  {p.code} - {p.id_display || p.display}
+                </Option>
+              ))}
+            </Select>
           </Form.Item>
 
           <Table

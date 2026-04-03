@@ -40,7 +40,7 @@ export const NutritionScreeningForm = ({
   const [totalScore, setTotalScore] = useState(0)
 
   const { data: obvResult, isLoading } = useQueryObservationByEncounter(encounterId, ['nutrition'])
-  const observationData = obvResult?.result?.all || []
+  const observationData = obvResult?.result || []
 
   const bulkCreateObservation = useBulkCreateObservation()
 

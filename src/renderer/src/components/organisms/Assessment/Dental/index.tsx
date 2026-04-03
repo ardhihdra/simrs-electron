@@ -208,7 +208,7 @@ const DentalPage = ({ encounterId, patientId, onSaveSuccess }: DentalPageProps =
   }, [procedureSearch])
 
   useEffect(() => {
-    const result = observationData?.result?.all
+    const result = observationData?.result
     if (result && result.length > 0) {
       const timelineData = transformObservationsToTimeline(result as any)
       setSelected(timelineData)

@@ -7,11 +7,57 @@ import DischargeModal from '@renderer/components/organisms/visit-management/Disc
 import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { App, DatePicker, Form, Input, Modal, Tag } from 'antd'
+import { App, Button, DatePicker, Form, Input, Modal, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useParams } from 'react-router'
+
+type QueueRow = {
+  id?: string
+  queueId?: string
+  formattedQueueNumber?: string
+  queueNumber?: string | number
+  queueDate?: string
+  createdAt?: string
+  patientId?: string
+  patientName?: string
+  patientBirthDate?: string | Date
+  patientMedicalRecordNumber?: string
+  patientGender?: string
+  poliName?: string
+  serviceUnitName?: string
+  doctorName?: string
+  paymentMethod?: string
+  status?: string
+  noSep?: string
+  sepStatus?: string
+  sepId?: string
+  encounterId?: string
+}
+
+const mapQueueRowToPatientInfoCardData = (record: QueueRow) => {
+  const birthDate = record.patientBirthDate ? dayjs(record.patientBirthDate) : null
+  const age = birthDate && birthDate.isValid() ? dayjs().diff(birthDate, 'year') : null
+
+  return {
+    patient: {
+      medicalRecordNumber: record.patientMedicalRecordNumber || '-',
+      name: record.patientName || 'Belum ada pasien',
+      gender: record.patientGender || null,
+      age
+    },
+    poli: {
+      name: record.poliName || record.serviceUnitName || '-'
+    },
+    doctor: {
+      name: record.doctorName || '-'
+    },
+    visitDate: record.createdAt || record.queueDate,
+    paymentMethod: record.paymentMethod || 'Umum',
+    status: record.status
+  }
+}
 
 export default function RegistrationQueue({
   practitionerId: propPractitionerId
@@ -36,6 +82,9 @@ export default function RegistrationQueue({
     open: false
   })
   const [referralModal, setReferralModal] = useState<{ open: boolean; record?: any }>({
+    open: false
+  })
+  const [detailModal, setDetailModal] = useState<{ open: boolean; record?: QueueRow }>({
     open: false
   })
 
@@ -118,7 +167,7 @@ export default function RegistrationQueue({
     }
   }
 
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<QueueRow> = [
     {
       title: 'No. Antrian',
       dataIndex: 'formattedQueueNumber',
@@ -167,6 +216,25 @@ export default function RegistrationQueue({
           return <span className="text-gray-400 italic text-xs">Belum ada SEP</span>
         return null
       }
+    },
+    {
+      title: 'Detail',
+      key: 'detail',
+      width: 120,
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={(event) => {
+            event.stopPropagation()
+            setDetailModal({ open: true, record })
+          }}
+        >
+          Lihat Detail
+        </Button>
+      )
     },
     {
       title: 'Status',
@@ -224,8 +292,9 @@ export default function RegistrationQueue({
             width: 150,
             items: (record) => {
               const actions: any[] = []
+              const status = record.status ?? ''
 
-              if (record.status === 'PRE_RESERVED') {
+              if (status === 'PRE_RESERVED') {
                 actions.push({
                   label: 'Konfirmasi',
                   icon: <CheckCircleOutlined />,
@@ -331,6 +400,22 @@ export default function RegistrationQueue({
         onClose={() => setReferralModal({ open: false, record: undefined })}
         onSuccess={() => refetch()}
       />
+
+      <Modal
+        open={detailModal.open}
+        title="Detail Pasien"
+        onCancel={() => setDetailModal({ open: false, record: undefined })}
+        footer={null}
+        destroyOnClose
+        width={920}
+      >
+        {detailModal.record ? (
+          <PatientInfoCard
+            patientData={mapQueueRowToPatientInfoCardData(detailModal.record)}
+            sections={{ showIdentityNumber: false, showAllergies: false }}
+          />
+        ) : null}
+      </Modal>
     </div>
   )
 }

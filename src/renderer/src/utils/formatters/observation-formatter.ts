@@ -4,33 +4,33 @@ import { formatAnamnesisFromConditions } from './condition-formatter'
 import { HEAD_TO_TOE_MAP, PSYCHOLOGICAL_STATUS_SNOMED_MAP } from '../../config/maps/observation-maps'
 
 export interface ObservationData {
-    id?: string | number
-    status?: string
-    subjectId?: string
-    encounterId?: string
-    effectiveDateTime?: string | Date
-    issued?: string | Date
-    valueQuantity?: { value: number; unit: string }
-    valueString?: string
-    valueBoolean?: boolean
+    id?: string | number | null
+    status?: string | null
+    subjectId?: string | number | null
+    encounterId?: string | number | null
+    effectiveDateTime?: string | Date | null
+    issued?: string | Date | null
+    valueQuantity?: { value?: number | null; unit?: string | null } | null
+    valueString?: string | null
+    valueBoolean?: boolean | null
     valueCodeableConcept?: {
-        coding?: Array<{ code: string; display: string; system: string }>
-    }
-    categories?: Array<{ code: string; display?: string; system?: string }>
-    codeCoding?: Array<{ code: string; display?: string; system?: string }>
-    performers?: Array<{ reference: string; display: string; type: string }>
-    bodySites?: Array<{ code: string; display: string; system?: string }>
-    methods?: Array<{ code: string; display: string; system?: string }>
-    interpretations?: Array<{ code: string; display: string; system?: string }>
-    notes?: Array<{ text: string; time?: Date | string }>
+        coding?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
+    } | null
+    categories?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
+    codeCoding?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
+    performers?: Array<{ reference?: string | null; display?: string | null; type?: string | null }> | null
+    bodySites?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
+    methods?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
+    interpretations?: Array<{ code?: string | null; display?: string | null; system?: string | null }> | null
+    notes?: Array<{ text?: string | null; time?: Date | string | null } | string> | null
     components?: Array<{
-        code?: string
-        display?: string
-        codeSystem?: string
-        valueQuantity?: { value: number; unit: string }
-        valueString?: string
-        valueBoolean?: boolean
-    }>
+        code?: string | null
+        display?: string | null
+        codeSystem?: string | null
+        valueQuantity?: { value?: number | null; unit?: string | null } | null
+        valueString?: string | null
+        valueBoolean?: boolean | null
+    }> | null
 }
 
 // ─── Primitive extractors ────────────────────────────────────────────────────
@@ -58,21 +58,22 @@ export const getObservationByCode = (
 }
 
 export const extractQuantityValue = (obs?: ObservationData): number | undefined =>
-    obs?.valueQuantity?.value
+    obs?.valueQuantity?.value ?? undefined
 
-export const extractStringValue = (obs?: ObservationData): string | undefined => obs?.valueString
+export const extractStringValue = (obs?: ObservationData): string | undefined =>
+    obs?.valueString ?? undefined
 
 export const getBodySiteDisplay = (obs?: ObservationData): string | undefined =>
-    obs?.bodySites?.[0]?.display
+    obs?.bodySites?.[0]?.display ?? undefined
 
 export const getMethodDisplay = (obs?: ObservationData): string | undefined =>
-    obs?.methods?.[0]?.display
+    obs?.methods?.[0]?.display ?? undefined
 
 export const getInterpretationDisplay = (obs?: ObservationData): string | undefined =>
-    obs?.interpretations?.[0]?.display
+    obs?.interpretations?.[0]?.display ?? undefined
 
 export const getPerformerDisplay = (obs?: ObservationData): string | undefined =>
-    obs?.performers?.[0]?.display
+    obs?.performers?.[0]?.display ?? undefined
 
 // ─── Domain formatters ───────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ export interface FormattedVitalSigns {
     height?: number
     weight?: number
     bmi?: number
+    bsa?: number
     bmiCategory?: string
     oxygenSaturation?: number
     gcsEye?: number
@@ -101,12 +103,22 @@ export const formatVitalSigns = (observations: ObservationData[]): FormattedVita
     const g = (code: string) => getObservationByCode(observations, code)
     const systolicObs = g('8480-6')
     const diastolicObs = g('8462-4')
+
+    const extractBPMetadata = (obs?: ObservationData) => {
+        const bodySites = obs?.bodySites || []
+        const position = bodySites.find((s) => s.display?.toLowerCase().includes('position'))?.display
+        const site = bodySites.find((s) => !s.display?.toLowerCase().includes('position'))?.display
+        return { site: site ?? undefined, position: position ?? undefined }
+    }
+
+    const sysMeta = extractBPMetadata(systolicObs)
+    const diaMeta = extractBPMetadata(diastolicObs)
+
     return {
         systolicBloodPressure: extractQuantityValue(systolicObs),
         diastolicBloodPressure: extractQuantityValue(diastolicObs),
-        bloodPressureBodySite: getBodySiteDisplay(systolicObs || diastolicObs),
-        bloodPressurePosition:
-            systolicObs?.bodySites?.[1]?.display || diastolicObs?.bodySites?.[1]?.display,
+        bloodPressureBodySite: sysMeta.site || diaMeta.site,
+        bloodPressurePosition: sysMeta.position || diaMeta.position,
         temperature: extractQuantityValue(g('8310-5')),
         temperatureMethod: getMethodDisplay(g('8310-5')),
         pulseRate: extractQuantityValue(g('8867-4')),
@@ -116,6 +128,7 @@ export const formatVitalSigns = (observations: ObservationData[]): FormattedVita
         height: extractQuantityValue(g('8302-2')),
         weight: extractQuantityValue(g('29463-7')),
         bmi: extractQuantityValue(g('39156-5')),
+        bsa: extractQuantityValue(g('8277-6')),
         bmiCategory: getInterpretationDisplay(g('39156-5')),
         oxygenSaturation: extractQuantityValue(g('59408-5')),
         gcsEye: extractQuantityValue(g('9267-5')),
@@ -133,7 +146,11 @@ export interface FormattedPhysicalExamination {
 export const formatPhysicalExamination = (
     observations: ObservationData[]
 ): FormattedPhysicalExamination => ({
-    consciousness: extractStringValue(getObservationByCode(observations, 'consciousness')),
+    // Kesadaran pada asesmen keperawatan disimpan sebagai LOINC 67775-7.
+    // Tetap fallback ke kode lama untuk kompatibilitas data historis.
+    consciousness:
+        extractStringValue(getObservationByCode(observations, '67775-7')) ||
+        extractStringValue(getObservationByCode(observations, 'consciousness')),
     generalCondition: extractStringValue(getObservationByCode(observations, 'general-condition')),
     additionalNotes: extractStringValue(getObservationByCode(observations, 'physical-exam-notes'))
 })
@@ -316,7 +333,7 @@ export const formatHeadToToe = (observations: ObservationData[]): FormattedHeadT
         const obs = getObservationByCode(observations, code)
         if (obs) {
             result[code] = {
-                value: obs.valueString,
+                value: obs.valueString ?? undefined,
                 isNormal:
                     !(obs.interpretations?.some((i) => i.code === 'A') || obs.valueBoolean === false)
             }
@@ -386,7 +403,7 @@ export const formatObservationSummary = (
         nutrition: formatNutritionScreening(sortedObs),
         conclusion: formatConclusion(sortedObs),
         headToToe: formatHeadToToe(sortedObs),
-        clinicalNote: getObservationByCode(sortedObs, '8410-0')?.valueString,
+        clinicalNote: getObservationByCode(sortedObs, '8410-0')?.valueString ?? undefined,
         ...getObservationMetadata(sortedObs)
     }
 }

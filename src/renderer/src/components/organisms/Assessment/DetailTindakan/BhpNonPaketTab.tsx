@@ -71,7 +71,7 @@ export default function BhpNonPaketTab({
                       onChange={(value) => {
                         try {
                           console.log('[BHP-NONPAKET] selected itemId:', value)
-                        } catch { }
+                        } catch { /* empty */ }
                         if (!value) {
                           modalForm.setFieldValue(['bhpList', name, 'satuan'], undefined)
                           return
@@ -82,7 +82,7 @@ export default function BhpNonPaketTab({
                           const stock = stockByItemMap.get(kode) || 0
                           console.log('[BHP-NONPAKET] selected item detail:', selectedItem)
                           console.log('[BHP-NONPAKET] selected item stock:', { kode, stock })
-                        } catch { }
+                        } catch { /* empty */ }
                         if (!selectedItem) return
 
                         const rules = selectedItem.buyPriceRules || []

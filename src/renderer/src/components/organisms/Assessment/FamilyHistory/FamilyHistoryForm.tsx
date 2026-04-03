@@ -1,20 +1,100 @@
 import { DeleteOutlined, PlusOutlined, SaveOutlined } from '@ant-design/icons'
 import { App, Button, Form, Spin, Card, Row, Col, Select, Input, Checkbox } from 'antd'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import dayjs from 'dayjs'
 import {
-  FamilyHistoryInput,
   useCreateFamilyHistory,
   useFamilyHistoryByPatient
 } from '@renderer/hooks/query/use-family-history'
 import { createFamilyHistory as buildFamilyHistory } from '@renderer/utils/builders/family-history-builder'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
-import { useDiagnosisCodeList } from '@renderer/hooks/query/use-diagnosis-code'
 import { PatientData } from '@renderer/types/doctor.types'
 
 const { Option } = Select
 const { TextArea } = Input
+
+const FAMILY_RELATION_OPTIONS = [
+  { value: 'ayah', label: 'Ayah' },
+  { value: 'ibu', label: 'Ibu' },
+  { value: 'kakak', label: 'Kakak' },
+  { value: 'adik', label: 'Adik' },
+  { value: 'saudara', label: 'Saudara Kandung' },
+  { value: 'anak', label: 'Anak' },
+  { value: 'kakek', label: 'Kakek' },
+  { value: 'nenek', label: 'Nenek' },
+  { value: 'paman', label: 'Paman' },
+  { value: 'bibi', label: 'Bibi' },
+  { value: 'sepupu', label: 'Sepupu' },
+  { value: 'suami', label: 'Suami' },
+  { value: 'istri', label: 'Istri' },
+  { value: 'lainnya', label: 'Lainnya' },
+  { value: 'other', label: 'Lainnya (Legacy)' }
+]
+
+const FAMILY_RELATION_LABEL_MAP = new Map(FAMILY_RELATION_OPTIONS.map((item) => [item.value, item.label]))
+const OUTCOME_LABEL_MAP: Record<string, string> = {
+  resolved: 'Sembuh',
+  ongoing: 'Masih Berlangsung',
+  unknown: 'Tidak Diketahui',
+  remission: 'Remisi'
+}
+const OUTCOME_FROM_LABEL_MAP: Record<string, 'resolved' | 'ongoing' | 'unknown' | 'remission'> = {
+  sembuh: 'resolved',
+  resolved: 'resolved',
+  'masih berlangsung': 'ongoing',
+  ongoing: 'ongoing',
+  'tidak diketahui': 'unknown',
+  unknown: 'unknown',
+  remisi: 'remission',
+  remission: 'remission'
+}
+
+const parseStructuredFamilyHistoryNote = (rawNote: unknown) => {
+  const text = String(rawNote || '')
+  if (!text.trim()) {
+    return {
+      note: '',
+      outcome: undefined as 'resolved' | 'ongoing' | 'unknown' | 'remission' | undefined,
+      contributedToDeath: undefined as boolean | undefined
+    }
+  }
+
+  let extractedOutcome: 'resolved' | 'ongoing' | 'unknown' | 'remission' | undefined
+  let extractedContributedToDeath: boolean | undefined
+  const cleanLines: string[] = []
+
+  text.split('\n').forEach((line) => {
+    const trimmed = line.trim()
+    if (!trimmed) return
+
+    const outcomeMatch = trimmed.match(/^(luaran|outcome)\s*:\s*(.+)$/i)
+    if (outcomeMatch) {
+      const key = outcomeMatch[2].trim().toLowerCase()
+      extractedOutcome = OUTCOME_FROM_LABEL_MAP[key] || extractedOutcome
+      return
+    }
+
+    const deathMatch = trimmed.match(/^(terkait kematian|contributed to death)\s*:\s*(.+)$/i)
+    if (deathMatch) {
+      const rawValue = deathMatch[2].trim().toLowerCase()
+      if (rawValue === 'ya' || rawValue === 'yes' || rawValue === 'true') {
+        extractedContributedToDeath = true
+      } else if (rawValue === 'tidak' || rawValue === 'no' || rawValue === 'false') {
+        extractedContributedToDeath = false
+      }
+      return
+    }
+
+    cleanLines.push(line)
+  })
+
+  return {
+    note: cleanLines.join('\n').trim(),
+    outcome: extractedOutcome,
+    contributedToDeath: extractedContributedToDeath
+  }
+}
 
 export interface FamilyHistoryFormProps {
   encounterId: string
@@ -44,64 +124,64 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
     'doctor'
   ])
 
-  const [diagnosisSearch, setDiagnosisSearch] = useState('')
-  const [debouncedDiagnosisSearch, setDebouncedDiagnosisSearch] = useState('')
+  const relationOptions = useMemo(() => {
+    const base = [...FAMILY_RELATION_OPTIONS]
+    const existingValues = new Set(base.map((item) => item.value))
 
-  const { data: masterDiagnosis, isLoading: searchingDiagnosis } = useDiagnosisCodeList({
-    q: debouncedDiagnosisSearch,
-    items: 20
-  })
-
-  const [diagnosisOptions, setDiagnosisOptions] = useState<any[]>([])
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedDiagnosisSearch(diagnosisSearch)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [diagnosisSearch])
-
-  useEffect(() => {
-    if (debouncedDiagnosisSearch.length >= 2 && masterDiagnosis) {
-      setDiagnosisOptions(masterDiagnosis)
-    } else {
-      setDiagnosisOptions([])
+    if (familyHistoryResponse?.success && familyHistoryResponse?.result) {
+      familyHistoryResponse.result.forEach((fh: any) => {
+        const relationValue = String(fh?.relationship || '').trim().toLowerCase()
+        if (!relationValue || existingValues.has(relationValue)) return
+        base.push({
+          value: relationValue,
+          label: fh?.relationshipDisplay || relationValue
+        })
+        existingValues.add(relationValue)
+      })
     }
-  }, [masterDiagnosis, debouncedDiagnosisSearch])
+
+    return base
+  }, [familyHistoryResponse?.success, familyHistoryResponse?.result])
 
   useEffect(() => {
     if (familyHistoryResponse?.success && familyHistoryResponse?.result) {
       const fhList = familyHistoryResponse.result.flatMap(
-        (fh: any) =>
-          fh.conditions?.map((cond: any) => ({
-            diagnosisCodeId: String(cond.diagnosisCodeId),
-            outcome: cond.outcome,
-            contributedToDeath: cond.contributedToDeath,
-            note: cond.note
-          })) || []
+        (fh: any) => {
+          const relationship = String(fh.relationship || 'other').toLowerCase()
+          const relationshipDisplay = fh.relationshipDisplay || null
+          const conditions = Array.isArray(fh.conditions) ? fh.conditions : []
+
+          if (conditions.length > 0) {
+            return conditions.map((cond: any) => {
+              const parsed = parseStructuredFamilyHistoryNote(cond.note || fh.note || '')
+              return {
+                relationship,
+                relationshipDisplay,
+                outcome: cond.outcome || parsed.outcome,
+                contributedToDeath:
+                  typeof cond.contributedToDeath === 'boolean'
+                    ? cond.contributedToDeath
+                    : parsed.contributedToDeath,
+                note: parsed.note
+              }
+            })
+          }
+
+          const parsedHeaderNote = parseStructuredFamilyHistoryNote(fh.note || '')
+          return [
+            {
+              relationship,
+              relationshipDisplay,
+              outcome: parsedHeaderNote.outcome,
+              contributedToDeath: parsedHeaderNote.contributedToDeath,
+              note: parsedHeaderNote.note
+            }
+          ]
+        }
       )
 
       if (fhList.length > 0) {
         form.setFieldValue('familyHistoryList', fhList)
-        const opts: Array<any> = []
-        familyHistoryResponse.result.forEach((fh: any) => {
-          fh.conditions?.forEach((cond: any) => {
-            if (cond.diagnosisCode) {
-              opts.push({
-                id: String(cond.diagnosisCode.id),
-                code: cond.diagnosisCode.code,
-                display: cond.diagnosisCode.name_id || cond.diagnosisCode.name_en || ''
-              })
-            }
-          })
-        })
-        if (opts.length > 0) {
-          setDiagnosisOptions((prev) => {
-            const existingIds = new Set(prev.map((o) => String(o.id)))
-            const newOpts = opts.filter((o) => !existingIds.has(String(o.id)))
-            return [...prev, ...newOpts]
-          })
-        }
       }
     }
   }, [familyHistoryResponse?.success, familyHistoryResponse?.result, form])
@@ -124,21 +204,51 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
       setIsSubmitting(true)
 
       const familyHistoryList = values.familyHistoryList || []
+      const normalizedRows = familyHistoryList
+        .map((item: any) => {
+          const relationship = String(item?.relationship || '')
+            .trim()
+            .toLowerCase()
+          if (!relationship) return null
 
-      if (familyHistoryList.length > 0) {
-        await createFamilyHistory.mutateAsync(
-          buildFamilyHistory({
-            patientId: patientIdStr,
-            status: 'completed',
-            relationship: 'other',
-            conditions: familyHistoryList.map((item: any) => ({
-              diagnosisCodeId: Number(item.diagnosisCodeId),
-              outcome: item.outcome,
-              contributedToDeath: Boolean(item.contributedToDeath),
-              note: item.note
-            }))
-          })
-        )
+          const relationshipDisplay =
+            FAMILY_RELATION_LABEL_MAP.get(relationship) ||
+            relationOptions.find((relation) => relation.value === relationship)?.label ||
+            item?.relationshipDisplay ||
+            relationship
+
+          const noteParts: string[] = []
+          const freeTextNote = String(item?.note || '').trim()
+          if (freeTextNote) noteParts.push(freeTextNote)
+
+          if (item?.outcome) {
+            noteParts.push(`Luaran: ${OUTCOME_LABEL_MAP[item.outcome] || item.outcome}`)
+          }
+          if (typeof item?.contributedToDeath === 'boolean') {
+            noteParts.push(`Terkait Kematian: ${item.contributedToDeath ? 'Ya' : 'Tidak'}`)
+          }
+
+          return {
+            relationship,
+            relationshipDisplay,
+            note: noteParts.join('\n')
+          }
+        })
+        .filter((row: any) => row?.relationship && row?.note)
+
+      if (normalizedRows.length > 0) {
+        for (const row of normalizedRows) {
+          await createFamilyHistory.mutateAsync(
+            buildFamilyHistory({
+              patientId: patientIdStr,
+              status: 'completed',
+              relationship: row.relationship,
+              relationshipDisplay: row.relationshipDisplay,
+              note: row.note,
+              conditions: []
+            })
+          )
+        }
 
         message.success('Riwayat Penyakit Keluarga berhasil disimpan')
         const { queryClient } = await import('@renderer/query-client')
@@ -182,7 +292,8 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
                   <Card
                     key={key}
                     size="small"
-                    className="mt-4 bg-gray-50 bg-opacity-50"
+                    className="mt-4! bg-gray-50 bg-opacity-50"
+                    title={`Riwayat Penyakit Keluarga ${key + 1}`}
                     extra={
                       <Button
                         type="text"
@@ -193,43 +304,33 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
                     }
                   >
                     <Row gutter={16}>
-                      <Col span={12}>
+                      <Col span={10}>
                         <Form.Item
                           {...restField}
-                          label="Diagnosis"
-                          name={[name, 'diagnosisCodeId']}
-                          rules={[{ required: true, message: 'Wajib memilih diagnosa' }]}
+                          label="Keluarga"
+                          name={[name, 'relationship']}
+                          rules={[{ required: true, message: 'Wajib pilih hubungan keluarga' }]}
                         >
-                          <Select
-                            showSearch
-                            filterOption={false}
-                            onSearch={setDiagnosisSearch}
-                            placeholder="Cari kode diagnosa..."
-                            notFoundContent={searchingDiagnosis ? <Spin size="small" /> : null}
-                          >
-                            {diagnosisOptions.map((d) => (
-                              <Option
-                                key={d.id}
-                                value={String(d.id)}
-                                label={`${d.code} - ${d.id_display || d.display}`}
-                              >
-                                {d.code} - {d.id_display || d.display}
+                          <Select placeholder="Pilih keluarga">
+                            {relationOptions.map((relation) => (
+                              <Option key={relation.value} value={relation.value}>
+                                {relation.label}
                               </Option>
                             ))}
                           </Select>
                         </Form.Item>
                       </Col>
                       <Col span={8}>
-                        <Form.Item {...restField} label="Outcome" name={[name, 'outcome']}>
-                          <Select placeholder="Pilih outcome">
-                            <Select.Option value="resolved">Diabetes resolved</Select.Option>
-                            <Select.Option value="ongoing">Ongoing</Select.Option>
-                            <Select.Option value="unknown">Unknown</Select.Option>
-                            <Select.Option value="remission">Remission</Select.Option>
+                        <Form.Item {...restField} label="Luaran" name={[name, 'outcome']}>
+                          <Select placeholder="Pilih luaran">
+                            <Select.Option value="resolved">Sembuh</Select.Option>
+                            <Select.Option value="ongoing">Masih Berlangsung</Select.Option>
+                            <Select.Option value="unknown">Tidak Diketahui</Select.Option>
+                            <Select.Option value="remission">Remisi</Select.Option>
                           </Select>
                         </Form.Item>
                       </Col>
-                      <Col span={4} className="flex items-end pb-6">
+                      <Col span={6} className="flex items-end mt-7">
                         <Form.Item
                           {...restField}
                           name={[name, 'contributedToDeath']}
@@ -240,10 +341,15 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
                         </Form.Item>
                       </Col>
                     </Row>
-                    <Form.Item {...restField} label="Catatan (Onset/Detail)" name={[name, 'note']}>
+                    <Form.Item
+                      {...restField}
+                      label="Catatan Riwayat Penyakit"
+                      name={[name, 'note']}
+                      rules={[{ required: true, message: 'Catatan riwayat penyakit wajib diisi' }]}
+                    >
                       <TextArea
                         rows={2}
-                        placeholder="Contoh: Ibu pasien pernah menderita DM 10 tahun yll..."
+                        placeholder="Contoh: Ibu pasien memiliki riwayat diabetes melitus sejak 10 tahun lalu."
                       />
                     </Form.Item>
                   </Card>
@@ -255,7 +361,7 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
                   block
                   icon={<PlusOutlined />}
                 >
-                  Tambah Riwayat Penyakit Keluarga
+                  Tambah Riwayat Keluarga
                 </Button>
               </>
             )}

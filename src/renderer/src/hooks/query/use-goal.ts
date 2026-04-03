@@ -19,6 +19,7 @@ export interface GoalCategoryInput {
 }
 
 export interface CreateGoalInput {
+    [key: string]: unknown
     encounterId: string
     patientId: string
     performerId?: string
