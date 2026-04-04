@@ -26,36 +26,36 @@ type LoginResult = {
 const dummyUsers = [
   {
     username: 'admin1',
-    password: 'admin123',
+    password: 'admin123'
   },
   {
     username: 'registration.poli.umum',
-    password: 'registration123',
+    password: 'registration123'
   },
   {
     username: 'nurse.poli.umum',
-    password: 'nurse123',
+    password: 'nurse123'
   },
   {
     username: 'doctor.poli.umum',
-    password: 'doctor123',
+    password: 'doctor123'
   },
   {
-    username: 'lab.poli.umum',
-    password: 'doctor123',
+    username: 'lab.admin',
+    password: 'lab123'
   },
   {
-    username: 'rad.poli.umum',
-    password: 'doctor123',
+    username: 'rad.admin',
+    password: 'rad123'
   },
   {
     username: 'kasir.admin',
-    password: 'kasir123',
-  },
+    password: 'kasir123'
+  }
 ]
 
 const LoginForm: React.FC = () => {
-  const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production';
+  const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
   console.log('is dev', IS_DEVELOPMENT)
   const [errorInfo, setErrorInfo] = useState<string>()
   const navigate = useNavigate()
@@ -84,13 +84,10 @@ const LoginForm: React.FC = () => {
         <div className="absolute -left-16 top-12 h-56 w-56 rounded-full bg-blue-300/20 blur-3xl" />
         <div className="absolute bottom-10 right-0 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
       </div>
-      
 
       <div className="max-w-5xl w-full mx-auto h-full max-h-[630px]">
         <div className="grid grid-cols-1 md:grid-cols-2 border border-white/10 backdrop-blur rounded-2xl shadow-lg overflow-hidden h-full bg-white">
-      
           <div className="p-8 h-full flex flex-col justify-center">
-            
             <div className="mb-6 text-center">
               <div className="w-12 h-12 rounded-xl items-center justify-center mb-3 overflow-hidden mx-auto">
                 <img src={logoUrl} alt="Logo" className="w-12 h-12 object-contain" />
@@ -99,23 +96,24 @@ const LoginForm: React.FC = () => {
               <p className="text-gray-500">Enter your registered Username and password to login!</p>
             </div>
 
-            {
-              IS_DEVELOPMENT && (
-                <div className="max-h-36 overflow-auto mb-4 border-2 border-dashed border-yellow-300 rounded p-2">
-                  <div className="mb-1">Dev only:</div>
-                  {
-                    dummyUsers.map((user) => (
-                      <Button key={user.username} color="blue" className="mb-1" onClick={() => {
-                        // setProfile({ id: 1, username: user.username, hakAksesId: 'ADMIN' })
-                        form.setFieldsValue({ username: user.username, password: user.password })
-                      }}>
-                        {user.username} / {user.password}
-                      </Button>
-                    ))
-                  }
-                </div>
-              )
-            }
+            {IS_DEVELOPMENT && (
+              <div className="max-h-36 overflow-auto mb-4 border-2 border-dashed border-yellow-300 rounded p-2">
+                <div className="mb-1">Dev only:</div>
+                {dummyUsers.map((user) => (
+                  <Button
+                    key={user.username}
+                    color="blue"
+                    className="mb-1"
+                    onClick={() => {
+                      // setProfile({ id: 1, username: user.username, hakAksesId: 'ADMIN' })
+                      form.setFieldsValue({ username: user.username, password: user.password })
+                    }}
+                  >
+                    {user.username} / {user.password}
+                  </Button>
+                ))}
+              </div>
+            )}
 
             <Form
               layout="vertical"
@@ -168,7 +166,7 @@ const LoginForm: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
-              {errorInfo && <Alert message={errorInfo} type="error" className="mb-4" />}
+            {errorInfo && <Alert message={errorInfo} type="error" className="mb-4" />}
           </div>
 
           <div className="p-8 bg-linear-to-br from-blue-50 to-blue-100 flex items-center justify-center h-full">
