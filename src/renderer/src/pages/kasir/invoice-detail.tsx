@@ -101,6 +101,13 @@ export default function InvoiceDetailPage() {
         documentTitle: `Invoice_${encounterId}`
     })
 
+    const paymentMethodLabel: Record<string, string> = {
+        cash: 'Tunai',
+        bpjs: 'BPJS',
+        asuransi: 'Asuransi',
+        company: 'Perusahaan',
+    }
+
     const { data, isLoading, isError, error } = client.kasir.getInvoice.useQuery(
         { encounterId: encounterId!, patientId }
     )
@@ -157,27 +164,94 @@ export default function InvoiceDetailPage() {
 
                     <Divider />
 
-                    {/* Meta */}
-                    <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+                    {/* Info Pembayaran */}
+                    <div className="grid grid-cols-2 gap-x-8 gap-y-1 mb-4 text-sm">
                         <div>
-                            <div className="text-gray-500">No. Kunjungan</div>
-                            <div className="font-medium">{invoice.encounterId}</div>
+                            <span className="text-gray-500">No. Kunjungan: </span>
+                            <span className="font-medium">{invoice.encounterId}</span>
                         </div>
                         <div>
-                            <div className="text-gray-500">ID Pasien</div>
-                            <div className="font-medium">{invoice.patientId}</div>
+                            <span className="text-gray-500">Tanggal Cetak: </span>
+                            <span className="font-medium">
+                                {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' })}
+                            </span>
                         </div>
                         <div>
-                            <div className="text-gray-500">Tanggal Cetak</div>
-                            <div className="font-medium">
-                                {new Date().toLocaleDateString('id-ID', {
-                                    day: '2-digit',
-                                    month: 'long',
-                                    year: 'numeric'
-                                })}
+                            <span className="text-gray-500">Metode Pembayaran: </span>
+                            <span className="font-medium">
+                                {paymentMethodLabel[invoice.paymentMethod] ?? invoice.paymentMethod}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-gray-500">Penjamin: </span>
+                            <span className="font-medium">
+                                {invoice.penjamin ?? paymentMethodLabel[invoice.paymentMethod] ?? invoice.paymentMethod}
+                            </span>
+                        </div>
+                        <div>
+                            <span className="text-gray-500">Kelas Pelayanan: </span>
+                            <span className="font-medium">{invoice.kelasPelayanan}</span>
+                        </div>
+                    </div>
+
+                    <Divider />
+
+                    {/* Data Pasien */}
+                    <div className="mb-6">
+                        <Title level={5} className="!mb-2">Data Pasien</Title>
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+                            <div>
+                                <span className="text-gray-500">No. Rekam Medis: </span>
+                                <span className="font-medium">{invoice.medicalRecordNumber}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Nama Pasien: </span>
+                                <span className="font-medium">{invoice.namaPatient}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Tanggal Lahir: </span>
+                                <span className="font-medium">
+                                    {invoice.tanggalLahir
+                                        ? new Date(invoice.tanggalLahir).toLocaleDateString('id-ID', {
+                                              day: '2-digit',
+                                              month: 'long',
+                                              year: 'numeric',
+                                          })
+                                        : '-'}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Alamat: </span>
+                                <span className="font-medium">{invoice.alamat || '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Dokter Pemeriksa: </span>
+                                <span className="font-medium">{invoice.dokterPemeriksa ?? '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Tgl. Pendaftaran: </span>
+                                <span className="font-medium">
+                                    {invoice.tanggalPendaftaran
+                                        ? new Date(invoice.tanggalPendaftaran).toLocaleDateString('id-ID', {
+                                              day: '2-digit',
+                                              month: 'long',
+                                              year: 'numeric',
+                                          })
+                                        : '-'}
+                                </span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">No. Pendaftaran: </span>
+                                <span className="font-medium">{invoice.noPendaftaran ?? '-'}</span>
+                            </div>
+                            <div>
+                                <span className="text-gray-500">Ruangan: </span>
+                                <span className="font-medium">{invoice.ruangan ?? '-'}</span>
                             </div>
                         </div>
                     </div>
+
+                    <Divider />
 
                     {/* Tindakan */}
                     {invoice.tindakanItems.length > 0 && (
