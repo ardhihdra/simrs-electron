@@ -98,6 +98,7 @@ const MedicalRecordForm = () => {
     isLoading: isEncounterLoading,
     isError
   } = useEncounterDetail(encounterId)
+  console.log('encounterResponse', encounterResponse)
 
   const patientData = useMemo<PatientQueue | null>(() => {
     const enc = encounterResponse?.result as any
@@ -112,6 +113,7 @@ const MedicalRecordForm = () => {
       queueId: enc.queueTicket?.id,
       queueNumber: enc.queueTicket?.queueNumber || 0,
       patient: {
+        ...enc.patient,
         id: enc.patient?.id || '',
         name: enc.patient?.name || 'Unknown',
         medicalRecordNumber: enc.patient?.medicalRecordNumber || '',

@@ -14,5 +14,8 @@ declare global {
       }
     }
     rpc: any
+    env: {
+      NODE_ENV: 'development' | 'production'
+    }
   }
 }

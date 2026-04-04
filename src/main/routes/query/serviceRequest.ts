@@ -9,7 +9,8 @@ export const requireSession = true
 export const schemas = {
   getByEncounter: {
     args: z.object({
-      encounterId: z.string()
+      encounterId: z.string(),
+      includeChildrenEncounter: z.boolean().optional()
     }),
     result: z.object({
       success: z.boolean(),
@@ -49,7 +50,9 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
   try {
     const client = getClient(ctx)
     // Using standard read route
-    const res = await client.get(`/api/servicerequest/read/${args.encounterId}`)
+    const res = await client.get(`/api/servicerequest/read/${args.encounterId}`, {
+      includeChildrenEncounter: args.includeChildrenEncounter ? 'true' : 'false'
+    })
     const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
     return raw as any
   } catch (err) {

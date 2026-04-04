@@ -1,5 +1,8 @@
 import { Form, Card, Select, Input, InputNumber, Switch, Button, Row, Col, Spin } from 'antd'
 import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons'
+import { SelectAsync } from '../../SelectAsync'
+import { useUnitOptions } from '@renderer/hooks/query/use-unit'
+import SelectUnit from '@renderer/components/molecules/SelectUnit'
 
 const { TextArea } = Input
 
@@ -26,6 +29,8 @@ export default function TindakanNonPaketTab({
   performers,
   roleLabelByCode
 }: TindakanNonPaketTabProps) {
+  const unitOptions = useUnitOptions()
+
   return (
     <Card
       size="small"
@@ -128,13 +133,35 @@ export default function TindakanNonPaketTab({
                     </Form.Item>
                   </Col>
                   <Col span={12}>
+                    {/* maybe we can use this but we need category in unit  */}
+                    {/* <SelectUnit
+                      field={field}
+                      name={[field.name, 'satuan']}
+                      rules={[{ required: true, message: 'Pilih satuan' }]}
+                      className="flex-[2] min-w-[140px]"
+                      label={<span className="font-bold">Satuan</span>}
+                    /> */}
+
                     <Form.Item
                       {...field}
                       name={[field.name, 'satuan']}
                       label={<span className="font-bold">Satuan</span>}
                       style={{ marginBottom: 0 }}
                     >
-                      <Input placeholder="cth: kali" />
+                      {/* <Input placeholder="cth: kali" /> */}
+                      <Select 
+                        showSearch
+                        placeholder="Pilih satuan..."
+                        options={[
+                          { value: 'kali', label: 'Kali' },
+                          { value: 'usap', label: 'Usap' },
+                          { value: 'jahit', label: 'Jahit' },
+                        ]}
+                        optionFilterProp="label"
+                        filterOption={(input, option) =>
+                          (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                        }
+                      />
                     </Form.Item>
                   </Col>
                 </Row>

@@ -25,7 +25,7 @@ export function ModuleSelectionSidebar({
 
   return (
     <div
-      className="flex flex-col justify-between p-8 text-white"
+      className="flex flex-col justify-between p-8 min-h-[86vh] text-white"
       style={{
         background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryHover} 50%, ${token.colorInfoActive} 100%)`
       }}

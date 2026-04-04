@@ -65,7 +65,7 @@ type ScopedPoli = {
   lokasiKerjaId?: number
 }
 
-const NURSE_VISIBLE_STATUSES = ['TRIAGE'] as const
+const NURSE_VISIBLE_STATUSES = ['CALLED','TRIAGE'] as const
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
   all: { label: 'Semua', color: '', dotColor: '#6b7280' },
@@ -248,11 +248,25 @@ const PatientQueueTable = () => {
     [filteredQueues, queueDate]
   )
 
-  const handleExaminePatient = (record: PatientQueueTableData) => {
+  const markAsTriage = async (record: PatientQueueTableData) => {
+    await updateStatusMutation.mutateAsync({
+      queueId: record.queueId,
+      action: 'CALL_TO_TRIAGE'
+    })
+    message.success(`Antrian ${record.queueNumber} dipanggil ke Triage`)
+  }
+
+  const handleExaminePatient = async (record: PatientQueueTableData) => {
     if (!record.encounterId) {
       message.warning('Encounter belum tersedia untuk pasien ini.')
       return
     }
+    try {
+      await markAsTriage(record)
+    } catch (error: any) {
+      message.error(error.message || 'Gagal memanggil pasien ke Triage')
+    }
+
     window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
   }
 
@@ -448,35 +462,35 @@ const PatientQueueTable = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          {record.status === 'TRIAGE' && (
-            <Button
-              type="primary"
-              icon={<MedicineBoxOutlined />}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleExaminePatient(record)
-              }}
-              size="small"
-              disabled={updateStatusMutation.isPending}
-              style={{ background: '#f97316', borderColor: '#f97316' }}
-            >
-              Periksa
-            </Button>
-          )}
-          {record.status === 'TRIAGE' && (
-            <Button
-              type="primary"
-              icon={<SoundOutlined />}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleMoveToPoliQueue(record)
-              }}
-              size="small"
-              loading={updateStatusMutation.isPending}
-              disabled={updateStatusMutation.isPending}
-            >
-              Pindahkan ke Poli
-            </Button>
+          {(record.status === 'TRIAGE' || record.status === 'CALLED') && (
+            <>
+              <Button
+                type="primary"
+                icon={<MedicineBoxOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleExaminePatient(record)
+                }}
+                size="small"
+                disabled={updateStatusMutation.isPending}
+                style={{ background: '#f97316', borderColor: '#f97316' }}
+              >
+                Periksa
+              </Button>
+              <Button
+                type="primary"
+                icon={<SoundOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleMoveToPoliQueue(record)
+                }}
+                size="small"
+                loading={updateStatusMutation.isPending}
+                disabled={updateStatusMutation.isPending}
+              >
+                Pindahkan ke Poli
+              </Button>
+            </>
           )}
         </Space>
       )

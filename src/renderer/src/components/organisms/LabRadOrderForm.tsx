@@ -164,7 +164,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   const { profile } = useMyProfile()
   const { message } = App.useApp()
 
-  const { data: serviceRequestData, isLoading, isError } = useServiceRequestByEncounter(encounterId)
+  const { data: serviceRequestData, isLoading, isError } = useServiceRequestByEncounter(encounterId, true)
   const selectedCategory = Form.useWatch('category', form) as
     | 'laboratory'
     | 'radiology'
@@ -192,7 +192,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   )
 
   const childEncounterIds = useMemo(() => {
-    const encounters = normalizeList<EncounterListItem>(encounterListData)
+    const encounters = normalizeList<EncounterListItem>(encounterListData) ?? []
     return Array.from(
       new Set(
         encounters

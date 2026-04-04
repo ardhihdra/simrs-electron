@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, Fragment, useState } from 'react'
 import { useNavigate, useParams, useLocation } from 'react-router'
 import { queryClient } from '@renderer/query-client'
+import { UnitListEntry, UnitListResponse } from '@renderer/hooks/query/use-unit'
 
 type ItemKind = 'DEVICE' | 'CONSUMABLE' | 'NUTRITION' | 'GENERAL'
 
@@ -64,17 +65,6 @@ type ItemApi = {
 	searchKfaMaster?: (args: { query: string }) => Promise<{ success: boolean; result?: KfaEntry[]; message?: string }>
 }
 
-interface UnitListEntry {
-	id?: number
-	nama?: string
-	kode?: string
-}
-
-type UnitListResponse = {
-	success: boolean
-	result?: UnitListEntry[]
-	message?: string
-}
 
 type ItemCategoryListResponse = {
 	success: boolean

@@ -1,4 +1,5 @@
-import { CheckCircleOutlined, FileTextOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, EyeOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons'
+import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
 import CallQueueModal from '@renderer/components/organisms/visit-management/CallQueueModal'
@@ -109,8 +110,6 @@ export default function RegistrationQueue({
     ],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
-  console.log('searchParams', searchParams)
-  console.log('queueData', queueData)
 
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
   const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()
@@ -218,25 +217,6 @@ export default function RegistrationQueue({
       }
     },
     {
-      title: 'Detail',
-      key: 'detail',
-      width: 120,
-      align: 'center',
-      render: (_, record) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={(event) => {
-            event.stopPropagation()
-            setDetailModal({ open: true, record })
-          }}
-        >
-          Lihat Detail
-        </Button>
-      )
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -252,7 +232,26 @@ export default function RegistrationQueue({
         }
         return <Tag color={colorMap[status] ?? 'default'}>{status}</Tag>
       }
-    }
+    },
+    {
+      title: 'Detail',
+      key: 'detail',
+      width: 120,
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={(event) => {
+            event.stopPropagation()
+            setDetailModal({ open: true, record })
+          }}
+        >
+          Detail Pasien
+        </Button>
+      )
+    },
   ]
 
   const onSearch = (values: any) => {
@@ -301,20 +300,20 @@ export default function RegistrationQueue({
                   type: 'primary',
                   onClick: () => setConfirmModal({ open: true, queue: record })
                 })
+              } else if (['RESERVED', 'REGISTERED'].includes(status)) {
+                actions.push({
+                  label: 'Panggil',
+                  icon: <SoundOutlined />,
+                  onClick: () => setCallConfirmModal({ open: true, record })
+                })
+              } else if (record.status === 'CALLED') {
+                actions.push({
+                  label: 'Konfirmasi Tujuan',
+                  icon: <CheckCircleOutlined />,
+                  type: 'primary',
+                  onClick: () => setCallModal({ open: true, record })
+                })
               }
-              // } else if (['RESERVED', 'REGISTERED'].includes(record.status)) {
-              //   actions.push({
-              //     label: 'Panggil',
-              //     icon: <SoundOutlined />,
-              //     onClick: () => setCallConfirmModal({ open: true, record })
-              //   })
-              // } else if (record.status === 'CALLED') {
-              //   actions.push({
-              //     label: 'Konfirmasi Tujuan',
-              //     icon: <CheckCircleOutlined />,
-              //     type: 'primary',
-              //     onClick: () => setCallModal({ open: true, record })
-              //   })
               // } else if (record.status === 'TRIAGED') {
               //   actions.push({
               //     label: 'Panggil ke Poli',
@@ -350,14 +349,15 @@ export default function RegistrationQueue({
                 })
               }
 
-              if (record.status === 'TRIAGE') {
-                actions.push({
-                  label: 'Triage Selesai',
-                  icon: <CheckCircleOutlined />,
-                  type: 'primary',
-                  onClick: () => handleTriageDone(record)
-                })
-              }
+              // only nurse can confirm triage action
+              // if (record.status === 'TRIAGE') {
+              //   actions.push({
+              //     label: 'Triage Selesai',
+              //     icon: <CheckCircleOutlined />,
+              //     type: 'primary',
+              //     onClick: () => handleTriageDone(record)
+              //   })
+              // }
 
               return actions
             }
@@ -406,7 +406,7 @@ export default function RegistrationQueue({
         title="Detail Pasien"
         onCancel={() => setDetailModal({ open: false, record: undefined })}
         footer={null}
-        destroyOnClose
+        // destroyOnClose
         width={920}
       >
         {detailModal.record ? (

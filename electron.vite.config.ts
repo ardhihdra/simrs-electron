@@ -34,6 +34,7 @@ export default defineConfig({
     }
   },
   renderer: {
+    envPrefix: 'RENDERER_VITE_',
     resolve: {
       alias,
       // Keep workspace-linked deps as node_modules paths so Vite can prebundle CJS packages.

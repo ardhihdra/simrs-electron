@@ -67,7 +67,14 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
       medicalRecordNumber: z.string().optional().nullable(),
       gender: z.string().optional().nullable(),
       birthDate: z.union([z.string(), z.date()]).optional().nullable(),
-      nik: z.string().optional().nullable()
+      nik: z.string().optional().nullable(),
+      address: z.string().optional().nullable(),
+      religion: z.string().optional().nullable(),
+      relatedPerson: z.array(z.any()).optional(),
+      phone: z.string().optional().nullable(),
+      email: z.string().optional().nullable(),
+      fhirId: z.string().optional().nullable(),
+      ihsNumber: z.string().optional().nullable()
     })
     .optional()
     .nullable(),

@@ -19,6 +19,8 @@ interface PatientInfoCardProps {
       gender?: string | null
       age?: number | null
       identityNumber?: string
+      address?: string
+      religion?: string
     }
     poli?: {
       name: string
@@ -114,7 +116,6 @@ const InfoItem = ({
 
 export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCardProps) => {
   const { token } = theme.useToken()
-
   const { patient, poli, doctor, visitDate, paymentMethod, status, allergies } = patientData
   const { showIdentityNumber = true, showAllergies = true } = sections || {}
 
@@ -163,6 +164,9 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
             >
               {patient.name || 'Unknown'}
             </h2>
+            <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
+              {patient.address || 'Alamat tidak tersedia'}
+            </span>
             <div className="flex items-center gap-2 mt-1">
               <span
                 className="font-mono text-[10px] font-medium px-2 py-0.5 rounded"
@@ -178,6 +182,10 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
               <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
                 {genderLabel}, {ageLabel}
               </span>
+              <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>•</span>
+              <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
+                {patient.religion}
+              </span> 
             </div>
           </div>
         </div>
@@ -193,6 +201,18 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
             {action && <div className="mt-1">{action}</div>}
           </div>
         )}
+        {/* {onEditStatus && (
+            <Button
+              type="link"
+              size="small"
+              onClick={onEditStatus}
+              icon={<EditOutlined />}
+              className="text-xs p-0 m-0 h-auto"
+              style={{ color: 'rgba(255,255,255,0.60)' }}
+            >
+              Ubah Status
+            </Button>
+          )} */}
       </div>
 
       {/* ─── Body: menggunakan colorBgContainer dari token ─── */}
