@@ -48,6 +48,10 @@ const dummyUsers = [
     username: 'rad.poli.umum',
     password: 'doctor123',
   },
+  {
+    username: 'kasir.admin',
+    password: 'kasir123',
+  },
 ]
 
 const LoginForm: React.FC = () => {

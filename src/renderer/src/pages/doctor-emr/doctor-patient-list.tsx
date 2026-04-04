@@ -40,6 +40,7 @@ import { SatuSehatSyncStatus } from '@renderer/types/satu-sehat'
 import { SyncPopoverContent } from './components/sync-popover-content'
 import { useSearchParams } from 'react-router'
 import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
+import { client } from '@renderer/utils/client'
 
 const { RangePicker } = DatePicker
 
@@ -111,13 +112,14 @@ export const DoctorPatientList = () => {
   const doctorTargetId =
     isDoctorRole && session?.kepegawaianId != null ? String(session.kepegawaianId) : undefined
   const routePoliName = searchParams.get('poliName')?.trim() || undefined
-  const routePoliCode = searchParams.get('poliCode')?.trim() || undefined
+  // const routePoliCode = searchParams.get('poliCode')?.trim() || undefined
   const isPoliLockedFromRoute = searchParams.get('from') === 'poli-select' && Boolean(routePoliName)
-  const activePoliLabel = selectedPoli || 'Semua Poli'
-  const doctorTargetLabel = useMemo(() => {
-    if (!isDoctorRole) return undefined
-    return profile?.username || (doctorTargetId ? `ID ${doctorTargetId}` : 'Tidak Diketahui')
-  }, [doctorTargetId, isDoctorRole, profile?.username])
+  // const activePoliLabel = selectedPoli || 'Semua Poli'
+  // const doctorTargetLabel = useMemo(() => {
+  //   if (!isDoctorRole) return undefined
+  //   return profile?.username || (doctorTargetId ? `ID ${doctorTargetId}` : 'Tidak Diketahui')
+  // }, [doctorTargetId, isDoctorRole, profile?.username])
+  const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
 
   useEffect(() => {
     if (!isPoliLockedFromRoute || !routePoliName) return
@@ -249,7 +251,28 @@ export const DoctorPatientList = () => {
     }
   )
 
-  const handleViewRecord = (record: PatientListTableData) => {
+  const markAsInProgress = async (record: PatientListTableData) => {
+    try {
+      const queueId = record?.queueTicket?.id
+      if (!queueId) {
+        message.warning('Tidak dapat memperbarui status. Queue ID tidak ditemukan.')
+        return
+      }
+      await updateStatusMutation.mutateAsync({ queueId: queueId, action: 'START_ENCOUNTER' })
+      message.success(`Status antrian diperbarui: IN PROGRESS`)
+      refetch()
+    } catch (error: any) {
+      message.error(error.message || 'Gagal memperbarui status')
+    }
+  }
+
+  const handleViewRecord = async (record: PatientListTableData) => {
+    try {
+      await markAsInProgress(record)
+    } catch (error: any) {
+      message.error(`Gagal memperbarui status menjadi IN_PROGRESS: ${error.message || error}`)
+    }
+
     window.open(`#/dashboard/doctor/${record.encounterId}`, '_blank')
   }
 

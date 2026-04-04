@@ -112,6 +112,19 @@ const DoctorWorkspace = () => {
     allergies: allergies
   }
 
+  const SelesaikanPemeriksaanButton = () => {
+    return (
+      <Button
+        type="primary"
+        onClick={handleFinishEncounter}
+        icon={<CheckCircleOutlined />}
+        size="small"
+      >
+        Selesaikan Pemeriksaan
+      </Button>
+    )
+  }
+
   return (
     <div className="flex flex-col h-screen rounded-lg overflow-hidden">
       <div className="flex-1 px-4 py-4 overflow-hidden relative flex flex-col min-h-0">
@@ -142,14 +155,7 @@ const DoctorWorkspace = () => {
             patientInfoCardData={patientInfoCardData}
             action={
               currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <Button
-                  type="primary"
-                  onClick={handleFinishEncounter}
-                  icon={<CheckCircleOutlined />}
-                  size="small"
-                >
-                  Selesaikan Pemeriksaan
-                </Button>
+                <SelesaikanPemeriksaanButton />
               ) : undefined
             }
           />
@@ -160,14 +166,7 @@ const DoctorWorkspace = () => {
             patientInfoCardData={patientInfoCardData}
             action={
               currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <Button
-                  type="primary"
-                  onClick={handleFinishEncounter}
-                  icon={<CheckCircleOutlined />}
-                  size="small"
-                >
-                  Selesaikan Pemeriksaan
-                </Button>
+                <SelesaikanPemeriksaanButton />
               ) : undefined
             }
           />
@@ -178,14 +177,7 @@ const DoctorWorkspace = () => {
             patientInfoCardData={patientInfoCardData}
             action={
               currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <Button
-                  type="primary"
-                  onClick={handleFinishEncounter}
-                  icon={<CheckCircleOutlined />}
-                  size="small"
-                >
-                  Selesaikan Pemeriksaan
-                </Button>
+                <SelesaikanPemeriksaanButton />
               ) : undefined
             }
           />

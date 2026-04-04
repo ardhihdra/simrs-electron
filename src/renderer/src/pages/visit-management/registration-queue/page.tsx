@@ -156,15 +156,15 @@ export default function RegistrationQueue({
     }
   }
 
-  const handleTriageDone = async (record: any) => {
-    try {
-      await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'TRIAGE_DONE' })
-      message.success(`Status antrian ${record.formattedQueueNumber} diperbarui: TRIAGED`)
-      refetch()
-    } catch (error: any) {
-      message.error(error.message || 'Gagal memperbarui status')
-    }
-  }
+  // const handleTriageDone = async (record: any) => {
+  //   try {
+  //     await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'TRIAGE_DONE' })
+  //     message.success(`Status antrian ${record.formattedQueueNumber} diperbarui: TRIAGED`)
+  //     refetch()
+  //   } catch (error: any) {
+  //     message.error(error.message || 'Gagal memperbarui status')
+  //   }
+  // }
 
   const columns: ColumnsType<QueueRow> = [
     {

@@ -1,7 +1,7 @@
 import { IpcContext } from '@main/ipc/router'
 import { EncounterSchemaWithId } from '@main/models/encounter'
 import { BackendListSchema, getClient, parseBackendResponse } from '@main/utils/backendClient'
-import { EncounterSchema } from 'simrs-types'
+import { EncounterSchema, QueueTicketSchema } from 'simrs-types'
 import z from 'zod'
 
 const SyncLogSchema = z.object({
@@ -94,6 +94,7 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
       registrationChannelCodeId: z.string().optional(),
       assuranceCodeId: z.string().optional(),
       practitionerId: z.union([z.string(), z.number()]).nullable().optional(),
+      formattedQueueNumber: z.string().optional().nullable(),
       poli: z
         .object({
           id: z.number().optional(),
@@ -106,7 +107,6 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
     })
     .nullable()
     .optional(),
-  labServiceRequests: z.array(z.any()).optional(),
   satuSehatSyncStatus: SatuSehatSyncStatusSchema
 })
 
@@ -317,11 +317,11 @@ export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
 
     const transformedResult = Array.isArray(Result)
       ? Result.map((encounter: any) => ({
-        ...encounter,
-        visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
-        serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
-        status: encounter.status ? String(encounter.status) : 'UNKNOWN'
-      }))
+          ...encounter,
+          visitDate: encounter.startTime || encounter.visitDate,
+          serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
+          status: encounter.status ? String(encounter.status) : 'UNKNOWN'
+        }))
       : Result
 
     return transformedResult ? { success: true, result: transformedResult } : { success: false }
@@ -682,9 +682,9 @@ export const getPatientEncountersPg = async (
       `/api/module/encounter/patient/${args.patientId}/encounters?${queryParams.toString()}`
     )
 
-    const raw = await res
+    const raw = (await res
       .json()
-      .catch(() => ({ success: false, error: `HTTP ${res.status}` })) as Record<string, unknown>
+      .catch(() => ({ success: false, error: `HTTP ${res.status}` }))) as Record<string, unknown>
 
     if (!res.ok || raw?.success !== true) {
       const rawError = raw?.error

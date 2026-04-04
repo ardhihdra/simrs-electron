@@ -2,7 +2,7 @@
   "version": "v1",
   "packages": {
     "simrs-types": {
-      "signature": "d61f862dbd43820cec0b789924b37a63",
+      "signature": "4d836817cd0d188414b9cefa8f789c91",
       "file": true,
       "replaced": "git+https://git.asmuldev.web.id/asmuldev/shared.git#1.0.4"
     }
