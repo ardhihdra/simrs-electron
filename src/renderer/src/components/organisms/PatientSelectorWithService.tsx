@@ -60,12 +60,13 @@ export const PatientSelectorWithService = ({
 
         const params: any = {
           limit: 50,
-          status: 'IN_PROGRESS',
           serviceType: serviceType,
           q: searchText
         }
 
-        return fn(params)
+        const res = await fn(params)
+        console.log('[PatientSelectorWithService] results for params:', params, res)
+        return res
       }
     },
     enabled: serviceType !== 'LUAR'
