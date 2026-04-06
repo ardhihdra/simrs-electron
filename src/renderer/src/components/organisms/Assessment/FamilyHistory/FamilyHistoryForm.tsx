@@ -10,29 +10,14 @@ import { createFamilyHistory as buildFamilyHistory } from '@renderer/utils/build
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { PatientData } from '@renderer/types/doctor.types'
+import { FAMILY_RELATION_OPTIONS } from 'simrs-types'
 
 const { Option } = Select
 const { TextArea } = Input
 
-const FAMILY_RELATION_OPTIONS = [
-  { value: 'ayah', label: 'Ayah' },
-  { value: 'ibu', label: 'Ibu' },
-  { value: 'kakak', label: 'Kakak' },
-  { value: 'adik', label: 'Adik' },
-  { value: 'saudara', label: 'Saudara Kandung' },
-  { value: 'anak', label: 'Anak' },
-  { value: 'kakek', label: 'Kakek' },
-  { value: 'nenek', label: 'Nenek' },
-  { value: 'paman', label: 'Paman' },
-  { value: 'bibi', label: 'Bibi' },
-  { value: 'sepupu', label: 'Sepupu' },
-  { value: 'suami', label: 'Suami' },
-  { value: 'istri', label: 'Istri' },
-  { value: 'lainnya', label: 'Lainnya' },
-  { value: 'other', label: 'Lainnya (Legacy)' }
-]
-
-const FAMILY_RELATION_LABEL_MAP = new Map(FAMILY_RELATION_OPTIONS.map((item) => [item.value, item.label]))
+const FAMILY_RELATION_LABEL_MAP = new Map(
+  FAMILY_RELATION_OPTIONS.map((item) => [item.value, item.label])
+)
 const OUTCOME_LABEL_MAP: Record<string, string> = {
   resolved: 'Sembuh',
   ongoing: 'Masih Berlangsung',
@@ -130,7 +115,9 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
 
     if (familyHistoryResponse?.success && familyHistoryResponse?.result) {
       familyHistoryResponse.result.forEach((fh: any) => {
-        const relationValue = String(fh?.relationship || '').trim().toLowerCase()
+        const relationValue = String(fh?.relationship || '')
+          .trim()
+          .toLowerCase()
         if (!relationValue || existingValues.has(relationValue)) return
         base.push({
           value: relationValue,
@@ -145,40 +132,38 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
 
   useEffect(() => {
     if (familyHistoryResponse?.success && familyHistoryResponse?.result) {
-      const fhList = familyHistoryResponse.result.flatMap(
-        (fh: any) => {
-          const relationship = String(fh.relationship || 'other').toLowerCase()
-          const relationshipDisplay = fh.relationshipDisplay || null
-          const conditions = Array.isArray(fh.conditions) ? fh.conditions : []
+      const fhList = familyHistoryResponse.result.flatMap((fh: any) => {
+        const relationship = String(fh.relationship || 'other').toLowerCase()
+        const relationshipDisplay = fh.relationshipDisplay || null
+        const conditions = Array.isArray(fh.conditions) ? fh.conditions : []
 
-          if (conditions.length > 0) {
-            return conditions.map((cond: any) => {
-              const parsed = parseStructuredFamilyHistoryNote(cond.note || fh.note || '')
-              return {
-                relationship,
-                relationshipDisplay,
-                outcome: cond.outcome || parsed.outcome,
-                contributedToDeath:
-                  typeof cond.contributedToDeath === 'boolean'
-                    ? cond.contributedToDeath
-                    : parsed.contributedToDeath,
-                note: parsed.note
-              }
-            })
-          }
-
-          const parsedHeaderNote = parseStructuredFamilyHistoryNote(fh.note || '')
-          return [
-            {
+        if (conditions.length > 0) {
+          return conditions.map((cond: any) => {
+            const parsed = parseStructuredFamilyHistoryNote(cond.note || fh.note || '')
+            return {
               relationship,
               relationshipDisplay,
-              outcome: parsedHeaderNote.outcome,
-              contributedToDeath: parsedHeaderNote.contributedToDeath,
-              note: parsedHeaderNote.note
+              outcome: cond.outcome || parsed.outcome,
+              contributedToDeath:
+                typeof cond.contributedToDeath === 'boolean'
+                  ? cond.contributedToDeath
+                  : parsed.contributedToDeath,
+              note: parsed.note
             }
-          ]
+          })
         }
-      )
+
+        const parsedHeaderNote = parseStructuredFamilyHistoryNote(fh.note || '')
+        return [
+          {
+            relationship,
+            relationshipDisplay,
+            outcome: parsedHeaderNote.outcome,
+            contributedToDeath: parsedHeaderNote.contributedToDeath,
+            note: parsedHeaderNote.note
+          }
+        ]
+      })
 
       if (fhList.length > 0) {
         form.setFieldValue('familyHistoryList', fhList)
