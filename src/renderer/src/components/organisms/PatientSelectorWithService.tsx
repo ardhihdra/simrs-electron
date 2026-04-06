@@ -103,6 +103,7 @@ export const PatientSelectorWithService = ({
           </div>
         </div>
       ),
+      display: `${name} | RM: ${mrn}`,
       value: isEncounter ? (item as EncounterResult).id : patient.id,
       data: {
         patientId: patient.id,
@@ -193,6 +194,7 @@ export const PatientSelectorWithService = ({
         <div className="flex-1">
           <Select
             className="w-full"
+            optionLabelProp="display"
             showSearch
             placeholder="Cari Nama Pasien atau No. RM (Pilih layanan dulu)"
             loading={isLoading}

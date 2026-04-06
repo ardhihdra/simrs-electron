@@ -27,7 +27,7 @@ import {
   InfoCircleOutlined
 } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
 import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
@@ -111,6 +111,7 @@ interface MedicationDispenseAttributes {
   encounter?: { encounterType?: string }
   identifier?: Array<{ system: string; value: string }> | null
   fhirId?: string | null
+  servicedAt?: string | null
 }
 
 interface MedicationDispenseListArgs {
@@ -196,6 +197,7 @@ interface ParentRow {
   encounterType?: string
   dokterName?: string
   resepturName?: string
+  servicedAt?: string | null
   items: DispenseItemRow[]
 }
 
@@ -220,6 +222,40 @@ function getStatusTag(status: string) {
   if (status === 'in-progress') return <Tag color="geekblue" icon={<SyncOutlined spin />}>{label}</Tag>
   if (status === 'on-hold') return <Tag color="orange" icon={<PauseCircleOutlined />}>{label}</Tag>
   return <Tag color="default">{label}</Tag>
+}
+
+function DispenseTimer({ servicedAt, isBpjs }: { servicedAt?: string | null; isBpjs: boolean }) {
+  const [remaining, setRemaining] = useState<number | null>(null)
+
+  const limit = isBpjs ? 60 * 60 * 1000 : 15 * 60 * 1000
+
+  useEffect(() => {
+    if (!servicedAt) return
+    const start = new Date(servicedAt).getTime()
+    const update = () => {
+      const now = Date.now()
+      const diff = limit - (now - start)
+      setRemaining(diff)
+    }
+    update()
+    const timer = setInterval(update, 1000)
+    return () => clearInterval(timer)
+  }, [servicedAt, limit])
+
+  if (!servicedAt || remaining === null) return <span className="text-gray-400">-</span>
+
+  const isOverdue = remaining <= 0
+  const absRemaining = Math.abs(remaining)
+  const mins = Math.floor(absRemaining / 60000)
+  const secs = Math.floor((absRemaining % 60000) / 1000)
+  
+  const timeStr = `${isOverdue ? '-' : ''}${mins}:${secs.toString().padStart(2, '0')}`
+  
+  let color = 'text-green-600'
+  if (isOverdue) color = 'text-red-600 font-bold'
+  else if (remaining < 5 * 60 * 1000) color = 'text-orange-500 font-semibold'
+
+  return <span className={color}>{timeStr}</span>
 }
 
 interface RowActionsProps {
@@ -564,6 +600,17 @@ const columns = [
       const color = status === 'Lunas' ? 'green' : status === 'Sebagian' ? 'orange' : 'volcano'
       const icon = status === 'Lunas' ? <CheckCircleOutlined /> : status === 'Sebagian' ? <ClockCircleOutlined /> : <CloseCircleOutlined />
       return <Tag color={color} icon={icon}>{status}</Tag>
+    }
+  },
+  {
+    title: 'Sisa Waktu',
+    key: 'timer',
+    width: 100,
+    render: (_: unknown, row: ParentRow) => {
+      if (row.status !== 'in-progress' && row.status !== 'preparation') return '-'
+      // Assume BPJS if encounterType is not AMB (simplified check or based on payment status)
+      const isBpjs = row.paymentStatus === 'Lunas' && row.encounterType !== 'AMB' 
+      return <DispenseTimer servicedAt={row.servicedAt} isBpjs={isBpjs} />
     }
   },
   {
@@ -1082,6 +1129,7 @@ export function MedicationDispenseTable() {
           encounterType: item.encounter?.encounterType,
           dokterName,
           resepturName,
+          servicedAt: item.servicedAt,
           items: [rowItem]
         })
       } else {
@@ -1089,6 +1137,9 @@ export function MedicationDispenseTable() {
         const isDuplicate = existing.items.some((r) => r.id === item.id)
         if (!isDuplicate) {
           existing.items.push(rowItem)
+        }
+        if (!existing.servicedAt && item.servicedAt) {
+          existing.servicedAt = item.servicedAt
         }
       }
     })

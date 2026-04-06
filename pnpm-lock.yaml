@@ -63,8 +63,8 @@ importers:
         specifier: ^6.37.7
         version: 6.37.7(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       simrs-types:
-        specifier: git+https://git.asmuldev.web.id/asmuldev/shared.git#1.0.2
-        version: git+https://git.asmuldev.web.id/asmuldev/shared.git#9aad96a6fe7cbd4348e69f70156377b866edbdfd(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
+        specifier: file:.yalc/simrs-types
+        version: file:.yalc/simrs-types(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       sqlite3:
         specifier: ^5.1.7
         version: 5.1.7
@@ -129,6 +129,9 @@ importers:
       eslint-plugin-react-refresh:
         specifier: ^0.4.20
         version: 0.4.23(eslint@9.36.0(jiti@2.6.1))
+      husky:
+        specifier: ^9.1.7
+        version: 9.1.7
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
@@ -2559,6 +2562,11 @@ packages:
   humanize-ms@1.2.1:
     resolution: {integrity: sha512-Fl70vYtsAFb/C06PTS9dZBo7ihau+Tu/DNCk/OyHhea07S+aeMWpFFkUaXRa8fI+ScZbEI8dfSxwY7gxZ9SAVQ==}
 
+  husky@9.1.7:
+    resolution: {integrity: sha512-5gs5ytaNjBrh5Ow3zrvdUUY+0VxIuWVL4i9irt6friV+BqdCfmV11CQTWMiBYWHbXhco+J1kHfTOUkePhCDvMA==}
+    engines: {node: '>=18'}
+    hasBin: true
+
   iconv-corefoundation@1.1.7:
     resolution: {integrity: sha512-T10qvkw0zz4wnm560lOEg0PovVqUXuOFhhHAkixw8/sycy7TJt7v/RrkEKEQnAw2viPSJu6iAkErxnzR0g8PpQ==}
     engines: {node: ^8.11.2 || >=10}
@@ -3979,9 +3987,8 @@ packages:
     resolution: {integrity: sha512-a2B9Y0KlNXl9u/vsW6sTIu9vGEpfKu2wRV6l1H3XEas/0gUIzGzBoP/IouTcUQbm9JWZLH3COxyn03TYlFax6w==}
     engines: {node: '>=10'}
 
-  simrs-types@git+https://git.asmuldev.web.id/asmuldev/shared.git#9aad96a6fe7cbd4348e69f70156377b866edbdfd:
-    resolution: {commit: 9aad96a6fe7cbd4348e69f70156377b866edbdfd, repo: https://git.asmuldev.web.id/asmuldev/shared.git, type: git}
-    version: 1.0.1
+  simrs-types@file:.yalc/simrs-types:
+    resolution: {directory: .yalc/simrs-types, type: directory}
 
   slice-ansi@3.0.0:
     resolution: {integrity: sha512-pSyv7bSTC7ig9Dcgbw9AuRNUb5k5V6oDudjZoMBSr13qpLBG7tB+zgCkARjq7xIUgdz5P1Qe8u+rSGdouOOIyQ==}
@@ -7530,6 +7537,8 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  husky@9.1.7: {}
+
   iconv-corefoundation@1.1.7:
     dependencies:
       cli-truncate: 2.1.0
@@ -9090,7 +9099,7 @@ snapshots:
     dependencies:
       semver: 7.7.2
 
-  simrs-types@git+https://git.asmuldev.web.id/asmuldev/shared.git#9aad96a6fe7cbd4348e69f70156377b866edbdfd(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7):
+  simrs-types@file:.yalc/simrs-types(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7):
     dependencies:
       sequelize: 6.37.7(pg-hstore@2.3.4)(pg@8.16.3)(sqlite3@5.1.7)
       typescript: 5.9.3

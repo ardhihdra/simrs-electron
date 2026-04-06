@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import type { CategoryBpjs } from 'simrs-types'
+import { type CategoryBpjs, CATEGORY_BPJS_VALUES } from 'simrs-types'
+
+export { CATEGORY_BPJS_VALUES }
 
 export interface MasterTindakanItem {
     id: number

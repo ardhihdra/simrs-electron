@@ -71,5 +71,15 @@
     "react-dom": "^19.1.1",
     "typescript": "^5.9.2",
     "vite": "^7.1.6"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@tailwindcss/oxide",
+      "core-js",
+      "electron",
+      "esbuild",
+      "lzma-native",
+      "sqlite3"
+    ]
   }
 }

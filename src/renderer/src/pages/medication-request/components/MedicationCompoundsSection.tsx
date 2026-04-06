@@ -31,7 +31,7 @@ export const MedicationCompoundsSection = ({
     if (currentRow) {
       const { compoundIndex, itemIndex } = currentRow
       const compounds = form.getFieldValue('compounds') || []
-      
+
       if (itemIndex !== null) {
         // Update existing item in compound
         const updated = [...compounds]
@@ -102,14 +102,14 @@ export const MedicationCompoundsSection = ({
                   >
                     <InputNumber<number> min={1} className="w-full" />
                   </Form.Item>
-                  <Form.Item
+                  {/* <Form.Item
                     {...restField}
                     name={[name, 'quantityUnit']}
                     label="Satuan Racikan"
                     className="mb-0"
                   >
                     <Input placeholder="Contoh: bungkus, botol" />
-                  </Form.Item>
+                  </Form.Item> */}
                 </div>
 
                 <div className="pl-4 border-l-2 border-orange-200 ml-2">

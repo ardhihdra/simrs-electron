@@ -1322,13 +1322,14 @@ export function MedicationRequestForm() {
           indexSimpleNew += 1
         ) {
           const item = items[indexSimpleNew]
+          const instructionText = Array.isArray(item.dosageInstruction) ? item.dosageInstruction.join(' ') : (item.dosageInstruction ?? '')
           extraSimplePayloads.push({
             ...baseCommonPayload,
             medicationId: null,
             itemId: item.medicationId,
             note: item.note ?? null,
             groupIdentifier,
-            dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
+            dosageInstruction: instructionText ? [{ text: instructionText }] : null,
             dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
             category: null,
             identifier: null,
@@ -1346,6 +1347,7 @@ export function MedicationRequestForm() {
           indexCompoundNew += 1
         ) {
           const input = compoundInputs[indexCompoundNew]
+          const instructionText = Array.isArray(input.dosageInstruction) ? input.dosageInstruction.join(' ') : (input.dosageInstruction ?? '')
           const compoundNotePrefix = input.name ? `[Racikan: ${input.name}]` : '[Racikan]'
           const fullNote = input.note ? `${compoundNotePrefix} ${input.note}` : compoundNotePrefix
           extraCompoundPayloads.push({
@@ -1354,7 +1356,7 @@ export function MedicationRequestForm() {
             itemId: null,
             note: fullNote,
             groupIdentifier,
-            dosageInstruction: input.dosageInstruction ? [{ text: input.dosageInstruction }] : null,
+            dosageInstruction: instructionText ? [{ text: instructionText }] : null,
             dispenseRequest: buildDispenseRequest(input.quantity, input.quantityUnit),
             category: [{ text: 'racikan', code: 'compound' }],
             identifier: null,
@@ -1411,26 +1413,29 @@ export function MedicationRequestForm() {
 
       if (updates.length === 0 && typeof baseId === 'number' && !Number.isNaN(baseId)) {
         const firstItem = items.length > 0 ? items[0] : undefined
-        await updateMutation.mutateAsync({
-          ...baseCommonPayload,
-          itemId: firstItem?.medicationId,
-          note: firstItem?.note ?? null,
-          dosageInstruction: firstItem?.dosageInstruction
-            ? [
-              buildDosageInstruction(
-                firstItem.dosageInstruction,
-                firstItem?.quantity,
-                firstItem?.quantityUnit
-              )
-            ]
-            : null,
-          dispenseRequest: buildDispenseRequest(
-            firstItem?.quantity,
-            firstItem?.quantityUnit
-          ),
-          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null,
-          id: baseId
-        })
+        if (firstItem) {
+          const instructionText = Array.isArray(firstItem.dosageInstruction) ? firstItem.dosageInstruction.join(' ') : (firstItem.dosageInstruction ?? '')
+          await updateMutation.mutateAsync({
+            ...baseCommonPayload,
+            itemId: firstItem?.medicationId,
+            note: firstItem?.note ?? null,
+            dosageInstruction: instructionText
+              ? [
+                buildDosageInstruction(
+                  instructionText,
+                  firstItem?.quantity,
+                  firstItem?.quantityUnit
+                )
+              ]
+              : null,
+            dispenseRequest: buildDispenseRequest(
+              firstItem?.quantity,
+              firstItem?.quantityUnit
+            ),
+            supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null,
+            id: baseId
+          })
+        }
       } else {
         for (const entry of updates) {
           await updateMutation.mutateAsync({ ...entry.payload, id: entry.id })
@@ -1481,17 +1486,20 @@ export function MedicationRequestForm() {
       // items (simplePayloads) is kept for backward compatibility but should be empty if the new UI is used.
       const simplePayloads = items
         .filter((item) => typeof item.medicationId === 'number' && item.medicationId > 0)
-        .map((item) => ({
-          ...baseCommonPayload,
-          groupIdentifier,
-          itemId: item.medicationId,
-          dosageInstruction: item.dosageInstruction
-            ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
-            : null,
-          note: item.note,
-          dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
-          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
-        }))
+        .map((item) => {
+          const instructionText = Array.isArray(item.dosageInstruction) ? item.dosageInstruction.join(' ') : (item.dosageInstruction ?? '')
+          return {
+            ...baseCommonPayload,
+            groupIdentifier,
+            itemId: item.medicationId,
+            dosageInstruction: instructionText
+              ? [buildDosageInstruction(instructionText, item.quantity, item.quantityUnit)]
+              : null,
+            note: item.note,
+            dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
+            supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
+          }
+        })
       const itemList = (itemSource?.result || []) as ItemAttributes[]
       const medicineList = itemList as any[]
 
@@ -1525,13 +1533,14 @@ export function MedicationRequestForm() {
             }
           })
 
+        const instructionText = Array.isArray(comp.dosageInstruction) ? comp.dosageInstruction.join(' ') : (comp.dosageInstruction ?? '')
         return {
           ...baseCommonPayload,
           groupIdentifier,
           medicationId: null,
           itemId: null,
-          dosageInstruction: comp.dosageInstruction
-            ? [buildDosageInstruction(comp.dosageInstruction, comp.quantity, comp.quantityUnit)]
+          dosageInstruction: instructionText
+            ? [buildDosageInstruction(instructionText, comp.quantity, comp.quantityUnit)]
             : null,
           identifier: [{ system: 'racikan-group', value: compoundId }],
           note: `[Racikan: ${comp.name}]`,
@@ -1554,7 +1563,7 @@ export function MedicationRequestForm() {
       const itemPayloads = otherItems
         .filter((it) => typeof it.itemId === 'number' && it.itemId > 0)
         .map((it) => {
-          const instructionText = typeof it.instruction === 'string' ? it.instruction.trim() : ''
+          const instructionText = Array.isArray(it.instruction) ? it.instruction.join(' ') : (typeof it.instruction === 'string' ? it.instruction.trim() : '')
           const noteText = typeof it.note === 'string' ? it.note.trim() : ''
           const combinedNote = [instructionText, noteText].filter((x) => x.length > 0).join(' | ')
 
@@ -1570,8 +1579,8 @@ export function MedicationRequestForm() {
               ? [buildDosageInstruction(instructionText, it.quantity, unitCode)]
               : null,
             dispenseRequest:
-              typeof it.quantity === 'number' && unitCode
-                ? buildDispenseRequest(it.quantity, unitCode)
+              typeof it.quantity === 'number'
+                ? buildDispenseRequest(it.quantity, unitCode || undefined)
                 : null,
             supportingInformation: (() => {
               return supportingInformationCommon.length > 0 ? supportingInformationCommon : null

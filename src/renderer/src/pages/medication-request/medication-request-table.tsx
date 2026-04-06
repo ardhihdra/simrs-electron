@@ -918,7 +918,7 @@ export function MedicationRequestTable() {
                     { title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
                     { title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
                     { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
-                    { title: 'Satuan', dataIndex: 'unit', key: 'unit' }
+                    { title: 'Signa', dataIndex: 'instruksi', key: 'instruksi' }
                   ]
 
                   try {
