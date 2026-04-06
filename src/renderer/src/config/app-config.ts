@@ -1,5 +1,5 @@
-export const appConfig = {
-  laboratory: {
+export const defaultAppConfig = {
+  payment: {
     requirePaymentBeforePrintingLabResult: true
   }
 } as const

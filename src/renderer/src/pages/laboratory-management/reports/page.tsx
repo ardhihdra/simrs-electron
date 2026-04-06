@@ -2,7 +2,7 @@ import { PrinterOutlined } from '@ant-design/icons'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
-import { appConfig } from '@renderer/config/app-config'
+import { defaultAppConfig } from '@renderer/config/app-config'
 import { client } from '@renderer/utils/client'
 import { DatePicker, Form, Input, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
@@ -51,6 +51,10 @@ export default function LaboratoryReports() {
     toDate: searchParams.toDate,
     status: searchParams.status as any
   })
+  const { data: appConfigData } = client.applicationConfig.get.useQuery()
+  const requirePaymentBeforePrintingLabResult =
+    appConfigData?.result?.payment?.requirePaymentBeforePrintingLabResult ??
+    defaultAppConfig.payment.requirePaymentBeforePrintingLabResult
 
   // Group by Encounter ID to show one row per encounter (Report)
   const reportList = useMemo(() => {
@@ -208,11 +212,9 @@ export default function LaboratoryReports() {
                 icon: <PrinterOutlined />,
                 type: 'primary',
                 disabled:
-                  appConfig.laboratory.requirePaymentBeforePrintingLabResult &&
-                  !record.encounterPayment?.isPaid,
+                  requirePaymentBeforePrintingLabResult && !record.encounterPayment?.isPaid,
                 tooltip:
-                  appConfig.laboratory.requirePaymentBeforePrintingLabResult &&
-                  !record.encounterPayment?.isPaid
+                  requirePaymentBeforePrintingLabResult && !record.encounterPayment?.isPaid
                     ? 'Hasil belum dapat dicetak karena invoice belum lunas'
                     : undefined,
                 onClick: () => handlePrintReport(record.encounterId)
