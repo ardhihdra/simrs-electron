@@ -148,6 +148,8 @@ interface MedicationRequestRecordForEdit {
   patientId: string
   encounterId?: string | null
   requesterId?: number | null
+  performerId?: number | null
+  recorderId?: number | null
   roomId?: string | null
   authoredOn?: string | Date
   medicationId?: number | null
@@ -668,6 +670,18 @@ export function MedicationRequestForm() {
         }
 
         const baseRecord = records.find((r) => r.id === base.id) ?? records[0]
+        
+        // Populate Reseptur from recorderId (new) or supportingInformation (old)
+        if (typeof baseRecord.recorderId === 'number' && baseRecord.recorderId > 0) {
+          form.setFieldValue('resepturId', baseRecord.recorderId)
+        } else if (Array.isArray(baseRecord.supportingInformation)) {
+          const resEntry = (baseRecord.supportingInformation as any[]).find(
+            (info) => info.type === 'Reseptur'
+          )
+          if (resEntry && typeof resEntry.itemId === 'number') {
+            form.setFieldValue('resepturId', resEntry.itemId)
+          }
+        }
 
         const allSimple = records.filter((r) => {
           const categories = r.category ?? []
@@ -729,8 +743,12 @@ export function MedicationRequestForm() {
               const type = info.resourceType || anyInfo.resource_type
               const hasItem = info.itemId || anyInfo.item_id
               const hasMedication = info.medicationId || anyInfo.medication_id
-              return type === 'Ingredient' || hasItem || hasMedication
+              
+              // Standard ingredient has resourceType='Ingredient' OR have itemId/medicationId
+              // Metadata like 'Reseptur' used to be here, but we now check resourceType carefully.
+              return type === 'Ingredient' || ((hasItem || hasMedication) && anyInfo.type !== 'Reseptur')
             })
+            
             if (ingredients.length > 0) {
               itemsForCompound = ingredients.map((info) => {
                 const anyInfo = info as any
@@ -980,16 +998,12 @@ export function MedicationRequestForm() {
       encounterId: values.encounterId,
       roomId: values.roomId,
       requesterId: values.requesterId,
+      recorderId: values.resepturId,
       authoredOn: dayjs().format('YYYY-MM-DD HH:mm:ss')
     }
 
     const supportingInformationCommon: SupportingInformationItemInfo[] = []
-    if (typeof values.resepturId === 'number') {
-      supportingInformationCommon.push({
-        type: 'Reseptur',
-        itemId: values.resepturId
-      })
-    }
+    // Reseptur is now moved to recorderId field
 
     if (isEdit) {
       const items = values.items ?? []
@@ -1074,24 +1088,17 @@ export function MedicationRequestForm() {
         patientId: string
         encounterId?: string | null
         requesterId?: number | null
+        recorderId?: number | null
         authoredOn: string | null
         medicationId?: number | null
         itemId?: number | null
         note?: string | null
-        groupIdentifier?: {
-          system?: string
-          value?: string
-        } | null
-        dosageInstruction?: { text?: string }[] | null
-        dispenseRequest?: {
-          quantity?: {
-            value?: number
-            unit?: string
-          }
-        } | null
-        category?: CategoryInfo[] | null
-        identifier?: IdentifierInfo[] | null
-        supportingInformation?: SupportingInformationItemInfo[] | null
+        dosageInstruction?: any
+        dispenseRequest?: any
+        supportingInformation?: any
+        category?: any
+        identifier?: any
+        groupIdentifier?: any
       }
 
       const updates: { id: number; payload: UpdatePayload }[] = []

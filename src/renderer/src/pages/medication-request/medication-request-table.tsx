@@ -76,6 +76,8 @@ interface MedicationRequestAttributes {
   note?: string | null
   encounter?: { id: string; encounterType?: string }
   requester?: { name: string }
+  recorderId?: number | null
+  recorder?: { name: string }
   groupIdentifier?: GroupIdentifier | null
   category?: CategoryEntry[] | null
   dosageInstruction?: DosageInstructionEntry[] | null
@@ -659,12 +661,15 @@ export function MedicationRequestTable() {
 
       if (compound && Array.isArray(record.supportingInformation)) {
         const ingredients = record.supportingInformation.filter(
-          (info: any) =>
-            info.resourceType === 'Ingredient' ||
-            info.itemId ||
-            info.medicationId ||
-            info.item_id ||
-            info.medication_id
+          (info: any) => {
+            const isIngredient = info.resourceType === 'Ingredient' ||
+              info.itemId ||
+              info.medicationId ||
+              info.item_id ||
+              info.medication_id
+            const isReseptur = info.type === 'Reseptur' || info.resourceType === 'Reseptur'
+            return isIngredient && !isReseptur
+          }
         )
         item.children = ingredients.map((ing: Record<string, unknown>, idx: number) => {
           const medId = ing.medicationId || ing.medication_id
@@ -714,7 +719,17 @@ export function MedicationRequestTable() {
           remainingTotal = item.quantity
         }
         let resepturName: string | undefined
-        if (Array.isArray(record.supportingInformation)) {
+        
+        // 1. New field: recorder
+        if (record.recorder?.name) {
+          resepturName = record.recorder.name
+        } 
+        // 2. recorderId lookup in employee map
+        else if (typeof record.recorderId === 'number' && record.recorderId > 0) {
+          resepturName = employeeNameById.get(record.recorderId) ?? undefined
+        }
+        // 3. Fallback to supportingInformation for legacy records
+        else if (Array.isArray(record.supportingInformation)) {
           const resepturEntry = record.supportingInformation.find((info: Record<string, unknown>) => {
             const t1 = info.resourceType as string | undefined
             const t2 = info.type as string | undefined
