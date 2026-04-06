@@ -1,7 +1,6 @@
 import React from 'react'
-import { Card, Tag, Button, theme } from 'antd'
+import { Card, Tag, theme } from 'antd'
 import {
-  EditOutlined,
   UserOutlined,
   IdcardOutlined,
   CalendarOutlined,
@@ -17,9 +16,11 @@ interface PatientInfoCardProps {
     patient: {
       medicalRecordNumber: string
       name: string
-      gender: string
-      age: number
+      gender?: string | null
+      age?: number | null
       identityNumber?: string
+      address?: string
+      religion?: string
     }
     poli?: {
       name: string
@@ -32,7 +33,11 @@ interface PatientInfoCardProps {
     status?: string
     allergies?: string
   }
-  onEditStatus?: () => void
+  action?: React.ReactNode
+  sections?: {
+    showIdentityNumber?: boolean
+    showAllergies?: boolean
+  }
 }
 
 const getStatusColor = (status?: string): string => {
@@ -109,14 +114,23 @@ const InfoItem = ({
   )
 }
 
-export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardProps) => {
+export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCardProps) => {
   const { token } = theme.useToken()
-
   const { patient, poli, doctor, visitDate, paymentMethod, status, allergies } = patientData
+  const { showIdentityNumber = true, showAllergies = true } = sections || {}
 
   const hasAllergy = allergies && allergies !== '-'
+  const normalizedGender = String(patient.gender || '').toLowerCase()
   const genderLabel =
-    patient.gender === 'MALE' || patient.gender === 'male' ? 'Laki-laki' : 'Perempuan'
+    normalizedGender === 'male' || normalizedGender === 'm'
+      ? 'Laki-laki'
+      : normalizedGender === 'female' || normalizedGender === 'f'
+        ? 'Perempuan'
+        : '-'
+  const ageLabel =
+    typeof patient.age === 'number' && Number.isFinite(patient.age) && patient.age >= 0
+      ? `${patient.age} th`
+      : '-'
 
   return (
     <Card
@@ -150,6 +164,9 @@ export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardPr
             >
               {patient.name || 'Unknown'}
             </h2>
+            <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
+              {patient.address || 'Alamat tidak tersedia'}
+            </span>
             <div className="flex items-center gap-2 mt-1">
               <span
                 className="font-mono text-[10px] font-medium px-2 py-0.5 rounded"
@@ -163,8 +180,12 @@ export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardPr
               </span>
               <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>•</span>
               <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
-                {genderLabel}, {patient.age} th
+                {genderLabel}, {ageLabel}
               </span>
+              <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>•</span>
+              <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
+                {patient.religion}
+              </span> 
             </div>
           </div>
         </div>
@@ -177,20 +198,21 @@ export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardPr
             >
               {getStatusLabel(status)}
             </Tag>
-            {onEditStatus && (
-              <Button
-                type="link"
-                size="small"
-                onClick={onEditStatus}
-                icon={<EditOutlined />}
-                className="text-xs p-0 m-0 h-auto"
-                style={{ color: 'rgba(255,255,255,0.60)' }}
-              >
-                Ubah Status
-              </Button>
-            )}
+            {action && <div className="mt-1">{action}</div>}
           </div>
         )}
+        {/* {onEditStatus && (
+            <Button
+              type="link"
+              size="small"
+              onClick={onEditStatus}
+              icon={<EditOutlined />}
+              className="text-xs p-0 m-0 h-auto"
+              style={{ color: 'rgba(255,255,255,0.60)' }}
+            >
+              Ubah Status
+            </Button>
+          )} */}
       </div>
 
       {/* ─── Body: menggunakan colorBgContainer dari token ─── */}
@@ -220,75 +242,87 @@ export const PatientInfoCard = ({ patientData, onEditStatus }: PatientInfoCardPr
           </InfoItem>
         </div>
 
-        {/* Divider: menggunakan colorBorderSecondary dari token */}
-        <div
-          className="my-4 rounded"
-          style={{ height: 1, background: token.colorBorderSecondary }}
-        />
+        {(showIdentityNumber || showAllergies) && (
+          <>
+            {/* Divider: menggunakan colorBorderSecondary dari token */}
+            <div
+              className="my-4 rounded"
+              style={{ height: 1, background: token.colorBorderSecondary }}
+            />
 
-        {/* Secondary Info Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
-          <InfoItem icon={<IdcardOutlined />} label="NIK">
-            <span className="font-mono text-sm">{patient.identityNumber || '-'}</span>
-          </InfoItem>
+            {/* Secondary Info Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-4">
+              {showIdentityNumber && (
+                <InfoItem icon={<IdcardOutlined />} label="NIK">
+                  <span className="font-mono text-sm">{patient.identityNumber || '-'}</span>
+                </InfoItem>
+              )}
 
-          <div className="col-span-1 md:col-span-3">
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <span style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
-                {hasAllergy ? (
-                  <WarningFilled style={{ color: token.colorError }} />
-                ) : (
-                  <SafetyCertificateOutlined style={{ color: token.colorSuccess }} />
-                )}
-              </span>
-              <span
-                style={{
-                  color: token.colorTextTertiary,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  letterSpacing: '0.05em',
-                  textTransform: 'uppercase'
-                }}
-              >
-                Riwayat Alergi
-              </span>
-            </div>
-            <div>
-              {hasAllergy ? (
+              {showAllergies && (
                 <div
-                  className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5"
-                  style={{
-                    background: token.colorErrorBg,
-                    border: `1px solid ${token.colorErrorBorder}`
-                  }}
+                  className={
+                    showIdentityNumber ? 'col-span-1 md:col-span-3' : 'col-span-2 md:col-span-4'
+                  }
                 >
-                  <WarningFilled
-                    style={{ color: token.colorError, fontSize: token.fontSizeSM }}
-                    className="shrink-0"
-                  />
-                  <span
-                    className="text-sm font-semibold leading-relaxed"
-                    style={{ color: token.colorErrorText }}
-                  >
-                    {allergies}
-                  </span>
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span style={{ fontSize: token.fontSizeSM, color: token.colorTextTertiary }}>
+                      {hasAllergy ? (
+                        <WarningFilled style={{ color: token.colorError }} />
+                      ) : (
+                        <SafetyCertificateOutlined style={{ color: token.colorSuccess }} />
+                      )}
+                    </span>
+                    <span
+                      style={{
+                        color: token.colorTextTertiary,
+                        fontSize: 10,
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase'
+                      }}
+                    >
+                      Riwayat Alergi
+                    </span>
+                  </div>
+                  <div>
+                    {hasAllergy ? (
+                      <div
+                        className="inline-flex items-center gap-2 rounded-lg px-3 py-1.5"
+                        style={{
+                          background: token.colorErrorBg,
+                          border: `1px solid ${token.colorErrorBorder}`
+                        }}
+                      >
+                        <WarningFilled
+                          style={{ color: token.colorError, fontSize: token.fontSizeSM }}
+                          className="shrink-0"
+                        />
+                        <span
+                          className="text-sm font-semibold leading-relaxed"
+                          style={{ color: token.colorErrorText }}
+                        >
+                          {allergies}
+                        </span>
+                      </div>
+                    ) : (
+                      <span
+                        className="text-xs italic px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 font-medium"
+                        style={{
+                          background: token.colorSuccessBg,
+                          border: `1px solid ${token.colorSuccessBorder}`,
+                          color: token.colorSuccessText
+                        }}
+                      >
+                        <SafetyCertificateOutlined />
+                        Aman, tidak ada catatan alergi
+                      </span>
+                    )}
+                  </div>
                 </div>
-              ) : (
-                <span
-                  className="text-xs italic px-3 py-1.5 rounded-lg inline-flex items-center gap-1.5 font-medium"
-                  style={{
-                    background: token.colorSuccessBg,
-                    border: `1px solid ${token.colorSuccessBorder}`,
-                    color: token.colorSuccessText
-                  }}
-                >
-                  <SafetyCertificateOutlined />
-                  Aman, tidak ada catatan alergi
-                </span>
               )}
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </Card>
   )

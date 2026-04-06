@@ -39,18 +39,26 @@ if (!foundFile) {
 }
 
 const api = buildApiFromTree(tree)
+const env = {
+    NODE_ENV: process.env.PROD !== 'true' ? 'development' : 'production',
+  }
 
 if (process.contextIsolated) {
   try {
+    console.log('Exposing APIs to renderer process...')
     contextBridge.exposeInMainWorld('electron', electronAPI)
     contextBridge.exposeInMainWorld('api', api)
+    contextBridge.exposeInMainWorld('env', env)
     exposeRpc({ name: 'rpc', whitelist: ['rpc'] })
   } catch (error) {
     console.error(error)
   }
 } else {
+  console.log('Context isolation is disabled; exposing APIs directly to renderer process')
   // @ts-ignore (define in dts)
   window.electron = electronAPI
   // @ts-ignore (define in dts)
   window.api = api
+  // @ts-ignore (define in dts)
+  window.env = env
 }

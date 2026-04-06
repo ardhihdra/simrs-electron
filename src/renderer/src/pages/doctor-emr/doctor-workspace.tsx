@@ -1,17 +1,19 @@
-import { LockOutlined } from '@ant-design/icons'
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router'
+import { App, Spin, Empty, Button, Modal, Select } from 'antd'
+import { CheckCircleOutlined, LockOutlined } from '@ant-design/icons'
 import { useAllergyByEncounter } from '@renderer/hooks/query/use-allergy'
 import { useEncounterDetail, useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { getPatientMedicalRecord } from '@renderer/services/doctor.service'
 import { ArrivalType, EncounterStatus, EncounterType } from '@shared/encounter'
-import { App, Button, Empty, Modal, Select, Spin } from 'antd'
 import dayjs from 'dayjs'
-import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
 import { PatientWithMedicalRecord } from '../../types/doctor.types'
 import { Gender } from '../../types/nurse.types'
-import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
+import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
+import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
+import { showApiError } from '@renderer/utils/form-feedback'
 
 const DoctorWorkspace = () => {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -20,11 +22,9 @@ const DoctorWorkspace = () => {
 
   const [loading, setLoading] = useState(false)
   const [patientData, setPatientData] = useState<PatientWithMedicalRecord | null>(null)
-  const [isStatusModalVisible, setIsStatusModalVisible] = useState(false)
-  const [selectedStatus, setSelectedStatus] = useState<EncounterStatus | null>(null)
+  const [dischargeModalOpen, setDischargeModalOpen] = useState(false)
 
   const { data: encounterDetail } = useEncounterDetail(encounterId)
-  const updateEncounter = useUpdateEncounter()
 
   const { data: allergyData } = useAllergyByEncounter(encounterId || '')
 
@@ -41,7 +41,7 @@ const DoctorWorkspace = () => {
         navigate('/dashboard/doctor')
       }
     } catch (error) {
-      message.error('Gagal memuat data medis pasien')
+      showApiError(message, error, 'Gagal memuat data medis pasien')
       console.error(error)
     } finally {
       setLoading(false)
@@ -51,40 +51,6 @@ const DoctorWorkspace = () => {
   useEffect(() => {
     loadData()
   }, [encounterId, loadData])
-
-  const handleStatusUpdate = () => {
-    if (!encounterId || !selectedStatus) return
-
-    updateEncounter.mutate(
-      {
-        id: encounterId,
-        status: selectedStatus,
-        patientId: patientData?.patient.id || '',
-        visitDate: new Date(),
-        serviceType: 'outpatient', // TODO: fix this, ini masih ada apa sudah dihapus?
-        encounterType: EncounterType.AMB,
-        arrivalType: ArrivalType.WALK_IN,
-        endTime: null,
-        startTime: new Date()
-      } as any,
-      {
-        onSuccess: () => {
-          message.success('Status berhasil diperbarui')
-          setIsStatusModalVisible(false)
-        },
-        onError: () => {
-          message.error('Gagal memperbarui status')
-        }
-      }
-    )
-  }
-
-  const openStatusModal = () => {
-    if (encounterDetail?.result?.status) {
-      setSelectedStatus(encounterDetail.result.status as EncounterStatus)
-    }
-    setIsStatusModalVisible(true)
-  }
 
   if (loading) {
     return (
@@ -102,6 +68,10 @@ const DoctorWorkspace = () => {
     navigate('/dashboard/doctor')
   }
 
+  const handleFinishEncounter = () => {
+    setDischargeModalOpen(true)
+  }
+
   const patient = patientData.patient
   const age = patient.birthDate ? dayjs().diff(dayjs(patient.birthDate), 'year') : 0
 
@@ -115,9 +85,9 @@ const DoctorWorkspace = () => {
   const allergies =
     allergyData?.result && Array.isArray(allergyData.result) && allergyData.result.length > 0
       ? allergyData.result
-          .map((a: any) => a.note)
-          .filter(Boolean)
-          .join(', ')
+        .map((a: any) => a.note)
+        .filter(Boolean)
+        .join(', ')
       : '-'
 
   const currentStatus = encounterDetail?.result?.status || EncounterStatus.IN_PROGRESS
@@ -140,6 +110,19 @@ const DoctorWorkspace = () => {
     paymentMethod: paymentMethod,
     status: currentStatus,
     allergies: allergies
+  }
+
+  const SelesaikanPemeriksaanButton = () => {
+    return (
+      <Button
+        type="primary"
+        onClick={handleFinishEncounter}
+        icon={<CheckCircleOutlined />}
+        size="small"
+      >
+        Selesaikan Pemeriksaan
+      </Button>
+    )
   }
 
   return (
@@ -170,47 +153,43 @@ const DoctorWorkspace = () => {
             encounterId={encounterId || ''}
             patientData={patientData}
             patientInfoCardData={patientInfoCardData}
-            onEditStatus={openStatusModal}
+            action={
+              currentStatus === EncounterStatus.IN_PROGRESS ? (
+                <SelesaikanPemeriksaanButton />
+              ) : undefined
+            }
           />
         ) : encounterDetail?.result?.encounterType === EncounterType.EMER ? (
           <DoctorEmergencyWorkspace
             encounterId={encounterId || ''}
             patientData={patientData}
             patientInfoCardData={patientInfoCardData}
-            onEditStatus={openStatusModal}
+            action={
+              currentStatus === EncounterStatus.IN_PROGRESS ? (
+                <SelesaikanPemeriksaanButton />
+              ) : undefined
+            }
           />
         ) : (
           <DoctorOutpatientWorkspace
             encounterId={encounterId || ''}
             patientData={patientData}
             patientInfoCardData={patientInfoCardData}
-            onEditStatus={openStatusModal}
+            action={
+              currentStatus === EncounterStatus.IN_PROGRESS ? (
+                <SelesaikanPemeriksaanButton />
+              ) : undefined
+            }
           />
         )}
       </div>
 
-      <Modal
-        title="Update Status Encounter"
-        open={isStatusModalVisible}
-        onOk={handleStatusUpdate}
-        onCancel={() => setIsStatusModalVisible(false)}
-        confirmLoading={updateEncounter.isPending}
-        okText="Simpan"
-        cancelText="Batal"
-      >
-        <div className="py-4">
-          <p className="mb-2">Pilih status baru untuk kunjungan ini:</p>
-          <Select
-            value={selectedStatus}
-            onChange={(val) => setSelectedStatus(val as EncounterStatus)}
-            style={{ width: '100%' }}
-            options={[
-              { label: 'Finished', value: EncounterStatus.FINISHED },
-              { label: 'Cancelled', value: EncounterStatus.CANCELLED }
-            ]}
-          />
-        </div>
-      </Modal>
+      <DischargeModal
+        open={dischargeModalOpen}
+        record={{ patientName: patientData?.patient?.name, encounterId }}
+        onClose={() => setDischargeModalOpen(false)}
+        onSuccess={() => loadData()}
+      />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { SaveOutlined, HistoryOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Select, Table, notification, Modal } from 'antd'
+import { Button, Card, Form, Select, Table, notification, Modal, Alert } from 'antd'
 import dayjs from 'dayjs'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
   useBulkCreateObservation,
@@ -30,7 +30,13 @@ export const VitalSignsMonitoringForm = ({
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const bulkCreateObservation = useBulkCreateObservation()
 
-  const { data: response, isLoading, refetch } = useQueryObservationByEncounter(encounterId)
+  const {
+    data: response,
+    isLoading,
+    refetch,
+    error,
+    isError
+  } = useQueryObservationByEncounter(encounterId)
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
     'doctor'
@@ -55,7 +61,25 @@ export const VitalSignsMonitoringForm = ({
             unit: 'mm[Hg]',
             system: 'http://unitsofmeasure.org',
             code: 'mm[Hg]'
-          }
+          },
+          bodySites: [
+            ...(values.vitalSigns.bloodPressureBodySite
+              ? [
+                  {
+                    code: values.vitalSigns.bloodPressureBodySite,
+                    display: values.vitalSigns.bloodPressureBodySite
+                  }
+                ]
+              : []),
+            ...(values.vitalSigns.bloodPressurePosition
+              ? [
+                  {
+                    code: values.vitalSigns.bloodPressurePosition,
+                    display: values.vitalSigns.bloodPressurePosition
+                  }
+                ]
+              : [])
+          ]
         },
         {
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
@@ -87,7 +111,15 @@ export const VitalSignsMonitoringForm = ({
             unit: '{beats}/min',
             system: 'http://unitsofmeasure.org',
             code: '{beats}/min'
-          }
+          },
+          bodySites: values.vitalSigns.pulseRateBodySite
+            ? [
+                {
+                  code: values.vitalSigns.pulseRateBodySite,
+                  display: values.vitalSigns.pulseRateBodySite
+                }
+              ]
+            : undefined
         },
         {
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
@@ -115,7 +147,15 @@ export const VitalSignsMonitoringForm = ({
             unit: 'Cel',
             system: 'http://unitsofmeasure.org',
             code: 'Cel'
-          }
+          },
+          methods: values.vitalSigns.temperatureMethod
+            ? [
+                {
+                  code: values.vitalSigns.temperatureMethod,
+                  display: values.vitalSigns.temperatureMethod
+                }
+              ]
+            : undefined
         },
         {
           category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
@@ -182,7 +222,7 @@ export const VitalSignsMonitoringForm = ({
     }
   }
 
-  const historyData = response?.result?.all ? response.result.all : []
+  const historyData = response?.result || []
 
   const groupedHistory = historyData
     .filter((obs: any) => {
@@ -230,6 +270,22 @@ export const VitalSignsMonitoringForm = ({
     })
     .sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix())
 
+  useEffect(() => {
+    if (groupedHistory.length > 0) {
+      const lastEntry = groupedHistory[0]
+      form.setFieldsValue({
+        vitalSigns: {
+          ...lastEntry.vitals,
+          bloodPressureBodySite: lastEntry.vitals.bloodPressureBodySite || 'Left arm',
+          bloodPressurePosition: lastEntry.vitals.bloodPressurePosition || 'Sitting position',
+          temperatureMethod: lastEntry.vitals.temperatureMethod || 'Axillary',
+          pulseRateBodySite: lastEntry.vitals.pulseRateBodySite || 'Radial'
+        },
+        consciousness: lastEntry.consciousness || 'Compos Mentis'
+      })
+    }
+  }, [groupedHistory, form])
+
   const columns = [
     { title: 'Waktu', dataIndex: 'date', key: 'date', width: 140 },
     { title: 'Pemeriksa', dataIndex: 'performer', key: 'performer', width: 150 },
@@ -257,6 +313,18 @@ export const VitalSignsMonitoringForm = ({
 
   return (
     <div className="flex! flex-col! gap-4!">
+      {isError && error && (
+        <Alert
+          type="error"
+          message="Gagal Memuat Data"
+          description={
+            <pre className="text-xs break-words whitespace-pre-wrap m-0 font-sans">
+              {error.message}
+            </pre>
+          }
+          showIcon
+        />
+      )}
       <Form
         form={form}
         layout="vertical"

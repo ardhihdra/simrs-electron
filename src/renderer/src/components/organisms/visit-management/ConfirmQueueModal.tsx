@@ -49,7 +49,6 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
       onSuccess?.()
       onClose()
     } catch (error: any) {
-      console.error(error)
       message.error(error.message || 'Gagal mengkonfirmasi kehadiran')
     }
   }
@@ -62,7 +61,7 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
       form.setFieldsValue({ patientId: data.result.id })
     }
   }
-  console.log(queue)
+
   return (
     <Modal
       title="Konfirmasi Kehadiran"

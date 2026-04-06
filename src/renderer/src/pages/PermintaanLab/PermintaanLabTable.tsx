@@ -125,12 +125,12 @@ export function PermintaanLabTable({ data, isLoading }: PermintaanLabTableProps)
       >
         <Col span={12}>
           <Form.Item name="name" label="Nama Pasien">
-            <Input placeholder="Cari Nama Pasien" allowClear size="large"/>
+            <Input placeholder="Cari Nama Pasien" allowClear size="large" />
           </Form.Item>
         </Col>
         <Col span={12}>
           <Form.Item name="medicalRecordNumber" label="MRN">
-            <Input placeholder="Cari MRN" allowClear size="large"/>
+            <Input placeholder="Cari MRN" allowClear size="large" />
           </Form.Item>
         </Col>
       </TableHeader>

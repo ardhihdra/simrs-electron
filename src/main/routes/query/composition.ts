@@ -3,60 +3,41 @@ import { IpcContext } from '@main/ipc/router'
 import {
     getClient
 } from '@main/utils/backendClient'
-
+import { CompositionSchema } from 'simrs-types'
 export const requireSession = true
 
-const CompositionSchema = z.object({
-    id: z.string().optional(),
-    identifier: z.string().optional(),
-    status: z.string(),
-    subjectPatientId: z.string(),
-    encounterId: z.string(),
-    date: z.union([z.string(), z.date()]),
-    authorId: z.array(z.string()),
-    title: z.string(),
-    soapSubjective: z.string().nullable().optional(),
-    soapObjective: z.string().nullable().optional(),
-    soapAssessment: z.string().nullable().optional(),
-    soapPlan: z.string().nullable().optional(),
-    createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional(),
-    author: z.object({
-        id: z.number(),
-        namaLengkap: z.string(),
-        hakAkses: z.object({
-            nama: z.string()
-        }).nullable().optional()
-    }).nullable().optional(),
-    attesters: z.array(z.object({
-        mode: z.string().optional(),
-        time: z.union([z.string(), z.date()]).optional(),
-        partyDisplay: z.string().nullable().optional()
-    })).nullable().optional()
+const CompositionResultSchema = CompositionSchema.extend({
+    authorId: z.any().optional().nullable(),
+    section: z.any().optional().nullable(),
+    author: z.any().optional().nullable(),
+    attesters: z.any().optional().nullable(),
+    type: z.any().optional().nullable(),
+    types: z.any().optional().nullable(),
+    category: z.any().optional().nullable(),
+    categories: z.any().optional().nullable(),
+}).passthrough()
+
+export const CompositionSchemaPayload = CompositionSchema.extend({
+    id: z.union([z.string(), z.number()]).optional().nullable(),
+    date: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    createdAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    updatedAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    section: z.any().optional().nullable(),
+    type: z.any().optional().nullable(),
+    category: z.any().optional().nullable(),
+    custodian: z.any().optional().nullable(),
 })
 
 export const schemas = {
     create: {
-        args: z.object({
-            id: z.string().optional(),
+        args: CompositionSchemaPayload.extend({
             encounterId: z.string(),
             patientId: z.string(),
-            doctorId: z.number(),
-            authorName: z.string().optional(),
-            title: z.string().optional(),
-            soapSubjective: z.string().optional(),
-            soapObjective: z.string().optional(),
-            soapAssessment: z.string().optional(),
-            soapPlan: z.string().optional(),
-            status: z.string().optional(),
-            section: z.array(z.any()).optional(),
-            custodian: z.any().optional(),
-            type: z.any().optional(),
-            category: z.any().optional()
+            doctorId: z.union([z.number(), z.string()]),
         }),
         result: z.object({
             success: z.boolean(),
-            result: CompositionSchema.optional().nullable(),
+            result: CompositionResultSchema.optional().nullable(),
             message: z.string().optional(),
             error: z.string().optional()
         })
@@ -67,7 +48,7 @@ export const schemas = {
         }),
         result: z.object({
             success: z.boolean(),
-            result: z.array(CompositionSchema).optional().nullable(),
+            result: z.array(CompositionResultSchema).optional().nullable(),
             message: z.string().optional(),
             error: z.string().optional()
         })

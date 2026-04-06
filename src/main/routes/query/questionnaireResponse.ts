@@ -14,6 +14,7 @@ export const schemas = {
             authored: z.any().optional(),
             authorId: z.union([z.string(), z.number(), z.null()]).optional(),
             sourceId: z.union([z.string(), z.number(), z.null()]).optional(),
+            okRequestId: z.number().optional().nullable(),
             items: z.array(z.any())
         }),
         result: z.object({

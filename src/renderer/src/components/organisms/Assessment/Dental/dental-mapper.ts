@@ -23,6 +23,7 @@ interface PerformerInfo {
 }
 
 export interface DentalObservationPayload {
+    [key: string]: unknown
     category: string
     code: string
     display: string

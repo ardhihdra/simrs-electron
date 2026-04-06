@@ -2,35 +2,31 @@ import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { getClient } from '@main/utils/backendClient'
 import { BaseResultSchema } from '@main/utils/crud'
+import { ClinicalImpressionSchema } from 'simrs-types'
 
 export const requireSession = true
 
-const ClinicalImpressionPropsSchema = z.object({
-    id: z.string().nullish(),
-    status: z.string().nullish(),
-    subjectId: z.string().nullish(),
-    encounterId: z.string().nullish(),
-    description: z.string().nullish(),
-    effectiveDateTime: z.string().nullish(),
-    effectivePeriodStart: z.string().nullish(),
-    effectivePeriodEnd: z.string().nullish(),
-    date: z.string().nullish(),
-    summary: z.string().nullish(),
+const ClinicalImpressionSchemaCompat = ClinicalImpressionSchema as unknown as z.ZodTypeAny
 
-    identifier: z.array(z.any()).nullish(),
-    statusReason: z.any().nullish(),
-    code: z.any().nullish(),
-    assessor: z.any().nullish(),
-    previousImpression: z.any().nullish(),
-
-    problem: z.array(z.any()).nullish(),
-    investigation: z.array(z.any()).nullish(),
-    protocol: z.array(z.string()).nullish(),
-    finding: z.array(z.any()).nullish(),
-    prognosisCodeableConcept: z.array(z.any()).nullish(),
-    prognosisReference: z.array(z.any()).nullish(),
-    supportingInfo: z.array(z.any()).nullish(),
-    note: z.array(z.any()).nullish(),
+export const ClinicalImpressionSchemaPayload = ClinicalImpressionSchema.extend({
+    id: z.string().optional().nullable(),
+    status: z.string().default('in-progress'),
+    subjectId: z.string().optional().nullable(),
+    encounterId: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    summary: z.string().optional().nullable(),
+    effectiveDateTime: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    effectivePeriodStart: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    effectivePeriodEnd: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    date: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    subject: z.any().optional().nullable(),
+    encounter: z.any().optional().nullable(),
+    assessor: z.any().optional().nullable(),
+    code: z.any().optional().nullable(),
+    problem: z.array(z.any()).optional().nullable(),
+    investigation: z.array(z.any()).optional().nullable(),
+    finding: z.array(z.any()).optional().nullable(),
+    note: z.array(z.any()).optional().nullable(),
 }).passthrough()
 
 export const schemas = {
@@ -39,43 +35,35 @@ export const schemas = {
             encounterId: z.string()
         }),
         result: BaseResultSchema.extend({
-            data: z.array(ClinicalImpressionPropsSchema).optional(),
+            data: z.array(ClinicalImpressionSchemaCompat).optional().nullable(),
             total: z.number().optional()
         })
     },
     create: {
-        args: z.object({
-            encounterId: z.string().optional(),
-            subjectId: z.string().optional(),
-            subject: z.any().optional(),
-            encounter: z.any().optional(),
-            status: z.string().default('in-progress'),
-            description: z.string().optional(),
-            summary: z.string().optional(),
-            effectiveDateTime: z.string().optional(),
-            date: z.string().optional(),
-            assessor: z.any().optional(),
-            code: z.any().optional(),
-            problem: z.array(z.any()).optional(),
-            investigation: z.array(z.any()).optional(),
-            finding: z.array(z.any()).optional(),
-            note: z.array(z.any()).optional()
-        }).passthrough(),
+        args: ClinicalImpressionSchemaPayload,
         result: BaseResultSchema.extend({
-            data: ClinicalImpressionPropsSchema.optional()
+            data: ClinicalImpressionSchemaCompat.optional().nullable()
         })
     },
     list: {
-        args: z.any().optional(),
+        args: z.object({
+            subjectId: z.string().optional(),
+            encounterId: z.string().optional(),
+            status: z.string().optional(),
+            limit: z.union([z.string(), z.number()]).optional(),
+            offset: z.union([z.string(), z.number()]).optional()
+        }).optional(),
         result: BaseResultSchema.extend({
-            data: z.array(ClinicalImpressionPropsSchema).optional(),
+            data: z.array(ClinicalImpressionSchemaCompat).optional().nullable(),
             total: z.number().optional()
         })
     },
     update: {
-        args: z.any(),
+        args: ClinicalImpressionSchemaPayload.extend({
+            id: z.string()
+        }),
         result: BaseResultSchema.extend({
-            data: ClinicalImpressionPropsSchema.optional()
+            data: ClinicalImpressionSchemaCompat.optional().nullable()
         })
     },
     deleteById: {
@@ -89,7 +77,7 @@ export const schemas = {
             id: z.string()
         }),
         result: BaseResultSchema.extend({
-            data: ClinicalImpressionPropsSchema.optional()
+            data: ClinicalImpressionSchemaCompat.optional().nullable()
         })
     }
 } as const
@@ -124,7 +112,7 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
     try {
         const client = getClient(ctx)
         const params = new URLSearchParams(args as any).toString()
-        const res = await client.get(`/api/module/clinical-impression?${params}`)
+        const res = await client.get(`/api/module/clinical-impression${params ? `?${params}` : ''}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
         return raw as any
     } catch (err) {

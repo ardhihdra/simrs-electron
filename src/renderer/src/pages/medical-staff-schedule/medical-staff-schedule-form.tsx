@@ -1,11 +1,11 @@
-import { Button, Card, Checkbox, Divider, Form, Select, Tag, TimePicker } from 'antd'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router'
-import { useEffect } from 'react'
+import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
 import { queryClient } from '@renderer/query-client'
 import { client } from '@renderer/utils/client'
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import { Button, Card, Checkbox, Divider, Form, Select, Tag, TimePicker } from 'antd'
 import dayjs from 'dayjs'
+import { useEffect } from 'react'
+import { useNavigate, useParams } from 'react-router'
 import { BackendResponse, MedicalStaffScheduleSchemaWithId } from 'simrs-types'
 
 interface DaySchedule {
@@ -106,6 +106,7 @@ export function MedicalStaffScheduleForm() {
 
   const createMutation = useMutation({
     mutationKey: ['medicalStaffSchedule', 'create'],
+    // @ts-ignore - for now
     mutationFn: (data: MedicalStaffScheduleFormData) => {
       const fn = window.api?.query?.medicalStaffSchedule?.create
       if (!fn)
@@ -129,6 +130,7 @@ export function MedicalStaffScheduleForm() {
 
   const updateMutation = useMutation({
     mutationKey: ['medicalStaffSchedule', 'update'],
+    // @ts-ignore - for now
     mutationFn: (data: MedicalStaffScheduleFormData & { id: number }) => {
       const fn = window.api?.query?.medicalStaffSchedule?.update
       if (!fn)

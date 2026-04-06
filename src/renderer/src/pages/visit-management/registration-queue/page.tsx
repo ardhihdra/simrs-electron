@@ -1,4 +1,5 @@
-import { CheckCircleOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons'
+import { CheckCircleOutlined, EyeOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons'
+import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
 import CallQueueModal from '@renderer/components/organisms/visit-management/CallQueueModal'
@@ -7,11 +8,57 @@ import DischargeModal from '@renderer/components/organisms/visit-management/Disc
 import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { App, DatePicker, Form, Input, Modal, Tag } from 'antd'
+import { App, Button, DatePicker, Form, Input, Modal, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useParams } from 'react-router'
+
+type QueueRow = {
+  id?: string
+  queueId?: string
+  formattedQueueNumber?: string
+  queueNumber?: string | number
+  queueDate?: string
+  createdAt?: string
+  patientId?: string
+  patientName?: string
+  patientBirthDate?: string | Date
+  patientMedicalRecordNumber?: string
+  patientGender?: string
+  poliName?: string
+  serviceUnitName?: string
+  doctorName?: string
+  paymentMethod?: string
+  status?: string
+  noSep?: string
+  sepStatus?: string
+  sepId?: string
+  encounterId?: string
+}
+
+const mapQueueRowToPatientInfoCardData = (record: QueueRow) => {
+  const birthDate = record.patientBirthDate ? dayjs(record.patientBirthDate) : null
+  const age = birthDate && birthDate.isValid() ? dayjs().diff(birthDate, 'year') : null
+
+  return {
+    patient: {
+      medicalRecordNumber: record.patientMedicalRecordNumber || '-',
+      name: record.patientName || 'Belum ada pasien',
+      gender: record.patientGender || null,
+      age
+    },
+    poli: {
+      name: record.poliName || record.serviceUnitName || '-'
+    },
+    doctor: {
+      name: record.doctorName || '-'
+    },
+    visitDate: record.createdAt || record.queueDate,
+    paymentMethod: record.paymentMethod || 'Umum',
+    status: record.status
+  }
+}
 
 export default function RegistrationQueue({
   practitionerId: propPractitionerId
@@ -38,6 +85,9 @@ export default function RegistrationQueue({
   const [referralModal, setReferralModal] = useState<{ open: boolean; record?: any }>({
     open: false
   })
+  const [detailModal, setDetailModal] = useState<{ open: boolean; record?: QueueRow }>({
+    open: false
+  })
 
   const { message } = App.useApp()
 
@@ -60,8 +110,6 @@ export default function RegistrationQueue({
     ],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
-  console.log('searchParams', searchParams)
-  console.log('queueData', queueData)
 
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
   const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()
@@ -108,17 +156,17 @@ export default function RegistrationQueue({
     }
   }
 
-  const handleTriageDone = async (record: any) => {
-    try {
-      await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'TRIAGE_DONE' })
-      message.success(`Status antrian ${record.formattedQueueNumber} diperbarui: TRIAGED`)
-      refetch()
-    } catch (error: any) {
-      message.error(error.message || 'Gagal memperbarui status')
-    }
-  }
+  // const handleTriageDone = async (record: any) => {
+  //   try {
+  //     await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'TRIAGE_DONE' })
+  //     message.success(`Status antrian ${record.formattedQueueNumber} diperbarui: TRIAGED`)
+  //     refetch()
+  //   } catch (error: any) {
+  //     message.error(error.message || 'Gagal memperbarui status')
+  //   }
+  // }
 
-  const columns: ColumnsType<any> = [
+  const columns: ColumnsType<QueueRow> = [
     {
       title: 'No. Antrian',
       dataIndex: 'formattedQueueNumber',
@@ -184,7 +232,26 @@ export default function RegistrationQueue({
         }
         return <Tag color={colorMap[status] ?? 'default'}>{status}</Tag>
       }
-    }
+    },
+    {
+      title: 'Detail',
+      key: 'detail',
+      width: 120,
+      align: 'center',
+      render: (_, record) => (
+        <Button
+          type="link"
+          size="small"
+          icon={<EyeOutlined />}
+          onClick={(event) => {
+            event.stopPropagation()
+            setDetailModal({ open: true, record })
+          }}
+        >
+          Detail Pasien
+        </Button>
+      )
+    },
   ]
 
   const onSearch = (values: any) => {
@@ -224,15 +291,16 @@ export default function RegistrationQueue({
             width: 150,
             items: (record) => {
               const actions: any[] = []
+              const status = record.status ?? ''
 
-              if (record.status === 'PRE_RESERVED') {
+              if (status === 'PRE_RESERVED') {
                 actions.push({
                   label: 'Konfirmasi',
                   icon: <CheckCircleOutlined />,
                   type: 'primary',
                   onClick: () => setConfirmModal({ open: true, queue: record })
                 })
-              } else if (['RESERVED', 'REGISTERED'].includes(record.status)) {
+              } else if (['RESERVED', 'REGISTERED'].includes(status)) {
                 actions.push({
                   label: 'Panggil',
                   icon: <SoundOutlined />,
@@ -245,32 +313,33 @@ export default function RegistrationQueue({
                   type: 'primary',
                   onClick: () => setCallModal({ open: true, record })
                 })
-              } else if (record.status === 'TRIAGED') {
-                actions.push({
-                  label: 'Panggil ke Poli',
-                  icon: <SoundOutlined />,
-                  type: 'primary',
-                  onClick: () => handleTriagedCallToPoli(record)
-                })
-              } else if (record.status === 'IN_PROGRESS') {
-                actions.push(
-                  {
-                    label: 'Pulangkan',
-                    icon: <CheckCircleOutlined />,
-                    onClick: () => setDischargeModal({ open: true, record })
-                  },
-                  {
-                    label: 'Rujuk',
-                    icon: <FileTextOutlined />,
-                    onClick: () => setReferralModal({ open: true, record })
-                  },
-                  {
-                    label: 'Batal',
-                    danger: true,
-                    onClick: () => handleCancelEncounter(record)
-                  }
-                )
               }
+              // } else if (record.status === 'TRIAGED') {
+              //   actions.push({
+              //     label: 'Panggil ke Poli',
+              //     icon: <SoundOutlined />,
+              //     type: 'primary',
+              //     onClick: () => handleTriagedCallToPoli(record)
+              //   })
+              // } else if (record.status === 'IN_PROGRESS') {
+              //   actions.push(
+              //     {
+              //       label: 'Pulangkan',
+              //       icon: <CheckCircleOutlined />,
+              //       onClick: () => setDischargeModal({ open: true, record })
+              //     },
+              //     {
+              //       label: 'Rujuk',
+              //       icon: <FileTextOutlined />,
+              //       onClick: () => setReferralModal({ open: true, record })
+              //     },
+              //     {
+              //       label: 'Batal',
+              //       danger: true,
+              //       onClick: () => handleCancelEncounter(record)
+              //     }
+              //   )
+              // }
 
               if (record.paymentMethod === 'bpjs' && record.patientId && !record.sepId) {
                 actions.push({
@@ -280,14 +349,15 @@ export default function RegistrationQueue({
                 })
               }
 
-              if (record.status === 'TRIAGE') {
-                actions.push({
-                  label: 'Triage Selesai',
-                  icon: <CheckCircleOutlined />,
-                  type: 'primary',
-                  onClick: () => handleTriageDone(record)
-                })
-              }
+              // only nurse can confirm triage action
+              // if (record.status === 'TRIAGE') {
+              //   actions.push({
+              //     label: 'Triage Selesai',
+              //     icon: <CheckCircleOutlined />,
+              //     type: 'primary',
+              //     onClick: () => handleTriageDone(record)
+              //   })
+              // }
 
               return actions
             }
@@ -330,6 +400,22 @@ export default function RegistrationQueue({
         onClose={() => setReferralModal({ open: false, record: undefined })}
         onSuccess={() => refetch()}
       />
+
+      <Modal
+        open={detailModal.open}
+        title="Detail Pasien"
+        onCancel={() => setDetailModal({ open: false, record: undefined })}
+        footer={null}
+        // destroyOnClose
+        width={920}
+      >
+        {detailModal.record ? (
+          <PatientInfoCard
+            patientData={mapQueueRowToPatientInfoCardData(detailModal.record)}
+            sections={{ showIdentityNumber: false, showAllergies: false }}
+          />
+        ) : null}
+      </Modal>
     </div>
   )
 }

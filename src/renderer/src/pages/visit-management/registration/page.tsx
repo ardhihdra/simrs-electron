@@ -17,6 +17,11 @@ import dayjs from 'dayjs'
 import { useState } from 'react'
 import CreateQueueModal from '@renderer/components/organisms/visit-management/CreateQueueModal'
 
+type RegistrationPatientRow = PatientAttributes & {
+  no: number
+  religion?: string | null
+}
+
 export default function RegistrationPage() {
   const [searchParams, setSearchParams] = useState({ nik: '', name: '', medicalRecordNumber: '' })
   const [openModal, setOpenModal] = useState(false)
@@ -38,7 +43,7 @@ export default function RegistrationPage() {
     medicalRecordNumber: debouncedMrn
   })
 
-  const columns: ColumnsType<PatientAttributes & { no: number }> = [
+  const columns: ColumnsType<RegistrationPatientRow> = [
     { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
     { title: 'RM', dataIndex: 'medicalRecordNumber', key: 'medicalRecordNumber' },
     { title: 'NIK', dataIndex: 'nik', key: 'nik' },
@@ -50,6 +55,12 @@ export default function RegistrationPage() {
       render: (value: string) => (value === 'male' ? 'Laki-laki' : 'Perempuan')
     },
     {
+      title: 'Agama',
+      dataIndex: 'religion',
+      key: 'religion',
+      render: (value?: string | null) => value || '-'
+    },
+    {
       title: 'Tgl Lahir',
       dataIndex: 'birthDate',
       key: 'birthDate',
@@ -58,7 +69,11 @@ export default function RegistrationPage() {
     { title: 'Alamat', dataIndex: 'address', key: 'address' }
   ]
 
-  const dataSource = (patientData?.result || []).map((item, idx) => ({ ...item, no: idx + 1 }))
+  const dataSource: RegistrationPatientRow[] = (patientData?.result || []).map((item, idx) => ({
+    ...item,
+    religion: (item as { religion?: string | null }).religion,
+    no: idx + 1
+  }))
 
   const handleCreateEmptyQueue = (showDate = true) => {
     setShowDate(showDate)

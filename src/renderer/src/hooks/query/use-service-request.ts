@@ -122,13 +122,13 @@ export const useCreateServiceRequest = ({
   return { createServiceRequest, isSubmitting }
 }
 
-export const useServiceRequestByEncounter = (encounterId?: string) => {
+export const useServiceRequestByEncounter = (encounterId?: string, includeChildrenEncounter?: boolean) => {
   return useQuery({
-    queryKey: ['service-request', 'by-encounter', encounterId],
+    queryKey: ['service-request', 'by-encounter', encounterId, includeChildrenEncounter],
     queryFn: () => {
       const fn = window.api?.query?.serviceRequest?.getByEncounter
       if (!fn || !encounterId) throw new Error('API serviceRequest tidak tersedia')
-      return fn({ encounterId })
+      return fn({ encounterId, includeChildrenEncounter })
     },
     enabled: !!encounterId
   })

@@ -10,6 +10,7 @@ import { App, Button, Card, Form, Radio, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
+import { handleFormValidationFailed, showApiError } from '@renderer/utils/form-feedback'
 
 interface FallRiskAssessmentFormProps {
   encounterId: string
@@ -27,7 +28,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
 
   const { data: observationRaw, isLoading } = useQueryObservationByEncounter(encounterId)
   const observationData = useMemo(
-    () => observationRaw?.result || { all: [], grouped: { vitalSigns: [], anamnesis: [], physicalExam: [], other: [] } },
+    () => observationRaw?.result || [],
     [observationRaw]
   )
 
@@ -123,7 +124,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
   )
 
   useEffect(() => {
-    const result = observationData ? observationData?.all : []
+    const result = Array.isArray(observationData) ? observationData : []
     if (result && result.length > 0) {
       const sortedObs = [...result].sort(
         (a: any, b: any) =>
@@ -272,7 +273,7 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
     },
     onError: (err) => {
       console.error('Failed to save fall risk assessment:', err)
-      message.error(`Gagal menyimpan data: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      showApiError(message, err, 'Gagal menyimpan data asesmen risiko jatuh')
     }
   })
 
@@ -342,9 +343,13 @@ export const FallRiskAssessmentForm = ({ encounterId, patientId }: FallRiskAsses
       onFinish={(values) => {
         saveMutation.mutate(values)
       }}
-      onFinishFailed={() => {
-        message.error('Mohon lengkapi semua field yang wajib diisi')
-      }}
+      onFinishFailed={(errorInfo) =>
+        handleFormValidationFailed(message, errorInfo, {
+          form,
+          fallbackMessage: 'Mohon lengkapi field yang wajib diisi.'
+        })
+      }
+      scrollToFirstError={{ behavior: 'smooth', block: 'center' }}
     >
       <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
 

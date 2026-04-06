@@ -1,12 +1,8 @@
 import { IpcContext } from '@main/ipc/router'
 import { EncounterSchemaWithId } from '@main/models/encounter'
 import { BackendListSchema, getClient, parseBackendResponse } from '@main/utils/backendClient'
-import { EncounterSchema } from 'simrs-types'
+import { EncounterSchema, QueueTicketSchema } from 'simrs-types'
 import z from 'zod'
-
-// ---------------------------------------------------------------------------
-// Shared sub-schemas
-// ---------------------------------------------------------------------------
 
 const SyncLogSchema = z.object({
   internalResourceId: z.string(),
@@ -71,7 +67,14 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
       medicalRecordNumber: z.string().optional().nullable(),
       gender: z.string().optional().nullable(),
       birthDate: z.union([z.string(), z.date()]).optional().nullable(),
-      nik: z.string().optional().nullable()
+      nik: z.string().optional().nullable(),
+      address: z.string().optional().nullable(),
+      religion: z.string().optional().nullable(),
+      relatedPerson: z.array(z.any()).optional(),
+      phone: z.string().optional().nullable(),
+      email: z.string().optional().nullable(),
+      fhirId: z.string().optional().nullable(),
+      ihsNumber: z.string().optional().nullable()
     })
     .optional()
     .nullable(),
@@ -91,6 +94,7 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
       registrationChannelCodeId: z.string().optional(),
       assuranceCodeId: z.string().optional(),
       practitionerId: z.union([z.string(), z.number()]).nullable().optional(),
+      formattedQueueNumber: z.string().optional().nullable(),
       poli: z
         .object({
           id: z.number().optional(),
@@ -103,13 +107,8 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
     })
     .nullable()
     .optional(),
-  labServiceRequests: z.array(z.any()).optional(),
   satuSehatSyncStatus: SatuSehatSyncStatusSchema
 })
-
-// ---------------------------------------------------------------------------
-// Schemas (IPC contract)
-// ---------------------------------------------------------------------------
 
 export const EncounterSchemaPayload = EncounterSchema.extend({
   id: z.string().nullable().optional(),
@@ -319,7 +318,7 @@ export const list = async (ctx: IpcContext, args?: Record<string, unknown>) => {
     const transformedResult = Array.isArray(Result)
       ? Result.map((encounter: any) => ({
           ...encounter,
-          visitDate: encounter.startTime || encounter.visitDate || new Date().toISOString(),
+          visitDate: encounter.startTime || encounter.visitDate,
           serviceType: encounter.serviceUnitId || encounter.serviceType || '-',
           status: encounter.status ? String(encounter.status) : 'UNKNOWN'
         }))
@@ -683,15 +682,40 @@ export const getPatientEncountersPg = async (
       `/api/module/encounter/patient/${args.patientId}/encounters?${queryParams.toString()}`
     )
 
-    const schema = z.object({
-      success: z.boolean(),
+    const raw = (await res
+      .json()
+      .catch(() => ({ success: false, error: `HTTP ${res.status}` }))) as Record<string, unknown>
+
+    if (!res.ok || raw?.success !== true) {
+      const rawError = raw?.error
+      const msg =
+        typeof rawError === 'string'
+          ? rawError
+          : Array.isArray(rawError)
+            ? JSON.stringify(rawError)
+            : rawError && typeof rawError === 'object'
+              ? JSON.stringify(rawError)
+              : typeof raw?.message === 'string'
+                ? raw.message
+                : `HTTP ${res.status}`
+
+      console.error('[PATIENT ENCOUNTERS PG] Backend error:', msg)
+      return { success: false, result: null, error: msg }
+    }
+
+    const successSchema = z.object({
+      success: z.literal(true),
       result: schemas.getPatientEncountersPg.result.shape.result,
       message: z.string().optional(),
       error: z.any().optional()
     })
 
-    const parsedResult = (await parseBackendResponse(res, schema)) as any
-    return { success: true, result: parsedResult }
+    const parsed = successSchema.safeParse(raw)
+    if (!parsed.success) {
+      return { success: false, result: null, error: parsed.error.message }
+    }
+
+    return { success: true, result: parsed.data.result }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[PATIENT ENCOUNTERS PG] Error:', msg)

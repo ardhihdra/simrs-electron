@@ -156,10 +156,10 @@ export default function LaboratoryQueue() {
   })
 
   const filteredData = useMemo<EncounterRow[]>(() => {
-    const data = normalizeList<EncounterRow>(encountersData)
+    const data = encountersData ? normalizeList<EncounterRow>(encountersData) : []
     if (!searchText) return data
 
-    return data.filter(
+    return data?.filter(
       (item) =>
         (item.patientName || item.patient?.name)
           ?.toLowerCase()
@@ -199,7 +199,9 @@ export default function LaboratoryQueue() {
     {
       title: 'Poli Asal',
       key: 'poli',
-      render: (_, record) => <span>{record.poli?.name || record.queueTicket?.poli?.name || '-'}</span>
+      render: (_, record) => (
+        <span>{record.poli?.name || record.queueTicket?.poli?.name || '-'}</span>
+      )
     },
     {
       title: 'Waktu Mulai',
@@ -373,7 +375,11 @@ export default function LaboratoryQueue() {
         payload.endTime = dayjs().toISOString()
       }
 
-      await updateEncounterStatus(String(selectedEncounter.id), values.status as EncounterStatusValue, payload)
+      await updateEncounterStatus(
+        String(selectedEncounter.id),
+        values.status as EncounterStatusValue,
+        payload
+      )
 
       message.success('Status encounter berhasil diperbarui')
       closeStatusModal()
@@ -418,6 +424,7 @@ export default function LaboratoryQueue() {
     setIsModalOpen(false)
   }
 
+  console.log('filterData', filteredData)
   return (
     <div className="p-4">
       <TableHeader

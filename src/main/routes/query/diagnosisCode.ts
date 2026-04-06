@@ -5,20 +5,9 @@ import {
     BackendListSchema,
     getClient
 } from '@main/utils/backendClient'
+import { DiagnosisCodeSchema } from 'simrs-types'
 
-export const requireSession = true
-
-// DiagnosisCode schema
-const DiagnosisCodeSchema = z.object({
-    id: z.number(),
-    system: z.string(),
-    code: z.string(),
-    url: z.string(),
-    display: z.string(),
-    idDisplay: z.string(),
-    createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
-})
+const DiagnosisCodeSchemaCompat = DiagnosisCodeSchema as unknown as z.ZodTypeAny
 
 export const schemas = {
     list: {
@@ -35,7 +24,7 @@ export const schemas = {
         args: z.object({ id: z.number() }),
         result: z.object({
             success: z.boolean(),
-            result: DiagnosisCodeSchema.optional(),
+            result: DiagnosisCodeSchemaCompat.optional(),
             error: z.string().optional()
         })
     }
@@ -49,7 +38,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         if (args?.page) params.append('page', args.page.toString())
         if (args?.items) params.append('items', args.items.toString())
         if (args?.q) params.append('q', args.q)
-        if (args?.search) params.append('q', args.search) // Map search to q
+        if (args?.search) params.append('q', args.search)
         if (args?.code) params.append('code', args.code)
 
         const queryString = params.toString()
@@ -57,7 +46,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 
         const res = await client.get(url)
 
-        const ListSchema = BackendListSchema(DiagnosisCodeSchema)
+        const ListSchema = BackendListSchema(DiagnosisCodeSchemaCompat)
         const result = await parseBackendResponse(res, ListSchema)
 
         return { success: true, ...result }
@@ -74,7 +63,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
 
         const BackendReadSchema = z.object({
             success: z.boolean(),
-            result: DiagnosisCodeSchema.optional().nullable(),
+            result: DiagnosisCodeSchemaCompat.optional().nullable(),
             message: z.string().optional(),
             error: z.any().optional()
         })

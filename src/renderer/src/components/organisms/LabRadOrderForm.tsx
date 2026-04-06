@@ -164,7 +164,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   const { profile } = useMyProfile()
   const { message } = App.useApp()
 
-  const { data: serviceRequestData, isLoading, isError } = useServiceRequestByEncounter(encounterId)
+  const { data: serviceRequestData, isLoading, isError } = useServiceRequestByEncounter(encounterId, true)
   const selectedCategory = Form.useWatch('category', form) as
     | 'laboratory'
     | 'radiology'
@@ -192,7 +192,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   )
 
   const childEncounterIds = useMemo(() => {
-    const encounters = normalizeList<EncounterListItem>(encounterListData)
+    const encounters = normalizeList<EncounterListItem>(encounterListData) ?? []
     return Array.from(
       new Set(
         encounters
@@ -222,31 +222,31 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
     return null
   }, [encounterListData, encounterId])
 
-  const {
-    data: childEncounterServiceRequests,
-    isLoading: isLoadingChildServiceRequests,
-    isError: isErrorChildServiceRequests
-  } = useQuery({
-    queryKey: ['service-request', 'by-child-encounters', childEncounterIds],
-    enabled: childEncounterIds.length > 0,
-    queryFn: async () => {
-      const fn = window.api?.query?.serviceRequest?.getByEncounter
-      if (!fn) throw new Error('API serviceRequest tidak tersedia')
+  // const {
+  //   data: childEncounterServiceRequests,
+  //   isLoading: isLoadingChildServiceRequests,
+  //   isError: isErrorChildServiceRequests
+  // } = useQuery({
+  //   queryKey: ['service-request', 'by-child-encounters', childEncounterIds],
+  //   enabled: childEncounterIds.length > 0,
+  //   queryFn: async () => {
+  //     const fn = window.api?.query?.serviceRequest?.getByEncounter
+  //     if (!fn) throw new Error('API serviceRequest tidak tersedia')
 
-      const allResults = await Promise.all(
-        childEncounterIds.map(async (childEncounterId) => {
-          const response = await fn({ encounterId: childEncounterId })
-          const result = Array.isArray(response?.result) ? response.result : []
-          return result.map((item: ServiceRequestRow) => ({
-            ...item,
-            encounterId: childEncounterId
-          }))
-        })
-      )
+  //     const allResults = await Promise.all(
+  //       childEncounterIds.map(async (childEncounterId) => {
+  //         const response = await fn({ encounterId: childEncounterId })
+  //         const result = Array.isArray(response?.result) ? response.result : []
+  //         return result.map((item: ServiceRequestRow) => ({
+  //           ...item,
+  //           encounterId: childEncounterId
+  //         }))
+  //       })
+  //     )
 
-      return allResults.flat()
-    }
-  })
+  //     return allResults.flat()
+  //   }
+  // })
 
   const activePractitionerId = Number(profile?.id ?? patientData.doctor?.id ?? NaN)
   const activePractitionerName = patientData.doctor?.name || profile?.username || 'Dokter Pengirim'
@@ -303,10 +303,11 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
           encounterId
         }))
       : []
-    const childOrders = Array.isArray(childEncounterServiceRequests)
-      ? childEncounterServiceRequests
-      : []
-    const merged = [...parentOrders, ...childOrders]
+    // const childOrders = Array.isArray(childEncounterServiceRequests)
+    //   ? childEncounterServiceRequests
+    //   : []
+    const merged = parentOrders
+    // const merged = [...parentOrders, ...childOrders]
 
     return merged.sort((a, b) => {
       const left = dayjs(a.createdAt).valueOf()
@@ -315,7 +316,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
       const rightSafe = Number.isFinite(right) ? right : 0
       return rightSafe - leftSafe
     })
-  }, [serviceRequestData?.result, childEncounterServiceRequests, encounterId])
+  }, [serviceRequestData?.result, encounterId])
 
   const handleSubmit = async () => {
     try {
@@ -428,11 +429,11 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
             </Button>
           )}
         </div>
-        {isLoading || isLoadingEncounterList || isLoadingChildServiceRequests ? (
+        {isLoading || isLoadingEncounterList ? (
           <div className="flex justify-center py-4">
             <Spin />
           </div>
-        ) : isError || isErrorEncounterList || isErrorChildServiceRequests ? (
+        ) : isError || isErrorEncounterList ? (
           <Alert
             type="error"
             message="Gagal memuat data pemeriksaan encounter parent/sub encounter"

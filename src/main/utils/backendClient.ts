@@ -32,7 +32,15 @@ export function createBackendClient(ctx: IpcContext) {
   }
 
   return {
-    get: (path: string) => fetch(`${root}${path}`, { headers }),
+    get: (path: string, params?: Record<string, string>) => {
+      const url = new URL(`${root}${path}`)
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          url.searchParams.append(key, value)
+        })
+      }
+      return fetch(url.toString(), { headers })
+    },
 
     post: (path: string, body: unknown) =>
       fetch(`${root}${path}`, {

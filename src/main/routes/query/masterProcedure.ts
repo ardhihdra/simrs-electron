@@ -5,24 +5,10 @@ import {
     BackendListSchema,
     getClient
 } from '@main/utils/backendClient'
+import { MasterProcedureSchema } from 'simrs-types'
 
 export const requireSession = true
-
-// MasterProcedure schema
-const MasterProcedureSchema = z.object({
-    id: z.number(),
-    code: z.string(),
-    name: z.string(),
-    description: z.string().optional().nullable(),
-    coding_system_id: z.number().optional().nullable(),
-    system: z.string(),
-    url: z.string(),
-    display: z.string(),
-    id_display: z.string(),
-    status: z.string(),
-    createdAt: z.union([z.string(), z.date()]).optional(),
-    updatedAt: z.union([z.string(), z.date()]).optional()
-})
+const MasterProcedureSchemaCompat = MasterProcedureSchema as unknown as z.ZodTypeAny
 
 export const schemas = {
     list: {
@@ -40,7 +26,7 @@ export const schemas = {
         args: z.object({ id: z.number() }),
         result: z.object({
             success: z.boolean(),
-            result: MasterProcedureSchema.optional(),
+            result: MasterProcedureSchemaCompat.optional(),
             error: z.string().optional()
         })
     }
@@ -63,7 +49,7 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
 
         const res = await client.get(url)
 
-        const ListSchema = BackendListSchema(MasterProcedureSchema)
+        const ListSchema = BackendListSchema(MasterProcedureSchemaCompat)
         const result = await parseBackendResponse(res, ListSchema)
 
         return { success: true, ...result }
@@ -80,7 +66,7 @@ export const getById = async (ctx: IpcContext, args: z.infer<typeof schemas.getB
 
         const BackendReadSchema = z.object({
             success: z.boolean(),
-            result: MasterProcedureSchema.optional().nullable(),
+            result: MasterProcedureSchemaCompat.optional().nullable(),
             message: z.string().optional(),
             error: z.any().optional()
         })

@@ -44,12 +44,16 @@ export interface PatientQueue {
     patient: Patient
     poli: Poli
     doctor: Doctor
-    status: PatientStatus
+    status: PatientStatus | string
     registrationDate: string
     calledAt?: string
     examinedAt?: string
     completedAt?: string
     encounterId?: string
+    queueId?: string
+    visitDate?: string
+    paymentMethod?: string
+    allergies?: string
 }
 
 export interface VitalSigns {

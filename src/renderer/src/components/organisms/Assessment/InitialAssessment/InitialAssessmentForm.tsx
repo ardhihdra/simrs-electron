@@ -26,6 +26,7 @@ import { ScreeningSection } from '../ScreeningSection'
 import { VitalSignsSection } from '../VitalSignsSection'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { PatientData } from '@renderer/types/doctor.types'
+import { handleFormValidationFailed, showApiError } from '@renderer/utils/form-feedback'
 
 export interface InitialAssessmentFormProps {
   encounterId: string
@@ -136,7 +137,7 @@ export const InitialAssessmentForm = ({
                   ]
                 : [])
             ]
-          } as any)
+          })
         }
         if (vitalSigns?.diastolicBloodPressure) {
           obsToCreate.push({
@@ -178,7 +179,7 @@ export const InitialAssessmentForm = ({
             bodySites: vitalSigns.pulseRateBodySite
               ? [{ code: vitalSigns.pulseRateBodySite, display: vitalSigns.pulseRateBodySite }]
               : undefined
-          } as any)
+          })
         }
         if (vitalSigns?.respiratoryRate) {
           obsToCreate.push({
@@ -207,7 +208,7 @@ export const InitialAssessmentForm = ({
             methods: vitalSigns.temperatureMethod
               ? [{ code: vitalSigns.temperatureMethod, display: vitalSigns.temperatureMethod }]
               : undefined
-          } as any)
+          })
         }
         if (vitalSigns?.oxygenSaturation) {
           obsToCreate.push({
@@ -247,6 +248,14 @@ export const InitialAssessmentForm = ({
             ]
           })
         }
+        if (vitalSigns?.bsa) {
+          obsToCreate.push({
+            category: OBSERVATION_CATEGORIES.VITAL_SIGNS,
+            code: '8277-6',
+            display: 'Luas Permukaan Tubuh',
+            valueQuantity: { value: vitalSigns.bsa, unit: 'm2' }
+          })
+        }
       }
 
       if (values.consciousness) {
@@ -267,7 +276,7 @@ export const InitialAssessmentForm = ({
                 ]
               }
             : undefined
-        } as any)
+        })
       }
 
       if (mode === 'inpatient') {
@@ -491,24 +500,33 @@ export const InitialAssessmentForm = ({
       form.setFieldValue('assessment_date', dayjs())
     } catch (error: any) {
       console.error('Error saving assessment:', error)
-      message.error(`Gagal menyimpan asesmen: ${error?.message || 'Error tidak diketahui'}`)
+      showApiError(message, error, 'Gagal menyimpan asesmen')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const onFinishFailed = (errorInfo: any) => {
+  const onFinishFailed = (errorInfo: { errorFields?: Array<{ name?: (string | number)[] }> }) => {
     console.error('Validasi Gagal:', errorInfo)
-    message.error('Mohon lengkapi data yang wajib diisi (tanda vital, dll)')
+    handleFormValidationFailed(message, errorInfo, {
+      form,
+      fallbackMessage: 'Mohon lengkapi field yang wajib diisi.'
+    })
   }
 
   useEffect(() => {
-    const observations = response?.result?.all
+    const observations = Array.isArray(response?.result) 
+      ? response.result 
+      : response?.result;
 
     if (response?.success && observations && observations.length > 0) {
-      const summary = formatObservationSummary(observations || [], [])
+      const summary = formatObservationSummary(
+        (observations || []) as Parameters<typeof formatObservationSummary>[0],
+        []
+      )
       const {
         vitalSigns,
+        physicalExamination,
         painAssessment,
         fallRisk,
         functionalStatus,
@@ -538,6 +556,7 @@ export const InitialAssessmentForm = ({
         height: vitalSigns.height,
         weight: vitalSigns.weight,
         bmi: vitalSigns.bmi,
+        bsa: vitalSigns.bsa,
         temperatureMethod: vitalSigns.temperatureMethod || 'Axillary',
         bloodPressureBodySite: vitalSigns.bloodPressureBodySite || 'Left arm',
         bloodPressurePosition:
@@ -546,10 +565,12 @@ export const InitialAssessmentForm = ({
         pulseRateBodySite: vitalSigns.pulseRateBodySite || 'Radial'
       }
       setLoadedVitals(loadedVitalSigns)
+      const loadedConsciousness =
+        physicalExamination.consciousness || screening.consciousness_level || undefined
 
       form.setFieldsValue({
         vitalSigns: loadedVitalSigns,
-        consciousness: screening.consciousness_level || 'Compos Mentis', // Load saved consciousness if available
+        consciousness: loadedConsciousness,
         assessment_date: examinationDate ? dayjs(examinationDate) : dayjs(),
         ...(preloadedPerformerId ? { performerId: Number(preloadedPerformerId) } : {})
       })
@@ -611,6 +632,7 @@ export const InitialAssessmentForm = ({
       layout="vertical"
       onFinish={handleFinish}
       onFinishFailed={onFinishFailed}
+      scrollToFirstError={{ behavior: 'smooth', block: 'center' }}
       className="flex flex-col gap-4"
       autoComplete="off"
       initialValues={{
@@ -668,7 +690,6 @@ export const InitialAssessmentForm = ({
               type="primary"
               htmlType="submit"
               icon={<SaveOutlined />}
-              size="large"
               disabled={isSubmitting}
             >
               Simpan Asesmen

@@ -1,100 +1,59 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import { getClient } from '@main/utils/backendClient'
+import {
+    CarePlanSchema,
+    CarePlanActivitySchema,
+    CarePlanNoteSchema,
+    CarePlanCategorySchema,
+    CarePlanAddressSchema,
+    CarePlanGoalSchema
+} from 'simrs-types'
 
 export const requireSession = true
 
-const CarePlanActivitySchema = z.object({
-    kind: z.string().nullish(),
-    code: z.string().nullish(),
-    codeDisplay: z.string().nullish(),
-    codeSystem: z.string().nullish(),
+const CarePlanSchemaCompat = CarePlanSchema as unknown as z.ZodTypeAny
+
+export const CarePlanSchemaPayload = CarePlanSchema.extend({
+    id: z.string().optional().nullable(),
+    encounterId: z.string(),
+    subjectId: z.string().optional().nullable(),
     status: z.string(),
-    description: z.string().nullish(),
-    scheduledPeriodStart: z.string().nullish(),
-    scheduledPeriodEnd: z.string().nullish(),
-    performerId: z.string().nullish(),
-    performerName: z.string().nullish(),
+    intent: z.string(),
+    title: z.string().optional().nullable(),
+    description: z.string().optional().nullable(),
+    periodStart: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    periodEnd: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    created: z.union([z.string(), z.coerce.date()]).optional().nullable(),
+    authorId: z.string().optional().nullable(),
+    authorType: z.string().optional().nullable(),
+    activities: z.array(CarePlanActivitySchema).optional().nullable(),
+    notes: z.array(CarePlanNoteSchema).optional().nullable(),
+    categories: z.array(CarePlanCategorySchema).optional().nullable(),
+    addresses: z.array(CarePlanAddressSchema).optional().nullable(),
+    goals: z.array(CarePlanGoalSchema).optional().nullable(),
+    patientId: z.string(),
+    performerId: z.union([z.number(), z.string(), z.null()]).optional(),
+    performerName: z.string().optional().nullable(),
 })
-
-const CarePlanNoteSchema = z.object({
-    authorId: z.string().nullish(),
-    authorName: z.string().nullish(),
-    time: z.string().nullish(),
-    text: z.string(),
-})
-
-const CarePlanCategorySchema = z.object({
-    code: z.string().nullish(),
-    display: z.string().nullish(),
-    system: z.string().nullish(),
-    text: z.string().nullish(),
-})
-
-const CarePlanAddressSchema = z.object({
-    referenceType: z.string().nullish(),
-    referenceId: z.string().nullish(),
-    display: z.string().nullish(),
-})
-
-const CarePlanGoalSchema = z.object({
-    goalId: z.string().nullish(),
-    display: z.string().nullish(),
-})
-
-const CarePlanSchema = z.object({
-    id: z.string().nullish(),
-    encounterId: z.string().nullish(),
-    subjectId: z.string().nullish(),
-    status: z.string().nullish(),
-    intent: z.string().nullish(),
-    title: z.string().nullish(),
-    description: z.string().nullish(),
-    periodStart: z.string().nullish(),
-    periodEnd: z.string().nullish(),
-    created: z.string().nullish(),
-    authorId: z.string().nullish(),
-    authorType: z.string().nullish(),
-    activities: z.array(CarePlanActivitySchema).nullish(),
-    notes: z.array(CarePlanNoteSchema).nullish(),
-    categories: z.array(CarePlanCategorySchema).nullish(),
-    addresses: z.array(CarePlanAddressSchema).nullish(),
-    goals: z.array(CarePlanGoalSchema).nullish(),
-    createdAt: z.string().nullish(),
-    updatedAt: z.string().nullish(),
-}).passthrough()
 
 export const schemas = {
     getByEncounter: {
         args: z.object({ encounterId: z.string() }),
         result: z.object({
             success: z.boolean(),
-            result: z.array(CarePlanSchema).optional(),
+            result: z.array(CarePlanSchemaCompat).optional().nullable(),
             message: z.string().optional(),
+            error: z.string().optional(),
         }),
     },
     create: {
-        args: z.object({
-            encounterId: z.string(),
-            patientId: z.string(),
-            performerId: z.union([z.number(), z.string(), z.null()]).optional(),
-            performerName: z.string().optional(),
-            status: z.string(),
-            intent: z.string(),
-            title: z.string().optional(),
-            description: z.string().optional(),
-            periodStart: z.string().optional(),
-            periodEnd: z.string().optional(),
-            activities: z.array(CarePlanActivitySchema).optional(),
-            notes: z.array(CarePlanNoteSchema).optional(),
-            categories: z.array(CarePlanCategorySchema).optional(),
-            addresses: z.array(CarePlanAddressSchema).optional(),
-            goals: z.array(CarePlanGoalSchema).optional(),
-        }),
+        args: CarePlanSchemaPayload,
         result: z.object({
             success: z.boolean(),
-            result: CarePlanSchema.optional(),
+            result: CarePlanSchemaCompat.optional().nullable(),
             message: z.string().optional(),
+            error: z.string().optional(),
         }),
     },
     deleteById: {
@@ -102,6 +61,7 @@ export const schemas = {
         result: z.object({
             success: z.boolean(),
             message: z.string().optional(),
+            error: z.string().optional(),
         }),
     },
 } as const

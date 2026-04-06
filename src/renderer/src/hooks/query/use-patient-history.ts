@@ -23,6 +23,7 @@ interface EncountersQueryParams {
     pageSize?: number
     type?: string
     doctorId?: string
+    practitionerId?: string
     dateFrom?: string
     dateTo?: string
 }
@@ -44,6 +45,7 @@ export const usePatientEncountersPg = (params: EncountersQueryParams) => {
                 pageSize: params.pageSize?.toString(),
                 type: params.type,
                 doctorId: params.doctorId,
+                practitionerId: params.practitionerId,
                 dateFrom: params.dateFrom,
                 dateTo: params.dateTo,
             }
