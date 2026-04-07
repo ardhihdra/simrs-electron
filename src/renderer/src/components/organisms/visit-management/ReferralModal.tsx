@@ -131,7 +131,8 @@ export default function ReferralModal({
     const doctors = data?.result?.doctors || data?.data?.doctors || data?.doctors || []
     return doctors.map((d: any) => ({
       value: d.doctorScheduleId,
-      label: `${d.doctorName}${d.timeSlot ? ` (${d.timeSlot.startTime} - ${d.timeSlot.endTime})` : ''}`
+      label: `${d.doctorName}${d.timeSlot ? ` (${d.timeSlot.startTime} - ${d.timeSlot.endTime})` : ''}`,
+      doctor: d
     }))
   }, [internalDoctorsQuery.data])
 
@@ -189,8 +190,19 @@ export default function ReferralModal({
     const ancillaryTargetPractitioner = ancillaryDoctors.find(
       (doctor) => String(doctor.id) === String(values.ancillaryTargetPractitionerId)
     )
+    const selectedInternalDoctor = internalDoctorOptions.find(
+      (doctor) => Number(doctor.value) === Number(values.doctorScheduleId)
+    )?.doctor
 
     try {
+      if (
+        values.referralType === 'internal' &&
+        values.internalTargetType === 'POLI' &&
+        !selectedInternalDoctor
+      ) {
+        throw new Error('Jadwal dokter tujuan tidak ditemukan. Silakan pilih ulang.')
+      }
+
       await referMutation.mutateAsync({
         encounterId: record?.encounterId,
         referringPractitionerId: Number(practitionerId),
@@ -203,6 +215,7 @@ export default function ReferralModal({
         diagnosisCode: values.diagnosisCode,
         diagnosisText: values.diagnosisText,
         keadaanKirim: values.keadaanKirim,
+        conditionAtTransfer: values.keadaanKirim,
         reasonForReferral: values.reasonForReferral,
         targetOrganizationName:
           values.referralType === 'internal'
@@ -210,25 +223,25 @@ export default function ReferralModal({
               ? 'Laboratorium Internal'
               : values.internalTargetType === 'RADIOLOGY'
                 ? 'Radiologi Internal'
-                : 'RS Internal'
+                : selectedInternalDoctor?.poliName || 'Poli Internal'
             : values.targetOrganizationName,
-        targetDepartemenId:
-          values.referralType === 'internal' && values.internalTargetType === 'POLI'
-            ? Number(values.targetDepartemenId)
-            : undefined,
         doctorScheduleId:
           values.referralType === 'internal' && values.internalTargetType === 'POLI'
             ? values.doctorScheduleId
             : undefined,
         targetPractitionerId:
-          values.referralType === 'internal' && values.internalTargetType !== 'POLI'
-            ? String(values.ancillaryTargetPractitionerId)
+          values.referralType === 'internal'
+            ? values.internalTargetType === 'POLI'
+              ? String(selectedInternalDoctor?.doctorId || '')
+              : String(values.ancillaryTargetPractitionerId)
             : undefined,
         targetPractitionerName:
           values.referralType === 'external'
             ? values.targetPractitionerName
-            : values.referralType === 'internal' && values.internalTargetType !== 'POLI'
-              ? ancillaryTargetPractitioner?.namaLengkap
+            : values.referralType === 'internal'
+              ? values.internalTargetType === 'POLI'
+                ? selectedInternalDoctor?.doctorName
+                : ancillaryTargetPractitioner?.namaLengkap
               : undefined
       })
       message.success('Pasien berhasil dirujuk')
