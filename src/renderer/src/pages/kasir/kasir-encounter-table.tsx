@@ -82,7 +82,7 @@ export default function KasirEncounterTable() {
 
   const [searchPatient, setSearchPatient] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [status, setStatus] = useState<string | undefined>('FINISHED')
+  const [status, setStatus] = useState<string | undefined>(undefined)
   const [visitDate, setVisitDate] = useState<string | null>(null)
   const [serviceUnitId, setServiceUnitId] = useState<string | undefined>(undefined)
 
