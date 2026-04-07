@@ -254,8 +254,10 @@ const FhirMedicationDispenseSchema = z.object({
       text: z.string().optional()
     })
     .optional(),
-  encounter: z.any().optional()
-})
+  encounter: z.any().optional(),
+  paymentStatus: z.string().optional(),
+  servicedAt: z.string().nullable().optional()
+}).passthrough()
 
 const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
   const getIdFromRef = (ref?: string, prefix?: string): string | undefined => {
@@ -297,6 +299,8 @@ const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
     encounterId: (encounterId ?? rawFhir.encounterId ?? null) as string | null,
     authorizingPrescriptionId:
       typeof authorizingPrescriptionId === 'number' ? authorizingPrescriptionId : null,
+    paymentStatus: typeof rawFhir.paymentStatus === 'string' ? rawFhir.paymentStatus : undefined,
+    servicedAt: typeof rawFhir.servicedAt === 'string' ? rawFhir.servicedAt : null,
     quantity: fhir.quantity ?? null,
     whenPrepared: fhir.whenPrepared ?? null,
     whenHandedOver: fhir.whenHandedOver ?? null,
@@ -652,7 +656,7 @@ export const createFromRequest = async (
       const payload = {
         patientId: request.patientId,
         authorizingPrescriptionId: request.id as number,
-        status: 'in-progress',
+        status: 'preparation',
         quantity: {
           value,
           unit: quantity?.unit
@@ -726,7 +730,7 @@ export const createFromRequest = async (
         itemId: request.itemId as number,
         patientId: request.patientId,
         authorizingPrescriptionId: request.id,
-        status: 'in-progress',
+        status: 'preparation',
         quantity: {
           value,
           unit

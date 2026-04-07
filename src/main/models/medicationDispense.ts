@@ -58,6 +58,8 @@ export const MedicationDispenseSchema = z.object({
 export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
   id: z.number(),
   fhirId: z.string().nullable().optional(),
+  paymentStatus: z.string().nullable().optional(),
+  servicedAt: z.string().nullable().optional(),
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional(),
