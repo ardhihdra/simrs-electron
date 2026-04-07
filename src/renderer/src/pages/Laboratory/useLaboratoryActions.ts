@@ -296,7 +296,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
         }
 
         const reportRows = serviceRequests
-          .map((req: any, index: number) => {
+          .flatMap((req: any, index: number) => {
             const reqMeta = serviceRequestMeta.get(String(req?.id || ''))
             const testName = req?.testDisplay || reqMeta?.testName || `Pemeriksaan ${index + 1}`
             const loincCode = req?.testLoinc || reqMeta?.loinc || '-'
@@ -304,46 +304,43 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
             if (reqMeta?.requestedAt) reportDateCandidates.push(reqMeta.requestedAt)
 
             const observations = Array.isArray(req?.observations) ? req.observations : []
-            const rows =
-              observations.length > 0
-                ? observations
-                    .map((obs: any, obsIndex: number) => {
-                      if (obs?.observedAt) reportDateCandidates.push(obs.observedAt)
-                      if (obs?.finalizedAt) reportDateCandidates.push(obs.finalizedAt)
+            if (observations.length === 0) {
+              return [
+                `
+                  <tr>
+                    <td class="param-cell">
+                      ${escapeHtml(testName)}
+                      ${loincCode !== '-' ? `<div class="sub-loinc">LOINC: ${escapeHtml(loincCode)}</div>` : ''}
+                    </td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                    <td>-</td>
+                  </tr>
+                `
+              ]
+            }
 
-                      return `
-                        <tr>
-                          <td class="param-cell">
-                            ${escapeHtml(obs?.observationDisplay || obs?.display || `Parameter ${obsIndex + 1}`)}
-                            ${obs?.observationLoinc ? `<div class="sub-loinc">LOINC: ${escapeHtml(obs?.observationLoinc)}</div>` : ''}
-                          </td>
-                          <td>${escapeHtml(obs?.value || '-')}</td>
-                          <td>${escapeHtml(obs?.referenceRange || '-')}</td>
-                          <td>${escapeHtml(obs?.unit || '-')}</td>
-                          <td>${escapeHtml(obs?.interpretation || '-')}</td>
-                        </tr>
-                      `
-                    })
-                    .join('')
-                : `
-                    <tr>
-                      <td class="param-cell">Belum ada hasil observasi</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                      <td>-</td>
-                    </tr>
-                  `
+            return observations.map((obs: any) => {
+              if (obs?.observedAt) reportDateCandidates.push(obs.observedAt)
+              if (obs?.finalizedAt) reportDateCandidates.push(obs.finalizedAt)
 
-            return `
-              <tr class="group-row section-row">
-                <td colspan="5">
-                  <div class="group-title">${escapeHtml(testName)}</div>
-                  <div class="group-sub">Kode LOINC: ${escapeHtml(loincCode)}</div>
-                </td>                
-              </tr>
-              ${rows}
-            `
+              const pemeriksaanName = obs?.observationDisplay || obs?.display || testName
+              const pemeriksaanLoinc = obs?.observationLoinc || loincCode
+
+              return `
+                <tr>
+                  <td class="param-cell">
+                    ${escapeHtml(pemeriksaanName)}
+                    ${pemeriksaanLoinc && pemeriksaanLoinc !== '-' ? `<div class="sub-loinc">LOINC: ${escapeHtml(pemeriksaanLoinc)}</div>` : ''}
+                  </td>
+                  <td>${escapeHtml(obs?.value || '-')}</td>
+                  <td>${escapeHtml(obs?.referenceRange || '-')}</td>
+                  <td>${escapeHtml(obs?.unit || '-')}</td>
+                  <td>${escapeHtml(obs?.interpretation || '-')}</td>
+                </tr>
+              `
+            })
           })
           .join('')
 
@@ -355,7 +352,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
           reportContext?.tanggal || validDateCandidates[0] || new Date()
         )
         const doctorName = String(reportContext?.doctorName || '-')
-        const petugasMedis = String(reportContext?.petugasMedis || '(...................)')
+        const petugasMedis = '(................................)'
         const penjamin = String(reportContext?.penjamin || 'Umum')
         const ruang = String(reportContext?.ruang || 'Laboratorium')
         const totalPemeriksaan = serviceRequests.length
@@ -431,10 +428,6 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
                   .right { text-align: right; }
                   .param-cell { padding-left: 8px; }
                   .sub-loinc { font-size: 10px; color: #6b7280; margin-top: 2px; }
-                  .group-row td { background: #ececec; font-weight: 700; border-top: 1px solid #6b7280; }
-                  .section-row td { background: #f4f4f4; }
-                  .group-title { font-weight: 700; }
-                  .group-sub { font-weight: 600; font-size: 10px; color: #4b5563; margin-top: 2px; }
                   .summary { margin-top: 8px; width: 100%; border-collapse: collapse; }
                   .summary td { padding: 3px 6px; font-size: 12px; }
                   .summary .label { width: 180px; font-weight: 700; text-transform: uppercase; }
@@ -488,7 +481,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
                         <th style="width:110px;">Hasil</th>
                         <th style="width:130px;">Nilai Rujukan</th>
                         <th style="width:110px;">Satuan</th>
-                        <th style="width:130px;">Metode Pemeriksaan</th>
+                        <th style="width:130px;">Interpretasi</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -515,7 +508,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
 
                   <div class="signatures">
                     <div class="sign-item">
-                      <div class="sign-title">${escapeHtml(doctorName)}</div>
+                      <div class="sign-title">Penanggung Jawab</div>
                       <div class="sign-space"></div>
                       <div class="sign-name">${escapeHtml(doctorName)}</div>
                     </div>

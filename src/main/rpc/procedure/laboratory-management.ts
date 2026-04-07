@@ -21,6 +21,10 @@ const TerminologyUnitSearchSchema = z.object({
   domain: z.enum(['laboratory', 'radiology']).optional()
 })
 
+const ServiceRequestCategorySearchSchema = z.object({
+  domain: z.enum(['laboratory', 'radiology']).optional()
+})
+
 export const laboratoryManagementRpc = {
   // Orders
   createOrder: t
@@ -172,6 +176,14 @@ export const laboratoryManagementRpc = {
       const res = await client.get(
         `/api/module/lab-management/terminology/service-request-codes?${params.toString()}`
       )
+      return await res.json()
+    }),
+
+  getServiceRequestCategories: t
+    .input(ServiceRequestCategorySearchSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }) => {
+      const res = await client.get('/api/module/lab-management/terminology/categories')
       return await res.json()
     }),
 
