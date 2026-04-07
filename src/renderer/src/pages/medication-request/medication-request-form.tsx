@@ -344,51 +344,29 @@ export function MedicationRequestForm() {
   const { data: inventoryByLocation } = useQuery({
     queryKey: ['inventoryStock', 'by-location', 'FARM', 'for-medication-request'],
     queryFn: async () => {
-      const api = window.api?.query as {
-        inventoryStock?: {
-          listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
-            success: boolean
-            result?: Array<{
-              id: string
-              kodeLokasi: string
-              stockIn: number
-              stockOut: number
-              availableStock: number
-              items: Array<{
-                kodeItem: string
-                namaItem: string
-                unit: string
-                stockIn: number
-                stockOut: number
-                availableStock: number
-              }>
-            }>
-            message?: string
-          }>
-        }
-      }
-      const fn = api?.inventoryStock?.listByLocation
-      if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
-      const res = await fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
       try {
-        const locs = Array.isArray(res?.result) ? res.result : []
-        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
-        const items = farm?.items ?? []
-        console.log('[MR][Stock][by-location:FARM] total locations:', locs.length, 'farm items:', items.length)
-        if (items.length > 0) {
-          const preview = items.slice(0, 5).map((it) => ({ kodeItem: it.kodeItem, availableStock: it.availableStock, unit: it.unit }))
-          console.log('[MR][Stock][by-location:FARM] preview:', preview)
+        const api = window.api?.query as {
+          inventoryStock?: {
+            listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
+              success: boolean
+              result?: any[]
+              message?: string
+            }>
+          }
         }
-      } catch (e) {
-        console.log('[MR][Stock][by-location:FARM] log error:', e)
+        const fn = api?.inventoryStock?.listByLocation
+        if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
+        return await fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+      } catch (err) {
+        console.error('[MR][Stock] Query Error:', err)
+        throw err
       }
-      return res
     }
   })
 
   const farmStockMap = useMemo(() => {
     const arr = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
-    const farm = arr.find((l) => l.kodeLokasi === 'FARM')
+    const farm = arr.find((l) => l.kodeLokasi?.toUpperCase() === 'FARM')
     const items = farm?.items ?? []
     const map = new Map<string, number>()
     for (const it of items) {
@@ -399,16 +377,6 @@ export function MedicationRequestForm() {
     }
     return map
   }, [inventoryByLocation?.result])
-  useEffect(() => {
-    if (inventoryByLocation?.result) {
-      try {
-        const arr = inventoryByLocation.result
-        const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
-        const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
-        console.log('[MR][Stock] farmStockMap size:', farmStockMap.size, 'farm items total:', totalItems)
-      } catch {}
-    }
-  }, [inventoryByLocation?.result, farmStockMap.size])
 
   const { data: itemCategoryData } = useQuery({
     queryKey: ['itemCategory', 'list'],
@@ -506,18 +474,7 @@ export function MedicationRequestForm() {
       return farmStockMap.has(code)
     })
 
-    try {
-      console.log(
-        '[MR][Items] source count:',
-        source.length,
-        'farmStockMap size:',
-        farmStockMap.size,
-        'filteredByLocation count:',
-        filteredByLocation.length
-      )
-    } catch {}
-
-    let opts = filteredByLocation
+    const opts = filteredByLocation
       .filter((item) => typeof item.id === 'number')
       .map((item) => {
         const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
@@ -563,51 +520,8 @@ export function MedicationRequestForm() {
           satuanId: item.satuanId
         }
       })
-    // Fallback from inventory stock if master items are empty
-    if (opts.length === 0) {
-      try {
-        const locs = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
-        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
-        const items = Array.isArray(farm?.items) ? farm!.items! : []
-        const fromFarm = items
-          .filter((it: any) => typeof it.itemId === 'number' && it.itemId > 0)
-          .map((it: any) => {
-            const value = it.itemId as number
-            const label = it.unit ? `${it.namaItem || it.kodeItem} (${it.unit})` : (it.namaItem || it.kodeItem)
-            const unitCode = typeof it.unitCode === 'string' && it.unitCode.trim().length > 0 ? it.unitCode.trim().toUpperCase() : (typeof it.unit === 'string' ? it.unit : '')
-            
-            return {
-              value,
-              label,
-              unitCode,
-              categoryId: null,
-              categoryType: 'obat',
-              itemCategoryCode: it.itemCategoryCode,
-              itemGroupCode: it.itemGroupCode,
-              itemCategoryName: null,
-              itemGroupName: null,
-              fpktl: it.fpktl,
-              prb: it.prb,
-              oen: it.oen,
-              sediaanId: it.sediaanId,
-              peresepanMaksimal: it.peresepanMaksimal,
-              restriksi: it.restriksi,
-              kekuatan: it.kekuatan,
-              satuanId: it.satuanId
-            }
-          })
-        if (fromFarm.length > 0) {
-          console.log('[MR][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
-          opts = fromFarm
-        }
-      } catch (e) {
-        console.log('[MR][Items][Options][fallback-from-stock] error:', e)
-      }
-    }
-    try {
-      const preview = opts.slice(0, 5)
-      console.log('[MR][Items][Options] count:', opts.length, 'preview:', preview)
-    } catch { }
+    
+    return opts
     return opts
   }, [itemSource?.result, itemCategoryMap, farmStockMap, inventoryByLocation?.result])
 
