@@ -1228,7 +1228,7 @@ export function MedicationDispenseTable() {
           status: item.status,
           paymentStatus: item.paymentStatus,
           handedOverAt,
-          rawHandedOverAt: typeof item.whenHandedOver === 'string' || item.whenHandedOver instanceof Date ? String(item.whenHandedOver) : null,
+          rawHandedOverAt: item.whenHandedOver ? String(item.whenHandedOver) : null,
           encounterType: item.encounter?.encounterType,
           dokterName,
           resepturName,

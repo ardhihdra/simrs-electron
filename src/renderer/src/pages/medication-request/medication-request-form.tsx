@@ -140,6 +140,19 @@ interface IdentifierInfo {
   value?: string
 }
 
+
+export interface ItemOption {
+  value: number
+  label: string
+  unitCode: string
+  categoryType: string
+  itemCategoryCode?: string | null
+  itemGroupCode?: string | null
+  itemCategoryName?: string | null
+  itemGroupName?: string | null
+  fpktl?: boolean | null
+}
+
 interface MedicationRequestRecordForEdit {
   id?: number
   status: MedicationRequestStatus
@@ -538,6 +551,8 @@ export function MedicationRequestForm() {
           categoryType,
           itemCategoryCode: item.itemCategoryCode,
           itemGroupCode: item.itemGroupCode,
+          itemCategoryName: item.categoryRef?.display || null,
+          itemGroupName: item.groupRef?.display || null,
           fpktl: item.fpktl,
           prb: item.prb,
           oen: item.oen,

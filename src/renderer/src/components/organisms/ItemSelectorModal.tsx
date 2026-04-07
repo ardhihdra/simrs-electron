@@ -28,6 +28,8 @@ export interface ItemAttributes {
   restriksi?: string | null
   kekuatan?: string | null
   satuanId?: number | null
+  categoryRef?: { code: string; display: string } | null
+  groupRef?: { code: string; display: string } | null
 }
 
 export interface ItemOption {
@@ -46,6 +48,8 @@ export interface ItemOption {
   kekuatan?: string | null
   satuanId?: number | null
   categoryId?: number | null
+  itemCategoryName?: string | null
+  itemGroupName?: string | null
 }
 
 interface ItemSelectorModalProps {
@@ -65,11 +69,17 @@ export const ItemSelectorModal = ({
 }: ItemSelectorModalProps) => {
   const [searchText, setSearchText] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined)
-  const [selectedBpjs, setSelectedBpjs] = useState<boolean | undefined>(undefined)
-  const [selectedKeras, setSelectedKeras] = useState<boolean | undefined>(undefined)
+  const [selectedGroup, setSelectedGroup] = useState<string | undefined>(undefined)
 
   const categories = useMemo(() => {
-    const types = new Set(itemOptions.map((opt) => opt.categoryType).filter(Boolean))
+    const types = new Set(itemOptions.map((opt) => opt.itemCategoryName).filter(Boolean) as string[])
+    return Array.from(types)
+      .sort()
+      .map((type) => ({ label: type.toUpperCase(), value: type }))
+  }, [itemOptions])
+
+  const groups = useMemo(() => {
+    const types = new Set(itemOptions.map((opt) => opt.itemGroupName).filter(Boolean) as string[])
     return Array.from(types)
       .sort()
       .map((type) => ({ label: type.toUpperCase(), value: type }))
@@ -85,13 +95,12 @@ export const ItemSelectorModal = ({
         (item.kekuatan && item.kekuatan.toLowerCase().includes(q)) ||
         (item.restriksi && item.restriksi.toLowerCase().includes(q))
 
-      const matchCategory = !selectedCategory || item.categoryType === selectedCategory
-      const matchBpjs = selectedBpjs === undefined || (item.itemCategoryCode === 'K06') === selectedBpjs
-      const matchKeras = selectedKeras === undefined || (item.itemGroupCode === 'G10') === selectedKeras
+      const matchCategory = !selectedCategory || item.itemCategoryName === selectedCategory
+      const matchGroup = !selectedGroup || item.itemGroupName === selectedGroup
 
-      return matchSearch && matchCategory && matchBpjs && matchKeras
+      return matchSearch && matchCategory && matchGroup
     })
-  }, [itemOptions, searchText, selectedCategory, selectedBpjs, selectedKeras])
+  }, [itemOptions, searchText, selectedCategory, selectedGroup])
 
   const columns = [
     {
@@ -119,9 +128,8 @@ export const ItemSelectorModal = ({
       width: 200,
       render: (_: any, record: ItemOption) => (
         <Space wrap size={[4, 4]}>
-          {record.itemCategoryCode === 'K06' && <Tag color="cyan">BPJS</Tag>}
-          {record.itemGroupCode === 'G08' && <Tag color="green">BHP</Tag>}
-          {record.itemGroupCode === 'G10' && <Tag color="red">KERAS</Tag>}
+          {record.itemCategoryName && <Tag color="cyan">{record.itemCategoryName.toUpperCase()}</Tag>}
+          {record.itemGroupName && <Tag color="red">{record.itemGroupName.toUpperCase()}</Tag>}
           {record.fpktl && <Tag color="purple">FPKTL</Tag>}
           {record.prb && <Tag color="orange">PRB</Tag>}
           {record.oen && <Tag color="magenta">OEN</Tag>}
@@ -173,34 +181,20 @@ export const ItemSelectorModal = ({
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
         <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
           <Select
-            placeholder="Tipe"
+            placeholder="Kategori"
             allowClear
-            style={{ width: 120 }}
+            style={{ width: 140 }}
             options={categories}
             value={selectedCategory}
             onChange={setSelectedCategory}
           />
           <Select
-            placeholder="BPJS?"
+            placeholder="Golongan"
             allowClear
-            style={{ width: 100 }}
-            value={selectedBpjs}
-            onChange={setSelectedBpjs}
-            options={[
-              { label: 'BPJS', value: true },
-              { label: 'Non-BPJS', value: false }
-            ]}
-          />
-          <Select
-            placeholder="Keras?"
-            allowClear
-            style={{ width: 100 }}
-            value={selectedKeras}
-            onChange={setSelectedKeras}
-            options={[
-              { label: 'Keras', value: true },
-              { label: 'Biasa', value: false }
-            ]}
+            style={{ width: 140 }}
+            options={groups}
+            value={selectedGroup}
+            onChange={setSelectedGroup}
           />
           <Input
             placeholder="Cari Nama Item, Kekuatan, atau Restriksi..."
