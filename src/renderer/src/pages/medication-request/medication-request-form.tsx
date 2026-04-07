@@ -584,6 +584,8 @@ export function MedicationRequestForm() {
               categoryType: 'obat',
               itemCategoryCode: it.itemCategoryCode,
               itemGroupCode: it.itemGroupCode,
+              itemCategoryName: null,
+              itemGroupName: null,
               fpktl: it.fpktl,
               prb: it.prb,
               oen: it.oen,

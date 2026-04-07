@@ -77,6 +77,9 @@ interface CategoryEntryInfo {
 
 interface AuthorizingPrescriptionInfo {
   id?: number
+  recorderId?: number | null
+  patientId?: string
+  patient?: PatientInfo
   note?: string | null
   category?: CategoryEntryInfo[] | null
   medication?: MedicationInfo
@@ -783,6 +786,7 @@ export function MedicationDispenseTable() {
   const { data, refetch, isError, isLoading } = useQuery({
     queryKey: ['medicationDispense', 'list'],
     queryFn: async () => {
+      console.log('[Frontend][MedDispense] Fetching list...')
       const api = window.api?.query as {
         medicationDispense?: {
           list: (args: MedicationDispenseListArgs) => Promise<MedicationDispenseListResult>
@@ -793,6 +797,7 @@ export function MedicationDispenseTable() {
       if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
 
       const res = await fn({})
+      console.log('[Frontend][MedDispense] List response:', res)
       return res
     }
   })
@@ -1220,6 +1225,11 @@ export function MedicationDispenseTable() {
           if (typeof rid === 'number') {
             resepturName = employeeNameById.get(rid) ?? undefined
           }
+        }
+        
+        // Fallback to recorderId from prescription if still empty
+        if (!resepturName && typeof prescription?.recorderId === 'number') {
+          resepturName = employeeNameById.get(prescription.recorderId) ?? undefined
         }
         const dokterName = (prescription as any)?.requester?.name as string | undefined
         groups.set(key, {

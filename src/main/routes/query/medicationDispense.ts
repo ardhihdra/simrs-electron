@@ -369,6 +369,7 @@ const ModuleListCompatSchema: z.ZodSchema<{
 type ListArgs = z.infer<typeof schemas.list.args>
 
 export const list = async (ctx: IpcContext, args?: ListArgs) => {
+  console.log('[MedDispense] list called with args:', args)
   try {
     const client = getClient(ctx)
     const params = new URLSearchParams()
@@ -378,122 +379,91 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
     if (args?.limit) params.append('items', String(args.limit))
 
     const queryString = params.toString()
-    const url =
-      queryString.length > 0
-        ? `/api/module/medication-dispense/medication-dispenses?${queryString}`
-        : '/api/module/medication-dispense/medication-dispenses'
-
+    const url = queryString.length > 0
+      ? `/api/module/medication-dispense/medication-dispenses?${queryString}`
+      : '/api/module/medication-dispense/medication-dispenses'
+        
     const res = await client.get(url)
     const ListSchema = ModuleListCompatSchema
-    const base = (await parseBackendResponse(res, ListSchema)) ?? []
-
-    // Enrichment: fetch patient and prescription details to support UI needs (racikan & patient label)
+    const baseObj = (await parseBackendResponse(res, ListSchema)) as any
+    const base = Array.isArray(baseObj) ? baseObj : (baseObj?.result || [])
+    
+    // Enrichment: fetch patient and prescription details to support UI needs
     const uniquePatientIds = Array.from(
       new Set(
         base
-          .map((i) => i.patientId)
-          .filter((pid): pid is string => typeof pid === 'string' && pid.trim().length > 0)
+          .map((i: any) => i.patientId)
+          .filter((pid: any): pid is string => typeof pid === 'string' && pid.trim().length > 0)
       )
-    )
+    ) as string[]
     const uniquePrescriptionIds = Array.from(
       new Set(
         base
-          .map((i) => i.authorizingPrescriptionId)
-          .filter((rid): rid is number => typeof rid === 'number' && Number.isFinite(rid))
+          .map((i: any) => i.authorizingPrescriptionId)
+          .filter((rid: any): rid is number => typeof rid === 'number' && Number.isFinite(rid))
       )
-    )
+    ) as number[]
     const uniqueItemIds = Array.from(
       new Set(
         base
-          .map((i) => i.itemId)
-          .filter((iid): iid is number => typeof iid === 'number' && Number.isFinite(iid))
+          .map((i: any) => i.itemId)
+          .filter((iid: any): iid is number => typeof iid === 'number' && Number.isFinite(iid))
       )
-    )
-
+    ) as number[]
+    
     const PatientReadSchema = z.object({
       success: z.boolean(),
-      result: z
-        .object({
-          id: z.union([z.string(), z.number()]).optional(),
-          kode: z.string().optional(),
-          name: z.union([
-            z.string(),
-            z.array(
-              z.object({
-                text: z.string().optional(),
-                given: z.array(z.string()).optional(),
-                family: z.string().optional()
-              })
-            )
-          ]).optional(),
-          identifier: z
-            .union([
-              z.string(),
-              z.array(
-                z.object({
-                  system: z.string().optional(),
-                  value: z.string().optional()
-                })
-              )
-            ])
-            .optional()
-        })
-        .optional(),
-      message: z.string().optional(),
-      error: z.string().optional()
+      result: z.any().optional()
     })
 
     const PrescriptionReadSchema = z.object({
       success: z.boolean(),
-      result: MedicationRequestWithIdSchema.optional(),
-      message: z.string().optional(),
-      error: z.string().optional()
+      result: z.any().optional()
     })
 
     const [patientMap, prescriptionMap] = await Promise.all([
       (async () => {
-        const map = new Map<string, z.infer<typeof MedicationDispenseWithIdSchema>['patient']>()
+        const map = new Map<string, any>()
         await Promise.all(
-          uniquePatientIds.map(async (pid) => {
+          uniquePatientIds.map(async (pid: string) => {
             try {
               const r = await client.get(`/api/patient/read/${pid}`)
               const p = await parseBackendResponse(r, PatientReadSchema)
-              if (p) {
-                const name =
-                  typeof p.name === 'string' || Array.isArray(p.name) ? p.name : undefined
-                const identifiers =
-                  typeof p.identifier === 'string'
-                    ? [{ system: 'local-mrn', value: p.identifier }]
-                    : Array.isArray(p.identifier)
-                      ? p.identifier
-                      : undefined
+              const pr = p // parseBackendResponse already returns .result
+              if (pr) {
+                let finalName = ''
+                if (typeof pr.name === 'string') {
+                  finalName = pr.name
+                } else if (Array.isArray(pr.name) && pr.name.length > 0) {
+                  const entry = pr.name[0] as any
+                  finalName = entry.text || entry.family || (entry.given ? entry.given.join(' ') : '')
+                }
+                
                 map.set(pid, {
-                  name,
-                  identifier: identifiers,
-                  mrNo: p.kode
+                  name: finalName,
+                  identifier: Array.isArray(pr.identifier) ? pr.identifier : [],
+                  mrNo: pr.kode || pr.mrNo
                 })
               }
-            } catch {
-              // ignore enrichment errors per patient
+            } catch (err) {
+              // Patient enrichment failed
             }
           })
         )
         return map
       })(),
       (async () => {
-        const map = new Map<number, z.infer<typeof MedicationRequestWithIdSchema>>()
+        const map = new Map<number, any>()
         await Promise.all(
-          uniquePrescriptionIds.map(async (rid) => {
+          uniquePrescriptionIds.map(async (rid: number) => {
             try {
-              const r = await client.get(
-                `/api/module/medication-request/medication-requests/${rid}`
-              )
+              const r = await client.get(`/api/module/medication-request/medication-requests/${rid}`)
               const pr = await parseBackendResponse(r, PrescriptionReadSchema)
               if (pr) {
                 map.set(rid, pr)
               }
-            } catch {
-              // ignore enrichment errors per prescription
+            } catch (err) {
+              // Prescription enrichment failed
             }
           })
         )
@@ -555,8 +525,11 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
           : enrichedRx
       const medicationEntry = item.medication ?? (itemDetail ? { id: itemDetail.id, name: itemDetail.nama, uom: undefined, stock: undefined } : undefined)
 
+      // Fallback patient: try direct enrichment, then original item patient, then prescription patient
+      const patientFallback = enrichedPatient ?? item.patient ?? (mergedRx as any)?.patient
+
       return Object.assign({}, item, {
-        patient: enrichedPatient ?? item.patient,
+        patient: patientFallback,
         authorizingPrescription: mergedRx ?? item.authorizingPrescription,
         medication: medicationEntry
       })
@@ -565,7 +538,6 @@ export const list = async (ctx: IpcContext, args?: ListArgs) => {
     return { success: true, data: result }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
-    console.error('MedicationDispense IPC list error:', msg)
     return { success: false, error: msg }
   }
 }
