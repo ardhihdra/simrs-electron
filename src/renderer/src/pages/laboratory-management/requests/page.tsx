@@ -13,11 +13,17 @@ import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { DatePicker, Form, Select, Tag } from 'antd'
+import { App, DatePicker, Form, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import {
+  type AncillaryCategory,
+  getAncillarySectionConfig,
+  getAncillarySectionConfigByCategory,
+  type AncillarySection
+} from '../section-config'
 
 interface ServiceRequestCodeItem {
   code?: string
@@ -48,6 +54,7 @@ interface ServiceRequestEntity {
   }
   encounter?: {
     id?: string
+    status?: string
     queueTicket?: {
       number?: string | number
       queueNumber?: string | number
@@ -82,17 +89,25 @@ interface NormalizedRequest {
   priority: string
   status: string
   statusRaw: string
+  encounterStatus: string
 }
 
-interface PatientGroupRow {
+interface EncounterGroupRow {
   id: string
   patientId: string
+  encounterId: string
   patient: {
     name: string
     mrn: string
   }
   queueNumber?: string
   requests: NormalizedRequest[]
+}
+
+interface LaboratoryRequestsProps {
+  fixedCategory?: AncillaryCategory
+  routeBase?: string
+  section?: AncillarySection
 }
 
 function normalizeList<T>(data: unknown): T[] {
@@ -259,8 +274,21 @@ function canInputResult(record: NormalizedRequest): boolean {
   )
 }
 
-export default function LaboratoryRequests() {
+function isEncounterInProgress(record: NormalizedRequest): boolean {
+  return record.encounterStatus === 'IN_PROGRESS'
+}
+
+export default function LaboratoryRequests({
+  fixedCategory = 'LABORATORY',
+  routeBase,
+  section
+}: LaboratoryRequestsProps = {}) {
   const navigate = useNavigate()
+  const { modal } = App.useApp()
+  const sectionConfig = section
+    ? getAncillarySectionConfig(section)
+    : getAncillarySectionConfigByCategory(fixedCategory)
+  const activeRouteBase = routeBase || sectionConfig.routeBase
   const [searchParams, setSearchParams] = useState({
     fromDate: dayjs().startOf('day').toISOString(),
     toDate: dayjs().endOf('day').toISOString(),
@@ -303,7 +331,8 @@ export default function LaboratoryRequests() {
   const normalizedRequests = useMemo<NormalizedRequest[]>(() => {
     const rows = normalizeList<ServiceRequestEntity>(requestData)
 
-    return rows.map((item) => {
+    return rows
+      .map((item) => {
       const firstCode = item.codes?.[0]
       const category = normalizeCategory(item)
       const status = normalizeStatus(item.status)
@@ -342,65 +371,69 @@ export default function LaboratoryRequests() {
         testCodeId: code,
         priority,
         status,
-        statusRaw: String(item.status || '')
+        statusRaw: String(item.status || ''),
+        encounterStatus: normalizeStatus(item.encounter?.status)
       }
-    })
-  }, [requestData])
+      })
+      .filter((item) => item.test.category === fixedCategory)
+  }, [fixedCategory, requestData])
 
-  const patientGroups = useMemo<PatientGroupRow[]>(() => {
-    const grouped = normalizedRequests.reduce((acc, item, index) => {
-      const patientKey = item.patientId || `unknown-${index}`
-      const existingGroup = acc.find((group) => group.patientId === patientKey)
+  const encounterGroups = useMemo<EncounterGroupRow[]>(() => {
+    const grouped = new Map<string, EncounterGroupRow>()
+
+    normalizedRequests.forEach((item, index) => {
+      const encounterKey = item.encounterId || `missing-encounter-${item.id || index}`
+      const existingGroup = grouped.get(encounterKey)
 
       if (existingGroup) {
         existingGroup.requests.push(item)
         if (!existingGroup.queueNumber && item.queueTicket?.number) {
           existingGroup.queueNumber = item.queueTicket.number
         }
-        return acc
+        return
       }
 
-      acc.push({
-        id: patientKey,
-        patientId: patientKey,
+      grouped.set(encounterKey, {
+        id: encounterKey,
+        patientId: item.patientId,
+        encounterId: item.encounterId,
         patient: item.patient,
         queueNumber: item.queueTicket?.number,
         requests: [item]
       })
+    })
 
-      return acc
-    }, [] as PatientGroupRow[])
-
-    return grouped
+    return Array.from(grouped.values())
   }, [normalizedRequests])
 
   const handleAction = (record: NormalizedRequest, action: 'specimen' | 'result') => {
     if (action === 'specimen') {
-      navigate('/dashboard/laboratory-management/requests/specimen', {
-        state: { requestId: record.id, ...record }
+      navigate(`${activeRouteBase}/requests/specimen`, {
+        state: { requestId: record.id, sectionRouteBase: activeRouteBase, ...record }
       })
       return
     }
 
-    navigate('/dashboard/laboratory-management/results/entry', {
-      state: { requestId: record.id, ...record }
+    if (!isEncounterInProgress(record)) {
+      modal.warning({
+        title: 'Encounter belum dilayani',
+        content: 'Encounter harus dilayani dulu sebelum input hasil.',
+        okText: 'Mengerti'
+      })
+      return
+    }
+
+    navigate(`${activeRouteBase}/results/entry`, {
+      state: { requestId: record.id, sectionRouteBase: activeRouteBase, ...record }
     })
   }
 
-  const patientColumns: ColumnsType<PatientGroupRow> = [
-    // {
-    //   title: 'No. Antrian',
-    //   dataIndex: 'queueNumber',
-    //   key: 'queueNumber',
-    //   render: (queueNumber: string | undefined) => (
-    //     <div className="font-bold">{queueNumber || '-'}</div>
-    //   )
-    // },
+  const encounterColumns: ColumnsType<EncounterGroupRow> = [
     {
       title: 'Pasien',
       dataIndex: 'patient',
       key: 'patient',
-      render: (patient: PatientGroupRow['patient']) => (
+      render: (patient: EncounterGroupRow['patient']) => (
         <div>
           <span className="text-gray-500 text-xs">{patient?.mrn || '-'} - </span>
           <span className="font-bold">{patient?.name || 'Unknown Patient'}</span>
@@ -479,13 +512,11 @@ export default function LaboratoryRequests() {
     })
   }
 
-  console.log(patientGroups)
-
   return (
     <div className="p-4">
       <TableHeader
-        title="Daftar Service Request Penunjang"
-        subtitle="Manajemen service request laboratorium dan radiologi"
+        title={sectionConfig.requestsTitle}
+        subtitle={sectionConfig.requestsSubtitle}
         onSearch={onSearch}
         onRefresh={() => {
           refetch()
@@ -493,9 +524,9 @@ export default function LaboratoryRequests() {
         loading={isLoading || isRefetching}
         action={
           <ExportButton
-            data={patientGroups as any}
-            fileName="service-request-penunjang"
-            title="Daftar Service Request Penunjang"
+            data={encounterGroups as any}
+            fileName={`service-request-${sectionConfig.section}`}
+            title={sectionConfig.requestsExportTitle}
             columns={[
               { key: 'queueNumber', label: 'No. Antrian' },
               { key: 'patient.mrn', label: 'MRN' },
@@ -552,13 +583,13 @@ export default function LaboratoryRequests() {
 
       <div className="mt-4">
         <GenericTable
-          columns={patientColumns}
-          dataSource={patientGroups}
+          columns={encounterColumns}
+          dataSource={encounterGroups}
           rowKey="id"
           loading={isLoading || isRefetching}
           tableProps={{
             expandable: {
-              expandedRowRender: (record: PatientGroupRow) => (
+              expandedRowRender: (record: EncounterGroupRow) => (
                 <div className="p-2 bg-gray-50">
                   <GenericTable
                     columns={requestColumns}
@@ -583,6 +614,9 @@ export default function LaboratoryRequests() {
                             label: 'Input Hasil',
                             icon: <FileTextOutlined />,
                             type: 'primary',
+                            tooltip: isEncounterInProgress(record)
+                              ? undefined
+                              : 'Encounter harus dilayani dulu sebelum input hasil',
                             onClick: () => handleAction(record, 'result')
                           })
                         }

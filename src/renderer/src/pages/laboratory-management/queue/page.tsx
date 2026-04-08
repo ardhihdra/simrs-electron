@@ -17,6 +17,12 @@ import { App, Button, Form, Input, Modal, Select, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
+import {
+  type AncillaryCategory,
+  getAncillarySectionConfig,
+  getAncillarySectionConfigByCategory,
+  type AncillarySection
+} from '../section-config'
 
 interface EncounterRow {
   id: string
@@ -48,7 +54,7 @@ interface EncounterRow {
 }
 
 type EncounterStatusValue = 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
-type QueueCategoryFilter = 'LABORATORY' | 'RADIOLOGY'
+type QueueCategoryFilter = AncillaryCategory
 
 function normalizeList<T>(data: unknown): T[] {
   const raw = data as { result?: T[]; data?: T[] } | T[]
@@ -119,7 +125,15 @@ function renderEncounterStatusTag(status?: string) {
   )
 }
 
-export default function LaboratoryQueue() {
+interface LaboratoryQueueProps {
+  fixedCategory?: QueueCategoryFilter
+  section?: AncillarySection
+}
+
+export default function LaboratoryQueue({
+  fixedCategory,
+  section
+}: LaboratoryQueueProps = {}) {
   const { message } = App.useApp()
 
   const [searchText, setSearchText] = useState('')
@@ -129,7 +143,9 @@ export default function LaboratoryQueue() {
   const [selectedEncounter, setSelectedEncounter] = useState<EncounterRow | null>(null)
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false)
   const [isServingEncounter, setIsServingEncounter] = useState(false)
-  const [queueCategory, setQueueCategory] = useState<QueueCategoryFilter>('LABORATORY')
+  const [queueCategory, setQueueCategory] = useState<QueueCategoryFilter>(
+    fixedCategory || 'LABORATORY'
+  )
   const [statusForm] = Form.useForm()
   const [serviceRequestForm] = Form.useForm()
 
@@ -141,6 +157,10 @@ export default function LaboratoryQueue() {
       practitionerId: selectedEncounter?.practitionerId
     })
   const selectedStatus = Form.useWatch('status', statusForm) as EncounterStatusValue | undefined
+  const activeCategory = fixedCategory || queueCategory
+  const sectionConfig = section
+    ? getAncillarySectionConfig(section)
+    : getAncillarySectionConfigByCategory(activeCategory)
 
   const {
     data: encountersData,
@@ -151,7 +171,7 @@ export default function LaboratoryQueue() {
     model: 'encounter',
     method: 'get',
     params: {
-      category: queueCategory
+      category: activeCategory
     }
   })
 
@@ -224,12 +244,12 @@ export default function LaboratoryQueue() {
 
   const onSearch = (values: { patientName?: string; category?: QueueCategoryFilter }) => {
     setSearchText(values.patientName || '')
-    setQueueCategory(values.category || 'LABORATORY')
+    setQueueCategory(fixedCategory || values.category || 'LABORATORY')
   }
 
   const handleResetFilters = () => {
     setSearchText('')
-    setQueueCategory('LABORATORY')
+    setQueueCategory(fixedCategory || 'LABORATORY')
   }
 
   const closeStatusModal = () => {
@@ -428,8 +448,8 @@ export default function LaboratoryQueue() {
   return (
     <div className="p-4">
       <TableHeader
-        title="Management Penunjang (Lab & Rad)"
-        subtitle="Daftar encounter aktif dan pembuatan encounter penunjang"
+        title={sectionConfig.queueTitle}
+        subtitle={sectionConfig.queueSubtitle}
         onSearch={onSearch}
         onReset={handleResetFilters}
         onRefresh={() => {
@@ -438,24 +458,26 @@ export default function LaboratoryQueue() {
         onCreate={() => {
           setIsModalOpen(true)
         }}
-        createLabel="Registrasi Penunjang Baru"
+        createLabel={sectionConfig.queueCreateLabel}
         loading={isLoading || isRefetching}
       >
-        <Form.Item
-          initialValue="LABORATORY"
-          name="category"
-          style={{ minWidth: 220 }}
-          label="Kategori Antrian"
-        >
-          <Select
-            size="large"
-            onChange={(value: QueueCategoryFilter) => setQueueCategory(value)}
-            options={[
-              { value: 'LABORATORY', label: 'Laboratorium' },
-              { value: 'RADIOLOGY', label: 'Radiology' }
-            ]}
-          />
-        </Form.Item>
+        {!fixedCategory ? (
+          <Form.Item
+            initialValue="LABORATORY"
+            name="category"
+            style={{ minWidth: 220 }}
+            label="Kategori Antrian"
+          >
+            <Select
+              size="large"
+              onChange={(value: QueueCategoryFilter) => setQueueCategory(value)}
+              options={[
+                { value: 'LABORATORY', label: 'Laboratorium' },
+                { value: 'RADIOLOGY', label: 'Radiologi' }
+              ]}
+            />
+          </Form.Item>
+        ) : null}
         <Form.Item name="patientName" style={{ width: '100%' }} label="Pasien">
           <Input
             placeholder="Cari Nama / No. RM Pasien yang sedang dilayani"
@@ -506,7 +528,11 @@ export default function LaboratoryQueue() {
         />
       </div>
 
-      <CreateAncillaryModal open={isModalOpen} onClose={handleCloseModal} />
+      <CreateAncillaryModal
+        open={isModalOpen}
+        onClose={handleCloseModal}
+        fixedCategory={fixedCategory}
+      />
 
       <Modal
         title={`Ubah Status Encounter`}

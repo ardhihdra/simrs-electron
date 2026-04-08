@@ -24,6 +24,7 @@ const TerminologyUnitSearchSchema = z.object({
 const ServiceRequestCategorySearchSchema = z.object({
   domain: z.enum(['laboratory', 'radiology']).optional()
 })
+const AncillaryOrderCategorySchema = z.enum(['LABORATORY', 'RADIOLOGY'])
 
 export const laboratoryManagementRpc = {
   // Orders
@@ -41,7 +42,8 @@ export const laboratoryManagementRpc = {
         status: LabServiceRequestStatusSchema.optional(),
         priority: LabPrioritySchema.optional(),
         fromDate: z.string().optional(),
-        toDate: z.string().optional()
+        toDate: z.string().optional(),
+        category: AncillaryOrderCategorySchema.optional()
       })
     )
     .output(ApiResponseSchema(z.any()))
@@ -51,6 +53,7 @@ export const laboratoryManagementRpc = {
       if (input.priority) params.append('priority', input.priority)
       if (input.fromDate) params.append('fromDate', input.fromDate)
       if (input.toDate) params.append('toDate', input.toDate)
+      if (input.category) params.append('category', input.category)
 
       const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
       const data = await res.json()
@@ -64,7 +67,8 @@ export const laboratoryManagementRpc = {
         status: LabServiceRequestStatusSchema.optional(),
         priority: LabPrioritySchema.optional(),
         fromDate: z.string().optional(),
-        toDate: z.string().optional()
+        toDate: z.string().optional(),
+        category: AncillaryOrderCategorySchema.optional()
       })
     )
     .output(ApiResponseSchema(z.any()))
@@ -74,6 +78,7 @@ export const laboratoryManagementRpc = {
       if (input.priority) params.append('priority', input.priority)
       if (input.fromDate) params.append('fromDate', input.fromDate)
       if (input.toDate) params.append('toDate', input.toDate)
+      if (input.category) params.append('category', input.category)
 
       const res = await client.get(`/api/module/lab-management/orders?${params.toString()}`)
       const data = await res.json()
