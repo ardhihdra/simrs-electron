@@ -108,6 +108,7 @@ export default function CreateOrderModal({ open, onClose, patient, encounterId }
             patientId: patient.id,
             items: selectedItems.map((item) => ({
               testCodeId: item.testCodeId,
+              masterServiceRequestCodeId: item.masterServiceRequestCodeId,
               priority: item.priority
             })),
           }

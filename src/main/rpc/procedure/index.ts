@@ -1,4 +1,5 @@
 import { encounterRpc } from './encounter'
+import { applicationConfigRpc } from './application-config'
 import { kasirRpc } from './kasir'
 import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
@@ -16,6 +17,7 @@ import { wilayahRpc } from './wilayah'
 import { windowRpc } from './window'
 
 export const rpcRouter = {
+  applicationConfig: applicationConfigRpc,
   patient: patientRpc,
   encounter: encounterRpc,
   room: roomRpc,
