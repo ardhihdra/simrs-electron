@@ -184,7 +184,6 @@ export const MedicationCompoundsSection = ({
                       options={signaOptions}
                       loading={signaLoading}
                       showSearch
-                      mode="tags"
                       dropdownRender={(menu) => (
                         <div>
                           {menu}
@@ -251,62 +250,87 @@ export const MedicationCompoundsSection = ({
                           return (
                             <div key={`compoundItem-${subKey}`} className="flex gap-3 items-end bg-white p-3 rounded-xl border border-orange-100 shadow-sm mb-2 relative pr-10">
                               <Form.Item
-                                {...subRestField}
-                                name={[subRestField.name, 'itemId']}
-                                className="mb-0 flex-1"
-                                label={<span className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">Nama Obat</span>}
-                                rules={[{ required: true, message: 'Pilih obat' }]}
+                                noStyle
+                                shouldUpdate={(prev, curr) => 
+                                  prev.compounds?.[name]?.items?.[subField.name]?.itemId !== curr.compounds?.[name]?.items?.[subField.name]?.itemId ||
+                                  prev.itemOptions !== curr.itemOptions
+                                }
                               >
-                                <Select
-                                  options={[
-                                    ...itemOptions,
-                                    ...Object.entries(templateItemData).map(([id, data]) => ({
-                                      value: Number(id),
-                                      label: data.label
-                                    }))
-                                  ]}
-                                  placeholder="Pilih Obat atau klik Cari"
-                                  showSearch
-                                  optionFilterProp="label"
-                                  loading={itemLoading}
-                                  dropdownRender={(menu) => (
-                                    <div>
-                                      {menu}
-                                      <div className="p-2 border-t text-center">
-                                        <Button
-                                          type="primary"
-                                          size="small"
-                                          icon={<SearchOutlined />}
-                                          onClick={() => openModal(name, subRestField.name)}
-                                          block
-                                        >
-                                          Pencarian Lanjut
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  )}
-                                  onChange={(val) => {
-                                    // When manually selecting an item, find its strength in the catalog
-                                    const selected = itemOptions.find(opt => opt.value === val)
-                                    if (selected) {
-                                      const rowName = subRestField.name
-                                      // Get current values
-                                      const currentItems = form.getFieldValue(['compounds', name, 'items']) || []
-                                      const updatedItems = [...currentItems]
-                                      
-                                      if (updatedItems[rowName]) {
-                                        updatedItems[rowName] = {
-                                          ...updatedItems[rowName],
-                                          itemId: val,
-                                          dosisDiminta: selected.kekuatan ? Number(selected.kekuatan) : 1,
-                                          _manualKekuatan: selected.kekuatan ? Number(selected.kekuatan) : 1
+                                {({ getFieldValue }) => {
+                                  const currentValue = getFieldValue(['compounds', name, 'items', subField.name, 'itemId'])
+                                  const opts = [...itemOptions]
+                                  
+                                  if (currentValue && !itemOptions.some((o) => o.value === currentValue)) {
+                                    const fallbackLabel = templateItemData[currentValue]?.label || `Item ID: ${currentValue}`
+                                    opts.push({
+                                      value: currentValue,
+                                      label: `${fallbackLabel} (STOK HABIS)`,
+                                      disabled: true
+                                    })
+                                  }
+
+                                  return (
+                                    <Form.Item
+                                      {...subRestField}
+                                      name={[subRestField.name, 'itemId']}
+                                      className="mb-0 flex-1"
+                                      label={<span className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">Nama Obat</span>}
+                                      rules={[
+                                        { required: true, message: 'Pilih obat' },
+                                        {
+                                          validator: (_, value) => {
+                                            if (value && !itemOptions.some((o) => o.value === value)) {
+                                              return Promise.reject(new Error('Stok di FARM tidak tersedia / habis'))
+                                            }
+                                            return Promise.resolve()
+                                          }
                                         }
-                                        form.setFieldValue(['compounds', name, 'items'], updatedItems)
-                                      }
-                                    }
-                                  }}
-                                  allowClear
-                                />
+                                      ]}
+                                    >
+                                      <Select
+                                        options={opts}
+                                        placeholder="Pilih Obat atau klik Cari"
+                                        showSearch
+                                        optionFilterProp="label"
+                                        loading={itemLoading}
+                                        dropdownRender={(menu) => (
+                                          <div>
+                                            {menu}
+                                            <div className="p-2 border-t text-center">
+                                              <Button
+                                                type="primary"
+                                                size="small"
+                                                icon={<SearchOutlined />}
+                                                onClick={() => openModal(name, subRestField.name)}
+                                                block
+                                              >
+                                                Pencarian Lanjut
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        )}
+                                        onChange={(val) => {
+                                          const selected = itemOptions.find((opt) => opt.value === val)
+                                          if (selected) {
+                                            const rowName = subRestField.name
+                                            const currentItems = form.getFieldValue(['compounds', name, 'items']) || []
+                                            const updatedItems = [...currentItems]
+                                            if (updatedItems[rowName]) {
+                                              updatedItems[rowName] = {
+                                                ...updatedItems[rowName],
+                                                itemId: val,
+                                                dosisDiminta: selected.kekuatan ? Number(selected.kekuatan) : 1,
+                                                _manualKekuatan: selected.kekuatan ? Number(selected.kekuatan) : 1
+                                              }
+                                              form.setFieldValue(['compounds', name, 'items'], updatedItems)
+                                            }
+                                          }
+                                        }}
+                                        allowClear
+                                      />
+                                    </Form.Item>
+                                  )
+                                }}
                               </Form.Item>
 
                               {/* Hidden Quantity Field - still needed for form submission */}

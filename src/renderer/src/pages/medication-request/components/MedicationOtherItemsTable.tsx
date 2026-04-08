@@ -64,7 +64,17 @@ export const MedicationOtherItemsTable = ({
                       {...restField}
                       name={[name, 'itemId']}
                       label="Nama Item"
-                      rules={[{ required: true, message: 'Pilih item' }]}
+                      rules={[
+                        { required: true, message: 'Pilih item' },
+                        {
+                          validator: (_, value) => {
+                            if (value && !itemOptions.some((o) => o.value === value)) {
+                              return Promise.reject(new Error('Stok di FARM tidak tersedia / habis'))
+                            }
+                            return Promise.resolve()
+                          }
+                        }
+                      ]}
                       className="mb-0"
                     >
                       <Select
@@ -111,7 +121,6 @@ export const MedicationOtherItemsTable = ({
                         options={signaOptions}
                         loading={signaLoading}
                         showSearch
-                        mode="tags"
                         dropdownRender={(menu) => (
                           <div>
                             {menu}
