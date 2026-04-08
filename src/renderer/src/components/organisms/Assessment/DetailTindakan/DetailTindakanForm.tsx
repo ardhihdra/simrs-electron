@@ -47,6 +47,7 @@ import PaketTindakanTab from './PaketTindakanTab'
 import TindakanNonPaketTab from './TindakanNonPaketTab'
 import PaketBhpTab from './PaketBhpTab'
 import BhpNonPaketTab from './BhpNonPaketTab'
+import PaketOperationBreakdown from './PaketOperationBreakdown'
 
 interface DetailTindakanFormProps {
   encounterId: string
@@ -1442,34 +1443,22 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const renderExpandedRecord = (record: any) => {
     const tabItems: any[] = []
-
-    const paketColumns = [
-      { title: 'Dari Paket', dataIndex: 'namaPaket', key: 'namaPaket' },
-      { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
-      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 60, align: 'center' as const },
-      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 80 },
-      {
-        title: 'Cyto',
-        dataIndex: 'cyto',
-        key: 'cyto',
-        width: 70,
-        align: 'center' as const,
-        render: (_: any, rec: any) =>
-          rec.cyto === true || String(rec.cyto).toLowerCase() === 'true' ? (
-            <Tag color="error" style={{ margin: 0 }}>
-              Cyto
-            </Tag>
-          ) : (
-            <span className="text-slate-400">Tidak</span>
-          )
-      },
-      {
-        title: 'Catatan Tambahan',
-        dataIndex: 'catatanTambahan',
-        key: 'catatanTambahan',
-        render: (val: string) => val || '-'
-      }
-    ]
+    const paketRows: Array<{
+      key: string
+      namaPaket: string
+      item: string
+      qty: number
+      satuan: string
+      cyto: boolean
+      catatanTambahan: string | null
+    }> = []
+    const paketBhpRows: Array<{
+      key: string
+      namaPaket: string
+      item: string
+      qty: number
+      satuan: string
+    }> = []
 
     const nonPaketColumns = [
       { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
@@ -1521,13 +1510,6 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       }
     ]
 
-    const paketBhpColumns = [
-      { title: 'Dari Paket', dataIndex: 'namaPaket', key: 'namaPaket' },
-      { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
-      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 60, align: 'center' as const },
-      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 80 }
-    ]
-
     const bhpNonPaketColumns = [
       { title: 'Item BHP', dataIndex: 'item', key: 'item' },
       { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 80, align: 'center' as const },
@@ -1542,15 +1524,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         item: t.namaTindakan || '-',
         qty: Number(t.jumlah || t.qty || 1),
         satuan: t.satuan || '-',
-        informasiDetail: t.kelas ? `Kelas ${t.kelas}` : '-',
         cyto: Boolean(t.cyto),
         catatanTambahan: t.catatanTambahan
       }))
-      tabItems.push({
-        key: 'paket',
-        label: `Paket (${data.length})`,
-        children: <Table columns={paketColumns} dataSource={data} pagination={false} size="small" />
-      })
+      paketRows.push(...data)
     }
 
     // 2. Tindakan Non Paket
@@ -1613,13 +1590,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         qty: Number(t.jumlah || t.qty || 1),
         satuan: t.satuan || '-'
       }))
-      tabItems.push({
-        key: 'paketBhp',
-        label: `Pkt. BHP (${data.length})`,
-        children: (
-          <Table columns={paketBhpColumns} dataSource={data} pagination={false} size="small" />
-        )
-      })
+      paketBhpRows.push(...data)
     }
 
     // 6. BHP Non Paket
@@ -1639,20 +1610,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       })
     }
 
-    if (tabItems.length === 0) {
-      return (
-        <div className="py-6 px-4 text-center text-slate-400 bg-slate-50/50 italic text-sm border-t border-slate-200">
-          - Belum ada detail data -
-        </div>
-      )
-    }
-
     return (
-      <div className="p-4 sm:p-5 bg-slate-50 shadow-inner border-y border-slate-200">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-          <Tabs items={tabItems} size="small" />
-        </div>
-      </div>
+      <PaketOperationBreakdown
+        paketRows={paketRows}
+        paketBhpRows={paketBhpRows}
+        extraTabItems={tabItems}
+      />
     )
   }
 

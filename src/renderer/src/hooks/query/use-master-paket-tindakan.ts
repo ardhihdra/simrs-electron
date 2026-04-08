@@ -60,6 +60,15 @@ export interface MasterPaketTindakanItem {
     deskripsi?: string | null
     tarifPaket: number | string
     aktif?: boolean
+    tarifList?: {
+        id?: number
+        paketId?: number
+        kelas?: string | null
+        effectiveFrom?: string | null
+        effectiveTo?: string | null
+        tarifTotal?: number | string | null
+        aktif?: boolean | null
+    }[] | null
     detailItems?: PaketDetailItem[] | null
     listTindakan?: PaketDetailItem[] | null
     listBHP?: PaketBhpItem[] | null

@@ -341,13 +341,21 @@ export const InformedConsentForm = ({
       )}
 
       <Card title="1. Pemberian Informasi" className=" ">
-        <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+        <AssessmentHeader
+          performers={performersData || []}
+          loading={isLoadingPerformers}
+          required={standalone}
+        />
       </Card>
 
       <Card title="2. Penerima Informasi / Wali" className=" ">
         <Row gutter={24}>
           <Col span={8}>
-            <Form.Item label="Nama Penerima" name="receiver_name" rules={[{ required: true }]}>
+            <Form.Item
+              label="Nama Penerima"
+              name="receiver_name"
+              rules={standalone ? [{ required: true }] : []}
+            >
               <Input placeholder="Nama pasien/wali" />
             </Form.Item>
           </Col>
@@ -382,7 +390,7 @@ export const InformedConsentForm = ({
           <Form.Item
             name="consent_type"
             label={<Text strong>Pernyataan Pasien / Keluarga</Text>}
-            rules={[{ required: true }]}
+            rules={standalone ? [{ required: true }] : []}
           >
             <Select
               size="large"

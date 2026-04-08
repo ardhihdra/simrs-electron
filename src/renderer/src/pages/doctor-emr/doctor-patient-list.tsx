@@ -62,6 +62,7 @@ interface PatientListTableData {
   queueTicket?: {
     id: string
     queueNumber: number
+    formattedQueueNumber?: string
     queueDate: string
     status: string
     poli?: { id: number; name: string; location: string }
@@ -235,6 +236,7 @@ export const DoctorPatientList = () => {
           ? {
               id: enc.queueTicket.id,
               queueNumber: enc.queueTicket.queueNumber,
+              formattedQueueNumber: enc.queueTicket.formattedQueueNumber,
               queueDate: enc.queueTicket.queueDate,
               status: enc.queueTicket.status,
               poli: enc.queueTicket.poli,
@@ -421,6 +423,25 @@ export const DoctorPatientList = () => {
       render: (num: number) => (
         <span style={{ fontSize: 12, fontWeight: 500, color: token.colorTextTertiary }}>{num}</span>
       )
+    },
+    {
+      title: 'Antrian',
+      key: 'queueNumber',
+      width: 108,
+      align: 'center',
+      render: (_, record) => {
+        const queueLabel =
+          record.queueTicket?.formattedQueueNumber ||
+          (typeof record.queueTicket?.queueNumber === 'number'
+            ? String(record.queueTicket.queueNumber)
+            : '-')
+
+        return (
+          <Tag color="blue" bordered={false} className="font-mono font-semibold m-0">
+            {queueLabel}
+          </Tag>
+        )
+      }
     },
     {
       title: 'Pasien',

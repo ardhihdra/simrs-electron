@@ -11,6 +11,7 @@ import { useEncounterList } from '@renderer/hooks/query/use-encounter'
 
 interface EncounterRow {
   id: string
+  encounterCode?: string | null
   no?: number
   queueTicket?: { queueNumber?: number; formattedQueueNumber?: string } | null
   visitDate?: string | Date
@@ -25,6 +26,12 @@ interface EncounterRow {
 
 const columns: ColumnsType<EncounterRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 55 },
+  {
+    title: 'No. Kunjungan',
+    dataIndex: 'encounterCode',
+    key: 'encounterCode',
+    render: (v, record) => v ?? record.id ?? '-'
+  },
   {
     title: 'Kode Antrian',
     dataIndex: 'queueTicket',

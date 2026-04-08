@@ -10,6 +10,7 @@ export interface PatientInfo {
     phone?: string;
     address?: string;
     identityNumber?: string;
+    religion?: string | null;
 }
 
 export interface PoliInfo {

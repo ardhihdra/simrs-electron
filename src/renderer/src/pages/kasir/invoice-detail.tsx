@@ -158,6 +158,7 @@ function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
   const penjamin = invoice.penjamin ?? 'Umum'
   const tanggalPendaftaran = formatPrintableDate(invoice.tanggalPendaftaran)
   const noPendaftaran = invoice.noPendaftaran ?? '-'
+  const noKunjungan = invoice.encounterCode ?? invoice.encounterId ?? '-'
   const noInvoice = persistedInvoice?.kode ?? '-'
   const printedAt = formatPrintableDate(new Date())
 
@@ -304,7 +305,7 @@ function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
             <tr><td class="meta-label">Penjamin</td><td>: ${escapeHtml(penjamin)}</td></tr>
           </table>
           <table class="meta-grid">
-            <tr><td class="meta-label">No. Kunjungan</td><td>: ${escapeHtml(invoice.encounterId)}</td></tr>
+            <tr><td class="meta-label">No. Kunjungan</td><td>: ${escapeHtml(noKunjungan)}</td></tr>
             <tr><td class="meta-label">No. Pendaftaran</td><td>: ${escapeHtml(noPendaftaran)}</td></tr>
             <tr><td class="meta-label">Tgl. Pendaftaran</td><td>: ${escapeHtml(tanggalPendaftaran)}</td></tr>
             <tr><td class="meta-label">Dokter</td><td>: ${escapeHtml(dokterPemeriksa)}</td></tr>
@@ -534,7 +535,7 @@ export default function InvoiceDetailPage() {
             <table className="w-full text-sm">
               <tbody>
                 {[
-                  ['No. Kunjungan', invoice.encounterId],
+                  ['No. Kunjungan', invoice.encounterCode ?? invoice.encounterId ?? '-'],
                   ['No. Pendaftaran', invoice.noPendaftaran ?? '-'],
                   ['Tgl. Pendaftaran', formatPrintableDate(invoice.tanggalPendaftaran)],
                   ['Dokter', invoice.dokterPemeriksa ?? '-'],
