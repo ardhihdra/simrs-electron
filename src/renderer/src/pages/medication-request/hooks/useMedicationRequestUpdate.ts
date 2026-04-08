@@ -138,7 +138,11 @@ export const useMedicationRequestUpdate = (id: string, itemOptions: ItemOption[]
           ? [buildDosageInstruction(instructionText, item.quantity, item.quantityUnit)]
           : null,
         note: item.note,
-        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit)
+        dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
+        supportingInformation: (() => {
+          const ing = mapFormItemToIngredient(item)
+          return [ing]
+        })()
       }
     } else if (values.compounds && values.compounds.length > 0) {
       // Compound Mode
@@ -178,7 +182,16 @@ export const useMedicationRequestUpdate = (id: string, itemOptions: ItemOption[]
         dosageInstruction: instructionText
           ? [buildDosageInstruction(instructionText, it.quantity, unitCode)]
           : null,
-        dispenseRequest: typeof it.quantity === 'number' ? buildDispenseRequest(it.quantity, unitCode || undefined) : null
+        dispenseRequest: typeof it.quantity === 'number' ? buildDispenseRequest(it.quantity, unitCode || undefined) : null,
+        supportingInformation: (() => {
+          const ing = mapFormItemToIngredient({
+            itemId: it.itemId,
+            quantity: it.quantity,
+            unit: unitCode,
+            note: combinedNote
+          })
+          return [ing]
+        })()
       }
     }
 

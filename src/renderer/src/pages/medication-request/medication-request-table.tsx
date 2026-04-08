@@ -659,6 +659,24 @@ export function MedicationRequestTable() {
             ? (racikanName ?? record.medication?.name ?? '-')
             : (record.medication?.name ?? '-'),
         kekuatan: (() => {
+          // Priority 1: Get from supportingInformation (Ingredients)
+          const ingredients = (Array.isArray(record.supportingInformation) ? record.supportingInformation : [])
+            .filter((info: any) => (info.resourceType || info.resource_type) === 'Ingredient')
+
+          if (ingredients.length > 0) {
+            return ingredients.map((ing: any) => {
+              // Priority: requestedDosage (total dose) -> strength (per unit)
+              const d = ing.requestedDosage ?? ing.requested_dosage
+              const s = ing.strength ?? ing.kekuatan
+              const u = ing.unitCode ?? ing.unit_code ?? ing.unit
+
+              const val = d ?? s
+              if (!val) return null
+              return u ? `${val} ${u}` : `${val}`
+            }).filter(Boolean).join(' : ') || '-'
+          }
+
+          // Priority 2: Fallback to existing logic (Master Data)
           const master = itemMasterMap.get(record.itemId || 0)
           const str = record.item?.kekuatan || master?.kekuatan
           const unit = (record as any).item?.unit?.nama || master?.unit
@@ -718,10 +736,13 @@ export function MedicationRequestTable() {
               const itemId = ing.itemId || ing.item_id
               const master = itemMasterMap.get(Number(itemId || medId))
 
-              const str = ing.strength || ing.kekuatan || master?.kekuatan
-              const unit = ing.unitCode || ing.unit || master?.unit
+              // Priority: requestedDosage (total dose) -> strength (per unit)
+              const d = (ing as any).requestedDosage ?? (ing as any).requested_dosage
+              const str = d ?? ing.strength ?? ing.kekuatan ?? master?.kekuatan
+
+              const unit = ing.unitCode ?? ing.unit ?? master?.unit
               if (!str) return '-'
-              return unit ? `${str} / ${unit}` : str
+              return unit ? `${str} ${unit}` : String(str)
             })(),
             quantity: ing.quantity as number | undefined,
             unit: ing.unitCode as string | undefined,

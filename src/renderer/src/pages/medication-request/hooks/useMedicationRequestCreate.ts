@@ -192,7 +192,10 @@ export const useMedicationRequestCreate = (itemOptions: ItemOption[], itemSource
             : null,
           note: item.note,
           dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
-          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
+          supportingInformation: (() => {
+            const ing = mapFormItemToIngredient(item)
+            return [ing, ...supportingInformationCommon]
+          })()
         }
       })
 
@@ -256,7 +259,13 @@ export const useMedicationRequestCreate = (itemOptions: ItemOption[], itemSource
               ? buildDispenseRequest(it.quantity, unitCode || undefined)
               : null,
           supportingInformation: (() => {
-            return supportingInformationCommon.length > 0 ? supportingInformationCommon : null
+            const ing = mapFormItemToIngredient({
+              itemId: it.itemId,
+              quantity: it.quantity,
+              unit: unitCode,
+              note: combinedNote
+            })
+            return [ing, ...supportingInformationCommon]
           })()
         }
       })
