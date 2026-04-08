@@ -16,8 +16,8 @@ import { CompoundPrescriptionForm } from '@renderer/components/organisms/Assessm
 import { PatientSelectorWithService, PatientSelectorValue } from '@renderer/components/organisms/PatientSelectorWithService'
 import { MedicationOtherItemsTable } from './components/MedicationOtherItemsTable'
 import { MedicationCompoundsSection } from './components/MedicationCompoundsSection'
-import { ItemSelectorModal, ItemAttributes } from '@renderer/components/organisms/ItemSelectorModal'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { SignaCreateModal } from './components/SignaCreateModal'
 
 // Enums copied locally to avoid import issues with main process
 enum MedicationRequestStatus {
@@ -200,6 +200,13 @@ export function MedicationRequestForm() {
     MedicationRequestRecordForEdit[]
   >([])
   const { message, modal } = AntdApp.useApp()
+
+  const queryClient = useQueryClient()
+  const [isSignaModalOpen, setIsSignaModalOpen] = useState(false)
+  
+  const handleSignaSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['mastersigna'] })
+  }
 
   // Batch options per item row: key = `otherItem-{index}` or `compound-{compIdx}-ing-{ingIdx}`
   type BatchOption = {
@@ -1680,6 +1687,7 @@ export function MedicationRequestForm() {
             itemLoading={itemLoading}
             signaOptions={signaOptions}
             signaLoading={signaLoading}
+            onAddSigna={() => setIsSignaModalOpen(true)}
           />
 
           {/*    <ItemPrescriptionForm
@@ -1703,6 +1711,7 @@ export function MedicationRequestForm() {
             itemLoading={itemLoading}
             signaOptions={signaOptions}
             signaLoading={signaLoading}
+            onAddSigna={() => setIsSignaModalOpen(true)}
           />
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
@@ -1723,6 +1732,12 @@ export function MedicationRequestForm() {
           </div>
         </Form>
       </div>
+
+      <SignaCreateModal
+        open={isSignaModalOpen}
+        onCancel={() => setIsSignaModalOpen(false)}
+        onSuccess={handleSignaSuccess}
+      />
     </div>
   )
 }

@@ -11,9 +11,10 @@ import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { HistoryOutlined } from '@ant-design/icons'
 import { Table, Modal, Tag, Typography } from 'antd'
 import { useMedicationRequestByEncounter } from '@renderer/hooks/query/use-medication-request'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { MedicationOtherItemsTable } from '@renderer/pages/medication-request/components/MedicationOtherItemsTable'
 import { MedicationCompoundsSection } from '@renderer/pages/medication-request/components/MedicationCompoundsSection'
+import { SignaCreateModal } from '@renderer/pages/medication-request/components/SignaCreateModal'
 
 const { Text } = Typography
 
@@ -153,6 +154,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
     return map
   }, [itemCategories])
 
+  const queryClient = useQueryClient()
   const { data: signaData, isLoading: signaLoading } = useQuery({
     queryKey: ['mastersigna', 'listAll', 'for-prescription'],
     queryFn: () => {
@@ -163,6 +165,12 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
       return api?.mastersigna?.list({ limit: 500 })
     }
   })
+
+  const [isSignaModalOpen, setIsSignaModalOpen] = useState(false)
+  const handleSignaSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['mastersigna'] })
+  }
+
   const signaOptions = useMemo(() => {
     const source = Array.isArray(signaData?.result) ? signaData!.result : []
     return source
@@ -432,11 +440,16 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
             if (foundPool) name = foundPool.nama || ''
           }
 
+          // Priority: template strength > manual strength
+          const kek = ing._templateKekuatanNumerator ?? ing._manualKekuatan ?? 0
+
           return {
             resourceType: 'Ingredient',
             itemId: ing.sourceType !== 'substance' ? ing.itemId : null,
             quantity: ing.quantity,
             unit: ing.unit,
+            strength: kek, // New field: strength used for calculation
+            requestedDosage: ing.dosisDiminta, // New field: clinical dosage input
             note: ing.note,
             name: name
           }
@@ -496,7 +509,8 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
               <div className="flex flex-wrap gap-1">
                 {record.supportingInformation?.map((ing: any, idx: number) => (
                   <Tag key={idx} color="orange" className="text-[10px]">
-                    {ing.name || `Item ${ing.itemId}`} ({ing.quantity} {ing.unit})
+                    {ing.name || `Item ${ing.itemId}`} 
+                    {ing.requestedDosage ? ` (Dosis: ${ing.requestedDosage}, K.O: ${ing.strength}, Total: ${ing.quantity} pcs)` : ` (${ing.quantity} ${ing.unit})`}
                   </Tag>
                 ))}
               </div>
@@ -567,6 +581,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
                 itemKodeMap={itemKodeMap}
                 signaOptions={signaOptions}
                 signaLoading={signaLoading}
+                onAddSigna={() => setIsSignaModalOpen(true)}
               />
             </TabPane>
             <TabPane tab="Racikan" key="2">
@@ -577,6 +592,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
                 itemKodeMap={itemKodeMap}
                 signaOptions={signaOptions}
                 signaLoading={signaLoading}
+                onAddSigna={() => setIsSignaModalOpen(true)}
               />
             </TabPane>
           </Tabs>
@@ -596,6 +612,12 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           </Space>
         </div>
       </Form>
+
+      <SignaCreateModal 
+        open={isSignaModalOpen}
+        onCancel={() => setIsSignaModalOpen(false)}
+        onSuccess={handleSignaSuccess}
+      />
       <Modal
         title="Riwayat Resep Pasien"
         open={isHistoryModalOpen}
