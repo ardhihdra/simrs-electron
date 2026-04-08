@@ -1,6 +1,6 @@
 import { Button, Form, Input, InputNumber, Select, Card } from 'antd'
 import { MinusCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ItemSelectorModal } from '@renderer/components/organisms/ItemSelectorModal'
 import { RacikanSelectorModal } from './RacikanSelectorModal'
 
@@ -26,8 +26,42 @@ export const MedicationCompoundsSection = ({
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false)
   const [currentRow, setCurrentRow] = useState<{ compoundIndex: number; itemIndex: number | null } | null>(null)
 
-  // Track items discovered from templates to show their names if missing from itemOptions
+  // Track items discovered from templates or existing records to show their names if missing from itemOptions
   const [templateItemData, setTemplateItemData] = useState<Record<number, { label: string; kekuatan: number | null }>>({})
+
+  // Track compounds reactively
+  const watchedCompounds = Form.useWatch('compounds', form)
+
+  // Initialize labels/strengths from existing form values or catalog (for Edit mode)
+  useEffect(() => {
+    const compounds = watchedCompounds || []
+    const newItemsData = { ...templateItemData }
+    let changed = false
+
+    compounds.forEach((c: any) => {
+      if (c && Array.isArray(c.items)) {
+        c.items.forEach((item: any) => {
+          if (item?.itemId) {
+            const current = newItemsData[item.itemId]
+            
+            // Resolve label from form state name or itemOptions catalog
+            const catalogOpt = itemOptions.find(o => Number(o.value) === Number(item.itemId))
+            const label = item.name || catalogOpt?.label
+            const kekuatan = item._manualKekuatan ?? item._templateKekuatanNumerator ?? catalogOpt?.kekuatan ?? null
+            
+            if (label && (!current || current.label !== label || current.kekuatan !== kekuatan)) {
+              newItemsData[item.itemId] = { label, kekuatan }
+              changed = true
+            }
+          }
+        })
+      }
+    })
+
+    if (changed) {
+      setTemplateItemData(newItemsData)
+    }
+  }, [watchedCompounds, itemOptions])
 
   const openModal = (compoundIndex: number, itemIndex: number | null = null) => {
     setCurrentRow({ compoundIndex, itemIndex })
@@ -307,12 +341,17 @@ export const MedicationCompoundsSection = ({
                                   // 2. Metadata from manual selection (_manualKekuatan)
                                   // 3. Fallback from itemOptions (global catalog)
                                   const kFromOptions = itemOptions.find(o => o.value === item?.itemId)?.kekuatan
-                                  const kO = item?._templateKekuatanNumerator ?? item?._manualKekuatan ?? (kFromOptions ? Number(kFromOptions) : 1)
-                                  const kekuatanDisplay = (item?._templateKekuatanNumerator ?? item?._manualKekuatan ?? kFromOptions) || '?'
+                                  // Fallback: Check templateItemData specifically for Edit mode label resolution
+                                  const kFromTemplate = item?.itemId ? templateItemData[item.itemId]?.kekuatan : null
+                                  
+                                  const kO = item?._templateKekuatanNumerator ?? item?._manualKekuatan ?? (kFromOptions ? Number(kFromOptions) : (kFromTemplate ? Number(kFromTemplate) : 1))
+                                  const kekuatanDisplay = (item?._templateKekuatanNumerator ?? item?._manualKekuatan ?? kFromOptions ?? kFromTemplate) || '?'
 
                                   return (
                                     <div className="flex gap-3 items-end">
                                       <Form.Item
+                                        {...subRestField}
+                                        name={[subField.name, 'dosisDiminta']}
                                         className="mb-0 w-40"
                                         label={<span className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">Kekuatan obat ({kekuatanDisplay})</span>}
                                       >
@@ -320,11 +359,9 @@ export const MedicationCompoundsSection = ({
                                           placeholder="Dosis Total"
                                           min={0}
                                           className="w-full"
-                                          value={item?.dosisDiminta}
                                           onChange={(val) => {
                                             const dosisKumulatif = val || 0
                                             const qtyObat = Math.ceil(dosisKumulatif / kO)
-                                            setFieldValue(['compounds', name, 'items', subField.name, 'dosisDiminta'], val)
                                             setFieldValue(['compounds', name, 'items', subField.name, 'quantity'], qtyObat)
                                           }}
                                         />

@@ -246,7 +246,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
         const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
         const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
         console.log('[RX][Stock] farmKodeSet size:', farmKodeSet.size, 'farm items total:', totalItems)
-      } catch {}
+      } catch { }
     }
   }, [inventoryByLocation?.result, farmKodeSet.size])
 
@@ -272,7 +272,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
 
     try {
       console.log('[RX][Items] source count:', source.length, 'farmKodeSet size:', farmKodeSet.size, 'filteredByLocation count:', filteredByLocation.length)
-    } catch {}
+    } catch { }
 
     let opts = filteredByLocation
       .filter((item) => typeof item.id === 'number')
@@ -333,11 +333,11 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
               typeof it.unitCode === 'string' && it.unitCode.trim().length > 0
                 ? it.unitCode.trim().toUpperCase()
                 : (typeof it.unit === 'string' ? it.unit : '')
-            return { 
-              value, 
-              label, 
-              unitCode, 
-              categoryId: null, 
+            return {
+              value,
+              label,
+              unitCode,
+              categoryId: null,
               categoryType: it.itemCategory?.categoryType?.toLowerCase() || 'item',
               itemCategoryCode: it.itemCategoryCode ?? null,
               itemGroupCode: it.itemGroupCode ?? null,
@@ -361,7 +361,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
     try {
       const preview = opts.slice(0, 5)
       console.log('[RX][Items][Options] count:', opts.length, 'preview:', preview)
-    } catch {}
+    } catch { }
     return opts
   }, [items, itemCategoryMap, farmKodeSet, inventoryByLocation?.result])
 
@@ -509,7 +509,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
               <div className="flex flex-wrap gap-1">
                 {record.supportingInformation?.map((ing: any, idx: number) => (
                   <Tag key={idx} color="orange" className="text-[10px]">
-                    {ing.name || `Item ${ing.itemId}`} 
+                    {ing.name || `Item ${ing.itemId}`}
                     {ing.requestedDosage ? ` (Dosis: ${ing.requestedDosage}, K.O: ${ing.strength}, Total: ${ing.quantity} pcs)` : ` (${ing.quantity} ${ing.unit})`}
                   </Tag>
                 ))}
@@ -613,7 +613,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
         </div>
       </Form>
 
-      <SignaCreateModal 
+      <SignaCreateModal
         open={isSignaModalOpen}
         onCancel={() => setIsSignaModalOpen(false)}
         onSuccess={handleSignaSuccess}

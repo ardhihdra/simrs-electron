@@ -72,7 +72,7 @@ interface MedicationRequestAttributes {
   authoredOn?: string
   patient?: PatientInfo
   medication?: { name?: string }
-  item?: { nama?: string; itemCategoryId?: number | null }
+  item?: { nama?: string; itemCategoryId?: number | null; kekuatan?: string | number | null; unit?: { nama?: string } | null }
   note?: string | null
   encounter?: { id: string; encounterType?: string }
   requester?: { name: string }
@@ -90,6 +90,7 @@ interface MedicationItemRow {
   key: string
   jenis: string
   namaObat: string
+  kekuatan?: string | number
   quantity?: number
   unit?: string
   instruksi?: string
@@ -487,6 +488,23 @@ export function MedicationRequestTable() {
     }
     return map
   }, [itemData])
+
+  const itemMasterMap = useMemo(() => {
+    const map = new Map<number, { name: string; kekuatan: any; unit: string }>()
+    if (itemData?.success && Array.isArray(itemData.result)) {
+      itemData.result.forEach((i: any) => {
+        if (typeof i.id === 'number') {
+          map.set(i.id, {
+            name: i.nama || '',
+            kekuatan: i.kekuatan,
+            unit: i.unit?.nama || i.kodeUnit || ''
+          })
+        }
+      })
+    }
+    return map
+  }, [itemData])
+
   const employeeNameById = useMemo(() => {
     const map = new Map<number, string>()
     const source = Array.isArray(employeeData?.result)
@@ -640,6 +658,13 @@ export function MedicationRequestTable() {
           : compound
             ? (racikanName ?? record.medication?.name ?? '-')
             : (record.medication?.name ?? '-'),
+        kekuatan: (() => {
+          const master = itemMasterMap.get(record.itemId || 0)
+          const str = record.item?.kekuatan || master?.kekuatan
+          const unit = (record as any).item?.unit?.nama || master?.unit
+          if (!str) return '-'
+          return unit ? `${str} / ${unit}` : str
+        })(),
         quantity:
           typeof remainingQuantity === 'number'
             ? remainingQuantity
@@ -688,6 +713,16 @@ export function MedicationRequestTable() {
             key: `${key}-${record.id ?? ''}-ing-${idx}`,
             jenis: 'Komposisi',
             namaObat: (ingredientName ?? (ing.note ? `Komposisi (${ing.note as string})` : 'Komposisi')) as string,
+            kekuatan: (() => {
+              const medId = ing.medicationId || ing.medication_id
+              const itemId = ing.itemId || ing.item_id
+              const master = itemMasterMap.get(Number(itemId || medId))
+
+              const str = ing.strength || ing.kekuatan || master?.kekuatan
+              const unit = ing.unitCode || ing.unit || master?.unit
+              if (!str) return '-'
+              return unit ? `${str} / ${unit}` : str
+            })(),
             quantity: ing.quantity as number | undefined,
             unit: ing.unitCode as string | undefined,
             instruksi: (ing.note || ing.instruction) as string | undefined,
@@ -719,11 +754,11 @@ export function MedicationRequestTable() {
           remainingTotal = item.quantity
         }
         let resepturName: string | undefined
-        
+
         // 1. New field: recorder
         if (record.recorder?.name) {
           resepturName = record.recorder.name
-        } 
+        }
         // 2. recorderId lookup in employee map
         else if (typeof record.recorderId === 'number' && record.recorderId > 0) {
           resepturName = employeeNameById.get(record.recorderId) ?? undefined
@@ -749,8 +784,8 @@ export function MedicationRequestTable() {
           intent: record.intent,
           priority: record.priority,
           authoredOn: record.authoredOn,
-           dokterName: record.requester?.name,
-           resepturName,
+          dokterName: record.requester?.name,
+          resepturName,
           isPartial,
           isOnProcess,
           hasRemaining: remainingTotal > 0,
@@ -932,12 +967,13 @@ export function MedicationRequestTable() {
                   const detailColumns = [
                     { title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
                     { title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
+                    { title: 'Kekuatan ', dataIndex: 'kekuatan', key: 'kekuatan' },
                     { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
                     { title: 'Signa', dataIndex: 'instruksi', key: 'instruksi' }
                   ]
 
                   try {
-                  } catch {}
+                  } catch { }
                   return (
                     <Table
                       columns={detailColumns}

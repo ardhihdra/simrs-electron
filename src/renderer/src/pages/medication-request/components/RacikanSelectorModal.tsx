@@ -13,34 +13,7 @@ export const RacikanSelectorModal = ({ open, onCancel, onSelect }: RacikanSelect
   const [loading, setLoading] = useState(false)
   const [searchText, setSearchText] = useState('')
 
-  const fetchRacikan = async (search = '') => {
-    setLoading(true)
-    try {
-      // Menggunakan axios atau API standar Electron untuk hit module moduleRouter.ts -> /master-racikan/read
-      // Kita asumsikan API GET dengan parameter `q` atau filter nama tersedia.
-      const rawApi = window.api?.query as any
-      // Since it's a new API, we might need to hit it directly if not bound in preload
-      if (rawApi?.request?.list) {
-         // Fallback using general request method if it exists
-         const res = await rawApi.request.list({ entity: 'module/master-racikan', options: { q: search } })
-         setData(res?.result || [])
-      } else {
-         // Fallback standard fetch through our standard wrapper (assuming similar to item)
-         // In simrs-electron normally we use axios or configured TRPC. We'll use standard window.api
-         const axiosLikeGet = (window.api as any)?.axios?.get || window.fetch
-         // This is a placeholder, actual implementation will depend on how the API is exposed
-         // Assuming a generic entity listing capability exists or we will use standard GET
-         const response = await window.api.axios.get(`/api/module/master-racikan?q=${search}`)
-         setData(response?.data?.result || response?.data?.data || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch master racikan', error)
-      // fallback mock for development or UI test if needed
-      setData([])
-    } finally {
-      setLoading(false)
-    }
-  }
+  // fetchData is handled by useEffect on open
 
   // We should actually use a proper API call method verified for simrs-electron.
   // Let's check how itemOptions are fetched in medication-request-form.tsx:
