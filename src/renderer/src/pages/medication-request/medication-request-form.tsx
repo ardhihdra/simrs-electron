@@ -16,6 +16,7 @@ import { CompoundPrescriptionForm } from '@renderer/components/organisms/Assessm
 import { PatientSelectorWithService, PatientSelectorValue } from '@renderer/components/organisms/PatientSelectorWithService'
 import { MedicationOtherItemsTable } from './components/MedicationOtherItemsTable'
 import { MedicationCompoundsSection } from './components/MedicationCompoundsSection'
+import { ItemSelectorModal, ItemAttributes } from '@renderer/components/organisms/ItemSelectorModal'
 import { useMutation, useQuery } from '@tanstack/react-query'
 
 // Enums copied locally to avoid import issues with main process
@@ -139,6 +140,19 @@ interface IdentifierInfo {
   value?: string
 }
 
+
+export interface ItemOption {
+  value: number
+  label: string
+  unitCode: string
+  categoryType: string
+  itemCategoryCode?: string | null
+  itemGroupCode?: string | null
+  itemCategoryName?: string | null
+  itemGroupName?: string | null
+  fpktl?: boolean | null
+}
+
 interface MedicationRequestRecordForEdit {
   id?: number
   status: MedicationRequestStatus
@@ -147,6 +161,8 @@ interface MedicationRequestRecordForEdit {
   patientId: string
   encounterId?: string | null
   requesterId?: number | null
+  performerId?: number | null
+  recorderId?: number | null
   roomId?: string | null
   authoredOn?: string | Date
   medicationId?: number | null
@@ -301,24 +317,6 @@ export function MedicationRequestForm() {
     enabled: isEdit
   })
 
-  interface ItemAttributes {
-    id?: number
-    nama?: string
-    kode?: string
-    kodeUnit?: string
-    unit?: {
-      id?: number
-      kode?: string
-      nama?: string
-    } | null
-    itemCategoryId?: number | null
-    category?: {
-      id?: number
-      name?: string | null
-      categoryType?: string | null
-    } | null
-  }
-
   type ItemListResponse = {
     success: boolean
     result?: ItemAttributes[]
@@ -346,69 +344,39 @@ export function MedicationRequestForm() {
   const { data: inventoryByLocation } = useQuery({
     queryKey: ['inventoryStock', 'by-location', 'FARM', 'for-medication-request'],
     queryFn: async () => {
-      const api = window.api?.query as {
-        inventoryStock?: {
-          listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
-            success: boolean
-            result?: Array<{
-              id: string
-              kodeLokasi: string
-              stockIn: number
-              stockOut: number
-              availableStock: number
-              items: Array<{
-                kodeItem: string
-                namaItem: string
-                unit: string
-                stockIn: number
-                stockOut: number
-                availableStock: number
-              }>
-            }>
-            message?: string
-          }>
-        }
-      }
-      const fn = api?.inventoryStock?.listByLocation
-      if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
-      const res = await fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
       try {
-        const locs = Array.isArray(res?.result) ? res.result : []
-        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
-        const items = farm?.items ?? []
-        console.log('[MR][Stock][by-location:FARM] total locations:', locs.length, 'farm items:', items.length)
-        if (items.length > 0) {
-          const preview = items.slice(0, 5).map((it) => ({ kodeItem: it.kodeItem, availableStock: it.availableStock, unit: it.unit }))
-          console.log('[MR][Stock][by-location:FARM] preview:', preview)
+        const api = window.api?.query as {
+          inventoryStock?: {
+            listByLocation: (args: { kodeLokasi: string; items?: number; depth?: number }) => Promise<{
+              success: boolean
+              result?: any[]
+              message?: string
+            }>
+          }
         }
-      } catch (e) {
-        console.log('[MR][Stock][by-location:FARM] log error:', e)
+        const fn = api?.inventoryStock?.listByLocation
+        if (!fn) throw new Error('API stok per lokasi tidak tersedia.')
+        return await fn({ kodeLokasi: 'FARM', items: 1000, depth: 1 })
+      } catch (err) {
+        console.error('[MR][Stock] Query Error:', err)
+        throw err
       }
-      return res
     }
   })
 
-  const farmKodeSet = useMemo(() => {
+  const farmStockMap = useMemo(() => {
     const arr = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
-    const farm = arr.find(l => l.kodeLokasi === 'FARM')
+    const farm = arr.find((l) => l.kodeLokasi?.toUpperCase() === 'FARM')
     const items = farm?.items ?? []
-    const set = new Set<string>()
+    const map = new Map<string, number>()
     for (const it of items) {
       const kode = (it.kodeItem || '').trim().toUpperCase()
-      if (kode && it.availableStock > 0) set.add(kode)
+      if (kode && it.availableStock > 0) {
+        map.set(kode, it.availableStock)
+      }
     }
-    return set
+    return map
   }, [inventoryByLocation?.result])
-  useEffect(() => {
-    if (inventoryByLocation?.result) {
-      try {
-        const arr = inventoryByLocation.result
-        const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
-        const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
-        console.log('[MR][Stock] farmKodeSet size:', farmKodeSet.size, 'farm items total:', totalItems)
-      } catch { }
-    }
-  }, [inventoryByLocation?.result, farmKodeSet.size])
 
   const { data: itemCategoryData } = useQuery({
     queryKey: ['itemCategory', 'list'],
@@ -503,14 +471,10 @@ export function MedicationRequestForm() {
     const filteredByLocation = source.filter((item) => {
       const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
       if (!code) return false
-      return farmKodeSet.has(code)
+      return farmStockMap.has(code)
     })
 
-    try {
-      console.log('[MR][Items] source count:', source.length, 'farmKodeSet size:', farmKodeSet.size, 'filteredByLocation count:', filteredByLocation.length)
-    } catch { }
-
-    let opts = filteredByLocation
+    const opts = filteredByLocation
       .filter((item) => typeof item.id === 'number')
       .map((item) => {
         const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
@@ -541,37 +505,25 @@ export function MedicationRequestForm() {
           label,
           unitCode,
           categoryId,
-          categoryType
+          categoryType,
+          itemCategoryCode: item.itemCategoryCode,
+          itemGroupCode: item.itemGroupCode,
+          itemCategoryName: item.categoryRef?.display || null,
+          itemGroupName: item.groupRef?.display || null,
+          fpktl: item.fpktl,
+          prb: item.prb,
+          oen: item.oen,
+          sediaanId: item.sediaanId,
+          peresepanMaksimal: item.peresepanMaksimal,
+          restriksi: item.restriksi,
+          kekuatan: item.kekuatan,
+          satuanId: item.satuanId
         }
       })
-    // Fallback from inventory stock if master items are empty
-    if (opts.length === 0) {
-      try {
-        const locs = Array.isArray(inventoryByLocation?.result) ? inventoryByLocation!.result! : []
-        const farm = locs.find((l) => l.kodeLokasi === 'FARM')
-        const items = Array.isArray(farm?.items) ? farm!.items! : []
-        const fromFarm = items
-          .filter((it: any) => typeof it.itemId === 'number' && it.itemId > 0)
-          .map((it: any) => {
-            const value = it.itemId as number
-            const label = it.unit ? `${it.namaItem || it.kodeItem} (${it.unit})` : (it.namaItem || it.kodeItem)
-            const unitCode = typeof it.unitCode === 'string' && it.unitCode.trim().length > 0 ? it.unitCode.trim().toUpperCase() : (typeof it.unit === 'string' ? it.unit : '')
-            return { value, label, unitCode, categoryId: null, categoryType: 'obat' }
-          })
-        if (fromFarm.length > 0) {
-          console.log('[MR][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
-          opts = fromFarm
-        }
-      } catch (e) {
-        console.log('[MR][Items][Options][fallback-from-stock] error:', e)
-      }
-    }
-    try {
-      const preview = opts.slice(0, 5)
-      console.log('[MR][Items][Options] count:', opts.length, 'preview:', preview)
-    } catch { }
+    
     return opts
-  }, [itemSource?.result, itemCategoryMap, farmKodeSet, inventoryByLocation?.result])
+    return opts
+  }, [itemSource?.result, itemCategoryMap, farmStockMap, inventoryByLocation?.result])
 
   const extractEncounters = (src: EncounterListPayload): EncounterOptionSource[] => {
     const a = src?.result
@@ -649,6 +601,18 @@ export function MedicationRequestForm() {
         }
 
         const baseRecord = records.find((r) => r.id === base.id) ?? records[0]
+        
+        // Populate Reseptur from recorderId (new) or supportingInformation (old)
+        if (typeof baseRecord.recorderId === 'number' && baseRecord.recorderId > 0) {
+          form.setFieldValue('resepturId', baseRecord.recorderId)
+        } else if (Array.isArray(baseRecord.supportingInformation)) {
+          const resEntry = (baseRecord.supportingInformation as any[]).find(
+            (info) => info.type === 'Reseptur'
+          )
+          if (resEntry && typeof resEntry.itemId === 'number') {
+            form.setFieldValue('resepturId', resEntry.itemId)
+          }
+        }
 
         const allSimple = records.filter((r) => {
           const categories = r.category ?? []
@@ -710,8 +674,12 @@ export function MedicationRequestForm() {
               const type = info.resourceType || anyInfo.resource_type
               const hasItem = info.itemId || anyInfo.item_id
               const hasMedication = info.medicationId || anyInfo.medication_id
-              return type === 'Ingredient' || hasItem || hasMedication
+              
+              // Standard ingredient has resourceType='Ingredient' OR have itemId/medicationId
+              // Metadata like 'Reseptur' used to be here, but we now check resourceType carefully.
+              return type === 'Ingredient' || ((hasItem || hasMedication) && anyInfo.type !== 'Reseptur')
             })
+            
             if (ingredients.length > 0) {
               itemsForCompound = ingredients.map((info) => {
                 const anyInfo = info as any
@@ -961,16 +929,12 @@ export function MedicationRequestForm() {
       encounterId: values.encounterId,
       roomId: values.roomId,
       requesterId: values.requesterId,
+      recorderId: values.resepturId,
       authoredOn: dayjs().format('YYYY-MM-DD HH:mm:ss')
     }
 
     const supportingInformationCommon: SupportingInformationItemInfo[] = []
-    if (typeof values.resepturId === 'number') {
-      supportingInformationCommon.push({
-        type: 'Reseptur',
-        itemId: values.resepturId
-      })
-    }
+    // Reseptur is now moved to recorderId field
 
     if (isEdit) {
       const items = values.items ?? []
@@ -1055,24 +1019,17 @@ export function MedicationRequestForm() {
         patientId: string
         encounterId?: string | null
         requesterId?: number | null
+        recorderId?: number | null
         authoredOn: string | null
         medicationId?: number | null
         itemId?: number | null
         note?: string | null
-        groupIdentifier?: {
-          system?: string
-          value?: string
-        } | null
-        dosageInstruction?: { text?: string }[] | null
-        dispenseRequest?: {
-          quantity?: {
-            value?: number
-            unit?: string
-          }
-        } | null
-        category?: CategoryInfo[] | null
-        identifier?: IdentifierInfo[] | null
-        supportingInformation?: SupportingInformationItemInfo[] | null
+        dosageInstruction?: any
+        dispenseRequest?: any
+        supportingInformation?: any
+        category?: any
+        identifier?: any
+        groupIdentifier?: any
       }
 
       const updates: { id: number; payload: UpdatePayload }[] = []
@@ -1303,13 +1260,14 @@ export function MedicationRequestForm() {
           indexSimpleNew += 1
         ) {
           const item = items[indexSimpleNew]
+          const instructionText = Array.isArray(item.dosageInstruction) ? item.dosageInstruction.join(' ') : (item.dosageInstruction ?? '')
           extraSimplePayloads.push({
             ...baseCommonPayload,
             medicationId: null,
             itemId: item.medicationId,
             note: item.note ?? null,
             groupIdentifier,
-            dosageInstruction: item.dosageInstruction ? [{ text: item.dosageInstruction }] : null,
+            dosageInstruction: instructionText ? [{ text: instructionText }] : null,
             dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
             category: null,
             identifier: null,
@@ -1327,6 +1285,7 @@ export function MedicationRequestForm() {
           indexCompoundNew += 1
         ) {
           const input = compoundInputs[indexCompoundNew]
+          const instructionText = Array.isArray(input.dosageInstruction) ? input.dosageInstruction.join(' ') : (input.dosageInstruction ?? '')
           const compoundNotePrefix = input.name ? `[Racikan: ${input.name}]` : '[Racikan]'
           const fullNote = input.note ? `${compoundNotePrefix} ${input.note}` : compoundNotePrefix
           extraCompoundPayloads.push({
@@ -1335,7 +1294,7 @@ export function MedicationRequestForm() {
             itemId: null,
             note: fullNote,
             groupIdentifier,
-            dosageInstruction: input.dosageInstruction ? [{ text: input.dosageInstruction }] : null,
+            dosageInstruction: instructionText ? [{ text: instructionText }] : null,
             dispenseRequest: buildDispenseRequest(input.quantity, input.quantityUnit),
             category: [{ text: 'racikan', code: 'compound' }],
             identifier: null,
@@ -1392,26 +1351,29 @@ export function MedicationRequestForm() {
 
       if (updates.length === 0 && typeof baseId === 'number' && !Number.isNaN(baseId)) {
         const firstItem = items.length > 0 ? items[0] : undefined
-        await updateMutation.mutateAsync({
-          ...baseCommonPayload,
-          itemId: firstItem?.medicationId,
-          note: firstItem?.note ?? null,
-          dosageInstruction: firstItem?.dosageInstruction
-            ? [
-              buildDosageInstruction(
-                firstItem.dosageInstruction,
-                firstItem?.quantity,
-                firstItem?.quantityUnit
-              )
-            ]
-            : null,
-          dispenseRequest: buildDispenseRequest(
-            firstItem?.quantity,
-            firstItem?.quantityUnit
-          ),
-          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null,
-          id: baseId
-        })
+        if (firstItem) {
+          const instructionText = Array.isArray(firstItem.dosageInstruction) ? firstItem.dosageInstruction.join(' ') : (firstItem.dosageInstruction ?? '')
+          await updateMutation.mutateAsync({
+            ...baseCommonPayload,
+            itemId: firstItem?.medicationId,
+            note: firstItem?.note ?? null,
+            dosageInstruction: instructionText
+              ? [
+                buildDosageInstruction(
+                  instructionText,
+                  firstItem?.quantity,
+                  firstItem?.quantityUnit
+                )
+              ]
+              : null,
+            dispenseRequest: buildDispenseRequest(
+              firstItem?.quantity,
+              firstItem?.quantityUnit
+            ),
+            supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null,
+            id: baseId
+          })
+        }
       } else {
         for (const entry of updates) {
           await updateMutation.mutateAsync({ ...entry.payload, id: entry.id })
@@ -1462,17 +1424,20 @@ export function MedicationRequestForm() {
       // items (simplePayloads) is kept for backward compatibility but should be empty if the new UI is used.
       const simplePayloads = items
         .filter((item) => typeof item.medicationId === 'number' && item.medicationId > 0)
-        .map((item) => ({
-          ...baseCommonPayload,
-          groupIdentifier,
-          itemId: item.medicationId,
-          dosageInstruction: item.dosageInstruction
-            ? [buildDosageInstruction(item.dosageInstruction, item.quantity, item.quantityUnit)]
-            : null,
-          note: item.note,
-          dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
-          supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
-        }))
+        .map((item) => {
+          const instructionText = Array.isArray(item.dosageInstruction) ? item.dosageInstruction.join(' ') : (item.dosageInstruction ?? '')
+          return {
+            ...baseCommonPayload,
+            groupIdentifier,
+            itemId: item.medicationId,
+            dosageInstruction: instructionText
+              ? [buildDosageInstruction(instructionText, item.quantity, item.quantityUnit)]
+              : null,
+            note: item.note,
+            dispenseRequest: buildDispenseRequest(item.quantity, item.quantityUnit),
+            supportingInformation: supportingInformationCommon.length > 0 ? supportingInformationCommon : null
+          }
+        })
       const itemList = (itemSource?.result || []) as ItemAttributes[]
       const medicineList = itemList as any[]
 
@@ -1506,13 +1471,14 @@ export function MedicationRequestForm() {
             }
           })
 
+        const instructionText = Array.isArray(comp.dosageInstruction) ? comp.dosageInstruction.join(' ') : (comp.dosageInstruction ?? '')
         return {
           ...baseCommonPayload,
           groupIdentifier,
           medicationId: null,
           itemId: null,
-          dosageInstruction: comp.dosageInstruction
-            ? [buildDosageInstruction(comp.dosageInstruction, comp.quantity, comp.quantityUnit)]
+          dosageInstruction: instructionText
+            ? [buildDosageInstruction(instructionText, comp.quantity, comp.quantityUnit)]
             : null,
           identifier: [{ system: 'racikan-group', value: compoundId }],
           note: `[Racikan: ${comp.name}]`,
@@ -1535,7 +1501,7 @@ export function MedicationRequestForm() {
       const itemPayloads = otherItems
         .filter((it) => typeof it.itemId === 'number' && it.itemId > 0)
         .map((it) => {
-          const instructionText = typeof it.instruction === 'string' ? it.instruction.trim() : ''
+          const instructionText = Array.isArray(it.instruction) ? it.instruction.join(' ') : (typeof it.instruction === 'string' ? it.instruction.trim() : '')
           const noteText = typeof it.note === 'string' ? it.note.trim() : ''
           const combinedNote = [instructionText, noteText].filter((x) => x.length > 0).join(' | ')
 
@@ -1551,8 +1517,8 @@ export function MedicationRequestForm() {
               ? [buildDosageInstruction(instructionText, it.quantity, unitCode)]
               : null,
             dispenseRequest:
-              typeof it.quantity === 'number' && unitCode
-                ? buildDispenseRequest(it.quantity, unitCode)
+              typeof it.quantity === 'number'
+                ? buildDispenseRequest(it.quantity, unitCode || undefined)
                 : null,
             supportingInformation: (() => {
               return supportingInformationCommon.length > 0 ? supportingInformationCommon : null
@@ -1719,14 +1685,14 @@ export function MedicationRequestForm() {
           {/*    <ItemPrescriptionForm
                name="otherItems"
                title="Obat dan Barang"
-               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               itemOptions={itemOptions}
                loading={itemLoading}
              />
 
              <CompoundPrescriptionForm
                name="compounds"
                title="Daftar Obat Racikan"
-               itemOptions={itemOptions.filter((option) => option.categoryType === 'obat')}
+               itemOptions={itemOptions}
                loading={itemLoading}
              />
            </div> */}

@@ -108,7 +108,7 @@ export const ProcedureDetailForm = ({ encounterId, patientData }: ProcedureDetai
     }) => {
       const fn = window.api?.query?.medicationDispense?.update
       if (!fn) throw new Error('API update procedure detail tidak tersedia')
-      const res = await fn(payload)
+      const res = await fn(payload as any)
       if (!res.success) throw new Error(res.error || 'Gagal update tindakan')
       return res
     },

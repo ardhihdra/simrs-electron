@@ -1,5 +1,7 @@
 import { Button, Form, Input, InputNumber, Select, Card } from 'antd'
-import { MinusCircleOutlined, PlusOutlined } from '@ant-design/icons'
+import { MinusCircleOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import { useState } from 'react'
+import { ItemSelectorModal } from '@renderer/components/organisms/ItemSelectorModal'
 
 interface MedicationCompoundsSectionProps {
   form: any
@@ -11,11 +13,44 @@ interface MedicationCompoundsSectionProps {
 }
 
 export const MedicationCompoundsSection = ({
+  form,
   itemOptions,
   itemLoading,
   signaOptions,
   signaLoading
 }: MedicationCompoundsSectionProps) => {
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [currentRow, setCurrentRow] = useState<{ compoundIndex: number; itemIndex: number | null } | null>(null)
+
+  const openModal = (compoundIndex: number, itemIndex: number | null = null) => {
+    setCurrentRow({ compoundIndex, itemIndex })
+    setIsModalOpen(true)
+  }
+
+  const handleSelect = (item: any, addFn?: (config: any) => void) => {
+    if (currentRow) {
+      const { compoundIndex, itemIndex } = currentRow
+      const compounds = form.getFieldValue('compounds') || []
+
+      if (itemIndex !== null) {
+        // Update existing item in compound
+        const updated = [...compounds]
+        if (updated[compoundIndex]?.items) {
+          updated[compoundIndex].items[itemIndex] = {
+            ...updated[compoundIndex].items[itemIndex],
+            itemId: item.value
+          }
+          form.setFieldsValue({ compounds: updated })
+        }
+      } else if (addFn) {
+        // Add new item to compound
+        addFn({ itemId: item.value, quantity: 0 })
+      }
+    }
+    setIsModalOpen(false)
+    setCurrentRow(null)
+  }
+
   return (
     <div className="mt-8">
       <h3 className="font-semibold text-lg mb-4 text-gray-700">Daftar Obat Racikan</h3>
@@ -67,14 +102,14 @@ export const MedicationCompoundsSection = ({
                   >
                     <InputNumber<number> min={1} className="w-full" />
                   </Form.Item>
-                  <Form.Item
+                  {/* <Form.Item
                     {...restField}
                     name={[name, 'quantityUnit']}
                     label="Satuan Racikan"
                     className="mb-0"
                   >
                     <Input placeholder="Contoh: bungkus, botol" />
-                  </Form.Item>
+                  </Form.Item> */}
                 </div>
 
                 <div className="pl-4 border-l-2 border-orange-200 ml-2">
@@ -95,11 +130,28 @@ export const MedicationCompoundsSection = ({
                                 rules={[{ required: true, message: 'Pilih obat' }]}
                               >
                                 <Select
-                                  options={itemOptions.filter((option) => option.categoryType === 'obat')}
-                                  placeholder="Pilih Obat"
+                                  options={itemOptions}
+                                  placeholder="Pilih Obat atau klik Cari"
                                   showSearch
                                   optionFilterProp="label"
                                   loading={itemLoading}
+                                  dropdownRender={(menu) => (
+                                    <div>
+                                      {menu}
+                                      <div className="p-2 border-t text-center">
+                                        <Button
+                                          type="primary"
+                                          size="small"
+                                          icon={<SearchOutlined />}
+                                          onClick={() => openModal(name, subRestField.name)}
+                                          block
+                                        >
+                                          Pencarian Lanjut
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  )}
+                                  allowClear
                                 />
                               </Form.Item>
                               <Form.Item
@@ -124,12 +176,23 @@ export const MedicationCompoundsSection = ({
                         <Button
                           type="dashed"
                           size="small"
-                          onClick={() => subOpt.add()}
+                          onClick={() => openModal(name, null)}
                           icon={<PlusOutlined />}
                           className="mt-2"
                         >
-                          Tambah Komposisi
+                          Tambah Komposisi (Pencarian Lanjut)
                         </Button>
+
+                        <ItemSelectorModal
+                          open={isModalOpen && currentRow?.compoundIndex === name}
+                          onCancel={() => {
+                            setIsModalOpen(false)
+                            setCurrentRow(null)
+                          }}
+                          onSelect={(item) => handleSelect(item, subOpt.add)}
+                          itemOptions={itemOptions}
+                          loading={itemLoading}
+                        />
                       </div>
                     )}
                   </Form.List>
@@ -145,3 +208,4 @@ export const MedicationCompoundsSection = ({
     </div>
   )
 }
+

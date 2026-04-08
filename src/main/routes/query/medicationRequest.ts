@@ -136,49 +136,18 @@ export const getByEncounterId = async (ctx: IpcContext, args: z.infer<typeof sch
 export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.create.args>) => {
   try {
     const client = getClient(ctx)
-    if (Array.isArray(args)) {
-      const SingleSchema = z.object({
-        success: z.boolean(),
-        result: z
-          .object({
-            id: z.number(),
-            status: z.string().optional()
-          })
-          .optional(),
-        error: z.string().optional(),
-        message: z.string().optional()
-      })
-      const results: Array<{ id: number; status?: string }> = []
-      for (const entry of args) {
-        const res = await client.post(
-          '/api/module/medication-request/medication-requests',
-          entry
-        )
-        const parsed = await parseBackendResponse(res, SingleSchema)
-        if (parsed && typeof parsed.id === 'number') {
-          results.push(parsed)
-        }
-      }
-      return { success: true, data: results }
-    } else {
-      const res = await client.post(
-        '/api/module/medication-request/medication-requests',
-        args
-      )
-      const SingleSchema = z.object({
-        success: z.boolean(),
-        result: z
-          .object({
-            id: z.number(),
-            status: z.string().optional()
-          })
-          .optional(),
-        error: z.string().optional(),
-        message: z.string().optional()
-      })
-      const result = await parseBackendResponse(res, SingleSchema)
-      return result ? { success: true, data: result } : { success: false }
-    }
+    const res = await client.post('/api/module/medication-request/medication-requests', args)
+    const BatchSchema = z.object({
+      success: z.boolean(),
+      result: z.union([
+        z.object({ id: z.number(), status: z.string().optional() }),
+        z.array(z.object({ id: z.number(), status: z.string().optional() }))
+      ]).optional(),
+      error: z.string().optional(),
+      message: z.string().optional()
+    })
+    const result = await parseBackendResponse(res, BatchSchema)
+    return { success: true, data: result }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('MedicationRequest IPC create error:', msg)

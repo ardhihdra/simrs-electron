@@ -8,6 +8,7 @@ import z from 'zod'
 type LoginArgs = { username: string; password: string }
 type BackendLoginSuccess = {
   success: true
+  token: string
   result: {
     id: number
     email?: string
@@ -74,17 +75,19 @@ export async function login(ctx: IpcContext, data: LoginArgs) {
     return { success: false, error: (json as BackendLoginFailure)?.message ?? 'invalid response' }
   }
   
-  // Extract token from cookie header since the API returns token via cookie
-  const cookieHeader = res.headers.get('set-cookie')
-  let token: string | null = null
-  
-  if (cookieHeader) {
-    const cookies = cookieHeader.split(';')
-    for (const cookie of cookies) {
-      const [name, value] = cookie.trim().split('=')
-      if (name === 'token') {
-        token = value
-        break
+  // Extract token: Prioritize JSON body, then fallback to cookie header
+  let token: string | null = (json as BackendLoginSuccess).token || null
+
+  if (!token) {
+    const cookieHeader = res.headers.get('set-cookie')
+    if (cookieHeader) {
+      const cookies = cookieHeader.split(';')
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=')
+        if (name === 'token') {
+          token = value
+          break
+        }
       }
     }
   }

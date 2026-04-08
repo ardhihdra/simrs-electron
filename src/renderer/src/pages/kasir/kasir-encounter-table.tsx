@@ -2,7 +2,7 @@ import { FileTextOutlined, ReloadOutlined } from '@ant-design/icons'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { formatEnum } from '@renderer/utils/formatters/enum-formatter'
 import GenericTable from '@renderer/components/organisms/GenericTable'
-import { Button, DatePicker, Input, Select, Tooltip } from 'antd'
+import { Button, DatePicker, Input, Select, Tooltip, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
@@ -21,6 +21,7 @@ interface EncounterRow {
   serviceType?: string
   reason?: string
   status?: string
+  invoiceStatus?: string | null
 }
 
 const columns: ColumnsType<EncounterRow> = [
@@ -57,7 +58,19 @@ const columns: ColumnsType<EncounterRow> = [
     key: 'serviceUnit',
     render: (v) => v ?? '-'
   },
-  { title: 'Status', dataIndex: 'status', key: 'status', render: (v) => formatEnum(v) }
+  {
+    title: 'Status Tagihan',
+    key: 'invoiceStatus',
+    width: 140,
+    render: (_: unknown, record: EncounterRow) => {
+      const s = record.invoiceStatus
+      if (!s) return <Tag color="default">Belum Ada</Tag>
+      if (s === 'balanced') return <Tag color="green">Lunas</Tag>
+      if (s === 'issued') return <Tag color="blue">Terkonfirmasi</Tag>
+      if (s === 'draft') return <Tag color="orange">Draft</Tag>
+      return <Tag>{formatEnum(s)}</Tag>
+    }
+  }
 ]
 
 /**
@@ -69,7 +82,7 @@ export default function KasirEncounterTable() {
 
   const [searchPatient, setSearchPatient] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [status, setStatus] = useState<string | undefined>('FINISHED')
+  const [status, setStatus] = useState<string | undefined>(undefined)
   const [visitDate, setVisitDate] = useState<string | null>(null)
   const [serviceUnitId, setServiceUnitId] = useState<string | undefined>(undefined)
 

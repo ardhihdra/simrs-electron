@@ -47,6 +47,9 @@ import PaketTindakanTab from './PaketTindakanTab'
 import TindakanNonPaketTab from './TindakanNonPaketTab'
 import PaketBhpTab from './PaketBhpTab'
 import BhpNonPaketTab from './BhpNonPaketTab'
+import { ItemSelectorModal, ItemAttributes, ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
+import { ProcedureSelectorModal } from '@renderer/components/organisms/ProcedureSelectorModal'
+import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
 
 interface DetailTindakanFormProps {
   encounterId: string
@@ -55,23 +58,12 @@ interface DetailTindakanFormProps {
 
 interface ItemListResponse {
   success: boolean
-  result?: ConsumableItem[]
+  result?: ItemAttributes[]
   message?: string
   error?: string
 }
 
-interface ConsumableItem {
-  id: number
-  kode: string
-  nama: string
-  kodeUnit?: string | null
-  sellingPrice?: number | null
-  category?: {
-    id?: number
-    name?: string | null
-    categoryType?: string | null
-  } | null
-}
+// Using ItemAttributes defined in ItemSelectorModal
 
 const kelasOptions = [
   { value: 'kelas_1', label: 'Kelas 1' },
@@ -139,6 +131,17 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
   const [searchPaketBhp, setSearchPaketBhp] = useState('')
+  
+  // Modals for Advanced Selection
+  const [itemSelectorState, setItemSelectorState] = useState<{
+    open: boolean;
+    onSelect?: (item: ItemOption) => void;
+  }>({ open: false })
+
+  const [procedureSelectorState, setProcedureSelectorState] = useState<{
+    open: boolean;
+    onSelect?: (item: MasterTindakanItem) => void;
+  }>({ open: false })
   const [paketCache, setPaketCache] = useState<Record<number, any>>({})
   const [paketBhpCache, setPaketBhpCache] = useState<Record<number, any>>({})
   const [masterTindakanDetailCache, setMasterTindakanDetailCache] = useState<
@@ -206,24 +209,17 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }, [paketBhpList])
 
   const { data: consumableItems = [], isLoading: isLoadingConsumableItems } = useQuery({
-    queryKey: ['item', 'bhp-list'],
-    queryFn: async (): Promise<ConsumableItem[]> => {
+    queryKey: ['item', 'list-for-detail-tindakan'],
+    queryFn: async (): Promise<ItemAttributes[]> => {
       const fn = window.api?.query?.item?.list as any
       if (!fn) throw new Error('API master item tidak tersedia')
 
-      const res = await fn({ items: 1000, depth: 1 })
+      const res = await fn({ items: 2000, depth: 1 })
       if (!res.success) {
         throw new Error(res.message || res.error || 'Gagal mengambil data item')
       }
 
-      const list = (Array.isArray(res.result) ? res.result : []) as ConsumableItem[]
-      
-      return list.filter((item) => {
-        const categoryType = typeof item?.category?.categoryType === 'string' 
-          ? item.category.categoryType.toLowerCase() 
-          : ''
-        return categoryType === 'bhp'
-      })
+      return (Array.isArray(res.result) ? res.result : []) as ItemAttributes[]
     },
     staleTime: 5 * 60 * 1000
   })
@@ -440,32 +436,41 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     }
   }, [consumableItems, stockByItemMap])
 
-  const consumableItemOptions = useMemo(() => {
-    const noLocationStock = allowedItemIdSet.size === 0 && stockByItemMap.size === 0
-    const filtered = noLocationStock
-      ? consumableItems
-      : consumableItems.filter((item) => {
-          const kode = String(item.kode || '').trim().toUpperCase()
-          const idNum = Number(item.id)
-          if (!kode || !Number.isFinite(idNum)) return false
-          if (allowedItemIdSet.size > 0) {
-            return allowedItemIdSet.has(idNum)
-          }
-          return stockByItemMap.has(kode)
-        })
-    return filtered.map((item) => {
-      const kode = String(item.kode || '').trim().toUpperCase()
-      const stock = stockByItemMap.get(kode) || 0
-      const isOutOfStock = stock <= 0
-      const stockText = isOutOfStock ? ' (Stok Kosong)' : ` (Stok: ${stock})`
-      return {
-        value: item.id,
-        label: `${item.nama}${stockText}`,
-        searchLabel: `${item.kode} ${item.nama}`.toLowerCase(),
-        disabled: isOutOfStock
-      }
-    })
-  }, [consumableItems, stockByItemMap, allowedItemIdSet])
+  const consumableItemOptions = useMemo((): ItemOption[] => {
+    return (consumableItems || [])
+      .filter((item) => item.itemGroupCode === 'G08') // Filter only BHP
+      .map((item) => {
+        const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
+        const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
+        const unitName = item.unit?.nama ?? unitCode
+        
+        const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
+        const name = item.nama ?? code
+        const displayName = name || code || String(item.id)
+        const label = unitName ? `${displayName} (${unitName})` : displayName
+        
+        const categoryId = typeof item.itemCategoryId === 'number' ? item.itemCategoryId : (item.category?.id ?? null)
+        const categoryType = item.category?.categoryType?.toLowerCase() || 'item'
+
+        return {
+          value: item.id as number,
+          label,
+          unitCode,
+          categoryId,
+          categoryType,
+          itemCategoryCode: item.itemCategoryCode,
+          itemGroupCode: item.itemGroupCode,
+          fpktl: item.fpktl,
+          prb: item.prb,
+          oen: item.oen,
+          sediaanId: item.sediaanId,
+          peresepanMaksimal: item.peresepanMaksimal,
+          restriksi: item.restriksi,
+          kekuatan: item.kekuatan,
+          satuanId: item.satuanId
+        }
+      })
+  }, [consumableItems])
 
   const roleByKomponenId = useMemo(
     () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),
@@ -492,12 +497,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
           if (stock === undefined) {
             if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             } else if (allowedItemIdSet.size === 0) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             }
           } else if (stock <= 0) {
-            outOfStock.push(item.nama)
+            outOfStock.push(item.nama || '')
           }
         }
       }
@@ -511,7 +516,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
       return {
         value: p.id,
-        label: `${p.namaPaketBhp}${statusText}`,
+        label: `${p.namaPaketBhp || 'Paket Tanpa Nama'}${statusText}`,
         disabled: statusText !== ''
       }
     })
@@ -545,12 +550,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
           if (stock === undefined) {
             if (allowedItemIdSet.size > 0 && !allowedItemIdSet.has(Number(item.id))) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             } else if (allowedItemIdSet.size === 0) {
-              missingFromLocation.push(item.nama)
+              missingFromLocation.push(item.nama || '')
             }
           } else if (stock <= 0) {
-            outOfStock.push(item.nama)
+            outOfStock.push(item.nama || '')
           }
         }
       }
@@ -1845,6 +1850,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     isLoadingPerformers={isLoadingPerformers}
                     performers={performers}
                     roleLabelByCode={roleLabelByCode}
+                    setItemSelectorState={setItemSelectorState}
+                    setProcedureSelectorState={setProcedureSelectorState}
+                    masterTindakanList={masterTindakanList}
                   />
                 )
               },
@@ -1863,6 +1871,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     isLoadingPerformers={isLoadingPerformers}
                     performers={performers}
                     roleLabelByCode={roleLabelByCode}
+                    setProcedureSelectorState={setProcedureSelectorState}
+                    masterTindakanList={masterTindakanList}
                   />
                 )
               },
@@ -1895,6 +1905,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     consumableItemOptions={consumableItemOptions}
                     consumableItemMap={consumableItemMap}
                     stockByItemMap={stockByItemMap}
+                    setItemSelectorState={setItemSelectorState}
                   />
                 )
               }
@@ -1902,6 +1913,28 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           />
         </Form>
       </Modal>
+
+      <ItemSelectorModal
+        open={itemSelectorState.open}
+        onCancel={() => setItemSelectorState({ open: false })}
+        onSelect={(item) => {
+          if (itemSelectorState.onSelect) itemSelectorState.onSelect(item)
+          setItemSelectorState({ open: false })
+        }}
+        itemOptions={consumableItemOptions}
+        loading={isLoadingConsumableItems}
+      />
+
+      <ProcedureSelectorModal
+        open={procedureSelectorState.open}
+        onCancel={() => setProcedureSelectorState({ open: false })}
+        onSelect={(proc) => {
+          if (procedureSelectorState.onSelect) procedureSelectorState.onSelect(proc)
+          setProcedureSelectorState({ open: false })
+        }}
+        procedures={masterTindakanList}
+        loading={isLoadingMaster}
+      />
     </div>
   )
 }

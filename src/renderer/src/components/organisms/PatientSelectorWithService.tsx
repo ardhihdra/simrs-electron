@@ -60,12 +60,13 @@ export const PatientSelectorWithService = ({
 
         const params: any = {
           limit: 50,
-          status: 'IN_PROGRESS',
           serviceType: serviceType,
           q: searchText
         }
 
-        return fn(params)
+        const res = await fn(params)
+        console.log('[PatientSelectorWithService] results for params:', params, res)
+        return res
       }
     },
     enabled: serviceType !== 'LUAR'
@@ -102,6 +103,7 @@ export const PatientSelectorWithService = ({
           </div>
         </div>
       ),
+      display: `${name} | RM: ${mrn}`,
       value: isEncounter ? (item as EncounterResult).id : patient.id,
       data: {
         patientId: patient.id,
@@ -192,6 +194,7 @@ export const PatientSelectorWithService = ({
         <div className="flex-1">
           <Select
             className="w-full"
+            optionLabelProp="display"
             showSearch
             placeholder="Cari Nama Pasien atau No. RM (Pilih layanan dulu)"
             loading={isLoading}
