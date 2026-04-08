@@ -188,6 +188,7 @@ interface DispenseItemRow {
   batch?: string
   expiryDate?: string
   paymentStatus?: string
+  kekuatan?: string | number
   children?: DispenseItemRow[]
 }
 
@@ -439,12 +440,12 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
           Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
         </div>
       )}
-      {!isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
+      {!isKomposisi && !isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
         <div className="text-xs text-orange-500">
           Pembayaran belum lunas, tidak dapat menyerahkan obat.
         </div>
       )}
-      {isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
+      {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
         <div className="text-xs text-orange-500 font-semibold bg-orange-50 border border-orange-200 p-1 px-2 rounded-md">
           Harap &quot;Mulai Proses&quot; (di menu titik tiga) terlebih dahulu.
         </div>
@@ -1115,7 +1116,8 @@ export function MedicationDispenseTable() {
                 status: '',
                 instruksi: ing.note ?? ing.instruction,
                 batch: ingBatch,
-                expiryDate: ingExpiryDate
+                expiryDate: ingExpiryDate,
+                kekuatan: ing.strength
               }
             })
           }
@@ -1163,7 +1165,8 @@ export function MedicationDispenseTable() {
               status: '',
               instruksi: ing.note ?? ing.instruction,
               batch: ingBatch,
-              expiryDate: ingExpiryDate
+              expiryDate: ingExpiryDate,
+              kekuatan: ing.strength
             }
           })
         }
@@ -1182,6 +1185,11 @@ export function MedicationDispenseTable() {
         availableStock:
           typeof item.medication?.stock === 'number' ? item.medication.stock : undefined,
         paymentStatus: item.paymentStatus,
+        kekuatan: (() => {
+          if (!Array.isArray(prescription?.supportingInformation)) return undefined
+          const ing = prescription.supportingInformation.find((i: any) => i.resourceType === 'Ingredient' || i.itemId === item.itemId || i.item_id === item.itemId)
+          return ing?.strength
+        })(),
         fhirId:
           typeof item.fhirId === 'string' && item.fhirId.trim().length > 0
             ? item.fhirId.trim()
@@ -1471,6 +1479,7 @@ export function MedicationDispenseTable() {
                   const detailColumns = [
                     { title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
                     { title: 'Item', dataIndex: 'medicineName', key: 'medicineName' },
+                    { title: 'Kekuatan', dataIndex: 'kekuatan', key: 'kekuatan' },
                     { title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
                     { title: 'Satuan', dataIndex: 'unit', key: 'unit' },
                     { title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
