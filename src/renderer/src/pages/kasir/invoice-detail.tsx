@@ -389,7 +389,6 @@ export default function InvoiceDetailPage() {
     queryFn: () => rpc.kasir.getInvoiceDetail({ encounterId: encounterId! }),
     enabled: !!encounterId
   })
-  console.log('invoice data', data)
 
   const invoice = (data as any)?.result
   const persistedInvoice = (detailData as any)?.result ?? null

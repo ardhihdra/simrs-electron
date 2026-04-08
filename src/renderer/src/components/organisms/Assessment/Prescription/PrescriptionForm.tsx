@@ -62,24 +62,7 @@ interface RawMaterialApi {
   list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
 }
 
-interface ItemAttributes {
-  id?: number
-  nama?: string
-  kode?: string
-  kodeUnit?: string
-  unit?: {
-    id?: number
-    kode?: string
-    nama?: string
-  } | null
-  itemCategoryId?: number | null
-  category?: {
-    id?: number
-    name?: string | null
-    categoryType?: string | null
-  } | null
-  stock?: number
-}
+import { ItemAttributes } from '@renderer/components/organisms/ItemSelectorModal'
 
 type ItemListResponse = {
   success: boolean
@@ -314,10 +297,18 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           label,
           unitCode,
           categoryId,
-          categoryType
+          categoryType,
+          itemCategoryCode: item.itemCategoryCode,
+          itemGroupCode: item.itemGroupCode,
+          fpktl: item.fpktl,
+          prb: item.prb,
+          oen: item.oen,
+          peresepanMaksimal: (item as any).peresepanMaksimal,
+          restriksi: (item as any).restriksi,
+          kekuatan: (item as any).kekuatan,
+          satuanId: (item as any).satuanId
         }
       })
-      .filter((entry) => entry.categoryType === 'obat')
 
     // Fallback: jika kosong, bangun dari stok FARM
     if (opts.length === 0) {
@@ -334,11 +325,25 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
               typeof it.unitCode === 'string' && it.unitCode.trim().length > 0
                 ? it.unitCode.trim().toUpperCase()
                 : (typeof it.unit === 'string' ? it.unit : '')
-            return { value, label, unitCode, categoryId: null, categoryType: 'obat' }
+            return { 
+              value, 
+              label, 
+              unitCode, 
+              categoryId: null, 
+              categoryType: it.itemCategory?.categoryType?.toLowerCase() || 'item',
+              itemCategoryCode: it.itemCategoryCode ?? null,
+              itemGroupCode: it.itemGroupCode ?? null,
+              fpktl: false,
+              prb: false,
+              oen: false,
+              peresepanMaksimal: null,
+              restriksi: null,
+              kekuatan: null,
+              satuanId: null
+            }
           })
         if (fromFarm.length > 0) {
-          console.log('[RX][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
-          opts = fromFarm
+          opts = fromFarm as any[]
         }
       } catch (e) {
         console.log('[RX][Items][Options][fallback-from-stock] error:', e)

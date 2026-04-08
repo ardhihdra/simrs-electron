@@ -38,7 +38,10 @@ const DosageInstructionEntrySchema = z.object({
 })
 
 export const MedicationDispenseSchema = z.object({
-  status: z.nativeEnum(MedicationDispenseStatus),
+  status: z.enum([
+    'preparation', 'in-progress', 'cancelled', 'on-hold', 'completed', 'entered-in-error', 'stopped', 'declined', 'unknown',
+    'PREPARATION', 'IN-PROGRESS', 'CANCELLED', 'ON-HOLD', 'COMPLETED', 'ENTERED-IN-ERROR', 'STOPPED', 'DECLINED', 'UNKNOWN'
+  ]),
   itemId: z.number().nullable().optional(),
   patientId: z.string(),
   encounterId: z.string().nullable().optional(),
@@ -55,6 +58,8 @@ export const MedicationDispenseSchema = z.object({
 export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
   id: z.number(),
   fhirId: z.string().nullable().optional(),
+  paymentStatus: z.string().nullable().optional(),
+  servicedAt: z.string().nullable().optional(),
   createdAt: z.string().nullable().optional(),
   updatedAt: z.string().nullable().optional(),
   deletedAt: z.string().nullable().optional(),

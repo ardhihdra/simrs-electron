@@ -25,7 +25,11 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
     const [form] = Form.useForm()
     const [loading, setLoading] = useState(false)
     const [fileList, setFileList] = useState<UploadFile[]>([])
+    
+    // Watch fields for real-time calculations
     const paymentMethod = Form.useWatch('paymentMethod', form)
+    const amount = Form.useWatch('amount', form) || 0
+    const change = Math.max(0, amount - remaining)
 
     const { data: banksData } = useQuery({
         queryKey: ['kasir-banks'],
@@ -50,9 +54,10 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
     }
 
     const handleOk = async () => {
-        const values = await form.validateFields()
-        setLoading(true)
         try {
+            const values = await form.validateFields()
+            setLoading(true)
+            
             let file: ArrayBuffer | undefined
             let filename: string | undefined
             let mimetype: string | undefined
@@ -63,9 +68,11 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                 mimetype = fileList[0].type ?? 'application/octet-stream'
             }
 
+            const recordAmount = Math.min(values.amount, remaining)
+
             const res = await rpc.kasir.recordPayment({
                 invoiceId,
-                amount: values.amount,
+                amount: recordAmount,
                 paymentMethod: values.paymentMethod,
                 bankId: values.bankId,
                 ref: values.ref ?? undefined,
@@ -84,6 +91,7 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                 message.error((res as any).message ?? 'Gagal mencatat pembayaran')
             }
         } catch (err: any) {
+            if (err.errorFields) return 
             message.error(err.message ?? 'Terjadi kesalahan')
         } finally {
             setLoading(false)
@@ -92,57 +100,55 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
 
     return (
         <Modal
-            title="Catat Pembayaran"
+            title={<span style={{ fontWeight: 600 }}>Catat Pembayaran</span>}
             open={open}
             onCancel={handleCancel}
-            onOk={handleOk}
-            confirmLoading={loading}
-            okText="Simpan"
-            cancelText="Batal"
-            destroyOnClose
-        >
-            <Alert
-                type="info"
-                message={`Sisa tagihan: ${formatRupiah(remaining)}`}
-                className="mb-4"
-                showIcon
-            />
-            <Form form={form} layout="vertical">
-                <Form.Item
-                    name="amount"
-                    label="Jumlah Bayar (Rp)"
-                    rules={[
-                        { required: true, message: 'Jumlah wajib diisi' },
-                        {
-                            validator: (_, value) => {
-                                if (!value || value <= 0) return Promise.reject('Jumlah harus lebih dari 0')
-                                if (value > remaining) return Promise.reject(`Jumlah tidak boleh melebihi sisa tagihan`)
-                                return Promise.resolve()
-                            },
-                        },
-                    ]}
+            width={520}
+            footer={[
+                <Button key="back" onClick={handleCancel} size="large">
+                    Batal
+                </Button>,
+                <Button 
+                    key="submit" 
+                    type="primary" 
+                    loading={loading} 
+                    onClick={handleOk} 
+                    size="large"
                 >
-                    <InputNumber
-                        className="w-full"
-                        min={1}
-                        max={remaining}
-                        formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
-                        parser={(v) => Number(v!.replace(/\./g, '')) as any}
-                    />
-                </Form.Item>
+                    Simpan Pembayaran
+                </Button>
+            ]}
+            destroyOnClose
+            centered
+        >
+            {/* Header: Sisa Tagihan */}
+            <div style={{ 
+                background: '#f1f5f9', 
+                padding: '12px', 
+                borderRadius: '8px', 
+                marginBottom: '20px',
+                textAlign: 'center'
+            }}>
+                <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Sisa Tagihan</div>
+                <div style={{ color: '#0f172a', fontSize: '1.5rem', fontWeight: 700 }}>
+                    {formatRupiah(remaining)}
+                </div>
+            </div>
 
+            <Form form={form} layout="vertical" initialValues={{ paymentMethod: 'CASH', amount: remaining }}>
                 <Form.Item
                     name="paymentMethod"
                     label="Metode Pembayaran"
                     rules={[{ required: true, message: 'Pilih metode pembayaran' }]}
+                    style={{ marginBottom: '12px' }}
                 >
                     <Select
+                        size="large"
                         options={[
                             { label: 'Tunai', value: 'CASH' },
                             { label: 'Transfer Bank', value: 'BANK_TRANSFER' },
-                            { label: 'Lainnya', value: 'OTHER' },
+                            { label: 'EDC / Lainnya', value: 'OTHER' },
                         ]}
-                        placeholder="Pilih metode"
                     />
                 </Form.Item>
 
@@ -151,8 +157,10 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                         name="bankId"
                         label="Bank Tujuan"
                         rules={[{ required: true, message: 'Pilih bank tujuan' }]}
+                        style={{ marginBottom: '12px' }}
                     >
                         <Select
+                            size="large"
                             options={banks.map((b: any) => ({
                                 label: `${b.name} – ${b.accountNumber} (${b.accountHolder})`,
                                 value: b.id,
@@ -162,18 +170,56 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                     </Form.Item>
                 )}
 
-                <Form.Item name="ref" label="No. Referensi / Kwitansi">
-                    <Input placeholder="Opsional" />
+                <Form.Item
+                    name="amount"
+                    label="Jumlah Uang Diterima (Rp)"
+                    rules={[
+                        { required: true, message: 'Wajib diisi' },
+                        {
+                            validator: (_, value) => {
+                                if (!value || value <= 0) return Promise.reject('Harus lebih dari 0')
+                                return Promise.resolve()
+                            },
+                        },
+                    ]}
+                >
+                    <InputNumber
+                        style={{ width: '100%', height: '45px', fontSize: '1.2rem', display: 'flex', alignItems: 'center' }}
+                        size="large"
+                        min={1}
+                        formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
+                        parser={(v) => Number(v!.replace(/\./g, '')) as any}
+                    />
                 </Form.Item>
 
-                <Form.Item name="note" label="Catatan">
-                    <Input.TextArea rows={2} placeholder="Opsional" />
-                </Form.Item>
+                {paymentMethod === 'CASH' && amount > remaining && (
+                    <div style={{ marginBottom: '20px', marginTop: '-12px' }}>
+                        <Alert 
+                            message={
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span>Kembalian</span>
+                                    <b style={{ fontSize: '1.2rem', color: '#16a34a' }}>{formatRupiah(change)}</b>
+                                </div>
+                            }
+                            type="success"
+                            style={{ borderRadius: '6px' }}
+                        />
+                    </div>
+                )}
 
-                <Form.Item name="attachmentFile" label="Bukti Pembayaran (JPG/PNG/PDF)">
-                    <Upload {...uploadProps}>
-                        <Button icon={<UploadOutlined />}>Pilih File</Button>
-                    </Upload>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <Form.Item name="ref" label="No. Referensi">
+                        <Input placeholder="Opsional" />
+                    </Form.Item>
+                    <Form.Item name="attachmentFile" label="Bukti Bayar">
+                        <Upload {...uploadProps}>
+                            <Button icon={<UploadOutlined />} style={{ width: '100%' }}>Pilih File</Button>
+                        </Upload>
+                    </Form.Item>
+                </div>
+
+                <Form.Item name="note" label="Catatan" style={{ marginBottom: 0 }}>
+                    <Input.TextArea rows={1} placeholder="Catatan tambahan..." />
                 </Form.Item>
             </Form>
         </Modal>

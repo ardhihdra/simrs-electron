@@ -1,6 +1,9 @@
 import { Form, Card, Button, Select, Spin, Switch, InputNumber, Input, Row, Col } from 'antd'
-import { PlusCircleOutlined, MinusCircleOutlined } from '@ant-design/icons'
 import AutoRolePetugasListCard from './AutoRolePetugasListCard'
+import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
+import { ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
+import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
+import { ProcedureSelectorModal } from '@renderer/components/organisms/ProcedureSelectorModal'
 
 const { TextArea } = Input
 
@@ -13,12 +16,15 @@ interface PaketTindakanTabProps {
   handlePaketEntryChange: (entryIndex: number, rawPaketId?: number) => void
   kelasOptions: Array<{ value: string; label: string }>
   tindakanOptions: any[]
-  consumableItemOptions: any[]
+  consumableItemOptions: ItemOption[]
   isLoadingConsumableItems: boolean
   consumableItemMap: Map<number, any>
   isLoadingPerformers: boolean
   performers: any[]
   roleLabelByCode: Map<string, string>
+  setItemSelectorState: (state: { open: boolean; onSelect?: (item: ItemOption) => void }) => void
+  setProcedureSelectorState: (state: { open: boolean; onSelect?: (item: MasterTindakanItem) => void }) => void
+  masterTindakanList: MasterTindakanItem[]
 }
 
 export default function PaketTindakanTab({
@@ -30,13 +36,45 @@ export default function PaketTindakanTab({
   handlePaketEntryChange,
   kelasOptions,
   tindakanOptions,
-  consumableItemOptions,
   isLoadingConsumableItems,
   consumableItemMap,
   isLoadingPerformers,
   performers,
-  roleLabelByCode
+  roleLabelByCode,
+  setItemSelectorState,
+  masterTindakanList
 }: PaketTindakanTabProps) {
+
+  const masterTindakanMap = new Map(masterTindakanList.map(t => [t.id, t]))
+
+  const handleSelectBhp = (paketName: number, bhpName: number, item: ItemOption) => {
+    modalForm.setFieldValue(['paketEntries', paketName, 'bhpList', bhpName, 'itemId'], item.value)
+    
+    const selectedItem = consumableItemMap.get(item.value)
+    if (!selectedItem) return
+
+    const currentSatuan = modalForm.getFieldValue([
+      'paketEntries',
+      paketName,
+      'bhpList',
+      bhpName,
+      'satuan'
+    ])
+    if (!currentSatuan && selectedItem.kodeUnit) {
+      modalForm.setFieldValue(
+        ['paketEntries', paketName, 'bhpList', bhpName, 'satuan'],
+        selectedItem.kodeUnit
+      )
+    }
+  }
+
+  const openBhpSelector = (paketName: number, bhpName: number) => {
+    setItemSelectorState({
+      open: true,
+      onSelect: (item) => handleSelectBhp(paketName, bhpName, item)
+    })
+  }
+
   return (
     <Card
       size="small"
@@ -88,7 +126,7 @@ export default function PaketTindakanTab({
                       type="text"
                       danger
                       size="small"
-                      icon={<MinusCircleOutlined />}
+                      icon={<DeleteOutlined />}
                       onClick={() => removePaket(paketField.name)}
                     >
                       Hapus Paket
@@ -188,22 +226,33 @@ export default function PaketTindakanTab({
                           <Row key={key} gutter={8} align="middle">
                             <Col span={12}>
                               <Form.Item
-                                {...restField}
-                                name={[name, 'masterTindakanId']}
-                                label={
-                                  name === 0 ? (
-                                    <span className="font-bold">Tindakan</span>
-                                  ) : undefined
+                                noStyle
+                                shouldUpdate={(prev, curr) => 
+                                  prev.paketEntries?.[paketIndex]?.tindakanList?.[name]?.masterTindakanId !== 
+                                  curr.paketEntries?.[paketIndex]?.tindakanList?.[name]?.masterTindakanId
                                 }
-                                rules={[{ required: true, message: 'Pilih tindakan' }]}
-                                style={{ marginBottom: 0 }}
                               >
-                                <Select
-                                  showSearch
-                                  disabled
-                                  options={tindakanOptions}
-                                  placeholder="Tindakan paket"
-                                />
+                                {({ getFieldValue }) => {
+                                  const id = getFieldValue(['paketEntries', paketIndex, 'tindakanList', name, 'masterTindakanId'])
+                                  const proc = id ? masterTindakanMap.get(id) : null
+                                  const displayLabel = proc ? `${proc.namaTindakan} (${proc.kodeTindakan})` : 'Item Tindakan...'
+                                  
+                                  return (
+                                    <Form.Item
+                                      {...restField}
+                                      name={[name, 'masterTindakanId']}
+                                      label={
+                                        name === 0 ? (
+                                          <span className="font-bold">Tindakan</span>
+                                        ) : undefined
+                                      }
+                                      rules={[{ required: true, message: 'Pilih tindakan' }]}
+                                      style={{ marginBottom: 0 }}
+                                    >
+                                      <Input readOnly value={displayLabel} size="small" />
+                                    </Form.Item>
+                                  )
+                                }}
                               </Form.Item>
                             </Col>
                             <Col span={4}>
@@ -216,7 +265,7 @@ export default function PaketTindakanTab({
                                 rules={[{ required: true, message: 'Wajib' }]}
                                 style={{ marginBottom: 0 }}
                               >
-                                <InputNumber min={0.01} step={1} className="w-full" />
+                                <InputNumber min={0.01} step={1} className="w-full" size="small" />
                               </Form.Item>
                             </Col>
                             <Col span={6}>
@@ -228,7 +277,7 @@ export default function PaketTindakanTab({
                                 }
                                 style={{ marginBottom: 0 }}
                               >
-                                <Input placeholder="cth: kali" />
+                                <Input placeholder="cth: kali" size="small" />
                               </Form.Item>
                             </Col>
                             <Col span={2} className="flex items-end pb-0.5 justify-center">
@@ -259,56 +308,36 @@ export default function PaketTindakanTab({
                           <Row key={key} gutter={8} align="middle">
                             <Col span={13}>
                               <Form.Item
-                                {...restField}
-                                name={[name, 'itemId']}
-                                rules={[{ required: true, message: 'Pilih item BHP' }]}
-                                style={{ marginBottom: 0 }}
+                                noStyle
+                                shouldUpdate={(prev, curr) => 
+                                  prev.paketEntries?.[paketIndex]?.bhpList?.[name]?.itemId !== 
+                                  curr.paketEntries?.[paketIndex]?.bhpList?.[name]?.itemId
+                                }
                               >
-                                <Select
-                                  showSearch
-                                  allowClear
-                                  placeholder="Pilih item BHP"
-                                  loading={isLoadingConsumableItems}
-                                  options={consumableItemOptions}
-                                  optionFilterProp="searchLabel"
-                                  filterOption={(input, option) =>
-                                    String(option?.searchLabel ?? '')
-                                      .toLowerCase()
-                                      .includes(input.toLowerCase())
-                                  }
-                                  notFoundContent={
-                                    isLoadingConsumableItems ? (
-                                      <Spin size="small" />
-                                    ) : (
-                                      'Item consumable tidak ditemukan'
-                                    )
-                                  }
-                                  onChange={(value) => {
-                                    if (!value) return
-                                    const selectedItem = consumableItemMap.get(Number(value))
-                                    if (!selectedItem) return
+                                {({ getFieldValue }) => {
+                                  const id = getFieldValue(['paketEntries', paketIndex, 'bhpList', name, 'itemId'])
+                                  const item = id ? consumableItemMap.get(Number(id)) : null
+                                  const displayLabel = item ? `${item.nama || item.kode}` : 'Cari Item BHP...'
 
-                                    const currentSatuan = modalForm.getFieldValue([
-                                      'paketEntries',
-                                      paketField.name,
-                                      'bhpList',
-                                      name,
-                                      'satuan'
-                                    ])
-                                    if (!currentSatuan && selectedItem.kodeUnit) {
-                                      modalForm.setFieldValue(
-                                        [
-                                          'paketEntries',
-                                          paketField.name,
-                                          'bhpList',
-                                          name,
-                                          'satuan'
-                                        ],
-                                        selectedItem.kodeUnit
-                                      )
-                                    }
-                                  }}
-                                />
+                                  return (
+                                    <Form.Item
+                                      {...restField}
+                                      name={[name, 'itemId']}
+                                      rules={[{ required: true, message: 'Pilih item BHP' }]}
+                                      style={{ marginBottom: 0 }}
+                                    >
+                                      <Button 
+                                        block 
+                                        size="small"
+                                        style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                                        onClick={() => openBhpSelector(paketIndex, name)}
+                                      >
+                                        <span className="truncate">{displayLabel}</span>
+                                        <SearchOutlined className="text-gray-400" />
+                                      </Button>
+                                    </Form.Item>
+                                  )
+                                }}
                               </Form.Item>
                             </Col>
                             <Col span={3}>
@@ -328,7 +357,7 @@ export default function PaketTindakanTab({
                                 ]}
                                 style={{ marginBottom: 0 }}
                               >
-                                <InputNumber min={1} step={1} precision={0} className="w-full" />
+                                <InputNumber min={1} step={1} precision={0} className="w-full" size="small" />
                               </Form.Item>
                             </Col>
                             <Col span={8}>
@@ -337,7 +366,7 @@ export default function PaketTindakanTab({
                                 name={[name, 'satuan']}
                                 style={{ marginBottom: 0 }}
                               >
-                                <Input placeholder="Satuan" />
+                                <Input placeholder="Satuan" size="small" readOnly />
                               </Form.Item>
                             </Col>
                           </Row>
@@ -346,7 +375,6 @@ export default function PaketTindakanTab({
                     )}
                   </Form.List>
                 </Card>
-
                 <AutoRolePetugasListCard
                   form={modalForm}
                   listName={[paketField.name, 'petugasList']}
@@ -356,7 +384,7 @@ export default function PaketTindakanTab({
                   isLoadingPerformers={isLoadingPerformers}
                   roleLabelByCode={roleLabelByCode}
                   className="mt-4!"
-                />
+                  />
 
                 <Form.Item
                   {...paketField}

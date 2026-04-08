@@ -27,7 +27,7 @@ import {
   InfoCircleOutlined
 } from '@ant-design/icons'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router'
 import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
@@ -77,6 +77,9 @@ interface CategoryEntryInfo {
 
 interface AuthorizingPrescriptionInfo {
   id?: number
+  recorderId?: number | null
+  patientId?: string
+  patient?: PatientInfo
   note?: string | null
   category?: CategoryEntryInfo[] | null
   medication?: MedicationInfo
@@ -111,6 +114,7 @@ interface MedicationDispenseAttributes {
   encounter?: { encounterType?: string }
   identifier?: Array<{ system: string; value: string }> | null
   fhirId?: string | null
+  servicedAt?: string | null
 }
 
 interface MedicationDispenseListArgs {
@@ -196,6 +200,8 @@ interface ParentRow {
   encounterType?: string
   dokterName?: string
   resepturName?: string
+  servicedAt?: string | null
+  rawHandedOverAt?: string | null
   items: DispenseItemRow[]
 }
 
@@ -222,14 +228,58 @@ function getStatusTag(status: string) {
   return <Tag color="default">{label}</Tag>
 }
 
+function DispenseTimer({ servicedAt, handedOverAt, isBpjs }: { servicedAt?: string | null; handedOverAt?: string | null; isBpjs: boolean }) {
+  const [remaining, setRemaining] = useState<number | null>(null)
+
+  const limit = isBpjs ? 60 * 60 * 1000 : 15 * 60 * 1000
+
+  useEffect(() => {
+    if (!servicedAt) return
+    const start = new Date(servicedAt).getTime()
+    
+    // Jika sudah diserahkan (completed), bekukan waktu hitung pada diserahkan
+    if (handedOverAt) {
+      const end = new Date(handedOverAt).getTime()
+      const diff = limit - (end - start)
+      setRemaining(diff)
+      return
+    }
+
+    const update = () => {
+      const now = Date.now()
+      const diff = limit - (now - start)
+      setRemaining(diff)
+    }
+    update()
+    const timer = setInterval(update, 1000)
+    return () => clearInterval(timer)
+  }, [servicedAt, handedOverAt, limit])
+
+  if (!servicedAt || remaining === null) return <span className="text-gray-400">-</span>
+
+  const isOverdue = remaining <= 0
+  const absRemaining = Math.abs(remaining)
+  const mins = Math.floor(absRemaining / 60000)
+  const secs = Math.floor((absRemaining % 60000) / 1000)
+  
+  const timeStr = `${isOverdue ? '-' : ''}${mins}:${secs.toString().padStart(2, '0')}`
+  
+  let color = 'text-green-600'
+  if (isOverdue) color = 'text-red-600 font-bold'
+  else if (remaining < 5 * 60 * 1000) color = 'text-orange-500 font-semibold'
+
+  return <span className={color}>{timeStr}</span>
+}
+
 interface RowActionsProps {
   record: DispenseItemRow
   patient?: PatientInfo
   employees: Array<{ id: number; namaLengkap: string }>
   employeeNameById: Map<number, string>
+  parentServicedAt?: string | null
 }
 
-function RowActions({ record, patient, employees, employeeNameById }: RowActionsProps) {
+function RowActions({ record, patient, employees, employeeNameById, parentServicedAt }: RowActionsProps) {
   const { message } = AntdApp.useApp()
   const [serahkanModalOpen, setSerahkanModalOpen] = useState(false)
 
@@ -323,7 +373,7 @@ function RowActions({ record, patient, employees, employeeNameById }: RowActions
   const isStockInsufficient = hasStockInfo && quantityToDispense > (record.availableStock as number)
   const isPaid = record.paymentStatus === 'Lunas'
   const canComplete =
-    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid
+    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid && !!parentServicedAt
   const canVoid = isCompleted && typeof record.id === 'number'
   const isKomposisi = record.jenis === 'Komposisi'
 
@@ -394,6 +444,11 @@ function RowActions({ record, patient, employees, employeeNameById }: RowActions
           Pembayaran belum lunas, tidak dapat menyerahkan obat.
         </div>
       )}
+      {isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
+        <div className="text-xs text-orange-500 font-semibold bg-orange-50 border border-orange-200 p-1 px-2 rounded-md">
+          Harap &quot;Mulai Proses&quot; (di menu titik tiga) terlebih dahulu.
+        </div>
+      )}
       <SerahkanObatModal
         open={serahkanModalOpen}
         loading={updateMutation.isPending}
@@ -443,7 +498,7 @@ function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
 }
 
 function MainRowActions({ record }: { record: ParentRow }) {
-  const { message } = AntdApp.useApp()
+  const { message, modal } = AntdApp.useApp()
   const [syncingSatusehat, setSyncingSatusehat] = useState(false)
 
   const syncItems = record.items.filter((i) => i.jenis !== 'Komposisi' && typeof i.id === 'number')
@@ -499,15 +554,100 @@ function MainRowActions({ record }: { record: ParentRow }) {
     }
   }
 
-  const menuItems: MenuProps['items'] = [
-    {
-      key: 'sync-satusehat',
-      label: syncingSatusehat ? 'Sinkronisasi Satu Sehat...' : 'Sinkronisasi Satu Sehat',
-      icon: <SyncOutlined spin={syncingSatusehat} />,
-      disabled: syncingSatusehat || isAllSynced || syncItems.length === 0,
-      onClick: handleSyncGroup
-    }
-  ]
+  const isPaid = record.paymentStatus === 'Lunas'
+  const hasItemsToProcess = record.items.some((i) => {
+    const s = (i.status || '').toLowerCase()
+    return s === 'preparation' || (s === 'in-progress' && !record.servicedAt)
+  })
+
+  const handleMulaiProsesGroup = () => {
+    console.log('[handleMulaiProsesGroup] Executed from dropdown click!')
+    modal.confirm({
+      title: 'Mulai Proses Resep',
+      width: 500,
+      content: (
+        <div className="flex flex-col gap-3 mt-4">
+          <div className="flex justify-between items-center bg-gray-50 p-3 rounded-md border border-gray-200">
+            <span className="font-semibold">Status Tagihan Kasir:</span>
+            <span className={`font-bold ${isPaid ? 'text-green-600' : 'text-orange-600'}`}>
+              {record.paymentStatus || 'Belum Ditagihkan'}
+            </span>
+          </div>
+          <div>
+            <div className="font-semibold mb-2">Daftar Obat yang Disiapkan:</div>
+            <ul className="pl-5 m-0 flex flex-col gap-1 text-sm">
+              {record.items.filter(i => i.jenis !== 'Komposisi').map(item => (
+                <li key={item.id || item.key}>
+                  <span className="font-medium">{item.medicineName}</span> — {item.quantity} {item.unit}
+                </li>
+              ))}
+            </ul>
+          </div>
+          {!isPaid && (
+            <div className="text-orange-600 mt-2 text-sm bg-orange-50 p-2 rounded border border-orange-200 flex gap-2 items-start">
+              <InfoCircleOutlined className="mt-1" />
+              <span>Pembayaran obat ini belum diselesaikan / dilunasi di kasir. Apakah Anda yakin tetap ingin mulai memproses resep ini sekarang?</span>
+            </div>
+          )}
+        </div>
+      ),
+      okText: 'Konfirmasi & Mulai',
+      cancelText: 'Batal',
+      onOk: async () => {
+        console.log('[Mulai Proses] clicked', { items: record.items, servicedAt: record.servicedAt })
+        const fn = window.api?.query?.medicationDispense?.update
+        if (!fn) {
+          message.error('API update tidak tersedia.')
+          return
+        }
+        try {
+          let hit = 0
+          // Update semua item dalam grup ini yang masih perlu di-trigger ke in-progress
+          for (const item of record.items) {
+            const currentStatus = (item.status || '').toLowerCase()
+            const needsTrigger = currentStatus === 'preparation' || (currentStatus === 'in-progress' && !record.servicedAt)
+            console.log('[Mulai Proses] check item', { id: item.id, status: item.status, currentStatus, needsTrigger })
+            if (needsTrigger && typeof item.id === 'number') {
+              console.log('[Mulai Proses] calling api for item', item.id)
+              const res = await fn({ id: item.id, status: 'in-progress' } as never)
+              console.log('[Mulai Proses] res for item', item.id, res)
+              hit++
+            }
+          }
+          console.log('[Mulai Proses] total hit =', hit)
+          if (hit === 0) {
+            message.warning('Tidak ada data obat yang perlu di-trigger atau statusnya sudah diproses.')
+          } else {
+            message.success('Timer mulai berjalan dan resep dipindahkan ke proses')
+          }
+          queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
+        } catch (err) {
+          console.error('[Mulai Proses] error', err)
+          message.error('Gagal memulai proses: ' + String(err))
+        }
+      }
+    })
+  }
+
+  const menuItems: MenuProps['items'] = []
+
+  if (hasItemsToProcess) {
+    menuItems.push({
+      key: 'mulai-proses',
+      label: 'Mulai Proses',
+      icon: <CheckCircleOutlined />,
+      onClick: handleMulaiProsesGroup
+    })
+    menuItems.push({ type: 'divider' })
+  }
+
+  menuItems.push({
+    key: 'sync-satusehat',
+    label: syncingSatusehat ? 'Sinkronisasi Satu Sehat...' : 'Sinkronisasi Satu Sehat',
+    icon: <SyncOutlined spin={syncingSatusehat} />,
+    disabled: syncingSatusehat || isAllSynced || syncItems.length === 0,
+    onClick: handleSyncGroup
+  })
 
   return (
     <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
@@ -564,6 +704,18 @@ const columns = [
       const color = status === 'Lunas' ? 'green' : status === 'Sebagian' ? 'orange' : 'volcano'
       const icon = status === 'Lunas' ? <CheckCircleOutlined /> : status === 'Sebagian' ? <ClockCircleOutlined /> : <CloseCircleOutlined />
       return <Tag color={color} icon={icon}>{status}</Tag>
+    }
+  },
+  {
+    title: 'Sisa Waktu',
+    key: 'timer',
+    width: 100,
+    render: (_: unknown, row: ParentRow) => {
+      if (row.status === 'cancelled' || row.status === 'entered-in-error') return '-'
+      if (row.status !== 'in-progress' && row.status !== 'preparation' && row.status !== 'completed') return '-'
+      // Assume BPJS if encounterType is not AMB (simplified check or based on payment status)
+      const isBpjs = row.paymentStatus === 'Lunas' && row.encounterType !== 'AMB' 
+      return <DispenseTimer servicedAt={row.servicedAt} handedOverAt={row.rawHandedOverAt} isBpjs={isBpjs} />
     }
   },
   {
@@ -634,6 +786,7 @@ export function MedicationDispenseTable() {
   const { data, refetch, isError, isLoading } = useQuery({
     queryKey: ['medicationDispense', 'list'],
     queryFn: async () => {
+      console.log('[Frontend][MedDispense] Fetching list...')
       const api = window.api?.query as {
         medicationDispense?: {
           list: (args: MedicationDispenseListArgs) => Promise<MedicationDispenseListResult>
@@ -644,6 +797,7 @@ export function MedicationDispenseTable() {
       if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
 
       const res = await fn({})
+      console.log('[Frontend][MedDispense] List response:', res)
       return res
     }
   })
@@ -1072,6 +1226,11 @@ export function MedicationDispenseTable() {
             resepturName = employeeNameById.get(rid) ?? undefined
           }
         }
+        
+        // Fallback to recorderId from prescription if still empty
+        if (!resepturName && typeof prescription?.recorderId === 'number') {
+          resepturName = employeeNameById.get(prescription.recorderId) ?? undefined
+        }
         const dokterName = (prescription as any)?.requester?.name as string | undefined
         groups.set(key, {
           key,
@@ -1079,9 +1238,11 @@ export function MedicationDispenseTable() {
           status: item.status,
           paymentStatus: item.paymentStatus,
           handedOverAt,
+          rawHandedOverAt: item.whenHandedOver ? String(item.whenHandedOver) : null,
           encounterType: item.encounter?.encounterType,
           dokterName,
           resepturName,
+          servicedAt: item.servicedAt,
           items: [rowItem]
         })
       } else {
@@ -1089,6 +1250,9 @@ export function MedicationDispenseTable() {
         const isDuplicate = existing.items.some((r) => r.id === item.id)
         if (!isDuplicate) {
           existing.items.push(rowItem)
+        }
+        if (!existing.servicedAt && item.servicedAt) {
+          existing.servicedAt = item.servicedAt
         }
       }
     })
@@ -1296,12 +1460,12 @@ export function MedicationDispenseTable() {
                 showSizeChanger: true
               }}
               expandable={{
-                expandedRowRender: (record: ParentRow) => {
-                  const patientLabel = getPatientDisplayName(record.patient)
+                expandedRowRender: (parentRecord: ParentRow) => {
+                  const patientLabel = getPatientDisplayName(parentRecord.patient)
                   const handlePrintAllLabels = () => {
                     printMedicationLabels({
                       patientName: patientLabel,
-                      items: record.items
+                      items: parentRecord.items
                     })
                   }
                   const detailColumns = [
@@ -1351,7 +1515,13 @@ export function MedicationDispenseTable() {
                       title: 'Aksi',
                       key: 'action',
                       render: (_: DispenseItemRow, row: DispenseItemRow) => (
-                        <RowActions record={row} patient={record.patient} employees={employeeList} employeeNameById={employeeNameById} />
+                        <RowActions
+                          record={row}
+                          patient={parentRecord.patient}
+                          employees={employeeList}
+                          employeeNameById={employeeNameById}
+                          parentServicedAt={parentRecord.servicedAt}
+                        />
                       )
                     }
                   ]
@@ -1365,7 +1535,7 @@ export function MedicationDispenseTable() {
                       </div>
                       <Table
                         columns={detailColumns}
-                        dataSource={record.items}
+                        dataSource={parentRecord.items}
                         pagination={false}
                         size="small"
                         rowKey="key"
