@@ -164,7 +164,7 @@ export default function KioskCallingWorkspace() {
   }
 
   const waitingColumns: ColumnsType<TicketDto> = [
-    { title: 'Nomor', dataIndex: 'ticketNo', key: 'ticketNo', size: 'small' },
+    { title: 'Nomor', dataIndex: 'ticketNo', key: 'ticketNo' },
     {
       title: 'Status',
       dataIndex: 'status',
