@@ -1,4 +1,9 @@
-import { CheckCircleOutlined, EyeOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons'
+import {
+  CheckCircleOutlined,
+  EyeOutlined,
+  FileTextOutlined,
+  SoundOutlined
+} from '@ant-design/icons'
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
@@ -65,6 +70,7 @@ export default function RegistrationQueue({
 }: {
   practitionerId?: string
 }) {
+  const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
   const { practitionerId: urlPractitionerId } = useParams()
   const practitionerId = propPractitionerId || urlPractitionerId
 
@@ -103,10 +109,11 @@ export default function RegistrationQueue({
       'PRE_RESERVED',
       'RESERVED',
       'REGISTERED',
-      'CALLED',
-      'TRIAGE',
-      'TRIAGED',
-      'IN_PROGRESS'
+      'SKIPPED',
+      ...(IS_DEVELOPMENT ? ['CALLED'] : [])
+      // 'TRIAGE',
+      // 'TRIAGED',
+      // 'IN_PROGRESS'
     ],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
@@ -114,37 +121,37 @@ export default function RegistrationQueue({
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
   const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()
 
-  const handleCancelEncounter = (record: any) => {
-    Modal.confirm({
-      title: 'Batalkan Antrian',
-      content: `Apakah Anda yakin ingin membatalkan antrian untuk ${record.patientName}?`,
-      okText: 'Ya, Batalkan',
-      okType: 'danger',
-      cancelText: 'Tidak',
-      onOk: async () => {
-        try {
-          await cancelEncounterMutation.mutateAsync({
-            id: record.encounterId,
-            reason: 'Dibatalkan oleh petugas pendaftaran'
-          })
-          message.success('Antrian berhasil dibatalkan')
-          refetch()
-        } catch (error: any) {
-          message.error(error.message || 'Gagal membatalkan antrian')
-        }
-      }
-    })
-  }
+  // const handleCancelEncounter = (record: any) => {
+  //   Modal.confirm({
+  //     title: 'Batalkan Antrian',
+  //     content: `Apakah Anda yakin ingin membatalkan antrian untuk ${record.patientName}?`,
+  //     okText: 'Ya, Batalkan',
+  //     okType: 'danger',
+  //     cancelText: 'Tidak',
+  //     onOk: async () => {
+  //       try {
+  //         await cancelEncounterMutation.mutateAsync({
+  //           id: record.encounterId,
+  //           reason: 'Dibatalkan oleh petugas pendaftaran'
+  //         })
+  //         message.success('Antrian berhasil dibatalkan')
+  //         refetch()
+  //       } catch (error: any) {
+  //         message.error(error.message || 'Gagal membatalkan antrian')
+  //       }
+  //     }
+  //   })
+  // }
 
-  const handleTriagedCallToPoli = async (record: any) => {
-    try {
-      await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'START_ENCOUNTER' })
-      message.success(`Antrian ${record.formattedQueueNumber} dipanggil dan masuk Poli`)
-      refetch()
-    } catch (error: any) {
-      message.error(error.message || 'Gagal memproses antrian')
-    }
-  }
+  // const handleTriagedCallToPoli = async (record: any) => {
+  //   try {
+  //     await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'START_ENCOUNTER' })
+  //     message.success(`Antrian ${record.formattedQueueNumber} dipanggil dan masuk Poli`)
+  //     refetch()
+  //   } catch (error: any) {
+  //     message.error(error.message || 'Gagal memproses antrian')
+  //   }
+  // }
 
   const handleCreateSep = async (record: any) => {
     try {
@@ -224,6 +231,7 @@ export default function RegistrationQueue({
         const colorMap: Record<string, string> = {
           PRE_RESERVED: 'orange',
           RESERVED: 'blue',
+          SKIPPED: 'red',
           CALLED: 'green',
           TRIAGE: 'volcano',
           TRIAGED: 'geekblue',
@@ -251,7 +259,7 @@ export default function RegistrationQueue({
           Detail Pasien
         </Button>
       )
-    },
+    }
   ]
 
   const onSearch = (values: any) => {
@@ -295,22 +303,20 @@ export default function RegistrationQueue({
 
               if (status === 'PRE_RESERVED') {
                 actions.push({
-                  label: 'Konfirmasi',
-                  icon: <CheckCircleOutlined />,
-                  type: 'primary',
+                  label: 'Panggil',
+                  icon: <SoundOutlined />,
                   onClick: () => setConfirmModal({ open: true, queue: record })
                 })
-              } else if (['RESERVED', 'REGISTERED'].includes(status)) {
+              } else if (['RESERVED', 'REGISTERED', 'SKIPPED'].includes(status)) {
                 actions.push({
-                  label: 'Panggil',
+                  label: status === 'SKIPPED' ? 'Panggil Ulang' : 'Panggil',
                   icon: <SoundOutlined />,
                   onClick: () => setCallConfirmModal({ open: true, record })
                 })
-              } else if (record.status === 'CALLED') {
+              } else if (IS_DEVELOPMENT && record.status === 'CALLED') {
                 actions.push({
-                  label: 'Konfirmasi Tujuan',
+                  label: 'Konfirmasi Tujuan (dev mode)',
                   icon: <CheckCircleOutlined />,
-                  type: 'primary',
                   onClick: () => setCallModal({ open: true, record })
                 })
               }
