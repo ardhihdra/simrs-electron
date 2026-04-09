@@ -92,7 +92,13 @@ export default function KioskCallingWorkspace() {
 
   const allServicePoints = (servicePointQuery.data?.result as ServicePointDto[] | undefined) ?? []
   const relevantServicePoints = useMemo(
-    () => allServicePoints.filter((sp) => ['CASHIER', 'BILLING'].includes(sp.serviceTypeCode)),
+    () => allServicePoints
+      .filter((sp) => ['CASHIER', 'BILLING'].includes(sp.serviceTypeCode))
+      .sort((a, b) => {
+        if (a.serviceTypeCode === 'BILLING' && b.serviceTypeCode === 'CASHIER') return -1
+        if (a.serviceTypeCode === 'CASHIER' && b.serviceTypeCode === 'BILLING') return 1
+        return a.name.localeCompare(b.name)
+      }),
     [allServicePoints]
   )
 
@@ -131,6 +137,45 @@ export default function KioskCallingWorkspace() {
   const completeTicketMutation = client.nonMedicQueue.completeTicket.useMutation()
   const skipTicketMutation = client.nonMedicQueue.skipTicket.useMutation()
   const cancelTicketMutation = client.nonMedicQueue.cancelTicket.useMutation()
+  const billingBoardQuery = client.nonMedicQueue.getBoard.useQuery(
+    {
+      lokasiKerjaId: lokasiKerjaId ?? 0,
+      serviceTypeCode: 'BILLING',
+      queueDate: selectedDate.format('YYYY-MM-DD')
+    },
+    {
+      enabled: Boolean(lokasiKerjaId),
+      refetchInterval: 30000,
+      queryKey: [
+        'nonMedicQueue.kasirWorkspace.billingBoard',
+        {
+          lokasiKerjaId: lokasiKerjaId ?? 0,
+          serviceTypeCode: 'BILLING',
+          queueDate: selectedDate.format('YYYY-MM-DD')
+        }
+      ]
+    }
+  )
+
+  const cashierBoardQuery = client.nonMedicQueue.getBoard.useQuery(
+    {
+      lokasiKerjaId: lokasiKerjaId ?? 0,
+      serviceTypeCode: 'CASHIER',
+      queueDate: selectedDate.format('YYYY-MM-DD')
+    },
+    {
+      enabled: Boolean(lokasiKerjaId),
+      refetchInterval: 30000,
+      queryKey: [
+        'nonMedicQueue.kasirWorkspace.cashierBoard',
+        {
+          lokasiKerjaId: lokasiKerjaId ?? 0,
+          serviceTypeCode: 'CASHIER',
+          queueDate: selectedDate.format('YYYY-MM-DD')
+        }
+      ]
+    }
+  )
 
   const board = (boardQuery.data?.result as BoardDto | undefined) ?? null
   const servicePointFromBoard =
@@ -213,17 +258,27 @@ export default function KioskCallingWorkspace() {
                   size="small"
                   value={selectedServicePointId}
                   onChange={(id) => setSelectedServicePointId(id as number)}
-                  options={relevantServicePoints.map((item) => ({
-                    label: (
-                      <div className={`px-2 py-0.5 text-xs transition-colors ${selectedServicePointId === item.id ? 'font-bold' : ''}`}>
-                        <span>{item.displayName || item.name}</span>
-                        <Tag color={item.serviceTypeCode === 'CASHIER' ? 'blue' : 'cyan'} bordered={false} className="ml-1 scale-90 origin-left" style={{ margin: 0, padding: '0 4px' }}>
-                          {item.serviceTypeCode === 'CASHIER' ? 'K' : 'B'}
-                        </Tag>
-                      </div>
-                    ),
-                    value: item.id
-                  }))}
+                  options={relevantServicePoints.map((item) => {
+                    const count = item.serviceTypeCode === 'CASHIER' 
+                      ? (cashierBoardQuery.data?.result as any)?.waitingTotal ?? 0
+                      : (billingBoardQuery.data?.result as any)?.waitingTotal ?? 0
+                    
+                    return {
+                      label: (
+                        <div className={`px-4 py-1 text-xs transition-colors flex items-center gap-1 ${selectedServicePointId === item.id ? 'font-bold' : ''}`}>
+                          <span className="mr-1">{item.displayName || item.name}</span>
+                          <Badge 
+                            count={count} 
+                            size="small" 
+                            overflowCount={99} 
+                            color="orange"
+                            style={{ boxShadow: 'none' }}
+                          />
+                        </div>
+                      ),
+                      value: item.id
+                    }
+                  })}
                   className="bg-transparent border-none"
                 />
                ) : (
@@ -247,11 +302,6 @@ export default function KioskCallingWorkspace() {
               className="border-blue-200 bg-white"
             />
             <Divider type="vertical" className="bg-blue-200 h-6" />
-            <Popover content={waitingListPopover} title="Daftar Menunggu" trigger="click">
-              <Badge count={board?.waitingTotal ?? 0} size="small" offset={[5, 0]} color="orange">
-                <Button size="small" icon={<UnorderedListOutlined />} className="border-blue-200 bg-white text-xs">Antrian</Button>
-              </Badge>
-            </Popover>
           </Space>
         </Col>
 
