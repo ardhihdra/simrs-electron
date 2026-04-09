@@ -53,7 +53,9 @@ interface Invoice {
   laboratoryItems?: InvoiceLineItem[]
   radiologyItems?: InvoiceLineItem[]
   obatItems?: InvoiceLineItem[]
+  paymentMethod?: string | null
 }
+
 
 interface PersistedInvoice {
   id: number
@@ -215,6 +217,8 @@ function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedI
   const penjamin = invoice.penjamin ?? 'Umum'
   const tanggalPendaftaran = formatPrintableDate(invoice.tanggalPendaftaran)
   const noPendaftaran = invoice.noPendaftaran ?? '-'
+  const caraBayar = invoice.penjamin ?? 'Umum'
+  const metodeBayar = invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')
   const noInvoice = persistedInvoice?.kode ?? '-'
   const printedAt = formatPrintableDate(new Date())
 
@@ -368,6 +372,8 @@ function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedI
             <tr><td class="meta-label">Tgl. Pendaftaran</td><td>: ${escapeHtml(tanggalPendaftaran)}</td></tr>
             <tr><td class="meta-label">Dokter</td><td>: ${escapeHtml(dokterPemeriksa)}</td></tr>
             <tr><td class="meta-label">Ruangan</td><td>: ${escapeHtml(ruangan)}</td></tr>
+            <tr><td class="meta-label">Cara Bayar</td><td>: ${escapeHtml(caraBayar)}</td></tr>
+            <tr><td class="meta-label">Metode Bayar</td><td>: ${escapeHtml(metodeBayar)}</td></tr>
           </table>
         </div>
 
@@ -619,7 +625,7 @@ export default function InvoiceDetailPage() {
                   ['Nama Pasien', invoice.namaPatient ?? invoice.patient?.name ?? '-'],
                   ['No. RM', invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'],
                   ['Tgl. Lahir', formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)],
-                  ['Penjamin', invoice.penjamin ?? 'Umum']
+                  ['Alamat', invoice.alamat ?? invoice.patient?.address ?? '-']
                 ].map(([label, value]) => (
                   <tr key={label}>
                     <td className="font-semibold text-gray-500 w-32 py-0.5 pr-2">{label}</td>
@@ -635,7 +641,9 @@ export default function InvoiceDetailPage() {
                   ['No. Pendaftaran', invoice.noPendaftaran ?? '-'],
                   ['Tgl. Pendaftaran', formatPrintableDate(invoice.tanggalPendaftaran)],
                   ['Dokter', invoice.dokterPemeriksa ?? '-'],
-                  ['Ruangan', invoice.ruangan ?? '-']
+                  ['Ruangan', invoice.ruangan ?? '-'],
+                  ['Cara Bayar', invoice.penjamin ?? 'Umum'],
+                  ['Metode Bayar', invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')]
                 ].map(([label, value]) => (
                   <tr key={label}>
                     <td className="font-semibold text-gray-500 w-36 py-0.5 pr-2">{label}</td>
