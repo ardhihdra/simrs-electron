@@ -18,13 +18,69 @@ import logoUrl from '@renderer/assets/logo.png'
 
 const { Title, Text } = Typography
 
+type InvoiceLineItemCategory = 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
+
 interface InvoiceLineItem {
-  category: 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
+  category: InvoiceLineItemCategory
   description: string
   qty: number
   unitPrice: number
   subtotal: number
   no?: number
+}
+
+interface Invoice {
+  encounterId: string
+  patientId: string
+  total: number
+  namaPatient?: string
+  medicalRecordNumber?: string
+  tanggalLahir?: string
+  alamat?: string
+  dokterPemeriksa?: string
+  ruangan?: string
+  penjamin?: string
+  tanggalPendaftaran?: string
+  noPendaftaran?: string
+  patient?: {
+    name?: string
+    medicalRecordNumber?: string
+    birthDate?: string
+    address?: string
+  }
+  tindakanItems?: InvoiceLineItem[]
+  bhpItems?: InvoiceLineItem[]
+  laboratoryItems?: InvoiceLineItem[]
+  radiologyItems?: InvoiceLineItem[]
+  obatItems?: InvoiceLineItem[]
+}
+
+interface PersistedInvoice {
+  id: number
+  kode: string
+  encounterId: string
+  clientId: string
+  status: string
+  total: number
+  remaining: number
+  payments: PaymentRecord[]
+}
+
+interface PaymentRecord {
+  id: number
+  kode: string
+  date: string | Date
+  amount: number
+  paymentMethod: string
+  bankName: string | null
+  ref: string | null
+  note: string | null
+  attachmentPath: string | null
+  paymentStatus: string
+  // legacy fields for compatibility
+  paidAt?: string | Date
+  createdAt?: string | Date
+  method?: string
 }
 
 const lineItemColumns: ColumnsType<InvoiceLineItem> = [
@@ -61,7 +117,7 @@ function numbered(items: InvoiceLineItem[]): InvoiceLineItem[] {
   return items.map((item, idx) => ({ ...item, no: idx + 1 }))
 }
 
-function escapeHtml(value: any): string {
+function escapeHtml(value: string | number | boolean | null | undefined): string {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -149,7 +205,7 @@ function buildCategoryRows(title: string, items: InvoiceLineItem[], accentColor:
     </tr>`
 }
 
-function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
+function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedInvoice | null): void {
   const namaPatient = invoice.namaPatient ?? invoice.patient?.name ?? '-'
   const medicalRecordNumber = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
   const tanggalLahir = formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
@@ -180,10 +236,10 @@ function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
     : tindakanRows + bhpRows + labRows + radRows + obatRows
 
   const paymentRows =
-    persistedInvoice?.payments?.length > 0
+    persistedInvoice && persistedInvoice.payments?.length > 0
       ? persistedInvoice.payments
           .map(
-            (p: any, i: number) => `
+            (p, i: number) => `
           <tr>
             <td class="center">${i + 1}</td>
             <td>${escapeHtml(formatPrintableDate(p.paidAt ?? p.createdAt))}</td>
@@ -375,6 +431,8 @@ export default function InvoiceDetailPage() {
   const [confirming, setConfirming] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
+  const { Title, Text } = Typography
+
   // Dynamic invoice (always fresh from encounter data)
   const { data, isLoading, isError, error } = client.kasir.getInvoice.useQuery({
     encounterId: encounterId!,
@@ -392,8 +450,8 @@ export default function InvoiceDetailPage() {
     enabled: !!encounterId
   })
 
-  const invoice = (data as any)?.result
-  const persistedInvoice = (detailData as any)?.result ?? null
+  const invoice = (data as { result: Invoice } | undefined)?.result
+  const persistedInvoice = (detailData as { result: PersistedInvoice } | undefined)?.result ?? null
 
   const reopenEncounterMutation = client.encounter.reopen.useMutation()
 
@@ -403,8 +461,9 @@ export default function InvoiceDetailPage() {
       await reopenEncounterMutation.mutateAsync(encounterId)
       message.success('Kunjungan berhasil dikembalikan ke perawat.')
       navigate('/kasir/encounter-table')
-    } catch (error: any) {
-      message.error(error?.message ?? 'Gagal mengembalikan kunjungan.')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Gagal mengembalikan kunjungan.'
+      message.error(msg)
     }
   }
 
@@ -412,15 +471,19 @@ export default function InvoiceDetailPage() {
     if (!encounterId || !patientId) return
     setConfirming(true)
     try {
-      const res = await rpc.kasir.confirmInvoice({ encounterId, patientId })
-      if ((res as any).success) {
+      const res = (await rpc.kasir.confirmInvoice({ encounterId, patientId })) as {
+        success: boolean
+        message?: string
+      }
+      if (res.success) {
         message.success('Invoice berhasil dikonfirmasi')
         queryClient.invalidateQueries({ queryKey: ['kasir-invoice-detail', encounterId] })
       } else {
-        message.error((res as any).message ?? 'Gagal mengkonfirmasi invoice')
+        message.error(res.message ?? 'Gagal mengkonfirmasi invoice')
       }
-    } catch (err: any) {
-      message.error(err.message ?? 'Terjadi kesalahan')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan'
+      message.error(msg)
     } finally {
       setConfirming(false)
     }
@@ -440,7 +503,7 @@ export default function InvoiceDetailPage() {
   }
 
   const statusInfo = persistedInvoice
-    ? (STATUS_LABEL[persistedInvoice.status] ?? STATUS_LABEL.issued)
+    ? (STATUS_LABEL[persistedInvoice.status as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
     : null
   const isConfirmed = !!persistedInvoice && persistedInvoice.status !== 'draft'
   const isPaid = persistedInvoice?.status === 'balanced'
@@ -456,7 +519,7 @@ export default function InvoiceDetailPage() {
         <Button
           type="primary"
           icon={<PrinterOutlined />}
-          onClick={() => generateInvoicePrintView(invoice, persistedInvoice)}
+          onClick={() => invoice && generateInvoicePrintView(invoice, persistedInvoice)}
           disabled={!invoice}
         >
           Cetak Invoice
