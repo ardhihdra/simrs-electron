@@ -1,5 +1,6 @@
 import {
   CheckCircleOutlined,
+  EyeOutlined,
   PhoneOutlined,
   ReloadOutlined,
   StopOutlined,
@@ -20,11 +21,13 @@ import {
   Table,
   Divider,
   Col,
-  Segmented
+  Segmented,
+  Tooltip
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router'
 import { useActiveLokasiKerjaName } from '../non-medic-queue/useActiveLokasiKerjaName'
 
 const { Text } = Typography
@@ -37,6 +40,8 @@ type TicketDto = {
   serviceTypeCode: string
   status: string
   issuedAt?: string
+  encounterId?: string | null
+  patientId?: string | null
 }
 
 type ServicePointDto = {
@@ -63,6 +68,7 @@ type BoardDto = {
 
 export default function KioskCallingWorkspace() {
   const { message } = App.useApp()
+  const navigate = useNavigate()
   const { lokasiKerjaId } = useActiveLokasiKerjaName()
 
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs())
@@ -187,6 +193,14 @@ export default function KioskCallingWorkspace() {
     </div>
   )
 
+  const handleOpenInvoice = () => {
+    if (currentTicket?.encounterId && currentTicket?.patientId) {
+      navigate(`/kasir/invoice/${currentTicket.encounterId}?patientId=${currentTicket.patientId}`)
+    } else {
+      message.warning('Data encounter tidak ditemukan pada tiket ini.')
+    }
+  }
+
   return (
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-2 rounded-xl border border-blue-100 shadow-sm transition-all mb-4 hover:shadow-md">
       <Row justify="space-between" align="middle" gutter={[8, 8]}>
@@ -246,9 +260,23 @@ export default function KioskCallingWorkspace() {
           <div className="flex items-center gap-3">
             {currentTicket ? (
               <div className="flex items-center gap-2 bg-white/90 px-3 py-1 rounded-full border-2 border-emerald-500 shadow-sm animate-in fade-in zoom-in duration-300">
-                <div className="flex flex-col items-center leading-none pr-2 border-r border-slate-200">
-                  <Text type="secondary" style={{ fontSize: '10px', textTransform: 'uppercase' }}>Serving</Text>
-                  <Text strong className="text-emerald-600" style={{ fontSize: '16px' }}>{currentTicket.ticketNo}</Text>
+                <div className="flex items-center leading-none pr-3 border-r border-slate-200 gap-3">
+                  <div className="flex flex-col">
+                    <Text type="secondary" style={{ fontSize: '10px', textTransform: 'uppercase' }}>Serving</Text>
+                    <Text strong className="text-emerald-600" style={{ fontSize: '16px' }}>{currentTicket.ticketNo}</Text>
+                  </div>
+                  
+                  {currentTicket.encounterId && (
+                    <Tooltip title="Buka Detail Invoice">
+                      <Button 
+                        size="small" 
+                        shape="circle" 
+                        icon={<EyeOutlined />} 
+                        onClick={handleOpenInvoice}
+                        className="bg-indigo-600 text-white border-none hover:bg-indigo-700 h-7 w-7 flex items-center justify-center shadow-sm"
+                      />
+                    </Tooltip>
+                  )}
                 </div>
                 
                 <Space size={6}>

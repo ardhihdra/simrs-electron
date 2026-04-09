@@ -3,10 +3,11 @@ import {
   CheckCircleOutlined,
   LockOutlined,
   PlusOutlined,
-  PrinterOutlined
+  PrinterOutlined,
+  RollbackOutlined
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
-import { Button, Divider, Spin, Table, Tag, Typography, message } from 'antd'
+import { Button, Divider, Popconfirm, Spin, Table, Tag, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
@@ -18,7 +19,7 @@ import logoUrl from '@renderer/assets/logo.png'
 const { Title, Text } = Typography
 
 interface InvoiceLineItem {
-  category: 'tindakan' | 'bhp' | 'service_request' | 'obat'
+  category: 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
   description: string
   qty: number
   unitPrice: number
@@ -163,18 +164,20 @@ function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
 
   const tindakanRows = buildCategoryRows('Tindakan Medis', invoice.tindakanItems ?? [], '#1e40af')
   const bhpRows = buildCategoryRows('Bahan Habis Pakai (BHP)', invoice.bhpItems ?? [], '#92400e')
-  const labRows = buildCategoryRows('Pemeriksaan Lab & Radiologi', invoice.serviceRequestItems ?? [], '#14532d')
+  const labRows = buildCategoryRows('Laboratorium', invoice.laboratoryItems ?? [], '#14532d')
+  const radRows = buildCategoryRows('Radiologi', invoice.radiologyItems ?? [], '#0e7490')
   const obatRows = buildCategoryRows('Obat', invoice.obatItems ?? [], '#581c87')
 
   const allEmpty =
     (invoice.tindakanItems?.length ?? 0) === 0 &&
     (invoice.bhpItems?.length ?? 0) === 0 &&
-    (invoice.serviceRequestItems?.length ?? 0) === 0 &&
+    (invoice.laboratoryItems?.length ?? 0) === 0 &&
+    (invoice.radiologyItems?.length ?? 0) === 0 &&
     (invoice.obatItems?.length ?? 0) === 0
 
   const tableBody = allEmpty
     ? '<tr><td colspan="5" class="center" style="padding:16px;color:#6b7280;">Tidak ada item tagihan untuk kunjungan ini.</td></tr>'
-    : tindakanRows + bhpRows + labRows + obatRows
+    : tindakanRows + bhpRows + labRows + radRows + obatRows
 
   const paymentRows =
     persistedInvoice?.payments?.length > 0
@@ -392,6 +395,19 @@ export default function InvoiceDetailPage() {
   const invoice = (data as any)?.result
   const persistedInvoice = (detailData as any)?.result ?? null
 
+  const reopenEncounterMutation = client.encounter.reopen.useMutation()
+
+  const handleReopenEncounter = async () => {
+    if (!encounterId) return
+    try {
+      await reopenEncounterMutation.mutateAsync(encounterId)
+      message.success('Kunjungan berhasil dikembalikan ke perawat.')
+      navigate('/kasir/encounter-table')
+    } catch (error: any) {
+      message.error(error?.message ?? 'Gagal mengembalikan kunjungan.')
+    }
+  }
+
   const handleConfirm = async () => {
     if (!encounterId || !patientId) return
     setConfirming(true)
@@ -445,6 +461,25 @@ export default function InvoiceDetailPage() {
         >
           Cetak Invoice
         </Button>
+
+        {!isPaid && (
+          <Popconfirm
+            title="Kembalikan ke Perawat?"
+            description="Status kunjungan akan berubah kembali menjadi Pemeriksaan agar bisa diperbaiki oleh Nurse/Dokter."
+            onConfirm={handleReopenEncounter}
+            okText="Ya, Kembalikan"
+            cancelText="Batal"
+            okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
+          >
+            <Button
+              icon={<RollbackOutlined />}
+              danger
+              loading={reopenEncounterMutation.isPending}
+            >
+              Kembalikan ke Perawat
+            </Button>
+          </Popconfirm>
+        )}
 
         {!isConfirmed && !isLoadingDetail && (
           <Button
@@ -554,22 +589,28 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Line item sections */}
-          <InvoiceSection title="Tindakan Medis" tagColor="blue" items={invoice.tindakanItems} />
+          <InvoiceSection title="Tindakan Medis" tagColor="blue" items={invoice.tindakanItems ?? []} />
           <InvoiceSection
             title="Bahan Habis Pakai (BHP)"
             tagColor="orange"
-            items={invoice.bhpItems}
+            items={invoice.bhpItems ?? []}
           />
           <InvoiceSection
-            title="Pemeriksaan Lab & Radiologi"
+            title="Laboratorium"
             tagColor="green"
-            items={invoice.serviceRequestItems}
+            items={invoice.laboratoryItems ?? []}
+          />
+          <InvoiceSection
+            title="Radiologi"
+            tagColor="cyan"
+            items={invoice.radiologyItems ?? []}
           />
           <InvoiceSection title="Obat" tagColor="purple" items={invoice.obatItems ?? []} />
 
-          {invoice.tindakanItems.length === 0 &&
-            invoice.bhpItems.length === 0 &&
-            invoice.serviceRequestItems.length === 0 &&
+          {(invoice.tindakanItems?.length ?? 0) === 0 &&
+            (invoice.bhpItems?.length ?? 0) === 0 &&
+            (invoice.laboratoryItems?.length ?? 0) === 0 &&
+            (invoice.radiologyItems?.length ?? 0) === 0 &&
             (invoice.obatItems?.length ?? 0) === 0 && (
               <div className="text-center py-8 text-gray-400">
                 Tidak ada item tagihan untuk kunjungan ini.
