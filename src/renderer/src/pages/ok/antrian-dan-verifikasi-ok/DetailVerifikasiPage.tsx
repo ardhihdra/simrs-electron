@@ -56,9 +56,20 @@ import {
   useDetailTindakanByEncounter,
   useUpdateDetailTindakan
 } from '@renderer/hooks/query/use-detail-tindakan-pasien'
-import { OkRequestStatus } from 'simrs-types'
+import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
+import {
+  DEFAULT_KELAS_TARIF_OPTIONS,
+  buildKelasTarifPriority,
+  getKelasTarifLabel,
+  normalizeKelasTarifValue
+} from '@renderer/utils/tarif-kelas'
+import type { OkRequestStatus } from 'simrs-types'
 
 const { Text } = Typography
+const OK_REQUEST_STATUS = {
+  VERIFIED: 'verified' as OkRequestStatus,
+  REJECTED: 'rejected' as OkRequestStatus
+} as const
 
 interface BackendOkRequestPaket {
   id?: number
@@ -297,10 +308,7 @@ const formatTimeRange = (startAt?: string | null, durationMinutes?: number | nul
   return start.format('HH:mm')
 }
 
-const normalizeKelas = (kelas: unknown): string =>
-  String(kelas || '')
-    .trim()
-    .toLowerCase()
+const normalizeKelas = (kelas: unknown): string => normalizeKelasTarifValue(kelas)
 
 const isCytoFromPriority = (priority: unknown): boolean => {
   const normalized = String(priority || '')
@@ -321,28 +329,114 @@ const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
 
   switch (normalized) {
     case 'cash':
-      return 'umum'
     case 'bpjs':
-      return 'bpjs'
     case 'asuransi':
-      return 'asuransi'
     case 'company':
-      return 'company'
+    case 'general':
+    case 'umum':
+      return 'UMUM'
     default:
-      return normalized || 'umum'
+      return normalizeKelas(paymentMethod) || 'UMUM'
   }
 }
 
-const getKelasLabel = (kelas: string): string => {
-  const normalized = normalizeKelas(kelas)
-  if (!normalized) return '-'
-  if (normalized.startsWith('kelas_'))
-    return `Kelas ${normalized.replace('kelas_', '').toUpperCase()}`
-  if (normalized === 'vip') return 'VIP'
-  if (normalized === 'vvip') return 'VVIP'
-  if (normalized === 'bpjs') return 'BPJS'
-  if (normalized === 'umum') return 'Umum'
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+const getKelasLabel = getKelasTarifLabel
+
+type ParsedUiError = {
+  message: string
+  source: 'validation' | 'runtime'
+  fieldName?: string
+}
+
+const WHO_SIGN_IN_FIELDS = new Set([
+  'identitas',
+  'alergi',
+  'risikoAspirasiDanFaktorPenyulit',
+  'risikoKehilanganDarahAnak',
+  'rencanaAntisipasiKehilanganDarah',
+  'kesiapanAlatObatAnestesi',
+  'rencanaAntisipasiAnestesi',
+  'penandaanAreaOperasi',
+  'jalurIvLine',
+  'perawatKamarOperasiId'
+])
+
+const WHO_TIME_OUT_FIELDS = new Set([
+  'timKonfirmasi',
+  'konfirmasiNama',
+  'konfirmasiProsedurFinal',
+  'konfirmasiSisi',
+  'antibiotikProfilaksis',
+  'imagingTersedia',
+  'catatanKritis',
+  'catatanTimeOut'
+])
+
+const toCompactText = (value: unknown): string => {
+  if (typeof value === 'string') {
+    const text = value.trim()
+    return text && text !== '[object Object]' ? text : ''
+  }
+  if (value instanceof Error) {
+    const text = String(value.message || '').trim()
+    return text && text !== '[object Object]' ? text : ''
+  }
+  if (Array.isArray(value)) {
+    return value.map(toCompactText).filter(Boolean).join(', ')
+  }
+  if (value && typeof value === 'object') {
+    const maybe = value as Record<string, unknown>
+    const fromError = toCompactText(maybe.error)
+    if (fromError) return fromError
+    const fromMessage = toCompactText(maybe.message)
+    if (fromMessage) return fromMessage
+  }
+  return ''
+}
+
+const extractUiError = (error: unknown, fallback: string): ParsedUiError => {
+  if (error && typeof error === 'object') {
+    const maybe = error as {
+      errorFields?: Array<{
+        name?: Array<string | number>
+        errors?: string[]
+      }>
+      error?: unknown
+      message?: unknown
+    }
+
+    if (Array.isArray(maybe.errorFields) && maybe.errorFields.length > 0) {
+      const firstError = maybe.errorFields[0]
+      const fieldName =
+        Array.isArray(firstError?.name) && firstError.name.length > 0
+          ? String(firstError.name[0] || '')
+          : undefined
+      const validationMessage =
+        Array.isArray(firstError?.errors) && firstError.errors.length > 0
+          ? String(firstError.errors[0] || '').trim()
+          : ''
+
+      return {
+        message: validationMessage || fallback,
+        source: 'validation',
+        fieldName
+      }
+    }
+
+    const objectMessage = toCompactText(maybe.error) || toCompactText(maybe.message)
+    if (objectMessage) {
+      return {
+        message: objectMessage,
+        source: 'runtime'
+      }
+    }
+  }
+
+  const message = toCompactText(error)
+  return {
+    message: message || fallback,
+    source: 'runtime'
+  }
 }
 
 const parseNumber = (value: unknown): number | null => {
@@ -350,15 +444,6 @@ const parseNumber = (value: unknown): number | null => {
   const num = Number(value)
   return Number.isFinite(num) ? num : null
 }
-
-const KELAS_OPTIONS_BASE = [
-  { value: 'kelas_1', label: 'Kelas 1' },
-  { value: 'kelas_2', label: 'Kelas 2' },
-  { value: 'kelas_3', label: 'Kelas 3' },
-  { value: 'vip', label: 'VIP' },
-  { value: 'vvip', label: 'VVIP' },
-  { value: 'umum', label: 'Umum / Non Kelas' }
-]
 
 const isDateWithinPeriod = (tanggal: string, from?: string | null, to?: string | null) => {
   const start = String(from || '')
@@ -374,8 +459,7 @@ const pickTarifForKelasAndDate = (
   kelas: string,
   tanggal: string
 ) => {
-  const kelasTarget = normalizeKelas(kelas)
-  const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+  const kelasPriority = buildKelasTarifPriority(kelas)
 
   const candidates = (tarifList || [])
     .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
@@ -600,16 +684,19 @@ const DetailVerifikasiPage = () => {
     () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),
     [listJenisKomponen]
   )
+  const { data: referenceKelasOptions = DEFAULT_KELAS_TARIF_OPTIONS } = useTarifKelasOptions()
 
   const selectedTarifKelas = useMemo(() => {
     const paymentMethod = encounterDetail?.queueTicket?.paymentMethod
-    return normalizeKelas(mapPaymentMethodToTarifKelas(paymentMethod)) || 'umum'
+    return normalizeKelas(mapPaymentMethodToTarifKelas(paymentMethod)) || 'UMUM'
   }, [encounterDetail?.queueTicket?.paymentMethod])
 
   const kelasOptions = useMemo(() => {
     const optionMap = new Map<string, string>()
-    KELAS_OPTIONS_BASE.forEach((item) => {
-      optionMap.set(normalizeKelas(item.value), item.label)
+    referenceKelasOptions.forEach((item) => {
+      const normalizedValue = normalizeKelas(item.value)
+      if (!normalizedValue) return
+      optionMap.set(normalizedValue, item.label)
     })
     ;(masterPaketList || []).forEach((paket) => {
       const tarifList = Array.isArray((paket as any)?.tarifList)
@@ -629,7 +716,7 @@ const DetailVerifikasiPage = () => {
     }
 
     return Array.from(optionMap.entries()).map(([value, label]) => ({ value, label }))
-  }, [masterPaketList, selectedTarifKelas])
+  }, [masterPaketList, referenceKelasOptions, selectedTarifKelas])
 
   const roleResolutionDate = useMemo(() => {
     const rawDate =
@@ -696,7 +783,7 @@ const DetailVerifikasiPage = () => {
       initialAssignees?: Map<string, number>,
       fallbackDpjpId?: number | null
     ): PaketTeamState => {
-      const normalizedClass = normalizeKelas(kelas) || 'umum'
+      const normalizedClass = normalizeKelas(kelas) || 'UMUM'
       const roleList = resolveRolesFromPaketByClass(paketId, normalizedClass)
       const teamMembers = roleList.map((roleTenaga, idx) => {
         const fromInitial = initialAssignees?.get(roleTenaga)
@@ -866,7 +953,7 @@ const DetailVerifikasiPage = () => {
       }
 
       const resolvedKelas = normalizeKelas(
-        paketTeamMap[row.paketId]?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'umum'
+        paketTeamMap[row.paketId]?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
       )
       const tarifList = Array.isArray((paket as any)?.tarifList)
         ? ((paket as any).tarifList as PaketTarifHeaderRef[])
@@ -1111,7 +1198,7 @@ const DetailVerifikasiPage = () => {
     if (persistedTeams.length > 0) {
       const nextMap: Record<number, PaketTeamState> = {}
       selectedPaketRows.forEach((row) => {
-        const initialKelas = normalizeKelas(row.kelasTarifSnapshot || selectedTarifKelas || 'umum')
+        const initialKelas = normalizeKelas(row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM')
         nextMap[row.paketId] = buildPaketTeamState(
           row.paketId,
           initialKelas,
@@ -1131,7 +1218,7 @@ const DetailVerifikasiPage = () => {
     if (firstPaket) {
       const nextMap: Record<number, PaketTeamState> = {}
       selectedPaketRows.forEach((row, index) => {
-        const initialKelas = normalizeKelas(row.kelasTarifSnapshot || selectedTarifKelas || 'umum')
+        const initialKelas = normalizeKelas(row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM')
         nextMap[row.paketId] = buildPaketTeamState(
           row.paketId,
           initialKelas,
@@ -1260,7 +1347,7 @@ const DetailVerifikasiPage = () => {
         const jumlahRaw = Number(detail?.qty)
         const jumlah = Number.isFinite(jumlahRaw) && jumlahRaw > 0 ? jumlahRaw : 1
         const kelasPaket = normalizeKelas(
-          paketTeamMap[paketId]?.kelas || item?.kelasTarifSnapshot || selectedTarifKelas || 'umum'
+          paketTeamMap[paketId]?.kelas || item?.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
         )
 
         mapped.push({
@@ -1310,7 +1397,7 @@ const DetailVerifikasiPage = () => {
     selectedPaketRows.forEach((row) => {
       const state = paketTeamMap[row.paketId]
       const kelas = normalizeKelas(
-        state?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'umum'
+        state?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
       )
       const roleList = Array.isArray(state?.roleList) ? state.roleList : []
       const teamMembers = normalizeTeamAssignments(state?.teamMembers || [])
@@ -1358,8 +1445,12 @@ const DetailVerifikasiPage = () => {
       message.success('Checklist Pre-Op berhasil disimpan')
       void refetchOkRequest()
     } catch (error) {
-      const text = error instanceof Error ? error.message : String(error)
-      message.error(text || 'Mohon lengkapi seluruh field wajib di Checklist Pre-Op')
+      const parsed = extractUiError(error, 'Mohon lengkapi seluruh field wajib di Checklist Pre-Op')
+      if (parsed.source === 'validation') {
+        message.error(`Validasi Form: ${parsed.message}`)
+        return
+      }
+      message.error(parsed.message)
     }
   }
 
@@ -1382,8 +1473,18 @@ const DetailVerifikasiPage = () => {
       message.success('WHO Checklist berhasil disimpan')
       void refetchOkRequest()
     } catch (error) {
-      const text = error instanceof Error ? error.message : String(error)
-      message.error(text || 'Mohon lengkapi seluruh item wajib pada Sign-In')
+      const parsed = extractUiError(error, 'Mohon lengkapi seluruh item wajib WHO Checklist')
+      if (parsed.source === 'validation') {
+        const fieldName = String(parsed.fieldName || '').trim()
+        const area = WHO_TIME_OUT_FIELDS.has(fieldName)
+          ? 'Time-Out'
+          : WHO_SIGN_IN_FIELDS.has(fieldName)
+            ? 'Sign-In'
+            : 'WHO'
+        message.error(`Validasi ${area}: ${parsed.message}`)
+        return
+      }
+      message.error(parsed.message)
     }
   }
 
@@ -1406,8 +1507,12 @@ const DetailVerifikasiPage = () => {
       message.success('Data Post-Operasi berhasil disimpan')
       void refetchOkRequest()
     } catch (error) {
-      const text = error instanceof Error ? error.message : String(error)
-      message.error(text || 'Mohon lengkapi seluruh field wajib di form Post-Op')
+      const parsed = extractUiError(error, 'Mohon lengkapi seluruh field wajib di form Post-Op')
+      if (parsed.source === 'validation') {
+        message.error(`Validasi Form: ${parsed.message}`)
+        return
+      }
+      message.error(parsed.message)
     }
   }
 
@@ -1416,7 +1521,7 @@ const DetailVerifikasiPage = () => {
     kelasRaw: string,
     sourceAssignments?: TeamMemberAssignment[] | TeamMemberFormItem[]
   ) => {
-    const kelas = normalizeKelas(kelasRaw) || 'umum'
+    const kelas = normalizeKelas(kelasRaw) || 'UMUM'
     const roleList = resolveRolesFromPaketByClass(paketId, kelas)
     const assigneeMap = buildRoleAssigneeMap(
       normalizeTeamAssignments(
@@ -1447,7 +1552,7 @@ const DetailVerifikasiPage = () => {
   const openPaketTeamModal = (row: PaketRow) => {
     const existingState = paketTeamMap[row.paketId]
     const kelas = normalizeKelas(
-      existingState?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'umum'
+      existingState?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
     )
     const sourceAssignments = normalizeTeamAssignments(existingState?.teamMembers || [])
 
@@ -1463,7 +1568,7 @@ const DetailVerifikasiPage = () => {
 
     try {
       const values = await paketTeamForm.validateFields()
-      const kelas = normalizeKelas(values?.kelas || selectedTarifKelas || 'umum')
+      const kelas = normalizeKelas(values?.kelas || selectedTarifKelas || 'UMUM')
       const roleList = resolveRolesFromPaketByClass(activePaketForTeam.paketId, kelas)
       if (roleList.length === 0) {
         message.error('Role tenaga medis belum tersedia untuk paket dan kelas yang dipilih')
@@ -1645,11 +1750,17 @@ const DetailVerifikasiPage = () => {
     if (!syncSuccess) return
 
     try {
+      const estimatedDurationValue = Number(selectedRequest.estimatedDurationMinutes)
+      const estimatedDurationMinutes =
+        Number.isInteger(estimatedDurationValue) && estimatedDurationValue > 0
+          ? estimatedDurationValue
+          : undefined
+
       await verifyOkRequest.mutateAsync({
         id: Number(selectedRequest.id),
-        status: OkRequestStatus.VERIFIED,
+        status: OK_REQUEST_STATUS.VERIFIED,
         scheduledAt: selectedRequest.scheduledAt || null,
-        estimatedDurationMinutes: selectedRequest.estimatedDurationMinutes ?? null,
+        estimatedDurationMinutes,
         operatingRoomId: selectedRequest.operatingRoomId ?? null,
         notes: selectedRequest.notes || 'Disetujui melalui verifikasi OK'
       })
@@ -1689,7 +1800,7 @@ const DetailVerifikasiPage = () => {
 
         await verifyOkRequest.mutateAsync({
           id: Number(selectedRequest.id),
-          status: OkRequestStatus.REJECTED,
+          status: OK_REQUEST_STATUS.REJECTED,
           rejectionReason: reason,
           notes: reason
         })

@@ -224,6 +224,10 @@ export interface SaveCompoundFormulationResponse {
 
 export interface PatientWithMedicalRecord extends PatientQueue {
     paymentMethod?: string
+    kelasTarif?: string
+    encounter?: {
+        kelasId?: string
+    }
     nurseRecord?: {
         vitalSigns: VitalSigns
         anamnesis: Anamnesis

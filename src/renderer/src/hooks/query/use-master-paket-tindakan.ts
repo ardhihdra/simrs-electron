@@ -57,6 +57,7 @@ export interface MasterPaketTindakanItem {
     kodePaket: string
     namaPaket: string
     kategoriPaket?: string | null
+    isPaketOk?: boolean
     deskripsi?: string | null
     tarifPaket: number | string
     aktif?: boolean
@@ -77,6 +78,7 @@ export interface MasterPaketTindakanItem {
 export const useMasterPaketTindakanList = (params?: {
     q?: string
     aktif?: boolean
+    isPaketOk?: boolean
     items?: number
     depth?: number
 }) => {

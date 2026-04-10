@@ -51,6 +51,12 @@ import PaketOperationBreakdown from './PaketOperationBreakdown'
 import { ItemSelectorModal, ItemAttributes, ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
 import { ProcedureSelectorModal } from '@renderer/components/organisms/ProcedureSelectorModal'
 import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
+import {
+  DEFAULT_KELAS_TARIF_OPTIONS,
+  buildKelasTarifPriority,
+  normalizeKelasTarifValue
+} from '@renderer/utils/tarif-kelas'
+import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
 
 interface DetailTindakanFormProps {
   encounterId: string
@@ -65,15 +71,6 @@ interface ItemListResponse {
 }
 
 // Using ItemAttributes defined in ItemSelectorModal
-
-const kelasOptions = [
-  { value: 'kelas_1', label: 'Kelas 1' },
-  { value: 'kelas_2', label: 'Kelas 2' },
-  { value: 'kelas_3', label: 'Kelas 3' },
-  { value: 'vip', label: 'VIP' },
-  { value: 'vvip', label: 'VVIP' },
-  { value: 'umum', label: 'Umum / Non Kelas' }
-]
 
 interface MasterTarifKomponenRef {
   jenisKomponenId?: number | string | null
@@ -121,14 +118,14 @@ interface PaketTarifHeaderRef {
   rincianTarif?: PaketTarifRincianRef[] | null
 }
 
+type InputTabKey = 'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket'
+
 export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanFormProps) => {
   const { message } = App.useApp()
   const { token } = theme.useToken()
   const [modalForm] = Form.useForm()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [activeInputTab, setActiveInputTab] = useState<
-    'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket'
-  >('paket')
+  const [activeInputTab, setActiveInputTab] = useState<InputTabKey>('paket')
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
   const [searchPaketBhp, setSearchPaketBhp] = useState('')
@@ -144,6 +141,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     onSelect?: (item: MasterTindakanItem) => void;
   }>({ open: false })
   const [paketCache, setPaketCache] = useState<Record<number, any>>({})
+  const { data: kelasOptions = DEFAULT_KELAS_TARIF_OPTIONS } = useTarifKelasOptions()
   const [paketBhpCache, setPaketBhpCache] = useState<Record<number, any>>({})
   const [masterTindakanDetailCache, setMasterTindakanDetailCache] = useState<
     Record<number, MasterTindakanDetailRef | null>
@@ -169,6 +167,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const { data: paketList = [], isLoading: isLoadingPaket } = useMasterPaketTindakanList({
     q: searchPaket || undefined,
+    isPaketOk: false,
     items: 10,
     depth: 1
   })
@@ -582,10 +581,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   )
 
   const normalizeKelas = useCallback(
-    (value: unknown) =>
-      String(value ?? '')
-        .trim()
-        .toLowerCase(),
+    (value: unknown) => normalizeKelasTarifValue(value),
     []
   )
 
@@ -603,8 +599,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const pickTarifForKelasAndDate = useCallback(
     (tarifList: MasterTarifTindakanRef[], kelas: string, tanggal: string) => {
-      const kelasTarget = normalizeKelas(kelas)
-      const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+      const kelasPriority = buildKelasTarifPriority(kelas)
 
       const candidates = (tarifList || [])
         .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
@@ -674,8 +669,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         : []
       if (tarifList.length === 0) return []
 
-      const kelasTarget = normalizeKelas(entry?.kelas)
-      const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+      const kelasPriority = buildKelasTarifPriority(entry?.kelas)
       const pickedTarif = [...tarifList]
         .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
         .sort((a, b) => {
@@ -956,6 +950,26 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const updateMutation = useUpdateDetailTindakan(encounterId)
   const voidMutation = useVoidDetailTindakan(encounterId)
 
+  const normalizeToValidKelas = useCallback((value: unknown): string => {
+    const normalized = normalizeKelasTarifValue(value)
+    return kelasOptions.some((opt) => opt.value === normalized) ? normalized : ''
+  }, [kelasOptions])
+
+  const resolveEncounterDefaultKelas = useCallback((): string => {
+    const candidates = [
+      patientData?.encounter?.kelasId,
+      patientData?.kelasTarif,
+      patientData?.kelas?.id
+    ]
+
+    for (const candidate of candidates) {
+      const normalized = normalizeToValidKelas(candidate)
+      if (normalized) return normalized
+    }
+
+    return 'UMUM'
+  }, [normalizeToValidKelas, patientData])
+
   const mergeBhpList = (existingBhpList: any[], incomingBhpList: any[]) => {
     const merged = new Map<
       string,
@@ -992,7 +1006,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const handlePaketEntryChange = (entryIndex: number, rawPaketId?: number) => {
     const currentEntries = modalForm.getFieldValue('paketEntries') || []
-    const entryKelas = currentEntries?.[entryIndex]?.kelas
+    const entryKelas =
+      normalizeToValidKelas(currentEntries?.[entryIndex]?.kelas) ||
+      normalizeToValidKelas(modalForm.getFieldValue('kelas')) ||
+      'UMUM'
     const paketId = Number(rawPaketId)
     if (!Number.isFinite(paketId) || paketId <= 0) {
       modalForm.setFieldsValue({
@@ -1026,7 +1043,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const tindakan = getDetailMasterTindakan(d)
       return {
         masterTindakanId: d.masterTindakanId,
-        kelas: entryKelas ?? (d as any)?.kelas ?? undefined,
+        kelas: entryKelas || normalizeToValidKelas((d as any)?.kelas) || 'UMUM',
         paketId: Number(selected.id),
         paketDetailId: d.id,
         jumlah: Number(d.qty ?? 1),
@@ -1189,6 +1206,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return !entry?.kelas
       })
       if (missingKelasIdx >= 0) {
+        setActiveInputTab('paket')
         message.error(`Kelas wajib dipilih pada Paket #${missingKelasIdx + 1}`)
         return
       }
@@ -1204,6 +1222,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return entryPetugas.length === 0
       })
       if (missingPetugasIdx >= 0) {
+        setActiveInputTab('paket')
         message.error(
           `Role tenaga medis belum tersedia pada Paket #${missingPetugasIdx + 1}. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.`
         )
@@ -1220,6 +1239,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         )
       )
       if (invalidBhpPaketIdx >= 0) {
+        setActiveInputTab('paket')
         message.error(
           `Jumlah BHP pada Paket #${invalidBhpPaketIdx + 1} harus bilangan bulat (1, 2, 3, ...).`
         )
@@ -1235,6 +1255,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         (item: any) => item?.masterTindakanId && !item?.kelas
       )
       if (missingKelasNonPaketIdx >= 0) {
+        setActiveInputTab('non-paket')
         message.error(`Kelas wajib dipilih pada Tindakan Non-Paket #${missingKelasNonPaketIdx + 1}`)
         return
       }
@@ -1247,6 +1268,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return itemPetugas.length === 0
       })
       if (missingPetugasNonPaketIdx >= 0) {
+        setActiveInputTab('non-paket')
         message.error(
           `Role tenaga medis belum tersedia pada Tindakan Non-Paket #${missingPetugasNonPaketIdx + 1}. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.`
         )
@@ -1254,6 +1276,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       }
 
       if (hasNonPaketBhp && !hasNonPaketTindakan) {
+        setActiveInputTab('bhp-non-paket')
         message.error('BHP non-paket hanya bisa disimpan jika ada minimal 1 tindakan non-paket')
         return
       }
@@ -1266,6 +1289,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             !Number.isInteger(Number(bhp.jumlah)))
       )
       if (invalidBhpQty) {
+        setActiveInputTab('bhp-non-paket')
         message.error('Jumlah BHP non-paket harus bilangan bulat (1, 2, 3, ...).')
         return
       }
@@ -1299,25 +1323,49 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     }
   }
 
+  const resolveInputTabByFieldName = (namePath: (string | number)[]): InputTabKey => {
+    const rootName = String(namePath?.[0] ?? '')
+    if (rootName === 'paketEntries') return 'paket'
+    if (rootName === 'tindakanList') return 'non-paket'
+    if (rootName === 'paketBhpEntries') return 'paket-bhp'
+    if (rootName === 'bhpList') return 'bhp-non-paket'
+    return 'paket'
+  }
+
+  const handleFormFinishFailed = (errorInfo: {
+    errorFields?: Array<{ name: (string | number)[]; errors?: string[] }>
+  }) => {
+    const firstFieldWithError = (errorInfo?.errorFields || []).find(
+      (field) => Array.isArray(field?.errors) && field.errors.length > 0
+    )
+    const targetTab = resolveInputTabByFieldName(firstFieldWithError?.name || [])
+    setActiveInputTab(targetTab)
+
+    const firstMessage = firstFieldWithError?.errors?.[0] || 'Periksa kembali data form yang wajib diisi.'
+    message.error(`Validasi Form: ${firstMessage}`)
+
+    if (Array.isArray(firstFieldWithError?.name) && firstFieldWithError.name.length > 0) {
+      try {
+        modalForm.scrollToField(firstFieldWithError.name)
+      } catch {
+        // noop
+      }
+    }
+  }
+
   const handleOpenModal = () => {
     modalForm.resetFields()
     setEditingId(null)
     setInitialPetugas([])
     setInitialPaketPetugas({})
     setActiveInputTab('paket')
-    const fallbackKelas = patientData?.encounter?.kelasId || patientData?.kelas?.id || undefined
-    const matchedKelas = kelasOptions.find(
-      (opt) =>
-        opt.value === fallbackKelas ||
-        opt.value === `kelas_${fallbackKelas}` ||
-        opt.label.toLowerCase().includes(String(fallbackKelas).toLowerCase())
-    )
+    const fallbackKelas = resolveEncounterDefaultKelas()
 
     modalForm.setFieldsValue({
       assessment_date: dayjs(),
-      kelas: matchedKelas?.value || fallbackKelas,
+      kelas: fallbackKelas,
       petugasList: [],
-      tindakanList: [{ jumlah: 1, cyto: false }],
+      tindakanList: [],
       bhpList: [],
       paketCytoGlobal: false,
       paketIds: [],
@@ -1334,20 +1382,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     const assessment_date = dayjs(record.tanggalTindakan)
     const cytoGlobal = Boolean(record.cyto)
 
-    const fallbackKelas = patientData?.encounter?.kelasId || patientData?.kelas?.id || undefined
-    const matchedKelas = kelasOptions.find(
-      (opt) =>
-        opt.value === fallbackKelas ||
-        opt.value === `kelas_${fallbackKelas}` ||
-        opt.label.toLowerCase().includes(String(fallbackKelas).toLowerCase())
-    )
-
-    let kelasGlobal = matchedKelas?.value || fallbackKelas
-    if (record.tindakanNonPaket?.length > 0 && record.tindakanNonPaket[0].kelas) {
-      kelasGlobal = record.tindakanNonPaket[0].kelas
-    } else if (record.tindakanPaket?.length > 0 && record.tindakanPaket[0].kelas) {
-      kelasGlobal = record.tindakanPaket[0].kelas
-    }
+    const fallbackKelas = resolveEncounterDefaultKelas()
+    const tindakanNonPaketKelas = normalizeToValidKelas(record?.tindakanNonPaket?.[0]?.kelas)
+    const tindakanPaketKelas = normalizeToValidKelas(record?.tindakanPaket?.[0]?.kelas)
+    let kelasGlobal = tindakanNonPaketKelas || tindakanPaketKelas || fallbackKelas
 
     const flatPetugasDB = (record.tindakanPelaksanaList || []).map((p: any) => ({
       roleTenaga: p.roleTenaga,
@@ -1363,7 +1401,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           newInitialPaket[t.paketId] = flatPetugasDB // Share db officers to all packages initially
           paketEntriesMap.set(t.paketId, {
             paketId: t.paketId,
-            kelas: t.kelas || kelasGlobal,
+            kelas: normalizeToValidKelas(t.kelas) || kelasGlobal,
             tindakanList: [],
             bhpList: [],
             petugasList: flatPetugasDB
@@ -1373,7 +1411,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           masterTindakanId: t.paketDetail?.masterTindakanId,
           paketId: t.paketId,
           paketDetailId: t.paketDetailId,
-          kelas: t.kelas || kelasGlobal,
+          kelas: normalizeToValidKelas(t.kelas) || kelasGlobal,
           jumlah: Number(t.qty),
           satuan: t.satuan,
           cyto: t.cyto,
@@ -1404,14 +1442,13 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
     const tindakanList = (record.tindakanNonPaket || []).map((t: any) => ({
       masterTindakanId: t.masterTindakanId,
-      kelas: t.kelas || kelasGlobal,
+      kelas: normalizeToValidKelas(t.kelas) || kelasGlobal,
       jumlah: Number(t.qty),
       satuan: t.satuan,
       cyto: t.cyto,
       catatanTambahan: t.catatanTambahan,
       petugasList: flatPetugasDB
     }))
-    if (tindakanList.length === 0) tindakanList.push({ jumlah: 1, cyto: false, petugasList: [] })
 
     const bhpList = (record.bhpNonPaket || []).map((b: any) => ({
       itemId: b.itemId,
@@ -1783,13 +1820,14 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           form={modalForm}
           layout="vertical"
           onFinish={handleSubmit}
+          onFinishFailed={handleFormFinishFailed}
           className="flex! flex-col! gap-4!"
           initialValues={{ assessment_date: dayjs(), petugasList: [] }}
         >
           <Tabs
             activeKey={activeInputTab}
             onChange={(key) =>
-              setActiveInputTab(key as 'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket')
+              setActiveInputTab(key as InputTabKey)
             }
             size="small"
             items={[

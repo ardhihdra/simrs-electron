@@ -4,6 +4,7 @@ import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/
 import { ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
 import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
 import { ProcedureSelectorModal } from '@renderer/components/organisms/ProcedureSelectorModal'
+import { SelectKelasTarif } from '@renderer/components/molecules/SelectKelasTarif'
 
 const { TextArea } = Input
 
@@ -84,28 +85,20 @@ export default function PaketTindakanTab({
           type="dashed"
           size="small"
           icon={<PlusCircleOutlined />}
-          onClick={() =>
-            (modalForm.getFieldValue('paketEntries') || []).length === 0
-              ? modalForm.setFieldValue('paketEntries', [
-                  {
-                    paketCytoGlobal: false,
-                    kelas: undefined,
-                    tindakanList: [],
-                    bhpList: [],
-                    petugasList: []
-                  }
-                ])
-              : modalForm.setFieldValue('paketEntries', [
-                  ...(modalForm.getFieldValue('paketEntries') || []),
-                  {
-                    paketCytoGlobal: false,
-                    kelas: undefined,
-                    tindakanList: [],
-                    bhpList: [],
-                    petugasList: []
-                  }
-                ])
-          }
+          onClick={() => {
+            const currentEntries = modalForm.getFieldValue('paketEntries') || []
+            const defaultKelas = modalForm.getFieldValue('kelas') || 'UMUM'
+            modalForm.setFieldValue('paketEntries', [
+              ...currentEntries,
+              {
+                paketCytoGlobal: false,
+                kelas: defaultKelas,
+                tindakanList: [],
+                bhpList: [],
+                petugasList: []
+              }
+            ])
+          }}
         >
           Tambah Paket Tindakan
         </Button>
@@ -161,7 +154,7 @@ export default function PaketTindakanTab({
                     label={<span className="font-bold">Kelas</span>}
                     rules={[{ required: true, message: 'Pilih kelas' }]}
                   >
-                    <Select
+                    <SelectKelasTarif
                       placeholder="Pilih kelas..."
                       options={kelasOptions}
                       onChange={(selectedKelas) => {

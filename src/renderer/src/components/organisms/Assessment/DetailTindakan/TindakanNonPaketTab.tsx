@@ -2,6 +2,7 @@ import { Form, Card, Select, Input, InputNumber, Switch, Button, Row, Col, Toolt
 import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
 import AutoRolePetugasListCard from './AutoRolePetugasListCard'
+import { SelectKelasTarif } from '@renderer/components/molecules/SelectKelasTarif'
 
 const { TextArea } = Input
 
@@ -55,9 +56,11 @@ export default function TindakanNonPaketTab({
           icon={<PlusCircleOutlined />}
           onClick={() => {
             const currentList = modalForm.getFieldValue('tindakanList') || []
+            const defaultKelas = modalForm.getFieldValue('kelas') || 'UMUM'
             modalForm.setFieldValue('tindakanList', [
               ...currentList,
               {
+                kelas: defaultKelas,
                 jumlah: 1,
                 cyto: false,
                 petugasList: []
@@ -139,7 +142,7 @@ export default function TindakanNonPaketTab({
                     rules={[{ required: true, message: 'Pilih kelas' }]}
                     className="col-span-1 mb-0"
                   >
-                    <Select placeholder="Pilih kelas..." options={kelasOptions} />
+                    <SelectKelasTarif placeholder="Pilih kelas..." options={kelasOptions} />
                   </Form.Item>
                   <Form.Item
                     {...field}

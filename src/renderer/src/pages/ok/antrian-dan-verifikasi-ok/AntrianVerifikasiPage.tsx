@@ -17,6 +17,7 @@ import {
 import { useOkRequestList } from '@renderer/hooks/query/use-ok-request'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useOperatingRoomList } from '@renderer/hooks/query/use-operating-room'
+import { getKelasTarifLabel, normalizeKelasTarifValue } from '@renderer/utils/tarif-kelas'
 
 interface BackendOkRequest {
   id: number
@@ -110,7 +111,7 @@ const buildNomorAntrian = (item: BackendOkRequest): string => {
   return `OK-${String(item.id).padStart(6, '0')}`
 }
 
-const normalizeKelas = (kelas: unknown): string => String(kelas || '').trim().toLowerCase()
+const normalizeKelas = (kelas: unknown): string => normalizeKelasTarifValue(kelas)
 
 const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
   const normalized = String(paymentMethod || '')
@@ -119,26 +120,18 @@ const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
 
   switch (normalized) {
     case 'cash':
-      return 'umum'
     case 'bpjs':
-      return 'bpjs'
     case 'asuransi':
-      return 'asuransi'
     case 'company':
-      return 'company'
+    case 'general':
+    case 'umum':
+      return 'UMUM'
     default:
-      return normalized
+      return normalizeKelas(paymentMethod) || 'UMUM'
   }
 }
 
-const getKelasLabel = (kelas: string): string => {
-  const normalized = normalizeKelas(kelas)
-  if (!normalized) return '-'
-  if (normalized.startsWith('kelas_')) return `Kelas ${normalized.replace('kelas_', '').toUpperCase()}`
-  if (normalized === 'vip') return 'VIP'
-  if (normalized === 'vvip') return 'VVIP'
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-}
+const getKelasLabel = getKelasTarifLabel
 
 const AntrianVerifikasiPage = () => {
   const { token } = theme.useToken()

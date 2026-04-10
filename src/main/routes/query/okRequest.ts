@@ -198,10 +198,14 @@ export const uploadSupportingDocument = async (
 export const verify = async (ctx: IpcContext, args: z.infer<typeof schemas.verify.args>) => {
   try {
     const client = createBackendClient(ctx)
+    const normalizedEstimatedDuration = Number(args.estimatedDurationMinutes)
     const payload = {
       status: args.status === 'diajukan' ? 'verified' : args.status,
       scheduledAt: args.scheduledAt ?? null,
-      estimatedDurationMinutes: args.estimatedDurationMinutes ?? null,
+      estimatedDurationMinutes:
+        Number.isInteger(normalizedEstimatedDuration) && normalizedEstimatedDuration > 0
+          ? normalizedEstimatedDuration
+          : undefined,
       operatingRoomId: args.operatingRoomId ?? null,
       notes: args.notes ?? null,
       rejectionReason: args.rejectionReason ?? null,

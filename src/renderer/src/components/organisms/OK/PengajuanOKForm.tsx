@@ -16,6 +16,7 @@ import {
   Typography,
   Upload,
   Alert,
+  Modal,
   Tabs,
   Spin,
   Empty
@@ -29,6 +30,14 @@ import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useOperatingRoomList } from '@renderer/hooks/query/use-operating-room'
 import { useCreateOkRequest, useUploadOkSupportingDocument } from '@renderer/hooks/query/use-ok-request'
 import { useCreateQuestionnaireResponse } from '@renderer/hooks/query/use-questionnaire-response'
+import { SelectKelasTarif } from '@renderer/components/molecules/SelectKelasTarif'
+import {
+  DEFAULT_KELAS_TARIF_OPTIONS,
+  KELAS_ORDER,
+  getKelasTarifLabel,
+  normalizeKelasTarifValue
+} from '@renderer/utils/tarif-kelas'
+import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
 import {
   useMasterPaketTindakanList,
   type MasterPaketTindakanItem
@@ -84,7 +93,13 @@ interface ActivePaketTarif {
   tarif: number
 }
 
-const KELAS_ORDER = ['kelas_3', 'kelas_2', 'kelas_1', 'umum', 'vip', 'vvip']
+interface BodyMapMarker {
+  id: number
+  x: number
+  y: number
+  note: string
+}
+
 const FIELD_TAB_MAP: Record<string, string> = {
   mainDiagnosis: '1',
   sifatOperasi: '1',
@@ -108,7 +123,7 @@ const FIELD_TAB_MAP: Record<string, string> = {
   witness2_name: '3'
 }
 
-const normalizeKelas = (kelas: unknown): string => String(kelas || '').trim().toLowerCase()
+const normalizeKelas = normalizeKelasTarifValue
 
 const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
   const normalized = String(paymentMethod || '')
@@ -117,15 +132,14 @@ const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
 
   switch (normalized) {
     case 'cash':
-      return 'umum'
     case 'bpjs':
-      return 'bpjs'
     case 'asuransi':
-      return 'asuransi'
     case 'company':
-      return 'company'
+    case 'general':
+    case 'umum':
+      return 'UMUM'
     default:
-      return normalized
+      return normalizeKelasTarifValue(paymentMethod) || 'UMUM'
   }
 }
 
@@ -190,14 +204,7 @@ const classifySubmitErrorSource = (messageText: string): 'Validasi Form' | 'IPC'
   return 'Backend'
 }
 
-const getKelasLabel = (kelas: string): string => {
-  const normalized = normalizeKelas(kelas)
-  if (!normalized) return '-'
-  if (normalized.startsWith('kelas_')) return `Kelas ${normalized.replace('kelas_', '').toUpperCase()}`
-  if (normalized === 'vip') return 'VIP'
-  if (normalized === 'vvip') return 'VVIP'
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
-}
+const getKelasLabel = getKelasTarifLabel
 
 const extractTarifValue = (tarifRow: any): number | null => {
   const candidates = [tarifRow?.tarifTotal, tarifRow?.tarifPaket, tarifRow?.nominal]
@@ -256,7 +263,10 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
   const config = useMemo(() => SERVICE_CONFIGS[type], [type])
   const [activeTab, setActiveTab] = useState('1')
   const imgRef = useRef<HTMLImageElement>(null)
-  const [markers, setMarkers] = useState<any[]>([])
+  const [markers, setMarkers] = useState<BodyMapMarker[]>([])
+  const [isMarkerModalOpen, setIsMarkerModalOpen] = useState(false)
+  const [tempMarker, setTempMarker] = useState<{ x: number; y: number } | null>(null)
+  const [markerNote, setMarkerNote] = useState('')
   const [signatures, setSignatures] = useState<Record<string, string>>({})
   const [dokumenFileList, setDokumenFileList] = useState<UploadFile[]>([])
 
@@ -269,8 +279,10 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
   } = useOperatingRoomList('available')
   const { data: masterPaketList, isLoading: loadingPaketTindakan } = useMasterPaketTindakanList({
     aktif: true,
+    isPaketOk: true,
     items: 500
   })
+  const { data: referenceKelasOptions = DEFAULT_KELAS_TARIF_OPTIONS } = useTarifKelasOptions()
   const createOkRequest = useCreateOkRequest()
   const uploadSupportingDocument = useUploadOkSupportingDocument()
   const { mutateAsync: createQuestionnaireResponse } = useCreateQuestionnaireResponse()
@@ -344,6 +356,16 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     return map
   }, [masterPaketList])
 
+  const kelasOrderMap = useMemo(() => {
+    const map = new Map<string, number>()
+    referenceKelasOptions.forEach((option, idx) => {
+      const normalizedValue = normalizeKelas(option.value)
+      if (!normalizedValue) return
+      map.set(normalizedValue, idx)
+    })
+    return map
+  }, [referenceKelasOptions])
+
   const selectedTarifKelasNormalized = useMemo(
     () => normalizeKelas(selectedTarifKelas),
     [selectedTarifKelas]
@@ -359,15 +381,15 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     })
     return Array.from(kelasSet)
       .sort((a, b) => {
-        const idxA = KELAS_ORDER.indexOf(a)
-        const idxB = KELAS_ORDER.indexOf(b)
-        if (idxA !== -1 && idxB !== -1) return idxA - idxB
-        if (idxA !== -1) return -1
-        if (idxB !== -1) return 1
+        const idxA = kelasOrderMap.get(a)
+        const idxB = kelasOrderMap.get(b)
+        if (idxA !== undefined && idxB !== undefined) return idxA - idxB
+        if (idxA !== undefined) return -1
+        if (idxB !== undefined) return 1
         return a.localeCompare(b)
       })
       .map((kelas) => ({ value: kelas, label: getKelasLabel(kelas) }))
-  }, [activeTarifByPaketId])
+  }, [activeTarifByPaketId, kelasOrderMap])
 
   const availableKelasSet = useMemo(() => {
     return new Set(availableKelasOptions.map((option) => normalizeKelas(option.value)))
@@ -382,7 +404,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
   const initialTarifKelas = useMemo(() => {
     const preferred = normalizeKelas(defaultTarifKelasFromPatientData)
     if (preferred && availableKelasSet.has(preferred)) return preferred
-    if (availableKelasSet.has('umum')) return 'umum'
+    if (availableKelasSet.has('UMUM')) return 'UMUM'
     return availableKelasOptions[0]?.value
   }, [availableKelasOptions, availableKelasSet, defaultTarifKelasFromPatientData])
 
@@ -458,14 +480,30 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     const x = ((e.clientX - rect.left) / rect.width) * 100
     const y = ((e.clientY - rect.top) / rect.height) * 100
 
-    const note = prompt('Masukkan catatan lokasi (Misal: Sisi Kanan, Level L4-L5):')
-    if (note) {
-      setMarkers((prev) => [...prev, { id: Date.now(), x, y, note }])
+    setTempMarker({ x, y })
+    setMarkerNote('')
+    setIsMarkerModalOpen(true)
+  }
+
+  const saveMarker = () => {
+    const note = markerNote.trim()
+    if (!tempMarker) return
+    if (!note) {
+      notifyError('Keterangan penanda wajib diisi.')
+      return
     }
+
+    setMarkers((prev) => [
+      ...prev,
+      { id: Date.now(), x: tempMarker.x, y: tempMarker.y, note }
+    ])
+    setIsMarkerModalOpen(false)
+    setTempMarker(null)
+    setMarkerNote('')
   }
 
   const removeMarker = (id: number) => {
-    setMarkers(markers.filter((m) => m.id !== id))
+    setMarkers((prev) => prev.filter((marker) => marker.id !== id))
   }
 
   const handleFinish = (values: any) => {
@@ -495,6 +533,13 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
 
     if (selectedPaketIdNumbers.length === 0) {
       notifyError('Pilih minimal satu paket tindakan operasi.')
+      return
+    }
+
+    const firstEmptyMarkerIndex = markers.findIndex((marker) => String(marker.note || '').trim() === '')
+    if (firstEmptyMarkerIndex >= 0) {
+      setActiveTab('1')
+      notifyError(`Catatan lokasi marker #${firstEmptyMarkerIndex + 1} belum diisi.`)
       return
     }
 
@@ -866,9 +911,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                         }}
                         className="group"
                       >
-                        <div
-                          className={`w-6 h-6 bg-${config.color}-600 rounded-full border-2 border-white shadow-lg flex items-center justify-center text-white text-[10px] font-bold cursor-pointer`}
-                        >
+                        <div className="w-5 h-5 bg-red-500 rounded-full border border-white shadow flex items-center justify-center text-white text-xs font-bold cursor-pointer">
                           {index + 1}
                         </div>
                         <div
@@ -881,7 +924,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                           <DeleteOutlined className="text-red-500" />
                         </div>
                         <div className="absolute top-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap bg-black/70 text-white text-[10px] px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-                          {marker.note}
+                          {String(marker.note || '').trim() || 'Catatan belum diisi'}
                         </div>
                       </div>
                     ))}
@@ -909,7 +952,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                           <Tag color={config.color} className="m-0 mt-1 font-bold">
                             {idx + 1}
                           </Tag>
-                          <div className="flex-1 text-sm font-semibold text-gray-800 uppercase italic">
+                          <div className="flex-1 text-sm font-semibold text-gray-800">
                             {m.note}
                           </div>
                           <Button
@@ -951,11 +994,9 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                   rules={[{ required: true, message: 'Pilih kelas tarif' }]}
                   className="mb-0"
                 >
-                  <Select
+                  <SelectKelasTarif
                     placeholder="Pilih kelas tarif"
                     options={availableKelasOptions}
-                    showSearch
-                    optionFilterProp="label"
                   />
                 </Form.Item>
               </Col>
@@ -1223,6 +1264,36 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
           </Button>
         </div>
       </Form>
+
+      <Modal
+        title="Tambah Penanda"
+        open={isMarkerModalOpen}
+        onOk={saveMarker}
+        onCancel={() => {
+          setIsMarkerModalOpen(false)
+          setTempMarker(null)
+          setMarkerNote('')
+        }}
+        okText="Simpan"
+        cancelText="Batal"
+      >
+        <Form layout="vertical">
+          <Form.Item
+            label="Keterangan Lokasi Operasi"
+            required
+            validateStatus={markerNote.trim() ? undefined : 'error'}
+            help={markerNote.trim() ? undefined : 'Keterangan wajib diisi'}
+          >
+            <Input
+              autoFocus
+              value={markerNote}
+              onChange={(event) => setMarkerNote(event.target.value)}
+              onPressEnter={saveMarker}
+              placeholder="Misal: Sisi kanan, regio abdomen kanan bawah"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Card>
   )
 }
