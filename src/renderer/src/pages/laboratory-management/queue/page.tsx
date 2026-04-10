@@ -209,6 +209,12 @@ export default function LaboratoryQueue() {
       key: 'startTime',
       render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
     },
+    {
+      title: 'Waktu Selesai',
+      dataIndex: 'endTime',
+      key: 'endTime',
+      render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
+    },
     // {
     //   title: 'Service Request',
     //   key: 'serviceRequestId',
