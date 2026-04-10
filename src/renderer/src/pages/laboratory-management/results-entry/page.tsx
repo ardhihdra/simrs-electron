@@ -6,6 +6,7 @@ import { getInterpretationFromReferenceRange } from '@renderer/utils/laboratory-
 import { App, Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload } from 'antd'
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
+import { resolveAncillaryRouteBase } from '../section-config'
 
 type DicomSourceMode = 'upload' | 'modality'
 
@@ -26,6 +27,8 @@ export default function RecordResultPage() {
   const location = useLocation()
   const { message } = App.useApp()
   const record = location.state as Record<string, unknown> | null
+  const sectionRouteBase =
+    String(record?.sectionRouteBase || '') || resolveAncillaryRouteBase(location.pathname)
   const rec = record as Record<string, unknown>
   const testObj = rec?.test as Record<string, string> | undefined
   const [form] = Form.useForm()
@@ -93,7 +96,7 @@ export default function RecordResultPage() {
 
   const { handleRecordResult, loading } = useLaboratoryActions(() => {
     message.success('Result recorded successfully')
-    navigate('/dashboard/laboratory-management/requests')
+    navigate(`${sectionRouteBase}/requests`)
   })
 
   // Add Radiology findings RPC
@@ -258,7 +261,7 @@ export default function RecordResultPage() {
 
         await ensureEncounterInProgress()
         message.success('Radiology result recorded successfully')
-        navigate('/dashboard/laboratory-management/requests')
+        navigate(`${sectionRouteBase}/requests`)
       } else {
         // Lab Logic
         const observationCodeId = String(rec.testCodeId || testObj?.code || '')

@@ -1,6 +1,7 @@
 import {
   BarcodeOutlined,
   CalendarOutlined,
+  CameraOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   FileAddOutlined,
@@ -239,6 +240,34 @@ const items: DashboardMenuItem[] = [
       {
         label: 'Laporan',
         key: '/dashboard/laboratory-management/reports',
+        icon: <FileSearchOutlined />
+      }
+    ]
+  },
+  {
+    label: 'Radiologi',
+    key: '/dashboard/radiology-management',
+    icon: <CameraOutlined />,
+    module: 'RADIOLOGI',
+    children: [
+      {
+        label: 'Antrian',
+        key: '/dashboard/radiology-management/queue',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Permintaan',
+        key: '/dashboard/radiology-management/requests',
+        icon: <FileAddOutlined />
+      },
+      {
+        label: 'Hasil',
+        key: '/dashboard/radiology-management/results',
+        icon: <FileTextOutlined />
+      },
+      {
+        label: 'Laporan',
+        key: '/dashboard/radiology-management/reports',
         icon: <FileSearchOutlined />
       }
     ]
@@ -490,6 +519,7 @@ function Dashboard() {
     '/dashboard/pharmacy',
     '/dashboard/laboratory',
     '/dashboard/laboratory-management',
+    '/dashboard/radiology-management',
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
     '/dashboard/doctor',

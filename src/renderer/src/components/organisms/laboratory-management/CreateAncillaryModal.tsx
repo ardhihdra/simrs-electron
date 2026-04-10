@@ -32,6 +32,7 @@ interface KepegawaianItem {
 interface CreateAncillaryModalProps {
   open: boolean
   onClose: () => void
+  fixedCategory?: EncounterCategory
 }
 
 type EncounterCategory = 'LABORATORY' | 'RADIOLOGY'
@@ -86,7 +87,11 @@ function isDoctorPegawai(pegawai: KepegawaianItem): boolean {
   )
 }
 
-export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryModalProps) {
+export default function CreateAncillaryModal({
+  open,
+  onClose,
+  fixedCategory
+}: CreateAncillaryModalProps) {
   const [form] = Form.useForm()
   const { message } = App.useApp()
 
@@ -249,11 +254,11 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
   useEffect(() => {
     if (open) {
       form.setFieldsValue({
-        category: 'LABORATORY',
+        category: fixedCategory || 'LABORATORY',
         arrivalType: 'WALK_IN'
       })
     }
-  }, [open, form])
+  }, [fixedCategory, open, form])
 
   return (
     <Modal
@@ -315,6 +320,7 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
                   rules={[{ required: true, message: 'Harap pilih kategori' }]}
                 >
                   <Select
+                    disabled={!!fixedCategory}
                     options={[
                       { value: 'LABORATORY', label: 'Laboratorium' },
                       { value: 'RADIOLOGY', label: 'Radiologi' }
