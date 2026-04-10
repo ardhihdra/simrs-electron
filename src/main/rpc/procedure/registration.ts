@@ -10,6 +10,7 @@ import {
   DischargeEncounterInputSchema,
   GetAvailableDoctorsInputSchema,
   GetDoctorContractsInputSchema,
+  GetQueueDetailInputSchema,
   GetQueuesInputSchema,
   GetScheduleEditorInputSchema,
   ReferPatientInputSchema,

@@ -1,17 +1,13 @@
 import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
-import { clearModuleScopeSession } from '@renderer/services/ModuleScope/module-scope'
-import { queryClient } from '@renderer/query-client'
-import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
-import { useProfileStore } from '@renderer/store/profileStore'
 import { client } from '@renderer/utils/client'
 import { App, Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import SettingsModal from '../SettingsModal'
 import { useMyProfile } from '@renderer/hooks/useProfile'
+import { useLogout } from '@renderer/hooks/useLogout'
 
-type LogoutResult = { success: boolean }
 type ModuleSignOutResult = {
   success?: boolean
   message?: string
@@ -20,20 +16,12 @@ type ModuleSignOutResult = {
 
 function ProfileMenu() {
   const { profile, initials } = useMyProfile()
-  const clearProfile = useProfileStore((state) => state.clearProfile)
   const [open, setOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { message } = App.useApp()
   const navigate = useNavigate()
   const moduleSignOutMutation = client.module.signout.useMutation()
-  const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
-
-  const clearModuleClientState = (includeProfile = false) => {
-    clearModuleScopeSession()
-    clearSelectedModule()
-    queryClient.removeQueries({ queryKey: ['module'] })
-    if (includeProfile) clearProfile()
-  }
+  const { handleLogout, clearModuleClientState } = useLogout()
 
   const handleModuleSignOut = async () => {
     try {
@@ -51,15 +39,6 @@ function ProfileMenu() {
       const errorMessage =
         error instanceof Error ? error.message : 'Gagal melakukan module sign out'
       message.error(errorMessage)
-    }
-  }
-
-  const handleLogout = async () => {
-    const res = (await window.api.auth.logout()) as LogoutResult
-    if (res.success) {
-      clearModuleClientState(true)
-      setOpen(false)
-      navigate('/')
     }
   }
 

@@ -249,7 +249,7 @@ const items: DashboardMenuItem[] = [
     label: 'Radiologi',
     key: '/dashboard/radiology-management',
     icon: <CameraOutlined />,
-    module: 'RADIOLOGI',
+    module: Modules.RADIOLOGI,
     children: [
       {
         label: 'Antrian',
@@ -662,8 +662,14 @@ function Dashboard() {
   const [collapsed, setCollapsed] = useState(false)
 
   const navigate = useNavigate()
+  const KIOSKA_KEY = '/dashboard/registration/kioska'
   const onSideClick: MenuProps['onClick'] = (e) => {
     const key = String(e.key)
+    if (key === KIOSKA_KEY) {
+      const base = window.location.href.split('#')[0]
+      window.open(`${base}#${key}`, '_blank')
+      return
+    }
     navigate(key)
     setActiveSide(key)
   }

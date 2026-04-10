@@ -1,9 +1,9 @@
 import {
-  CheckCircleOutlined,
-  EyeOutlined,
-  FileTextOutlined,
-  SoundOutlined
-} from '@ant-design/icons'
+  IconClipboardList,
+  IconEye,
+  IconCircleCheck,
+  IconVolume
+} from '@tabler/icons-react'
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
@@ -14,7 +14,7 @@ import ReferralModal from '@renderer/components/organisms/visit-management/Refer
 import RegistrationQueueDetailModal from '@renderer/components/organisms/visit-management/RegistrationQueueDetailModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { App, Button, DatePicker, Form, Input, Modal, Tag } from 'antd'
+import { App, Button, DatePicker, Form, Input, Modal, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -252,28 +252,28 @@ export default function RegistrationQueue({
       align: 'center',
       render: (_, record) => (
         <div className="flex gap-2">
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={(event) => {
-              event.stopPropagation()
-              setDetailModal({ open: true, record })
-            }}
-          >
-            Detail Pasien
-          </Button>
-          <Button
-            type="link"
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={(event) => {
-              event.stopPropagation()
-              setQueueDetailModal({ open: true, record })
-            }}
-          >
-            Detail Antrian
-          </Button>
+          <Tooltip title="Detail Pasien">
+            <Button
+              type="link"
+              size="small"
+              icon={<IconEye size={20} />}
+              onClick={(event) => {
+                event.stopPropagation()
+                setDetailModal({ open: true, record })
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Detail Antrian">
+            <Button
+              type="link"
+              size="small"
+              icon={<IconClipboardList size={20} color="violet" />}
+              onClick={(event) => {
+                event.stopPropagation()
+                setQueueDetailModal({ open: true, record })
+              }}
+            />
+          </Tooltip>
         </div>
       )
     }
@@ -321,26 +321,26 @@ export default function RegistrationQueue({
               if (status === 'PRE_RESERVED') {
                 actions.push({
                   label: 'Panggil',
-                  icon: <SoundOutlined />,
+                  icon: <IconVolume size={16} />,
                   onClick: () => setConfirmModal({ open: true, queue: record })
                 })
               } else if (['RESERVED', 'REGISTERED', 'SKIPPED'].includes(status)) {
                 actions.push({
                   label: status === 'SKIPPED' ? 'Panggil Ulang' : 'Panggil',
-                  icon: <SoundOutlined />,
+                  icon: <IconVolume size={16} />,
                   onClick: () => setCallConfirmModal({ open: true, record })
                 })
               } else if (IS_DEVELOPMENT && record.status === 'CALLED') {
                 actions.push({
                   label: 'Konfirmasi Tujuan (dev mode)',
-                  icon: <CheckCircleOutlined />,
+                  icon: <IconCircleCheck size={16} />,
                   onClick: () => setCallModal({ open: true, record })
                 })
               }
               // } else if (record.status === 'TRIAGED') {
               //   actions.push({
               //     label: 'Panggil ke Poli',
-              //     icon: <SoundOutlined />,
+              //     icon: <IconVolume size={16} />,
               //     type: 'primary',
               //     onClick: () => handleTriagedCallToPoli(record)
               //   })
@@ -348,12 +348,12 @@ export default function RegistrationQueue({
               //   actions.push(
               //     {
               //       label: 'Pulangkan',
-              //       icon: <CheckCircleOutlined />,
+              //       icon: <IconCircleCheck size={16} />,
               //       onClick: () => setDischargeModal({ open: true, record })
               //     },
               //     {
               //       label: 'Rujuk',
-              //       icon: <FileTextOutlined />,
+              //       icon: <IconClipboardList size={16} />,
               //       onClick: () => setReferralModal({ open: true, record })
               //     },
               //     {
@@ -367,7 +367,7 @@ export default function RegistrationQueue({
               if (record.paymentMethod === 'bpjs' && record.patientId && !record.sepId) {
                 actions.push({
                   label: 'Buat SEP',
-                  icon: <FileTextOutlined />,
+                  icon: <IconClipboardList size={16} />,
                   onClick: () => handleCreateSep(record)
                 })
               }
@@ -376,7 +376,7 @@ export default function RegistrationQueue({
               // if (record.status === 'TRIAGE') {
               //   actions.push({
               //     label: 'Triage Selesai',
-              //     icon: <CheckCircleOutlined />,
+              //     icon: <IconCircleCheck size={16} />,
               //     type: 'primary',
               //     onClick: () => handleTriageDone(record)
               //   })

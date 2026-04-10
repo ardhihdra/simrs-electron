@@ -13,7 +13,8 @@ export const windowRpc = {
   create: t
     .input(
       z.object({
-        url: z.string().url(),
+        url: z.string().url().optional(),
+        route: z.string().optional(),
         title: z.string().optional(),
         iframe: z.boolean().default(true).optional()
       })
@@ -39,6 +40,43 @@ export const windowRpc = {
         newWindow.on('ready-to-show', () => {
           newWindow.show()
         })
+
+        // Open internal renderer route directly
+        if (input.route) {
+          const hash = input.route.startsWith('#') ? input.route : `#${input.route}`
+          let rendererPath = join(__dirname, '../renderer/index.html')
+          // eslint-disable-next-line @typescript-eslint/no-require-imports
+          const fs = require('fs')
+          if (!fs.existsSync(rendererPath) && !is.dev) {
+            const possiblePaths = [
+              join(__dirname, '../renderer/index.html'),
+              join(__dirname, './renderer/index.html'),
+              join(__dirname, '../../renderer/index.html'),
+              join(app.getAppPath(), 'renderer/index.html'),
+              join(process.resourcesPath, 'app.asar/renderer/index.html'),
+              join(process.resourcesPath, 'app.asar.unpacked/renderer/index.html'),
+              join(process.resourcesPath, 'renderer/index.html'),
+              join(app.getPath('exe'), '../renderer/index.html'),
+              join(app.getPath('exe'), '../../renderer/index.html')
+            ]
+            for (const path of possiblePaths) {
+              if (fs.existsSync(path)) {
+                rendererPath = path
+                break
+              }
+            }
+          }
+          if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+            const devUrl = new URL(process.env['ELECTRON_RENDERER_URL'])
+            devUrl.hash = hash
+            newWindow.loadURL(devUrl.toString())
+          } else {
+            newWindow.loadFile(rendererPath, { hash })
+          }
+          return true
+        }
+
+        if (!input.url) return false
 
         if (input.iframe === false) {
           newWindow.loadURL(input.url)
