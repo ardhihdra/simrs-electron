@@ -28,8 +28,23 @@ import { t } from '../'
 
 const BASE_URL = '/api/module/registration-v2'
 
-const GetQueueDetailInputSchema = z.object({
-  queueId: z.string().min(1)
+const UpdateQueueStatusRpcInputSchema = z.object({
+  queueId: z.union([z.string(), z.number()]),
+  action: z.enum([
+    'CHECK_IN',
+    'CONFIRM_ATTENDANCE',
+    'CALL',
+    'SKIP',
+    'RECALL_TO_PRE_RESERVED',
+    'CALL_PATIENT_WITH_NO_IDENTITY',
+    'CREATE_SEP',
+    'START_ENCOUNTER',
+    'CALL_TO_TRIAGE',
+    'TRIAGE_DONE',
+    'FINISH'
+  ]),
+  patientId: z.string().uuid().optional(),
+  paymentMethod: z.enum(['CASH', 'INSURANCE', 'ASURANSI', 'COMPANY', 'BPJS']).optional()
 })
 
 const InternalAncillaryOrderInputSchema = z.object({
@@ -260,7 +275,7 @@ export const registrationRpc = {
     }),
 
   updateQueueStatus: t
-    .input(UpdateQueueStatusInputSchema)
+    .input(UpdateQueueStatusRpcInputSchema)
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, { queueId, ...input }) => {
       const response = await client.put(`${BASE_URL}/queues/${queueId}/status`, input)

@@ -1,6 +1,7 @@
 import { encounterRpc } from './encounter'
 import { applicationConfigRpc } from './application-config'
 import { kasirRpc } from './kasir'
+import { kioskaPublicRpc } from './kioska-public'
 import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
@@ -19,6 +20,7 @@ import { windowRpc } from './window'
 
 export const rpcRouter = {
   applicationConfig: applicationConfigRpc,
+  kioskaPublic: kioskaPublicRpc,
   patient: patientRpc,
   encounter: encounterRpc,
   room: roomRpc,

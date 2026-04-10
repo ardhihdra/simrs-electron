@@ -20,7 +20,14 @@ export async function createContext(event: IpcMainInvokeEvent): Promise<AppConte
     session: sessionStore.getWindowSession(event.sender.id),
     user: sessionStore.getUser()
   }
-  const client = createBackendClient(ipcContext)
+  let client: AppContext['client'] = null
+  try {
+    client = createBackendClient(ipcContext)
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== 'NO_BACKEND_TOKEN') {
+      throw error
+    }
+  }
   // Access event.sender if needed for more info about the caller
   return {
     client,
