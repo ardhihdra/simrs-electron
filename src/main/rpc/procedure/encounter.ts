@@ -96,5 +96,13 @@ export const encounterRpc = {
     .mutation(async ({ client }, input) => {
       const data = await client.post(`/api/module/encounter/${input.id}/sync-extracted`, input)
       return await data.json()
+    }),
+  
+  reopen: t
+    .input(z.string())
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, id) => {
+      const data = await client.patch(`/api/module/encounter/${id}/reopen`, {})
+      return await data.json()
     })
 }

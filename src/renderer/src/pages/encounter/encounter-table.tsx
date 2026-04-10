@@ -72,7 +72,7 @@ const queueColumns: ColumnsType<QueueTicketResponse> = [
 const encounterColumns: ColumnsType<EncounterTableRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 60 },
   {
-    title: 'Kode Antrian',
+    title: 'Kode Pemeriksaan',
     dataIndex: 'encounterCode',
     key: 'encounterCode',
     render: (v: string | null) => (v ? v : '-')
@@ -86,7 +86,7 @@ const encounterColumns: ColumnsType<EncounterTableRow> = [
   { title: 'Pasien', dataIndex: ['patient', 'name'], key: 'patient' },
   { title: 'Layanan', dataIndex: 'serviceType', key: 'serviceType' },
   { title: 'Alasan', dataIndex: 'reason', key: 'reason' },
-  { title: 'Status', dataIndex: 'status', key: 'status' },
+  { title: 'Selesai Pemeriksaan', dataIndex: 'status', key: 'status' },
   {
     title: 'Status Perawat',
     key: 'nurseStatus',
