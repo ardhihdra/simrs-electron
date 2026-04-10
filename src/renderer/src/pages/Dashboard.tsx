@@ -1,6 +1,7 @@
 import {
   BarcodeOutlined,
   CalendarOutlined,
+  CameraOutlined,
   DashboardOutlined,
   ExperimentOutlined,
   FileAddOutlined,
@@ -65,7 +66,7 @@ type DashboardMenuChild = {
 }
 
 type DashboardMenuItem = DashboardMenuChild & {
-  module?: string
+  module?: Module
   children?: DashboardMenuChild[]
 }
 
@@ -81,7 +82,7 @@ const items: DashboardMenuItem[] = [
     label: 'Registrasi',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
-    module: 'REGISTRASI',
+    module: Modules.REGISTRASI,
     children: [
       { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
       {
@@ -126,7 +127,7 @@ const items: DashboardMenuItem[] = [
     label: 'Rawat Jalan',
     key: '/dashboard/poli',
     icon: <CalendarOutlined />,
-    module: 'RAWAT_JALAN',
+    module: Modules.RAWAT_JALAN,
     children: [
       { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
       {
@@ -150,7 +151,7 @@ const items: DashboardMenuItem[] = [
     label: 'Rawat Inap',
     key: '/dashboard/rawat-inap',
     icon: <CalendarOutlined />,
-    module: 'RAWAT_INAP',
+    module: Modules.RAWAT_INAP,
     children: [
       {
         label: 'Rawat Inap 1',
@@ -168,7 +169,7 @@ const items: DashboardMenuItem[] = [
     label: 'Kamar Operasi (OK)',
     key: '/dashboard/ok',
     icon: <FileTextOutlined />,
-    module: 'OK',
+    module: Modules.OK,
     children: [
       {
         label: 'Pengajuan OK',
@@ -186,7 +187,7 @@ const items: DashboardMenuItem[] = [
     label: 'Farmasi',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
-    module: 'FARMASI',
+    module: Modules.FARMASI,
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
       {
@@ -219,7 +220,7 @@ const items: DashboardMenuItem[] = [
     label: 'Laboratorium',
     key: '/dashboard/laboratory-management',
     icon: <ExperimentOutlined />,
-    module: 'LAB',
+    module: Modules.LAB,
     children: [
       {
         label: 'Antrian',
@@ -244,10 +245,38 @@ const items: DashboardMenuItem[] = [
     ]
   },
   {
+    label: 'Radiologi',
+    key: '/dashboard/radiology-management',
+    icon: <CameraOutlined />,
+    module: 'RADIOLOGI',
+    children: [
+      {
+        label: 'Antrian',
+        key: '/dashboard/radiology-management/queue',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Permintaan',
+        key: '/dashboard/radiology-management/requests',
+        icon: <FileAddOutlined />
+      },
+      {
+        label: 'Hasil',
+        key: '/dashboard/radiology-management/results',
+        icon: <FileTextOutlined />
+      },
+      {
+        label: 'Laporan',
+        key: '/dashboard/radiology-management/reports',
+        icon: <FileSearchOutlined />
+      }
+    ]
+  },
+  {
     label: 'Kasir & Billing',
     key: '/dashboard/kasir',
     icon: <WalletOutlined />,
-    module: 'BILLING_KASIR',
+    module: Modules.BILLING_KASIR,
     children: [
       {
         label: 'Tagihan Pasien',
@@ -260,7 +289,7 @@ const items: DashboardMenuItem[] = [
     label: 'Antrian Non-Medis',
     key: '/dashboard/non-medic-queue',
     icon: <UnorderedListOutlined />,
-    module: 'BILLING_KASIR',
+    module: Modules.BILLING_KASIR,
     children: [
       {
         label: 'KIOSK Billing',
@@ -308,7 +337,7 @@ const items: DashboardMenuItem[] = [
     label: 'Sistem',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
-    module: 'SYSTEM_ADMIN',
+    module: Modules.SYSTEM_ADMIN,
     children: [
       {
         label: 'Data Petugas Medis',
@@ -490,6 +519,7 @@ function Dashboard() {
     '/dashboard/pharmacy',
     '/dashboard/laboratory',
     '/dashboard/laboratory-management',
+    '/dashboard/radiology-management',
     '/dashboard/medicine',
     '/dashboard/registration/doctor-leave',
     '/dashboard/doctor',

@@ -10,6 +10,7 @@ import { pageAccessRpc } from './pageAccess'
 import { patientRpc } from './patient'
 import { practitionerRpc } from './practitioner'
 import { queryProcedure } from './query'
+import { referralRpc } from './referral'
 import { registrationRpc } from './registration'
 import { roomRpc } from './room'
 import { triageRpc } from './triage'
@@ -33,6 +34,7 @@ export const rpcRouter = {
   module: mmoduleRpc,
   nonMedicQueue: nonMedicQueueRpc,
   registration: registrationRpc,
+  referral: referralRpc,
   query: queryProcedure,
   pageAccess: pageAccessRpc,
   kasir: kasirRpc

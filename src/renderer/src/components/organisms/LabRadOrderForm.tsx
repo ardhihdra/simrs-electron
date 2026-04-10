@@ -2,6 +2,7 @@ import GenericTable from '@renderer/components/organisms/GenericTable'
 import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import { queryClient } from '@renderer/query-client'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import { client } from '@renderer/utils/client'
 import { useQuery } from '@tanstack/react-query'
 import { Alert, App, Button, Form, Input, Radio, Select, Spin, Tag } from 'antd'
@@ -59,6 +60,18 @@ interface EncounterListItem {
   queueTicket?: {
     poliCodeId?: string | number | null
   }
+}
+
+interface LokasiKerjaItem {
+  id: string | number
+  nama?: string
+  kode?: string
+}
+
+interface PoliItem {
+  id?: string | number
+  name?: string
+  nama?: string
 }
 
 function normalizeList<T>(data: unknown): T[] {
@@ -161,8 +174,10 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   const [form] = Form.useForm()
   const [showForm, setShowForm] = useState(false)
   const [doctorSearch, setDoctorSearch] = useState('')
+  const [locationSearch, setLocationSearch] = useState('')
   const { profile } = useMyProfile()
   const { message } = App.useApp()
+  const session = useModuleScopeStore((state) => state.session)
 
   const { data: serviceRequestData, isLoading, isError } = useServiceRequestByEncounter(encounterId, true)
   const selectedCategory = Form.useWatch('category', form) as
@@ -221,6 +236,36 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
 
     return null
   }, [encounterListData, encounterId])
+
+  const { data: sourcePoli } = useQuery({
+    queryKey: ['poli', 'by-id', parentPoliCodeId],
+    queryFn: async () => {
+      const api = (window.api?.query as any)?.poli
+      if (!api?.read || !parentPoliCodeId) return null
+
+      const response = await api.read({ id: parentPoliCodeId })
+      const record =
+        response?.result ??
+        response?.data?.result ??
+        response?.data?.data ??
+        response?.data ??
+        null
+
+      return record as PoliItem | null
+    },
+    enabled: Boolean(parentPoliCodeId)
+  })
+
+  const sourcePoliName = useMemo(() => {
+    const name = String(sourcePoli?.name || sourcePoli?.nama || '').trim()
+    if (name) return name
+    return parentPoliCodeId ? `Poli #${parentPoliCodeId}` : undefined
+  }, [sourcePoli, parentPoliCodeId])
+
+  const sourceLocationId = useMemo(() => {
+    const id = Number(session?.lokasiKerjaId)
+    return Number.isInteger(id) && id > 0 ? id : null
+  }, [session?.lokasiKerjaId])
 
   // const {
   //   data: childEncounterServiceRequests,
@@ -286,6 +331,32 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
     } as any
   )
 
+  const locationParams = useMemo(() => {
+    const params: Record<string, string> = {
+      page: '1',
+      items: '100'
+    }
+
+    if (locationSearch.trim()) {
+      params.q = locationSearch.trim()
+      params.fields = 'nama,kode'
+    }
+
+    return params
+  }, [locationSearch])
+
+  const { data: locationsData, isLoading: isLoadingLocations } = client.query.entity.useQuery(
+    {
+      model: 'lokasikerja',
+      method: 'get',
+      params: locationParams
+    },
+    {
+      enabled: showForm && orderMode === 'internal-referral',
+      queryKey: ['lab-rad-order-internal-locations', locationParams]
+    } as any
+  )
+
   const doctorOptions = useMemo(() => {
     const doctors = normalizeList<KepegawaianItem>(doctorsData)
     return doctors
@@ -295,6 +366,24 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
         label: `${doctor.namaLengkap || 'Dokter'}${doctor.nik ? ` (${doctor.nik})` : ''}`
       }))
   }, [doctorsData])
+
+  const locationOptions = useMemo(() => {
+    const locations = normalizeList<LokasiKerjaItem>(locationsData)
+    return locations
+      .map((location) => {
+        const numericId = Number(location.id)
+        if (!Number.isFinite(numericId) || numericId <= 0) return null
+
+        const name = String(location.nama || 'Lokasi Kerja').trim()
+        const code = String(location.kode || '').trim()
+
+        return {
+          value: numericId,
+          label: code ? `${name} (${code})` : name
+        }
+      })
+      .filter((item): item is { value: number; label: string } => item !== null)
+  }, [locationsData])
 
   const existingOrders = useMemo(() => {
     const parentOrders = Array.isArray(serviceRequestData?.result)
@@ -342,20 +431,40 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
           )
         }
 
+        if (!sourceLocationId) {
+          throw new Error(
+            'Lokasi kerja asal tidak ditemukan. Pilih modul/lokasi kerja aktif terlebih dahulu sebelum membuat rujukan internal.'
+          )
+        }
+
         const targetDoctor = doctorOptions.find(
           (doctor) => String(doctor.value) === String(values.targetPractitionerId)
+        )
+        const targetLocationId = Number(values.targetLocationId)
+        if (!Number.isFinite(targetLocationId) || targetLocationId <= 0) {
+          throw new Error('Lokasi tujuan rujukan internal belum dipilih')
+        }
+
+        const targetLocation = locationOptions.find(
+          (location) => Number(location.value) === targetLocationId
         )
 
         const result = await createInternalAncillaryOrder.mutateAsync({
           parentEncounterId: encounterId,
           parentPoliCodeId,
+          sourcePoliName,
+          sourceLocationId,
           patientId: patientData.patient.id,
           category: values.category === 'radiology' ? 'RADIOLOGY' : 'LABORATORY',
           referringPractitionerId: activePractitionerId,
           referringPractitionerName: activePractitionerName,
           targetPractitionerId: targetDoctorId,
           targetPractitionerName: targetDoctor?.label || 'Dokter Tujuan',
+          targetLocationId,
+          targetLocationName: targetLocation?.label,
           reasonForReferral: values.internalReferralReason || undefined,
+          diagnosisText: values.diagnosisText || undefined,
+          conditionAtTransfer: values.conditionAtTransfer || undefined,
           patientInstruction: values.patientInstruction || undefined,
           priority: String(values.priority || 'routine'),
           serviceRequests: selectedServiceRequestCodes.map((item) => ({
@@ -395,6 +504,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
 
       form.resetFields()
       setDoctorSearch('')
+      setLocationSearch('')
       setShowForm(false)
     } catch (error) {
       if (error !== null && typeof error === 'object' && 'errorFields' in error) return
@@ -406,6 +516,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   const handleCancel = () => {
     form.resetFields()
     setDoctorSearch('')
+    setLocationSearch('')
     setShowForm(false)
   }
 
@@ -413,10 +524,12 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   const isSubmittingAny = isSubmitting || createInternalAncillaryOrder.isPending
   const internalTargetLabel =
     selectedCategory === 'radiology' ? 'Dokter Radiologi Tujuan' : 'Dokter Laboratorium Tujuan'
+  const internalLocationLabel =
+    selectedCategory === 'radiology' ? 'Lokasi Radiologi Tujuan' : 'Lokasi Laboratorium Tujuan'
   const internalHelpText =
     selectedCategory === 'radiology'
-      ? 'Flow ini akan membuat child encounter radiologi, surat rujukan internal, lalu service request pada encounter baru.'
-      : 'Flow ini akan membuat child encounter laboratorium, surat rujukan internal, lalu service request pada encounter baru.'
+      ? 'Flow ini akan membuat child encounter radiologi, surat rujukan internal, lalu service request pada encounter baru. Poli asal dari encounter aktif dan lokasi tujuan yang dipilih akan ikut masuk ke surat rujukan.'
+      : 'Flow ini akan membuat child encounter laboratorium, surat rujukan internal, lalu service request pada encounter baru. Poli asal dari encounter aktif dan lokasi tujuan yang dipilih akan ikut masuk ke surat rujukan.'
 
   return (
     <div className="flex flex-col gap-4">
@@ -486,6 +599,38 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
                           optionFilterProp="label"
                           onSearch={setDoctorSearch}
                           notFoundContent="Dokter tujuan tidak ditemukan"
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="targetLocationId"
+                        label={internalLocationLabel}
+                        rules={[{ required: true, message: 'Pilih lokasi tujuan rujukan internal' }]}
+                      >
+                        <Select
+                          showSearch
+                          placeholder="Cari dan pilih lokasi tujuan"
+                          loading={isLoadingLocations}
+                          options={locationOptions}
+                          filterOption={false}
+                          optionFilterProp="label"
+                          onSearch={setLocationSearch}
+                          notFoundContent="Lokasi tujuan tidak ditemukan"
+                        />
+                      </Form.Item>
+                      <Form.Item
+                        name="conditionAtTransfer"
+                        label="Keadaan Saat Kirim"
+                        rules={[{ required: true, message: 'Keadaan saat kirim wajib diisi' }]}
+                      >
+                        <Input.TextArea
+                          rows={2}
+                          placeholder="Contoh: compos mentis, stabil, nyeri sedang"
+                        />
+                      </Form.Item>
+                      <Form.Item name="diagnosisText" label="Diagnosa (opsional)">
+                        <Input.TextArea
+                          rows={2}
+                          placeholder="Tambahkan diagnosa bila perlu dicantumkan pada surat rujukan"
                         />
                       </Form.Item>
                       <Form.Item

@@ -11,6 +11,7 @@ import CallQueueModal from '@renderer/components/organisms/visit-management/Call
 import ConfirmQueueModal from '@renderer/components/organisms/visit-management/ConfirmQueueModal'
 import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
 import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
+import RegistrationQueueDetailModal from '@renderer/components/organisms/visit-management/RegistrationQueueDetailModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
 import { App, Button, DatePicker, Form, Input, Modal, Tag } from 'antd'
@@ -92,6 +93,9 @@ export default function RegistrationQueue({
     open: false
   })
   const [detailModal, setDetailModal] = useState<{ open: boolean; record?: QueueRow }>({
+    open: false
+  })
+  const [queueDetailModal, setQueueDetailModal] = useState<{ open: boolean; record?: QueueRow }>({
     open: false
   })
 
@@ -247,17 +251,30 @@ export default function RegistrationQueue({
       width: 120,
       align: 'center',
       render: (_, record) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={(event) => {
-            event.stopPropagation()
-            setDetailModal({ open: true, record })
-          }}
-        >
-          Detail Pasien
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={(event) => {
+              event.stopPropagation()
+              setDetailModal({ open: true, record })
+            }}
+          >
+            Detail Pasien
+          </Button>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={(event) => {
+              event.stopPropagation()
+              setQueueDetailModal({ open: true, record })
+            }}
+          >
+            Detail Antrian
+          </Button>
+        </div>
       )
     }
   ]
@@ -292,7 +309,7 @@ export default function RegistrationQueue({
         <GenericTable
           columns={columns}
           dataSource={queueData?.result || []}
-          rowKey="id"
+          rowKey="queueId"
           loading={isLoading || isRefetching}
           action={{
             title: 'Aksi',
@@ -422,6 +439,12 @@ export default function RegistrationQueue({
           />
         ) : null}
       </Modal>
+
+      <RegistrationQueueDetailModal
+        open={queueDetailModal.open}
+        record={queueDetailModal.record}
+        onClose={() => setQueueDetailModal({ open: false, record: undefined })}
+      />
     </div>
   )
 }

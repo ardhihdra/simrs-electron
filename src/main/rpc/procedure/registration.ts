@@ -1,26 +1,27 @@
 import {
   ApiResponseSchema,
-  GetAvailableDoctorsInputSchema,
-  RegisterInputSchema,
-  GetQueuesInputSchema,
   CancelEncounterInputSchema,
-  DischargeEncounterInputSchema,
   CreateAncillaryEncounterInputSchema,
-  CreateStandaloneAncillaryEncounterInputSchema,
-  CreateSepInternalInputSchema,
-  CreateSepExternalInputSchema,
-  ReferPatientInputSchema,
-  GetDoctorContractsInputSchema,
-  GetScheduleEditorInputSchema,
-  SaveScheduleInfoInputSchema,
-  UpdateScheduleInfoInputSchema,
-  SaveScheduleSessionsInputSchema,
-  SaveScheduleExceptionsInputSchema,
-  CreateScheduleInputSchema,
-  UpdateScheduleInputSchema,
   CreateScheduleExceptionInputSchema,
+  CreateScheduleInputSchema,
+  CreateSepExternalInputSchema,
+  CreateSepInternalInputSchema,
+  CreateStandaloneAncillaryEncounterInputSchema,
+  DischargeEncounterInputSchema,
+  GetAvailableDoctorsInputSchema,
+  GetDoctorContractsInputSchema,
+  GetQueuesInputSchema,
+  GetScheduleEditorInputSchema,
+  ReferPatientInputSchema,
+  RegisterInputSchema,
+  SaveScheduleExceptionsInputSchema,
+  SaveScheduleInfoInputSchema,
+  SaveScheduleSessionsInputSchema,
+  SyncScheduleQuotaInputSchema,
+  UpdateQueueStatusInputSchema,
   UpdateScheduleExceptionInputSchema,
-  SyncScheduleQuotaInputSchema
+  UpdateScheduleInfoInputSchema,
+  UpdateScheduleInputSchema
 } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
@@ -49,13 +50,19 @@ const UpdateQueueStatusRpcInputSchema = z.object({
 const InternalAncillaryOrderInputSchema = z.object({
   parentEncounterId: z.string().min(1),
   parentPoliCodeId: z.coerce.number().int().positive(),
+  sourcePoliName: z.string().optional(),
+  sourceLocationId: z.coerce.number().int().positive().optional(),
   patientId: z.string().min(1),
   category: z.enum(['LABORATORY', 'RADIOLOGY']),
   referringPractitionerId: z.coerce.number().int().positive(),
   referringPractitionerName: z.string().min(1),
   targetPractitionerId: z.coerce.number().int().positive(),
   targetPractitionerName: z.string().min(1),
+  targetLocationId: z.coerce.number().int().positive(),
+  targetLocationName: z.string().optional(),
   reasonForReferral: z.string().optional(),
+  diagnosisText: z.string().optional(),
+  conditionAtTransfer: z.string().optional(),
   patientInstruction: z.string().optional(),
   priority: z.string().min(1),
   serviceRequests: z
@@ -87,7 +94,9 @@ async function parseJsonResponse(response: Response) {
   }))) as JsonObject
 }
 
-function extractResultRecord<T = JsonObject>(payload: JsonObject | null | undefined): T | undefined {
+function extractResultRecord<T = JsonObject>(
+  payload: JsonObject | null | undefined
+): T | undefined {
   if (!payload || typeof payload !== 'object') return undefined
 
   const directCandidates = [
@@ -141,7 +150,9 @@ function buildCategoryLabel(category: 'LABORATORY' | 'RADIOLOGY') {
 }
 
 function mapPriorityToServiceRequest(priority: string) {
-  const normalized = String(priority || '').trim().toLowerCase()
+  const normalized = String(priority || '')
+    .trim()
+    .toLowerCase()
 
   if (normalized === 'stat') return 'stat'
   if (normalized === 'urgent') return 'urgent'
@@ -252,6 +263,14 @@ export const registrationRpc = {
       }
 
       const response = await client.get(`${BASE_URL}/queues?${params.toString()}`)
+      return await response.json()
+    }),
+
+  getQueueDetail: t
+    .input(GetQueueDetailInputSchema)
+    .output(ApiResponseSchema(z.any()))
+    .query(async ({ client }, { queueId }) => {
+      const response = await client.get(`${BASE_URL}/queues/${queueId}/detail`)
       return await response.json()
     }),
 
@@ -381,6 +400,7 @@ export const registrationRpc = {
         extractResultRecord<JsonObject>(createEncounterPayload) ?? createEncounterPayload
 
       const categoryLabel = buildCategoryLabel(input.category)
+      const sourcePoliLabel = input.sourcePoliName?.trim() || `Poli #${parentPoliCodeId}`
       const encounterReason =
         input.reasonForReferral?.trim() ||
         `Rujukan internal ${categoryLabel.toLowerCase()} dari ${input.referringPractitionerName}`
@@ -388,7 +408,14 @@ export const registrationRpc = {
         `Rujukan internal ${categoryLabel}`,
         `Dokter pengirim: ${input.referringPractitionerName}`,
         `Dokter tujuan: ${input.targetPractitionerName}`,
-        input.patientInstruction?.trim() ? `Instruksi pasien: ${input.patientInstruction.trim()}` : ''
+        input.targetLocationName?.trim() ? `Lokasi tujuan: ${input.targetLocationName.trim()}` : '',
+        input.conditionAtTransfer?.trim()
+          ? `Keadaan saat kirim: ${input.conditionAtTransfer.trim()}`
+          : '',
+        input.diagnosisText?.trim() ? `Diagnosa: ${input.diagnosisText.trim()}` : '',
+        input.patientInstruction?.trim()
+          ? `Instruksi pasien: ${input.patientInstruction.trim()}`
+          : ''
       ]
         .filter(Boolean)
         .join('\n')
@@ -416,7 +443,9 @@ export const registrationRpc = {
         )
       }
 
-      const verifyChildEncounterResponse = await client.get(`/api/module/encounter/${childEncounterId}`)
+      const verifyChildEncounterResponse = await client.get(
+        `/api/module/encounter/${childEncounterId}`
+      )
       const verifyChildEncounterPayload = await parseJsonResponse(verifyChildEncounterResponse)
 
       if (!verifyChildEncounterResponse.ok || verifyChildEncounterPayload?.success === false) {
@@ -456,13 +485,18 @@ export const registrationRpc = {
         referralDate: new Date().toISOString(),
         status: 'issued',
         direction: 'outgoing',
+        sourceOrganizationName: sourcePoliLabel,
+        sourceLocationId: input.sourceLocationId,
         referringPractitionerId: String(input.referringPractitionerId),
         referringPractitionerName: input.referringPractitionerName,
         targetOrganizationName: categoryLabel,
+        targetLocationId: input.targetLocationId,
         targetPractitionerId: String(input.targetPractitionerId),
         targetPractitionerName: input.targetPractitionerName,
         reasonForReferral: input.reasonForReferral,
-        diagnosisText: encounterReason,
+        diagnosisText: input.diagnosisText?.trim() || encounterReason,
+        keadaanKirim: input.conditionAtTransfer?.trim() || undefined,
+        conditionAtTransfer: input.conditionAtTransfer?.trim() || undefined,
         examinationSummary: encounterNote
       })
       const referralPayload = await parseJsonResponse(referralResponse)
@@ -496,7 +530,9 @@ export const registrationRpc = {
       if (!createOrderResponse.ok || createOrderPayload?.success === false) {
         throw new Error(
           `[CREATE_SERVICE_REQUEST] Child encounter dan referral berhasil dibuat (#${childEncounterId}), tetapi gagal membuat order penunjang: ${
-            createOrderPayload?.error || createOrderPayload?.message || createOrderResponse.statusText
+            createOrderPayload?.error ||
+            createOrderPayload?.message ||
+            createOrderResponse.statusText
           }`
         )
       }

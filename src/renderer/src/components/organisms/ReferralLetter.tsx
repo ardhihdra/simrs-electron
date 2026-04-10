@@ -15,6 +15,23 @@ export const ReferralLetter = forwardRef<HTMLDivElement, ReferralLetterProps>(
 
     const patient = patientData.patient
     const age = patient.birthDate ? dayjs().diff(dayjs(patient.birthDate), 'year') : 0
+    const targetName =
+      data.targetOrganizationName ||
+      data.targetDepartemen?.nama ||
+      data.targetLocation?.nama ||
+      data.targetPractitionerName ||
+      (data.referralType === 'internal' ? data.targetUnit : data.targetFacility) ||
+      '-'
+    const referralNumber =
+      data.internalReferralNumber ||
+      data.externalReferralNumber ||
+      (data.id ? `${data.id}/RUJ/${dayjs(data.createdAt).format('YYYY')}` : '-')
+    const referralReason = data.reasonForReferral || data.reason || '-'
+    const clinicalSummary =
+      data.examinationSummary || data.clinicalSummary || data.diagnosisText || data.diagnosisCode
+    const conditionAtTransfer = data.conditionAtTransfer || data.keadaanKirim
+    const referringDoctorName =
+      data.referringPractitionerName || patientData.doctorName || patientData.doctor?.name || 'Dr. Dokter'
 
     return (
       <div
@@ -42,20 +59,13 @@ export const ReferralLetter = forwardRef<HTMLDivElement, ReferralLetterProps>(
           <Title level={3} className="underline uppercase mb-1">
             Surat Rujukan {data.referralType === 'internal' ? 'Internal' : 'External'}
           </Title>
-          <Text className="text-lg">
-            No: {data.id}/RUJ/{dayjs(data.createdAt).format('YYYY')}
-          </Text>
+          <Text className="text-lg">No: {referralNumber}</Text>
         </div>
 
         <div className="mb-6 text-lg">
           <Row>
             <Col span={4}>Kepada Yth.</Col>
-            <Col span={20}>
-              :{' '}
-              {data.referralType === 'internal'
-                ? `Poli/Unit ${data.targetUnit}`
-                : data.targetFacility}
-            </Col>
+            <Col span={20}>: {data.referralType === 'internal' ? `Poli/Unit ${targetName}` : targetName}</Col>
           </Row>
           <Row>
             <Col span={4}>Di Tempat</Col>
@@ -105,28 +115,41 @@ export const ReferralLetter = forwardRef<HTMLDivElement, ReferralLetterProps>(
             <Text strong className="block mb-1">
               Alasan Rujukan:
             </Text>
-            <Paragraph className="text-lg mb-0">{data.reason}</Paragraph>
+            <Paragraph className="text-lg mb-0">{referralReason}</Paragraph>
           </div>
 
-          {data.clinicalSummary && (
+          {clinicalSummary && (
             <div className="mb-4">
               <Text strong className="block mb-1">
                 Ringkasan Klinis / Diagnosis Sementara:
               </Text>
               <Paragraph className="text-lg mb-0 text-justify whitespace-pre-line">
-                {data.clinicalSummary}
+                {clinicalSummary}
               </Paragraph>
             </div>
           )}
 
-          <div className="mb-0">
-            <Text strong className="block mb-1">
-              Prioritas:
-            </Text>
-            <Text className="uppercase px-2 py-0 border rounded border-black inline-block text-sm font-bold">
-              {data.priority}
-            </Text>
-          </div>
+          {conditionAtTransfer && (
+            <div className="mb-4">
+              <Text strong className="block mb-1">
+                Keadaan Saat Kirim:
+              </Text>
+              <Paragraph className="text-lg mb-0 text-justify whitespace-pre-line">
+                {conditionAtTransfer}
+              </Paragraph>
+            </div>
+          )}
+
+          {data.treatmentSummary && (
+            <div className="mb-0">
+              <Text strong className="block mb-1">
+                Terapi / Tindakan yang Sudah Diberikan:
+              </Text>
+              <Paragraph className="text-lg mb-0 text-justify whitespace-pre-line">
+                {data.treatmentSummary}
+              </Paragraph>
+            </div>
+          )}
         </div>
 
         <Paragraph className="text-lg mb-12">
@@ -137,10 +160,10 @@ export const ReferralLetter = forwardRef<HTMLDivElement, ReferralLetterProps>(
         <div className="flex justify-end mt-12">
           <div className="text-center w-64">
             <Text className="block text-lg mb-20">
-              {dayjs(data.createdAt).format('Garut, DD MMMM YYYY')}
+              {dayjs(data.referralDate || data.createdAt).format('Garut, DD MMMM YYYY')}
             </Text>
             <Text className="block text-lg font-bold underline">
-              ( {patientData.doctorName || 'Dr. Dokter'} )
+              ( {referringDoctorName} )
             </Text>
             <Text className="block">Dokter Penanggung Jawab</Text>
           </div>
