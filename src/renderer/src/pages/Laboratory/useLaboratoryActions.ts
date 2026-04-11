@@ -4,6 +4,7 @@ import { client, rpc } from '@renderer/utils/client'
 import { message } from 'antd'
 import { useEffect, useState } from 'react'
 import { Interpretation } from 'simrs-types'
+import { AncillaryCategory, getAncillarySectionConfigByCategory } from '../laboratory-management/section-config'
 
 interface LabRecordResultInput {
   serviceRequestId: string
@@ -29,6 +30,9 @@ interface RadiologyRecordResultInput {
 }
 
 type RecordResultInput = LabRecordResultInput | RadiologyRecordResultInput
+interface PrintReportOptions {
+  category?: AncillaryCategory
+}
 
 async function invalidateLaboratoryQueries() {
   await Promise.all([
@@ -93,12 +97,15 @@ interface UseLaboratoryActionsReturn {
   handleCreateOrder: (data: any) => Promise<void>
   handleCollectSpecimen: (data: any) => Promise<void>
   handleRecordResult: (data: RecordResultInput) => Promise<void>
-  handlePrintReport: (encounterId: string) => Promise<void>
+  handlePrintReport: (encounterId: string, options?: PrintReportOptions) => Promise<void>
 }
 
 export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActionsReturn {
   const [loading, setLoading] = useState<string | null>(null)
-  const [printEncounterId, setPrintEncounterId] = useState<string | null>(null)
+  const [printContext, setPrintContext] = useState<{
+    encounterId: string
+    category: AncillaryCategory
+  } | null>(null)
 
   const createOrderMutation = client.laboratoryManagement.createOrder.useMutation()
   const collectSpecimenMutation = client.laboratoryManagement.collectSpecimen.useMutation()
@@ -112,10 +119,10 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     isError: isPrintError,
     error: printError
   } = client.laboratoryManagement.getReport.useQuery(
-    { encounterId: printEncounterId! },
+    { encounterId: printContext?.encounterId || '' },
     {
-      enabled: !!printEncounterId,
-      queryKey: ['laboratory-report', { encounterId: printEncounterId ?? '' }]
+      enabled: !!printContext?.encounterId,
+      queryKey: ['laboratory-report', { encounterId: printContext?.encounterId ?? '' }]
     }
   )
 
@@ -259,11 +266,11 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
 
   // Effect to handle printing when data is fetched
   useEffect(() => {
-    if (!printEncounterId) return
+    if (!printContext) return
 
     if (!isPrinting && isPrintError) {
       message.error(printError?.message || 'Failed to fetch report')
-      setPrintEncounterId(null)
+      setPrintContext(null)
       setLoading(null)
       return
     }
@@ -273,6 +280,8 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     const generatePrintView = async () => {
       try {
         const reportData = reportDataResponse.result as any
+        const printCategory = printContext.category
+        const sectionConfig = getAncillarySectionConfigByCategory(printCategory)
         const reportPatient = reportData?.patient ?? {}
         const reportContext = reportData?.context ?? {}
         const patientProfile = await resolvePatientProfile(reportData?.patientId)
@@ -285,64 +294,90 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
         const address = reportPatient?.address || patientProfile.address || '-'
         const age = calculateAgeLabel(birthDateValue, reportPatient?.age)
 
-        const serviceRequestMeta = await resolveServiceRequestMeta(String(printEncounterId))
+        const serviceRequestMeta = await resolveServiceRequestMeta(String(printContext.encounterId))
         const serviceRequests = Array.isArray(reportData?.serviceRequests)
           ? reportData.serviceRequests
           : []
+        const imagingStudies = Array.isArray(reportData?.imagingStudies) ? reportData.imagingStudies : []
 
         const reportDateCandidates: Array<string | Date> = []
         if (reportData?.queueTicket?.date) {
           reportDateCandidates.push(reportData.queueTicket.date)
         }
 
-        const reportRows = serviceRequests
-          .flatMap((req: any, index: number) => {
-            const reqMeta = serviceRequestMeta.get(String(req?.id || ''))
-            const testName = req?.testDisplay || reqMeta?.testName || `Pemeriksaan ${index + 1}`
-            const loincCode = req?.testLoinc || reqMeta?.loinc || '-'
-            if (req?.requestedAt) reportDateCandidates.push(req.requestedAt)
-            if (reqMeta?.requestedAt) reportDateCandidates.push(reqMeta.requestedAt)
+        const isRadiology = printCategory === 'RADIOLOGY'
+        const reportRows = isRadiology
+          ? imagingStudies
+              .map((study: any, index: number) => {
+                if (study?.started) reportDateCandidates.push(study.started)
+                if (study?.diagnosticReport?.issued) reportDateCandidates.push(study.diagnosticReport.issued)
 
-            const observations = Array.isArray(req?.observations) ? req.observations : []
-            if (observations.length === 0) {
-              return [
-                `
+                const testName =
+                  study?.diagnosticReport?.categoryDisplay ||
+                  study?.modalityCode ||
+                  `Pemeriksaan Radiologi ${index + 1}`
+                const findings = study?.diagnosticReport?.conclusion || '-'
+                const reportStatus = study?.diagnosticReport?.status || study?.reportStatus || '-'
+
+                return `
                   <tr>
-                    <td class="param-cell">
-                      ${escapeHtml(testName)}
-                      ${loincCode !== '-' ? `<div class="sub-loinc">LOINC: ${escapeHtml(loincCode)}</div>` : ''}
-                    </td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
-                    <td>-</td>
+                    <td class="param-cell">${escapeHtml(testName)}</td>
+                    <td>${escapeHtml(study?.modalityCode || '-')}</td>
+                    <td>${escapeHtml(formatPrintableDate(study?.started))}</td>
+                    <td>${escapeHtml(reportStatus)}</td>
+                    <td>${escapeHtml(findings)}</td>
                   </tr>
                 `
-              ]
-            }
+              })
+              .join('')
+          : serviceRequests
+              .flatMap((req: any, index: number) => {
+                const reqMeta = serviceRequestMeta.get(String(req?.id || ''))
+                const testName = req?.testDisplay || reqMeta?.testName || `Pemeriksaan ${index + 1}`
+                const loincCode = req?.testLoinc || reqMeta?.loinc || '-'
+                if (req?.requestedAt) reportDateCandidates.push(req.requestedAt)
+                if (reqMeta?.requestedAt) reportDateCandidates.push(reqMeta.requestedAt)
 
-            return observations.map((obs: any) => {
-              if (obs?.observedAt) reportDateCandidates.push(obs.observedAt)
-              if (obs?.finalizedAt) reportDateCandidates.push(obs.finalizedAt)
+                const observations = Array.isArray(req?.observations) ? req.observations : []
+                if (observations.length === 0) {
+                  return [
+                    `
+                      <tr>
+                        <td class="param-cell">
+                          ${escapeHtml(testName)}
+                          ${loincCode !== '-' ? `<div class="sub-loinc">LOINC: ${escapeHtml(loincCode)}</div>` : ''}
+                        </td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                        <td>-</td>
+                      </tr>
+                    `
+                  ]
+                }
 
-              const pemeriksaanName = obs?.observationDisplay || obs?.display || testName
-              const pemeriksaanLoinc = obs?.observationLoinc || loincCode
+                return observations.map((obs: any) => {
+                  if (obs?.observedAt) reportDateCandidates.push(obs.observedAt)
+                  if (obs?.finalizedAt) reportDateCandidates.push(obs.finalizedAt)
 
-              return `
-                <tr>
-                  <td class="param-cell">
-                    ${escapeHtml(pemeriksaanName)}
-                    ${pemeriksaanLoinc && pemeriksaanLoinc !== '-' ? `<div class="sub-loinc">LOINC: ${escapeHtml(pemeriksaanLoinc)}</div>` : ''}
-                  </td>
-                  <td>${escapeHtml(obs?.value || '-')}</td>
-                  <td>${escapeHtml(obs?.referenceRange || '-')}</td>
-                  <td>${escapeHtml(obs?.unit || '-')}</td>
-                  <td>${escapeHtml(obs?.interpretation || '-')}</td>
-                </tr>
-              `
-            })
-          })
-          .join('')
+                  const pemeriksaanName = obs?.observationDisplay || obs?.display || testName
+                  const pemeriksaanLoinc = obs?.observationLoinc || loincCode
+
+                  return `
+                    <tr>
+                      <td class="param-cell">
+                        ${escapeHtml(pemeriksaanName)}
+                        ${pemeriksaanLoinc && pemeriksaanLoinc !== '-' ? `<div class="sub-loinc">LOINC: ${escapeHtml(pemeriksaanLoinc)}</div>` : ''}
+                      </td>
+                      <td>${escapeHtml(obs?.value || '-')}</td>
+                      <td>${escapeHtml(obs?.referenceRange || '-')}</td>
+                      <td>${escapeHtml(obs?.unit || '-')}</td>
+                      <td>${escapeHtml(obs?.interpretation || '-')}</td>
+                    </tr>
+                  `
+                })
+              })
+              .join('')
 
         const validDateCandidates = reportDateCandidates
           .map((item) => new Date(item))
@@ -354,12 +389,14 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
         const doctorName = String(reportContext?.doctorName || '-')
         const petugasMedis = '(................................)'
         const penjamin = String(reportContext?.penjamin || 'Umum')
-        const ruang = String(reportContext?.ruang || 'Laboratorium')
-        const totalPemeriksaan = serviceRequests.length
-        const totalParameter = serviceRequests.reduce((sum: number, req: any) => {
-          const observations = Array.isArray(req?.observations) ? req.observations.length : 0
-          return sum + Math.max(observations, 1)
-        }, 0)
+        const ruang = String(reportContext?.ruang || sectionConfig.menuLabel)
+        const totalPemeriksaan = isRadiology ? imagingStudies.length : serviceRequests.length
+        const totalParameter = isRadiology
+          ? imagingStudies.length
+          : serviceRequests.reduce((sum: number, req: any) => {
+              const observations = Array.isArray(req?.observations) ? req.observations.length : 0
+              return sum + Math.max(observations, 1)
+            }, 0)
         const printedAt = formatPrintableDate(new Date())
 
         const iframe = document.createElement('iframe')
@@ -379,7 +416,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
           doc.write(`
             <html>
               <head>
-                <title>Laporan Laboratorium</title>
+                <title>${sectionConfig.reportsTitle}</title>
                 <style>
                   @page { size: A4 portrait; margin: 12mm; }
                   body { font-family: "Arial", sans-serif; color: #111827; font-size: 12px; margin: 0; background: #fff; }
@@ -473,19 +510,36 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
                     </table>
                   </div>
 
-                  <div class="report-banner">Laboratory Report / Hasil Laboratorium</div>
+                  <div class="report-banner">${escapeHtml(sectionConfig.printTitle)}</div>
                   <table class="report-table">
                     <thead>
-                      <tr>
-                        <th>Nama Pemeriksaan</th>
-                        <th style="width:110px;">Hasil</th>
-                        <th style="width:130px;">Nilai Rujukan</th>
-                        <th style="width:110px;">Satuan</th>
-                        <th style="width:130px;">Interpretasi</th>
-                      </tr>
+                      ${
+                        isRadiology
+                          ? `
+                            <tr>
+                              <th>Nama Pemeriksaan</th>
+                              <th style="width:90px;">Modality</th>
+                              <th style="width:150px;">Tanggal</th>
+                              <th style="width:110px;">Status</th>
+                              <th style="width:220px;">Temuan</th>
+                            </tr>
+                          `
+                          : `
+                            <tr>
+                              <th>Nama Pemeriksaan</th>
+                              <th style="width:110px;">Hasil</th>
+                              <th style="width:130px;">Nilai Rujukan</th>
+                              <th style="width:110px;">Satuan</th>
+                              <th style="width:130px;">Interpretasi</th>
+                            </tr>
+                          `
+                      }
                     </thead>
                     <tbody>
-                      ${reportRows || '<tr><td colspan="5" class="center">Tidak ada data pemeriksaan</td></tr>'}
+                      ${
+                        reportRows ||
+                        `<tr><td colspan="5" class="center">${escapeHtml(sectionConfig.printEmptyMessage)}</td></tr>`
+                      }
                     </tbody>
                   </table>
 
@@ -520,7 +574,7 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
                   </div>
 
                   <div class="footnote">
-                    Laporan ini dicetak otomatis dari sistem laboratorium dan valid tanpa tanda tangan basah.
+                    ${escapeHtml(sectionConfig.printFootnote)}
                   </div>
                   <div class="printed">
                     Printed: ${escapeHtml(printedAt)}
@@ -545,13 +599,13 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
         console.error(e)
         message.error('Failed to generate print view')
       } finally {
-        setPrintEncounterId(null)
+        setPrintContext(null)
         setLoading(null)
       }
     }
 
     void generatePrintView()
-  }, [printEncounterId, isPrinting, reportDataResponse, isPrintError, printError])
+  }, [printContext, isPrinting, reportDataResponse, isPrintError, printError])
 
   const handleCreateOrder = async (data: any) => {
     setLoading('create-order')
@@ -604,9 +658,12 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
     }
   }
 
-  const handlePrintReport = async (encounterId: string) => {
+  const handlePrintReport = async (encounterId: string, options?: PrintReportOptions) => {
     setLoading('print-report')
-    setPrintEncounterId(encounterId)
+    setPrintContext({
+      encounterId,
+      category: options?.category || 'LABORATORY'
+    })
     // The useEffect will handle the rest
   }
 

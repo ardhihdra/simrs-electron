@@ -118,7 +118,13 @@ export const visitManagementRpc = {
     .input(
       z.object({
         queueId: z.string(),
-        patientId: z.string()
+        patientId: z.string(),
+        paymentMethod: z.enum(['CASH', 'INSURANCE', 'ASURANSI', 'COMPANY', 'BPJS']).optional(),
+        mitraId: z.coerce.number().optional(),
+        mitraCodeNumber: z.string().optional(),
+        mitraCodeExpiredDate: z.string().optional(),
+        mitraCode: z.string().optional(),
+        mitraExpiredAt: z.string().optional()
       })
     )
     .output(z.any())

@@ -109,6 +109,7 @@ import InvoiceDetailPage from './pages/kasir/invoice-detail'
 import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
+import KioskaSetupPage from './pages/visit-management/kioska/setup'
 import RegistrationPage from './pages/visit-management/registration'
 import RegistrationQueue from './pages/visit-management/registration-queue'
 import AntrianVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
@@ -145,6 +146,8 @@ function MainRoute() {
     <Routes location={location} key={location.pathname.split('/')[1]}>
       <Route path="/iframe-view" element={<IframeView />} />
       <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
+      <Route path="/kioska/setup" element={<KioskaSetupPage />} />
+      <Route path="/kioska" element={<KioskaPage />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/module-selection" element={<ModuleSelection />} />
@@ -159,7 +162,7 @@ function MainRoute() {
             <Route path="select" element={<RegistrationSelect />} />
             <Route path="queue/:practitionerId" element={<RegistrationQueue />} />
             <Route path="upcoming-queue" element={<UpcomingQueuePage />} />
-            <Route path="kioska" element={<KioskaPage />} />
+            <Route path="kioska" element={<Navigate to="/kioska" replace />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
           </Route>
@@ -389,13 +392,64 @@ function MainRoute() {
             />
           </Route>
           <Route path="laboratory-management" element={g('/dashboard/laboratory-management', <Outlet />)}>
-            <Route index element={<LaboratoryQueue />} />
-            <Route path="queue" element={<LaboratoryQueue />} />
-            <Route path="requests" element={<LaboratoryRequests />} />
+            <Route
+              index
+              element={<LaboratoryQueue fixedCategory="LABORATORY" section="laboratory" />}
+            />
+            <Route
+              path="queue"
+              element={<LaboratoryQueue fixedCategory="LABORATORY" section="laboratory" />}
+            />
+            <Route
+              path="requests"
+              element={
+                <LaboratoryRequests
+                  fixedCategory="LABORATORY"
+                  routeBase="/dashboard/laboratory-management"
+                  section="laboratory"
+                />
+              }
+            />
             <Route path="requests/specimen" element={<LaboratorySpecimenRequest />} />
-            <Route path="results" element={<LaboratoryResults />} />
+            <Route
+              path="results"
+              element={<LaboratoryResults fixedCategory="LABORATORY" section="laboratory" />}
+            />
             <Route path="results/entry" element={<LaboratoryResultEntry />} />
-            <Route path="reports" element={<LaboratoryReports />} />
+            <Route
+              path="reports"
+              element={<LaboratoryReports fixedCategory="LABORATORY" section="laboratory" />}
+            />
+          </Route>
+          <Route path="radiology-management" element={g('/dashboard/radiology-management', <Outlet />)}>
+            <Route
+              index
+              element={<LaboratoryQueue fixedCategory="RADIOLOGY" section="radiology" />}
+            />
+            <Route
+              path="queue"
+              element={<LaboratoryQueue fixedCategory="RADIOLOGY" section="radiology" />}
+            />
+            <Route
+              path="requests"
+              element={
+                <LaboratoryRequests
+                  fixedCategory="RADIOLOGY"
+                  routeBase="/dashboard/radiology-management"
+                  section="radiology"
+                />
+              }
+            />
+            <Route path="requests/specimen" element={<LaboratorySpecimenRequest />} />
+            <Route
+              path="results"
+              element={<LaboratoryResults fixedCategory="RADIOLOGY" section="radiology" />}
+            />
+            <Route path="results/entry" element={<LaboratoryResultEntry />} />
+            <Route
+              path="reports"
+              element={<LaboratoryReports fixedCategory="RADIOLOGY" section="radiology" />}
+            />
           </Route>
         </Route>
         <Route

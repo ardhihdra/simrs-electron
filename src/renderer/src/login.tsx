@@ -1,14 +1,15 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
+import { rpc } from '@renderer/utils/client'
 import slide1Url from '@renderer/assets/image/Slide1.jpeg'
 import slide2Url from '@renderer/assets/image/Slide2.jpeg'
 import slide3Url from '@renderer/assets/image/Slide3.jpeg'
 import logoUrl from '@renderer/assets/logo.png'
+import { useProfileStore } from '@renderer/store/profileStore'
 import type { FormProps } from 'antd'
-import { Button, Carousel, Checkbox, Form, Input, Tag } from 'antd'
+import { Button, Carousel, Checkbox, Form, Input } from 'antd'
 import Alert from 'antd/es/alert/Alert'
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { useProfileStore } from '@renderer/store/profileStore'
 
 type FieldType = {
   username: string
@@ -89,7 +90,7 @@ const LoginForm: React.FC = () => {
         <div className="absolute bottom-10 right-0 h-72 w-72 rounded-full bg-cyan-300/20 blur-3xl" />
       </div>
 
-      <div className="max-w-5xl w-full mx-auto h-full max-h-[630px]">
+      <div className="max-w-5xl w-full mx-auto h-full">
         <div className="grid grid-cols-1 md:grid-cols-2 border border-white/10 backdrop-blur rounded-2xl shadow-lg overflow-hidden h-full bg-white">
           <div className="p-8 h-full flex flex-col justify-center">
             <div className="mb-6 text-center">
@@ -170,6 +171,13 @@ const LoginForm: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
+            <Button
+              size="large"
+              className="w-full"
+              onClick={() => rpc.window.create({ route: '/kioska/setup', title: 'Kioska Publik' })}
+            >
+              Buka Kioska Publik
+            </Button>
             {errorInfo && <Alert message={errorInfo} type="error" className="mb-4" />}
           </div>
 

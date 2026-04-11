@@ -219,9 +219,9 @@ const PatientQueueTable = () => {
       const queueId = String(row.queueId || row.id || '')
       const queueNumber = parseQueueNumber(row.queueNumber)
       const formattedQueueNumber =
-        row.formattedQueueNumber ||
-        (queueNumber > 0 ? String(queueNumber) : '-')
-      const triageUpdatedAt = row.updatedAt || row.createdAt || row.queueDate || queueDate.toISOString()
+        row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
+      const triageUpdatedAt =
+        row.updatedAt || row.createdAt || row.queueDate || queueDate.toISOString()
       const registrationDate = row.queueDate || row.createdAt || queueDate.toISOString()
 
       return {
@@ -338,7 +338,10 @@ const PatientQueueTable = () => {
             {queueLabel || '-'}
           </Tag>
           {record.queueId === latestTriageQueueId ? (
-            <Badge color={token.colorSuccess} text={<span style={{ fontSize: 10 }}>Terbaru</span>} />
+            <Badge
+              color={token.colorSuccess}
+              text={<span style={{ fontSize: 10 }}>Terbaru</span>}
+            />
           ) : null}
         </div>
       )
@@ -465,7 +468,9 @@ const PatientQueueTable = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          {record.status === 'TRIAGE' && (
+          {NURSE_VISIBLE_STATUSES.includes(
+            record.status as (typeof NURSE_VISIBLE_STATUSES)[number]
+          ) && (
             <>
               <Button
                 type="primary"
@@ -622,7 +627,8 @@ const PatientQueueTable = () => {
                       style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}
                       title={`${latestTriageQueue.formattedQueueNumber || '-'} • ${latestTriageQueue.patient.name} • ${latestTriageQueue.poli.name} • ${latestTriageTime}`}
                     >
-                      {latestTriageQueue.formattedQueueNumber || '-'} • {latestTriageQueue.patient.name}
+                      {latestTriageQueue.formattedQueueNumber || '-'} •{' '}
+                      {latestTriageQueue.patient.name}
                     </div>
                     <div
                       className="truncate"

@@ -29,13 +29,33 @@ interface KepegawaianItem {
   }
 }
 
+interface DoctorSpecialityItem {
+  id: number
+  kepegawaianId?: number
+  specialityId?: number
+  isActive?: boolean
+  dokter?: KepegawaianItem
+  speciality?: {
+    id?: number
+    kode?: string
+    nama?: string
+    isActive?: boolean
+  }
+}
+
 interface CreateAncillaryModalProps {
   open: boolean
   onClose: () => void
+  fixedCategory?: EncounterCategory
 }
 
 type EncounterCategory = 'LABORATORY' | 'RADIOLOGY'
 type ArrivalType = 'WALK_IN' | 'REFERRAL' | 'EMERGENCY' | 'APPOINTMENT' | 'INTERNAL_ORDER'
+
+const ANCILLARY_SPECIALITY_CODE_MAP: Record<EncounterCategory, string> = {
+  LABORATORY: 'SP-PK',
+  RADIOLOGY: 'SP-RAD'
+}
 
 function normalizeList<T>(data: unknown): T[] {
   const raw = data as any
@@ -86,12 +106,17 @@ function isDoctorPegawai(pegawai: KepegawaianItem): boolean {
   )
 }
 
-export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryModalProps) {
+export default function CreateAncillaryModal({
+  open,
+  onClose,
+  fixedCategory
+}: CreateAncillaryModalProps) {
   const [form] = Form.useForm()
   const { message } = App.useApp()
 
   const [patientSearch, setPatientSearch] = useState('')
   const [doctorSearch, setDoctorSearch] = useState('')
+  const [requestedByDoctorSearch, setRequestedByDoctorSearch] = useState('')
   const category = Form.useWatch('category', form) as EncounterCategory | undefined
   const patientId = Form.useWatch('patientId', form) as string | undefined
 
@@ -143,30 +168,51 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
       } as any
     )
 
-  const doctorParams = useMemo(() => {
+  const ancillaryDoctorSpecialityParams = useMemo(() => {
+    return {
+      page: '1',
+      items: '200',
+      include: 'dokter,speciality'
+    }
+  }, [])
+
+  const { data: ancillaryDoctorSpecialitiesData, isLoading: isLoadingAncillaryDoctors } =
+    client.query.entity.useQuery(
+      {
+        model: 'doctorSpeciality',
+        method: 'get',
+        params: ancillaryDoctorSpecialityParams
+      },
+      {
+        enabled: open && !!category,
+        queryKey: ['ancillary-doctor-specialities', ancillaryDoctorSpecialityParams, category]
+      } as any
+    )
+
+  const requestedByDoctorParams = useMemo(() => {
     const params: Record<string, string> = {
       page: '1',
       items: '200',
       include: 'hakAkses'
     }
 
-    if (doctorSearch.trim()) {
-      params.q = doctorSearch.trim()
+    if (requestedByDoctorSearch.trim()) {
+      params.q = requestedByDoctorSearch.trim()
       params.fields = 'namaLengkap,nik'
     }
 
     return params
-  }, [doctorSearch])
+  }, [requestedByDoctorSearch])
 
   const { data: doctorsData, isLoading: isLoadingDoctors } = client.query.entity.useQuery(
     {
       model: 'kepegawaian',
       method: 'get',
-      params: doctorParams
+      params: requestedByDoctorParams
     },
     {
       enabled: open,
-      queryKey: ['ancillary-kepegawaian-doctors', doctorParams]
+      queryKey: ['ancillary-kepegawaian-doctors', requestedByDoctorParams]
     } as any
   )
 
@@ -195,6 +241,39 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
   }, [serviceRequestsData, category])
 
   const doctorOptions = useMemo(() => {
+    if (!category) return []
+
+    const specialityCode = ANCILLARY_SPECIALITY_CODE_MAP[category]
+    const search = doctorSearch.trim().toLowerCase()
+    const rows = normalizeList<DoctorSpecialityItem>(ancillaryDoctorSpecialitiesData)
+    const uniqueDoctors = new Map<number, { value: number; label: string }>()
+
+    rows.forEach((item) => {
+      const doctor = item.dokter
+      const speciality = item.speciality
+      const doctorId = Number(doctor?.id ?? item.kepegawaianId)
+      const doctorName = String(doctor?.namaLengkap || '').trim()
+      const specialityKode = String(speciality?.kode || '').trim().toUpperCase()
+      const isMatchSpeciality = specialityKode === specialityCode
+      const isDoctor = doctor ? isDoctorPegawai(doctor) : false
+      const isMatchSearch =
+        !search ||
+        doctorName.toLowerCase().includes(search) ||
+        String(doctor?.nik || '').toLowerCase().includes(search)
+
+      if (!doctorId || !doctorName || !isDoctor || !isMatchSpeciality || !isMatchSearch) return
+      if (uniqueDoctors.has(doctorId)) return
+
+      uniqueDoctors.set(doctorId, {
+        value: doctorId,
+        label: doctorName
+      })
+    })
+
+    return Array.from(uniqueDoctors.values())
+  }, [ancillaryDoctorSpecialitiesData, category, doctorSearch])
+
+  const requestedByDoctorOptions = useMemo(() => {
     const pegawai = normalizeList<KepegawaianItem>(doctorsData)
 
     return pegawai
@@ -243,17 +322,18 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
     form.resetFields()
     setPatientSearch('')
     setDoctorSearch('')
+    setRequestedByDoctorSearch('')
     onClose()
   }
 
   useEffect(() => {
     if (open) {
       form.setFieldsValue({
-        category: 'LABORATORY',
+        category: fixedCategory || 'LABORATORY',
         arrivalType: 'WALK_IN'
       })
     }
-  }, [open, form])
+  }, [fixedCategory, open, form])
 
   return (
     <Modal
@@ -315,6 +395,7 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
                   rules={[{ required: true, message: 'Harap pilih kategori' }]}
                 >
                   <Select
+                    disabled={!!fixedCategory}
                     options={[
                       { value: 'LABORATORY', label: 'Laboratorium' },
                       { value: 'RADIOLOGY', label: 'Radiologi' }
@@ -361,13 +442,13 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
               <Card title="Dokter & Tambahan" size="small" className="mb-4">
                 <Form.Item
                   name="practitionerId"
-                  label="Dokter Pemeriksa"
+                  label="Dokter"
                   rules={[{ required: true, message: 'Harap pilih dokter' }]}
                 >
                   <Select
                     showSearch
                     placeholder="Pilih Dokter"
-                    loading={isLoadingDoctors}
+                    loading={isLoadingAncillaryDoctors}
                     options={doctorOptions}
                     optionFilterProp="label"
                     filterOption={false}
@@ -382,10 +463,10 @@ export default function CreateAncillaryModal({ open, onClose }: CreateAncillaryM
                     allowClear
                     placeholder="Pilih Dokter Pengirim"
                     loading={isLoadingDoctors}
-                    options={doctorOptions}
+                    options={requestedByDoctorOptions}
                     optionFilterProp="label"
                     filterOption={false}
-                    onSearch={setDoctorSearch}
+                    onSearch={setRequestedByDoctorSearch}
                     notFoundContent="Dokter tidak ditemukan"
                   />
                 </Form.Item>

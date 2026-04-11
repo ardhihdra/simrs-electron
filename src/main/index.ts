@@ -149,7 +149,7 @@ function createWindow(): void {
     mainWindow.webContents.setWindowOpenHandler((details) => {
       const u = details.url
 
-      if (u.match(/#\/dashboard\/(doctor|nurse-calling\/medical-record)/)) {
+      if (u.match(/#\/dashboard\/(doctor|nurse-calling\/medical-record|registration\/kioska)/)) {
         return {
           action: 'allow',
           overrideBrowserWindowOptions: {

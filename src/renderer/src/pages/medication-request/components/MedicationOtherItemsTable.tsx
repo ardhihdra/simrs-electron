@@ -10,6 +10,7 @@ interface MedicationOtherItemsTableProps {
   itemKodeMap: Map<number, string>
   signaOptions: any[]
   signaLoading: boolean
+  onAddSigna: () => void
 }
 
 export const MedicationOtherItemsTable = ({
@@ -17,7 +18,8 @@ export const MedicationOtherItemsTable = ({
   itemOptions,
   itemLoading,
   signaOptions,
-  signaLoading
+  signaLoading,
+  onAddSigna = () => { console.warn('onAddSigna prop is missing in MedicationOtherItemsTable') }
 }: MedicationOtherItemsTableProps) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentRowIndex, setCurrentRowIndex] = useState<number | null>(null)
@@ -62,7 +64,17 @@ export const MedicationOtherItemsTable = ({
                       {...restField}
                       name={[name, 'itemId']}
                       label="Nama Item"
-                      rules={[{ required: true, message: 'Pilih item' }]}
+                      rules={[
+                        { required: true, message: 'Pilih item' },
+                        {
+                          validator: (_, value) => {
+                            if (value && !itemOptions.some((o) => o.value === value)) {
+                              return Promise.reject(new Error('Stok di FARM tidak tersedia / habis'))
+                            }
+                            return Promise.resolve()
+                          }
+                        }
+                      ]}
                       className="mb-0"
                     >
                       <Select
@@ -109,7 +121,27 @@ export const MedicationOtherItemsTable = ({
                         options={signaOptions}
                         loading={signaLoading}
                         showSearch
-                        mode="tags"
+                        dropdownRender={(menu) => (
+                          <div>
+                            {menu}
+                            <div className="p-2 border-t text-center">
+                              <Button
+                                type="primary"
+                                size="small"
+                                icon={<PlusOutlined />}
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  onAddSigna()
+                                }}
+                                block
+                              >
+                                Tambah Signa Baru
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       />
                     </Form.Item>
                   </div>

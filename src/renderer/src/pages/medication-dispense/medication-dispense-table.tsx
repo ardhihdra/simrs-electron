@@ -188,6 +188,7 @@ interface DispenseItemRow {
   batch?: string
   expiryDate?: string
   paymentStatus?: string
+  kekuatan?: string | number
   children?: DispenseItemRow[]
 }
 
@@ -439,12 +440,12 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
           Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
         </div>
       )}
-      {!isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
+      {!isKomposisi && !isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
         <div className="text-xs text-orange-500">
           Pembayaran belum lunas, tidak dapat menyerahkan obat.
         </div>
       )}
-      {isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
+      {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
         <div className="text-xs text-orange-500 font-semibold bg-orange-50 border border-orange-200 p-1 px-2 rounded-md">
           Harap &quot;Mulai Proses&quot; (di menu titik tiga) terlebih dahulu.
         </div>
@@ -844,7 +845,8 @@ export function MedicationDispenseTable() {
     queryFn: () => {
       const fn = itemApi?.list
       if (!fn) throw new Error('API item tidak tersedia.')
-      return fn()
+      // Try passing depth in params if it expects query procedure structure
+      return (fn as any)({ params: { depth: '1' }, depth: '1' })
     }
   })
 
@@ -898,6 +900,44 @@ export function MedicationDispenseTable() {
     return map
   }, [itemSource?.result])
 
+  const itemKekuatanById = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    for (const item of source) {
+      if (typeof item.id === 'number') {
+        const k = (item as any).kekuatan || ''
+        if (k) map.set(item.id, String(k))
+      }
+    }
+    return map
+  }, [itemSource?.result])
+
+  const itemUnitById = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    for (const item of source) {
+      if (typeof item.id === 'number') {
+        const raw = item as any
+        const u = raw.unit?.nama || raw.satuan?.nama || raw.unit?.display || raw.satuan?.display || raw.kodeUnit || ''
+        if (u) {
+          map.set(item.id, String(u).trim())
+        }
+      }
+    }
+    return map
+  }, [itemSource?.result])
+
+  const itemKodeById = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    for (const item of source) {
+      if (typeof item.id === 'number' && typeof item.kode === 'string') {
+        map.set(item.id, item.kode.trim().toUpperCase())
+      }
+    }
+    return map
+  }, [itemSource?.result])
+
   const { data: prescriptionDetailData } = useQuery({
     queryKey: ['medicationRequest', 'detailForDispenseSummary', prescriptionIdParam],
     enabled: typeof prescriptionIdParam === 'number',
@@ -917,6 +957,10 @@ export function MedicationDispenseTable() {
   })
 
   const filtered = useMemo(() => {
+    console.log('[MD-Debug] itemSource result:', itemSource?.result)
+    console.log('[MD-Debug] itemUnitById map:', itemUnitById)
+    console.log('[MD-Debug] itemKodeById map:', itemKodeById)
+    
     let source: MedicationDispenseAttributes[] = Array.isArray(data?.data) ? data.data : []
 
     if (typeof prescriptionIdParam === 'number') {
@@ -986,6 +1030,7 @@ export function MedicationDispenseTable() {
     const groups = new Map<string, ParentRow>()
 
     filtered.forEach((item) => {
+      console.log('[MD-Debug] Original Item:', item)
       const prescription = item.authorizingPrescription
 
       // Tentukan key: utamakan groupIdentifier.value (resep racikan yang sama)
@@ -1094,7 +1139,11 @@ export function MedicationDispenseTable() {
               let ingExpiryDate: string | undefined
 
               // Fallback for ingredients: look in identifiers if the dispense record has them
-              const ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
+              let ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
+              if (!ingKode && typeof ingItemId === 'number') {
+                ingKode = itemKodeById.get(ingItemId) || ''
+              }
+
               if (ingKode) {
                 const batchId = item.identifier?.find((id: any) => id.system === `batch-number-${ingKode}`)
                 const expId = item.identifier?.find((id: any) => id.system === `expiry-date-${ingKode}`)
@@ -1111,11 +1160,12 @@ export function MedicationDispenseTable() {
                 jenis: 'Komposisi',
                 medicineName: ingName ?? 'Komposisi',
                 quantity: typeof ing.quantity === 'number' ? Math.round(ing.quantity) : undefined,
-                unit: ing.unitCode ?? ing.unit,
+                unit: ing.unitCode ?? ing.unit ?? (typeof ingItemId === 'number' ? itemUnitById.get(ingItemId) : undefined),
                 status: '',
                 instruksi: ing.note ?? ing.instruction,
                 batch: ingBatch,
-                expiryDate: ingExpiryDate
+                expiryDate: ingExpiryDate,
+                kekuatan: ing.strength
               }
             })
           }
@@ -1142,10 +1192,27 @@ export function MedicationDispenseTable() {
             let ingExpiryDate: string | undefined
 
             // Fallback for ingredients: look in identifiers if the dispense record has them
-            const ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
-            if (ingKode) {
-              const batchId = item.identifier?.find((id: any) => id.system === `batch-number-${ingKode}`)
-              const expId = item.identifier?.find((id: any) => id.system === `expiry-date-${ingKode}`)
+            let ingKode = (ing.kode || ing.item_kode || '').trim().toUpperCase()
+            if (!ingKode && typeof ingItemId === 'number') {
+              ingKode = itemKodeById.get(ingItemId) || ''
+            }
+
+            if (item.identifier && Array.isArray(item.identifier)) {
+              // Try match with code or itemId
+              const sysBatch = `batch-number-${ingKode}`
+              const sysExp = `expiry-date-${ingKode}`
+              
+              const batchId = item.identifier.find((id: any) => 
+                id.system === sysBatch || 
+                id.system === `batch-number-${ingItemId}` ||
+                (ingKode && id.system?.includes(ingKode))
+              )
+              const expId = item.identifier.find((id: any) => 
+                id.system === sysExp || 
+                id.system === `expiry-date-${ingItemId}` ||
+                (ingKode && id.system?.includes(ingKode))
+              )
+              
               if (batchId) ingBatch = batchId.value
               if (expId) ingExpiryDate = expId.value
             }
@@ -1159,11 +1226,12 @@ export function MedicationDispenseTable() {
               jenis: 'Komposisi',
               medicineName: ingName ?? 'Komposisi',
               quantity: typeof ing.quantity === 'number' ? Math.round(ing.quantity) : undefined,
-              unit: ing.unitCode ?? ing.unit,
+              unit: (ing.unitCode ?? ing.unit ?? (typeof ingItemId === 'number' ? itemUnitById.get(ingItemId) : undefined)) || '-',
               status: '',
               instruksi: ing.note ?? ing.instruction,
-              batch: ingBatch,
-              expiryDate: ingExpiryDate
+              batch: ingBatch || '-',
+              expiryDate: ingExpiryDate || '-',
+              kekuatan: (ing.strength || (typeof ingItemId === 'number' ? itemKekuatanById.get(ingItemId) : undefined)) || '-'
             }
           })
         }
@@ -1175,13 +1243,18 @@ export function MedicationDispenseTable() {
         jenis,
         medicineName,
         quantity: typeof quantityValue === 'number' ? Math.round(quantityValue) : undefined,
-        unit: quantityUnit,
+        unit: quantityUnit || (typeof item.itemId === 'number' ? itemUnitById.get(item.itemId) : undefined) || '-',
         status: item.status,
         performerName: item.performer?.name,
         instruksi,
         availableStock:
           typeof item.medication?.stock === 'number' ? item.medication.stock : undefined,
         paymentStatus: item.paymentStatus,
+        kekuatan: (() => {
+          if (!Array.isArray(prescription?.supportingInformation)) return (typeof item.itemId === 'number' ? itemKekuatanById.get(item.itemId) : undefined) || '-'
+          const ing = prescription.supportingInformation.find((i: any) => i.resourceType === 'Ingredient' || i.itemId === item.itemId || i.item_id === item.itemId)
+          return ing?.strength || (typeof item.itemId === 'number' ? itemKekuatanById.get(item.itemId) : undefined) || '-'
+        })(),
         fhirId:
           typeof item.fhirId === 'string' && item.fhirId.trim().length > 0
             ? item.fhirId.trim()
@@ -1198,6 +1271,9 @@ export function MedicationDispenseTable() {
         if (expiryId) rowItem.expiryDate = expiryId.value
       }
 
+      if (!rowItem.batch) rowItem.batch = '-'
+      if (!rowItem.expiryDate) rowItem.expiryDate = '-'
+
       // Fallback: Extract batch info for non-compound items from prescription supportingInformation
       if (!rowItem.batch && !rowItem.expiryDate && isItem && Array.isArray(prescription?.supportingInformation)) {
         const batchInfo = (prescription.supportingInformation as Array<Record<string, unknown>>)
@@ -1209,6 +1285,8 @@ export function MedicationDispenseTable() {
           if (exp && exp.trim().length > 0) (rowItem as any).expiryDate = exp.trim()
         }
       }
+
+      console.log('[MD-Debug] rowItem prepared:', rowItem)
 
       const existing = groups.get(key)
       if (!existing) {
@@ -1257,7 +1335,9 @@ export function MedicationDispenseTable() {
       }
     })
 
-    return Array.from(groups.values())
+    const result = Array.from(groups.values())
+    console.log('[MD-Debug] Final Grouped Data:', result)
+    return result
   }, [filtered, itemNameById, employeeNameById])
 
   const groupedDataForTable: ParentRow[] = useMemo(() => {
@@ -1471,6 +1551,7 @@ export function MedicationDispenseTable() {
                   const detailColumns = [
                     { title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
                     { title: 'Item', dataIndex: 'medicineName', key: 'medicineName' },
+                    { title: 'Kekuatan', dataIndex: 'kekuatan', key: 'kekuatan' },
                     { title: 'Qty', dataIndex: 'quantity', key: 'quantity' },
                     { title: 'Satuan', dataIndex: 'unit', key: 'unit' },
                     { title: 'Instruksi', dataIndex: 'instruksi', key: 'instruksi' },
