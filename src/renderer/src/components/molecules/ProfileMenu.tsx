@@ -1,10 +1,11 @@
-import { LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
+import { KeyOutlined, LogoutOutlined, SettingOutlined, UserOutlined } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import { client } from '@renderer/utils/client'
 import { App, Avatar, Button, Dropdown, Modal, Space } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import SettingsModal from '../SettingsModal'
+import ChangePasswordModal from './ChangePasswordModal'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useLogout } from '@renderer/hooks/useLogout'
 
@@ -18,6 +19,7 @@ function ProfileMenu() {
   const { profile, initials } = useMyProfile()
   const [open, setOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false)
   const { message } = App.useApp()
   const navigate = useNavigate()
   const moduleSignOutMutation = client.module.signout.useMutation()
@@ -54,6 +56,12 @@ function ProfileMenu() {
       label: 'Settings',
       icon: <SettingOutlined />,
       onClick: () => setSettingsOpen(true)
+    },
+    {
+      key: 'change-password',
+      label: 'Change Password',
+      icon: <KeyOutlined />,
+      onClick: () => setChangePasswordOpen(true)
     },
     {
       type: 'divider'
@@ -113,6 +121,7 @@ function ProfileMenu() {
       </Modal>
 
       <SettingsModal open={settingsOpen} onCancel={() => setSettingsOpen(false)} />
+      <ChangePasswordModal open={changePasswordOpen} onClose={() => setChangePasswordOpen(false)} />
     </>
   )
 }
