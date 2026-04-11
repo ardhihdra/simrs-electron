@@ -36,6 +36,7 @@ interface InvoiceLineItem {
 }
 
 interface Invoice {
+  encounterCode: string
   encounterId: string
   patientId: string
   total: number
