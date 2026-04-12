@@ -12,6 +12,14 @@ const GetBoardInputSchema = z.object({
     queueDate: QueueDateSchema,
 })
 
+const GetTicketsInputSchema = z.object({
+    lokasiKerjaId: z.number().int().positive(),
+    serviceTypeCode: z.string().optional(),
+    queueDate: QueueDateSchema,
+    status: z.union([z.string(), z.array(z.string())]).optional(),
+    servicePointId: z.number().int().positive().optional(),
+})
+
 const GetServiceTypesInputSchema = z.object({
     isActive: z.boolean().optional(),
 })
@@ -122,6 +130,30 @@ export const nonMedicQueueRpc = {
             }
 
             const response = await client.get(`${BASE_URL}/service-points?${params.toString()}`)
+            return await response.json()
+        }),
+
+    getTickets: t
+        .input(GetTicketsInputSchema)
+        .output(ApiResponseSchema(z.any()))
+        .query(async ({ client }, input) => {
+            const params = new URLSearchParams()
+            params.append('lokasiKerjaId', String(input.lokasiKerjaId))
+            if (input.serviceTypeCode) {
+                params.append('serviceTypeCode', input.serviceTypeCode)
+            }
+            if (input.queueDate) {
+                params.append('queueDate', input.queueDate)
+            }
+            if (input.status) {
+                const statuses = Array.isArray(input.status) ? input.status : [input.status]
+                statuses.forEach((s) => params.append('status', s))
+            }
+            if (input.servicePointId) {
+                params.append('servicePointId', String(input.servicePointId))
+            }
+
+            const response = await client.get(`${BASE_URL}/tickets?${params.toString()}`)
             return await response.json()
         }),
 

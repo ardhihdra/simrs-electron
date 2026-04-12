@@ -4,7 +4,13 @@ export type KioskaPoliOption = {
   prefix?: string
 }
 
+export type KioskaConfig = {
+  poli: KioskaPoliOption
+  lokasiKerjaId?: number
+}
+
 export const KIOSKA_POLI_STORAGE_KEY = 'kioska-selected-poli'
+export const KIOSKA_CONFIG_STORAGE_KEY = 'kioska-config'
 
 export const POLI_COLORS: { key?: string; bg: string; icon: string; hover: string }[] = [
   { key: 'umum', bg: 'bg-blue-100', icon: 'text-blue-600', hover: 'group-hover:bg-blue-500' },
@@ -96,6 +102,16 @@ export function readSelectedKioskaPoli(): KioskaPoliOption | null {
   if (typeof window === 'undefined') return null
 
   try {
+    // Try new config format first
+    const configRaw = window.localStorage.getItem(KIOSKA_CONFIG_STORAGE_KEY)
+    if (configRaw) {
+      const config = JSON.parse(configRaw) as KioskaConfig
+      if (config?.poli && typeof config.poli.id === 'number' && config.poli.name) {
+        return config.poli
+      }
+    }
+
+    // Fall back to legacy format
     const raw = window.localStorage.getItem(KIOSKA_POLI_STORAGE_KEY)
     if (!raw) return null
 
@@ -107,10 +123,38 @@ export function readSelectedKioskaPoli(): KioskaPoliOption | null {
   }
 }
 
+export function readKioskaConfig(): KioskaConfig | null {
+  if (typeof window === 'undefined') return null
+
+  try {
+    const raw = window.localStorage.getItem(KIOSKA_CONFIG_STORAGE_KEY)
+    if (raw) {
+      const config = JSON.parse(raw) as KioskaConfig
+      if (config?.poli && typeof config.poli.id === 'number' && config.poli.name) {
+        return config
+      }
+    }
+
+    // Fall back to legacy poli-only format
+    const poli = readSelectedKioskaPoli()
+    if (poli) return { poli }
+    return null
+  } catch {
+    return null
+  }
+}
+
 export function writeSelectedKioskaPoli(poli: KioskaPoliOption) {
   window.localStorage.setItem(KIOSKA_POLI_STORAGE_KEY, JSON.stringify(poli))
 }
 
+export function writeKioskaConfig(config: KioskaConfig) {
+  window.localStorage.setItem(KIOSKA_CONFIG_STORAGE_KEY, JSON.stringify(config))
+  // Keep legacy key in sync
+  window.localStorage.setItem(KIOSKA_POLI_STORAGE_KEY, JSON.stringify(config.poli))
+}
+
 export function clearSelectedKioskaPoli() {
   window.localStorage.removeItem(KIOSKA_POLI_STORAGE_KEY)
+  window.localStorage.removeItem(KIOSKA_CONFIG_STORAGE_KEY)
 }

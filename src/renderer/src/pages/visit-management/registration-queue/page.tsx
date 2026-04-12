@@ -9,12 +9,15 @@ import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
 import CallQueueModal from '@renderer/components/organisms/visit-management/CallQueueModal'
 import ConfirmQueueModal from '@renderer/components/organisms/visit-management/ConfirmQueueModal'
+import ConfirmRegistrationTicketModal, {
+  type RegistrationTicketRow
+} from '@renderer/components/organisms/visit-management/ConfirmRegistrationTicketModal'
 import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
 import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
 import RegistrationQueueDetailModal from '@renderer/components/organisms/visit-management/RegistrationQueueDetailModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { App, Button, DatePicker, Form, Input, Modal, Tag, Tooltip } from 'antd'
+import { App, Button, DatePicker, Form, Input, InputNumber, Modal, Tabs, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -80,6 +83,72 @@ export default function RegistrationQueue({
     queueNumber: '',
     practitionerId: practitionerId || ''
   })
+
+  const [activeTab, setActiveTab] = useState<'medic' | 'registration'>('registration')
+
+  // Registration (non-medic R-001) queue state
+  const [regLokasiKerjaId, setRegLokasiKerjaId] = useState<number | undefined>(undefined)
+  const [regQueueDate, setRegQueueDate] = useState(dayjs().format('YYYY-MM-DD'))
+  const [confirmRegTicketModal, setConfirmRegTicketModal] = useState<{
+    open: boolean
+    ticket?: RegistrationTicketRow
+  }>({ open: false })
+
+  const regTicketsQuery = client.nonMedicQueue.getTickets.useQuery(
+    {
+      lokasiKerjaId: regLokasiKerjaId ?? 0,
+      serviceTypeCode: 'REGISTRATION',
+      queueDate: regQueueDate,
+      status: ['WAITING', 'CALLED', 'SERVING']
+    },
+    {
+      enabled: Boolean(regLokasiKerjaId),
+      queryKey: ['regQueue.tickets', {
+        lokasiKerjaId: regLokasiKerjaId ?? 0, 
+        queueDate: regQueueDate
+      }]
+    }
+  )
+
+  const regTickets: RegistrationTicketRow[] = ((regTicketsQuery.data as any)?.result ?? []).map(
+    (t: any) => ({
+      ticketId: t.ticketId ?? t.id,
+      ticketNo: t.ticketNo,
+      queueDate: t.queueDate,
+      status: t.status,
+      patientId: t.patientId,
+      issuedAt: t.issuedAt
+    })
+  )
+
+  const regColumns: ColumnsType<RegistrationTicketRow> = [
+    {
+      title: 'No. Antrian',
+      dataIndex: 'ticketNo',
+      key: 'ticketNo',
+      width: 120,
+      render: (text) => <span className="text-lg font-bold">{text}</span>
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status) => {
+        const colorMap: Record<string, string> = {
+          WAITING: 'orange',
+          CALLED: 'blue',
+          SERVING: 'green'
+        }
+        return <Tag color={colorMap[status] ?? 'default'}>{status}</Tag>
+      }
+    },
+    {
+      title: 'Dibuat',
+      dataIndex: 'issuedAt',
+      key: 'issuedAt',
+      render: (v) => (v ? dayjs(v).format('HH:mm') : '-')
+    }
+  ]
 
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; queue?: any }>({ open: false })
   const [callConfirmModal, setCallConfirmModal] = useState<{ open: boolean; record?: any }>({
@@ -291,6 +360,77 @@ export default function RegistrationQueue({
 
   return (
     <div>
+      <Tabs
+        activeKey={activeTab}
+        onChange={(key) => setActiveTab(key as 'medic' | 'registration')}
+        items={[
+          { key: 'registration', label: 'Antrian Registrasi (R-001)' },
+          { key: 'medic', label: 'Antrian Poli (Medik)' }
+        ]}
+        className="mb-4"
+      />
+
+      {/* Registration Queue Tab (R-001) */}
+      {activeTab === 'registration' && (
+        <div>
+          <div className="mb-4 flex flex-wrap gap-4 items-end">
+            <div>
+              <div className="mb-1 text-sm text-gray-600">ID Lokasi Kerja</div>
+              <InputNumber
+                placeholder="ID Lokasi Kerja"
+                value={regLokasiKerjaId}
+                onChange={(v) => setRegLokasiKerjaId(v ?? undefined)}
+                min={1}
+                style={{ width: 180 }}
+              />
+            </div>
+            <div>
+              <div className="mb-1 text-sm text-gray-600">Tanggal</div>
+              <DatePicker
+                allowClear={false}
+                value={dayjs(regQueueDate)}
+                onChange={(d) => setRegQueueDate(d ? d.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD'))}
+              />
+            </div>
+            <Button
+              onClick={() => regTicketsQuery.refetch()}
+              loading={regTicketsQuery.isLoading || regTicketsQuery.isRefetching}
+              disabled={!regLokasiKerjaId}
+            >
+              Refresh
+            </Button>
+          </div>
+
+          {!regLokasiKerjaId && (
+            <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-700">
+              Masukkan ID Lokasi Kerja untuk melihat antrian registrasi (R-001).
+            </div>
+          )}
+
+          <GenericTable
+            columns={regColumns}
+            dataSource={regTickets}
+            rowKey="ticketId"
+            loading={regTicketsQuery.isLoading || regTicketsQuery.isRefetching}
+            action={{
+              title: 'Aksi',
+              width: 180,
+              items: (record) => [
+                {
+                  label: 'Konfirmasi & Alihkan',
+                  icon: <IconCircleCheck size={16} />,
+                  type: 'primary' as any,
+                  onClick: () => setConfirmRegTicketModal({ open: true, ticket: record })
+                }
+              ]
+            }}
+          />
+        </div>
+      )}
+
+      {/* Medic Queue Tab */}
+      {activeTab === 'medic' && (
+        <>
       <TableHeader
         title="Antrian Pendaftaran"
         subtitle="Manajemen antrian pendaftaran pasien"
@@ -387,6 +527,8 @@ export default function RegistrationQueue({
           }}
         />
       </div>
+      </>
+      )}
 
       <CallConfirmationModal
         open={callConfirmModal.open}
@@ -407,6 +549,15 @@ export default function RegistrationQueue({
         queue={confirmModal.queue}
         onClose={() => setConfirmModal({ open: false, queue: undefined })}
         onSuccess={() => refetch()}
+      />
+
+      <ConfirmRegistrationTicketModal
+        open={confirmRegTicketModal.open}
+        ticket={confirmRegTicketModal.ticket}
+        onClose={() => setConfirmRegTicketModal({ open: false, ticket: undefined })}
+        onSuccess={() => {
+          void regTicketsQuery.refetch()
+        }}
       />
 
       <DischargeModal

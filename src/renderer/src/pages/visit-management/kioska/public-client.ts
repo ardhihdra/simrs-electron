@@ -21,6 +21,19 @@ export type KioskaQueuePayload = {
   notes?: string
 }
 
+export type KioskaRegistrationQueuePayload = {
+  lokasiKerjaId: number
+  patientId?: string
+  queueDate?: string
+}
+
+export type KioskaRegistrationTicket = {
+  ticketId?: string
+  ticketNo?: string
+  queueDate?: string
+  serviceTypeCode?: string
+}
+
 export type KioskaPatient = {
   id: string
   name?: string
@@ -41,4 +54,8 @@ export async function fetchKioskaPatients(input: { medicalRecordNumber: string }
 
 export async function registerKioskaQueue(payload: KioskaQueuePayload) {
   return await rpc.kioskaPublic.register(payload)
+}
+
+export async function registerRegistrationQueue(payload: KioskaRegistrationQueuePayload) {
+  return (await rpc.kioskaPublic.registrationQueue(payload)) as KioskaRegistrationTicket
 }

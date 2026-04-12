@@ -89,5 +89,21 @@ export const kioskaPublicRpc = {
         method: 'POST',
         body: JSON.stringify(input)
       })
+    }),
+
+  registrationQueue: t
+    .input(
+      z.object({
+        lokasiKerjaId: z.coerce.number().int().positive(),
+        patientId: z.string().optional(),
+        queueDate: z.string().optional()
+      })
+    )
+    .output(z.any())
+    .mutation(async (_ctx, input) => {
+      return await fetchPublic('/public/kioska/registration-queue', {
+        method: 'POST',
+        body: JSON.stringify(input)
+      })
     })
 }

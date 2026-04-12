@@ -721,5 +721,25 @@ export const registrationRpc = {
     .mutation(async ({ client }, { scheduleId, ...input }) => {
       const response = await client.put(`${BASE_URL}/${scheduleId}/quota`, input)
       return await response.json()
+    }),
+
+  confirmRegistrationQueue: t
+    .input(
+      z.object({
+        registrationTicketId: z.string().min(1),
+        patientId: z.string().uuid(),
+        practitionerId: z.coerce.number().int().positive(),
+        doctorScheduleId: z.coerce.number().int().positive(),
+        queueDate: z.string().min(1),
+        paymentMethod: z.string().optional(),
+        assuranceCodeId: z.string().optional(),
+        reason: z.string().optional(),
+        notes: z.string().optional()
+      })
+    )
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, input) => {
+      const response = await client.post(`${BASE_URL}/registration-queue/confirm`, input)
+      return await response.json()
     })
 }

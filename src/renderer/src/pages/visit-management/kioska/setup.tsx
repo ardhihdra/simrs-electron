@@ -1,9 +1,9 @@
 import { MedicineBoxOutlined, RightOutlined } from '@ant-design/icons'
-import { App, Button, Card, Space, Typography, theme } from 'antd'
+import { App, Button, Card, Form, Input, Space, Typography, theme } from 'antd'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { fetchKioskaPolis } from './public-client'
-import { getPoliColor, type KioskaPoliOption, writeSelectedKioskaPoli } from './shared'
+import { getPoliColor, type KioskaPoliOption, writeKioskaConfig } from './shared'
 
 export default function KioskaSetupPage() {
   const navigate = useNavigate()
@@ -11,6 +11,7 @@ export default function KioskaSetupPage() {
   const { token } = theme.useToken()
   const [polis, setPolis] = useState<KioskaPoliOption[]>([])
   const [selectedPoliId, setSelectedPoliId] = useState<number | null>(null)
+  const [lokasiKerjaIdInput, setLokasiKerjaIdInput] = useState<string>('')
   const [isLoading, setIsLoading] = useState(true)
 
   const kioskGradient = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
@@ -48,7 +49,14 @@ export default function KioskaSetupPage() {
       return
     }
 
-    writeSelectedKioskaPoli(selectedPoli)
+    const lokasiKerjaId = lokasiKerjaIdInput.trim()
+      ? Number(lokasiKerjaIdInput.trim())
+      : undefined
+
+    writeKioskaConfig({
+      poli: selectedPoli,
+      lokasiKerjaId: lokasiKerjaId && Number.isFinite(lokasiKerjaId) ? lokasiKerjaId : undefined,
+    })
     navigate('/kioska')
   }
 
@@ -103,6 +111,29 @@ export default function KioskaSetupPage() {
                 Konfigurasi ini disimpan di perangkat agar pengguna kioska tidak perlu memilih poli setiap kali membuka halaman.
               </Typography.Text>
             </div>
+          </div>
+
+          <div className="mb-6">
+            <Form layout="vertical">
+              <Form.Item
+                label={
+                  <span>
+                    ID Lokasi Kerja{' '}
+                    <Typography.Text type="secondary" className="!text-sm !font-normal">
+                      (opsional — diperlukan untuk antrian pendaftaran R-001)
+                    </Typography.Text>
+                  </span>
+                }
+              >
+                <Input
+                  type="number"
+                  placeholder="Masukkan ID lokasi kerja, contoh: 1"
+                  value={lokasiKerjaIdInput}
+                  onChange={(e) => setLokasiKerjaIdInput(e.target.value)}
+                  style={{ maxWidth: 320 }}
+                />
+              </Form.Item>
+            </Form>
           </div>
 
           {isLoading ? (
