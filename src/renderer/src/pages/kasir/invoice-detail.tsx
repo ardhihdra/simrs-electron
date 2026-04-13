@@ -14,76 +14,19 @@ import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PaymentHistory } from './payment-history'
 import { PaymentModal } from './payment-modal'
+import { printInvoice, printReceipt } from '@renderer/utils/print-service'
+import type { Invoice, PersistedInvoice, PaymentRecord, InvoiceLineItem } from '@renderer/utils/print-service'
+import { Dropdown } from 'antd'
+import type { MenuProps } from 'antd'
+import { useMyProfile } from '@renderer/hooks/useProfile'
 import logoUrl from '@renderer/assets/logo.png'
 
 const { Title, Text } = Typography
 
 type InvoiceLineItemCategory = 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
 
-interface InvoiceLineItem {
-  category: InvoiceLineItemCategory
-  description: string
-  qty: number
-  unitPrice: number
-  subtotal: number
-  no?: number
-}
-
-interface Invoice {
-  encounterId: string
-  patientId: string
-  total: number
-  namaPatient?: string
-  medicalRecordNumber?: string
-  tanggalLahir?: string
-  alamat?: string
-  dokterPemeriksa?: string
-  ruangan?: string
-  penjamin?: string
-  tanggalPendaftaran?: string
-  noPendaftaran?: string
-  patient?: {
-    name?: string
-    medicalRecordNumber?: string
-    birthDate?: string
-    address?: string
-  }
-  tindakanItems?: InvoiceLineItem[]
-  bhpItems?: InvoiceLineItem[]
-  laboratoryItems?: InvoiceLineItem[]
-  radiologyItems?: InvoiceLineItem[]
-  obatItems?: InvoiceLineItem[]
-  paymentMethod?: string | null
-}
 
 
-interface PersistedInvoice {
-  id: number
-  kode: string
-  encounterId: string
-  clientId: string
-  status: string
-  total: number
-  remaining: number
-  payments: PaymentRecord[]
-}
-
-interface PaymentRecord {
-  id: number
-  kode: string
-  date: string | Date
-  amount: number
-  paymentMethod: string
-  bankName: string | null
-  ref: string | null
-  note: string | null
-  attachmentPath: string | null
-  paymentStatus: string
-  // legacy fields for compatibility
-  paidAt?: string | Date
-  createdAt?: string | Date
-  method?: string
-}
 
 const lineItemColumns: ColumnsType<InvoiceLineItem> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 50 },
@@ -207,226 +150,7 @@ function buildCategoryRows(title: string, items: InvoiceLineItem[], accentColor:
     </tr>`
 }
 
-function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedInvoice | null): void {
-  const namaPatient = invoice.namaPatient ?? invoice.patient?.name ?? '-'
-  const medicalRecordNumber = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
-  const tanggalLahir = formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
-  const alamat = invoice.alamat ?? invoice.patient?.address ?? '-'
-  const dokterPemeriksa = invoice.dokterPemeriksa ?? '-'
-  const ruangan = invoice.ruangan ?? '-'
-  const penjamin = invoice.penjamin ?? 'Umum'
-  const tanggalPendaftaran = formatPrintableDate(invoice.tanggalPendaftaran)
-  const noPendaftaran = invoice.noPendaftaran ?? '-'
-  const caraBayar = invoice.penjamin ?? 'Umum'
-  const metodeBayar = invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')
-  const noInvoice = persistedInvoice?.kode ?? '-'
-  const printedAt = formatPrintableDate(new Date())
 
-  const tindakanRows = buildCategoryRows('Tindakan Medis', invoice.tindakanItems ?? [], '#1e40af')
-  const bhpRows = buildCategoryRows('Bahan Habis Pakai (BHP)', invoice.bhpItems ?? [], '#92400e')
-  const labRows = buildCategoryRows('Laboratorium', invoice.laboratoryItems ?? [], '#14532d')
-  const radRows = buildCategoryRows('Radiologi', invoice.radiologyItems ?? [], '#0e7490')
-  const obatRows = buildCategoryRows('Obat', invoice.obatItems ?? [], '#581c87')
-
-  const allEmpty =
-    (invoice.tindakanItems?.length ?? 0) === 0 &&
-    (invoice.bhpItems?.length ?? 0) === 0 &&
-    (invoice.laboratoryItems?.length ?? 0) === 0 &&
-    (invoice.radiologyItems?.length ?? 0) === 0 &&
-    (invoice.obatItems?.length ?? 0) === 0
-
-  const tableBody = allEmpty
-    ? '<tr><td colspan="5" class="center" style="padding:16px;color:#6b7280;">Tidak ada item tagihan untuk kunjungan ini.</td></tr>'
-    : tindakanRows + bhpRows + labRows + radRows + obatRows
-
-  const paymentRows =
-    persistedInvoice && persistedInvoice.payments?.length > 0
-      ? persistedInvoice.payments
-          .map(
-            (p, i: number) => `
-          <tr>
-            <td class="center">${i + 1}</td>
-            <td>${escapeHtml(formatPrintableDate(p.paidAt ?? p.createdAt))}</td>
-            <td>${escapeHtml(p.method ?? '-')}</td>
-            <td class="right">${escapeHtml(formatRupiah(p.amount ?? 0))}</td>
-          </tr>`
-          )
-          .join('')
-      : ''
-
-  const paymentSection =
-    persistedInvoice && paymentRows
-      ? `
-      <div class="section-banner" style="background:#374151;margin-top:10px;">Riwayat Pembayaran</div>
-      <table class="invoice-table">
-        <thead>
-          <tr>
-            <th style="width:40px;">No.</th>
-            <th>Tanggal</th>
-            <th>Metode</th>
-            <th style="width:140px;">Jumlah</th>
-          </tr>
-        </thead>
-        <tbody>${paymentRows}</tbody>
-      </table>`
-      : ''
-
-  const iframe = document.createElement('iframe')
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:0;height:0;border:none;'
-  document.body.appendChild(iframe)
-
-  const doc = iframe.contentWindow?.document
-  if (!doc || !iframe.contentWindow) return
-
-  doc.open()
-  doc.write(`
-    <html>
-    <head>
-      <title>Invoice ${escapeHtml(noInvoice)}</title>
-      <style>
-        @page { size: A4 portrait; margin: 12mm; }
-        body { font-family: Arial, sans-serif; color: #111827; font-size: 12px; margin: 0; background: #fff; }
-        .sheet { border: 1px solid #9ca3af; padding: 10px 12px; }
-        .head-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 2px solid #374151;
-          padding-bottom: 8px;
-          margin-bottom: 8px;
-        }
-        .brand { display: flex; align-items: center; gap: 10px; }
-        .logo { width: 50px; height: auto; object-fit: contain; }
-        .brand-text { line-height: 1.3; }
-        .brand-title { font-size: 15px; font-weight: 700; text-transform: uppercase; }
-        .brand-sub { font-size: 11px; color: #374151; }
-        .invoice-badge { text-align: right; }
-        .invoice-badge .title { font-size: 22px; font-weight: 900; letter-spacing: 3px; color: #1e3a8a; text-transform: uppercase; }
-        .invoice-badge .no { font-size: 11px; color: #6b7280; }
-        .meta-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 8px; }
-        .meta-grid { width: 100%; border-collapse: collapse; }
-        .meta-grid td { padding: 1px 3px; vertical-align: top; font-size: 12px; }
-        .meta-label { width: 120px; font-weight: 700; }
-        .section-banner {
-          background: #1e3a8a;
-          color: #fff;
-          text-align: center;
-          font-size: 13px;
-          font-weight: 700;
-          padding: 5px;
-          margin: 8px 0 0;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-        table.invoice-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        .invoice-table th, .invoice-table td { border: 1px solid #d1d5db; padding: 4px 6px; font-size: 12px; }
-        .invoice-table th { background: #374151; color: #fff; text-transform: uppercase; font-weight: 700; font-size: 11px; }
-        .cat-header td { color: #fff; font-weight: 700; font-size: 11px; text-transform: uppercase; padding: 3px 6px; }
-        .subtotal-row td { background: #f3f4f6; font-size: 11px; border-top: 1px solid #9ca3af; }
-        .center { text-align: center; }
-        .right { text-align: right; }
-        .grand-total { margin-top: 10px; display: flex; justify-content: flex-end; }
-        .grand-total-box { border: 2px solid #1e3a8a; padding: 8px 16px; text-align: right; min-width: 220px; }
-        .grand-total-label { font-size: 11px; text-transform: uppercase; font-weight: 700; color: #374151; }
-        .grand-total-value { font-size: 18px; font-weight: 900; color: #1e3a8a; }
-        .signatures { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .sign-item { text-align: center; }
-        .sign-title { font-size: 12px; }
-        .sign-space { height: 52px; }
-        .sign-name { border-top: 1px solid #374151; padding-top: 2px; font-weight: 700; }
-        .footnote { margin-top: 14px; border-top: 1px solid #6b7280; padding-top: 6px; font-size: 10px; color: #4b5563; }
-        .printed { margin-top: 4px; font-size: 10px; color: #6b7280; }
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; margin: 0; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="sheet">
-        <div class="head-top">
-          <div class="brand">
-            <img class="logo" src="${logoUrl}" alt="Logo" />
-            <div class="brand-text">
-              <div class="brand-title">SIMRS Rahayu Medical Center</div>
-              <div class="brand-sub">Jl. Otista, Tarogong Garut</div>
-              <div class="brand-sub">Telp. (0262) 2542608</div>
-            </div>
-          </div>
-          <div class="invoice-badge">
-            <div class="title">Invoice</div>
-            <div class="no">No. ${escapeHtml(noInvoice)}</div>
-          </div>
-        </div>
-
-        <div class="meta-wrap">
-          <table class="meta-grid">
-            <tr><td class="meta-label">Nama Pasien</td><td>: ${escapeHtml(namaPatient)}</td></tr>
-            <tr><td class="meta-label">No. RM</td><td>: ${escapeHtml(medicalRecordNumber)}</td></tr>
-            <tr><td class="meta-label">Tgl. Lahir</td><td>: ${escapeHtml(tanggalLahir)}</td></tr>
-            <tr><td class="meta-label">Alamat</td><td>: ${escapeHtml(alamat)}</td></tr>
-            <tr><td class="meta-label">Penjamin</td><td>: ${escapeHtml(penjamin)}</td></tr>
-          </table>
-          <table class="meta-grid">
-            <tr><td class="meta-label">No. Kunjungan</td><td>: ${escapeHtml(invoice.encounterId)}</td></tr>
-            <tr><td class="meta-label">No. Pendaftaran</td><td>: ${escapeHtml(noPendaftaran)}</td></tr>
-            <tr><td class="meta-label">Tgl. Pendaftaran</td><td>: ${escapeHtml(tanggalPendaftaran)}</td></tr>
-            <tr><td class="meta-label">Dokter</td><td>: ${escapeHtml(dokterPemeriksa)}</td></tr>
-            <tr><td class="meta-label">Ruangan</td><td>: ${escapeHtml(ruangan)}</td></tr>
-            <tr><td class="meta-label">Cara Bayar</td><td>: ${escapeHtml(caraBayar)}</td></tr>
-            <tr><td class="meta-label">Metode Bayar</td><td>: ${escapeHtml(metodeBayar)}</td></tr>
-          </table>
-        </div>
-
-        <div class="section-banner">Rincian Tagihan Layanan Kesehatan</div>
-        <table class="invoice-table">
-          <thead>
-            <tr>
-              <th style="width:40px;">No.</th>
-              <th>Deskripsi</th>
-              <th style="width:50px;">Qty</th>
-              <th style="width:130px;">Harga Satuan</th>
-              <th style="width:130px;">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>${tableBody}</tbody>
-        </table>
-
-        <div class="grand-total">
-          <div class="grand-total-box">
-            <div class="grand-total-label">Total Tagihan</div>
-            <div class="grand-total-value">${escapeHtml(formatRupiah(invoice.total ?? 0))}</div>
-          </div>
-        </div>
-
-        ${paymentSection}
-
-        <div class="signatures">
-          <div class="sign-item">
-            <div class="sign-title">Petugas Kasir</div>
-            <div class="sign-space"></div>
-            <div class="sign-name">(__________________)</div>
-          </div>
-          <div class="sign-item">
-            <div class="sign-title">Pasien / Keluarga</div>
-            <div class="sign-space"></div>
-            <div class="sign-name">(__________________)</div>
-          </div>
-        </div>
-
-        <div class="footnote">
-          Invoice ini dicetak otomatis dari sistem informasi manajemen rumah sakit dan sah tanpa tanda tangan basah.
-        </div>
-        <div class="printed">Dicetak: ${escapeHtml(printedAt)}</div>
-      </div>
-    </body>
-    </html>
-  `)
-  doc.close()
-
-  iframe.contentWindow.focus()
-  iframe.contentWindow.print()
-  iframe.addEventListener('afterprint', () => document.body.removeChild(iframe))
-}
 
 export default function InvoiceDetailPage() {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -458,6 +182,26 @@ export default function InvoiceDetailPage() {
 
   const invoice = (data as { result: Invoice } | undefined)?.result
   const persistedInvoice = (detailData as { result: PersistedInvoice } | undefined)?.result ?? null
+
+  const { profile } = useMyProfile()
+  const { data: requesterData } = useQuery({
+    queryKey: ['kepegawaian', 'list'],
+    queryFn: () => (window.api?.query as any).kepegawaian?.list()
+  })
+
+  // Resolve cashier name
+  const cashierName = (() => {
+    if (!profile || !requesterData?.result) return profile?.username || ''
+    const employees = requesterData.result as any[]
+    const sessionId = Number(profile.id)
+    const sessionUsername = String(profile.username || '').trim()
+    const foundEmployee = employees.find(e => 
+      e.id === sessionId || 
+      (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
+      (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+    )
+    return foundEmployee?.namaLengkap || profile.username || ''
+  })()
 
   const reopenEncounterMutation = client.encounter.reopen.useMutation()
 
@@ -522,14 +266,59 @@ export default function InvoiceDetailPage() {
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
           Kembali
         </Button>
-        <Button
-          type="primary"
-          icon={<PrinterOutlined />}
-          onClick={() => invoice && generateInvoicePrintView(invoice, persistedInvoice)}
+        <Dropdown
+          menu={{
+            items: [
+              { key: 'patient', label: 'Atas Nama Pasien', onClick: () => invoice && printInvoice(invoice, persistedInvoice, { printForKind: 'patient', cashierName }) },
+              { key: 'guarantor', label: 'Atas Nama Penjamin', onClick: () => invoice && printInvoice(invoice, persistedInvoice, { printForKind: 'guarantor', cashierName }) }
+            ]
+          }}
           disabled={!invoice}
         >
-          Cetak Invoice
-        </Button>
+          <Button type="primary" icon={<PrinterOutlined />}>
+            Cetak Invoice
+          </Button>
+        </Dropdown>
+
+        <Dropdown
+          menu={{
+            items: [
+              { 
+                key: 'patient', 
+                label: 'Atas Nama Pasien', 
+                onClick: () => {
+                  if (invoice && persistedInvoice) {
+                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining;
+                    printReceipt(invoice, persistedInvoice, { 
+                      amount: totalPaid, 
+                      kode: persistedInvoice.kode, 
+                      date: new Date() 
+                    }, { printForKind: 'patient', cashierName });
+                  }
+                } 
+              },
+              { 
+                key: 'guarantor', 
+                label: 'Atas Nama Penjamin',
+                onClick: () => {
+                    if (invoice && persistedInvoice) {
+                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining;
+                      printReceipt(invoice, persistedInvoice, { 
+                        amount: totalPaid, 
+                        kode: persistedInvoice.kode, 
+                        date: new Date() 
+                      }, { printForKind: 'guarantor', cashierName });
+                    }
+                  } 
+              }
+            ]
+          }}
+          disabled={!invoice || !persistedInvoice || (persistedInvoice.total - persistedInvoice.remaining) <= 0}
+        >
+          <Button icon={<PrinterOutlined />}>
+            Cetak Kwitansi
+          </Button>
+        </Dropdown>
 
         {!isPaid && (
           <Popconfirm
@@ -707,6 +496,9 @@ export default function InvoiceDetailPage() {
             payments={persistedInvoice.payments}
             totalPaid={totalPaid}
             remaining={persistedInvoice.remaining}
+            invoice={invoice}
+            persistedInvoice={persistedInvoice}
+            cashierName={cashierName}
           />
         </div>
       )}
