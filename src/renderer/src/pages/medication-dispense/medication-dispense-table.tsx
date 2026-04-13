@@ -192,6 +192,7 @@ interface DispenseItemRow {
   expiryDate?: string
   paymentStatus?: string
   kekuatan?: string | number
+  caraPenyimpanan?: string
   note?: any[] | null
   children?: DispenseItemRow[]
 }
@@ -412,7 +413,8 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
             unit: record.unit,
             instruksi: record.instruksi,
             expiryDate: (record as any).expiryDate,
-            batch: (record as any).batch
+            batch: (record as any).batch,
+            caraPenyimpanan: record.caraPenyimpanan
         }]
     })
   }
@@ -1038,6 +1040,18 @@ export function MedicationDispenseTable() {
     return map
   }, [itemSource?.result])
 
+  const itemCaraPenyimpananById = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    for (const item of source) {
+      if (typeof item.id === 'number') {
+        const cp = (item as any).caraPenyimpanan || ''
+        if (cp) map.set(item.id, String(cp))
+      }
+    }
+    return map
+  }, [itemSource?.result])
+
   const itemKodeById = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
     const map = new Map<number, string>()
@@ -1342,7 +1356,8 @@ export function MedicationDispenseTable() {
               instruksi: ing.note ?? ing.instruction,
               batch: ingBatch || '-',
               expiryDate: ingExpiryDate || '-',
-              kekuatan: (ing.strength || (typeof ingItemId === 'number' ? itemKekuatanById.get(ingItemId) : undefined)) || '-'
+              kekuatan: (ing.strength || (typeof ingItemId === 'number' ? itemKekuatanById.get(ingItemId) : undefined)) || '-',
+              caraPenyimpanan: typeof ingItemId === 'number' ? itemCaraPenyimpananById.get(ingItemId) : undefined
             }
           })
         }
@@ -1370,6 +1385,7 @@ export function MedicationDispenseTable() {
           typeof item.fhirId === 'string' && item.fhirId.trim().length > 0
             ? item.fhirId.trim()
             : undefined,
+        caraPenyimpanan: typeof item.itemId === 'number' ? itemCaraPenyimpananById.get(item.itemId) : undefined,
         children
       }
 
