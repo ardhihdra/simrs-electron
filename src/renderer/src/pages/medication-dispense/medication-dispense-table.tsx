@@ -14,6 +14,7 @@ import {
 import {
   SyncOutlined,
   MoreOutlined,
+  PlayCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   MedicineBoxOutlined,
@@ -465,12 +466,12 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
       )}
       {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
         <div className="text-xs text-orange-500 font-semibold bg-orange-50 border border-orange-200 p-1 px-2 rounded-md">
-          Harap &quot;Periksa&quot; (di menu titik tiga) terlebih dahulu.
+          Harap klik &quot;Mulai Proses&quot; terlebih dahulu (pada baris utama).
         </div>
       )}
-      {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && parentServicedAt && !extractTelaahResults(record.note || []) && (
+      {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && parentServicedAt && !isReviewed && (
         <div className="text-xs text-red-500 font-semibold bg-red-50 border border-red-200 p-1 px-2 rounded-md">
-          Resep belum ditelaah secara lengkap.
+          Harap &quot;Periksa&quot; (Telaah Administrasi) terlebih dahulu.
         </div>
       )}
       <SerahkanObatModal
@@ -594,10 +595,23 @@ function MainRowActions({ record }: { record: ParentRow }) {
   }
 
   const isPaid = record.paymentStatus === 'Lunas'
+  const hasValidServicedAt = !!record.servicedAt && record.servicedAt !== '' && record.servicedAt !== 'null'
+  
   const hasItemsToProcess = record.items.some((i) => {
     const s = (i.status || '').toLowerCase()
-    return s === 'preparation' || (s === 'in-progress' && !record.servicedAt)
+    // Show "Mulai Proses" if status is preparation OR (in-progress but no valid timer start yet)
+    return s === 'preparation' || (s === 'in-progress' && !hasValidServicedAt)
   })
+
+  useEffect(() => {
+    if (!hasItemsToProcess && !record.servicedAt) {
+      console.log('[MD-Debug] MainRowActions - Button hidden because:', {
+        itemsCount: record.items.length,
+        statuses: record.items.map(i => i.status),
+        servicedAt: record.servicedAt
+      })
+    }
+  }, [hasItemsToProcess, record.items, record.servicedAt])
 
   const handleMulaiProsesGroup = () => {
     console.log('[handleMulaiProsesGroup] Executed from dropdown click!')
@@ -670,6 +684,16 @@ function MainRowActions({ record }: { record: ParentRow }) {
 
   const menuItems: MenuProps['items'] = []
 
+  if (hasItemsToProcess) {
+    menuItems.push({
+      key: 'mulai-proses',
+      label: 'Mulai Proses',
+      icon: <PlayCircleOutlined />,
+      onClick: handleMulaiProsesGroup
+    })
+    menuItems.push({ type: 'divider' })
+  }
+
   menuItems.push({
     key: 'periksa',
     label: 'Periksa (Telaah Administrasi)',
@@ -689,63 +713,45 @@ function MainRowActions({ record }: { record: ParentRow }) {
 
   return (
     <>
-    <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-      <Button type="text" icon={<MoreOutlined />} size="small" />
-    </Dropdown>
-    <Modal
-      title="Telaah Administrasi & Farmasetik"
-      open={isTelaahModalVisible}
-      onCancel={() => setIsTelaahModalVisible(false)}
-      width={1000}
-      onOk={async () => {
-        const fn = window.api?.query?.medicationDispense?.update
-        if (!fn) {
-           message.error('API update tidak tersedia.')
-           return
-        }
-        try {
-          const allCriteriaMet = Object.values(currentTelaahResults).every(v => v === true)
-          
-          let updatedCount = 0
-          let startedCount = 0
-
-          // Update all items in this group with the new telaah results
-          for (const item of record.items) {
-            if (typeof item.id === 'number') {
-              // 1. Update Telaah Results
-              await fn({ id: item.id, telaahResults: currentTelaahResults } as any)
-              updatedCount++
-
-              // 2. If all criteria met, automatically "Mulai Proses" if needed
-              const currentStatus = (item.status || '').toLowerCase()
-              const needsStart = currentStatus === 'preparation' || (currentStatus === 'in-progress' && !record.servicedAt)
-              
-              if (allCriteriaMet && needsStart) {
-                await fn({ id: item.id, status: 'in-progress' } as never)
-                startedCount++
+      <div className="flex gap-2">
+        <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+          <Button type="text" icon={<MoreOutlined />} size="small" />
+        </Dropdown>
+      </div>
+      <Modal
+        title="Telaah Administrasi & Farmasetik"
+        open={isTelaahModalVisible}
+        onCancel={() => setIsTelaahModalVisible(false)}
+        width={1000}
+        onOk={async () => {
+          const fn = window.api?.query?.medicationDispense?.update
+          if (!fn) {
+            message.error('API update tidak tersedia.')
+            return
+          }
+          try {
+            // Update all items in this group with the new telaah results
+            for (const item of record.items) {
+              if (typeof item.id === 'number') {
+                await fn({ id: item.id, telaahResults: currentTelaahResults } as any)
               }
             }
-          }
-          
-          if (allCriteriaMet && startedCount > 0) {
-             message.success('Telaah berhasil disimpan dan proses persiapan dimulai otomatis.')
-          } else {
-             message.success('Telaah administrasi berhasil disimpan.')
-          }
 
-          setIsTelaahModalVisible(false)
-          queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
-        } catch (err) {
-          message.error('Gagal memproses perubahan: ' + String(err))
-        }
-      }}
-    >
-      <TelaahAdministrasiForm 
-        isInternal={record.encounterType !== 'Luar' && !!record.servicedAt} 
-        results={currentTelaahResults}
-        onChange={setCurrentTelaahResults}
-      />
-    </Modal>
+            message.success('Telaah administrasi berhasil disimpan.')
+
+            setIsTelaahModalVisible(false)
+            queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
+          } catch (err) {
+            message.error('Gagal memproses perubahan: ' + String(err))
+          }
+        }}
+      >
+        <TelaahAdministrasiForm
+          isInternal={record.encounterType !== 'Luar' && !!record.servicedAt}
+          results={currentTelaahResults}
+          onChange={setCurrentTelaahResults}
+        />
+      </Modal>
     </>
   )
 }

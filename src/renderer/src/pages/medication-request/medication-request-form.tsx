@@ -363,6 +363,8 @@ export function MedicationRequestForm() {
               </Form.Item>
               <Form.Item name="patientId" hidden><Input /></Form.Item>
               <Form.Item name="encounterId" hidden><Input /></Form.Item>
+              <Form.Item name="manualPatientName" hidden><Input /></Form.Item>
+              <Form.Item name="manualMedicalRecordNumber" hidden><Input /></Form.Item>
             </div>
 
             <div className="space-y-2">
