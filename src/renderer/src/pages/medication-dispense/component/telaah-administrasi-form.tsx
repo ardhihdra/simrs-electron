@@ -43,56 +43,33 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
 		return Object.values(results).every(v => v === true)
 	}, [results])
 
-	useEffect(() => {
-		if (isInternal) {
-			onChange({
-				kejelasanResep: true,
-				tepatPasien: true,
-				tepatObat: true,
-				tepatDosis: true,
-				tepatWaktu: true,
-				tepatRute: true,
-				identitasDokter: true
-			})
-		}
-	}, [isInternal])
-
 	return (
 		<Card 
 			title={
 				<Space>
 					<span>Telaah Administrasi & Farmasetik</span>
-					{isInternal && <Tag color="success" icon={<CheckCircleFilled />}>Otomatis (Internal)</Tag>}
+					{isInternal && <Tag color="blue" icon={<CheckCircleFilled />}>Internal</Tag>}
 				</Space>
 			}
 			size="small"
 		>
-			{isInternal ? (
-				<Alert
-					message="Validasi Otomatis"
-					description="Resep ini berasal dari sistem internal SIMRS dan telah divalidasi secara otomatis melalui integrasi E-Resep."
-					type="success"
-					showIcon
-				/>
-			) : (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-3 gap-x-8 p-2">
-					{telaahCriteria.map(c => (
-						<div key={c.key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-							<Checkbox 
-								checked={results[c.key as keyof TelaahResults]}
-								onChange={(e) => onChange({ ...results, [c.key]: e.target.checked })}
-							>
-								<span className="text-gray-700">{c.label}</span>
-							</Checkbox>
-						</div>
-					))}
-				</div>
-			)}
-			{!allCriteriaMet && !isInternal && (
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-3 gap-x-8 p-2">
+				{telaahCriteria.map(c => (
+					<div key={c.key} className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+						<Checkbox 
+							checked={results[c.key as keyof TelaahResults]}
+							onChange={(e) => onChange({ ...results, [c.key]: e.target.checked })}
+						>
+							<span className="text-gray-700">{c.label}</span>
+						</Checkbox>
+					</div>
+				))}
+			</div>
+			{!allCriteriaMet && (
 				<div className="mt-4">
 					<Alert
-						message="Perhatian"
-						description="Semua kriteria telaah administrasi harus dipenuhi sebelum obat dapat diserahkan."
+						message="Pemeriksaan Manual Diperlukan"
+						description="Pastikan semua kriteria telaah administrasi telah diperiksa dan dipenuhi."
 						type="warning"
 						showIcon
 						icon={<WarningFilled />}

@@ -33,6 +33,7 @@ import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
 import { printMedicationLabels } from './component/print-medication-label'
 import { SerahkanObatModal, type SerahkanObatFormValues } from './component/serahkan-obat-modal'
+import { TelaahAdministrasiForm, defaultTelaahResults, TelaahResults } from './component/telaah-administrasi-form'
 
 type PatientNameEntry = {
   text?: string
@@ -115,6 +116,7 @@ interface MedicationDispenseAttributes {
   identifier?: Array<{ system: string; value: string }> | null
   fhirId?: string | null
   servicedAt?: string | null
+  note?: any[] | null
 }
 
 interface MedicationDispenseListArgs {
@@ -189,6 +191,7 @@ interface DispenseItemRow {
   expiryDate?: string
   paymentStatus?: string
   kekuatan?: string | number
+  note?: any[] | null
   children?: DispenseItemRow[]
 }
 
@@ -227,6 +230,22 @@ function getStatusTag(status: string) {
   if (status === 'in-progress') return <Tag color="geekblue" icon={<SyncOutlined spin />}>{label}</Tag>
   if (status === 'on-hold') return <Tag color="orange" icon={<PauseCircleOutlined />}>{label}</Tag>
   return <Tag color="default">{label}</Tag>
+}
+
+const extractTelaahResults = (notes: any[]): TelaahResults | null => {
+  if (!Array.isArray(notes)) return null
+  const telaahNote = notes.find(n => typeof n?.text === 'string' && n.text.startsWith('TEALAAH:'))
+  if (!telaahNote) return null
+  try {
+    const jsonStr = telaahNote.text.replace('TEALAAH:', '').trim()
+    const results = JSON.parse(jsonStr)
+    // Validate if all criteria are met
+    const allMet = Object.values(results).every(v => v === true)
+    return allMet ? results : null
+  } catch (e) {
+    console.error('Failed to parse telaah note', e)
+    return null
+  }
 }
 
 function DispenseTimer({ servicedAt, handedOverAt, isBpjs }: { servicedAt?: string | null; handedOverAt?: string | null; isBpjs: boolean }) {
@@ -373,8 +392,12 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
   const hasStockInfo = typeof record.availableStock === 'number'
   const isStockInsufficient = hasStockInfo && quantityToDispense > (record.availableStock as number)
   const isPaid = record.paymentStatus === 'Lunas'
+  const isReviewed = useMemo(() => {
+    return !!extractTelaahResults(record.note || [])
+  }, [record.note])
+
   const canComplete =
-    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid && !!parentServicedAt
+    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid && !!parentServicedAt && isReviewed
   const canVoid = isCompleted && typeof record.id === 'number'
   const isKomposisi = record.jenis === 'Komposisi'
 
@@ -440,14 +463,14 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
           Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
         </div>
       )}
-      {!isKomposisi && !isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
-        <div className="text-xs text-orange-500">
-          Pembayaran belum lunas, tidak dapat menyerahkan obat.
-        </div>
-      )}
       {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
         <div className="text-xs text-orange-500 font-semibold bg-orange-50 border border-orange-200 p-1 px-2 rounded-md">
-          Harap &quot;Mulai Proses&quot; (di menu titik tiga) terlebih dahulu.
+          Harap &quot;Periksa&quot; (di menu titik tiga) terlebih dahulu.
+        </div>
+      )}
+      {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && parentServicedAt && !extractTelaahResults(record.note || []) && (
+        <div className="text-xs text-red-500 font-semibold bg-red-50 border border-red-200 p-1 px-2 rounded-md">
+          Resep belum ditelaah secara lengkap.
         </div>
       )}
       <SerahkanObatModal
@@ -501,6 +524,21 @@ function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
 function MainRowActions({ record }: { record: ParentRow }) {
   const { message, modal } = AntdApp.useApp()
   const [syncingSatusehat, setSyncingSatusehat] = useState(false)
+  const [isTelaahModalVisible, setIsTelaahModalVisible] = useState(false)
+  const [currentTelaahResults, setCurrentTelaahResults] = useState<TelaahResults>(defaultTelaahResults)
+
+  const existingTelaah = useMemo(() => {
+    for (const item of record.items) {
+      const results = extractTelaahResults(item.note || [])
+      if (results) return results
+    }
+    return null
+  }, [record.items])
+
+  const handleOpenTelaah = () => {
+    setCurrentTelaahResults(existingTelaah || defaultTelaahResults)
+    setIsTelaahModalVisible(true)
+  }
 
   const syncItems = record.items.filter((i) => i.jenis !== 'Komposisi' && typeof i.id === 'number')
   const isAllSynced =
@@ -632,15 +670,14 @@ function MainRowActions({ record }: { record: ParentRow }) {
 
   const menuItems: MenuProps['items'] = []
 
-  if (hasItemsToProcess) {
-    menuItems.push({
-      key: 'mulai-proses',
-      label: 'Mulai Proses',
-      icon: <CheckCircleOutlined />,
-      onClick: handleMulaiProsesGroup
-    })
-    menuItems.push({ type: 'divider' })
-  }
+  menuItems.push({
+    key: 'periksa',
+    label: 'Periksa (Telaah Administrasi)',
+    icon: <FileTextOutlined />,
+    onClick: handleOpenTelaah
+  })
+
+  menuItems.push({ type: 'divider' })
 
   menuItems.push({
     key: 'sync-satusehat',
@@ -651,9 +688,65 @@ function MainRowActions({ record }: { record: ParentRow }) {
   })
 
   return (
+    <>
     <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
       <Button type="text" icon={<MoreOutlined />} size="small" />
     </Dropdown>
+    <Modal
+      title="Telaah Administrasi & Farmasetik"
+      open={isTelaahModalVisible}
+      onCancel={() => setIsTelaahModalVisible(false)}
+      width={1000}
+      onOk={async () => {
+        const fn = window.api?.query?.medicationDispense?.update
+        if (!fn) {
+           message.error('API update tidak tersedia.')
+           return
+        }
+        try {
+          const allCriteriaMet = Object.values(currentTelaahResults).every(v => v === true)
+          
+          let updatedCount = 0
+          let startedCount = 0
+
+          // Update all items in this group with the new telaah results
+          for (const item of record.items) {
+            if (typeof item.id === 'number') {
+              // 1. Update Telaah Results
+              await fn({ id: item.id, telaahResults: currentTelaahResults } as any)
+              updatedCount++
+
+              // 2. If all criteria met, automatically "Mulai Proses" if needed
+              const currentStatus = (item.status || '').toLowerCase()
+              const needsStart = currentStatus === 'preparation' || (currentStatus === 'in-progress' && !record.servicedAt)
+              
+              if (allCriteriaMet && needsStart) {
+                await fn({ id: item.id, status: 'in-progress' } as never)
+                startedCount++
+              }
+            }
+          }
+          
+          if (allCriteriaMet && startedCount > 0) {
+             message.success('Telaah berhasil disimpan dan proses persiapan dimulai otomatis.')
+          } else {
+             message.success('Telaah administrasi berhasil disimpan.')
+          }
+
+          setIsTelaahModalVisible(false)
+          queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
+        } catch (err) {
+          message.error('Gagal memproses perubahan: ' + String(err))
+        }
+      }}
+    >
+      <TelaahAdministrasiForm 
+        isInternal={record.encounterType !== 'Luar' && !!record.servicedAt} 
+        results={currentTelaahResults}
+        onChange={setCurrentTelaahResults}
+      />
+    </Modal>
+    </>
   )
 }
 
@@ -695,6 +788,18 @@ const columns = [
     dataIndex: 'status',
     key: 'status',
     render: (val: string) => getStatusTag(val)
+  },
+  {
+    title: 'Telaah',
+    key: 'telaah',
+    render: (_: any, row: ParentRow) => {
+      const isReviewed = row.items.every(item => !!extractTelaahResults(item.note || []))
+      return isReviewed ? (
+        <Tag color="green" icon={<CheckCircleOutlined />}>Selesai</Tag>
+      ) : (
+        <Tag color="volcano" icon={<QuestionCircleOutlined />}>Belum Ditelaah</Tag>
+      )
+    }
   },
   {
     title: 'Pembayaran',
