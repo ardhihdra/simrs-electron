@@ -1,13 +1,15 @@
-import { Form, Card, Select, Input, InputNumber, Button, Row, Col, Tooltip, Spin } from 'antd'
 import { useEffect } from 'react'
-import { MinusCircleOutlined, PlusCircleOutlined } from '@ant-design/icons'
+import { Form, Card, Input, InputNumber, Button, Row, Col, Tooltip } from 'antd'
+import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
+import { ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
 
 interface BhpNonPaketTabProps {
   modalForm: any
   isLoadingConsumableItems: boolean
-  consumableItemOptions: any[]
+  consumableItemOptions: ItemOption[]
   consumableItemMap: Map<number, any>
   stockByItemMap: Map<string, number>
+  setItemSelectorState: (state: { open: boolean; onSelect?: (item: ItemOption) => void }) => void
 }
 
 export default function BhpNonPaketTab({
@@ -15,18 +17,42 @@ export default function BhpNonPaketTab({
   isLoadingConsumableItems,
   consumableItemOptions,
   consumableItemMap,
-  stockByItemMap
+  stockByItemMap,
+  setItemSelectorState
 }: BhpNonPaketTabProps) {
   useEffect(() => {
     try {
       console.log('[BHP-NONPAKET] isLoadingConsumableItems:', isLoadingConsumableItems)
-      console.log('[BHP-NONPAKET] options count:', Array.isArray(consumableItemOptions) ? consumableItemOptions.length : 0)
-      console.log('[BHP-NONPAKET] options preview:', (Array.isArray(consumableItemOptions) ? consumableItemOptions.slice(0, 5) : []))
+      console.log(
+        '[BHP-NONPAKET] options count:',
+        Array.isArray(consumableItemOptions) ? consumableItemOptions.length : 0
+      )
       console.log('[BHP-NONPAKET] stock map size:', stockByItemMap?.size ?? 0)
     } catch (e) {
       console.log('[BHP-NONPAKET] debug error:', e)
     }
   }, [isLoadingConsumableItems, consumableItemOptions, stockByItemMap])
+
+  const handleSelectItem = (name: number, item: ItemOption) => {
+    modalForm.setFieldValue(['bhpList', name, 'itemId'], item.value)
+
+    const selectedItem = consumableItemMap.get(Number(item.value))
+    if (selectedItem) {
+      const rules = selectedItem.buyPriceRules || []
+      let firstValidUnit = selectedItem.kodeUnit
+      if (Array.isArray(rules) && rules.length > 0) {
+        firstValidUnit = rules[0].unitCode
+      }
+      modalForm.setFieldValue(['bhpList', name, 'satuan'], firstValidUnit)
+    }
+  }
+
+  const openSelector = (name: number) => {
+    setItemSelectorState({
+      open: true,
+      onSelect: (item) => handleSelectItem(name, item)
+    })
+  }
 
   return (
     <Card size="small" title={<span className="font-semibold">BHP Non-Paket</span>}>
@@ -34,81 +60,53 @@ export default function BhpNonPaketTab({
         {(fields, { add, remove }) => (
           <div className="flex flex-col gap-2">
             {fields.map(({ key, name, ...restField }) => (
-              <Row key={key} gutter={8} align="middle">
+              <Row key={key} gutter={8} align="top">
                 <Col span={10}>
                   <Form.Item
-                    {...restField}
-                    name={[name, 'itemId']}
-                    label={name === 0 ? <span className="font-bold">Item BHP</span> : undefined}
-                    rules={[{ required: true, message: 'Pilih item BHP' }]}
-                    style={{ marginBottom: 0 }}
+                    noStyle
+                    shouldUpdate={(prev, curr) =>
+                      prev.bhpList?.[name]?.itemId !== curr.bhpList?.[name]?.itemId
+                    }
                   >
-                    <Select
-                      showSearch
-                      allowClear
-                      placeholder="Pilih item BHP"
-                      loading={isLoadingConsumableItems}
-                      options={consumableItemOptions}
-                      optionFilterProp="searchLabel"
-                      dropdownStyle={{ minWidth: 400 }}
-                      optionRender={(option) => (
-                        <div style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>
-                          {option.label}
-                        </div>
-                      )}
-                      filterOption={(input, option) =>
-                        String(option?.searchLabel ?? '')
-                          .toLowerCase()
-                          .includes(input.toLowerCase())
-                      }
-                      notFoundContent={
-                        isLoadingConsumableItems ? (
-                          <Spin size="small" />
-                        ) : (
-                          'Item consumable tidak ditemukan'
-                        )
-                      }
-                      onChange={(value) => {
-                        try {
-                          console.log('[BHP-NONPAKET] selected itemId:', value)
-                        } catch { /* empty */ }
-                        if (!value) {
-                          modalForm.setFieldValue(['bhpList', name, 'satuan'], undefined)
-                          return
-                        }
-                        const selectedItem = consumableItemMap.get(Number(value))
-                        try {
-                          const kode = String(selectedItem?.kode || '').trim().toUpperCase()
-                          const stock = stockByItemMap.get(kode) || 0
-                          console.log('[BHP-NONPAKET] selected item detail:', selectedItem)
-                          console.log('[BHP-NONPAKET] selected item stock:', { kode, stock })
-                        } catch { /* empty */ }
-                        if (!selectedItem) return
+                    {({ getFieldValue }) => {
+                      const itemId = getFieldValue(['bhpList', name, 'itemId'])
+                      const item = itemId ? consumableItemMap.get(Number(itemId)) : null
+                      const displayLabel = item ? `${item.nama || item.kode}` : 'Cari Item...'
 
-                        const rules = selectedItem.buyPriceRules || []
-                        let firstValidUnit = selectedItem.kodeUnit
-                        if (Array.isArray(rules) && rules.length > 0) {
-                          firstValidUnit = rules[0].unitCode
-                        }
-
-                        const currentSatuan = modalForm.getFieldValue(['bhpList', name, 'satuan'])
-                        const isValid =
-                          Array.isArray(rules) && rules.length > 0
-                            ? rules.some((r: any) => r.unitCode === currentSatuan)
-                            : currentSatuan === selectedItem.kodeUnit
-
-                        if (!currentSatuan || !isValid) {
-                          modalForm.setFieldValue(['bhpList', name, 'satuan'], firstValidUnit)
-                        }
-                      }}
-                    />
+                      return (
+                        <Form.Item
+                          {...restField}
+                          name={[name, 'itemId']}
+                          label={
+                            name === 0 ? <span className="font-bold">Item BHP</span> : undefined
+                          }
+                          rules={[{ required: true, message: 'Pilih item BHP' }]}
+                          style={{ marginBottom: 0 }}
+                        >
+                          <Button
+                            block
+                            style={{
+                              textAlign: 'left',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center'
+                            }}
+                            onClick={() => openSelector(name)}
+                          >
+                            <span className="truncate">{displayLabel}</span>
+                            <SearchOutlined className="text-gray-400" />
+                          </Button>
+                        </Form.Item>
+                      )
+                    }}
                   </Form.Item>
                 </Col>
-                <Col span={3}>
+                <Col span={4}>
                   <Form.Item
                     noStyle
                     shouldUpdate={(prevValues, currentValues) =>
-                      prevValues.bhpList?.[name]?.itemId !== currentValues.bhpList?.[name]?.itemId ||
+                      prevValues.bhpList?.[name]?.itemId !==
+                        currentValues.bhpList?.[name]?.itemId ||
                       prevValues.bhpList?.[name]?.jumlah !== currentValues.bhpList?.[name]?.jumlah
                     }
                   >
@@ -144,13 +142,11 @@ export default function BhpNonPaketTab({
                           validateStatus={itemId && stock <= 0 ? 'error' : undefined}
                           help={
                             itemId ? (
-                              <span
-                                style={{
-                                  fontSize: 10,
-                                  color: stock <= 0 ? '#ff4d4f' : '#666'
-                                }}
-                              >
-                              </span>
+                              <div className="text-[10px] leading-tight flex justify-between">
+                                <span style={{ color: stock <= 0 ? '#ff4d4f' : '#8c8c8c' }}>
+                                  Stok: {stock}
+                                </span>
+                              </div>
                             ) : null
                           }
                         >
@@ -174,20 +170,6 @@ export default function BhpNonPaketTab({
                     }
                   >
                     {({ getFieldValue }) => {
-                      const itemId = getFieldValue(['bhpList', name, 'itemId'])
-                      const selectedItem = itemId ? consumableItemMap.get(Number(itemId)) : null
-                      const rules = selectedItem?.buyPriceRules || []
-
-                      let unitOptions: any[] = []
-                      if (Array.isArray(rules) && rules.length > 0) {
-                        unitOptions = rules.map((r: any) => ({
-                          label: r.unitCode,
-                          value: r.unitCode
-                        }))
-                      } else if (selectedItem?.kodeUnit) {
-                        unitOptions = [{ label: selectedItem.kodeUnit, value: selectedItem.kodeUnit }]
-                      }
-
                       return (
                         <Form.Item
                           {...restField}
@@ -196,24 +178,20 @@ export default function BhpNonPaketTab({
                           style={{ marginBottom: 0 }}
                           rules={[{ required: true, message: 'Wajib' }]}
                         >
-                          <Select
-                            placeholder="Satuan"
-                            options={unitOptions}
-                            disabled={!itemId || unitOptions.length === 0}
-                          />
+                          <Input readOnly value={getFieldValue(['bhpList', name, 'satuan'])} />
                         </Form.Item>
                       )
                     }}
                   </Form.Item>
                 </Col>
-                <Col span={2} className="text-center flex items-end pb-0.5 justify-center">
+                <Col span={2} className="text-center flex items-start pt-[5px] justify-center">
                   {name === 0 && <div className="h-[22px] w-full" />}
                   <Tooltip title="Hapus BHP">
                     <Button
                       type="text"
                       danger
                       size="small"
-                      icon={<MinusCircleOutlined />}
+                      icon={<DeleteOutlined />}
                       onClick={() => remove(name)}
                     />
                   </Tooltip>

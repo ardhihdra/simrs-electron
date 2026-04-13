@@ -19,33 +19,33 @@ export function buildModuleTree(nodes: ModuleNodeInput[], parentCode = ''): Modu
 }
 
 const resolveModuleAccess = (
-    session: ScopeSession | null,
-    moduleCode: ModuleCode
+  session: ScopeSession | null,
+  moduleCode: ModuleCode
 ): { canAccess: boolean; isVisible: boolean } => {
-    if (!session) {
-        return { canAccess: false, isVisible: false }
-    }
+  if (!session) {
+    return { canAccess: false, isVisible: false }
+  }
 
-    try {
-        return {
-            canAccess: moduleScopePermission.hasAccess(session, moduleCode),
-            isVisible: moduleScopePermission.isVisibleForClient(session, moduleCode)
-        }
-    } catch {
-        return { canAccess: false, isVisible: false }
+  try {
+    return {
+      canAccess: moduleScopePermission.hasAccess(session, moduleCode),
+      isVisible: moduleScopePermission.isVisibleForClient(session, moduleCode)
     }
+  } catch {
+    return { canAccess: false, isVisible: false }
+  }
 }
 
 // FIX ME: move me to a better place if we want to use this
 export const useModuleScopeAccess = (moduleCode: ModuleCode) => {
-    const session = useModuleScopeStore((state) => state.session)
-    const { canAccess, isVisible } = resolveModuleAccess(session, moduleCode)
+  const session = useModuleScopeStore((state) => state.session)
+  const { canAccess, isVisible } = resolveModuleAccess(session, moduleCode)
 
-    return {
-        canAccess,
-        isVisible,
-        session
-    }
+  return {
+    canAccess,
+    isVisible,
+    session
+  }
 }
 
 export const isPageVisible = (access: PageAccessEntry | undefined, session: ScopeSession): boolean => {
@@ -63,7 +63,7 @@ export const isPageVisible = (access: PageAccessEntry | undefined, session: Scop
   }
 
   if (
-    allowedLokasiKerjaIds.length > 0 && 
+    allowedLokasiKerjaIds.length > 0 &&
     // admin can access all location
     (
       !allowedLokasiKerjaIds.includes(session.lokasiKerjaId) && !isAdministrator

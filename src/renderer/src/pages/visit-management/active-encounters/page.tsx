@@ -85,7 +85,41 @@ export default function ActiveEncountersPage() {
       key: 'status',
       render: (status: string) => <Tag color="blue">{status}</Tag>,
     },
+    {
+      title: 'Metode & Status Bayar',
+      dataIndex: 'encounter',
+      key: 'paymentStatus',
+      render: (encounter: any) => {
+        const paymentMethod = encounter?.queueTicket?.paymentMethod || '-'
+        const invoice = encounter?.invoice
+        const status = invoice?.status
+        
+        let color = 'default'
+        let label = 'Belum Ada Tagihan'
+        
+        if (status === 'balanced') {
+          color = 'green'
+          label = 'Lunas'
+        } else if (status === 'issued') {
+          color = 'blue'
+          label = 'Terkonfirmasi'
+        } else if (status === 'draft') {
+          color = 'orange'
+          label = 'Draft'
+        }
+
+        return (
+          <div className="flex flex-col gap-1">
+            <span className="text-xs font-bold uppercase text-gray-400">{paymentMethod}</span>
+            <Tag color={color} className="m-0 text-[10px] py-0 px-1.5 leading-4 w-fit">
+              {label}
+            </Tag>
+          </div>
+        )
+      }
+    },
   ]
+
 
   const handleTransitionClick = (encounter: GetActiveEncountersResult) => {
     setSelectedEncounter(encounter)

@@ -1,16 +1,29 @@
 import {
     ApiResponseSchema,
-    InvoiceInputSchema,
-    ConfirmInvoiceInputSchema,
-    GetInvoiceDetailInputSchema,
     RecordPaymentInputSchema,
 } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
 
+const InvoiceInputSchemaLocal = z.object({
+    encounterId: z.string(),
+    patientId: z.string(),
+    kelas: z.string().optional(),
+})
+
+const ConfirmInvoiceInputSchemaLocal = z.object({
+    encounterId: z.string(),
+    patientId: z.string(),
+    kelas: z.string().optional(),
+})
+
+const GetInvoiceDetailInputSchemaLocal = z.object({
+    encounterId: z.string(),
+})
+
 export const kasirRpc = {
     getInvoice: t
-        .input(InvoiceInputSchema)
+        .input(InvoiceInputSchemaLocal)
         .output(ApiResponseSchema(z.any()))
         .query(async ({ client }, input) => {
             const params = new URLSearchParams({ patientId: input.patientId })
@@ -20,7 +33,7 @@ export const kasirRpc = {
         }),
 
     confirmInvoice: t
-        .input(ConfirmInvoiceInputSchema)
+        .input(ConfirmInvoiceInputSchemaLocal)
         .output(ApiResponseSchema(z.any()))
         .mutation(async ({ client }, input) => {
             const res = await client.post(`/api/module/kasir/invoice/${input.encounterId}/confirm`, {
@@ -31,7 +44,7 @@ export const kasirRpc = {
         }),
 
     getInvoiceDetail: t
-        .input(GetInvoiceDetailInputSchema)
+        .input(GetInvoiceDetailInputSchemaLocal)
         .output(ApiResponseSchema(z.any()))
         .query(async ({ client }, input) => {
             const res = await client.get(`/api/module/kasir/invoice/${input.encounterId}/detail`)

@@ -3,10 +3,11 @@ import {
   CheckCircleOutlined,
   LockOutlined,
   PlusOutlined,
-  PrinterOutlined
+  PrinterOutlined,
+  RollbackOutlined
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
-import { Button, Divider, Spin, Table, Tag, Typography, message } from 'antd'
+import { Button, Divider, Popconfirm, Spin, Table, Tag, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
@@ -17,13 +18,71 @@ import logoUrl from '@renderer/assets/logo.png'
 
 const { Title, Text } = Typography
 
+type InvoiceLineItemCategory = 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
+
 interface InvoiceLineItem {
-  category: 'tindakan' | 'bhp' | 'service_request' | 'obat'
+  category: InvoiceLineItemCategory
   description: string
   qty: number
   unitPrice: number
   subtotal: number
   no?: number
+}
+
+interface Invoice {
+  encounterId: string
+  patientId: string
+  total: number
+  namaPatient?: string
+  medicalRecordNumber?: string
+  tanggalLahir?: string
+  alamat?: string
+  dokterPemeriksa?: string
+  ruangan?: string
+  penjamin?: string
+  tanggalPendaftaran?: string
+  noPendaftaran?: string
+  patient?: {
+    name?: string
+    medicalRecordNumber?: string
+    birthDate?: string
+    address?: string
+  }
+  tindakanItems?: InvoiceLineItem[]
+  bhpItems?: InvoiceLineItem[]
+  laboratoryItems?: InvoiceLineItem[]
+  radiologyItems?: InvoiceLineItem[]
+  obatItems?: InvoiceLineItem[]
+  paymentMethod?: string | null
+}
+
+
+interface PersistedInvoice {
+  id: number
+  kode: string
+  encounterId: string
+  clientId: string
+  status: string
+  total: number
+  remaining: number
+  payments: PaymentRecord[]
+}
+
+interface PaymentRecord {
+  id: number
+  kode: string
+  date: string | Date
+  amount: number
+  paymentMethod: string
+  bankName: string | null
+  ref: string | null
+  note: string | null
+  attachmentPath: string | null
+  paymentStatus: string
+  // legacy fields for compatibility
+  paidAt?: string | Date
+  createdAt?: string | Date
+  method?: string
 }
 
 const lineItemColumns: ColumnsType<InvoiceLineItem> = [
@@ -60,7 +119,7 @@ function numbered(items: InvoiceLineItem[]): InvoiceLineItem[] {
   return items.map((item, idx) => ({ ...item, no: idx + 1 }))
 }
 
-function escapeHtml(value: any): string {
+function escapeHtml(value: string | number | boolean | null | undefined): string {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -148,7 +207,7 @@ function buildCategoryRows(title: string, items: InvoiceLineItem[], accentColor:
     </tr>`
 }
 
-function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
+function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedInvoice | null): void {
   const namaPatient = invoice.namaPatient ?? invoice.patient?.name ?? '-'
   const medicalRecordNumber = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
   const tanggalLahir = formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
@@ -158,29 +217,33 @@ function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
   const penjamin = invoice.penjamin ?? 'Umum'
   const tanggalPendaftaran = formatPrintableDate(invoice.tanggalPendaftaran)
   const noPendaftaran = invoice.noPendaftaran ?? '-'
+  const caraBayar = invoice.penjamin ?? 'Umum'
+  const metodeBayar = invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')
   const noInvoice = persistedInvoice?.kode ?? '-'
   const printedAt = formatPrintableDate(new Date())
 
   const tindakanRows = buildCategoryRows('Tindakan Medis', invoice.tindakanItems ?? [], '#1e40af')
   const bhpRows = buildCategoryRows('Bahan Habis Pakai (BHP)', invoice.bhpItems ?? [], '#92400e')
-  const labRows = buildCategoryRows('Pemeriksaan Lab & Radiologi', invoice.serviceRequestItems ?? [], '#14532d')
+  const labRows = buildCategoryRows('Laboratorium', invoice.laboratoryItems ?? [], '#14532d')
+  const radRows = buildCategoryRows('Radiologi', invoice.radiologyItems ?? [], '#0e7490')
   const obatRows = buildCategoryRows('Obat', invoice.obatItems ?? [], '#581c87')
 
   const allEmpty =
     (invoice.tindakanItems?.length ?? 0) === 0 &&
     (invoice.bhpItems?.length ?? 0) === 0 &&
-    (invoice.serviceRequestItems?.length ?? 0) === 0 &&
+    (invoice.laboratoryItems?.length ?? 0) === 0 &&
+    (invoice.radiologyItems?.length ?? 0) === 0 &&
     (invoice.obatItems?.length ?? 0) === 0
 
   const tableBody = allEmpty
     ? '<tr><td colspan="5" class="center" style="padding:16px;color:#6b7280;">Tidak ada item tagihan untuk kunjungan ini.</td></tr>'
-    : tindakanRows + bhpRows + labRows + obatRows
+    : tindakanRows + bhpRows + labRows + radRows + obatRows
 
   const paymentRows =
-    persistedInvoice?.payments?.length > 0
+    persistedInvoice && persistedInvoice.payments?.length > 0
       ? persistedInvoice.payments
           .map(
-            (p: any, i: number) => `
+            (p, i: number) => `
           <tr>
             <td class="center">${i + 1}</td>
             <td>${escapeHtml(formatPrintableDate(p.paidAt ?? p.createdAt))}</td>
@@ -309,6 +372,8 @@ function generateInvoicePrintView(invoice: any, persistedInvoice: any): void {
             <tr><td class="meta-label">Tgl. Pendaftaran</td><td>: ${escapeHtml(tanggalPendaftaran)}</td></tr>
             <tr><td class="meta-label">Dokter</td><td>: ${escapeHtml(dokterPemeriksa)}</td></tr>
             <tr><td class="meta-label">Ruangan</td><td>: ${escapeHtml(ruangan)}</td></tr>
+            <tr><td class="meta-label">Cara Bayar</td><td>: ${escapeHtml(caraBayar)}</td></tr>
+            <tr><td class="meta-label">Metode Bayar</td><td>: ${escapeHtml(metodeBayar)}</td></tr>
           </table>
         </div>
 
@@ -372,6 +437,8 @@ export default function InvoiceDetailPage() {
   const [confirming, setConfirming] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
 
+  const { Title, Text } = Typography
+
   // Dynamic invoice (always fresh from encounter data)
   const { data, isLoading, isError, error } = client.kasir.getInvoice.useQuery({
     encounterId: encounterId!,
@@ -388,24 +455,41 @@ export default function InvoiceDetailPage() {
     queryFn: () => rpc.kasir.getInvoiceDetail({ encounterId: encounterId! }),
     enabled: !!encounterId
   })
-  console.log('invoice data', data)
 
-  const invoice = (data as any)?.result
-  const persistedInvoice = (detailData as any)?.result ?? null
+  const invoice = (data as { result: Invoice } | undefined)?.result
+  const persistedInvoice = (detailData as { result: PersistedInvoice } | undefined)?.result ?? null
+
+  const reopenEncounterMutation = client.encounter.reopen.useMutation()
+
+  const handleReopenEncounter = async () => {
+    if (!encounterId) return
+    try {
+      await reopenEncounterMutation.mutateAsync(encounterId)
+      message.success('Kunjungan berhasil dikembalikan ke perawat.')
+      navigate('/kasir/encounter-table')
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Gagal mengembalikan kunjungan.'
+      message.error(msg)
+    }
+  }
 
   const handleConfirm = async () => {
     if (!encounterId || !patientId) return
     setConfirming(true)
     try {
-      const res = await rpc.kasir.confirmInvoice({ encounterId, patientId })
-      if ((res as any).success) {
+      const res = (await rpc.kasir.confirmInvoice({ encounterId, patientId })) as {
+        success: boolean
+        message?: string
+      }
+      if (res.success) {
         message.success('Invoice berhasil dikonfirmasi')
         queryClient.invalidateQueries({ queryKey: ['kasir-invoice-detail', encounterId] })
       } else {
-        message.error((res as any).message ?? 'Gagal mengkonfirmasi invoice')
+        message.error(res.message ?? 'Gagal mengkonfirmasi invoice')
       }
-    } catch (err: any) {
-      message.error(err.message ?? 'Terjadi kesalahan')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan'
+      message.error(msg)
     } finally {
       setConfirming(false)
     }
@@ -425,7 +509,7 @@ export default function InvoiceDetailPage() {
   }
 
   const statusInfo = persistedInvoice
-    ? (STATUS_LABEL[persistedInvoice.status] ?? STATUS_LABEL.issued)
+    ? (STATUS_LABEL[persistedInvoice.status as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
     : null
   const isConfirmed = !!persistedInvoice && persistedInvoice.status !== 'draft'
   const isPaid = persistedInvoice?.status === 'balanced'
@@ -441,11 +525,30 @@ export default function InvoiceDetailPage() {
         <Button
           type="primary"
           icon={<PrinterOutlined />}
-          onClick={() => generateInvoicePrintView(invoice, persistedInvoice)}
+          onClick={() => invoice && generateInvoicePrintView(invoice, persistedInvoice)}
           disabled={!invoice}
         >
           Cetak Invoice
         </Button>
+
+        {!isPaid && (
+          <Popconfirm
+            title="Kembalikan ke Perawat?"
+            description="Status kunjungan akan berubah kembali menjadi Pemeriksaan agar bisa diperbaiki oleh Nurse/Dokter."
+            onConfirm={handleReopenEncounter}
+            okText="Ya, Kembalikan"
+            cancelText="Batal"
+            okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
+          >
+            <Button
+              icon={<RollbackOutlined />}
+              danger
+              loading={reopenEncounterMutation.isPending}
+            >
+              Kembalikan ke Perawat
+            </Button>
+          </Popconfirm>
+        )}
 
         {!isConfirmed && !isLoadingDetail && (
           <Button
@@ -522,7 +625,7 @@ export default function InvoiceDetailPage() {
                   ['Nama Pasien', invoice.namaPatient ?? invoice.patient?.name ?? '-'],
                   ['No. RM', invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'],
                   ['Tgl. Lahir', formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)],
-                  ['Penjamin', invoice.penjamin ?? 'Umum']
+                  ['Alamat', invoice.alamat ?? invoice.patient?.address ?? '-']
                 ].map(([label, value]) => (
                   <tr key={label}>
                     <td className="font-semibold text-gray-500 w-32 py-0.5 pr-2">{label}</td>
@@ -538,7 +641,9 @@ export default function InvoiceDetailPage() {
                   ['No. Pendaftaran', invoice.noPendaftaran ?? '-'],
                   ['Tgl. Pendaftaran', formatPrintableDate(invoice.tanggalPendaftaran)],
                   ['Dokter', invoice.dokterPemeriksa ?? '-'],
-                  ['Ruangan', invoice.ruangan ?? '-']
+                  ['Ruangan', invoice.ruangan ?? '-'],
+                  ['Cara Bayar', invoice.penjamin ?? 'Umum'],
+                  ['Metode Bayar', invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')]
                 ].map(([label, value]) => (
                   <tr key={label}>
                     <td className="font-semibold text-gray-500 w-36 py-0.5 pr-2">{label}</td>
@@ -555,22 +660,28 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Line item sections */}
-          <InvoiceSection title="Tindakan Medis" tagColor="blue" items={invoice.tindakanItems} />
+          <InvoiceSection title="Tindakan Medis" tagColor="blue" items={invoice.tindakanItems ?? []} />
           <InvoiceSection
             title="Bahan Habis Pakai (BHP)"
             tagColor="orange"
-            items={invoice.bhpItems}
+            items={invoice.bhpItems ?? []}
           />
           <InvoiceSection
-            title="Pemeriksaan Lab & Radiologi"
+            title="Laboratorium"
             tagColor="green"
-            items={invoice.serviceRequestItems}
+            items={invoice.laboratoryItems ?? []}
+          />
+          <InvoiceSection
+            title="Radiologi"
+            tagColor="cyan"
+            items={invoice.radiologyItems ?? []}
           />
           <InvoiceSection title="Obat" tagColor="purple" items={invoice.obatItems ?? []} />
 
-          {invoice.tindakanItems.length === 0 &&
-            invoice.bhpItems.length === 0 &&
-            invoice.serviceRequestItems.length === 0 &&
+          {(invoice.tindakanItems?.length ?? 0) === 0 &&
+            (invoice.bhpItems?.length ?? 0) === 0 &&
+            (invoice.laboratoryItems?.length ?? 0) === 0 &&
+            (invoice.radiologyItems?.length ?? 0) === 0 &&
             (invoice.obatItems?.length ?? 0) === 0 && (
               <div className="text-center py-8 text-gray-400">
                 Tidak ada item tagihan untuk kunjungan ini.

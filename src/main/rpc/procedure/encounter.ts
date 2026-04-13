@@ -26,11 +26,12 @@ export const encounterRpc = {
       if (input.startDate) params.append('startDate', input.startDate)
       if (input.endDate) params.append('endDate', input.endDate)
       if (input.serviceUnitId) params.append('serviceUnitId', input.serviceUnitId)
+      if (input.serviceType) params.append('serviceType', input.serviceType)
 
-      const data = await client.get(`/api/encounter?${params.toString()}`)
-      const res = await data.json()
-      console.log('res', res)
-      return res
+      const url = `/api/encounter?${params.toString()}`
+
+      const data = await client.get(url)
+      return await data.json()
     }),
 
   // start: PATCH /module/encounter/{id}/start
@@ -94,6 +95,14 @@ export const encounterRpc = {
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       const data = await client.post(`/api/module/encounter/${input.id}/sync-extracted`, input)
+      return await data.json()
+    }),
+  
+  reopen: t
+    .input(z.string())
+    .output(ApiResponseSchema(z.any()))
+    .mutation(async ({ client }, id) => {
+      const data = await client.patch(`/api/module/encounter/${id}/reopen`, {})
       return await data.json()
     })
 }

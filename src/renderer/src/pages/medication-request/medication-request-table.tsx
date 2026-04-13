@@ -72,10 +72,12 @@ interface MedicationRequestAttributes {
   authoredOn?: string
   patient?: PatientInfo
   medication?: { name?: string }
-  item?: { nama?: string; itemCategoryId?: number | null }
+  item?: { nama?: string; itemCategoryId?: number | null; kekuatan?: string | number | null; unit?: { nama?: string } | null }
   note?: string | null
   encounter?: { id: string; encounterType?: string }
   requester?: { name: string }
+  recorderId?: number | null
+  recorder?: { name: string }
   groupIdentifier?: GroupIdentifier | null
   category?: CategoryEntry[] | null
   dosageInstruction?: DosageInstructionEntry[] | null
@@ -88,6 +90,7 @@ interface MedicationItemRow {
   key: string
   jenis: string
   namaObat: string
+  kekuatan?: string | number
   quantity?: number
   unit?: string
   instruksi?: string
@@ -485,6 +488,23 @@ export function MedicationRequestTable() {
     }
     return map
   }, [itemData])
+
+  const itemMasterMap = useMemo(() => {
+    const map = new Map<number, { name: string; kekuatan: any; unit: string }>()
+    if (itemData?.success && Array.isArray(itemData.result)) {
+      itemData.result.forEach((i: any) => {
+        if (typeof i.id === 'number') {
+          map.set(i.id, {
+            name: i.nama || '',
+            kekuatan: i.kekuatan,
+            unit: i.unit?.nama || i.kodeUnit || ''
+          })
+        }
+      })
+    }
+    return map
+  }, [itemData])
+
   const employeeNameById = useMemo(() => {
     const map = new Map<number, string>()
     const source = Array.isArray(employeeData?.result)
@@ -638,6 +658,31 @@ export function MedicationRequestTable() {
           : compound
             ? (racikanName ?? record.medication?.name ?? '-')
             : (record.medication?.name ?? '-'),
+        kekuatan: (() => {
+          // Priority 1: Get from supportingInformation (Ingredients)
+          const ingredients = (Array.isArray(record.supportingInformation) ? record.supportingInformation : [])
+            .filter((info: any) => (info.resourceType || info.resource_type) === 'Ingredient')
+
+          if (ingredients.length > 0) {
+            return ingredients.map((ing: any) => {
+              // Priority: requestedDosage (total dose) -> strength (per unit)
+              const d = ing.requestedDosage ?? ing.requested_dosage
+              const s = ing.strength ?? ing.kekuatan
+              const u = ing.unitCode ?? ing.unit_code ?? ing.unit
+
+              const val = d ?? s
+              if (!val) return null
+              return u ? `${val} ${u}` : `${val}`
+            }).filter(Boolean).join(' : ') || '-'
+          }
+
+          // Priority 2: Fallback to existing logic (Master Data)
+          const master = itemMasterMap.get(record.itemId || 0)
+          const str = record.item?.kekuatan || master?.kekuatan
+          const unit = (record as any).item?.unit?.nama || master?.unit
+          if (!str) return '-'
+          return unit ? `${str} / ${unit}` : str
+        })(),
         quantity:
           typeof remainingQuantity === 'number'
             ? remainingQuantity
@@ -659,12 +704,15 @@ export function MedicationRequestTable() {
 
       if (compound && Array.isArray(record.supportingInformation)) {
         const ingredients = record.supportingInformation.filter(
-          (info: any) =>
-            info.resourceType === 'Ingredient' ||
-            info.itemId ||
-            info.medicationId ||
-            info.item_id ||
-            info.medication_id
+          (info: any) => {
+            const isIngredient = info.resourceType === 'Ingredient' ||
+              info.itemId ||
+              info.medicationId ||
+              info.item_id ||
+              info.medication_id
+            const isReseptur = info.type === 'Reseptur' || info.resourceType === 'Reseptur'
+            return isIngredient && !isReseptur
+          }
         )
         item.children = ingredients.map((ing: Record<string, unknown>, idx: number) => {
           const medId = ing.medicationId || ing.medication_id
@@ -683,6 +731,19 @@ export function MedicationRequestTable() {
             key: `${key}-${record.id ?? ''}-ing-${idx}`,
             jenis: 'Komposisi',
             namaObat: (ingredientName ?? (ing.note ? `Komposisi (${ing.note as string})` : 'Komposisi')) as string,
+            kekuatan: (() => {
+              const medId = ing.medicationId || ing.medication_id
+              const itemId = ing.itemId || ing.item_id
+              const master = itemMasterMap.get(Number(itemId || medId))
+
+              // Priority: requestedDosage (total dose) -> strength (per unit)
+              const d = (ing as any).requestedDosage ?? (ing as any).requested_dosage
+              const str = d ?? ing.strength ?? ing.kekuatan ?? master?.kekuatan
+
+              const unit = ing.unitCode ?? ing.unit ?? master?.unit
+              if (!str) return '-'
+              return unit ? `${str} ${unit}` : String(str)
+            })(),
             quantity: ing.quantity as number | undefined,
             unit: ing.unitCode as string | undefined,
             instruksi: (ing.note || ing.instruction) as string | undefined,
@@ -714,7 +775,17 @@ export function MedicationRequestTable() {
           remainingTotal = item.quantity
         }
         let resepturName: string | undefined
-        if (Array.isArray(record.supportingInformation)) {
+
+        // 1. New field: recorder
+        if (record.recorder?.name) {
+          resepturName = record.recorder.name
+        }
+        // 2. recorderId lookup in employee map
+        else if (typeof record.recorderId === 'number' && record.recorderId > 0) {
+          resepturName = employeeNameById.get(record.recorderId) ?? undefined
+        }
+        // 3. Fallback to supportingInformation for legacy records
+        else if (Array.isArray(record.supportingInformation)) {
           const resepturEntry = record.supportingInformation.find((info: Record<string, unknown>) => {
             const t1 = info.resourceType as string | undefined
             const t2 = info.type as string | undefined
@@ -734,8 +805,8 @@ export function MedicationRequestTable() {
           intent: record.intent,
           priority: record.priority,
           authoredOn: record.authoredOn,
-           dokterName: record.requester?.name,
-           resepturName,
+          dokterName: record.requester?.name,
+          resepturName,
           isPartial,
           isOnProcess,
           hasRemaining: remainingTotal > 0,
@@ -917,12 +988,13 @@ export function MedicationRequestTable() {
                   const detailColumns = [
                     { title: 'Kategori Item', dataIndex: 'jenis', key: 'jenis' },
                     { title: 'Item', dataIndex: 'namaObat', key: 'namaObat' },
+                    { title: 'Kekuatan ', dataIndex: 'kekuatan', key: 'kekuatan' },
                     { title: 'Quantity', dataIndex: 'quantity', key: 'quantity' },
-                    { title: 'Satuan', dataIndex: 'unit', key: 'unit' }
+                    { title: 'Signa', dataIndex: 'instruksi', key: 'instruksi' }
                   ]
 
                   try {
-                  } catch {}
+                  } catch { }
                   return (
                     <Table
                       columns={detailColumns}

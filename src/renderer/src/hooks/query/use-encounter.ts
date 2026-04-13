@@ -13,6 +13,8 @@ type EncounterListParams = {
   startDate?: string
   endDate?: string
   serviceUnitId?: string
+  mrn?: string
+  queueNumber?: string
 }
 
 export const useCreateEncounter = () => {

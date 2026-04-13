@@ -47,6 +47,19 @@ function GenericTable<T extends object>({
   tableProps,
   loading = false
 }: GenericTableProps<T>) {
+  const renderDropdownItemLabel = (item: ActionItem<T>) => {
+    return (
+      <span
+        className={`flex w-full items-center gap-2 text-sm ${
+          item.disabled ? 'text-gray-400' : item.danger ? 'text-red-500 hover:text-white' : ''
+        }`}
+      >
+        {item.icon ? <span className="flex items-center">{item.icon}</span> : null}
+        <span>{item.label}</span>
+      </span>
+    )
+  }
+
   const mergedColumns = action
     ? [
         ...columns,
@@ -119,9 +132,48 @@ function GenericTable<T extends object>({
               }
 
               const menuItems: MenuProps['items'] = items.map((item, idx) => {
+                if (item.confirm) {
+                  return {
+                    key: String(idx),
+                    disabled: item.disabled,
+                    danger: item.danger,
+                    label: (
+                      <Popconfirm
+                        title={item.confirm.title}
+                        description={item.confirm.description}
+                        okText={item.confirm.okText ?? 'Ya'}
+                        cancelText={item.confirm.cancelText ?? 'Batal'}
+                        onConfirm={(e) => {
+                          e?.stopPropagation()
+                          item.onClick(record)
+                        }}
+                        onCancel={(e) => e?.stopPropagation()}
+                      >
+                        <div className="-mx-3 -my-1.5 block px-3 py-1.5">
+                          {item.tooltip ? (
+                            <Tooltip title={item.tooltip}>{renderDropdownItemLabel(item)}</Tooltip>
+                          ) : (
+                            renderDropdownItemLabel(item)
+                          )}
+                        </div>
+                      </Popconfirm>
+                    )
+                  }
+                }
+
                 return {
                   key: String(idx),
-                  label: renderItem(item, idx)
+                  disabled: item.disabled,
+                  danger: item.danger,
+                  onClick: ({ domEvent }) => {
+                    domEvent.stopPropagation()
+                    item.onClick(record)
+                  },
+                  label: item.tooltip ? (
+                    <Tooltip title={item.tooltip}>{renderDropdownItemLabel(item)}</Tooltip>
+                  ) : (
+                    renderDropdownItemLabel(item)
+                  )
                 }
               })
 

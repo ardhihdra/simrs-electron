@@ -11,9 +11,10 @@ import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { HistoryOutlined } from '@ant-design/icons'
 import { Table, Modal, Tag, Typography } from 'antd'
 import { useMedicationRequestByEncounter } from '@renderer/hooks/query/use-medication-request'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { MedicationOtherItemsTable } from '@renderer/pages/medication-request/components/MedicationOtherItemsTable'
 import { MedicationCompoundsSection } from '@renderer/pages/medication-request/components/MedicationCompoundsSection'
+import { SignaCreateModal } from '@renderer/pages/medication-request/components/SignaCreateModal'
 
 const { Text } = Typography
 
@@ -62,24 +63,7 @@ interface RawMaterialApi {
   list: () => Promise<{ success: boolean; result?: RawMaterialAttributes[]; message?: string }>
 }
 
-interface ItemAttributes {
-  id?: number
-  nama?: string
-  kode?: string
-  kodeUnit?: string
-  unit?: {
-    id?: number
-    kode?: string
-    nama?: string
-  } | null
-  itemCategoryId?: number | null
-  category?: {
-    id?: number
-    name?: string | null
-    categoryType?: string | null
-  } | null
-  stock?: number
-}
+import { ItemAttributes } from '@renderer/components/organisms/ItemSelectorModal'
 
 type ItemListResponse = {
   success: boolean
@@ -170,6 +154,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
     return map
   }, [itemCategories])
 
+  const queryClient = useQueryClient()
   const { data: signaData, isLoading: signaLoading } = useQuery({
     queryKey: ['mastersigna', 'listAll', 'for-prescription'],
     queryFn: () => {
@@ -180,6 +165,12 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
       return api?.mastersigna?.list({ limit: 500 })
     }
   })
+
+  const [isSignaModalOpen, setIsSignaModalOpen] = useState(false)
+  const handleSignaSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['mastersigna'] })
+  }
+
   const signaOptions = useMemo(() => {
     const source = Array.isArray(signaData?.result) ? signaData!.result : []
     return source
@@ -255,7 +246,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
         const farm = arr.find((l: any) => l.kodeLokasi === 'FARM')
         const totalItems = Array.isArray(farm?.items) ? farm.items.length : 0
         console.log('[RX][Stock] farmKodeSet size:', farmKodeSet.size, 'farm items total:', totalItems)
-      } catch {}
+      } catch { }
     }
   }, [inventoryByLocation?.result, farmKodeSet.size])
 
@@ -281,7 +272,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
 
     try {
       console.log('[RX][Items] source count:', source.length, 'farmKodeSet size:', farmKodeSet.size, 'filteredByLocation count:', filteredByLocation.length)
-    } catch {}
+    } catch { }
 
     let opts = filteredByLocation
       .filter((item) => typeof item.id === 'number')
@@ -314,10 +305,18 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           label,
           unitCode,
           categoryId,
-          categoryType
+          categoryType,
+          itemCategoryCode: item.itemCategoryCode,
+          itemGroupCode: item.itemGroupCode,
+          fpktl: item.fpktl,
+          prb: item.prb,
+          oen: item.oen,
+          peresepanMaksimal: (item as any).peresepanMaksimal,
+          restriksi: (item as any).restriksi,
+          kekuatan: (item as any).kekuatan,
+          satuanId: (item as any).satuanId
         }
       })
-      .filter((entry) => entry.categoryType === 'obat')
 
     // Fallback: jika kosong, bangun dari stok FARM
     if (opts.length === 0) {
@@ -334,11 +333,25 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
               typeof it.unitCode === 'string' && it.unitCode.trim().length > 0
                 ? it.unitCode.trim().toUpperCase()
                 : (typeof it.unit === 'string' ? it.unit : '')
-            return { value, label, unitCode, categoryId: null, categoryType: 'obat' }
+            return {
+              value,
+              label,
+              unitCode,
+              categoryId: null,
+              categoryType: it.itemCategory?.categoryType?.toLowerCase() || 'item',
+              itemCategoryCode: it.itemCategoryCode ?? null,
+              itemGroupCode: it.itemGroupCode ?? null,
+              fpktl: false,
+              prb: false,
+              oen: false,
+              peresepanMaksimal: null,
+              restriksi: null,
+              kekuatan: null,
+              satuanId: null
+            }
           })
         if (fromFarm.length > 0) {
-          console.log('[RX][Items][Options][fallback-from-stock] count:', fromFarm.length, 'preview:', fromFarm.slice(0, 5))
-          opts = fromFarm
+          opts = fromFarm as any[]
         }
       } catch (e) {
         console.log('[RX][Items][Options][fallback-from-stock] error:', e)
@@ -348,7 +361,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
     try {
       const preview = opts.slice(0, 5)
       console.log('[RX][Items][Options] count:', opts.length, 'preview:', preview)
-    } catch {}
+    } catch { }
     return opts
   }, [items, itemCategoryMap, farmKodeSet, inventoryByLocation?.result])
 
@@ -427,11 +440,16 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
             if (foundPool) name = foundPool.nama || ''
           }
 
+          // Priority: template strength > manual strength
+          const kek = ing._templateKekuatanNumerator ?? ing._manualKekuatan ?? 0
+
           return {
             resourceType: 'Ingredient',
             itemId: ing.sourceType !== 'substance' ? ing.itemId : null,
             quantity: ing.quantity,
             unit: ing.unit,
+            strength: kek, // New field: strength used for calculation
+            requestedDosage: ing.dosisDiminta, // New field: clinical dosage input
             note: ing.note,
             name: name
           }
@@ -491,7 +509,8 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
               <div className="flex flex-wrap gap-1">
                 {record.supportingInformation?.map((ing: any, idx: number) => (
                   <Tag key={idx} color="orange" className="text-[10px]">
-                    {ing.name || `Item ${ing.itemId}`} ({ing.quantity} {ing.unit})
+                    {ing.name || `Item ${ing.itemId}`}
+                    {ing.requestedDosage ? ` (Dosis: ${ing.requestedDosage}, K.O: ${ing.strength}, Total: ${ing.quantity} pcs)` : ` (${ing.quantity} ${ing.unit})`}
                   </Tag>
                 ))}
               </div>
@@ -562,6 +581,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
                 itemKodeMap={itemKodeMap}
                 signaOptions={signaOptions}
                 signaLoading={signaLoading}
+                onAddSigna={() => setIsSignaModalOpen(true)}
               />
             </TabPane>
             <TabPane tab="Racikan" key="2">
@@ -572,6 +592,7 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
                 itemKodeMap={itemKodeMap}
                 signaOptions={signaOptions}
                 signaLoading={signaLoading}
+                onAddSigna={() => setIsSignaModalOpen(true)}
               />
             </TabPane>
           </Tabs>
@@ -591,6 +612,12 @@ export const PrescriptionForm = ({ encounterId, patientData }: PrescriptionFormP
           </Space>
         </div>
       </Form>
+
+      <SignaCreateModal
+        open={isSignaModalOpen}
+        onCancel={() => setIsSignaModalOpen(false)}
+        onSuccess={handleSignaSuccess}
+      />
       <Modal
         title="Riwayat Resep Pasien"
         open={isHistoryModalOpen}

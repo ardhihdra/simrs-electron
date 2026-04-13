@@ -1,5 +1,8 @@
+import { authRpc } from './auth'
 import { encounterRpc } from './encounter'
+import { applicationConfigRpc } from './application-config'
 import { kasirRpc } from './kasir'
+import { kioskaPublicRpc } from './kioska-public'
 import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
@@ -8,6 +11,7 @@ import { pageAccessRpc } from './pageAccess'
 import { patientRpc } from './patient'
 import { practitionerRpc } from './practitioner'
 import { queryProcedure } from './query'
+import { referralRpc } from './referral'
 import { registrationRpc } from './registration'
 import { roomRpc } from './room'
 import { triageRpc } from './triage'
@@ -16,6 +20,9 @@ import { wilayahRpc } from './wilayah'
 import { windowRpc } from './window'
 
 export const rpcRouter = {
+  auth: authRpc,
+  applicationConfig: applicationConfigRpc,
+  kioskaPublic: kioskaPublicRpc,
   patient: patientRpc,
   encounter: encounterRpc,
   room: roomRpc,
@@ -29,6 +36,7 @@ export const rpcRouter = {
   module: mmoduleRpc,
   nonMedicQueue: nonMedicQueueRpc,
   registration: registrationRpc,
+  referral: referralRpc,
   query: queryProcedure,
   pageAccess: pageAccessRpc,
   kasir: kasirRpc
