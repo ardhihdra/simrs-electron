@@ -106,6 +106,8 @@ import TriagePage from './pages/triage'
 import KasirPage from './pages/kasir/KasirPage'
 import KasirEncounterTable from './pages/kasir/kasir-encounter-table'
 import InvoiceDetailPage from './pages/kasir/invoice-detail'
+import BillingPage from './pages/billing/BillingPage'
+import BillingAllocationPage from './pages/billing/billing-allocation'
 import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
@@ -328,6 +330,10 @@ function MainRoute() {
           <Route path="kasir" element={g('/dashboard/kasir', <KasirPage />)}>
             <Route index element={<KasirEncounterTable />} />
             <Route path="invoice/:encounterId" element={<InvoiceDetailPage />} />
+          </Route>
+          <Route path="billing" element={g('/dashboard/billing', <Outlet />)}>
+            <Route index element={<BillingPage />} />
+            <Route path="allocate/*" element={<BillingAllocationPage />} />
           </Route>
           <Route path="non-medic-queue" element={<Outlet />}>
             <Route

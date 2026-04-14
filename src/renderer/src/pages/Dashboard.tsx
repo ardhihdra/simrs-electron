@@ -5,6 +5,7 @@ import {
   DashboardOutlined,
   ExperimentOutlined,
   FileAddOutlined,
+  FileProtectOutlined,
   FileSearchOutlined,
   FileTextOutlined,
   LeftCircleFilled,
@@ -280,7 +281,12 @@ const items: DashboardMenuItem[] = [
     module: Modules.BILLING_KASIR,
     children: [
       {
-        label: 'Tagihan Pasien',
+        label: 'Billing (Verifikasi)',
+        key: '/dashboard/billing',
+        icon: <FileProtectOutlined />
+      },
+      {
+        label: 'Kasir (Pembayaran)',
         key: '/dashboard/kasir',
         icon: <FileTextOutlined />
       }
@@ -601,6 +607,7 @@ function Dashboard() {
     '/dashboard/rawat-inap',
     '/dashboard/poli',
     '/dashboard/kasir',
+    '/dashboard/billing',
     '/dashboard/ok',
     '/dashboard/non-medic-queue'
   ]

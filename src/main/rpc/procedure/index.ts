@@ -3,6 +3,7 @@ import { encounterRpc } from './encounter'
 import { applicationConfigRpc } from './application-config'
 import { kasirRpc } from './kasir'
 import { kioskaPublicRpc } from './kioska-public'
+import { billingRpc } from './billing'
 import { laboratoryRpc } from './laboratory'
 import { laboratoryManagementRpc } from './laboratory-management'
 import { mmoduleRpc } from './module'
@@ -39,7 +40,8 @@ export const rpcRouter = {
   referral: referralRpc,
   query: queryProcedure,
   pageAccess: pageAccessRpc,
-  kasir: kasirRpc
+  kasir: kasirRpc,
+  billing: billingRpc
 }
 
 export type AppRouter = typeof rpcRouter
