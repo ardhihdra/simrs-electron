@@ -305,8 +305,23 @@ export const schemas = {
               serviceUnit: z.string(),
               doctorName: z.string(),
               type: z.string(),
-              primaryDiagnosis: z.string(),
-              soapSummary: z.string().optional().nullable(),
+              status: z.string().optional().nullable(),
+              generalSoap: z
+                .object({
+                  id: z.union([z.string(), z.number()]).optional().nullable(),
+                  title: z.string().optional().nullable(),
+                  status: z.string().optional().nullable(),
+                  date: z.string().optional().nullable(),
+                  authorId: z.any().optional().nullable(),
+                  soapSubjective: z.string().optional().nullable(),
+                  soapObjective: z.string().optional().nullable(),
+                  soapAssessment: z.string().optional().nullable(),
+                  soapPlan: z.string().optional().nullable()
+                })
+                .optional()
+                .nullable(),
+              diagnosticOrders: z.array(z.any()).optional().nullable(),
+              diagnosticResults: z.array(z.any()).optional().nullable(),
               clinicals: z
                 .object({
                   compositions: z.array(z.any()),
