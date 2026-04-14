@@ -2,6 +2,7 @@ import {
   ArrowLeftOutlined,
   SaveOutlined,
   CheckCircleOutlined,
+  SyncOutlined,
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
 import { 
@@ -17,10 +18,11 @@ import {
   Card,
   Row,
   Col,
-  Statistic
+  Statistic,
+  Modal,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { RPCSelectAsync } from '@renderer/components/organisms/RPCSelectAsync'
@@ -37,10 +39,60 @@ interface AllocationRow {
   unitPrice: number
   totalAmount: number
   asuransi: number
+  asuransiPercent: number
   rs: number
+  rsPercent: number
   pasien: number
   mitraId?: number | null
   note?: string | null
+}
+
+/**
+ * A local-state managed InputNumber that only notifies parent after a delay or on blur
+ * This prevents the heavy total-table re-render on every keystroke
+ */
+const DebouncedInputNumber = ({ 
+  value, 
+  onChange, 
+  debounceMs = 300,
+  ...props 
+}: { 
+  value: number; 
+  onChange: (val: number) => void;
+  debounceMs?: number;
+} & any) => {
+  const [localValue, setLocalValue] = useState<number>(value)
+  const timerRef = useRef<any>(null)
+
+  // Sync with global state changes (e.g. initial load or cross-field updates)
+  useEffect(() => {
+    setLocalValue(value)
+  }, [value])
+
+  const handleChange = (newValue: number | null) => {
+    const val = newValue || 0
+    setLocalValue(val)
+
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      onChange(val)
+    }, debounceMs)
+  }
+
+  const handleBlur = () => {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    onChange(localValue)
+  }
+
+  return (
+    <InputNumber
+      {...props}
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      onPressEnter={handleBlur}
+    />
+  )
 }
 
 export default function BillingAllocationPage() {
@@ -51,6 +103,11 @@ export default function BillingAllocationPage() {
   const [rows, setRows] = useState<AllocationRow[]>([])
   const [saving, setSaving] = useState(false)
   const [globalMitraId, setGlobalMitraId] = useState<number | null>(null)
+  
+  // Global allocation states
+  const [globalAsuransi, setGlobalAsuransi] = useState<number>(0)
+  const [globalRS, setGlobalRS] = useState<number>(0)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const { data, isLoading, isError, error } = client.billing.getInvoiceWithAllocations.useQuery({
     kode: kode!
@@ -65,16 +122,22 @@ export default function BillingAllocationPage() {
         const rsAlloc = item.allocations?.find((a: any) => a.payorType === 'hospital')
         const pasienAlloc = item.allocations?.find((a: any) => a.payorType === 'patient')
 
+        const asuransi = asuransiAlloc?.amount || 0
+        const rs = rsAlloc?.amount || 0
+        const totalAmount = item.totalAmount || 0
+
         return {
           id: item.id,
           description: item.description || 'Tanpa Deskripsi',
           category: item.category || 'Lain-lain',
           qty: item.quantity || 0,
           unitPrice: item.unitPrice || 0,
-          totalAmount: item.totalAmount || 0,
-          asuransi: asuransiAlloc?.amount || 0,
-          rs: rsAlloc?.amount || 0,
-          pasien: pasienAlloc?.amount || item.totalAmount || 0,
+          totalAmount,
+          asuransi,
+          asuransiPercent: totalAmount > 0 ? (asuransi / totalAmount) * 100 : 0,
+          rs,
+          rsPercent: totalAmount > 0 ? (rs / totalAmount) * 100 : 0,
+          pasien: pasienAlloc?.amount || totalAmount - asuransi - rs,
           mitraId: asuransiAlloc?.mitraId || null,
           note: asuransiAlloc?.note || null
         }
@@ -86,19 +149,107 @@ export default function BillingAllocationPage() {
     }
   }, [data])
 
-  const handleAmountChange = (id: number, field: 'asuransi' | 'rs' | 'pasien', value: number) => {
+  const handleAmountChange = useCallback((id: number, field: 'asuransi' | 'rs', value: number) => {
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row
       
-      const newRow = { ...row, [field]: value }
+      const updatedRow = { ...row, [field]: value }
       
-      // Auto-recalculate Pasien if asuransi or rs changed
-      if (field !== 'pasien') {
-        newRow.pasien = Math.max(0, row.totalAmount - (field === 'asuransi' ? value : row.asuransi) - (field === 'rs' ? value : row.rs))
+      // Update percentage based on new amount
+      if (field === 'asuransi') {
+        updatedRow.asuransiPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
+      } else if (field === 'rs') {
+        updatedRow.rsPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
       }
+
+      // Recalculate Pasien remainder
+      updatedRow.pasien = Math.max(0, row.totalAmount - updatedRow.asuransi - updatedRow.rs)
       
-      return newRow
+      return updatedRow
     }))
+  }, [])
+
+  const handlePercentChange = useCallback((id: number, field: 'asuransi' | 'rs', percent: number) => {
+    setRows(prev => prev.map(row => {
+      if (row.id !== id) return row
+      
+      const updatedRow = { ...row }
+      const amount = Math.round((percent / 100) * row.totalAmount)
+
+      if (field === 'asuransi') {
+        updatedRow.asuransi = amount
+        updatedRow.asuransiPercent = percent
+      } else if (field === 'rs') {
+        updatedRow.rs = amount
+        updatedRow.rsPercent = percent
+      }
+
+      // Recalculate Pasien remainder
+      updatedRow.pasien = Math.max(0, row.totalAmount - updatedRow.asuransi - updatedRow.rs)
+      
+      return updatedRow
+    }))
+  }, [])
+
+  const applyGlobalAllocation = () => {
+    const totalInvoiceAmount = rows.reduce((sum, row) => sum + row.totalAmount, 0)
+    
+    if (totalInvoiceAmount === 0) return
+
+    setRows(prev => {
+      // 1. Calculate ratios
+      const ratioAsuransi = globalAsuransi / totalInvoiceAmount
+      const ratioRS = globalRS / totalInvoiceAmount
+
+      // 2. Initial proportional distribution (floor to avoid over-allocation)
+      let allocatedAsuransiSum = 0
+      let allocatedRSSum = 0
+
+      const newRows = prev.map(row => {
+        const asuransi = Math.floor(row.totalAmount * ratioAsuransi)
+        const rs = Math.floor(row.totalAmount * ratioRS)
+        
+        allocatedAsuransiSum += asuransi
+        allocatedRSSum += rs
+
+        return {
+          ...row,
+          asuransi,
+          rs
+        }
+      })
+
+      // 3. Distribute rounding remainders (if any) to reach the exact target
+      let diffAsuransi = globalAsuransi - allocatedAsuransiSum
+      let diffRS = globalRS - allocatedRSSum
+
+      return newRows.map((row, idx) => {
+        const updatedRow = { ...row }
+        
+        // Add one currency unit until diff is exhausted
+        if (diffAsuransi > 0) {
+          const add = Math.min(row.totalAmount - updatedRow.asuransi, diffAsuransi)
+          updatedRow.asuransi += add
+          diffAsuransi -= add
+        }
+        
+        if (diffRS > 0) {
+          const maxPossibleRS = row.totalAmount - updatedRow.asuransi
+          const add = Math.min(maxPossibleRS - updatedRow.rs, diffRS)
+          updatedRow.rs += add
+          diffRS -= add
+        }
+
+        // 4. Update percentages and pasien remainder
+        updatedRow.asuransiPercent = row.totalAmount > 0 ? (updatedRow.asuransi / row.totalAmount) * 100 : 0
+        updatedRow.rsPercent = row.totalAmount > 0 ? (updatedRow.rs / row.totalAmount) * 100 : 0
+        updatedRow.pasien = Math.max(0, row.totalAmount - updatedRow.asuransi - updatedRow.rs)
+
+        return updatedRow
+      })
+    })
+    setIsModalOpen(false)
+    message.success(`Alokasi Pro-rata diterapkan (Asuransi: ${Math.round((globalAsuransi/totalInvoiceAmount)*100)}%)`)
   }
 
   const handleSave = async () => {
@@ -173,42 +324,71 @@ export default function BillingAllocationPage() {
     {
       title: 'Tanggungan Asuransi',
       key: 'asuransi',
-      width: 150,
+      width: 250,
       render: (_, record) => (
-        <InputNumber
-          value={record.asuransi}
-          onChange={(v) => handleAmountChange(record.id, 'asuransi', v || 0)}
-          className="w-full"
-          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-          parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
-        />
+        <div className="flex gap-1 items-center">
+          <DebouncedInputNumber
+            value={record.asuransiPercent}
+            onChange={(v: number) => handlePercentChange(record.id, 'asuransi', v)}
+            className="w-24"
+            suffix="%"
+            min={0}
+            max={100}
+            size="small"
+            debounceMs={200}
+          />
+          <DebouncedInputNumber
+            value={record.asuransi}
+            onChange={(v: number) => handleAmountChange(record.id, 'asuransi', v)}
+            className="flex-1"
+            formatter={(value: any) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={(value: any) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
+            size="small"
+            debounceMs={200}
+          />
+        </div>
       )
     },
     {
       title: 'Tanggungan RS',
       key: 'rs',
-      width: 150,
+      width: 250,
       render: (_, record) => (
-        <InputNumber
-          value={record.rs}
-          onChange={(v) => handleAmountChange(record.id, 'rs', v || 0)}
-          className="w-full"
-          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-          parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
-        />
+        <div className="flex gap-1 items-center">
+          <DebouncedInputNumber
+            value={record.rsPercent}
+            onChange={(v: number) => handlePercentChange(record.id, 'rs', v)}
+            className="w-24"
+            suffix="%"
+            min={0}
+            max={100}
+            size="small"
+            debounceMs={200}
+          />
+          <DebouncedInputNumber
+            value={record.rs}
+            onChange={(v: number) => handleAmountChange(record.id, 'rs', v)}
+            className="flex-1"
+            formatter={(value: any) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={(value: any) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
+            size="small"
+            debounceMs={200}
+          />
+        </div>
       )
     },
     {
       title: 'Tanggungan Pasien',
       key: 'pasien',
-      width: 150,
+      width: 180,
       render: (_, record) => (
         <InputNumber
           value={record.pasien}
-          disabled // Usually Pasien is the remainder
-          className="w-full bg-gray-50"
+          disabled 
+          className="w-full bg-gray-50 text-green-600 font-semibold"
           formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
           parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
+          size="small"
         />
       )
     },
@@ -290,6 +470,13 @@ export default function BillingAllocationPage() {
             className="w-64"
           />
           <Button 
+            icon={<SyncOutlined />} 
+            onClick={() => setIsModalOpen(true)}
+            size="large"
+          >
+            Alokasi Otomatis
+          </Button>
+          <Button 
             type="primary" 
             icon={<SaveOutlined />} 
             size="large" 
@@ -300,6 +487,85 @@ export default function BillingAllocationPage() {
           </Button>
         </div>
       </div>
+
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-slate-700 pb-2 border-b">
+            <SyncOutlined />
+            <span>Alokasi Otomatis (Bagi Rata / Plafon Global)</span>
+          </div>
+        }
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        width={700}
+        footer={[
+          <Button key="cancel" onClick={() => setIsModalOpen(false)}>
+            Batal
+          </Button>,
+          <Button 
+            key="apply" 
+            type="primary" 
+            icon={<SyncOutlined />} 
+            onClick={applyGlobalAllocation}
+            disabled={globalAsuransi === 0 && globalRS === 0}
+          >
+            Terapkan Alokasi
+          </Button>
+        ]}
+      >
+        <div className="py-6 space-y-6">
+          <Row gutter={20}>
+            <Col span={12}>
+              <Text type="secondary" className="block mb-2">Total Jatah Cover Asuransi (Plafon)</Text>
+              <DebouncedInputNumber
+                value={globalAsuransi}
+                onChange={(v: number) => setGlobalAsuransi(v)}
+                style={{ width: '100%' }}
+                placeholder="Input Plafon Asuransi (Rp)..."
+                formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
+                size="large"
+                debounceMs={500}
+              />
+            </Col>
+            <Col span={12}>
+              <Text type="secondary" className="block mb-2">Total Jatah Cover RS (Plafon)</Text>
+              <DebouncedInputNumber
+                value={globalRS}
+                onChange={(v: number) => setGlobalRS(v)}
+                style={{ width: '100%' }}
+                placeholder="Input Jatah RS (Rp)..."
+                formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
+                size="large"
+                debounceMs={500}
+              />
+            </Col>
+          </Row>
+
+          <div className="bg-slate-50 p-4 rounded-lg flex gap-12 border border-slate-100">
+            <Statistic 
+              title="Sisa Plafon Asuransi" 
+              value={Math.max(0, globalAsuransi - summary.asuransi)} 
+              suffix="dari total" 
+              valueStyle={{ fontSize: 16, color: '#1677ff' }}
+              prefix="Rp"
+            />
+            <Statistic 
+              title="Total Tagihan" 
+              value={summary.total} 
+              valueStyle={{ fontSize: 16 }}
+              prefix="Rp"
+            />
+          </div>
+          
+          <div className="bg-amber-50 p-3 rounded border border-amber-100 flex items-start gap-2">
+            <Text type="warning" className="text-xs">
+              ⓘ Setelah tombol "Terapkan" diklik, sistem akan membagi nominal plafon secara proporsional (bagi rata) ke seluruh item tagihan di bawah.
+            </Text>
+          </div>
+        </div>
+      </Modal>
 
       <Card size="small" className="bg-blue-50">
         <Row gutter={24}>
