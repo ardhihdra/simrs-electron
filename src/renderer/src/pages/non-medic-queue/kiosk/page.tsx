@@ -45,7 +45,7 @@ type CreatedTicketDto = {
 export type ServiceKioskPageProps = {
     title: string
     description: string
-    serviceTypeCode: 'BILLING' | 'CASHIER' | 'PHARMACY'
+    serviceTypeCode: 'BILLING' | 'CASHIER' | 'PHARMACY' | 'REGISTRASI'
     serviceLabel: string
     icon: ReactNode
 }

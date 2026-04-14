@@ -18,15 +18,19 @@ import { App, Button, DatePicker, Form, Input, Modal, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
-import { useParams } from 'react-router'
 
-import { getNextCallQueue, getNextConfirmQueue } from './header-next-queue'
+import {
+  getNextGlobalCallQueue,
+  getNextGlobalConfirmQueue,
+  sortQueuesByGlobalNumber
+} from './global-header-next-queue'
 
 type QueueRow = {
   id?: string
   queueId?: string
   formattedQueueNumber?: string
   queueNumber?: string | number
+  globalQueueNumber?: number
   queueDate?: string
   createdAt?: string
   patientId?: string
@@ -44,6 +48,9 @@ type QueueRow = {
   sepId?: string
   encounterId?: string
 }
+
+const formatGlobalQueueNumber = (value?: number) =>
+  typeof value === 'number' && Number.isFinite(value) ? String(value).padStart(3, '0') : '-'
 
 const mapQueueRowToPatientInfoCardData = (record: QueueRow) => {
   const birthDate = record.patientBirthDate ? dayjs(record.patientBirthDate) : null
@@ -68,19 +75,12 @@ const mapQueueRowToPatientInfoCardData = (record: QueueRow) => {
   }
 }
 
-export default function RegistrationQueue({
-  practitionerId: propPractitionerId
-}: {
-  practitionerId?: string
-}) {
+export default function RegistrationGlobalQueue() {
   const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
-  const { practitionerId: urlPractitionerId } = useParams()
-  const practitionerId = propPractitionerId || urlPractitionerId
 
   const [searchParams, setSearchParams] = useState({
     queueDate: dayjs().format('YYYY-MM-DD'),
-    queueNumber: '',
-    practitionerId: practitionerId || ''
+    globalQueueNumber: ''
   })
 
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; queue?: any }>({ open: false })
@@ -112,61 +112,44 @@ export default function RegistrationQueue({
     refetch
   } = client.registration.getQueues.useQuery({
     queueDate: searchParams.queueDate,
-    queueNumber: searchParams.queueNumber ? Number(searchParams.queueNumber) : undefined,
     status: [
       'PRE_RESERVED',
       'RESERVED',
       'REGISTERED',
       'SKIPPED',
       ...(IS_DEVELOPMENT ? ['CALLED'] : [])
-      // 'TRIAGE',
-      // 'TRIAGED',
-      // 'IN_PROGRESS'
-    ],
-    practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
+    ]
   })
-
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
-  const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()
-  const queueRows = useMemo(() => queueData?.result || [], [queueData?.result])
-  const nextConfirmQueue = useMemo(() => getNextConfirmQueue(queueRows), [queueRows])
-  const nextCallQueue = useMemo(() => getNextCallQueue(queueRows), [queueRows])
 
-  // const handleCancelEncounter = (record: any) => {
-  //   Modal.confirm({
-  //     title: 'Batalkan Antrian',
-  //     content: `Apakah Anda yakin ingin membatalkan antrian untuk ${record.patientName}?`,
-  //     okText: 'Ya, Batalkan',
-  //     okType: 'danger',
-  //     cancelText: 'Tidak',
-  //     onOk: async () => {
-  //       try {
-  //         await cancelEncounterMutation.mutateAsync({
-  //           id: record.encounterId,
-  //           reason: 'Dibatalkan oleh petugas pendaftaran'
-  //         })
-  //         message.success('Antrian berhasil dibatalkan')
-  //         refetch()
-  //       } catch (error: any) {
-  //         message.error(error.message || 'Gagal membatalkan antrian')
-  //       }
-  //     }
-  //   })
-  // }
+  const queueRows = useMemo(
+    () => sortQueuesByGlobalNumber((queueData?.result as QueueRow[] | undefined) || []),
+    [queueData?.result]
+  )
 
-  // const handleTriagedCallToPoli = async (record: any) => {
-  //   try {
-  //     await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'START_ENCOUNTER' })
-  //     message.success(`Antrian ${record.formattedQueueNumber} dipanggil dan masuk Poli`)
-  //     refetch()
-  //   } catch (error: any) {
-  //     message.error(error.message || 'Gagal memproses antrian')
-  //   }
-  // }
+  const filteredQueueRows = useMemo(() => {
+    const searchValue = searchParams.globalQueueNumber.trim()
+    if (!searchValue) return queueRows
+
+    return queueRows.filter(
+      (queue) =>
+        queue.globalQueueNumber != null &&
+        String(queue.globalQueueNumber).includes(searchValue)
+    )
+  }, [queueRows, searchParams.globalQueueNumber])
+
+  const nextConfirmQueue = useMemo(
+    () => getNextGlobalConfirmQueue(filteredQueueRows),
+    [filteredQueueRows]
+  )
+  const nextCallQueue = useMemo(() => getNextGlobalCallQueue(filteredQueueRows), [filteredQueueRows])
 
   const handleCreateSep = async (record: any) => {
     try {
-      await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'CREATE_SEP' })
+      await updateStatusMutation.mutateAsync({
+        queueId: record.queueId,
+        action: 'CREATE_SEP'
+      } as any)
       message.success('SEP Draft berhasil dibuat')
       refetch()
     } catch (error: any) {
@@ -174,23 +157,20 @@ export default function RegistrationQueue({
     }
   }
 
-  // const handleTriageDone = async (record: any) => {
-  //   try {
-  //     await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'TRIAGE_DONE' })
-  //     message.success(`Status antrian ${record.formattedQueueNumber} diperbarui: TRIAGED`)
-  //     refetch()
-  //   } catch (error: any) {
-  //     message.error(error.message || 'Gagal memperbarui status')
-  //   }
-  // }
-
   const columns: ColumnsType<QueueRow> = [
     {
-      title: 'No. Antrian',
+      title: 'No. Global',
+      dataIndex: 'globalQueueNumber',
+      key: 'globalQueueNumber',
+      width: 120,
+      render: (value) => <span className="font-bold text-lg">{formatGlobalQueueNumber(value)}</span>
+    },
+    {
+      title: 'No. Poli',
       dataIndex: 'formattedQueueNumber',
       key: 'formattedQueueNumber',
       width: 120,
-      render: (text) => <span className="font-bold text-lg">{text}</span>
+      render: (value) => <span className="text-slate-600">{value || '-'}</span>
     },
     {
       title: 'Pasien',
@@ -249,7 +229,7 @@ export default function RegistrationQueue({
           IN_PROGRESS: 'purple',
           REGISTERED: 'cyan'
         }
-        return <Tag color={colorMap[status] ?? 'default'}>{status}</Tag>
+        return <Tag color={colorMap[status || ''] ?? 'default'}>{status}</Tag>
       }
     },
     {
@@ -288,10 +268,8 @@ export default function RegistrationQueue({
 
   const onSearch = (values: any) => {
     setSearchParams({
-      ...searchParams,
       queueDate: values.queueDate ? dayjs(values.queueDate).format('YYYY-MM-DD') : '',
-      queueNumber: values.queueNumber,
-      practitionerId: values.practitionerId
+      globalQueueNumber: values.globalQueueNumber || ''
     })
     refetch()
   }
@@ -317,8 +295,8 @@ export default function RegistrationQueue({
   return (
     <div>
       <TableHeader
-        title="Antrian Pendaftaran"
-        subtitle="Manajemen antrian pendaftaran pasien"
+        title="Antrian Global Pendaftaran"
+        subtitle="Manajemen seluruh antrian pendaftaran harian dengan nomor global."
         onSearch={onSearch}
         loading={isLoading || isRefetching}
         action={
@@ -345,17 +323,17 @@ export default function RegistrationQueue({
         <Form.Item name="queueDate" style={{ width: '100%' }} initialValue={dayjs()}>
           <DatePicker allowClear={false} size="large" style={{ width: '100%' }} />
         </Form.Item>
-        <Form.Item name="queueNumber" style={{ width: '100%' }}>
-          <Input placeholder="Cari No. Antrian" allowClear size="large" />
+        <Form.Item name="globalQueueNumber" style={{ width: '100%' }}>
+          <Input placeholder="Cari No. Antrian Global" allowClear size="large" />
         </Form.Item>
       </TableHeader>
 
       <div className="mt-4">
         <GenericTable
           columns={columns}
-          dataSource={queueRows}
+          dataSource={filteredQueueRows}
           rowKey="queueId"
-          loading={isLoading || isRefetching}
+          loading={isLoading || isRefetching || updateStatusMutation.isPending}
           action={{
             title: 'Aksi',
             width: 150,
@@ -382,32 +360,6 @@ export default function RegistrationQueue({
                   onClick: () => setCallModal({ open: true, record })
                 })
               }
-              // } else if (record.status === 'TRIAGED') {
-              //   actions.push({
-              //     label: 'Panggil ke Poli',
-              //     icon: <SoundOutlined />,
-              //     type: 'primary',
-              //     onClick: () => handleTriagedCallToPoli(record)
-              //   })
-              // } else if (record.status === 'IN_PROGRESS') {
-              //   actions.push(
-              //     {
-              //       label: 'Pulangkan',
-              //       icon: <CheckCircleOutlined />,
-              //       onClick: () => setDischargeModal({ open: true, record })
-              //     },
-              //     {
-              //       label: 'Rujuk',
-              //       icon: <FileTextOutlined />,
-              //       onClick: () => setReferralModal({ open: true, record })
-              //     },
-              //     {
-              //       label: 'Batal',
-              //       danger: true,
-              //       onClick: () => handleCancelEncounter(record)
-              //     }
-              //   )
-              // }
 
               if (record.paymentMethod === 'bpjs' && record.patientId && !record.sepId) {
                 actions.push({
@@ -416,16 +368,6 @@ export default function RegistrationQueue({
                   onClick: () => handleCreateSep(record)
                 })
               }
-
-              // only nurse can confirm triage action
-              // if (record.status === 'TRIAGE') {
-              //   actions.push({
-              //     label: 'Triage Selesai',
-              //     icon: <CheckCircleOutlined />,
-              //     type: 'primary',
-              //     onClick: () => handleTriageDone(record)
-              //   })
-              // }
 
               return actions
             }
@@ -466,7 +408,6 @@ export default function RegistrationQueue({
       <ReferralModal
         open={referralModal.open}
         record={referralModal.record}
-        practitionerId={practitionerId}
         onClose={() => setReferralModal({ open: false, record: undefined })}
         onSuccess={() => refetch()}
       />
@@ -476,7 +417,6 @@ export default function RegistrationQueue({
         title="Detail Pasien"
         onCancel={() => setDetailModal({ open: false, record: undefined })}
         footer={null}
-        // destroyOnClose
         width={920}
       >
         {detailModal.record ? (

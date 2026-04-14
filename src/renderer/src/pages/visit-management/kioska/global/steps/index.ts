@@ -1,0 +1,7 @@
+export { StepCheckin } from './step-checkin'
+export { StepHasMrn } from './step-has-mrn'
+export { StepQueueSummary } from './step-queue-summary'
+export { StepScanMrn } from './step-scan-mrn'
+export { StepSelectAntrianType } from './step-select-antrian-type'
+export { StepSelectDoctor } from './step-select-doctor'
+export { StepSelectPoli } from './step-select-poli'

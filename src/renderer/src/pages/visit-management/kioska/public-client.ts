@@ -1,4 +1,6 @@
 import { rpc } from '@renderer/utils/client'
+import type { KioskaCheckinError } from './global/kioska-checkin-error'
+import { createKioskaCheckinError } from './global/kioska-checkin-error'
 import type { KioskaPoliOption } from './shared'
 
 export type KioskaDoctor = {
@@ -7,6 +9,12 @@ export type KioskaDoctor = {
   doctorScheduleId: number
   poliId: number
   poliName?: string
+}
+
+export type KioskaWorkLocation = {
+  id: number
+  code: string
+  name: string
 }
 
 export type KioskaQueuePayload = {
@@ -25,10 +33,33 @@ export type KioskaPatient = {
   id: string
   name?: string
   medicalRecordNumber?: string
+  address?: string
+  birthDate?: string | Date | null
+}
+
+export type KioskaRegisterQueueResult = {
+  queueNumber: string
+}
+
+export type KioskaRegistrationTicketPayload = {
+  lokasiKerjaId: number
+  serviceTypeCode: 'REGISTRASI'
+  queueDate: string
+  sourceChannel: 'KIOSK'
+}
+
+export type KioskaRegistrationTicketResult = {
+  ticketId?: string
+  ticketNo?: string
+  queueDate?: string
 }
 
 export async function fetchKioskaPolis() {
   return (await rpc.kioskaPublic.polis({})) as KioskaPoliOption[]
+}
+
+export async function fetchKioskaRegistrationLocation() {
+  return (await rpc.kioskaPublic.registrationLocation({})) as KioskaWorkLocation
 }
 
 export async function fetchKioskaDoctors(input: { date: string; poliId: number }) {
@@ -40,5 +71,17 @@ export async function fetchKioskaPatients(input: { medicalRecordNumber: string }
 }
 
 export async function registerKioskaQueue(payload: KioskaQueuePayload) {
-  return await rpc.kioskaPublic.register(payload)
+  return (await rpc.kioskaPublic.register(payload)) as KioskaRegisterQueueResult
+}
+
+export async function createKioskaRegistrationTicket(payload: KioskaRegistrationTicketPayload) {
+  return (await rpc.kioskaPublic.registrationTicket(payload)) as KioskaRegistrationTicketResult
+}
+
+export async function checkinKioskaQueue(queueNumber: string) {
+  try {
+    return await rpc.kioskaPublic.checkin({ queueNumber })
+  } catch (error) {
+    throw createKioskaCheckinError(error) as KioskaCheckinError
+  }
 }

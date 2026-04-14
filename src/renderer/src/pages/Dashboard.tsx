@@ -29,11 +29,6 @@ import { Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
-import { Modules } from 'simrs-types'
-
-// Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
-type Module = (typeof Modules)[keyof typeof Modules]
-
 // const SendNotificationButton = () => {
 //   const { message } = AntdApp.useApp()
 //   return (
@@ -66,7 +61,7 @@ type DashboardMenuChild = {
 }
 
 type DashboardMenuItem = DashboardMenuChild & {
-  module?: Module
+  module?: string
   children?: DashboardMenuChild[]
 }
 
@@ -82,7 +77,7 @@ const items: DashboardMenuItem[] = [
     label: 'Registrasi',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
-    module: Modules.REGISTRASI,
+    module: 'REGISTRASI',
     children: [
       { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
       {
@@ -98,6 +93,16 @@ const items: DashboardMenuItem[] = [
       {
         label: 'Antrian Mendatang',
         key: '/dashboard/registration/upcoming-queue',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Antrian Global Pendaftaran',
+        key: '/dashboard/registration/global-queue',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Antrian Pendaftaran Non-Medis',
+        key: '/dashboard/registration/non-medic-queue',
         icon: <UnorderedListOutlined />
       },
       {
@@ -127,7 +132,7 @@ const items: DashboardMenuItem[] = [
     label: 'Rawat Jalan',
     key: '/dashboard/poli',
     icon: <CalendarOutlined />,
-    module: Modules.RAWAT_JALAN,
+    module: 'RAWAT_JALAN',
     children: [
       { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
       {
@@ -151,7 +156,7 @@ const items: DashboardMenuItem[] = [
     label: 'Rawat Inap',
     key: '/dashboard/rawat-inap',
     icon: <CalendarOutlined />,
-    module: Modules.RAWAT_INAP,
+    module: 'RAWAT_INAP',
     children: [
       {
         label: 'Rawat Inap 1',
@@ -169,7 +174,7 @@ const items: DashboardMenuItem[] = [
     label: 'Kamar Operasi (OK)',
     key: '/dashboard/ok',
     icon: <FileTextOutlined />,
-    module: Modules.OK,
+    module: 'OK',
     children: [
       {
         label: 'Pengajuan OK',
@@ -187,7 +192,7 @@ const items: DashboardMenuItem[] = [
     label: 'Farmasi',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
-    module: Modules.FARMASI,
+    module: 'FARMASI',
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
       {
@@ -220,7 +225,7 @@ const items: DashboardMenuItem[] = [
     label: 'Laboratorium',
     key: '/dashboard/laboratory-management',
     icon: <ExperimentOutlined />,
-    module: Modules.LAB,
+    module: 'LAB',
     children: [
       {
         label: 'Antrian',
@@ -276,7 +281,7 @@ const items: DashboardMenuItem[] = [
     label: 'Kasir & Billing',
     key: '/dashboard/kasir',
     icon: <WalletOutlined />,
-    module: Modules.BILLING_KASIR,
+    module: 'BILLING_KASIR',
     children: [
       {
         label: 'Tagihan Pasien',
@@ -289,7 +294,7 @@ const items: DashboardMenuItem[] = [
     label: 'Antrian Non-Medis',
     key: '/dashboard/non-medic-queue',
     icon: <UnorderedListOutlined />,
-    module: Modules.BILLING_KASIR,
+    module: 'BILLING_KASIR',
     children: [
       {
         label: 'KIOSK Billing',
@@ -304,6 +309,11 @@ const items: DashboardMenuItem[] = [
       {
         label: 'KIOSK Farmasi',
         key: '/dashboard/non-medic-queue/kiosk/pharmacy',
+        icon: <BarcodeOutlined />
+      },
+      {
+        label: 'KIOSK Pendaftaran',
+        key: '/dashboard/non-medic-queue/kiosk/registration',
         icon: <BarcodeOutlined />
       },
       {
@@ -322,6 +332,11 @@ const items: DashboardMenuItem[] = [
         icon: <MedicineBoxOutlined />
       },
       {
+        label: 'Pendaftaran',
+        key: '/dashboard/non-medic-queue/registration',
+        icon: <UnorderedListOutlined />
+      },
+      {
         label: 'Service Point',
         key: '/dashboard/non-medic-queue/service-points',
         icon: <UnorderedListOutlined />
@@ -337,7 +352,7 @@ const items: DashboardMenuItem[] = [
     label: 'Sistem',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
-    module: Modules.SYSTEM_ADMIN,
+    module: 'SYSTEM_ADMIN',
     children: [
       {
         label: 'Data Petugas Medis',
