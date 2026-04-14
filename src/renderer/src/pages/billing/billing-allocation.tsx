@@ -5,21 +5,22 @@ import {
   SyncOutlined,
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
-import { 
-  Button, 
-  Divider, 
-  Spin, 
-  Table, 
-  Tag, 
-  Typography, 
-  message, 
-  Select, 
+import {
+  Button,
+  Divider,
+  Spin,
+  Table,
+  Tag,
+  Typography,
+  Select,
   InputNumber,
   Card,
   Row,
   Col,
   Statistic,
   Modal,
+  App,
+  Alert,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
@@ -51,13 +52,13 @@ interface AllocationRow {
  * A local-state managed InputNumber that only notifies parent after a delay or on blur
  * This prevents the heavy total-table re-render on every keystroke
  */
-const DebouncedInputNumber = ({ 
-  value, 
-  onChange, 
+const DebouncedInputNumber = ({
+  value,
+  onChange,
   debounceMs = 300,
-  ...props 
-}: { 
-  value: number; 
+  ...props
+}: {
+  value: number;
   onChange: (val: number) => void;
   debounceMs?: number;
 } & any) => {
@@ -96,6 +97,7 @@ const DebouncedInputNumber = ({
 }
 
 export default function BillingAllocationPage() {
+  const { message } = App.useApp()
   const params = useParams()
   const kode = params['*']
   const navigate = useNavigate()
@@ -103,7 +105,7 @@ export default function BillingAllocationPage() {
   const [rows, setRows] = useState<AllocationRow[]>([])
   const [saving, setSaving] = useState(false)
   const [globalMitraId, setGlobalMitraId] = useState<number | null>(null)
-  
+
   // Global allocation states
   const [globalAsuransi, setGlobalAsuransi] = useState<number>(0)
   const [globalRS, setGlobalRS] = useState<number>(0)
@@ -114,7 +116,6 @@ export default function BillingAllocationPage() {
   })
 
   useEffect(() => {
-    console.log('[BillingAllocation] Data updated:', data)
     if (data?.success && data.result) {
       const invoice = data.result
       const items: AllocationRow[] = (invoice.details || []).map((item: any) => {
@@ -143,7 +144,7 @@ export default function BillingAllocationPage() {
         }
       })
       setRows(items)
-      
+
       const someMitraId = items.find(i => i.mitraId)?.mitraId
       if (someMitraId) setGlobalMitraId(someMitraId)
     }
@@ -152,9 +153,9 @@ export default function BillingAllocationPage() {
   const handleAmountChange = useCallback((id: number, field: 'asuransi' | 'rs', value: number) => {
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row
-      
+
       const updatedRow = { ...row, [field]: value }
-      
+
       // Update percentage based on new amount
       if (field === 'asuransi') {
         updatedRow.asuransiPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
@@ -162,9 +163,9 @@ export default function BillingAllocationPage() {
         updatedRow.rsPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
       }
 
-      // Recalculate Pasien remainder
-      updatedRow.pasien = Math.max(0, row.totalAmount - updatedRow.asuransi - updatedRow.rs)
-      
+      // Recalculate Pasien remainder (Allow negative for validation)
+      updatedRow.pasien = row.totalAmount - updatedRow.asuransi - updatedRow.rs
+
       return updatedRow
     }))
   }, [])
@@ -172,7 +173,7 @@ export default function BillingAllocationPage() {
   const handlePercentChange = useCallback((id: number, field: 'asuransi' | 'rs', percent: number) => {
     setRows(prev => prev.map(row => {
       if (row.id !== id) return row
-      
+
       const updatedRow = { ...row }
       const amount = Math.round((percent / 100) * row.totalAmount)
 
@@ -184,16 +185,16 @@ export default function BillingAllocationPage() {
         updatedRow.rsPercent = percent
       }
 
-      // Recalculate Pasien remainder
-      updatedRow.pasien = Math.max(0, row.totalAmount - updatedRow.asuransi - updatedRow.rs)
-      
+      // Recalculate Pasien remainder (Allow negative for validation)
+      updatedRow.pasien = row.totalAmount - updatedRow.asuransi - updatedRow.rs
+
       return updatedRow
     }))
   }, [])
 
   const applyGlobalAllocation = () => {
     const totalInvoiceAmount = rows.reduce((sum, row) => sum + row.totalAmount, 0)
-    
+
     if (totalInvoiceAmount === 0) return
 
     setRows(prev => {
@@ -208,7 +209,7 @@ export default function BillingAllocationPage() {
       const newRows = prev.map(row => {
         const asuransi = Math.floor(row.totalAmount * ratioAsuransi)
         const rs = Math.floor(row.totalAmount * ratioRS)
-        
+
         allocatedAsuransiSum += asuransi
         allocatedRSSum += rs
 
@@ -225,14 +226,14 @@ export default function BillingAllocationPage() {
 
       return newRows.map((row, idx) => {
         const updatedRow = { ...row }
-        
+
         // Add one currency unit until diff is exhausted
         if (diffAsuransi > 0) {
           const add = Math.min(row.totalAmount - updatedRow.asuransi, diffAsuransi)
           updatedRow.asuransi += add
           diffAsuransi -= add
         }
-        
+
         if (diffRS > 0) {
           const maxPossibleRS = row.totalAmount - updatedRow.asuransi
           const add = Math.min(maxPossibleRS - updatedRow.rs, diffRS)
@@ -249,36 +250,52 @@ export default function BillingAllocationPage() {
       })
     })
     setIsModalOpen(false)
-    message.success(`Alokasi Pro-rata diterapkan (Asuransi: ${Math.round((globalAsuransi/totalInvoiceAmount)*100)}%)`)
+    message.success(`Alokasi Pro-rata diterapkan (Asuransi: ${Math.round((globalAsuransi / totalInvoiceAmount) * 100)}%)`)
   }
 
   const handleSave = async () => {
-    if (!kode) return
+    if (!kode) {
+      console.error('Save aborted: kode is missing')
+      message.error('Kode invoice tidak ditemukan')
+      return
+    }
+
+    const hide = message.loading('Menyimpan alokasi...', 0)
     setSaving(true)
+
     try {
+      // 1. Pre-validation: If any row has insurance allocation, Mitra MUST be selected
+      const hasInsuranceAllocation = rows.some(r => r.asuransi > 0)
+      if (hasInsuranceAllocation && !globalMitraId) {
+        message.error('Silahkan pilih Penjamin (Mitra) terlebih dahulu!')
+        hide()
+        setSaving(false)
+        return
+      }
+
       const payload: any[] = []
       rows.forEach(row => {
         if (row.asuransi > 0) {
           payload.push({
-            invoiceDetailId: row.id,
-            payorType: 'insurance', // Generic insurance for simplicity in payload
-            amount: row.asuransi,
-            mitraId: globalMitraId,
+            invoiceDetailId: Number(row.id),
+            payorType: 'insurance',
+            amount: Number(row.asuransi),
+            mitraId: Number(globalMitraId),
             note: row.note
           })
         }
         if (row.rs > 0) {
           payload.push({
-            invoiceDetailId: row.id,
+            invoiceDetailId: Number(row.id),
             payorType: 'hospital',
-            amount: row.rs
+            amount: Number(row.rs)
           })
         }
         if (row.pasien > 0) {
           payload.push({
-            invoiceDetailId: row.id,
+            invoiceDetailId: Number(row.id),
             payorType: 'patient',
-            amount: row.pasien
+            amount: Number(row.pasien)
           })
         }
       })
@@ -296,8 +313,9 @@ export default function BillingAllocationPage() {
         message.error(res.message || 'Gagal menyimpan alokasi')
       }
     } catch (err: any) {
-      message.error(err.message || 'Terjadi kesalahan')
+      message.error(err.message || 'Terjadi kesalahan sistem')
     } finally {
+      hide()
       setSaving(false)
     }
   }
@@ -313,11 +331,11 @@ export default function BillingAllocationPage() {
   const columns: ColumnsType<AllocationRow> = [
     { title: 'Tagihan', dataIndex: 'description', key: 'description' },
     { title: 'Jumlah', dataIndex: 'qty', key: 'qty', width: 80, align: 'center' },
-    { 
-      title: 'Tarif', 
-      dataIndex: 'unitPrice', 
-      key: 'unitPrice', 
-      width: 120, 
+    {
+      title: 'Tarif',
+      dataIndex: 'unitPrice',
+      key: 'unitPrice',
+      width: 120,
       align: 'right',
       render: (v) => formatRupiah(v)
     },
@@ -345,6 +363,7 @@ export default function BillingAllocationPage() {
             parser={(value: any) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
             size="small"
             debounceMs={200}
+            status={record.asuransi + record.rs > record.totalAmount ? 'error' : undefined}
           />
         </div>
       )
@@ -373,6 +392,7 @@ export default function BillingAllocationPage() {
             parser={(value: any) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
             size="small"
             debounceMs={200}
+            status={record.asuransi + record.rs > record.totalAmount ? 'error' : undefined}
           />
         </div>
       )
@@ -381,22 +401,37 @@ export default function BillingAllocationPage() {
       title: 'Tanggungan Pasien',
       key: 'pasien',
       width: 180,
-      render: (_, record) => (
-        <InputNumber
-          value={record.pasien}
-          disabled 
-          className="w-full bg-gray-50 text-green-600 font-semibold"
-          formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-          parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
-          size="small"
-        />
-      )
+      render: (_, record) => {
+        const diff = record.totalAmount - record.asuransi - record.rs
+        const isMismatch = diff !== 0
+        
+        return (
+          <div className="flex flex-col">
+            <InputNumber
+              value={diff}
+              disabled 
+              className={`w-full font-semibold ${
+                isMismatch ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-green-600'
+              }`}
+              formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, '')) || 0}
+              size="small"
+              status={isMismatch ? 'error' : undefined}
+            />
+            {isMismatch && (
+              <Text type="danger" style={{ fontSize: 10 }}>
+                {diff < 0 ? 'Melebihi jatah!' : 'Masih kurang!'}
+              </Text>
+            )}
+          </div>
+        )
+      }
     },
-    { 
-      title: 'Total', 
-      dataIndex: 'totalAmount', 
-      key: 'totalAmount', 
-      width: 130, 
+    {
+      title: 'Total',
+      dataIndex: 'totalAmount',
+      key: 'totalAmount',
+      width: 130,
       align: 'right',
       render: (v) => formatRupiah(v)
     },
@@ -420,13 +455,36 @@ export default function BillingAllocationPage() {
       acc.total += curr.totalAmount
       acc.asuransi += curr.asuransi
       acc.rs += curr.rs
-      acc.pasien += curr.pasien
+      acc.pasien += (curr.totalAmount - curr.asuransi - curr.rs)
       return acc
     }, { total: 0, asuransi: 0, rs: 0, pasien: 0 })
   }, [rows])
 
+  // Global validation: disable save if any row total is not 100% allocated
+  const validationStatus = useMemo(() => {
+    const hasOver = rows.some(row => (row.asuransi + row.rs) > row.totalAmount)
+    const hasUnder = rows.some(row => (row.asuransi + row.rs) < row.totalAmount)
+    return {
+      hasError: hasOver || hasUnder,
+      hasOver,
+      hasUnder,
+      message: hasOver 
+        ? 'Terdapat alokasi yang MELEBIHI total tagihan!' 
+        : hasUnder 
+          ? 'Terdapat tagihan yang BELUM dialokasi sepenuhnya!' 
+          : ''
+    }
+  }, [rows])
+
+  const openAllocationModal = () => {
+    // Initialize modal with current table totals so it's not reset to 0
+    setGlobalAsuransi(summary.asuransi)
+    setGlobalRS(summary.rs)
+    setIsModalOpen(true)
+  }
+
   if (isLoading) return <div className="flex justify-center py-20"><Spin size="large" tip="Memuat detail tagihan..." /></div>
-  
+
   if (isError) return (
     <div className="p-10 text-center">
       <Text type="danger">Terjadi kesalahan: {error?.message}</Text>
@@ -456,11 +514,11 @@ export default function BillingAllocationPage() {
   return (
     <div className="p-4 space-y-6">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>Kembali</Button>
           <Title level={3} className="!mb-0">Alokasi Penjamin - {kode}</Title>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
           <RPCSelectAsync
             entity="mitra"
             listAll
@@ -469,19 +527,19 @@ export default function BillingAllocationPage() {
             onChange={setGlobalMitraId}
             className="w-64"
           />
-          <Button 
-            icon={<SyncOutlined />} 
-            onClick={() => setIsModalOpen(true)}
-            size="large"
+          <Button
+            icon={<SyncOutlined />}
+            onClick={openAllocationModal}
           >
             Alokasi Otomatis
           </Button>
-          <Button 
-            type="primary" 
-            icon={<SaveOutlined />} 
-            size="large" 
+          <Button
+            type="primary"
+            icon={<SaveOutlined />}
             loading={saving}
             onClick={handleSave}
+            disabled={validationStatus.hasError}
+            title={validationStatus.message}
           >
             Simpan Alokasi
           </Button>
@@ -497,15 +555,25 @@ export default function BillingAllocationPage() {
         }
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
-        width={700}
+        width={850}
         footer={[
           <Button key="cancel" onClick={() => setIsModalOpen(false)}>
             Batal
           </Button>,
-          <Button 
-            key="apply" 
-            type="primary" 
-            icon={<SyncOutlined />} 
+          <Button
+            key="reset"
+            danger
+            onClick={() => {
+              setGlobalAsuransi(0)
+              setGlobalRS(0)
+            }}
+          >
+            Reset Alokasi
+          </Button>,
+          <Button
+            key="apply"
+            type="primary"
+            icon={<SyncOutlined />}
             onClick={applyGlobalAllocation}
             disabled={globalAsuransi === 0 && globalRS === 0}
           >
@@ -514,54 +582,99 @@ export default function BillingAllocationPage() {
         ]}
       >
         <div className="py-6 space-y-6">
-          <Row gutter={20}>
-            <Col span={12}>
-              <Text type="secondary" className="block mb-2">Total Jatah Cover Asuransi (Plafon)</Text>
-              <DebouncedInputNumber
-                value={globalAsuransi}
-                onChange={(v: number) => setGlobalAsuransi(v)}
-                style={{ width: '100%' }}
-                placeholder="Input Plafon Asuransi (Rp)..."
-                formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
-                size="large"
-                debounceMs={500}
-              />
-            </Col>
-            <Col span={12}>
-              <Text type="secondary" className="block mb-2">Total Jatah Cover RS (Plafon)</Text>
-              <DebouncedInputNumber
-                value={globalRS}
-                onChange={(v: number) => setGlobalRS(v)}
-                style={{ width: '100%' }}
-                placeholder="Input Jatah RS (Rp)..."
-                formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
-                size="large"
-                debounceMs={500}
-              />
-            </Col>
-          </Row>
-
-          <div className="bg-slate-50 p-4 rounded-lg flex gap-12 border border-slate-100">
-            <Statistic 
-              title="Sisa Plafon Asuransi" 
-              value={Math.max(0, globalAsuransi - summary.asuransi)} 
-              suffix="dari total" 
-              valueStyle={{ fontSize: 16, color: '#1677ff' }}
+          <div className="bg-blue-50 p-4 rounded-lg flex justify-between items-center border border-blue-100 px-8">
+            <Statistic
+              title="Total Tagihan"
+              value={summary.total}
               prefix="Rp"
             />
-            <Statistic 
-              title="Total Tagihan" 
-              value={summary.total} 
-              valueStyle={{ fontSize: 16 }}
+            <Statistic
+              title="Tanggungan Pasien (Sisa)"
+              value={Math.max(0, summary.total - globalAsuransi - globalRS)}
               prefix="Rp"
+              valueStyle={{ color: (summary.total - globalAsuransi - globalRS) > 0 ? '#faad14' : '#52c41a' }}
             />
           </div>
-          
+
+          <div className="space-y-6">
+            <div className="flex justify-between items-center bg-slate-50 p-2 px-4 rounded border border-dashed">
+              <Text type="secondary">Otomatis seimbangkan (Pasien Rp 0)?</Text>
+              <Select
+                defaultValue="link"
+                size="small"
+                style={{ width: 180 }}
+                onChange={(val) => {
+                  if (val === 'link') {
+                    // Force balance now
+                    setGlobalRS(Math.max(0, summary.total - globalAsuransi))
+                  }
+                }}
+                options={[
+                  { label: 'Ya (Otomatis)', value: 'link' },
+                  { label: 'Tidak (Manual)', value: 'manual' }
+                ]}
+                id="allocation-mode-select"
+              />
+            </div>
+
+            <div className="space-y-4 px-4">
+              <Row align="middle" gutter={16}>
+                <Col span={6}>
+                  <Text strong className="text-slate-600">Plafon Asuransi</Text>
+                </Col>
+                <Col span={18}>
+                  <DebouncedInputNumber
+                    style={{ width: '100%' }}
+                    size="large"
+                    min={0}
+                    max={summary.total}
+                    value={globalAsuransi}
+                    onChange={(v: number) => {
+                      const newVal = v || 0
+                      setGlobalAsuransi(newVal)
+                      const mode = (document.getElementById('allocation-mode-select') as HTMLSelectElement)?.value || 'link'
+                      if (mode === 'link') {
+                        setGlobalRS(Math.max(0, summary.total - newVal))
+                      }
+                    }}
+                    formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
+                    debounceMs={300}
+                  />
+                </Col>
+              </Row>
+
+              <Row align="middle" gutter={16}>
+                <Col span={6}>
+                  <Text strong className="text-slate-600">Plafon RS</Text>
+                </Col>
+                <Col span={18}>
+                  <DebouncedInputNumber
+                    style={{ width: '100%' }}
+                    size="large"
+                    min={0}
+                    max={summary.total}
+                    value={globalRS}
+                    onChange={(v: number) => {
+                      const newVal = v || 0
+                      setGlobalRS(newVal)
+                      const mode = (document.getElementById('allocation-mode-select') as HTMLSelectElement)?.value || 'link'
+                      if (mode === 'link') {
+                        setGlobalAsuransi(Math.max(0, summary.total - newVal))
+                      }
+                    }}
+                    formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                    parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
+                    debounceMs={300}
+                  />
+                </Col>
+              </Row>
+            </div>
+          </div>
+
           <div className="bg-amber-50 p-3 rounded border border-amber-100 flex items-start gap-2">
             <Text type="warning" className="text-xs">
-              ⓘ Setelah tombol "Terapkan" diklik, sistem akan membagi nominal plafon secara proporsional (bagi rata) ke seluruh item tagihan di bawah.
+              ⓘ Tip: Gunakan mode <b>Otomatis</b> agar Anda cukup mengisi satu kolom saja, sistem akan langsung menghitung sisanya untuk kolom lain.
             </Text>
           </div>
         </div>

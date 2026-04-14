@@ -34,7 +34,13 @@ interface BillingInvoiceRow {
   status: string
   total: number
   remaining: number
+  allocationStatus: 'draft' | 'done'
   no?: number
+}
+
+const formatEnum = (val?: string) => {
+  if (!val) return '-'
+  return val.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 const formatRupiah = (value: number): string => {
@@ -48,26 +54,36 @@ const formatRupiah = (value: number): string => {
 const columns: ColumnsType<BillingInvoiceRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 55 },
   { title: 'Kode Pemeriksaan', dataIndex: 'encounterId', key: 'encounterId', width: 140 },
-  { 
-    title: 'Tanggal Kunjungan', 
-    dataIndex: 'startTime', 
+  {
+    title: 'Tanggal Kunjungan',
+    dataIndex: 'startTime',
     key: 'visitDate',
-    render: (v) => v ? dayjs(v).format('DD/MM/YYYY') : '-'
+    render: (v) => (v ? dayjs(v).format('DD MMM YYYY HH:mm') : '-')
   },
-  { 
-    title: 'Jam Mulai', 
-    dataIndex: 'startTime', 
+  {
+    title: 'Jam Mulai',
+    dataIndex: 'startTime',
     key: 'startTime',
-    render: (v) => v ? dayjs(v).format('HH:mm') : '-'
+    render: (v) => (v ? dayjs(v).format('HH:mm') : '-')
   },
-  { title: 'Jenis Kedatangan', dataIndex: 'arrivalType', key: 'arrivalType' },
-  { title: 'Pasien', dataIndex: 'patientName', key: 'patientName' },
-  { title: 'Unit Layanan', dataIndex: 'unitName', key: 'unitName' },
   { 
-    title: 'Selesai Pemeriksaan', 
-    dataIndex: 'endTime', 
-    key: 'endTime',
-    render: (v) => v ? dayjs(v).format('HH:mm') : '-'
+    title: 'Jenis Kedatangan', 
+    dataIndex: 'arrivalType', 
+    key: 'arrivalType',
+    render: (v) => formatEnum(v)
+  },
+  { title: 'Pasien', dataIndex: 'patientName', key: 'patientName' },
+  { 
+    title: 'Unit Layanan', 
+    dataIndex: 'unitName', 
+    key: 'unitName',
+    render: (v) => v ?? '-'
+  },
+  {
+    title: 'Selesai Pemeriksaan',
+    dataIndex: 'status',
+    key: 'status',
+    render: (v) => formatEnum(v)
   },
   {
     title: 'Status Tagihan',
@@ -79,6 +95,17 @@ const columns: ColumnsType<BillingInvoiceRow> = [
       if (v === 'balanced') return <Tag color="green">Lunas</Tag>
       return <Tag>{v}</Tag>
     }
+  },
+  {
+    title: 'Status Alokasi',
+    dataIndex: 'allocationStatus',
+    key: 'allocationStatus',
+    width: 120,
+    render: (v) => (
+      <Tag color={v === 'done' ? 'green' : 'orange'}>
+        {v === 'done' ? 'Done' : 'Draft'}
+      </Tag>
+    )
   }
 ]
 
@@ -90,14 +117,14 @@ export default function BillingPage() {
   const [mrn, setMrn] = useState('')
   const [queueNumber, setQueueNumber] = useState('')
   const [unitCode, setUnitCode] = useState<number | undefined>()
-  
+
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [status, setStatus] = useState<string | undefined>('draft')
   const [visitDate, setVisitDate] = useState<dayjs.Dayjs | null>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
-        setDebouncedSearch(search)
+      setDebouncedSearch(search)
     }, 400)
     return () => clearTimeout(timer)
   }, [search, patientName, mrn, queueNumber])
@@ -136,61 +163,61 @@ export default function BillingPage() {
 
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-semibold">Daftar Tagihan Pasien</h3>
-        <Button 
-          icon={<ReloadOutlined />} 
-          onClick={() => refetch()} 
+        <Button
+          icon={<ReloadOutlined />}
+          onClick={() => refetch()}
           loading={isRefetching}
         >
           Refresh
         </Button>
       </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-          <Input
-            placeholder="Nama Pasien"
-            value={patientName}
-            onChange={(e) => setPatientName(e.target.value)}
-            allowClear
-          />
-          <Input
-            placeholder="No. Rekam Medis"
-            value={mrn}
-            onChange={(e) => setMrn(e.target.value)}
-            allowClear
-          />
-          <Input
-            placeholder="No. Antrian"
-            value={queueNumber}
-            onChange={(e) => setQueueNumber(e.target.value)}
-            allowClear
-          />
-          <Select
-            placeholder="Semua Status"
-            value={status}
-            onChange={(v) => setStatus(v)}
-            allowClear
-            options={[
-              { label: 'Draft (Belum Verifikasi)', value: 'draft' },
-              { label: 'Terkonfirmasi', value: 'issued' },
-              { label: 'Lunas', value: 'balanced' },
-            ]}
-            className="w-full"
-          />
-          <DatePicker
-            placeholder="Tanggal Kunjungan"
-            className="w-full"
-            value={visitDate}
-            onChange={(date) => setVisitDate(date)}
-          />
-          <RPCSelectAsync
-            placeHolder="Semua Unit Layanan"
-            entity="poli"
-            value={unitCode}
-            onChange={(v) => setUnitCode(v as number)}
-            display="name"
-            allowClear
-          />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
+        <Input
+          placeholder="Nama Pasien"
+          value={patientName}
+          onChange={(e) => setPatientName(e.target.value)}
+          allowClear
+        />
+        <Input
+          placeholder="No. Rekam Medis"
+          value={mrn}
+          onChange={(e) => setMrn(e.target.value)}
+          allowClear
+        />
+        <Input
+          placeholder="No. Antrian"
+          value={queueNumber}
+          onChange={(e) => setQueueNumber(e.target.value)}
+          allowClear
+        />
+        <Select
+          placeholder="Semua Status"
+          value={status}
+          onChange={(v) => setStatus(v)}
+          allowClear
+          options={[
+            { label: 'Draft (Belum Verifikasi)', value: 'draft' },
+            { label: 'Terkonfirmasi', value: 'issued' },
+            { label: 'Lunas', value: 'balanced' },
+          ]}
+          className="w-full"
+        />
+        <DatePicker
+          placeholder="Tanggal Kunjungan"
+          className="w-full"
+          value={visitDate}
+          onChange={(date) => setVisitDate(date)}
+        />
+        <RPCSelectAsync
+          placeHolder="Semua Unit Layanan"
+          entity="poli"
+          value={unitCode}
+          onChange={(v) => setUnitCode(v as number)}
+          display="name"
+          allowClear
+        />
+      </div>
 
       <GenericTable<BillingInvoiceRow>
         loading={isLoading || isRefetching}
@@ -199,16 +226,17 @@ export default function BillingPage() {
         rowKey="kode"
         action={{
           title: 'Aksi',
-          width: 100,
+          width: 80,
           align: 'center',
           render: (record) => (
+            <Tooltip title="Alokasi Penjamin">
               <Button
                 icon={<FileProtectOutlined />}
+                size="small"
                 type="primary"
                 onClick={() => navigate(`/dashboard/billing/allocate/${encodeURIComponent(record.kode)}`)}
-              >
-                Alokasi
-              </Button>
+              />
+            </Tooltip>
           )
         }}
       />
