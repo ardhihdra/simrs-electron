@@ -1,28 +1,34 @@
 import {
+  ApartmentOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
+  MoreOutlined,
+  ProfileOutlined,
   SearchOutlined,
   SyncOutlined
 } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
 import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
+import PatientInfoModal from '@renderer/components/organisms/laboratory-management/PatientInfoModal'
+import ReferralInfoModal from '@renderer/components/organisms/laboratory-management/ReferralInfoModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { useUpdateEncounter } from '@renderer/hooks/query/use-encounter'
 import { useCreateServiceRequest } from '@renderer/hooks/query/use-service-request'
 import { client } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
-import { App, Button, Form, Input, Modal, Select, Tag } from 'antd'
+import { App, Button, Dropdown, Form, Input, Modal, Select, Space, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import {
-  type AncillaryCategory,
   getAncillarySectionConfig,
   getAncillarySectionConfigByCategory,
+  type AncillaryCategory,
   type AncillarySection
 } from '../section-config'
+import { buildPatientSummary, type PatientInfoSource, type ReferralInfoSource } from '../table-info'
 
 interface EncounterRow {
   id: string
@@ -33,7 +39,23 @@ interface EncounterRow {
   patient?: {
     name?: string
     mrn?: string
+    medicalRecordNumber?: string
+    nik?: string
+    birthDate?: string
+    address?: string
   }
+  partOf?: {
+    poli?: {
+      name?: string
+    }
+    queueTicket?: {
+      poli?: {
+        name?: string
+      }
+    }
+    referrals?: ReferralInfoSource[]
+  }
+  referrals?: ReferralInfoSource[]
   queueTicket?: {
     serviceUnit?: {
       display?: string
@@ -130,10 +152,7 @@ interface LaboratoryQueueProps {
   section?: AncillarySection
 }
 
-export default function LaboratoryQueue({
-  fixedCategory,
-  section
-}: LaboratoryQueueProps = {}) {
+export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQueueProps = {}) {
   const { message } = App.useApp()
 
   const [searchText, setSearchText] = useState('')
@@ -141,6 +160,11 @@ export default function LaboratoryQueue({
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
   const [isServiceRequestModalOpen, setIsServiceRequestModalOpen] = useState(false)
   const [selectedEncounter, setSelectedEncounter] = useState<EncounterRow | null>(null)
+  const [patientInfo, setPatientInfo] = useState<PatientInfoSource | null>(null)
+  const [referralInfo, setReferralInfo] = useState<{
+    encounterId?: string
+    sourcePoliName?: string
+  } | null>(null)
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false)
   const [isServingEncounter, setIsServingEncounter] = useState(false)
   const [queueCategory, setQueueCategory] = useState<QueueCategoryFilter>(
@@ -171,12 +195,14 @@ export default function LaboratoryQueue({
     model: 'encounter',
     method: 'get',
     params: {
-      category: activeCategory
+      category: activeCategory,
+      include:
+        'patient,poli,queueTicket.poli,referrals.referringPractitioner,referrals.sourceLocation,partOf.poli,partOf.queueTicket.poli,partOf.referrals.referringPractitioner,partOf.referrals.sourceLocation'
     }
   })
 
   const filteredData = useMemo<EncounterRow[]>(() => {
-    const data = encountersData ? normalizeList<EncounterRow>(encountersData) : []
+    const data = encountersData ? normalizeList<EncounterRow>(encountersData || []) : []
     if (!searchText) return data
 
     return data?.filter(
@@ -199,7 +225,12 @@ export default function LaboratoryQueue({
           <div className="font-medium text-blue-600">
             {record.patientName || record.patient?.name || 'Unknown Patient'}
           </div>
-          <div className="text-xs text-gray-500">{record.patient?.medicalRecordNumber || '-'}</div>
+          <div className="text-xs text-gray-500">
+            {record.patient?.medicalRecordNumber ||
+              record.patientMrNo ||
+              record.patient?.mrn ||
+              '-'}
+          </div>
         </div>
       )
     },
@@ -235,11 +266,6 @@ export default function LaboratoryQueue({
       key: 'endTime',
       render: (val: string) => (val ? dayjs(val).format('DD/MM/YYYY HH:mm') : '-')
     },
-    // {
-    //   title: 'Service Request',
-    //   key: 'serviceRequestId',
-    //   render: (_, record) => (record.serviceRequestId ? `SR#${record.serviceRequestId}` : '-')
-    // },
     {
       title: 'Status',
       dataIndex: 'status',
@@ -247,6 +273,35 @@ export default function LaboratoryQueue({
       render: (status: string) => renderEncounterStatusTag(status)
     }
   ]
+
+  const getPatientInfo = (record: EncounterRow): PatientInfoSource => {
+    const summary = buildPatientSummary({
+      name: record.patientName || record.patient?.name,
+      medicalRecordNumber:
+        record.patient?.medicalRecordNumber || record.patientMrNo || record.patient?.mrn,
+      nik: record.patient?.nik,
+      birthDate: record.patient?.birthDate,
+      address: record.patient?.address
+    })
+
+    return {
+      name: summary[0]?.value,
+      medicalRecordNumber: summary[1]?.value,
+      nik: summary[2]?.value,
+      birthDate: record.patient?.birthDate,
+      address: summary[4]?.value
+    }
+  }
+
+  const getReferralSourcePoliName = (record: EncounterRow): string | undefined => {
+    return (
+      record.poli?.name ||
+      record.queueTicket?.poli?.name ||
+      record.partOf?.poli?.name ||
+      record.partOf?.queueTicket?.poli?.name ||
+      undefined
+    )
+  }
 
   const onSearch = (values: { patientName?: string; category?: QueueCategoryFilter }) => {
     setSearchText(values.patientName || '')
@@ -450,7 +505,6 @@ export default function LaboratoryQueue({
     setIsModalOpen(false)
   }
 
-  console.log('filterData', filteredData)
   return (
     <div className="p-4">
       <TableHeader
@@ -501,38 +555,89 @@ export default function LaboratoryQueue({
           rowKey="id"
           loading={isLoading || isRefetching || isServingEncounter}
           action={{
-            items: (record) => [
-              {
-                label: 'Layani',
-                onClick: () => handleServeEncounter(record),
-                disabled: normalizeEncounterStatus(record.status) !== 'PLANNED'
-              },
-              {
-                label: 'Selesai',
-                danger: true,
-                confirm: {
-                  title: 'Selesaikan encounter ini?',
-                  description: 'Status encounter akan diubah menjadi FINISHED.',
-                  okText: 'Ya, Selesai',
-                  cancelText: 'Batal'
+            render: (record) => {
+              const sourcePoliName = getReferralSourcePoliName(record)
+              const menuItems = [
+                {
+                  key: 'serve',
+                  label: 'Layani',
+                  disabled: normalizeEncounterStatus(record.status) !== 'PLANNED',
+                  onClick: () => handleServeEncounter(record)
                 },
-                onClick: () => handleFinishEncounter(record),
-                disabled: !['PLANNED', 'IN_PROGRESS'].includes(
-                  String(normalizeEncounterStatus(record.status) || '')
-                )
-              },
-              {
-                label: 'Ubah Status',
-                onClick: () => handleOpenStatusModal(record)
-              },
-              {
-                label: 'Buat Service Request',
-                onClick: () => handleOpenServiceRequestModal(record)
-              }
-            ]
+                {
+                  key: 'finish',
+                  label: 'Selesai',
+                  disabled: !['PLANNED', 'IN_PROGRESS'].includes(
+                    String(normalizeEncounterStatus(record.status) || '')
+                  ),
+                  onClick: () => handleFinishEncounter(record)
+                },
+                {
+                  key: 'status',
+                  label: 'Ubah Status',
+                  onClick: () => handleOpenStatusModal(record)
+                },
+                {
+                  key: 'service-request',
+                  label: 'Buat Service Request',
+                  onClick: () => handleOpenServiceRequestModal(record)
+                }
+              ]
+
+              return (
+                <Space size="small">
+                  <Tooltip title="Info Pasien">
+                    <Button
+                      size="small"
+                      icon={<ProfileOutlined />}
+                      onClick={() => setPatientInfo(getPatientInfo(record))}
+                    />
+                  </Tooltip>
+                  {sourcePoliName ? (
+                    <Tooltip title="Info Rujukan">
+                      <Button
+                        size="small"
+                        icon={<ApartmentOutlined />}
+                        onClick={() =>
+                          setReferralInfo({
+                            encounterId: String((record as any).partOfId || ''),
+                            sourcePoliName
+                          })
+                        }
+                      />
+                    </Tooltip>
+                  ) : null}
+                  <Dropdown
+                    menu={{
+                      items: menuItems.map((item) => ({
+                        key: item.key,
+                        label: item.label,
+                        disabled: item.disabled,
+                        onClick: item.onClick
+                      }))
+                    }}
+                    trigger={['click']}
+                  >
+                    <Button size="small" icon={<MoreOutlined />} />
+                  </Dropdown>
+                </Space>
+              )
+            }
           }}
         />
       </div>
+
+      <PatientInfoModal
+        open={!!patientInfo}
+        onClose={() => setPatientInfo(null)}
+        patient={patientInfo}
+      />
+      <ReferralInfoModal
+        open={!!referralInfo}
+        onClose={() => setReferralInfo(null)}
+        encounterId={referralInfo?.encounterId}
+        sourcePoliName={referralInfo?.sourcePoliName}
+      />
 
       <CreateAncillaryModal
         open={isModalOpen}
@@ -600,7 +705,10 @@ export default function LaboratoryQueue({
           </Button>
         ]}
       >
-        <CreateServiceRequestForm form={serviceRequestForm} />
+        <CreateServiceRequestForm
+          form={serviceRequestForm}
+          fixedCategory={mapEncounterCategoryToServiceRequest(selectedEncounter?.category)}
+        />
       </Modal>
     </div>
   )

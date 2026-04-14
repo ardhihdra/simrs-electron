@@ -1,4 +1,5 @@
 import {
+  ApartmentOutlined,
   CameraOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -6,103 +7,34 @@ import {
   ExperimentOutlined,
   FileTextOutlined,
   PauseCircleOutlined,
+  ProfileOutlined,
   SyncOutlined,
   ThunderboltOutlined
 } from '@ant-design/icons'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
+import PatientInfoModal from '@renderer/components/organisms/laboratory-management/PatientInfoModal'
+import ReferralInfoModal from '@renderer/components/organisms/laboratory-management/ReferralInfoModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { App, DatePicker, Form, Select, Tag } from 'antd'
+import { App, Button, DatePicker, Form, Select, Space, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
-  type AncillaryCategory,
+  groupServiceRequestsByEncounter,
+  normalizeServiceRequests,
+  type EncounterGroupRow,
+  type NormalizedRequest,
+  type ServiceRequestEntity
+} from '../requests-data'
+import {
   getAncillarySectionConfig,
   getAncillarySectionConfigByCategory,
+  type AncillaryCategory,
   type AncillarySection
 } from '../section-config'
-
-interface ServiceRequestCodeItem {
-  code?: string
-  display?: string
-  system?: string
-}
-
-interface ServiceRequestCategoryItem {
-  code?: string
-  display?: string
-  system?: string
-}
-
-interface ServiceRequestEntity {
-  id: string | number
-  subjectId?: string
-  encounterId?: string
-  status?: string
-  priority?: string
-  autheredOn?: string
-  occurrenceDateTime?: string
-  createdAt?: string
-  patient?: {
-    id?: string
-    name?: string
-    mrn?: string
-    medicalRecordNumber?: string
-  }
-  encounter?: {
-    id?: string
-    status?: string
-    queueTicket?: {
-      number?: string | number
-      queueNumber?: string | number
-      formattedQueueNumber?: string
-      status?: string
-    }
-  }
-  categories?: ServiceRequestCategoryItem[]
-  codes?: ServiceRequestCodeItem[]
-}
-
-interface NormalizedRequest {
-  id: string
-  patientId: string
-  encounterId: string
-  patient: {
-    name: string
-    mrn: string
-  }
-  queueTicket?: {
-    number?: string
-  }
-  requestedAt?: string
-  test: {
-    code: string
-    display: string
-    name: string
-    category: string
-  }
-  testDisplay: string
-  testCodeId: string
-  priority: string
-  status: string
-  statusRaw: string
-  encounterStatus: string
-}
-
-interface EncounterGroupRow {
-  id: string
-  patientId: string
-  encounterId: string
-  patient: {
-    name: string
-    mrn: string
-  }
-  queueNumber?: string
-  requests: NormalizedRequest[]
-}
 
 interface LaboratoryRequestsProps {
   fixedCategory?: AncillaryCategory
@@ -113,38 +45,6 @@ interface LaboratoryRequestsProps {
 function normalizeList<T>(data: unknown): T[] {
   const raw = data as any
   return (raw?.result || raw?.data || raw || []) as T[]
-}
-
-function normalizeCategory(item: ServiceRequestEntity): string {
-  const categoryCodes = (item.categories || []).map((c) => String(c.code || '').toUpperCase())
-  if (categoryCodes.some((code) => code === 'LABORATORY' || code === 'LAB')) {
-    return 'LABORATORY'
-  }
-  if (categoryCodes.some((code) => code === 'RADIOLOGY' || code === 'RAD')) {
-    return 'RADIOLOGY'
-  }
-
-  const displayText = (item.categories || [])
-    .map((c) => String(c.display || '').toLowerCase())
-    .join(' ')
-  if (displayText.includes('laboratory') || displayText.includes('lab')) {
-    return 'LABORATORY'
-  }
-  if (displayText.includes('radiology')) {
-    return 'RADIOLOGY'
-  }
-
-  return 'UNKNOWN'
-}
-
-function normalizeStatus(status?: string): string {
-  if (!status) return 'UNKNOWN'
-  return String(status).toUpperCase()
-}
-
-function normalizePriority(priority?: string): string {
-  if (!priority) return 'ROUTINE'
-  return String(priority).toUpperCase()
 }
 
 function statusColor(status: string): string {
@@ -294,6 +194,11 @@ export default function LaboratoryRequests({
     toDate: dayjs().endOf('day').toISOString(),
     status: undefined as string | undefined
   })
+  const [patientInfo, setPatientInfo] = useState<EncounterGroupRow['patient'] | null>(null)
+  const [referralInfo, setReferralInfo] = useState<{
+    encounterId?: string
+    sourcePoliName?: string
+  } | null>(null)
 
   const requestQueryParams = useMemo(() => {
     const params: Record<string, string> = {
@@ -301,7 +206,8 @@ export default function LaboratoryRequests({
       items: '300',
       startDate: searchParams.fromDate,
       endDate: searchParams.toDate,
-      include: 'patient,categories,codes,encounter.queueTicket'
+      include:
+        'patient,categories,codes,encounter.poli,encounter.queueTicket.poli,encounter.partOf.poli,encounter.partOf.queueTicket.poli'
     }
 
     if (searchParams.status) {
@@ -330,95 +236,26 @@ export default function LaboratoryRequests({
 
   const normalizedRequests = useMemo<NormalizedRequest[]>(() => {
     const rows = normalizeList<ServiceRequestEntity>(requestData)
-
-    return rows
-      .map((item) => {
-      const firstCode = item.codes?.[0]
-      const category = normalizeCategory(item)
-      const status = normalizeStatus(item.status)
-      const priority = normalizePriority(item.priority)
-      const queueNumber =
-        item.encounter?.queueTicket?.formattedQueueNumber ||
-        item.encounter?.queueTicket?.number ||
-        item.encounter?.queueTicket?.queueNumber
-
-      const patientId = String(item.subjectId || item.patient?.id || '')
-      const patientName = item.patient?.name || 'Unknown Patient'
-      const patientMrn = item.patient?.mrn || item.patient?.medicalRecordNumber || '-'
-
-      const code = firstCode?.code || '-'
-      const display = firstCode?.display || code
-
-      return {
-        id: String(item.id),
-        patientId,
-        encounterId: String(item.encounterId || item.encounter?.id || ''),
-        patient: {
-          name: patientName,
-          mrn: patientMrn
-        },
-        queueTicket: {
-          number: queueNumber ? String(queueNumber) : undefined
-        },
-        requestedAt: item.autheredOn || item.occurrenceDateTime || item.createdAt,
-        test: {
-          code,
-          display,
-          name: display,
-          category
-        },
-        testDisplay: display,
-        testCodeId: code,
-        priority,
-        status,
-        statusRaw: String(item.status || ''),
-        encounterStatus: normalizeStatus(item.encounter?.status)
-      }
-      })
-      .filter((item) => item.test.category === fixedCategory)
+    return normalizeServiceRequests(rows, fixedCategory)
   }, [fixedCategory, requestData])
 
   const encounterGroups = useMemo<EncounterGroupRow[]>(() => {
-    const grouped = new Map<string, EncounterGroupRow>()
-
-    normalizedRequests.forEach((item, index) => {
-      const encounterKey = item.encounterId || `missing-encounter-${item.id || index}`
-      const existingGroup = grouped.get(encounterKey)
-
-      if (existingGroup) {
-        existingGroup.requests.push(item)
-        if (!existingGroup.queueNumber && item.queueTicket?.number) {
-          existingGroup.queueNumber = item.queueTicket.number
-        }
-        return
-      }
-
-      grouped.set(encounterKey, {
-        id: encounterKey,
-        patientId: item.patientId,
-        encounterId: item.encounterId,
-        patient: item.patient,
-        queueNumber: item.queueTicket?.number,
-        requests: [item]
-      })
-    })
-
-    return Array.from(grouped.values())
+    return groupServiceRequestsByEncounter(normalizedRequests)
   }, [normalizedRequests])
 
   const handleAction = (record: NormalizedRequest, action: 'specimen' | 'result') => {
-    if (action === 'specimen') {
-      navigate(`${activeRouteBase}/requests/specimen`, {
-        state: { requestId: record.id, sectionRouteBase: activeRouteBase, ...record }
-      })
-      return
-    }
-
     if (!isEncounterInProgress(record)) {
       modal.warning({
         title: 'Encounter belum dilayani',
         content: 'Encounter harus dilayani dulu sebelum input hasil.',
         okText: 'Mengerti'
+      })
+      return
+    }
+
+    if (action === 'specimen') {
+      navigate(`${activeRouteBase}/requests/specimen`, {
+        state: { requestId: record.id, sectionRouteBase: activeRouteBase, ...record }
       })
       return
     }
@@ -511,7 +348,7 @@ export default function LaboratoryRequests({
       status: values.status
     })
   }
-
+  console.log(encounterGroups)
   return (
     <div className="p-4">
       <TableHeader
@@ -587,6 +424,35 @@ export default function LaboratoryRequests({
           dataSource={encounterGroups}
           rowKey="id"
           loading={isLoading || isRefetching}
+          action={{
+            title: 'Info',
+            width: 120,
+            render: (record) => (
+              <Space size="small">
+                <Tooltip title="Info Pasien">
+                  <Button
+                    size="small"
+                    icon={<ProfileOutlined />}
+                    onClick={() => setPatientInfo(record.patient)}
+                  />
+                </Tooltip>
+                {record.sourcePoliName ? (
+                  <Tooltip title="Info Rujukan">
+                    <Button
+                      size="small"
+                      icon={<ApartmentOutlined />}
+                      onClick={() =>
+                        setReferralInfo({
+                          encounterId: record?.encounter?.encounter?.partOfId,
+                          sourcePoliName: record.sourcePoliName
+                        })
+                      }
+                    />
+                  </Tooltip>
+                ) : null}
+              </Space>
+            )
+          }}
           tableProps={{
             expandable: {
               expandedRowRender: (record: EncounterGroupRow) => (
@@ -601,10 +467,13 @@ export default function LaboratoryRequests({
                       items: (record: NormalizedRequest) => {
                         const actions: any[] = []
 
-                        if (canCollectSpecimen(record)) {
+                        if (canCollectSpecimen(record) && canInputResult(record)) {
                           actions.push({
                             label: 'Ambil Sampel',
                             icon: <ExperimentOutlined />,
+                            tooltip: isEncounterInProgress(record)
+                              ? undefined
+                              : 'Encounter harus dilayani dulu sebelum input hasil',
                             onClick: () => handleAction(record, 'specimen')
                           })
                         }
@@ -631,6 +500,17 @@ export default function LaboratoryRequests({
           }}
         />
       </div>
+      <PatientInfoModal
+        open={!!patientInfo}
+        onClose={() => setPatientInfo(null)}
+        patient={patientInfo}
+      />
+      <ReferralInfoModal
+        open={!!referralInfo}
+        onClose={() => setReferralInfo(null)}
+        encounterId={referralInfo?.encounterId}
+        sourcePoliName={referralInfo?.sourcePoliName}
+      />
     </div>
   )
 }
