@@ -29,10 +29,16 @@ const CategoryEntrySchema = z.object({
 
 const SupportingInformationEntrySchema = z.object({
 	type: z.string().optional(),
-	itemId: z.number().optional(),
+	itemId: z.number().nullable().optional(),
+	medicationId: z.number().nullable().optional(),
 	unitCode: z.string().nullable().optional(),
-	quantity: z.number().optional(),
-	instruction: z.string().optional()
+	quantity: z.number().nullable().optional(),
+	instruction: z.string().optional(),
+	strength: z.union([z.number(), z.string()]).nullable().optional(),
+	requestedDosage: z.union([z.number(), z.string()]).nullable().optional(),
+	requested_dosage: z.union([z.number(), z.string()]).nullable().optional(),
+	name: z.string().optional(),
+	resourceType: z.string().optional()
 })
 
 export const MedicationRequestSchema = z.object({

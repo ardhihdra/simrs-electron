@@ -25,7 +25,8 @@ import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleSco
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
 import type { MenuProps } from 'antd'
-import { Menu, theme } from 'antd'
+import { Menu, theme, Badge } from 'antd'
+import dayjs from 'dayjs'
 import { ItemType } from 'antd/es/menu/interface'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
@@ -253,7 +254,7 @@ const items: DashboardMenuItem[] = [
     label: 'Radiologi',
     key: '/dashboard/radiology-management',
     icon: <CameraOutlined />,
-    module: 'RADIOLOGI',
+    module: Modules.RADIOLOGI,
     children: [
       {
         label: 'Antrian',
@@ -457,6 +458,46 @@ function Dashboard() {
     [isAdministrator, poliData?.result, session?.lokasiKerjaId]
   )
 
+  const billingBoard = client.nonMedicQueue.getBoard.useQuery(
+    {
+      lokasiKerjaId: session?.lokasiKerjaId ?? 0,
+      serviceTypeCode: 'BILLING',
+      queueDate: dayjs().format('YYYY-MM-DD')
+    },
+    {
+      enabled: !!session?.lokasiKerjaId,
+      refetchInterval: 60000,
+      queryKey: [
+        'nonMedicQueue.getBoard',
+        {
+          lokasiKerjaId: session?.lokasiKerjaId ?? 0,
+          serviceTypeCode: 'BILLING',
+          queueDate: dayjs().format('YYYY-MM-DD')
+        }
+      ]
+    }
+  )
+
+  const cashierBoard = client.nonMedicQueue.getBoard.useQuery(
+    {
+      lokasiKerjaId: session?.lokasiKerjaId ?? 0,
+      serviceTypeCode: 'CASHIER',
+      queueDate: dayjs().format('YYYY-MM-DD')
+    },
+    {
+      enabled: !!session?.lokasiKerjaId,
+      refetchInterval: 60000,
+      queryKey: [
+        'nonMedicQueue.getBoard',
+        {
+          lokasiKerjaId: session?.lokasiKerjaId ?? 0,
+          serviceTypeCode: 'CASHIER',
+          queueDate: dayjs().format('YYYY-MM-DD')
+        }
+      ]
+    }
+  )
+
   // Map from normalized poli key → original poli metadata (for role-aware navigation)
   const poliKeyMeta = useMemo(() => {
     const map: Record<string, { code: string; name: string }> = {}
@@ -488,9 +529,42 @@ function Dashboard() {
           ]
         }
       }
+      if (item.key === '/dashboard/non-medic-queue') {
+        const waitingBilling = (billingBoard.data?.result as any)?.waitingTotal ?? 0
+        const waitingCashier = (cashierBoard.data?.result as any)?.waitingTotal ?? 0
+
+        return {
+          ...item,
+          children: (item.children ?? []).map((child) => {
+            if (child.key === '/dashboard/non-medic-queue/billing') {
+              return {
+                ...child,
+                label: (
+                  <div className="flex items-center justify-between w-full pr-4">
+                    <span>{child.label}</span>
+                    <Badge count={waitingBilling} size="small" offset={[10, 0]} overflowCount={99} />
+                  </div>
+                )
+              }
+            }
+            if (child.key === '/dashboard/non-medic-queue/cashier') {
+              return {
+                ...child,
+                label: (
+                  <div className="flex items-center justify-between w-full pr-4">
+                    <span>{child.label}</span>
+                    <Badge count={waitingCashier} size="small" offset={[10, 0]} overflowCount={99} />
+                  </div>
+                )
+              }
+            }
+            return child
+          })
+        }
+      }
       return item
     })
-  }, [listPoli])
+  }, [listPoli, billingBoard.data, cashierBoard.data])
 
   const { data: pageAccessData } = client.pageAccess.list.useQuery({})
   const pageAccessMap = useMemo(() => {
@@ -603,8 +677,14 @@ function Dashboard() {
   const [collapsed, setCollapsed] = useState(false)
 
   const navigate = useNavigate()
+  const KIOSKA_KEY = '/dashboard/registration/kioska'
   const onSideClick: MenuProps['onClick'] = (e) => {
     const key = String(e.key)
+    if (key === KIOSKA_KEY) {
+      const base = window.location.href.split('#')[0]
+      window.open(`${base}#${key}`, '_blank')
+      return
+    }
     navigate(key)
     setActiveSide(key)
   }

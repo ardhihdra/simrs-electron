@@ -1,4 +1,5 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
+import { rpc } from '@renderer/utils/client'
 import slide1Url from '@renderer/assets/image/Slide1.jpeg'
 import slide2Url from '@renderer/assets/image/Slide2.jpeg'
 import slide3Url from '@renderer/assets/image/Slide3.jpeg'
@@ -171,10 +172,10 @@ const LoginForm: React.FC = () => {
               </Form.Item>
             </Form>
             <div className="flex gap-4 justify-center items-center">
-              <Button size="large" className="w-full" onClick={() => navigate('/kioska/setup')}>
+              <Button size="large" className="w-full" onClick={() => rpc.window.create({ route: '/kioska/setup', title: 'Kioska Publik' })}>
                 Kioska Publik
               </Button>
-              <Button size="large" className="w-full" onClick={() => navigate('/kioska/global')}>
+              <Button size="large" className="w-full" onClick={() => rpc.window.create({ route: '/kioska/global', title: 'Kioska Publik' })}>
                 Kioska Global
               </Button>
             </div>

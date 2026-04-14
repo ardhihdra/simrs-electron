@@ -21,6 +21,13 @@ interface PaymentModalProps {
     onSuccess: () => void
 }
 
+interface MasterBank {
+    id: number
+    name: string
+    accountNumber: string
+    accountHolder: string
+}
+
 export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }: PaymentModalProps) {
     const [form] = Form.useForm()
     const [loading, setLoading] = useState(false)
@@ -37,7 +44,7 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
         enabled: open,
     })
 
-    const banks: any[] = (banksData as any)?.result ?? []
+    const banks = (banksData as { result: MasterBank[] } | undefined)?.result ?? []
 
     const uploadProps: UploadProps = {
         beforeUpload: () => false,
@@ -70,7 +77,7 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
 
             const recordAmount = Math.min(values.amount, remaining)
 
-            const res = await rpc.kasir.recordPayment({
+            const res = (await rpc.kasir.recordPayment({
                 invoiceId,
                 amount: recordAmount,
                 paymentMethod: values.paymentMethod,
@@ -80,19 +87,20 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                 file,
                 filename,
                 mimetype,
-            })
+            })) as { success: boolean; message?: string }
 
-            if ((res as any).success) {
+            if (res.success) {
                 message.success('Pembayaran berhasil dicatat')
                 form.resetFields()
                 setFileList([])
                 onSuccess()
             } else {
-                message.error((res as any).message ?? 'Gagal mencatat pembayaran')
+                message.error(res.message ?? 'Gagal mencatat pembayaran')
             }
-        } catch (err: any) {
-            if (err.errorFields) return 
-            message.error(err.message ?? 'Terjadi kesalahan')
+        } catch (err: unknown) {
+            if (err && typeof err === 'object' && 'errorFields' in err) return 
+            const errorMsg = err instanceof Error ? err.message : 'Terjadi kesalahan'
+            message.error(errorMsg)
         } finally {
             setLoading(false)
         }

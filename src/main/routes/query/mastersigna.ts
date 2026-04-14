@@ -21,6 +21,17 @@ export const schemas = {
             result: z.array(z.any()).optional(),
             message: z.string().optional()
         })
+    },
+    create: {
+        args: z.object({
+            signaName: z.string(),
+            signaCode: z.string().optional()
+        }),
+        result: z.object({
+            success: z.boolean(),
+            result: z.any().optional(),
+            message: z.string().optional()
+        })
     }
 } as const
 
@@ -52,4 +63,27 @@ export const list = async (ctx: IpcContext, args?: { limit?: number }) => {
     const res = await client.get(`/api/mastersigna?items=${items}`)
     const result = await parseBackendResponse(res, BackendListSchema(z.any()))
     return { success: true, result }
+}
+
+export const create = async (ctx: IpcContext, args: { signaName: string; signaCode?: string }) => {
+    const client = createBackendClient(ctx)
+    console.log('[ipc][mastersigna.create] request POST /api/mastersigna', args)
+    
+    // Auto-generate code if not provided to satisfy potential backend requirements
+    const generatedCode = args.signaCode || `SIG-${args.signaName.toUpperCase().replace(/[^A-Z0-9]/g, '')}-${Math.floor(Math.random() * 1000)}`
+    
+    const payload = {
+        signaName: args.signaName,
+        signaCode: generatedCode,
+        isActive: true
+    }
+
+    const res = await client.post('/api/mastersigna', payload)
+    const raw = await res.json()
+    
+    if (!res.ok) {
+        return { success: false, message: raw.message || 'Gagal menyimpan signa baru' }
+    }
+    
+    return { success: true, result: raw.result, message: 'Signa berhasil ditambahkan' }
 }

@@ -307,7 +307,7 @@ const PatientQueueTable = () => {
     )
   }
 
-  const totalTriage = patientQueue.filter((p) => p.status === 'TRIAGE').length
+  const totalTriage = patientQueue.filter((p) => p.status === 'TRIAGED').length
 
   const columns: ColumnsType<PatientQueueTableData> = [
     {
@@ -462,7 +462,7 @@ const PatientQueueTable = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          {(record.status === 'TRIAGE' || record.status === 'CALLED') && (
+          {(NURSE_VISIBLE_STATUSES.includes(record.status as typeof NURSE_VISIBLE_STATUSES[number])) && (
             <>
               <Button
                 type="primary"
