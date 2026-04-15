@@ -210,8 +210,8 @@ const PatientQueueTable = () => {
     }
   }, [routePoliCode, scopedPoliIdSet, selectedPoli])
 
-  const normalizedDateRange = useMemo<[dayjs.Dayjs, dayjs.Dayjs]>(() => {
-    if (!dateRange) return [dayjs(), dayjs()]
+  const normalizedDateRange = useMemo<[dayjs.Dayjs, dayjs.Dayjs] | null>(() => {
+    if (!dateRange) return null
     const [start, end] = dateRange
     return start.isAfter(end, 'day') ? [end, start] : [start, end]
   }, [dateRange])
@@ -224,10 +224,73 @@ const PatientQueueTable = () => {
     queryKey: [
       'nurse',
       'queue-list',
-      normalizedDateRange[0].format('YYYY-MM-DD'),
-      normalizedDateRange[1].format('YYYY-MM-DD')
+      normalizedDateRange?.[0]?.format('YYYY-MM-DD') || 'all',
+      normalizedDateRange?.[1]?.format('YYYY-MM-DD') || 'all'
     ],
     queryFn: async () => {
+      if (!normalizedDateRange) {
+        const fn = window.api?.query?.encounter?.list
+        if (!fn) {
+          throw new Error('API encounter tidak tersedia')
+        }
+
+        const pageSize = 100
+        let page = 1
+        const allEncounters: any[] = []
+
+        while (page <= 20) {
+          const response = await fn({
+            page: String(page),
+            items: String(pageSize),
+            sortBy: 'updatedAt',
+            sortOrder: 'DESC'
+          })
+
+          if ((response as any)?.success === false) {
+            throw new Error((response as any)?.error || 'Gagal memuat data encounter')
+          }
+
+          const rows = Array.isArray((response as any)?.result) ? (response as any).result : []
+          if (rows.length === 0) break
+
+          allEncounters.push(...rows)
+          if (rows.length < pageSize) break
+          page += 1
+        }
+
+        const result: QueueRow[] = allEncounters.map((encounter: any) => {
+          const queueTicket = encounter?.queueTicket || {}
+          const patient = encounter?.patient || {}
+          const poli = queueTicket?.poli || {}
+          const practitioner = queueTicket?.practitioner || {}
+          const serviceUnit = encounter?.serviceUnit || {}
+
+          return {
+            queueId: queueTicket?.id ? String(queueTicket.id) : undefined,
+            id: queueTicket?.id ? String(queueTicket.id) : encounter?.id ? String(encounter.id) : undefined,
+            queueNumber: queueTicket?.queueNumber,
+            formattedQueueNumber: queueTicket?.formattedQueueNumber,
+            queueDate: queueTicket?.queueDate || encounter?.visitDate || encounter?.startTime || encounter?.createdAt,
+            createdAt: queueTicket?.createdAt || encounter?.createdAt,
+            updatedAt: queueTicket?.updatedAt || encounter?.updatedAt,
+            patientId: patient?.id ? String(patient.id) : undefined,
+            patientName: patient?.name,
+            patientBirthDate: patient?.birthDate,
+            patientMedicalRecordNumber: patient?.medicalRecordNumber || patient?.medical_record_number,
+            doctorName: practitioner?.namaLengkap || practitioner?.name,
+            poliCodeId: queueTicket?.poliCodeId || poli?.id || encounter?.serviceUnitId,
+            poliName: poli?.name || serviceUnit?.name,
+            status: queueTicket?.status || encounter?.status,
+            encounterId: encounter?.id ? String(encounter.id) : undefined
+          }
+        })
+
+        return {
+          success: true,
+          result
+        }
+      }
+
       const dates = buildDateRangeList(normalizedDateRange)
       const responses = await Promise.allSettled(
         dates.map((queueDate) => rpc.registration.getQueues({ queueDate }))
@@ -258,15 +321,21 @@ const PatientQueueTable = () => {
   })
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
 
+  const fallbackDateIso = useMemo(
+    () => (normalizedDateRange?.[1] || dayjs()).toISOString(),
+    [normalizedDateRange]
+  )
+
   useEffect(() => {
+    const refreshIntervalMs = normalizedDateRange ? 5000 : 15000
     const intervalId = window.setInterval(() => {
       refetch()
-    }, 5000)
+    }, refreshIntervalMs)
 
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [refetch])
+  }, [normalizedDateRange, refetch])
 
   const baseFilteredQueues = useMemo(() => {
     const rows = (queueData?.result || []) as QueueRow[]
@@ -302,9 +371,9 @@ const PatientQueueTable = () => {
       const formattedQueueNumber =
         row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
       const triageUpdatedAt =
-        row.updatedAt || row.createdAt || row.queueDate || normalizedDateRange[1].toISOString()
+        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
       const registrationDate =
-        row.queueDate || row.createdAt || normalizedDateRange[1].toISOString()
+        row.queueDate || row.createdAt || fallbackDateIso
 
       return {
         no: index + 1,
@@ -342,7 +411,7 @@ const PatientQueueTable = () => {
         encounterType: 'AMB'
       }
     })
-  }, [filteredQueues, normalizedDateRange])
+  }, [fallbackDateIso, filteredQueues])
 
   const allPatientQueue: PatientQueueTableData[] = useMemo(() => {
     return baseFilteredQueues.map((row, index) => {
@@ -351,9 +420,9 @@ const PatientQueueTable = () => {
       const formattedQueueNumber =
         row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
       const triageUpdatedAt =
-        row.updatedAt || row.createdAt || row.queueDate || normalizedDateRange[1].toISOString()
+        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
       const registrationDate =
-        row.queueDate || row.createdAt || normalizedDateRange[1].toISOString()
+        row.queueDate || row.createdAt || fallbackDateIso
 
       return {
         no: index + 1,
@@ -391,7 +460,7 @@ const PatientQueueTable = () => {
         encounterType: 'AMB'
       }
     })
-  }, [baseFilteredQueues, normalizedDateRange])
+  }, [baseFilteredQueues, fallbackDateIso])
 
   const latestTriageQueue = allPatientQueue.find((queue) => queue.status === NURSE_TRIAGE_STATUS)
 
@@ -862,9 +931,9 @@ const PatientQueueTable = () => {
             <RangePicker
               className="w-full"
               value={dateRange}
-              onChange={(dates) => setDateRange((dates as [dayjs.Dayjs, dayjs.Dayjs]) || [dayjs(), dayjs()])}
+              onChange={(dates) => setDateRange((dates as [dayjs.Dayjs, dayjs.Dayjs]) || null)}
               format="DD MMM YYYY"
-              allowClear={false}
+              allowClear
             />
           </Col>
         </Row>
