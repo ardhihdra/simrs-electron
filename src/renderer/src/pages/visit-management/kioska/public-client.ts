@@ -17,6 +17,9 @@ export type KioskaWorkLocation = {
   name: string
 }
 
+export type KioskaRegistrationServiceType = 'REGISTRASI' | 'REGISTRASI_ASURANSI'
+export type KioskaRegistrationPaymentMethod = 'CASH' | 'ASURANSI'
+
 export type KioskaQueuePayload = {
   queueDate: string
   visitDate: string
@@ -24,7 +27,7 @@ export type KioskaQueuePayload = {
   doctorScheduleId: number
   patientId?: string
   registrationType: 'OFFLINE'
-  paymentMethod: 'CASH'
+  paymentMethod: KioskaRegistrationPaymentMethod
   reason: string
   notes?: string
 }
@@ -43,7 +46,7 @@ export type KioskaRegisterQueueResult = {
 
 export type KioskaRegistrationTicketPayload = {
   lokasiKerjaId: number
-  serviceTypeCode: 'REGISTRASI'
+  serviceTypeCode: KioskaRegistrationServiceType
   queueDate: string
   sourceChannel: 'KIOSK'
 }
@@ -58,8 +61,10 @@ export async function fetchKioskaPolis() {
   return (await rpc.kioskaPublic.polis({})) as KioskaPoliOption[]
 }
 
-export async function fetchKioskaRegistrationLocation() {
-  return (await rpc.kioskaPublic.registrationLocation({})) as KioskaWorkLocation
+export async function fetchKioskaRegistrationLocation(input?: {
+  serviceTypeCode?: KioskaRegistrationServiceType
+}) {
+  return (await rpc.kioskaPublic.registrationLocation(input ?? {})) as KioskaWorkLocation
 }
 
 export async function fetchKioskaDoctors(input: { date: string; poliId: number }) {

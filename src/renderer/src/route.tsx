@@ -83,6 +83,7 @@ import NonMedicQueueBillingKioskPage from './pages/non-medic-queue/kiosk/billing
 import NonMedicQueueCashierKioskPage from './pages/non-medic-queue/kiosk/cashier'
 import NonMedicQueuePharmacyKioskPage from './pages/non-medic-queue/kiosk/pharmacy'
 import NonMedicQueueRegistrationKioskPage from './pages/non-medic-queue/kiosk/registration'
+import NonMedicQueueRegistrationInsuranceKioskPage from './pages/non-medic-queue/kiosk/registration-insurance'
 import NonMedicQueueServicePointWorkspacePage from './pages/non-medic-queue/service-point-workspace'
 import NonMedicQueueServicePointPage from './pages/non-medic-queue/service-points'
 import NurseCalling from './pages/nurse-calling/NurseCalling'
@@ -151,6 +152,7 @@ function MainRoute() {
       <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
       <Route path="/kioska/setup" element={<KioskaSetupPage />} />
       <Route path="/kioska/global" element={<KioskaGlobalPage />} />
+      <Route path="/kioska/global/registration-insurance" element={<KioskaGlobalPage />} />
       <Route path="/kioska" element={<KioskaPage />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
@@ -178,6 +180,17 @@ function MainRoute() {
                   title="Antrian Pendaftaran"
                   description="Kelola pengambilan nomor dan operasional antrean non-medis untuk counter pendaftaran."
                   serviceTypeCode="REGISTRASI"
+                />
+              )}
+            />
+            <Route
+              path="non-medic-queue/registration-insurance"
+              element={g(
+                '/dashboard/registration/non-medic-queue/registration-insurance',
+                <NonMedicQueuePage
+                  title="Antrian Pendaftaran Asuransi"
+                  description="Kelola pengambilan nomor dan operasional antrean non-medis untuk counter pendaftaran asuransi."
+                  serviceTypeCode="REGISTRASI_ASURANSI"
                 />
               )}
             />
@@ -378,6 +391,13 @@ function MainRoute() {
               )}
             />
             <Route
+              path="kiosk/registration-insurance"
+              element={g(
+                '/dashboard/non-medic-queue/kiosk/registration-insurance',
+                <NonMedicQueueRegistrationInsuranceKioskPage />
+              )}
+            />
+            <Route
               path="billing"
               element={g(
                 '/dashboard/non-medic-queue/billing',
@@ -418,6 +438,17 @@ function MainRoute() {
                   title="Antrian Pendaftaran"
                   description="Kelola pengambilan nomor, pemanggilan, dan penyelesaian antrean non-medis untuk counter pendaftaran."
                   serviceTypeCode="REGISTRASI"
+                />
+              )}
+            />
+            <Route
+              path="registration-insurance"
+              element={g(
+                '/dashboard/non-medic-queue/registration-insurance',
+                <NonMedicQueuePage
+                  title="Antrian Pendaftaran Asuransi"
+                  description="Kelola pengambilan nomor, pemanggilan, dan penyelesaian antrean non-medis untuk counter pendaftaran asuransi."
+                  serviceTypeCode="REGISTRASI_ASURANSI"
                 />
               )}
             />

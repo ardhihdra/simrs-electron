@@ -11,6 +11,7 @@ import type {
   KioskaSelectedPoli,
   KioskaSelectedWorkLocation
 } from './kioska-global-types'
+import type { KioskaRegistrationPaymentMethod } from '../public-client'
 
 const KioskaGlobalFlowStateContext = createContext<KioskaGlobalFlowState | null>(null)
 const KioskaGlobalFlowDispatchContext =
@@ -19,6 +20,7 @@ const KioskaGlobalFlowDispatchContext =
 type KioskaGlobalFlowActions = {
   selectAntrianType: (antrianType: AntrianType | null) => void
   setRawatJalanLocation: (location: KioskaSelectedWorkLocation | null) => void
+  setPaymentMethod: (paymentMethod: KioskaRegistrationPaymentMethod | null) => void
   setHasMrn: (hasMrn: boolean | null) => void
   setMrn: (mrn: string) => void
   setMatchedPatient: (patient: KioskaSelectedPatient | null) => void
@@ -68,6 +70,8 @@ export function useKioskaGlobalFlowActions(): KioskaGlobalFlowActions {
         dispatch({ type: 'SELECT_ANTRIAN_TYPE', antrianType }),
       setRawatJalanLocation: (location: KioskaSelectedWorkLocation | null) =>
         dispatch({ type: 'SET_RAWAT_JALAN_LOCATION', location }),
+      setPaymentMethod: (paymentMethod: KioskaRegistrationPaymentMethod | null) =>
+        dispatch({ type: 'SET_PAYMENT_METHOD', paymentMethod }),
       setHasMrn: (hasMrn: boolean | null) => dispatch({ type: 'SET_HAS_MRN', hasMrn }),
       setMrn: (mrn: string) => dispatch({ type: 'SET_MRN', mrn }),
       setMatchedPatient: (patient: KioskaSelectedPatient | null) =>

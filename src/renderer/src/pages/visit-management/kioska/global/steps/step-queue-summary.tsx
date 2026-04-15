@@ -1,16 +1,27 @@
 import { Button, Descriptions, Typography } from 'antd'
 import dayjs from 'dayjs'
 import { useState } from 'react'
+import { useLocation } from 'react-router'
 
 import { calculateAge } from '@renderer/utils/calculateAge'
 
 import { createKioskaRegistrationTicket, registerKioskaQueue } from '../../public-client'
 import { KioskFeedbackOverlay } from '../components/kiosk-feedback-overlay'
 import { useKioskaGlobalFlow } from '../kioska-global-context'
-import { createKioskaRegistrationTicketPayload } from '../kioska-queue-submission'
+import {
+  createKioskaRegistrationTicketPayload,
+  resolveInitialKioskaRegistrationPaymentMethodFromPath,
+  resolveKioskaRegistrationServiceTypeFromPaymentMethod
+} from '../kioska-queue-submission'
 
 export function StepQueueSummary() {
   const { resetFlow, state } = useKioskaGlobalFlow()
+  const location = useLocation()
+  const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(location.pathname)
+  const paymentMethod = state.rawatJalan.paymentMethod ?? initialPaymentMethod
+  const registrationServiceType =
+    resolveKioskaRegistrationServiceTypeFromPaymentMethod(paymentMethod)
+  const isInsuranceRegistration = paymentMethod === 'ASURANSI'
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
@@ -34,16 +45,23 @@ export function StepQueueSummary() {
         const result = await createKioskaRegistrationTicket(
           createKioskaRegistrationTicketPayload(
             state.rawatJalan.location.id,
-            dayjs().format('YYYY-MM-DD')
+            dayjs().format('YYYY-MM-DD'),
+            registrationServiceType
           )
         )
 
         setFeedback({
           tone: 'success',
           title: 'Nomor Pendaftaran Berhasil Diambil',
-          message: `Nomor antrian pendaftaran Anda adalah ${result.ticketNo || '-'}. Silakan menuju loket pendaftaran.`
+          message: `Nomor antrian pendaftaran Anda adalah ${result.ticketNo || '-'}. Silakan menuju loket ${
+            isInsuranceRegistration ? 'pendaftaran asuransi' : 'pendaftaran'
+          }.`
         })
         return
+      }
+
+      if (!paymentMethod) {
+        throw new Error('Silakan pilih metode pembayaran terlebih dahulu.')
       }
 
       if (!state.rawatJalan.poli) {
@@ -67,7 +85,7 @@ export function StepQueueSummary() {
         doctorScheduleId: Number(state.rawatJalan.selectedDoctor.doctorScheduleId),
         patientId: state.rawatJalan.matchedPatient?.id,
         registrationType: 'OFFLINE',
-        paymentMethod: 'CASH',
+        paymentMethod,
         reason: 'Registrasi Kioska',
         notes: normalizedMrn ? `KIOSKA_MRN:${normalizedMrn}` : undefined
       })
@@ -111,7 +129,9 @@ export function StepQueueSummary() {
                 {
                   key: 'queue_target',
                   label: 'Tujuan',
-                  children: 'Loket Pendaftaran'
+                  children: isInsuranceRegistration
+                    ? 'Loket Pendaftaran Asuransi'
+                    : 'Loket Pendaftaran'
                 },
                 {
                   key: 'patient_type',
@@ -122,6 +142,11 @@ export function StepQueueSummary() {
                   key: 'location',
                   label: 'Lokasi',
                   children: state.rawatJalan.location?.name || '-'
+                },
+                {
+                  key: 'payment_method',
+                  label: 'Metode Pembayaran',
+                  children: paymentMethod === 'ASURANSI' ? 'Asuransi' : 'Cash'
                 }
               ]
             : [
@@ -134,6 +159,11 @@ export function StepQueueSummary() {
                   key: 'doctor',
                   label: 'Dokter',
                   children: state.rawatJalan.selectedDoctor?.doctorName || '-'
+                },
+                {
+                  key: 'payment_method',
+                  label: 'Metode Pembayaran',
+                  children: paymentMethod === 'ASURANSI' ? 'Asuransi' : 'Cash'
                 },
                 {
                   key: 'patient',

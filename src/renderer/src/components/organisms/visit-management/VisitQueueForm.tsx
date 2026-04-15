@@ -18,6 +18,7 @@ type VisitQueueFormProps = {
   submitLabel?: string
   cancelLabel?: string
   successMessage?: string | false
+  defaultPaymentMethod?: 'CASH' | 'INSURANCE' | 'BPJS' | 'COMPANY'
 }
 
 export default function VisitQueueForm({
@@ -30,7 +31,8 @@ export default function VisitQueueForm({
   patientRequired = false,
   submitLabel = 'Daftar',
   cancelLabel = 'Batal',
-  successMessage = 'Antrian berhasil dibuat'
+  successMessage = 'Antrian berhasil dibuat',
+  defaultPaymentMethod = 'CASH'
 }: VisitQueueFormProps) {
   const [form] = Form.useForm()
   const createQueue = client.visitManagement.register.useMutation()
@@ -109,9 +111,9 @@ export default function VisitQueueForm({
 
     form.setFieldsValue({
       visitDate: dayjs(),
-      paymentMethod: 'CASH'
+      paymentMethod: defaultPaymentMethod
     })
-  }, [form])
+  }, [defaultPaymentMethod, form])
 
   useEffect(() => {
     if (needsMitra) return
@@ -194,7 +196,7 @@ export default function VisitQueueForm({
       }
       initialValues={{
         visitDate: dayjs(),
-        paymentMethod: 'CASH'
+        paymentMethod: defaultPaymentMethod
       }}
     >
       {showPatientLookup ? (

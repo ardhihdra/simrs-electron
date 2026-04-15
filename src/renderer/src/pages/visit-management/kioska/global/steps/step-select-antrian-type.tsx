@@ -1,9 +1,11 @@
 import { App, Button, Card, Typography } from 'antd'
 import { useState } from 'react'
+import { useLocation } from 'react-router'
 
-import { fetchKioskaRegistrationLocation } from '../../public-client'
 import { useKioskaGlobalFlow } from '../kioska-global-context'
+import { getNextStepAfterAntrianType } from '../kioska-global-flow'
 import type { AntrianType } from '../kioska-global-types'
+import { resolveInitialKioskaRegistrationPaymentMethodFromPath } from '../kioska-queue-submission'
 
 const antrianTypeData: { label: string; value: AntrianType; description: string }[] = [
   {
@@ -30,33 +32,24 @@ const antrianTypeData: { label: string; value: AntrianType; description: string 
 
 export function StepSelectAntrianType() {
   const { message } = App.useApp()
-  const { goTo, selectAntrianType, setRawatJalanLocation } = useKioskaGlobalFlow()
+  const { goTo, selectAntrianType, setPaymentMethod } = useKioskaGlobalFlow()
   const [loadingType, setLoadingType] = useState<AntrianType | null>(null)
+  const location = useLocation()
+  const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(location.pathname)
 
   const handleSelect = async (type: AntrianType) => {
     if (type === 'rawat_jalan') {
-      try {
-        setLoadingType(type)
-        const location = await fetchKioskaRegistrationLocation()
-
-        selectAntrianType(type)
-        setRawatJalanLocation(location)
-        goTo('has_mrn')
-      } catch (error) {
-        message.error(
-          error instanceof Error
-            ? error.message
-            : 'Lokasi kerja pendaftaran belum tersedia untuk kioska.'
-        )
-      } finally {
-        setLoadingType(null)
-      }
+      setLoadingType(type)
+      selectAntrianType(type)
+      setPaymentMethod(initialPaymentMethod)
+      goTo(getNextStepAfterAntrianType(type))
+      setLoadingType(null)
       return
     }
 
     if (type === 'checkin') {
       selectAntrianType(type)
-      goTo('input_kode_antrian')
+      goTo(getNextStepAfterAntrianType(type))
       return
     }
 

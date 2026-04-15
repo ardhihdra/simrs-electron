@@ -1,9 +1,11 @@
 import { ArrowLeftOutlined } from '@ant-design/icons'
 import { Button, theme, Typography } from 'antd'
 import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router'
 
 import { KioskaGlobalFlowProvider, useKioskaGlobalFlow } from './global/kioska-global-context'
 import { formatKioskaGlobalSummary } from './global/kioska-global-flow'
+import { resolveInitialKioskaRegistrationPaymentMethodFromPath } from './global/kioska-queue-submission'
 import {
   StepCheckin,
   StepHasMrn,
@@ -11,6 +13,7 @@ import {
   StepScanMrn,
   StepSelectAntrianType,
   StepSelectDoctor,
+  StepSelectPaymentMethod,
   StepSelectPoli
 } from './global/steps'
 
@@ -34,6 +37,10 @@ function KioskaGlobalContent() {
   const { token } = theme.useToken()
   const { goBack, state } = useKioskaGlobalFlow()
   const timeLabel = useCurrentTimeLabel()
+  const location = useLocation()
+  const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(location.pathname)
+  const currentPaymentMethod = state.rawatJalan.paymentMethod ?? initialPaymentMethod
+  const isInsuranceRegistration = currentPaymentMethod === 'ASURANSI'
 
   const kioskGradient = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
   const summary = formatKioskaGlobalSummary(state)
@@ -43,6 +50,8 @@ function KioskaGlobalContent() {
     switch (state.step) {
       case 'antrian_type':
         return <StepSelectAntrianType />
+      case 'payment_method':
+        return <StepSelectPaymentMethod />
       case 'has_mrn':
         return <StepHasMrn />
       case 'scan_mrn':
@@ -77,17 +86,19 @@ function KioskaGlobalContent() {
                   Sistem Antrian
                 </Typography.Text>
                 <Typography.Title level={4} className="!mb-0">
-                  Rumah Sakit Anda
+                  {isInsuranceRegistration ? 'Pendaftaran Asuransi' : 'Rumah Sakit Anda'}
                 </Typography.Title>
               </div>
             </div>
 
             <div className="text-center">
               <Typography.Title level={2} className="!mb-1">
-                Ambil Nomor Antrian
+                {isInsuranceRegistration ? 'Ambil Nomor Antrian Asuransi' : 'Ambil Nomor Antrian'}
               </Typography.Title>
               <Typography.Text className="text-sm text-slate-500">
-                Pilih layanan dan ikuti langkah berikutnya
+                {isInsuranceRegistration
+                  ? 'Pilih layanan asuransi dan ikuti langkah berikutnya'
+                  : 'Pilih layanan dan ikuti langkah berikutnya'}
               </Typography.Text>
             </div>
 

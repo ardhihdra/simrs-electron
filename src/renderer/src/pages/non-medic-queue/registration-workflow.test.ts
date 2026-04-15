@@ -6,8 +6,9 @@ import {
   isRegistrationQueueServiceType
 } from './registration-workflow'
 
-test('marks only REGISTRASI as registration-specific non-medic flow', () => {
+test('marks registration service types as registration-specific non-medic flow', () => {
   assert.equal(isRegistrationQueueServiceType('REGISTRASI'), true)
+  assert.equal(isRegistrationQueueServiceType('REGISTRASI_ASURANSI'), true)
   assert.equal(isRegistrationQueueServiceType('BILLING'), false)
   assert.equal(isRegistrationQueueServiceType('PHARMACY'), false)
 })

@@ -78,7 +78,12 @@ type QueueConfigDto = {
 type NonMedicQueuePageProps = {
   title: string
   description: string
-  serviceTypeCode: 'BILLING' | 'CASHIER' | 'PHARMACY' | 'REGISTRASI'
+  serviceTypeCode:
+    | 'BILLING'
+    | 'CASHIER'
+    | 'PHARMACY'
+    | 'REGISTRASI'
+    | 'REGISTRASI_ASURANSI'
 }
 
 function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueuePageProps) {
@@ -277,6 +282,8 @@ function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueu
   const registrationServeSummary = registrationServeContext
     ? buildRegistrationServeSummary(registrationServeContext)
     : null
+  const defaultRegistrationPaymentMethod =
+    serviceTypeCode === 'REGISTRASI_ASURANSI' ? 'INSURANCE' : 'CASH'
 
   return (
     <div className="space-y-4">
@@ -559,6 +566,7 @@ function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueu
             successMessage={false}
             submitLabel="Buat Antrian Poli"
             cancelLabel="Tutup"
+            defaultPaymentMethod={defaultRegistrationPaymentMethod}
             onCancel={() => {
               setRegistrationServeContext(null)
               setRegistrationServePatient(undefined)

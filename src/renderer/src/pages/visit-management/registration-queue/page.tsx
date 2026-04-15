@@ -1,9 +1,3 @@
-import {
-  IconClipboardList,
-  IconEye,
-  IconCircleCheck,
-  IconVolume
-} from '@tabler/icons-react'
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
@@ -14,12 +8,14 @@ import ReferralModal from '@renderer/components/organisms/visit-management/Refer
 import RegistrationQueueDetailModal from '@renderer/components/organisms/visit-management/RegistrationQueueDetailModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
+import { IconCircleCheck, IconClipboardList, IconEye, IconVolume } from '@tabler/icons-react'
 import { App, Button, DatePicker, Form, Input, Modal, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 
+import { ReloadOutlined, SoundOutlined } from '@ant-design/icons'
 import { getNextCallQueue, getNextConfirmQueue } from './header-next-queue'
 
 type QueueRow = {
@@ -34,6 +30,8 @@ type QueueRow = {
   patientBirthDate?: string | Date
   patientMedicalRecordNumber?: string
   patientGender?: string
+  practitionerId?: string | number
+  poliCodeId?: string | number
   poliName?: string
   serviceUnitName?: string
   doctorName?: string
@@ -76,11 +74,11 @@ export default function RegistrationQueue({
   const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
   const { practitionerId: urlPractitionerId } = useParams()
   const practitionerId = propPractitionerId || urlPractitionerId
+  const activePractitionerId = practitionerId ? String(practitionerId) : ''
 
   const [searchParams, setSearchParams] = useState({
     queueDate: dayjs().format('YYYY-MM-DD'),
-    queueNumber: '',
-    practitionerId: practitionerId || ''
+    queueNumber: ''
   })
 
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; queue?: any }>({ open: false })
@@ -104,6 +102,10 @@ export default function RegistrationQueue({
   })
 
   const { message } = App.useApp()
+  const parsedQueueNumberFilter = useMemo(() => {
+    const normalizedQueueNumber = searchParams.queueNumber.trim()
+    return /^\d+$/.test(normalizedQueueNumber) ? Number(normalizedQueueNumber) : undefined
+  }, [searchParams.queueNumber])
 
   const {
     data: queueData,
@@ -112,7 +114,7 @@ export default function RegistrationQueue({
     refetch
   } = client.registration.getQueues.useQuery({
     queueDate: searchParams.queueDate,
-    queueNumber: searchParams.queueNumber ? Number(searchParams.queueNumber) : undefined,
+    queueNumber: parsedQueueNumberFilter,
     status: [
       'PRE_RESERVED',
       'RESERVED',
@@ -123,14 +125,37 @@ export default function RegistrationQueue({
       // 'TRIAGED',
       // 'IN_PROGRESS'
     ],
-    practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
+    practitionerId: activePractitionerId ? Number(activePractitionerId) : undefined
   })
 
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
-  const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()
   const queueRows = useMemo(() => queueData?.result || [], [queueData?.result])
-  const nextConfirmQueue = useMemo(() => getNextConfirmQueue(queueRows), [queueRows])
-  const nextCallQueue = useMemo(() => getNextCallQueue(queueRows), [queueRows])
+  const filteredQueueRows = useMemo(() => {
+    if (!activePractitionerId) return []
+
+    const searchValue = searchParams.queueNumber.trim().toLowerCase()
+
+    return queueRows.filter((row: QueueRow) => {
+      if (String(row.practitionerId ?? '') !== activePractitionerId) {
+        return false
+      }
+
+      if (!searchValue) return true
+
+      const formattedQueueNumber = String(row.formattedQueueNumber ?? '').toLowerCase()
+      const rawQueueNumber = String(row.queueNumber ?? '').toLowerCase()
+
+      return (
+        formattedQueueNumber.includes(searchValue) ||
+        rawQueueNumber.includes(searchValue)
+      )
+    })
+  }, [activePractitionerId, queueRows, searchParams.queueNumber])
+  const nextConfirmQueue = useMemo(
+    () => getNextConfirmQueue(filteredQueueRows),
+    [filteredQueueRows]
+  )
+  const nextCallQueue = useMemo(() => getNextCallQueue(filteredQueueRows), [filteredQueueRows])
 
   // const handleCancelEncounter = (record: any) => {
   //   Modal.confirm({
@@ -290,10 +315,8 @@ export default function RegistrationQueue({
     setSearchParams({
       ...searchParams,
       queueDate: values.queueDate ? dayjs(values.queueDate).format('YYYY-MM-DD') : '',
-      queueNumber: values.queueNumber,
-      practitionerId: values.practitionerId
+      queueNumber: values.queueNumber || ''
     })
-    refetch()
   }
 
   const openNextConfirmQueue = () => {
@@ -324,6 +347,13 @@ export default function RegistrationQueue({
         action={
           <div className="flex flex-wrap gap-2">
             <Button
+              icon={<ReloadOutlined />}
+              onClick={() => refetch()}
+              loading={isRefetching}
+            >
+              Refresh
+            </Button>
+            <Button
               onClick={openNextConfirmQueue}
               disabled={!nextConfirmQueue}
               loading={isConfirmActionPending}
@@ -353,7 +383,7 @@ export default function RegistrationQueue({
       <div className="mt-4">
         <GenericTable
           columns={columns}
-          dataSource={queueRows}
+          dataSource={filteredQueueRows}
           rowKey="queueId"
           loading={isLoading || isRefetching}
           action={{

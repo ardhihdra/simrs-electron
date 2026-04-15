@@ -6,7 +6,7 @@ export type RegistrationServeContext = {
 }
 
 export function isRegistrationQueueServiceType(serviceTypeCode: string) {
-  return serviceTypeCode === 'REGISTRASI'
+  return serviceTypeCode === 'REGISTRASI' || serviceTypeCode === 'REGISTRASI_ASURANSI'
 }
 
 export function buildRegistrationServeSummary(context: RegistrationServeContext) {

@@ -58,10 +58,22 @@ export const kioskaPublicRpc = {
     }),
 
   registrationLocation: t
-    .input(z.object({}).passthrough())
+    .input(
+      z
+        .object({
+          serviceTypeCode: z.enum(['REGISTRASI', 'REGISTRASI_ASURANSI']).optional()
+        })
+        .passthrough()
+    )
     .output(z.any())
-    .query(async () => {
-      return await fetchPublic('/public/kioska/registration-location')
+    .query(async (_ctx, input) => {
+      const params = new URLSearchParams()
+      if (input.serviceTypeCode) {
+        params.set('serviceTypeCode', input.serviceTypeCode)
+      }
+
+      const suffix = params.size ? `?${params.toString()}` : ''
+      return await fetchPublic(`/public/kioska/registration-location${suffix}`)
     }),
 
   availableDoctors: t
@@ -105,7 +117,7 @@ export const kioskaPublicRpc = {
         doctorScheduleId: z.coerce.number().int().positive(),
         patientId: z.string().optional(),
         registrationType: z.literal('OFFLINE'),
-        paymentMethod: z.literal('CASH'),
+        paymentMethod: z.enum(['CASH', 'ASURANSI']),
         reason: z.string().min(1),
         notes: z.string().optional()
       })
@@ -122,7 +134,7 @@ export const kioskaPublicRpc = {
     .input(
       z.object({
         lokasiKerjaId: z.coerce.number().int().positive(),
-        serviceTypeCode: z.literal('REGISTRASI'),
+        serviceTypeCode: z.enum(['REGISTRASI', 'REGISTRASI_ASURANSI']),
         queueDate: z.string().min(1),
         sourceChannel: z.literal('KIOSK')
       })

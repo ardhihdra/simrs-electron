@@ -7,6 +7,7 @@ export function createInitialKioskaGlobalFlowState(): KioskaGlobalFlowState {
     antrianType: null,
     rawatJalan: {
       location: null,
+      paymentMethod: null,
       hasMrn: null,
       mrn: '',
       matchedPatient: null,
@@ -23,12 +24,17 @@ function resetRawatJalanState(state: KioskaGlobalFlowState): KioskaGlobalFlowSta
   return {
     ...state.rawatJalan,
     location: null,
+    paymentMethod: null,
     hasMrn: null,
     mrn: '',
     matchedPatient: null,
     poli: null,
     selectedDoctor: null
   }
+}
+
+export function getNextStepAfterAntrianType(antrianType: KioskaGlobalFlowState['antrianType']) {
+  return antrianType === 'rawat_jalan' ? 'payment_method' : 'input_kode_antrian'
 }
 
 export function getNextStepAfterMrnAnswer(hasMrn: boolean) {
@@ -65,6 +71,15 @@ export function kioskaGlobalFlowReducer(
         rawatJalan: {
           ...state.rawatJalan,
           location: action.location
+        }
+      }
+
+    case 'SET_PAYMENT_METHOD':
+      return {
+        ...state,
+        rawatJalan: {
+          ...state.rawatJalan,
+          paymentMethod: action.paymentMethod
         }
       }
 
