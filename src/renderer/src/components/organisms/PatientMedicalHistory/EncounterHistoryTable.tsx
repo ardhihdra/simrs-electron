@@ -6,6 +6,7 @@ import {
   DatePicker,
   Select,
   Popover,
+  Typography,
   theme,
   Modal,
   Tag
@@ -14,14 +15,15 @@ import {
   EyeOutlined,
   FileTextOutlined,
   ExperimentOutlined,
+  InfoCircleOutlined,
   FilterOutlined,
   ProfileOutlined
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePatientEncountersPg } from '@renderer/hooks/query/use-patient-history'
 import { ClinicalHistoryModal } from './ClinicalHistoryModal'
-import { resolveObservationDisplay } from './diagnosticDisplay'
 
+const { Text } = Typography
 const { RangePicker } = DatePicker
 
 interface EncounterHistoryTableProps {
@@ -60,145 +62,6 @@ function getDiagnosticCategoryColor(label: string): string {
   if (label === 'Laboratory') return 'blue'
   if (label === 'Radiology') return 'geekblue'
   return 'default'
-}
-
-function resolveDiagnosticCategoryLabel(row: any): string {
-  return getDiagnosticCategoryLabel(
-    row?.diagnosticCategory ||
-      row?.diagnosticCategoryDisplay ||
-      row?.category ||
-      row?.categoryDisplay ||
-      row?.categories?.[0]?.code ||
-      row?.categories?.[0]?.display
-  )
-}
-
-function resolveDiagnosticResultLabel(row: any): string {
-  const coding = Array.isArray(row?.codeCoding) ? row.codeCoding[0] : row?.codeCoding
-  return resolveObservationDisplay({
-    observationCode: row?.observationCode || row?.code,
-    preferredDisplay: row?.observationDisplay,
-    codingDisplay: coding?.display,
-    orderDisplay: row?.matchedOrderDisplay,
-    fallbackDisplay: row?.display
-  })
-}
-
-function resolveDiagnosticResultValue(row: any): string {
-  const vq = row?.valueQuantity
-  if (vq && typeof vq === 'object') {
-    return `${vq.value ?? ''} ${vq.unit ?? row?.valueUnitCode ?? ''}`.trim() || '-'
-  }
-  if (row?.valueString) return row.valueString
-  if (row?.valueInteger !== undefined && row?.valueInteger !== null) return String(row.valueInteger)
-  if (row?.valueBoolean !== undefined && row?.valueBoolean !== null) return row.valueBoolean ? 'Ya' : 'Tidak'
-  const concept = row?.valueCodeableConcept
-  if (concept && typeof concept === 'object') {
-    const coding = Array.isArray(concept.coding) ? concept.coding[0] : undefined
-    return concept.text || coding?.display || coding?.code || '-'
-  }
-  return '-'
-}
-
-function resolveDiagnosticReferenceRange(row: any): string {
-  const referenceRange = row?.referenceRange
-  if (Array.isArray(referenceRange)) {
-    const text = typeof referenceRange[0]?.text === 'string' ? referenceRange[0].text.trim() : ''
-    if (text) return text
-  } else if (referenceRange && typeof referenceRange === 'object') {
-    const text = typeof referenceRange.text === 'string' ? referenceRange.text.trim() : ''
-    if (text) return text
-  } else if (typeof referenceRange === 'string' && referenceRange.trim()) {
-    return referenceRange.trim()
-  }
-
-  if (typeof row?.referenceRangeText === 'string' && row.referenceRangeText.trim()) {
-    return row.referenceRangeText.trim()
-  }
-  return '-'
-}
-
-function formatValueWithUnit(raw: unknown, fallbackUnit = 'mg'): string | null {
-  if (typeof raw === 'number' && Number.isFinite(raw)) return `${raw} ${fallbackUnit}`
-  if (typeof raw === 'string') {
-    const text = raw.trim()
-    if (!text) return null
-    if (/[a-zA-Z]/.test(text)) return text
-    if (/^\d+([.,]\d+)?$/.test(text)) return `${text} ${fallbackUnit}`
-    return text
-  }
-  return null
-}
-
-function resolveMedicationName(medication: any): string {
-  const itemName = typeof medication?.item?.nama === 'string' ? medication.item.nama.trim() : ''
-  if (itemName) return itemName
-
-  const compoundName = typeof medication?.compoundName === 'string' ? medication.compoundName.trim() : ''
-  if (compoundName) return `Racikan: ${compoundName}`
-
-  if (typeof medication?.intent === 'string' && medication.intent.trim()) return medication.intent.trim()
-  return `Resep #${medication?.id ?? '-'}`
-}
-
-function resolveDosageInstructionText(raw: unknown): string | null {
-  if (typeof raw === 'string') {
-    const text = raw.trim()
-    return text || null
-  }
-  if (Array.isArray(raw)) {
-    const parts = raw
-      .map((entry) => {
-        if (typeof entry === 'string') return entry.trim()
-        if (entry && typeof entry === 'object') {
-          const text = typeof (entry as any).text === 'string' ? (entry as any).text.trim() : ''
-          if (text) return text
-          const patientInstruction =
-            typeof (entry as any).patientInstruction === 'string'
-              ? (entry as any).patientInstruction.trim()
-              : ''
-          if (patientInstruction) return patientInstruction
-        }
-        return ''
-      })
-      .filter((value) => value.length > 0)
-    return parts.length > 0 ? parts.join(' • ') : null
-  }
-  if (raw && typeof raw === 'object') {
-    const text = typeof (raw as any).text === 'string' ? (raw as any).text.trim() : ''
-    if (text) return text
-    const patientInstruction =
-      typeof (raw as any).patientInstruction === 'string'
-        ? (raw as any).patientInstruction.trim()
-        : ''
-    if (patientInstruction) return patientInstruction
-  }
-  return null
-}
-
-function resolveMedicationStrength(medication: any): string | null {
-  const directStrength = formatValueWithUnit(medication?.item?.kekuatan)
-  if (directStrength) return directStrength
-
-  const ingredients = Array.isArray(medication?.compoundIngredients) ? medication.compoundIngredients : []
-  const ingredientStrengths = ingredients
-    .map((ingredient: any) => formatValueWithUnit(ingredient?.kekuatan))
-    .filter((val: string | null): val is string => Boolean(val))
-
-  if (ingredientStrengths.length === 0) return null
-  if (ingredientStrengths.length === 1) return ingredientStrengths[0]
-  return ingredientStrengths.slice(0, 2).join(', ')
-}
-
-function resolveGeneralSoapSummary(generalSoap: any): string {
-  if (!generalSoap) return 'Tidak ada catatan SOAP Umum untuk kunjungan ini.'
-  const lines = [
-    `S: ${generalSoap?.soapSubjective || '-'}`,
-    `O: ${generalSoap?.soapObjective || '-'}`,
-    `A: ${generalSoap?.soapAssessment || '-'}`,
-    `P: ${generalSoap?.soapPlan || '-'}`
-  ]
-  return lines.join('\n')
 }
 
 export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
@@ -295,16 +158,17 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       }
     },
     {
-      title: 'Jenis Lab/Rad',
+      title: 'Jenis LAB',
       key: 'diagnosticType',
       width: 140,
       render: (_: any, record: any) => {
         const labels: string[] = Array.from(
           new Set<string>(
-            [
-              ...((record.diagnosticOrders || []).map((order: any) => resolveDiagnosticCategoryLabel(order))),
-              ...((record.diagnosticResults || []).map((result: any) => resolveDiagnosticCategoryLabel(result)))
-            ].filter((label: string): label is string => Boolean(label))
+            (record.diagnosticOrders || [])
+              .map((order: any) =>
+                getDiagnosticCategoryLabel(order.category || order.categoryDisplay || order.categories?.[0]?.code)
+              )
+              .filter((label: string): label is string => Boolean(label))
           )
         )
 
@@ -324,67 +188,36 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       }
     },
     {
-      title: 'Resep',
-      key: 'medicationSummary',
-      width: 220,
-      render: (_: any, record: any) => {
-        const meds: any[] = Array.isArray(record?.clinicals?.medications)
-          ? record.clinicals.medications
-          : []
-
-        if (meds.length === 0) {
-          return <span style={{ color: token.colorTextTertiary, fontSize: 12 }}>-</span>
-        }
-
-        const preview = meds.slice(0, 2)
-        const hiddenCount = meds.length - preview.length
-
-        return (
-          <Popover
-            trigger="hover"
-            placement="topLeft"
-            title={`Resep (${meds.length})`}
-            content={
-              <div style={{ maxWidth: 420, display: 'grid', gap: 8 }}>
-                {meds.map((medication: any) => {
-                  const medName = resolveMedicationName(medication)
-                  const dosage = resolveDosageInstructionText(medication?.dosageInstruction)
-                  const strength = resolveMedicationStrength(medication)
-                  return (
-                    <div key={`med-${medication?.id}`} style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, paddingBottom: 6 }}>
-                      <div style={{ fontWeight: 600 }}>{medName}</div>
-                      <div style={{ color: token.colorTextSecondary, fontSize: 12 }}>
-                        {strength ? `Kekuatan: ${strength}` : 'Kekuatan: -'}
-                      </div>
-                      <div style={{ color: token.colorTextSecondary, fontSize: 12 }}>
-                        {dosage ? `Dosis: ${dosage}` : 'Dosis: -'}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            }
-          >
-            <div className="cursor-pointer">
-              {preview.map((medication: any) => {
-                const medName = resolveMedicationName(medication)
-                const strength = resolveMedicationStrength(medication)
-                return (
-                  <div key={`preview-${medication?.id}`} style={{ fontSize: 12, lineHeight: '16px' }}>
-                    <span style={{ fontWeight: 600 }}>{medName}</span>
-                    {strength ? <span style={{ color: token.colorTextSecondary }}> ({strength})</span> : null}
-                  </div>
-                )
-              })}
-              {hiddenCount > 0 ? (
-                <div style={{ fontSize: 12, color: token.colorPrimary }}>
-                  +{hiddenCount} resep lainnya
-                </div>
-              ) : null}
+      title: 'Diagnosis Utama',
+      dataIndex: 'primaryDiagnosis',
+      key: 'primaryDiagnosis',
+      width: 200,
+      render: (text: string, record: any) => (
+        <Popover
+          content={
+            <div style={{ maxWidth: 350 }}>
+              <div className="font-semibold mb-1">Diagnosis Utama</div>
+              <div className="mb-2">{text || 'Tidak ada'}</div>
+              {record.soapSummary && (
+                <>
+                  <div className="font-semibold mb-1">SOAP Ringkas</div>
+                  <div className="whitespace-pre-wrap text-sm">{record.soapSummary}</div>
+                </>
+              )}
             </div>
-          </Popover>
-        )
-      }
+          }
+          title="Quick Preview"
+          trigger="hover"
+          placement="topLeft"
+        >
+          <div className="flex items-center gap-1 cursor-pointer">
+            <span className="truncate max-w-[180px]" style={{ color: token.colorPrimary, fontSize: 13 }}>
+              {text || 'Tidak ada spesifikasi'}
+            </span>
+            <InfoCircleOutlined className="text-gray-400" />
+          </div>
+        </Popover>
+      )
     },
     {
       title: 'Aksi',
@@ -440,63 +273,34 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
     }
   ]
 
-  const diagnosticRows: any[] = [
-    ...((selectedRecord?.diagnosticOrders ?? []).map((order: any) => ({
-      rowKey: `order-${order?.id}`,
-      rowType: 'order',
-      categoryLabel: resolveDiagnosticCategoryLabel(order),
-      display: resolveDiagnosticResultLabel(order),
-      result: '-',
-      referenceRange: '-',
-      dateTime: order?.createdAt
-    }))),
-    ...((selectedRecord?.diagnosticResults ?? []).map((result: any) => ({
-      rowKey: `result-${result?.id}`,
-      rowType: 'result',
-      categoryLabel: resolveDiagnosticCategoryLabel(result),
-      display: resolveDiagnosticResultLabel(result),
-      result: resolveDiagnosticResultValue(result),
-      referenceRange: resolveDiagnosticReferenceRange(result),
-      dateTime: result?.effectiveDateTime || result?.createdAt
-    })))
-  ].sort((a, b) => dayjs(b?.dateTime).valueOf() - dayjs(a?.dateTime).valueOf())
-
-  const diagnosticColumns = [
-    {
-      title: 'Tipe',
-      dataIndex: 'rowType',
-      key: 'rowType',
-      width: 90,
-      render: (value: string) => (
-        <Tag color={value === 'result' ? 'green' : 'default'} bordered={false}>
-          {value === 'result' ? 'Hasil' : 'Order'}
-        </Tag>
-      )
+  // Map real observation data for Lab modal
+  const observationColumns = [
+    { title: 'Pemeriksaan', dataIndex: 'display', key: 'display',
+      render: (_: any, row: any) => {
+        const coding = Array.isArray(row.codeCoding) ? row.codeCoding[0] : row.codeCoding
+        return coding?.display || row.matchedOrderDisplay || row.observationCode || '-'
+      } },
+    { title: 'Hasil', dataIndex: 'result', key: 'result',
+      render: (_: any, row: any) => {
+        const vq = row.valueQuantity
+        if (vq && typeof vq === 'object') {
+          return `${vq.value ?? ''} ${vq.unit ?? ''}`.trim()
+        }
+        if (row.valueString) return row.valueString
+        if (row.valueInteger !== undefined && row.valueInteger !== null) return String(row.valueInteger)
+        if (row.valueBoolean !== undefined && row.valueBoolean !== null) {
+          return row.valueBoolean ? 'Ya' : 'Tidak'
+        }
+        const concept = row.valueCodeableConcept
+        if (concept && typeof concept === 'object') {
+          const coding = Array.isArray(concept.coding) ? concept.coding[0] : undefined
+          return concept.text || coding?.display || coding?.code || '-'
+        }
+        return '-'
+      }
     },
-    {
-      title: 'Kategori',
-      dataIndex: 'categoryLabel',
-      key: 'categoryLabel',
-      width: 120,
-      render: (value: string) =>
-        value ? (
-          <Tag color={getDiagnosticCategoryColor(value)} bordered={false}>
-            {value}
-          </Tag>
-        ) : (
-          '-'
-        )
-    },
-    { title: 'Pemeriksaan', dataIndex: 'display', key: 'display' },
-    { title: 'Hasil', dataIndex: 'result', key: 'result', width: 150 },
-    { title: 'Rujukan', dataIndex: 'referenceRange', key: 'referenceRange', width: 140 },
-    {
-      title: 'Tanggal',
-      dataIndex: 'dateTime',
-      key: 'dateTime',
-      width: 150,
-      render: (val: string) => (val ? dayjs(val).format('DD MMM YYYY, HH:mm') : '-')
-    }
+    { title: 'Tanggal', dataIndex: 'effectiveDateTime', key: 'effectiveDateTime',
+      render: (val: string) => val ? dayjs(val).format('DD MMM YYYY, HH:mm') : '-' }
   ]
 
   return (
@@ -560,7 +364,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
         footer={null}
       >
         <div className="whitespace-pre-wrap font-mono text-sm p-4 rounded border border-gray-100 bg-gray-50">
-          {resolveGeneralSoapSummary(selectedRecord?.generalSoap)}
+          {selectedRecord?.soapSummary || 'Tidak ada catatan SOAP untuk kunjungan ini.'}
         </div>
       </Modal>
 
@@ -581,7 +385,8 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
         width={640}
       >
         {(() => {
-          if (diagnosticRows.length === 0) {
+          const obs: any[] = selectedRecord?.diagnosticResults ?? []
+          if (obs.length === 0) {
             return (
               <div style={{ color: token.colorTextSecondary, textAlign: 'center', padding: '24px 0' }}>
                 Tidak ada hasil Lab/Radiologi untuk kunjungan ini.
@@ -590,9 +395,9 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
           }
           return (
             <Table
-              dataSource={diagnosticRows}
-              rowKey="rowKey"
-              columns={diagnosticColumns}
+              dataSource={obs}
+              rowKey="id"
+              columns={observationColumns}
               pagination={false}
               size="small"
             />

@@ -1,9 +1,27 @@
-import { Button, Table, Tag, Tooltip, Typography, theme } from 'antd'
+import {
+  Alert,
+  Table,
+  Card,
+  Tag,
+  Button,
+  Space,
+  Typography,
+  Badge,
+  Tooltip,
+  Row,
+  Col,
+  Statistic
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { EyeOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router'
+import {
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  EyeOutlined,
+  ReloadOutlined
+} from '@ant-design/icons'
 
-const { Text } = Typography
+const { Title, Text } = Typography
 
 export type VerifikasiOkStatus = 'menunggu' | 'diproses' | 'disetujui' | 'ditolak'
 export type VerifikasiOkSifat = 'cyto' | 'segera' | 'efektif'
@@ -13,11 +31,13 @@ export interface VerifikasiOkRow {
   nomorAntrian: string
   namaPasien: string
   noRM: string
+  tindakan: string
+  spesialis: string
   kelas: string
   sifat: VerifikasiOkSifat
   tanggalRencana: string
   jamRencana: string
-  dpjp: string
+  dokterOperator: string
   ruangOK: string
   status: VerifikasiOkStatus
 }
@@ -25,13 +45,22 @@ export interface VerifikasiOkRow {
 interface VerifikasiOKTableProps {
   rows: VerifikasiOkRow[]
   loading?: boolean
+  errorMessage?: string | null
+  onRetry?: () => void
 }
 
-const STATUS_MAP: Record<VerifikasiOkStatus, { label: string; color: string }> = {
-  menunggu: { label: 'Menunggu Verifikasi', color: 'orange' },
-  diproses: { label: 'Sedang Diproses', color: 'blue' },
-  disetujui: { label: 'Disetujui', color: 'green' },
-  ditolak: { label: 'Ditolak', color: 'red' }
+const STATUS_MAP: Record<
+  VerifikasiOkStatus,
+  {
+    label: string
+    badge: 'success' | 'processing' | 'error' | 'warning'
+    textColor?: string
+  }
+> = {
+  menunggu: { label: 'Menunggu Verifikasi', badge: 'processing', textColor: '#d97706' },
+  diproses: { label: 'Sedang Diproses', badge: 'warning', textColor: '#2563eb' },
+  disetujui: { label: 'Disetujui', badge: 'success' },
+  ditolak: { label: 'Ditolak', badge: 'error' }
 }
 
 const SIFAT_MAP: Record<VerifikasiOkSifat, { color: string; label: string }> = {
@@ -40,81 +69,40 @@ const SIFAT_MAP: Record<VerifikasiOkSifat, { color: string; label: string }> = {
   efektif: { color: 'green', label: 'EFEKTIF' }
 }
 
-export const VerifikasiOKTable = ({ rows, loading = false }: VerifikasiOKTableProps) => {
+export const VerifikasiOKTable = ({
+  rows,
+  loading = false,
+  errorMessage,
+  onRetry
+}: VerifikasiOKTableProps) => {
   const navigate = useNavigate()
-  const { token } = theme.useToken()
 
   const columns: ColumnsType<VerifikasiOkRow> = [
-    {
-      title: '#',
-      key: 'no',
-      width: 44,
-      align: 'center',
-      render: (_, __, index) => (
-        <span style={{ fontSize: 12, fontWeight: 500, color: token.colorTextTertiary }}>
-          {index + 1}
-        </span>
-      )
-    },
     {
       title: 'No. Antrian',
       dataIndex: 'nomorAntrian',
       key: 'nomorAntrian',
-      width: 170,
-      render: (value: string) => (
-        <span
-          className="font-mono rounded-md"
-          style={{
-            fontSize: 11,
-            color: token.colorPrimaryText,
-            background: token.colorPrimaryBg,
-            border: `1px solid ${token.colorPrimaryBorder}`,
-            padding: '3px 8px'
-          }}
-        >
-          {value || '-'}
-        </span>
-      )
+      render: (v: string) => <Tag color="geekblue">{v}</Tag>
     },
     {
       title: 'Pasien',
       key: 'pasien',
-      width: 260,
       render: (_, row) => (
-        <div className="flex items-center gap-3 py-1">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-            style={{
-              background: token.colorPrimaryBg,
-              border: `1px solid ${token.colorPrimaryBorder}`
-            }}
-          >
-            <span style={{ color: token.colorPrimary, fontSize: 12, fontWeight: 700 }}>
-              {String(row.namaPasien || '?').charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <div
-              style={{ fontWeight: 600, fontSize: 14, color: token.colorText }}
-              className="truncate leading-tight"
-            >
-              {row.namaPasien || '-'}
-            </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span
-                className="font-mono rounded"
-                style={{
-                  fontSize: 10,
-                  color: token.colorTextTertiary,
-                  background: token.colorFillAlter,
-                  border: `1px solid ${token.colorBorderSecondary}`,
-                  padding: '1px 6px'
-                }}
-              >
-                {row.noRM || '-'}
-              </span>
-            </div>
-          </div>
+        <div>
+          <div className="font-semibold">{row.namaPasien}</div>
+          <Text type="secondary" className="text-xs">
+            {row.noRM}
+          </Text>
+        </div>
+      )
+    },
+    {
+      title: 'Tindakan',
+      key: 'tindakan',
+      render: (_, row) => (
+        <div>
+          <div>{row.tindakan}</div>
+          <Tag className="text-xs">{row.spesialis}</Tag>
         </div>
       )
     },
@@ -122,33 +110,20 @@ export const VerifikasiOKTable = ({ rows, loading = false }: VerifikasiOKTablePr
       title: 'Kelas',
       dataIndex: 'kelas',
       key: 'kelas',
-      width: 130,
-      render: (value: string) => (
-        <Tag bordered={false} className="rounded-md font-medium text-[11px]">
-          {value || '-'}
-        </Tag>
-      )
+      render: (v: string) => <Tag>{v}</Tag>
     },
     {
       title: 'Sifat',
       dataIndex: 'sifat',
       key: 'sifat',
-      width: 120,
-      render: (value: VerifikasiOkSifat) => (
-        <Tag color={SIFAT_MAP[value].color} bordered={false} className="rounded-md font-medium text-[11px]">
-          {SIFAT_MAP[value].label}
-        </Tag>
-      )
+      render: (v: VerifikasiOkSifat) => <Tag color={SIFAT_MAP[v].color}>{SIFAT_MAP[v].label}</Tag>
     },
     {
       title: 'Rencana Operasi',
       key: 'rencana',
-      width: 180,
       render: (_, row) => (
         <div>
-          <div style={{ fontSize: 14, color: token.colorText, fontWeight: 500 }}>
-            {row.tanggalRencana}
-          </div>
+          <div>{row.tanggalRencana}</div>
           <Text type="secondary" className="text-xs">
             {row.jamRencana}
           </Text>
@@ -158,82 +133,119 @@ export const VerifikasiOKTable = ({ rows, loading = false }: VerifikasiOKTablePr
     {
       title: 'Ruang OK',
       dataIndex: 'ruangOK',
-      key: 'ruangOK',
-      width: 180,
-      render: (value: string) => (
-        <span style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}>{value || '-'}</span>
-      )
-    },
-    {
-      title: 'DPJP',
-      dataIndex: 'dpjp',
-      key: 'dpjp',
-      width: 200,
-      render: (value: string) => (
-        <span
-          style={{ fontSize: 13, color: token.colorText, fontWeight: 500 }}
-          className="truncate"
-          title={value || '-'}
-        >
-          {value || '-'}
-        </span>
-      )
+      key: 'ruangOK'
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
-      width: 170,
-      render: (value: VerifikasiOkStatus) => (
-        <Tag
-          color={STATUS_MAP[value].color}
-          bordered={false}
-          className="rounded-md font-medium text-[11px]"
-          style={{ margin: 0 }}
-        >
-          {STATUS_MAP[value].label}
-        </Tag>
+      render: (v: VerifikasiOkStatus) => (
+        <Badge
+          status={STATUS_MAP[v].badge}
+          text={<span style={{ color: STATUS_MAP[v].textColor }}>{STATUS_MAP[v].label}</span>}
+        />
       )
     },
     {
       title: 'Aksi',
       key: 'aksi',
-      width: 120,
-      align: 'center',
-      fixed: 'right',
       render: (_, row) => (
-        <Tooltip title="Lihat Detail Verifikasi">
-          <Button
-            size="small"
-            icon={<EyeOutlined />}
-            onClick={() => {
-              navigate(`/dashboard/ok/verifikasi/${row.id}`)
-            }}
-            style={{
-              borderColor: token.colorBorderSecondary,
-              color: token.colorText
-            }}
-          >
-            Detail
-          </Button>
-        </Tooltip>
+        <Space>
+          <Tooltip title="Lihat Detail & BHP">
+            <Button
+              size="small"
+              icon={<EyeOutlined />}
+              onClick={() => {
+                navigate(`/dashboard/ok/verifikasi/${row.id}`)
+              }}
+            >
+              Detail
+            </Button>
+          </Tooltip>
+          {row.status === 'menunggu' && (
+            <>
+              <Button size="small" type="primary" icon={<CheckCircleOutlined />}>
+                Approve
+              </Button>
+              <Button size="small" danger icon={<CloseCircleOutlined />}>
+                Tolak
+              </Button>
+            </>
+          )}
+        </Space>
       )
     }
   ]
 
   return (
-    <Table
-      dataSource={rows}
-      columns={columns}
-      rowKey="id"
-      size="middle"
-      loading={loading}
-      scroll={{ x: 1250, y: 'calc(100vh - 460px)' }}
-      pagination={{
-        pageSize: 10,
-        showSizeChanger: true,
-        showTotal: (total) => `Total ${total} pengajuan`
-      }}
-    />
+    <div>
+      <div className="flex items-center gap-3 mb-4">
+        <div
+          className="flex items-center justify-center w-10 h-10 rounded-lg"
+          style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' }}
+        >
+          <CheckCircleOutlined className="text-white text-lg" />
+        </div>
+        <div>
+          <Title level={4} className="mb-0">
+            Verifikasi Pengajuan OK - Antrian Admin
+          </Title>
+          <Text type="secondary" className="text-xs">
+            Daftar pengajuan tindakan operasi yang masuk
+          </Text>
+        </div>
+      </div>
+
+      {errorMessage && (
+        <Alert
+          type="error"
+          showIcon
+          className="mb-4"
+          message={errorMessage}
+          action={
+            onRetry ? (
+              <Button size="small" icon={<ReloadOutlined />} onClick={onRetry}>
+                Muat Ulang
+              </Button>
+            ) : null
+          }
+        />
+      )}
+
+      <Row gutter={16} className="mb-4">
+        <Col xs={8}>
+          <Card size="small">
+            <Statistic title="Total Pengajuan" value={rows.length} valueStyle={{ color: '#3b82f6' }} />
+          </Card>
+        </Col>
+        <Col xs={8}>
+          <Card size="small">
+            <Statistic
+              title="Menunggu Verifikasi"
+              value={rows.filter((p) => p.status === 'menunggu').length}
+              valueStyle={{ color: '#d97706' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={8}>
+          <Card size="small">
+            <Statistic
+              title="Disetujui"
+              value={rows.filter((p) => p.status === 'disetujui').length}
+              valueStyle={{ color: '#16a34a' }}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Table
+        dataSource={rows}
+        columns={columns}
+        rowKey="id"
+        size="small"
+        loading={loading}
+        pagination={{ pageSize: 10 }}
+      />
+    </div>
   )
 }

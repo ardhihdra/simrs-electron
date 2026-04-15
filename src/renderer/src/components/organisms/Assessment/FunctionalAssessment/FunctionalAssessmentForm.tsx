@@ -1,4 +1,4 @@
-import { App, Button, Form } from 'antd'
+import { App, Button, Card, Form } from 'antd'
 import { SaveOutlined } from '@ant-design/icons'
 import { useEffect } from 'react'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
@@ -20,11 +20,10 @@ import { PSYCHOLOGICAL_STATUS_SNOMED_MAP } from '@renderer/config/maps/observati
 import { PsychosocialSection } from '../PhysicalSection/PsychosocialSection'
 import dayjs from 'dayjs'
 import { handleFormValidationFailed, showApiError } from '@renderer/utils/form-feedback'
-import { PatientData } from '@renderer/types/doctor.types'
 
 interface FunctionalAssessmentFormProps {
   encounterId: string
-  patientData: PatientData
+  patientData: { patient: { id: string; name?: string } }
   hideHeader?: boolean
   globalPerformerId?: string | number
 }
@@ -223,7 +222,7 @@ export const FunctionalAssessmentForm = ({
         <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
       )}
       <FunctionalStatusSection />
-      <PsychosocialSection patientReligion={patientData.patient.religion} />
+      <PsychosocialSection />
       <Form.Item>
         <div className="flex justify-end">
           <Button

@@ -16,15 +16,12 @@ interface AssessmentHeaderProps {
   filterWithLogin?: boolean
   /** If true, will automatically set the value to current login if empty or when requested */
   forceCurrentLogin?: boolean
-  /** If false, header fields are optional for parent form validation */
-  required?: boolean
 }
 
 export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
   performers = [],
   loading = false,
-  forceCurrentLogin = false,
-  required = true
+  forceCurrentLogin = false
 }) => {
   const form = Form.useFormInstance()
   const { profile } = useMyProfile()
@@ -53,7 +50,7 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
           <Form.Item
             label={<span className="font-semibold">Tanggal Asesmen</span>}
             name="assessment_date"
-            rules={required ? [{ required: true, message: 'Wajib memilih tanggal asesmen' }] : []}
+            rules={[{ required: true, message: 'Wajib memilih tanggal asesmen' }]}
             className="mb-0"
           >
             <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
@@ -63,7 +60,7 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
           <Form.Item
             label={<span className="font-semibold">Petugas Pemeriksa</span>}
             name="performerId"
-            rules={required ? [{ required: true, message: 'Wajib memilih petugas pemeriksa' }] : []}
+            rules={[{ required: true, message: 'Wajib memilih petugas pemeriksa' }]}
             className="mb-0"
           >
             <Select

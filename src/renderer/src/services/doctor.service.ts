@@ -25,7 +25,6 @@ import {
     dummyPrescriptions
 } from './doctor-dummy-data'
 import { dummyPatientQueue, dummyMedicalRecords } from './dummy-data'
-import { normalizeKelasTarifValue } from '../utils/tarif-kelas'
 
 const simulateDelay = (ms: number = 500): Promise<void> => {
     return new Promise((resolve) => setTimeout(resolve, ms))
@@ -266,7 +265,6 @@ export const getPatientMedicalRecord = async (
 
         const birthDate = patient.birthDate ? new Date(patient.birthDate) : new Date()
         const age = new Date().getFullYear() - birthDate.getFullYear()
-        const encounterKelasTarif = normalizeKelasTarifValue((encounter as any)?.kelasTarif) || 'UMUM'
 
         const patientWithRecord: PatientWithMedicalRecord = {
             id: String(patient.id),
@@ -285,10 +283,6 @@ export const getPatientMedicalRecord = async (
             },
             status: mapEncounterStatus(encounter.status),
             paymentMethod: 'Umum',
-            kelasTarif: encounterKelasTarif,
-            encounter: {
-                kelasId: encounterKelasTarif
-            },
             registrationDate: encounter.period?.start ? String(encounter.period.start) : new Date().toISOString(),
             poli: {
                 id: '',

@@ -207,20 +207,6 @@ export const laboratoryManagementRpc = {
       return await res.json()
     }),
 
-  // Nilai Rujukan
-  getNilaiRujukan: t
-    .input(z.object({ masterServiceRequestCodeId: z.number().optional() }))
-    .output(ApiResponseSchema(z.any()))
-    .query(async ({ client }, input) => {
-      const params = new URLSearchParams()
-      if (input.masterServiceRequestCodeId !== undefined)
-        params.append('masterServiceRequestCodeId', String(input.masterServiceRequestCodeId))
-      const res = await client.get(
-        `/api/module/lab-management/nilai-rujukan?${params.toString()}`
-      )
-      return await res.json()
-    }),
-
   // PACS study search — QIDO-RS proxy
   searchPacsStudies: t
     .input(

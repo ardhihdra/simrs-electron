@@ -10,7 +10,6 @@ export interface PatientInfo {
     phone?: string;
     address?: string;
     identityNumber?: string;
-    religion?: string | null;
 }
 
 export interface PoliInfo {
@@ -224,10 +223,6 @@ export interface SaveCompoundFormulationResponse {
 
 export interface PatientWithMedicalRecord extends PatientQueue {
     paymentMethod?: string
-    kelasTarif?: string
-    encounter?: {
-        kelasId?: string
-    }
     nurseRecord?: {
         vitalSigns: VitalSigns
         anamnesis: Anamnesis

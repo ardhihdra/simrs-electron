@@ -77,9 +77,7 @@ export default function BhpNonPaketTab({
                         <Form.Item
                           {...restField}
                           name={[name, 'itemId']}
-                          label={
-                            name === 0 ? <span className="font-bold">Item BHP</span> : undefined
-                          }
+                          label={name === 0 ? <span className="font-bold">Item BHP</span> : undefined}
                           rules={[{ required: true, message: 'Pilih item BHP' }]}
                           style={{ marginBottom: 0 }}
                         >
@@ -105,16 +103,14 @@ export default function BhpNonPaketTab({
                   <Form.Item
                     noStyle
                     shouldUpdate={(prevValues, currentValues) =>
-                      prevValues.bhpList?.[name]?.itemId !==
-                        currentValues.bhpList?.[name]?.itemId ||
+                      prevValues.bhpList?.[name]?.itemId !== currentValues.bhpList?.[name]?.itemId ||
                       prevValues.bhpList?.[name]?.jumlah !== currentValues.bhpList?.[name]?.jumlah
                     }
                   >
                     {({ getFieldValue }) => {
                       const itemId = getFieldValue(['bhpList', name, 'itemId'])
                       const selectedItem = itemId ? consumableItemMap.get(Number(itemId)) : null
-                      const stock =
-                        stockByItemMap.get(selectedItem?.kode?.trim()?.toUpperCase() ?? '') || 0
+                      const stock = stockByItemMap.get(selectedItem?.kode?.trim()?.toUpperCase() ?? '') || 0
 
                       return (
                         <Form.Item
@@ -213,4 +209,4 @@ export default function BhpNonPaketTab({
       </Form.List>
     </Card>
   )
-}
+}

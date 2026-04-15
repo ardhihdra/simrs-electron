@@ -43,8 +43,7 @@ export const schemas = {
             page: z.number().optional(),
             items: z.number().optional(),
             q: z.string().optional(),
-            aktif: z.boolean().optional(),
-            isPaketOk: z.boolean().optional()
+            aktif: z.boolean().optional()
         }).optional(),
         result: z.object({
             success: z.boolean(),
@@ -71,7 +70,6 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         if (args?.items) params.append('items', args.items.toString())
         if (args?.q) params.append('q', args.q)
         if (args?.aktif !== undefined) params.append('aktif', String(args.aktif))
-        if (args?.isPaketOk !== undefined) params.append('isPaketOk', String(args.isPaketOk))
 
         const queryString = params.toString()
         const url = `/api/masterpakettindakan${queryString ? `?${queryString}` : ''}`

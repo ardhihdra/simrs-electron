@@ -2,15 +2,9 @@ import { ArrowLeftOutlined, CloudDownloadOutlined, UploadOutlined } from '@ant-d
 import { useLaboratoryActions } from '@renderer/pages/Laboratory/useLaboratoryActions'
 import { client, rpc } from '@renderer/utils/client'
 import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
-import {
-  buildReferenceRangeString,
-  getAgeInDays,
-  getInterpretationFromReferenceRange,
-  type NilaiRujukanEntry,
-  pickBestNilaiRujukan
-} from '@renderer/utils/laboratory-interpretation'
-import { App, Button, Card, Form, Input, Radio, Select, Spin, Tag, Typography, Upload } from 'antd'
-import { useEffect, useMemo, useState } from 'react'
+import { getInterpretationFromReferenceRange } from '@renderer/utils/laboratory-interpretation'
+import { App, Button, Card, Form, Input, Radio, Select, Spin, Typography, Upload } from 'antd'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { resolveAncillaryRouteBase } from '../section-config'
 
@@ -86,44 +80,8 @@ export default function RecordResultPage() {
   const resultValue = Form.useWatch('value', form) as string | undefined
   const referenceRangeValue = Form.useWatch('referenceRange', form) as string | undefined
 
-  const patientId = (record as Record<string, unknown>)?.patientId as string | undefined
-
-  // Nilai Rujukan — fetch by masterServiceRequestCodeId (= firstTermItem.id)
-  const masterServiceRequestCodeId = (firstTermItem as Record<string, unknown> | undefined)?.id as
-    | number
-    | undefined
-
-  const { data: nilaiRujukanData } = client.laboratoryManagement.getNilaiRujukan.useQuery(
-    { masterServiceRequestCodeId },
-    {
-      enabled: masterServiceRequestCodeId !== undefined,
-      queryKey: ['nilai-rujukan', { masterServiceRequestCodeId }]
-    }
-  )
-
-  // Fetch patient to get gender + birthDate for demographic filtering
-  const { data: patientData } = client.patient.getById.useQuery(
-    { id: patientId },
-    { enabled: !!patientId, queryKey: ['patient-by-id', patientId] }
-  )
-  const patientRecord = (patientData as Record<string, unknown>)?.result as
-    | Record<string, string>
-    | undefined
-  const patientGender = patientRecord?.gender
-  const patientAgeInDays = getAgeInDays(patientRecord?.birthDate)
-
-  const matchedNilaiRujukan = useMemo(() => {
-    const all: NilaiRujukanEntry[] =
-      ((nilaiRujukanData as Record<string, unknown>)?.result as NilaiRujukanEntry[]) ?? []
-    return pickBestNilaiRujukan(all, patientGender, patientAgeInDays)
-  }, [nilaiRujukanData, patientGender, patientAgeInDays])
-
-  const matchedReferenceRange = matchedNilaiRujukan
-    ? buildReferenceRangeString(matchedNilaiRujukan)
-    : undefined
-  const matchedUnit = matchedNilaiRujukan?.unit ?? undefined
-
   // PACS study search — generic, autofills with patientId on mount
+  const patientId = (record as Record<string, unknown>)?.patientId as string | undefined
   const [pacsSearchParams, setPacsSearchParams] = useState<{
     patientId?: string
     patientName?: string
@@ -180,26 +138,17 @@ export default function RecordResultPage() {
     rec?.modality
 
   useEffect(() => {
-    if (isRadiology) return
+    if (isRadiology || !defaultUnit) {
+      return
+    }
 
     const currentUnit = form.getFieldValue('unit') as string | undefined
-    if (currentUnit) return
-
-    const unitToSet = matchedUnit || defaultUnit
-    if (unitToSet) {
-      form.setFieldsValue({ unit: unitToSet })
+    if (!currentUnit) {
+      form.setFieldsValue({
+        unit: defaultUnit
+      })
     }
-  }, [defaultUnit, form, isRadiology, matchedUnit])
-
-  // Prefill referenceRange from nilai rujukan when the field is empty
-  useEffect(() => {
-    if (isRadiology || !matchedReferenceRange) return
-
-    const current = form.getFieldValue('referenceRange') as string | undefined
-    if (!current) {
-      form.setFieldsValue({ referenceRange: matchedReferenceRange })
-    }
-  }, [form, isRadiology, matchedReferenceRange])
+  }, [defaultUnit, form, isRadiology])
 
   useEffect(() => {
     if (isRadiology) {
@@ -530,23 +479,6 @@ export default function RecordResultPage() {
               >
                 <Input placeholder="Nilai" />
               </Form.Item>
-
-              {matchedNilaiRujukan && (
-                <div className="mb-3 p-2 bg-blue-50 rounded border border-blue-200 text-sm text-blue-700 flex flex-wrap gap-2 items-center">
-                  <span className="font-medium">Nilai Rujukan:</span>
-                  <span>{matchedReferenceRange}</span>
-                  {matchedUnit && <Tag color="blue">{matchedUnit}</Tag>}
-                  {matchedNilaiRujukan.gender && (
-                    <Tag color="purple">
-                      {matchedNilaiRujukan.gender === 'male' ? 'Laki-laki' : 'Perempuan'}
-                    </Tag>
-                  )}
-                  {matchedNilaiRujukan.note && (
-                    <span className="text-blue-500 italic">{matchedNilaiRujukan.note}</span>
-                  )}
-                  <span>Brand: {matchedNilaiRujukan.machineBrand ?? '-'}</span>
-                </div>
-              )}
 
               <div className="grid grid-cols-3 gap-4">
                 <Form.Item name="unit" label="Satuan">

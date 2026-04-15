@@ -14,7 +14,7 @@ export interface FamilyHistoryCondition {
 
 export interface FamilyHistoryBuilderOptions {
     patientId: string
-    status?: 'PARTIAL' | 'COMPLETED' | 'ENTERED-IN-ERROR' | 'HEALTH-UNKNOWN'
+    status?: 'partial' | 'completed' | 'entered-in-error' | 'health-unknown'
     relationship?: FamilyHistoryRelationship | string
     relationshipDisplay?: string
     note?: string
@@ -23,7 +23,7 @@ export interface FamilyHistoryBuilderOptions {
 
 export const createFamilyHistory = (options: FamilyHistoryBuilderOptions): FamilyHistoryInput => ({
     patientId: options.patientId,
-    status: options.status || 'COMPLETED',
+    status: options.status || 'completed',
     relationship: options.relationship || 'other',
     relationshipDisplay: options.relationshipDisplay || undefined,
     note: options.note || undefined,

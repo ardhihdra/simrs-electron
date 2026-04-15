@@ -1,4 +1,4 @@
-import { Layout, Menu, theme, Input, Empty, Tag } from 'antd'
+import { Layout, Menu, theme, Input, Empty, Typography, Tag } from 'antd'
 import { useState, useMemo } from 'react'
 import {
   MenuUnfoldOutlined,
@@ -13,14 +13,18 @@ import {
   CheckSquareOutlined,
   SafetyCertificateOutlined,
   CheckCircleOutlined,
+  FileTextOutlined,
   MedicineBoxOutlined
 } from '@ant-design/icons'
 import { PengajuanOKForm } from '../../components/organisms/OK/PengajuanOKForm'
 import { DetailPengajuanForm } from '../../components/organisms/OK/DetailPengajuanForm'
 import { ChecklistPreOpForm } from '../../components/organisms/OK/ChecklistPreOpForm'
-import { SignInForm, TimeOutForm } from '../../components/organisms/OK/WHOChecklist'
-import { SignOutForm, ChecklistPostOpForm } from '../../components/organisms/OK/PostOpForms'
-import { TagihanOKView } from '../../components/organisms/OK/BillingTagihanView'
+import { SignInForm, TimeOutForm, SignOutForm } from '../../components/organisms/OK/WHOChecklist'
+import {
+  ChecklistPostOpForm,
+  AdministrasiOKForm,
+  TagihanOKView
+} from '../../components/organisms/OK/PostOpForms'
 import AntrianVerifikasiPage from './antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
 
 interface OKWorkspaceProps {
@@ -151,6 +155,7 @@ export const OKWorkspace = ({
             icon: <CheckCircleOutlined />,
             label: 'Checklist Post-Operasi'
           },
+          { key: 'administrasi', icon: <FileTextOutlined />, label: 'Administrasi' },
           { key: 'tagihan', icon: <DollarOutlined />, label: 'Tagihan Operasi' }
         ]
       }
@@ -205,10 +210,10 @@ export const OKWorkspace = ({
         return <SignOutForm />
       case 'checklist-postop':
         return <ChecklistPostOpForm />
+      case 'administrasi':
+        return <AdministrasiOKForm />
       case 'tagihan':
-        return (
-          <TagihanOKView emptyState="Buka Detail Verifikasi OK untuk melihat tagihan per pengajuan." />
-        )
+        return <TagihanOKView />
       default:
         return <Empty description="Pilih menu di sebelah kiri untuk mulai mengisi form" />
     }

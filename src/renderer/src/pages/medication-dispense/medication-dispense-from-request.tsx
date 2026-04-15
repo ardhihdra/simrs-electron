@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import dayjs from 'dayjs'
+import { TelaahAdministrasiForm, defaultTelaahResults, TelaahResults } from './component/telaah-administrasi-form'
 
 type PatientNameEntry = {
 	text?: string
@@ -277,6 +278,7 @@ export default function MedicationDispenseFromRequest() {
 	const idParam = params.id
 	const requestId = typeof idParam === 'string' ? Number(idParam) : NaN
 	const [quantityOverrides, setQuantityOverrides] = useState<Record<number, number>>({})
+	const [telaahResults, setTelaahResults] = useState<TelaahResults>(defaultTelaahResults)
 	const [selectedBatches, setSelectedBatches] = useState<Record<string, string>>({})
 
 	const { data, isLoading } = useQuery({
@@ -478,7 +480,9 @@ export default function MedicationDispenseFromRequest() {
 		return hasEncounter && !isExternalPatient
 	}, [detail])
 
-
+	const allCriteriaMet = useMemo(() => {
+		return Object.values(telaahResults).every(v => v === true)
+	}, [telaahResults])
 
 	const createDispenseMutation = useMutation({
 		mutationKey: ['medicationDispense', 'createFromRequest', requestId],
@@ -546,7 +550,8 @@ export default function MedicationDispenseFromRequest() {
 						value: item.quantityValue,
 						unit: item.unit
 					},
-					selectedBatches: mappedBatches
+					selectedBatches: mappedBatches,
+					telaahResults
 				}
 				console.log('DEBUG: Calling API with args', args)
 				const result = await window.api.query.medicationDispense.createFromRequest(args as any)
@@ -877,7 +882,7 @@ export default function MedicationDispenseFromRequest() {
 	}, [detail, groupListData, completedQuantityByRequestId])
 
 	const isCreateDisabled =
-		isPrescriptionFulfilled || isOutOfStockForCurrentQuantity
+		isPrescriptionFulfilled || isOutOfStockForCurrentQuantity || !allCriteriaMet
 
 	const createDisabledReason = (() => {
 		if (isPrescriptionFulfilled) {
@@ -885,6 +890,9 @@ export default function MedicationDispenseFromRequest() {
 		}
 		if (isOutOfStockForCurrentQuantity) {
 			return 'Stok obat tidak cukup untuk Qty Diambil yang dipilih.'
+		}
+		if (!allCriteriaMet) {
+			return 'Harap selesaikan Telaah Administrasi terlebih dahulu.'
 		}
 		return undefined
 	})()
@@ -994,6 +1002,12 @@ export default function MedicationDispenseFromRequest() {
 					size="small"
 				/>
 			</Card>
+
+			<TelaahAdministrasiForm
+				isInternal={isInternalRequest}
+				results={telaahResults}
+				onChange={setTelaahResults}
+			/>
 
 			<div className="mt-4 flex justify-end gap-2">
 				<Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>

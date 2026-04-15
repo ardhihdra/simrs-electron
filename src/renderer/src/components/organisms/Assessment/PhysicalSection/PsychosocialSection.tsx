@@ -1,25 +1,10 @@
 import { Card, Checkbox, Col, Form, Input, Row, Select } from 'antd'
-import React, { useEffect } from 'react'
+import React from 'react'
 
 const { TextArea } = Input
 const { Option } = Select
 
-export interface PsychosocialSectionProps {
-  patientReligion?: string | null
-}
-
-export const PsychosocialSection: React.FC<PsychosocialSectionProps> = ({ patientReligion }) => {
-  const form = Form.useFormInstance()
-
-  useEffect(() => {
-    if (!patientReligion) return
-    
-    const currentReligion = form.getFieldValue('religion')
-    if (!currentReligion) {
-      form.setFieldValue('religion', patientReligion)
-    }
-  }, [patientReligion, form])
-
+export const PsychosocialSection: React.FC = () => {
   return (
     <Card title="Riwayat Psiko-Sosial, Spiritual & Budaya" className="py-4">
       <Row gutter={24}>

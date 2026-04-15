@@ -1,7 +1,15 @@
 import { FileTextOutlined, ReloadOutlined } from '@ant-design/icons'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import GenericTable from '@renderer/components/organisms/GenericTable'
-import { Button, DatePicker, Input, Select, Tooltip, Tag, Divider } from 'antd'
+import {
+  Button,
+  DatePicker,
+  Input,
+  Select,
+  Tooltip,
+  Tag,
+  Divider,
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
@@ -11,7 +19,6 @@ import KioskCallingWorkspace from './KioskCallingWorkspace'
 
 interface EncounterRow {
   id: string
-  encounterCode?: string | null
   no?: number
   queueTicket?: { queueNumber?: number; formattedQueueNumber?: string } | null
   visitDate?: string | Date
@@ -27,26 +34,11 @@ interface EncounterRow {
 
 const formatEnum = (val?: string) => {
   if (!val) return '-'
-  return val
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ')
+  return val.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 const columns: ColumnsType<EncounterRow> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 55 },
-  {
-    title: 'No. Kunjungan',
-    dataIndex: 'encounterCode',
-    key: 'encounterCode',
-    render: (v, record) => v ?? record.id ?? '-'
-  },
-  {
-    title: 'No. Kunjungan',
-    dataIndex: 'encounterCode',
-    key: 'encounterCode',
-    render: (v, record) => v ?? record.id ?? '-'
-  },
   {
     title: 'Kode Pemeriksaan',
     dataIndex: 'queueTicket',
@@ -158,11 +150,7 @@ export default function KasirEncounterTable() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-semibold">Daftar Tagihan Pasien</h3>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => refetchEncounter()}
-            loading={isEncounterRefetching}
-          >
+          <Button icon={<ReloadOutlined />} onClick={() => refetchEncounter()} loading={isEncounterRefetching}>
             Refresh
           </Button>
         </div>

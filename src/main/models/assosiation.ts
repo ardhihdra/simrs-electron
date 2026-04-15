@@ -6,7 +6,7 @@ import { Income } from '@main/models/income'
 import { IncomeHead } from '@main/models/incomeHead'
 
 import { Patient } from '@main/models/patient'
-// import { Encounter } from '@main/models/encounter'
+import { Encounter } from '@main/models/encounter'
 import { Condition } from '@main/models/condition'
 import { DiagnosticReport } from '@main/models/diagnosticReport'
 import { Observation } from '@main/models/observation'
@@ -27,14 +27,14 @@ Expense.belongsTo(ExpenseHead, { foreignKey: 'expenseHeadId' })
 Expense.hasMany(ExpenseAttachment, { foreignKey: 'expenseId', onDelete: 'CASCADE' })
 ExpenseAttachment.belongsTo(Expense, { foreignKey: 'expenseId' })
 
-// // Condition Associations
-// Condition.belongsTo(Patient, { foreignKey: 'subjectId', as: 'subject' });
-// Condition.belongsTo(Encounter, { foreignKey: 'encounterId', as: 'encounter' });
+// Condition Associations
+Condition.belongsTo(Patient, { foreignKey: 'subjectId', as: 'subject' });
+Condition.belongsTo(Encounter, { foreignKey: 'encounterId', as: 'encounter' });
 
-// // DiagnosticReport Associations
-// DiagnosticReport.belongsTo(Patient, { foreignKey: 'subjectId', as: 'subject' });
-// DiagnosticReport.belongsTo(Encounter, { foreignKey: 'encounterId', as: 'encounter' });
+// DiagnosticReport Associations
+DiagnosticReport.belongsTo(Patient, { foreignKey: 'subjectId', as: 'subject' });
+DiagnosticReport.belongsTo(Encounter, { foreignKey: 'encounterId', as: 'encounter' });
 
-// // Observation Associations
-// Observation.belongsTo(Patient, { foreignKey: 'subjectId', as: 'subject' });
-// Observation.belongsTo(Encounter, { foreignKey: 'encounterId', as: 'encounter' });
+// Observation Associations
+Observation.belongsTo(Patient, { foreignKey: 'subjectId', as: 'subject' });
+Observation.belongsTo(Encounter, { foreignKey: 'encounterId', as: 'encounter' });

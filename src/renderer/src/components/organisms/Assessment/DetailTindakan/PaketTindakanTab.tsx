@@ -1,10 +1,8 @@
 import { Form, Card, Button, Select, Spin, Switch, InputNumber, Input, Row, Col } from 'antd'
-import AutoRolePetugasListCard from './AutoRolePetugasListCard'
 import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
 import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
 import { ProcedureSelectorModal } from '@renderer/components/organisms/ProcedureSelectorModal'
-import { SelectKelasTarif } from '@renderer/components/molecules/SelectKelasTarif'
 
 const { TextArea } = Input
 
@@ -85,20 +83,28 @@ export default function PaketTindakanTab({
           type="dashed"
           size="small"
           icon={<PlusCircleOutlined />}
-          onClick={() => {
-            const currentEntries = modalForm.getFieldValue('paketEntries') || []
-            const defaultKelas = modalForm.getFieldValue('kelas') || 'UMUM'
-            modalForm.setFieldValue('paketEntries', [
-              ...currentEntries,
-              {
-                paketCytoGlobal: false,
-                kelas: defaultKelas,
-                tindakanList: [],
-                bhpList: [],
-                petugasList: []
-              }
-            ])
-          }}
+          onClick={() =>
+            (modalForm.getFieldValue('paketEntries') || []).length === 0
+              ? modalForm.setFieldValue('paketEntries', [
+                  {
+                    paketCytoGlobal: false,
+                    kelas: undefined,
+                    tindakanList: [],
+                    bhpList: [],
+                    petugasList: []
+                  }
+                ])
+              : modalForm.setFieldValue('paketEntries', [
+                  ...(modalForm.getFieldValue('paketEntries') || []),
+                  {
+                    paketCytoGlobal: false,
+                    kelas: undefined,
+                    tindakanList: [],
+                    bhpList: [],
+                    petugasList: []
+                  }
+                ])
+          }
         >
           Tambah Paket Tindakan
         </Button>
@@ -154,7 +160,7 @@ export default function PaketTindakanTab({
                     label={<span className="font-bold">Kelas</span>}
                     rules={[{ required: true, message: 'Pilih kelas' }]}
                   >
-                    <SelectKelasTarif
+                    <Select
                       placeholder="Pilih kelas..."
                       options={kelasOptions}
                       onChange={(selectedKelas) => {
@@ -368,16 +374,105 @@ export default function PaketTindakanTab({
                     )}
                   </Form.List>
                 </Card>
-                <AutoRolePetugasListCard
-                  form={modalForm}
-                  listName={[paketField.name, 'petugasList']}
-                  valuePathPrefix={['paketEntries', paketField.name, 'petugasList']}
-                  token={token}
-                  performers={performers}
-                  isLoadingPerformers={isLoadingPerformers}
-                  roleLabelByCode={roleLabelByCode}
+
+                <Card
+                  size="small"
                   className="mt-4!"
-                  />
+                  title={<span className="font-semibold">Tenaga Medis Pelaksana</span>}
+                >
+                  <Form.List name={[paketField.name, 'petugasList']}>
+                    {(fields) => (
+                      <div className="flex flex-col gap-2">
+                        {fields.length === 0 && (
+                          <div className="text-xs" style={{ color: token.colorTextTertiary }}>
+                            Belum ada role tenaga medis dari komponen jasa tindakan pada kelas
+                            terpilih.
+                          </div>
+                        )}
+                        {fields.map(({ key, name, ...restField }) => (
+                          <Row key={key} gutter={8} align="middle">
+                            <Col span={12}>
+                              <Form.Item
+                                {...restField}
+                                name={[name, 'pegawaiId']}
+                                label={
+                                  name === 0 ? (
+                                    <span className="font-bold">Nama Petugas</span>
+                                  ) : undefined
+                                }
+                                rules={[{ required: true, message: 'Pilih petugas' }]}
+                                style={{ marginBottom: 0 }}
+                              >
+                                <Select
+                                  showSearch
+                                  allowClear
+                                  placeholder="Pilih tenaga medis..."
+                                  loading={isLoadingPerformers}
+                                  optionFilterProp="children"
+                                  filterOption={(input, option) =>
+                                    String(option?.children ?? '')
+                                      .toLowerCase()
+                                      .includes(input.toLowerCase())
+                                  }
+                                >
+                                  {performers.map((p) => (
+                                    <Select.Option key={p.id} value={p.id}>
+                                      {p.name}
+                                    </Select.Option>
+                                  ))}
+                                </Select>
+                              </Form.Item>
+                            </Col>
+                            <Col span={9}>
+                              <Form.Item
+                                {...restField}
+                                name={[name, 'roleTenaga']}
+                                rules={[{ required: true, message: 'Role belum tersedia' }]}
+                                style={{ display: 'none' }}
+                              >
+                                <Input />
+                              </Form.Item>
+                              <Form.Item
+                                label={
+                                  name === 0 ? (
+                                    <span className="font-bold">Role / Peran</span>
+                                  ) : undefined
+                                }
+                                style={{ marginBottom: 0 }}
+                              >
+                                <Input
+                                  disabled
+                                  value={
+                                    roleLabelByCode.get(
+                                      modalForm.getFieldValue([
+                                        'paketEntries',
+                                        paketField.name,
+                                        'petugasList',
+                                        name,
+                                        'roleTenaga'
+                                      ]) || ''
+                                    ) ||
+                                    modalForm.getFieldValue([
+                                      'paketEntries',
+                                      paketField.name,
+                                      'petugasList',
+                                      name,
+                                      'roleTenaga'
+                                    ]) ||
+                                    '-'
+                                  }
+                                />
+                              </Form.Item>
+                            </Col>
+                            <Col span={3} className="flex items-end pb-0.5">
+                              {name === 0 && <div className="h-[22px]" />}
+                            </Col>
+                          </Row>
+                        ))}
+                      </div>
+                    )}
+                  </Form.List>
+                </Card>
 
                 <Form.Item
                   {...paketField}
