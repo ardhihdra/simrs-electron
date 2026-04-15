@@ -260,7 +260,7 @@ export default function EncounterMonitor() {
       />
     )
   }
-  console.log(queueQuery.data)
+
   return (
     <div className="space-y-4">
       <div className="mb-4">

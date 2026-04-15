@@ -145,10 +145,7 @@ export default function RegistrationQueue({
       const formattedQueueNumber = String(row.formattedQueueNumber ?? '').toLowerCase()
       const rawQueueNumber = String(row.queueNumber ?? '').toLowerCase()
 
-      return (
-        formattedQueueNumber.includes(searchValue) ||
-        rawQueueNumber.includes(searchValue)
-      )
+      return formattedQueueNumber.includes(searchValue) || rawQueueNumber.includes(searchValue)
     })
   }, [activePractitionerId, queueRows, searchParams.queueNumber])
   const nextConfirmQueue = useMemo(
@@ -340,17 +337,13 @@ export default function RegistrationQueue({
   return (
     <div>
       <TableHeader
-        title="Antrian Pendaftaran"
+        title="Antrian Pendaftaran Poli"
         subtitle="Manajemen antrian pendaftaran pasien"
         onSearch={onSearch}
         loading={isLoading || isRefetching}
         action={
           <div className="flex flex-wrap gap-2">
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={() => refetch()}
-              loading={isRefetching}
-            >
+            <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isRefetching}>
               Refresh
             </Button>
             <Button
@@ -407,7 +400,7 @@ export default function RegistrationQueue({
                 })
               } else if (IS_DEVELOPMENT && record.status === 'CALLED') {
                 actions.push({
-                  label: 'Konfirmasi Tujuan (dev mode)',
+                  label: 'Konfirmasi Tujuan',
                   icon: <IconCircleCheck size={16} />,
                   onClick: () => setCallModal({ open: true, record })
                 })

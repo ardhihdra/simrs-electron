@@ -30,6 +30,7 @@ import dayjs from 'dayjs'
 import { ItemType } from 'antd/es/menu/interface'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
+import { Modules } from 'simrs-types'
 // const SendNotificationButton = () => {
 //   const { message } = AntdApp.useApp()
 //   return (
@@ -74,6 +75,65 @@ const items: DashboardMenuItem[] = [
     key: DASHBOARD_ROOT_KEY,
     icon: <DashboardOutlined />
   },
+
+  {
+    label: 'Antrian',
+    key: '/dashboard/non-medic-queue',
+    icon: <UnorderedListOutlined />,
+    module: 'BILLING_KASIR',
+    children: [
+      {
+        label: 'KIOSK Billing',
+        key: '/dashboard/non-medic-queue/kiosk/billing',
+        icon: <BarcodeOutlined />
+      },
+      {
+        label: 'KIOSK Kasir',
+        key: '/dashboard/non-medic-queue/kiosk/cashier',
+        icon: <BarcodeOutlined />
+      },
+      {
+        label: 'KIOSK Farmasi',
+        key: '/dashboard/non-medic-queue/kiosk/pharmacy',
+        icon: <BarcodeOutlined />
+      },
+      {
+        label: 'KIOSK Pendaftaran',
+        key: '/dashboard/non-medic-queue/kiosk/registration',
+        icon: <BarcodeOutlined />
+      },
+      {
+        label: 'Billing',
+        key: '/dashboard/non-medic-queue/billing',
+        icon: <WalletOutlined />
+      },
+      {
+        label: 'Kasir',
+        key: '/dashboard/non-medic-queue/cashier',
+        icon: <WalletOutlined />
+      },
+      {
+        label: 'Farmasi',
+        key: '/dashboard/non-medic-queue/pharmacy',
+        icon: <MedicineBoxOutlined />
+      },
+      {
+        label: 'Pendaftaran',
+        key: '/dashboard/non-medic-queue/registration',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Service Point',
+        key: '/dashboard/non-medic-queue/service-points',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Workspace Counter',
+        key: '/dashboard/non-medic-queue/workspace',
+        icon: <PhoneOutlined />
+      }
+    ]
+  },
   {
     label: 'Registrasi',
     key: '/dashboard/registration',
@@ -83,11 +143,11 @@ const items: DashboardMenuItem[] = [
       { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
       {
         label: 'Pendaftaran',
-        key: '/dashboard/registration',
+        key: '/dashboard/registration/manage',
         icon: <DashboardOutlined />
       },
       {
-        label: 'Antrian Pasien',
+        label: 'Antrian Poli',
         key: '/dashboard/registration/select',
         icon: <DashboardOutlined />
       },
@@ -108,7 +168,7 @@ const items: DashboardMenuItem[] = [
       },
       {
         label: 'Kioska',
-        key: '/dashboard/registration/kioska',
+        key: '/kioska/global',
         icon: <BarcodeOutlined />
       },
       // {
@@ -116,7 +176,7 @@ const items: DashboardMenuItem[] = [
       //   key: '/dashboard/registration/active-encounters',
       //   icon: <UnorderedListOutlined />
       // },
-      { label: 'Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
+      { label: 'Monitor Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
       {
         label: 'Monitor Antrian Dokter',
         key: '/dashboard/queue/monitor',
@@ -288,64 +348,6 @@ const items: DashboardMenuItem[] = [
         label: 'Tagihan Pasien',
         key: '/dashboard/kasir',
         icon: <FileTextOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Antrian Non-Medis',
-    key: '/dashboard/non-medic-queue',
-    icon: <UnorderedListOutlined />,
-    module: 'BILLING_KASIR',
-    children: [
-      {
-        label: 'KIOSK Billing',
-        key: '/dashboard/non-medic-queue/kiosk/billing',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Kasir',
-        key: '/dashboard/non-medic-queue/kiosk/cashier',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Farmasi',
-        key: '/dashboard/non-medic-queue/kiosk/pharmacy',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Pendaftaran',
-        key: '/dashboard/non-medic-queue/kiosk/registration',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'Billing',
-        key: '/dashboard/non-medic-queue/billing',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Kasir',
-        key: '/dashboard/non-medic-queue/cashier',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Farmasi',
-        key: '/dashboard/non-medic-queue/pharmacy',
-        icon: <MedicineBoxOutlined />
-      },
-      {
-        label: 'Pendaftaran',
-        key: '/dashboard/non-medic-queue/registration',
-        icon: <UnorderedListOutlined />
-      },
-      {
-        label: 'Service Point',
-        key: '/dashboard/non-medic-queue/service-points',
-        icon: <UnorderedListOutlined />
-      },
-      {
-        label: 'Workspace Counter',
-        key: '/dashboard/non-medic-queue/workspace',
-        icon: <PhoneOutlined />
       }
     ]
   },
@@ -542,7 +544,12 @@ function Dashboard() {
                 label: (
                   <div className="flex items-center justify-between w-full pr-4">
                     <span>{child.label}</span>
-                    <Badge count={waitingBilling} size="small" offset={[10, 0]} overflowCount={99} />
+                    <Badge
+                      count={waitingBilling}
+                      size="small"
+                      offset={[10, 0]}
+                      overflowCount={99}
+                    />
                   </div>
                 )
               }
@@ -553,7 +560,12 @@ function Dashboard() {
                 label: (
                   <div className="flex items-center justify-between w-full pr-4">
                     <span>{child.label}</span>
-                    <Badge count={waitingCashier} size="small" offset={[10, 0]} overflowCount={99} />
+                    <Badge
+                      count={waitingCashier}
+                      size="small"
+                      offset={[10, 0]}
+                      overflowCount={99}
+                    />
                   </div>
                 )
               }

@@ -164,9 +164,9 @@ function MainRoute() {
             <Route path="create" element={<ExpenseForm />} />
           </Route>
           <Route path="registration" element={g('/dashboard/registration', <Outlet />)}>
-            <Route index element={<RegistrationPage />} />
+            <Route path="manage" element={<RegistrationPage />} />
             <Route path="select" element={<RegistrationSelect />} />
-            <Route path="queue/:practitionerId" element={<RegistrationQueue />} />
+            <Route path="select/:practitionerId" element={<RegistrationQueue />} />
             <Route path="upcoming-queue" element={<UpcomingQueuePage />} />
             <Route
               path="global-queue"

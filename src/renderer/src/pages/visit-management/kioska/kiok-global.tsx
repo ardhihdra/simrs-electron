@@ -38,7 +38,9 @@ function KioskaGlobalContent() {
   const { goBack, state } = useKioskaGlobalFlow()
   const timeLabel = useCurrentTimeLabel()
   const location = useLocation()
-  const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(location.pathname)
+  const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(
+    location.pathname
+  )
   const currentPaymentMethod = state.rawatJalan.paymentMethod ?? initialPaymentMethod
   const isInsuranceRegistration = currentPaymentMethod === 'ASURANSI'
 
@@ -86,7 +88,7 @@ function KioskaGlobalContent() {
                   Sistem Antrian
                 </Typography.Text>
                 <Typography.Title level={4} className="!mb-0">
-                  {isInsuranceRegistration ? 'Pendaftaran Asuransi' : 'Rumah Sakit Anda'}
+                  {isInsuranceRegistration ? 'Pendaftaran Asuransi' : 'Rumah Sakit Rahayu'}
                 </Typography.Title>
               </div>
             </div>
@@ -145,36 +147,106 @@ function KioskaGlobalContent() {
           </div>
         </main>
 
-        <footer className="rounded-[28px] border border-white/70 bg-white/95 px-6 py-4 shadow-sm backdrop-blur">
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-left">
-              <Typography.Text className="block text-sm font-semibold text-slate-800">
-                Ikuti instruksi di layar
-              </Typography.Text>
-              <Typography.Text className="block text-xs text-slate-500">
-                Periksa kembali data sebelum melanjutkan
-              </Typography.Text>
+        <footer className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm">
+          {/* 3-column info strip */}
+          <div className="grid grid-cols-3 divide-x divide-slate-100">
+            {/* Left — guidance */}
+            <div className="flex items-center gap-3 px-5 py-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-8"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </span>
+              <div>
+                <Typography.Text className="block text-xs font-semibold text-slate-800">
+                  Ikuti instruksi di layar
+                </Typography.Text>
+                <Typography.Text className="block text-[11px] text-slate-400">
+                  Periksa kembali data sebelum melanjutkan
+                </Typography.Text>
+              </div>
             </div>
 
-            <div className="hidden text-center md:flex md:flex-col">
-              <Typography.Text className="text-xs text-slate-500">Butuh bantuan?</Typography.Text>
-              <Typography.Text className="text-xs font-medium text-slate-700">
-                Hubungi petugas loket
-              </Typography.Text>
+            {/* Center — help */}
+            <div className="flex items-center justify-center gap-3 px-5 py-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-8"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.35 2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.87a16 16 0 0 0 5.45 5.45l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 15.92z" />
+                </svg>
+              </span>
+              <div>
+                <Typography.Text className="block text-[11px] text-slate-400">
+                  Butuh bantuan?
+                </Typography.Text>
+                <Typography.Text className="block text-xs font-semibold text-slate-800">
+                  Hubungi petugas loket
+                </Typography.Text>
+              </div>
             </div>
 
-            <div className="text-right">
-              <Typography.Text className="block text-xs text-slate-400">Status</Typography.Text>
-              <Typography.Text className="block text-xs font-medium text-emerald-600">
-                Online
-              </Typography.Text>
-              <Typography.Text className="block text-xs text-slate-400">
-                {timeLabel}
-              </Typography.Text>
+            {/* Right — status */}
+            <div className="flex items-center justify-end gap-3 px-5 py-3">
+              <div className="text-right">
+                <Typography.Text className="block text-[11px] text-slate-400">
+                  Status sistem
+                </Typography.Text>
+                <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
+                  Online
+                </span>
+              </div>
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-8 w-8"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                </svg>
+              </span>
             </div>
           </div>
 
-          <div className="mt-3 border-t border-slate-100 pt-3 text-center">
+          {/* Bottom notice */}
+          <div className="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50/70 px-6 py-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-3 w-3 shrink-0 text-slate-400"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
             <Typography.Text className="text-[11px] text-slate-400">
               Sistem akan kembali ke halaman awal jika tidak ada aktivitas.
             </Typography.Text>

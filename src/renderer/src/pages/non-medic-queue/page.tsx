@@ -78,12 +78,7 @@ type QueueConfigDto = {
 type NonMedicQueuePageProps = {
   title: string
   description: string
-  serviceTypeCode:
-    | 'BILLING'
-    | 'CASHIER'
-    | 'PHARMACY'
-    | 'REGISTRASI'
-    | 'REGISTRASI_ASURANSI'
+  serviceTypeCode: 'BILLING' | 'CASHIER' | 'PHARMACY' | 'REGISTRASI' | 'REGISTRASI_ASURANSI'
 }
 
 function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueuePageProps) {
@@ -210,12 +205,19 @@ function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueu
     }
   }
 
+  function triggerSound(ticketNo: string) {
+    message.success(`Memanggil antrian ${ticketNo}`)
+    return ticketNo
+  }
+
   async function handleCallNext(servicePointId: number) {
     try {
       await callNextMutation.mutateAsync({
         servicePointId,
         queueDate: selectedDate.format('YYYY-MM-DD')
       })
+      // should call the code here
+      // triggerSound(ticketNo)
       message.success('Nomor berikutnya berhasil dipanggil.')
       await boardQuery.refetch()
     } catch (error: any) {
@@ -285,6 +287,7 @@ function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueu
   const defaultRegistrationPaymentMethod =
     serviceTypeCode === 'REGISTRASI_ASURANSI' ? 'INSURANCE' : 'CASH'
 
+  console.log('servicePoint', servicePointCards)
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -481,6 +484,12 @@ function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueu
                               loading={cancelTicketMutation.isPending}
                             >
                               Batal
+                            </Button>
+                            <Button
+                              onClick={() => triggerSound(currentTicket.ticketNo)}
+                              icon={<PhoneOutlined />}
+                            >
+                              Panggil Lagi
                             </Button>
                           </>
                         ) : null}

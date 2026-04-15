@@ -133,8 +133,7 @@ export default function RegistrationGlobalQueue() {
 
     return queueRows.filter(
       (queue) =>
-        queue.globalQueueNumber != null &&
-        String(queue.globalQueueNumber).includes(searchValue)
+        queue.globalQueueNumber != null && String(queue.globalQueueNumber).includes(searchValue)
     )
   }, [queueRows, searchParams.globalQueueNumber])
 
@@ -142,7 +141,10 @@ export default function RegistrationGlobalQueue() {
     () => getNextGlobalConfirmQueue(filteredQueueRows),
     [filteredQueueRows]
   )
-  const nextCallQueue = useMemo(() => getNextGlobalCallQueue(filteredQueueRows), [filteredQueueRows])
+  const nextCallQueue = useMemo(
+    () => getNextGlobalCallQueue(filteredQueueRows),
+    [filteredQueueRows]
+  )
 
   const handleCreateSep = async (record: any) => {
     try {
@@ -355,7 +357,7 @@ export default function RegistrationGlobalQueue() {
                 })
               } else if (IS_DEVELOPMENT && record.status === 'CALLED') {
                 actions.push({
-                  label: 'Konfirmasi Tujuan (dev mode)',
+                  label: 'Konfirmasi Tujuan',
                   icon: <CheckCircleOutlined />,
                   onClick: () => setCallModal({ open: true, record })
                 })
