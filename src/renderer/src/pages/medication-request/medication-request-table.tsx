@@ -68,7 +68,7 @@ interface MedicationRequestAttributes {
   priority?: string
   medicationId?: number | null
   itemId?: number | null
-  patientId: string
+  patientId?: string | null
   authoredOn?: string
   patient?: PatientInfo
   medication?: { name?: string }
