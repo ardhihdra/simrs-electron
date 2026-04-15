@@ -186,6 +186,11 @@ const items: DashboardMenuItem[] = [
         label: 'Jadwal Dokter',
         key: '/dashboard/registration/doctor-schedule',
         icon: <CalendarOutlined />
+      },
+      {
+        label: 'Laporan Kunjungan',
+        key: '/dashboard/registration/laporan-kunjungan',
+        icon: <FileTextOutlined />
       }
     ]
   },

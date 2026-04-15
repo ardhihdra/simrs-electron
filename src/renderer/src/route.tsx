@@ -121,6 +121,7 @@ import RegistrationGlobalQueue from './pages/visit-management/registration-globa
 import RegistrationQueue from './pages/visit-management/registration-queue'
 import RegistrationSelect from './pages/visit-management/registration-select'
 import UpcomingQueuePage from './pages/visit-management/upcoming-queue'
+import LaporanKunjunganPage from './pages/visit-management/laporan-kunjungan'
 
 const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode) => (
   <ModuleScopeGuard access={access} fallback={<Typography>No access to this page</Typography>}>
@@ -197,6 +198,7 @@ function MainRoute() {
             <Route path="kioska" element={<Navigate to="/kioska" replace />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
+            <Route path="laporan-kunjungan" element={<LaporanKunjunganPage />} />
           </Route>
           <Route path="patient" element={g('/dashboard/patient', <Patient />)}>
             <Route index element={<PatientTable />} />
