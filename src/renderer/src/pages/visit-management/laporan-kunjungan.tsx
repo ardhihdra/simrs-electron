@@ -8,7 +8,9 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 
-interface VisitItem {
+type PaymentMethod = 'cash' | 'bpjs' | 'asuransi' | 'company'
+
+interface VisitItem extends Record<string, unknown> {
     queueTicketId: string
     patientMrn: string
     patientName: string
@@ -46,14 +48,14 @@ export default function LaporanKunjunganPage() {
         fromDate: dayjs().startOf('month').format('YYYY-MM-DD'),
         toDate: dayjs().format('YYYY-MM-DD'),
         poliCodeId: undefined as number | undefined,
-        paymentMethod: undefined as string | undefined,
+        paymentMethod: undefined as PaymentMethod | undefined,
     })
 
     const { data, isLoading, isRefetching, refetch } = client.outpatientReporting.getVisitReport.useQuery({
         fromDate: filters.fromDate,
         toDate: filters.toDate,
         poliCodeId: filters.poliCodeId,
-        paymentMethod: filters.paymentMethod as any,
+        paymentMethod: filters.paymentMethod,
     })
 
     const { data: poliData } = client.visitManagement.poli.useQuery({})
@@ -83,7 +85,7 @@ export default function LaporanKunjunganPage() {
             fromDate: values.dateRange ? dayjs(values.dateRange[0]).format('YYYY-MM-DD') : filters.fromDate,
             toDate: values.dateRange ? dayjs(values.dateRange[1]).format('YYYY-MM-DD') : filters.toDate,
             poliCodeId: values.poliCodeId || undefined,
-            paymentMethod: values.paymentMethod || undefined,
+            paymentMethod: (values.paymentMethod || undefined) as PaymentMethod | undefined,
         })
     }
 
@@ -182,7 +184,7 @@ export default function LaporanKunjunganPage() {
                 loading={isLoading || isRefetching}
                 action={
                     <ExportButton
-                        data={items as unknown as Record<string, unknown>[]}
+                        data={items}
                         fileName={`laporan-kunjungan-${filters.fromDate}-${filters.toDate}`}
                         title={`Laporan Kunjungan Pasien Rawat Jalan\n${filters.fromDate} s/d ${filters.toDate}`}
                         columns={exportColumns}
