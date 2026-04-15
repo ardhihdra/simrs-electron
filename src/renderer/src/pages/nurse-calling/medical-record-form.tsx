@@ -11,7 +11,8 @@ import {
   UserOutlined,
   SearchOutlined,
   SoundOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  DisconnectOutlined
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
 import { client } from '@renderer/utils/client'
@@ -25,6 +26,7 @@ import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTFor
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 import { EncounterTimeline } from '@renderer/components/organisms/EncounterTimeline'
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
+import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useEncounterDetail } from '@renderer/hooks/query/use-encounter'
 import {
@@ -280,6 +282,11 @@ const MedicalRecordForm = () => {
         icon: <SolutionOutlined />,
         label: 'Asesmen Awal'
       },
+      {
+        key: 'referral',
+        icon: <DisconnectOutlined />,
+        label: 'Rujukan'
+      },
       ...(patientData?.poli?.name?.includes('RAWAT_INAP') ||
       patientData?.poli?.code === 'RAWAT_INAP'
         ? rawatInapMenu
@@ -383,6 +390,14 @@ const MedicalRecordForm = () => {
               allowedRoles={['nurse']}
             />
           </div>
+        )
+      case 'referral':
+        return (
+          <ReferralForm
+            encounterId={encounterId}
+            patientId={patientData?.patient?.id}
+            patientData={patientData as any}
+          />
         )
       case 'triage':
         return <TriageForm encounterId={encounterId} patientData={patientData as any} />
