@@ -3,6 +3,7 @@ import {
   SaveOutlined,
   CheckCircleOutlined,
   SyncOutlined,
+  InfoCircleOutlined,
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
 import {
@@ -21,6 +22,8 @@ import {
   Modal,
   App,
   Alert,
+  Switch,
+  Tooltip,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
@@ -105,6 +108,20 @@ export default function BillingAllocationPage() {
   const [rows, setRows] = useState<AllocationRow[]>([])
   const [saving, setSaving] = useState(false)
   const [globalMitraId, setGlobalMitraId] = useState<number | null>(null)
+  const [globalPayorType, setGlobalPayorType] = useState<string>('insurance')
+
+  // Admin fee preview state
+  const [adminFeePreview, setAdminFeePreview] = useState<{
+    applicable: boolean
+    feeAmount: number
+    discountAmount: number
+    netFeeAmount: number
+    description: string
+    feeType?: string
+    feeValue?: number
+  } | null>(null)
+  const [applyAdminFee, setApplyAdminFee] = useState(true)
+  const [loadingPreview, setLoadingPreview] = useState(false)
 
   // Global allocation states
   const [globalAsuransi, setGlobalAsuransi] = useState<number>(0)
@@ -149,6 +166,38 @@ export default function BillingAllocationPage() {
       if (someMitraId) setGlobalMitraId(someMitraId)
     }
   }, [data])
+
+  // Fetch admin fee preview whenever payor or mitra changes
+  useEffect(() => {
+    const invoiceTotal = rows.reduce((s, r) => s + r.totalAmount, 0)
+    if (!globalPayorType || invoiceTotal === 0) {
+      setAdminFeePreview(null)
+      return
+    }
+
+    let cancelled = false
+    setLoadingPreview(true)
+
+    rpc.billing.getAdminFeePreview({
+      payorType: globalPayorType,
+      mitraId: globalMitraId,
+      invoiceTotal,
+    }).then((res: any) => {
+      if (!cancelled) {
+        const preview = res?.result
+        setAdminFeePreview(preview ?? null)
+        if (preview?.applicable) {
+          setApplyAdminFee(true)
+        }
+      }
+    }).catch(() => {
+      if (!cancelled) setAdminFeePreview(null)
+    }).finally(() => {
+      if (!cancelled) setLoadingPreview(false)
+    })
+
+    return () => { cancelled = true }
+  }, [globalPayorType, globalMitraId, rows.length])
 
   const handleAmountChange = useCallback((id: number, field: 'asuransi' | 'rs', value: number) => {
     setRows(prev => prev.map(row => {
@@ -300,9 +349,14 @@ export default function BillingAllocationPage() {
         }
       })
 
+      const shouldApplyAdminFee = applyAdminFee && adminFeePreview?.applicable && (adminFeePreview?.netFeeAmount ?? 0) > 0
+
       const res = await rpc.billing.saveAllocations({
         kode,
-        allocations: payload
+        allocations: payload,
+        applyAdminFee: shouldApplyAdminFee,
+        adminFeeAmount: shouldApplyAdminFee ? adminFeePreview!.netFeeAmount : null,
+        adminFeeDescription: shouldApplyAdminFee ? adminFeePreview!.description : null,
       })
 
       if (res.success) {
@@ -519,6 +573,17 @@ export default function BillingAllocationPage() {
           <Title level={3} className="!mb-0">Alokasi Penjamin - {kode}</Title>
         </div>
         <div className="flex items-center gap-2">
+          <Select
+            value={globalPayorType}
+            onChange={(v) => { setGlobalPayorType(v); setGlobalMitraId(null) }}
+            style={{ width: 150 }}
+            options={[
+              { label: 'Asuransi', value: 'insurance' },
+              { label: 'BPJS', value: 'bpjs' },
+              { label: 'Perusahaan', value: 'company' },
+              { label: 'Umum', value: 'hospital' },
+            ]}
+          />
           <RPCSelectAsync
             entity="mitra"
             listAll
@@ -545,6 +610,44 @@ export default function BillingAllocationPage() {
           </Button>
         </div>
       </div>
+
+      {/* Admin fee preview banner */}
+      {adminFeePreview?.applicable && (
+        <Alert
+          type="info"
+          showIcon
+          icon={<InfoCircleOutlined />}
+          message={
+            <div className="flex items-center justify-between">
+              <span>
+                <strong>{adminFeePreview.description}</strong>{' '}
+                {adminFeePreview.feeType === 'percentage'
+                  ? `(${adminFeePreview.feeValue}%)`
+                  : ''}{' '}
+                ={' '}
+                <strong>{formatRupiah(adminFeePreview.netFeeAmount)}</strong>
+                {adminFeePreview.discountAmount > 0 && (
+                  <span className="text-gray-400 line-through ml-2">{formatRupiah(adminFeePreview.feeAmount)}</span>
+                )}
+              </span>
+              <div className="flex items-center gap-2 ml-6">
+                <span className="text-sm">Terapkan?</span>
+                <Switch
+                  size="small"
+                  checked={applyAdminFee}
+                  onChange={setApplyAdminFee}
+                  checkedChildren="Ya"
+                  unCheckedChildren="Tidak"
+                />
+              </div>
+            </div>
+          }
+          className="mb-2"
+        />
+      )}
+      {loadingPreview && (
+        <Alert type="info" message="Mengecek aturan biaya administrasi..." showIcon className="mb-2" />
+      )}
 
       <Modal
         title={

@@ -30,6 +30,9 @@ const SaveAllocationsInputSchema = z.object({
             note: z.string().optional().nullable(),
         }),
     ),
+    applyAdminFee: z.boolean().optional(),
+    adminFeeAmount: z.number().optional().nullable(),
+    adminFeeDescription: z.string().optional().nullable(),
 })
 
 const AdminFeeAgreementInputSchema = z.object({
@@ -40,6 +43,12 @@ const AdminFeeAgreementInputSchema = z.object({
     maxAmount: z.number().optional().nullable(),
     discountValue: z.number().optional().nullable(),
     discountType: z.enum(['percentage', 'fixed']).optional().nullable(),
+})
+
+const AdminFeePreviewInputSchema = z.object({
+    payorType: z.string(),
+    mitraId: z.number().optional().nullable(),
+    invoiceTotal: z.number(),
 })
 
 export const billingRpc = {
@@ -75,10 +84,25 @@ export const billingRpc = {
         .input(SaveAllocationsInputSchema)
         .output(ApiResponseSchema(z.any()))
         .mutation(async ({ client }, input) => {
-            const { kode, allocations } = input
+            const { kode, allocations, applyAdminFee, adminFeeAmount, adminFeeDescription } = input
             const res = await client.post(`/api/module/billing/invoices/${encodeURIComponent(kode)}/allocations`, {
-                allocations
+                allocations,
+                applyAdminFee,
+                adminFeeAmount,
+                adminFeeDescription,
             })
+            return await res.json()
+        }),
+
+    getAdminFeePreview: t
+        .input(AdminFeePreviewInputSchema)
+        .output(ApiResponseSchema(z.any()))
+        .query(async ({ client }, input) => {
+            const params = new URLSearchParams()
+            params.append('payorType', input.payorType)
+            if (input.mitraId) params.append('mitraId', String(input.mitraId))
+            params.append('invoiceTotal', String(input.invoiceTotal))
+            const res = await client.get(`/api/module/billing/admin-fee/preview?${params.toString()}`)
             return await res.json()
         }),
 
