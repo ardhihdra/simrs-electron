@@ -12,6 +12,7 @@ export interface InvoiceLineItem {
 
 export interface Invoice {
   encounterId: string
+  encounterCode: string
   patientId: string
   total: number
   namaPatient?: string
@@ -49,18 +50,18 @@ export interface PersistedInvoice {
 }
 
 export interface PaymentRecord {
-    id: number
-    kode: string
-    date: string | Date
-    amount: number
-    paymentMethod: string
-    bankName: string | null
-    ref: string | null
-    note: string | null
-    paymentStatus: string
-    paidAt?: string | Date
-    createdAt?: string | Date
-    method?: string
+  id: number
+  kode: string
+  date: string | Date
+  amount: number
+  paymentMethod: string
+  bankName: string | null
+  ref: string | null
+  note: string | null
+  paymentStatus: string
+  paidAt?: string | Date
+  createdAt?: string | Date
+  method?: string
 }
 
 function formatRupiah(value: number): string {
@@ -113,15 +114,20 @@ function buildCategoryRows(title: string, items: InvoiceLineItem[], accentColor:
     </tr>`
 }
 
-export function printInvoice(invoice: Invoice, persistedInvoice: PersistedInvoice | null, options: { printForKind: 'patient' | 'guarantor', cashierName?: string }): void {
+export function printInvoice(
+  invoice: Invoice,
+  persistedInvoice: PersistedInvoice | null,
+  options: { printForKind: 'patient' | 'guarantor'; cashierName?: string }
+): void {
   const isPatient = options.printForKind === 'patient'
-  const printName = isPatient 
+  const printName = isPatient
     ? (invoice.namaPatient ?? invoice.patient?.name ?? '-')
     : (invoice.penjamin ?? 'Umum')
-  
+
   const cashierName = options.cashierName || '__________________'
 
-  const medicalRecordNumber = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
+  const medicalRecordNumber =
+    invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
   const tanggalLahir = formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
   const alamat = invoice.alamat ?? invoice.patient?.address ?? '-'
   const dokterPemeriksa = invoice.dokterPemeriksa ?? '-'
@@ -327,13 +333,13 @@ export function printInvoice(invoice: Invoice, persistedInvoice: PersistedInvoic
 }
 
 export function printReceipt(
-    invoice: Invoice, 
-    persistedInvoice: PersistedInvoice | null, 
-    payment: PaymentRecord | { amount: number; kode: string; date: string | Date },
-    options: { printForKind: 'patient' | 'guarantor', cashierName?: string }
+  invoice: Invoice,
+  persistedInvoice: PersistedInvoice | null,
+  payment: PaymentRecord | { amount: number; kode: string; date: string | Date },
+  options: { printForKind: 'patient' | 'guarantor'; cashierName?: string }
 ): void {
   const isPatient = options.printForKind === 'patient'
-  const printName = isPatient 
+  const printName = isPatient
     ? (invoice.namaPatient ?? invoice.patient?.name ?? '-')
     : (invoice.penjamin ?? 'Umum')
 
@@ -341,7 +347,9 @@ export function printReceipt(
 
   const noReceipt = payment.kode ?? '-'
   const amount = payment.amount ?? 0
-  const date = formatPrintableDate(payment.date ?? (payment as any).paidAt ?? (payment as any).createdAt)
+  const date = formatPrintableDate(
+    payment.date ?? (payment as any).paidAt ?? (payment as any).createdAt
+  )
   const terbilangText = terbilang(amount)
   const patientName = invoice.namaPatient ?? invoice.patient?.name ?? '-'
   const RM = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'

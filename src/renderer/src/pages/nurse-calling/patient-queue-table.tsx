@@ -38,6 +38,8 @@ interface PatientQueueTableData extends Omit<PatientQueue, 'status'> {
   key: string
   status: string
   queueId: string
+  formattedQueueNumber?: string
+  triageUpdatedAt?: string
   encounterType?: string
 }
 
@@ -47,6 +49,8 @@ type QueueRow = {
   queueNumber?: number | string
   formattedQueueNumber?: string
   queueDate?: string
+  createdAt?: string
+  updatedAt?: string
   patientId?: string
   patientName?: string
   patientBirthDate?: string | Date
@@ -65,7 +69,7 @@ type ScopedPoli = {
   lokasiKerjaId?: number
 }
 
-const NURSE_VISIBLE_STATUSES = ['CALLED','TRIAGE'] as const
+const NURSE_VISIBLE_STATUSES = ['TRIAGE'] as const
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
   all: { label: 'Semua', color: '', dotColor: '#6b7280' },
@@ -84,6 +88,11 @@ const decodePoliCode = (value: string) => {
 const parseQueueNumber = (value?: number | string) => {
   const parsed = Number.parseInt(String(value ?? '0'), 10)
   return Number.isFinite(parsed) ? parsed : 0
+}
+
+const parseTimestamp = (value?: string) => {
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.valueOf() : 0
 }
 
 const PatientQueueTable = () => {
@@ -199,72 +208,66 @@ const PatientQueueTable = () => {
       .filter((row) => (activeStatus === 'all' ? true : row.status === activeStatus))
   }, [activeStatus, queueData?.result, scopedPoliIdSet, searchText, selectedPoli])
 
-  const activePoliName = useMemo(() => {
-    if (selectedPoli) {
-      return scopedPolis.find((poli) => poli.id === selectedPoli)?.name ?? '-'
-    }
-    return 'Semua Poli (Lokasi Kerja Anda)'
-  }, [scopedPolis, selectedPoli])
+  const patientQueue: PatientQueueTableData[] = useMemo(() => {
+    const sortedRows = [...filteredQueues].sort(
+      (a, b) =>
+        parseTimestamp(b.updatedAt || b.createdAt || b.queueDate) -
+        parseTimestamp(a.updatedAt || a.createdAt || a.queueDate)
+    )
 
-  const patientQueue: PatientQueueTableData[] = useMemo(
-    () =>
-      filteredQueues.map((row, index) => {
-        const queueId = String(row.queueId || row.id || '')
-        const registrationDate = row.queueDate || queueDate.toISOString()
-        return {
-          no: index + 1,
-          key: queueId || String(index),
-          id: queueId || String(index),
-          queueId,
-          encounterId: row.encounterId,
-          queueNumber: parseQueueNumber(row.queueNumber),
-          patient: {
-            id: String(row.patientId || ''),
-            name: row.patientName || 'Unknown',
-            medicalRecordNumber: row.patientMedicalRecordNumber || '-',
-            gender: Gender.MALE,
-            birthDate: row.patientBirthDate ? String(row.patientBirthDate) : '',
-            age: row.patientBirthDate ? dayjs().diff(dayjs(row.patientBirthDate), 'year') : 0,
-            phone: '',
-            address: '',
-            identityNumber: ''
-          },
-          poli: {
-            id: String(row.poliCodeId || ''),
-            code: String(row.poliCodeId || ''),
-            name: row.poliName || '-'
-          },
-          doctor: {
-            id: '',
-            name: row.doctorName || '-',
-            specialization: 'General',
-            sipNumber: '-'
-          },
-          status: String(row.status || ''),
-          registrationDate,
-          encounterType: 'AMB'
-        }
-      }),
-    [filteredQueues, queueDate]
-  )
+    return sortedRows.map((row, index) => {
+      const queueId = String(row.queueId || row.id || '')
+      const queueNumber = parseQueueNumber(row.queueNumber)
+      const formattedQueueNumber =
+        row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
+      const triageUpdatedAt =
+        row.updatedAt || row.createdAt || row.queueDate || queueDate.toISOString()
+      const registrationDate = row.queueDate || row.createdAt || queueDate.toISOString()
 
-  const markAsTriage = async (record: PatientQueueTableData) => {
-    await updateStatusMutation.mutateAsync({
-      queueId: record.queueId,
-      action: 'CALL_TO_TRIAGE'
+      return {
+        no: index + 1,
+        key: queueId || String(index),
+        id: queueId || String(index),
+        queueId,
+        encounterId: row.encounterId,
+        queueNumber,
+        formattedQueueNumber,
+        triageUpdatedAt,
+        patient: {
+          id: String(row.patientId || ''),
+          name: row.patientName || 'Unknown',
+          medicalRecordNumber: row.patientMedicalRecordNumber || '-',
+          gender: Gender.MALE,
+          birthDate: row.patientBirthDate ? String(row.patientBirthDate) : '',
+          age: row.patientBirthDate ? dayjs().diff(dayjs(row.patientBirthDate), 'year') : 0,
+          phone: '',
+          address: '',
+          identityNumber: ''
+        },
+        poli: {
+          id: String(row.poliCodeId || ''),
+          code: String(row.poliCodeId || ''),
+          name: row.poliName || '-'
+        },
+        doctor: {
+          id: '',
+          name: row.doctorName || '-',
+          specialization: 'General',
+          sipNumber: '-'
+        },
+        status: String(row.status || ''),
+        registrationDate,
+        encounterType: 'AMB'
+      }
     })
-    message.success(`Antrian ${record.queueNumber} dipanggil ke Triage`)
-  }
+  }, [filteredQueues, queueDate])
 
-  const handleExaminePatient = async (record: PatientQueueTableData) => {
+  const latestTriageQueue = patientQueue[0]
+
+  const handleExaminePatient = (record: PatientQueueTableData) => {
     if (!record.encounterId) {
       message.warning('Encounter belum tersedia untuk pasien ini.')
       return
-    }
-    try {
-      await markAsTriage(record)
-    } catch (error: any) {
-      message.error(error.message || 'Gagal memanggil pasien ke Triage')
     }
 
     window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
@@ -308,6 +311,10 @@ const PatientQueueTable = () => {
   }
 
   const totalTriage = patientQueue.filter((p) => p.status === 'TRIAGE').length
+  const latestTriageQueueId = latestTriageQueue?.queueId
+  const latestTriageTime = latestTriageQueue?.triageUpdatedAt
+    ? dayjs(latestTriageQueue.triageUpdatedAt).format('HH:mm')
+    : '-'
 
   const columns: ColumnsType<PatientQueueTableData> = [
     {
@@ -322,21 +329,20 @@ const PatientQueueTable = () => {
     },
     {
       title: 'Antrian',
-      dataIndex: 'queueNumber',
+      dataIndex: 'formattedQueueNumber',
       key: 'queueNumber',
-      width: 72,
-      align: 'center',
-      render: (num: number) => (
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto"
-          style={{
-            background: token.colorPrimaryBg,
-            border: `1px solid ${token.colorPrimaryBorder}`
-          }}
-        >
-          <span style={{ color: token.colorPrimaryText, fontWeight: 700, fontSize: 14 }}>
-            {num || '-'}
-          </span>
+      width: 170,
+      render: (queueLabel: string, record) => (
+        <div className="flex items-center gap-2">
+          <Tag color="blue" bordered={false} className="font-mono font-semibold m-0 w-fit">
+            {queueLabel || '-'}
+          </Tag>
+          {record.queueId === latestTriageQueueId ? (
+            <Badge
+              color={token.colorSuccess}
+              text={<span style={{ fontSize: 10 }}>Terbaru</span>}
+            />
+          ) : null}
         </div>
       )
     },
@@ -462,7 +468,9 @@ const PatientQueueTable = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          {(record.status === 'TRIAGE' || record.status === 'CALLED') && (
+          {NURSE_VISIBLE_STATUSES.includes(
+            record.status as (typeof NURSE_VISIBLE_STATUSES)[number]
+          ) && (
             <>
               <Button
                 type="primary"
@@ -535,11 +543,6 @@ const PatientQueueTable = () => {
               <p className="text-sm text-blue-200 m-0 ml-12">
                 Menampilkan pasien yang sudah dipanggil ke pemeriksaan awal (triase)
               </p>
-              <div className="ml-12 mt-2 flex flex-wrap items-center gap-2">
-                {/* <Tag color="blue" bordered={false} className="m-0 font-medium">
-                  Poli Aktif: {activePoliName}
-                </Tag> */}
-              </div>
             </div>
             <Button
               icon={<ReloadOutlined />}
@@ -555,7 +558,7 @@ const PatientQueueTable = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div
               className="rounded-xl px-4 py-3 flex items-center gap-3"
               style={{
@@ -598,6 +601,50 @@ const PatientQueueTable = () => {
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
                   Pemeriksaan Awal
                 </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorSuccess}33` }}
+              >
+                <MedicineBoxOutlined style={{ color: '#fff', fontSize: 16 }} />
+              </div>
+              <div className="min-w-0">
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Antrian TRIAGE Terbaru
+                </div>
+                {latestTriageQueue ? (
+                  <>
+                    <div
+                      className="truncate"
+                      style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}
+                      title={`${latestTriageQueue.formattedQueueNumber || '-'} • ${latestTriageQueue.patient.name} • ${latestTriageQueue.poli.name} • ${latestTriageTime}`}
+                    >
+                      {latestTriageQueue.formattedQueueNumber || '-'} •{' '}
+                      {latestTriageQueue.patient.name}
+                    </div>
+                    <div
+                      className="truncate"
+                      style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}
+                    >
+                      {latestTriageQueue.poli.name} • {latestTriageTime}
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className="truncate"
+                    style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)', lineHeight: 1.2 }}
+                  >
+                    Belum ada antrian TRIAGE
+                  </div>
+                )}
               </div>
             </div>
           </div>

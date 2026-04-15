@@ -4,11 +4,11 @@ import {
   setModuleScopeSession
 } from '@renderer/services/ModuleScope/module-scope'
 import { useSelectedModuleStore } from '@renderer/store/selectedModuleStore'
-import { useProfileStore } from '@renderer/store/profileStore'
 import { client } from '@renderer/utils/client'
 import { App, theme } from 'antd'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
+import { useLogout } from '@renderer/hooks/useLogout'
 
 import {
   InstallationOption,
@@ -19,8 +19,6 @@ import {
   ModuleSelectionLoadingState,
   ModuleSelectionSidebar
 } from './components'
-
-type LogoutResult = { success: boolean }
 
 type ModuleGroup = {
   lokasiKerja: {
@@ -71,8 +69,7 @@ export default function ModuleSelection() {
   )
   const [selectedInstallationKey, setSelectedInstallationKey] = useState<string | undefined>()
   const setSelectedModule = useSelectedModuleStore((state) => state.setSelectedModule)
-  const clearSelectedModule = useSelectedModuleStore((state) => state.clearSelectedModule)
-  const clearProfile = useProfileStore((state) => state.clearProfile)
+  const { handleLogout } = useLogout()
 
   const installations = normalizeInstallations(data?.result)
   const selectedInstallation = installations.find((item) => item.key === selectedInstallationKey)
@@ -126,16 +123,6 @@ export default function ModuleSelection() {
     }
   }
 
-  const handleSignOut = async () => {
-    const res = (await window.api.auth.logout()) as LogoutResult
-    if (res.success) {
-      clearModuleScopeSession()
-      clearSelectedModule()
-      clearProfile()
-      navigation('/')
-    }
-  }
-
   return (
     <div
       className="relative min-h-screen overflow-hidden px-6 py-10"
@@ -165,7 +152,7 @@ export default function ModuleSelection() {
           <ModuleSelectionSidebar
             totalModuleCount={totalModuleCount}
             onSignOut={() => {
-              void handleSignOut()
+              void handleLogout()
             }}
           />
 

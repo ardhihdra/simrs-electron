@@ -23,6 +23,17 @@ interface LabServiceRequestReport {
   testCodeId: string
   priority: string
   status: string
+  testDisplay?: string
+  requestedAt?: string | null
+  performers?: Array<{
+    reference: string
+    display: string
+  }>
+  performerTypes?: Array<{
+    system: string
+    code: string
+    display: string
+  }>
   specimens: unknown[]
   observations: LabObservationReport[]
 }
@@ -117,6 +128,14 @@ export default function LabReportDetailPage() {
       ...observation
     }))
   )
+  const serviceRequestAuditRows = serviceRequests.map((request) => ({
+    key: request.id,
+    testDisplay: request.testDisplay || request.testCodeId,
+    requestedAt: request.requestedAt,
+    performers: Array.isArray(request.performers) ? request.performers : [],
+    performerTypes: Array.isArray(request.performerTypes) ? request.performerTypes : [],
+    status: request.status
+  }))
 
   const observationColumns = [
     {
@@ -164,9 +183,63 @@ export default function LabReportDetailPage() {
     }
   ]
 
+  const serviceRequestColumns = [
+    {
+      title: 'Pemeriksaan',
+      dataIndex: 'testDisplay',
+      key: 'testDisplay',
+      render: (value: string) => <strong>{value}</strong>
+    },
+    {
+      title: 'Performer',
+      dataIndex: 'performers',
+      key: 'performers',
+      render: (performers: LabServiceRequestReport['performers']) =>
+        performers && performers.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {performers.map((performer) => (
+              <Tag key={performer.reference} color="blue">
+                {performer.display}
+              </Tag>
+            ))}
+          </div>
+        ) : (
+          '-'
+        )
+    },
+    {
+      title: 'Tipe Performer',
+      dataIndex: 'performerTypes',
+      key: 'performerTypes',
+      render: (performerTypes: LabServiceRequestReport['performerTypes']) =>
+        performerTypes && performerTypes.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {performerTypes.map((performerType) => (
+              <Tag key={performerType.code} color="purple">
+                {performerType.display}
+              </Tag>
+            ))}
+          </div>
+        ) : (
+          '-'
+        )
+    },
+    {
+      title: 'Waktu Update',
+      dataIndex: 'requestedAt',
+      key: 'requestedAt',
+      render: (value?: string | null) => (value ? dayjs(value).format('YYYY-MM-DD HH:mm') : '-')
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (value: string) => <Tag color={getStatusColor(value)}>{value}</Tag>
+    }
+  ]
+
   const patientName = report.patient?.name || '-'
   const medicalRecordNumber = report.patient?.medicalRecordNumber || report.patient?.mrn || '-'
-  console.log(report)
   return (
     <div className="p-4">
       <div className="mb-4">
@@ -199,6 +272,19 @@ export default function LabReportDetailPage() {
           ) : null}
         </Descriptions>
       </Card>
+
+      {serviceRequestAuditRows.length > 0 && (
+        <Card title="Service Request Audit" className="my-4!">
+          <Table
+            dataSource={serviceRequestAuditRows}
+            columns={serviceRequestColumns}
+            pagination={false}
+            bordered
+            size="middle"
+            scroll={{ x: 1000 }}
+          />
+        </Card>
+      )}
 
       {observationRows.length > 0 && (
         <div className="my-4">

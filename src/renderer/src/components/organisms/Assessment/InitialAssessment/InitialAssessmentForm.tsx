@@ -664,7 +664,7 @@ export const InitialAssessmentForm = ({
           {mode === 'inpatient' && (
             <>
               <FunctionalStatusSection />
-              <PsychosocialSection />
+              <PsychosocialSection patientReligion={patientData.patient.religion} />
               <ScreeningSection />
               <ConclusionSection />
             </>
