@@ -158,7 +158,7 @@ export const useMedicationRequestCreate = (itemOptions: ItemOption[], itemSource
     }
 
     const supportingInformationCommon: SupportingInformationItemInfo[] = []
-    
+
     const items = values.items || []
     const compounds = values.compounds || []
     const otherItems = values.otherItems || []
@@ -271,7 +271,7 @@ export const useMedicationRequestCreate = (itemOptions: ItemOption[], itemSource
       })
 
     const payload = [...simplePayloads, ...compoundPayloads, ...itemPayloads]
-    
+
     if (payload.length === 0) {
       message.error('Minimal isi minimal 1 Item.')
       return

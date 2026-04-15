@@ -300,10 +300,10 @@ function MainRoute() {
             <Route path=":encounterId" element={<DoctorWorkspace />} />
           </Route>
           <Route path="ok" element={g('/dashboard/ok', <Outlet />)}>
-            <Route index element={<OKSubmissionPage />} />
-            <Route path="pengajuan" element={<OKSubmissionPage />} />
-            <Route path="verifikasi" element={<AntrianVerifikasiPage />} />
-            <Route path="verifikasi/:id" element={<DetailVerifikasiPage />} />
+            <Route index element={g('/dashboard/ok', <OKSubmissionPage />)} />
+            <Route path="pengajuan" element={g('/dashboard/ok/pengajuan', <OKSubmissionPage />)} />
+            <Route path="verifikasi" element={g('/dashboard/ok/verifikasi', <AntrianVerifikasiPage />)} />
+            <Route path="verifikasi/:id" element={g('/dashboard/ok/verifikasi', <DetailVerifikasiPage />)} />
           </Route>
           <Route path="services" element={g('/dashboard/services', <Services />)}>
             <Route index element={<PemeriksaanUtamaPage />} />
