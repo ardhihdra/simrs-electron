@@ -15,18 +15,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PaymentHistory } from './payment-history'
 import { PaymentModal } from './payment-modal'
 import { printInvoice, printReceipt } from '@renderer/utils/print-service'
-import type { Invoice, PersistedInvoice, PaymentRecord, InvoiceLineItem } from '@renderer/utils/print-service'
+import type { Invoice, PersistedInvoice, InvoiceLineItem } from '@renderer/utils/print-service'
 import { Dropdown } from 'antd'
-import type { MenuProps } from 'antd'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import logoUrl from '@renderer/assets/logo.png'
 
 const { Title, Text } = Typography
 
-type InvoiceLineItemCategory = 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
-
-
-
+type InvoiceLineItemCategory =
+  | 'tindakan'
+  | 'bhp'
+  | 'service_request'
+  | 'obat'
+  | 'laboratory'
+  | 'radiology'
 
 const lineItemColumns: ColumnsType<InvoiceLineItem> = [
   { title: 'No.', dataIndex: 'no', key: 'no', width: 50 },
@@ -150,8 +152,6 @@ function buildCategoryRows(title: string, items: InvoiceLineItem[], accentColor:
     </tr>`
 }
 
-
-
 export default function InvoiceDetailPage() {
   const { encounterId } = useParams<{ encounterId: string }>()
   const [searchParams] = useSearchParams()
@@ -195,10 +195,11 @@ export default function InvoiceDetailPage() {
     const employees = requesterData.result as any[]
     const sessionId = Number(profile.id)
     const sessionUsername = String(profile.username || '').trim()
-    const foundEmployee = employees.find(e => 
-      e.id === sessionId || 
-      (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
-      (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+    const foundEmployee = employees.find(
+      (e) =>
+        e.id === sessionId ||
+        (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
+        (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
     )
     return foundEmployee?.namaLengkap || profile.username || ''
   })()
@@ -269,8 +270,23 @@ export default function InvoiceDetailPage() {
         <Dropdown
           menu={{
             items: [
-              { key: 'patient', label: 'Atas Nama Pasien', onClick: () => invoice && printInvoice(invoice, persistedInvoice, { printForKind: 'patient', cashierName }) },
-              { key: 'guarantor', label: 'Atas Nama Penjamin', onClick: () => invoice && printInvoice(invoice, persistedInvoice, { printForKind: 'guarantor', cashierName }) }
+              {
+                key: 'patient',
+                label: 'Atas Nama Pasien',
+                onClick: () =>
+                  invoice &&
+                  printInvoice(invoice, persistedInvoice, { printForKind: 'patient', cashierName })
+              },
+              {
+                key: 'guarantor',
+                label: 'Atas Nama Penjamin',
+                onClick: () =>
+                  invoice &&
+                  printInvoice(invoice, persistedInvoice, {
+                    printForKind: 'guarantor',
+                    cashierName
+                  })
+              }
             ]
           }}
           disabled={!invoice}
@@ -283,41 +299,53 @@ export default function InvoiceDetailPage() {
         <Dropdown
           menu={{
             items: [
-              { 
-                key: 'patient', 
-                label: 'Atas Nama Pasien', 
+              {
+                key: 'patient',
+                label: 'Atas Nama Pasien',
                 onClick: () => {
                   if (invoice && persistedInvoice) {
-                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining;
-                    printReceipt(invoice, persistedInvoice, { 
-                      amount: totalPaid, 
-                      kode: persistedInvoice.kode, 
-                      date: new Date() 
-                    }, { printForKind: 'patient', cashierName });
+                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                    printReceipt(
+                      invoice,
+                      persistedInvoice,
+                      {
+                        amount: totalPaid,
+                        kode: persistedInvoice.kode,
+                        date: new Date()
+                      },
+                      { printForKind: 'patient', cashierName }
+                    )
                   }
-                } 
+                }
               },
-              { 
-                key: 'guarantor', 
+              {
+                key: 'guarantor',
                 label: 'Atas Nama Penjamin',
                 onClick: () => {
-                    if (invoice && persistedInvoice) {
-                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining;
-                      printReceipt(invoice, persistedInvoice, { 
-                        amount: totalPaid, 
-                        kode: persistedInvoice.kode, 
-                        date: new Date() 
-                      }, { printForKind: 'guarantor', cashierName });
-                    }
-                  } 
+                  if (invoice && persistedInvoice) {
+                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                    printReceipt(
+                      invoice,
+                      persistedInvoice,
+                      {
+                        amount: totalPaid,
+                        kode: persistedInvoice.kode,
+                        date: new Date()
+                      },
+                      { printForKind: 'guarantor', cashierName }
+                    )
+                  }
+                }
               }
             ]
           }}
-          disabled={!invoice || !persistedInvoice || (persistedInvoice.total - persistedInvoice.remaining) <= 0}
+          disabled={
+            !invoice ||
+            !persistedInvoice ||
+            persistedInvoice.total - persistedInvoice.remaining <= 0
+          }
         >
-          <Button icon={<PrinterOutlined />}>
-            Cetak Kwitansi
-          </Button>
+          <Button icon={<PrinterOutlined />}>Cetak Kwitansi</Button>
         </Dropdown>
 
         {!isPaid && (
@@ -329,11 +357,7 @@ export default function InvoiceDetailPage() {
             cancelText="Batal"
             okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
           >
-            <Button
-              icon={<RollbackOutlined />}
-              danger
-              loading={reopenEncounterMutation.isPending}
-            >
+            <Button icon={<RollbackOutlined />} danger loading={reopenEncounterMutation.isPending}>
               Kembalikan ke Perawat
             </Button>
           </Popconfirm>
@@ -412,8 +436,14 @@ export default function InvoiceDetailPage() {
               <tbody>
                 {[
                   ['Nama Pasien', invoice.namaPatient ?? invoice.patient?.name ?? '-'],
-                  ['No. RM', invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'],
-                  ['Tgl. Lahir', formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)],
+                  [
+                    'No. RM',
+                    invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
+                  ],
+                  [
+                    'Tgl. Lahir',
+                    formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
+                  ],
                   ['Alamat', invoice.alamat ?? invoice.patient?.address ?? '-']
                 ].map(([label, value]) => (
                   <tr key={label}>
@@ -426,13 +456,16 @@ export default function InvoiceDetailPage() {
             <table className="w-full text-sm">
               <tbody>
                 {[
-                  ['No. Kunjungan', invoice.encounterId],
+                  ['No. Kunjungan', invoice.encounterCode ?? invoice.encounterId ?? '-'],
                   ['No. Pendaftaran', invoice.noPendaftaran ?? '-'],
                   ['Tgl. Pendaftaran', formatPrintableDate(invoice.tanggalPendaftaran)],
                   ['Dokter', invoice.dokterPemeriksa ?? '-'],
                   ['Ruangan', invoice.ruangan ?? '-'],
                   ['Cara Bayar', invoice.penjamin ?? 'Umum'],
-                  ['Metode Bayar', invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')]
+                  [
+                    'Metode Bayar',
+                    invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')
+                  ]
                 ].map(([label, value]) => (
                   <tr key={label}>
                     <td className="font-semibold text-gray-500 w-36 py-0.5 pr-2">{label}</td>
@@ -449,7 +482,11 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Line item sections */}
-          <InvoiceSection title="Tindakan Medis" tagColor="blue" items={invoice.tindakanItems ?? []} />
+          <InvoiceSection
+            title="Tindakan Medis"
+            tagColor="blue"
+            items={invoice.tindakanItems ?? []}
+          />
           <InvoiceSection
             title="Bahan Habis Pakai (BHP)"
             tagColor="orange"
@@ -460,11 +497,7 @@ export default function InvoiceDetailPage() {
             tagColor="green"
             items={invoice.laboratoryItems ?? []}
           />
-          <InvoiceSection
-            title="Radiologi"
-            tagColor="cyan"
-            items={invoice.radiologyItems ?? []}
-          />
+          <InvoiceSection title="Radiologi" tagColor="cyan" items={invoice.radiologyItems ?? []} />
           <InvoiceSection title="Obat" tagColor="purple" items={invoice.obatItems ?? []} />
 
           {(invoice.tindakanItems?.length ?? 0) === 0 &&

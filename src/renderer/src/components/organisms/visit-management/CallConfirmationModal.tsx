@@ -14,30 +14,66 @@ export default function CallConfirmationModal({
   onClose,
   onSuccess
 }: CallConfirmationModalProps) {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
+  const isSkipped = record?.status === 'SKIPPED'
 
-  const handleConfirmCalled = async () => {
+  const submitAction = async (action: 'CALL' | 'SKIP' | 'RECALL_TO_PRE_RESERVED') => {
     if (!record) return
 
     try {
       await updateStatusMutation.mutateAsync({
         queueId: record.queueId,
-        action: 'CALL'
+        action: action as any
       })
 
-      message.success(`Antrian ${record.formattedQueueNumber} berhasil dikonfirmasi dipanggil`)
+      message.success(
+        action === 'SKIP'
+          ? `Antrian ${record.formattedQueueNumber} berhasil di-skip`
+          : action === 'RECALL_TO_PRE_RESERVED'
+            ? `Antrian ${record.formattedQueueNumber} dikembalikan ke status konfirmasi`
+            : `Antrian ${record.formattedQueueNumber} berhasil dipanggil`
+      )
       onSuccess()
       onClose()
     } catch (error: any) {
       console.error(error)
-      message.error(error.message || 'Gagal memperbarui status panggilan')
+      message.error(
+        error.message ||
+          (action === 'SKIP'
+            ? 'Gagal melewati antrian'
+            : action === 'RECALL_TO_PRE_RESERVED'
+              ? 'Gagal mengembalikan antrian ke status konfirmasi'
+              : 'Gagal memperbarui status panggilan')
+      )
     }
   }
 
-  const handleRecall = () => {
+  const handleConfirmCalled = () => {
     if (!record) return
-    message.info(`Panggil ulang ${record.formattedQueueNumber}. Status belum diubah ke CALLED.`)
+
+    modal.confirm({
+      title: isSkipped ? 'Panggil Ulang Antrian' : 'Panggil Antrian',
+      content: isSkipped
+        ? `Antrian ${record.formattedQueueNumber} akan dikembalikan ke status konfirmasi. Lanjutkan?`
+        : `Antrian ${record.formattedQueueNumber} akan dipanggil. Lanjutkan?`,
+      okText: isSkipped ? 'Ya, Kembalikan' : 'Ya, Panggil',
+      cancelText: 'Batal',
+      onOk: async () => submitAction(isSkipped ? 'RECALL_TO_PRE_RESERVED' : 'CALL')
+    })
+  }
+
+  const handleSkip = () => {
+    if (!record) return
+
+    modal.confirm({
+      title: 'Skip Antrian',
+      content: `Antrian ${record.formattedQueueNumber} akan dilewati sementara. Lanjutkan?`,
+      okText: 'Ya, Skip',
+      okType: 'danger',
+      cancelText: 'Batal',
+      onOk: async () => submitAction('SKIP')
+    })
   }
 
   return (
@@ -49,16 +85,18 @@ export default function CallConfirmationModal({
         <Button key="cancel" onClick={onClose}>
           Batal
         </Button>,
-        <Button key="recall" onClick={handleRecall}>
-          Panggil Ulang
-        </Button>,
+        !isSkipped ? (
+          <Button danger key="skip" loading={updateStatusMutation.isPending} onClick={handleSkip}>
+            Skip
+          </Button>
+        ) : null,
         <Button
           key="confirm"
           type="primary"
           loading={updateStatusMutation.isPending}
           onClick={handleConfirmCalled}
         >
-          Konfirmasi
+          {isSkipped ? 'Kembalikan ke Konfirmasi' : 'Panggil'}
         </Button>
       ]}
     >
@@ -68,7 +106,11 @@ export default function CallConfirmationModal({
       <p>
         No. Antrian: <b>{record?.formattedQueueNumber}</b>
       </p>
-      <p>Konfirmasi hanya jika pasien benar-benar sudah hadir saat dipanggil.</p>
+      <p>
+        {isSkipped
+          ? 'Antrian ini sebelumnya di-skip. Anda bisa mengembalikannya ke status konfirmasi.'
+          : 'Konfirmasi hanya jika pasien benar-benar sudah siap untuk dipanggil.'}
+      </p>
     </Modal>
   )
 }

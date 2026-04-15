@@ -1,4 +1,9 @@
-import { CheckCircleOutlined, EyeOutlined, FileTextOutlined, SoundOutlined } from '@ant-design/icons'
+import {
+  IconClipboardList,
+  IconEye,
+  IconCircleCheck,
+  IconVolume
+} from '@tabler/icons-react'
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CallConfirmationModal from '@renderer/components/organisms/visit-management/CallConfirmationModal'
@@ -6,9 +11,10 @@ import CallQueueModal from '@renderer/components/organisms/visit-management/Call
 import ConfirmQueueModal from '@renderer/components/organisms/visit-management/ConfirmQueueModal'
 import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
 import ReferralModal from '@renderer/components/organisms/visit-management/ReferralModal'
+import RegistrationQueueDetailModal from '@renderer/components/organisms/visit-management/RegistrationQueueDetailModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { App, Button, DatePicker, Form, Input, Modal, Tag } from 'antd'
+import { App, Button, DatePicker, Form, Input, Modal, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
@@ -65,6 +71,7 @@ export default function RegistrationQueue({
 }: {
   practitionerId?: string
 }) {
+  const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
   const { practitionerId: urlPractitionerId } = useParams()
   const practitionerId = propPractitionerId || urlPractitionerId
 
@@ -88,6 +95,9 @@ export default function RegistrationQueue({
   const [detailModal, setDetailModal] = useState<{ open: boolean; record?: QueueRow }>({
     open: false
   })
+  const [queueDetailModal, setQueueDetailModal] = useState<{ open: boolean; record?: QueueRow }>({
+    open: false
+  })
 
   const { message } = App.useApp()
 
@@ -103,10 +113,11 @@ export default function RegistrationQueue({
       'PRE_RESERVED',
       'RESERVED',
       'REGISTERED',
-      'CALLED',
-      'TRIAGE',
-      'TRIAGED',
-      'IN_PROGRESS'
+      'SKIPPED',
+      ...(IS_DEVELOPMENT ? ['CALLED'] : [])
+      // 'TRIAGE',
+      // 'TRIAGED',
+      // 'IN_PROGRESS'
     ],
     practitionerId: searchParams.practitionerId ? Number(searchParams.practitionerId) : undefined
   })
@@ -114,37 +125,37 @@ export default function RegistrationQueue({
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
   const cancelEncounterMutation = client.registration.cancelEncounter.useMutation()
 
-  const handleCancelEncounter = (record: any) => {
-    Modal.confirm({
-      title: 'Batalkan Antrian',
-      content: `Apakah Anda yakin ingin membatalkan antrian untuk ${record.patientName}?`,
-      okText: 'Ya, Batalkan',
-      okType: 'danger',
-      cancelText: 'Tidak',
-      onOk: async () => {
-        try {
-          await cancelEncounterMutation.mutateAsync({
-            id: record.encounterId,
-            reason: 'Dibatalkan oleh petugas pendaftaran'
-          })
-          message.success('Antrian berhasil dibatalkan')
-          refetch()
-        } catch (error: any) {
-          message.error(error.message || 'Gagal membatalkan antrian')
-        }
-      }
-    })
-  }
+  // const handleCancelEncounter = (record: any) => {
+  //   Modal.confirm({
+  //     title: 'Batalkan Antrian',
+  //     content: `Apakah Anda yakin ingin membatalkan antrian untuk ${record.patientName}?`,
+  //     okText: 'Ya, Batalkan',
+  //     okType: 'danger',
+  //     cancelText: 'Tidak',
+  //     onOk: async () => {
+  //       try {
+  //         await cancelEncounterMutation.mutateAsync({
+  //           id: record.encounterId,
+  //           reason: 'Dibatalkan oleh petugas pendaftaran'
+  //         })
+  //         message.success('Antrian berhasil dibatalkan')
+  //         refetch()
+  //       } catch (error: any) {
+  //         message.error(error.message || 'Gagal membatalkan antrian')
+  //       }
+  //     }
+  //   })
+  // }
 
-  const handleTriagedCallToPoli = async (record: any) => {
-    try {
-      await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'START_ENCOUNTER' })
-      message.success(`Antrian ${record.formattedQueueNumber} dipanggil dan masuk Poli`)
-      refetch()
-    } catch (error: any) {
-      message.error(error.message || 'Gagal memproses antrian')
-    }
-  }
+  // const handleTriagedCallToPoli = async (record: any) => {
+  //   try {
+  //     await updateStatusMutation.mutateAsync({ queueId: record.queueId, action: 'START_ENCOUNTER' })
+  //     message.success(`Antrian ${record.formattedQueueNumber} dipanggil dan masuk Poli`)
+  //     refetch()
+  //   } catch (error: any) {
+  //     message.error(error.message || 'Gagal memproses antrian')
+  //   }
+  // }
 
   const handleCreateSep = async (record: any) => {
     try {
@@ -224,6 +235,7 @@ export default function RegistrationQueue({
         const colorMap: Record<string, string> = {
           PRE_RESERVED: 'orange',
           RESERVED: 'blue',
+          SKIPPED: 'red',
           CALLED: 'green',
           TRIAGE: 'volcano',
           TRIAGED: 'geekblue',
@@ -239,19 +251,32 @@ export default function RegistrationQueue({
       width: 120,
       align: 'center',
       render: (_, record) => (
-        <Button
-          type="link"
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={(event) => {
-            event.stopPropagation()
-            setDetailModal({ open: true, record })
-          }}
-        >
-          Detail Pasien
-        </Button>
+        <div className="flex gap-2">
+          <Tooltip title="Detail Pasien">
+            <Button
+              type="link"
+              size="small"
+              icon={<IconEye size={20} />}
+              onClick={(event) => {
+                event.stopPropagation()
+                setDetailModal({ open: true, record })
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Detail Antrian">
+            <Button
+              type="link"
+              size="small"
+              icon={<IconClipboardList size={20} color="violet" />}
+              onClick={(event) => {
+                event.stopPropagation()
+                setQueueDetailModal({ open: true, record })
+              }}
+            />
+          </Tooltip>
+        </div>
       )
-    },
+    }
   ]
 
   const onSearch = (values: any) => {
@@ -284,7 +309,7 @@ export default function RegistrationQueue({
         <GenericTable
           columns={columns}
           dataSource={queueData?.result || []}
-          rowKey="id"
+          rowKey="queueId"
           loading={isLoading || isRefetching}
           action={{
             title: 'Aksi',
@@ -295,29 +320,27 @@ export default function RegistrationQueue({
 
               if (status === 'PRE_RESERVED') {
                 actions.push({
-                  label: 'Konfirmasi',
-                  icon: <CheckCircleOutlined />,
-                  type: 'primary',
+                  label: 'Panggil',
+                  icon: <IconVolume size={16} />,
                   onClick: () => setConfirmModal({ open: true, queue: record })
                 })
-              } else if (['RESERVED', 'REGISTERED'].includes(status)) {
+              } else if (['RESERVED', 'REGISTERED', 'SKIPPED'].includes(status)) {
                 actions.push({
-                  label: 'Panggil',
-                  icon: <SoundOutlined />,
+                  label: status === 'SKIPPED' ? 'Panggil Ulang' : 'Panggil',
+                  icon: <IconVolume size={16} />,
                   onClick: () => setCallConfirmModal({ open: true, record })
                 })
-              } else if (record.status === 'CALLED') {
+              } else if (IS_DEVELOPMENT && record.status === 'CALLED') {
                 actions.push({
-                  label: 'Konfirmasi Tujuan',
-                  icon: <CheckCircleOutlined />,
-                  type: 'primary',
+                  label: 'Konfirmasi Tujuan (dev mode)',
+                  icon: <IconCircleCheck size={16} />,
                   onClick: () => setCallModal({ open: true, record })
                 })
               }
               // } else if (record.status === 'TRIAGED') {
               //   actions.push({
               //     label: 'Panggil ke Poli',
-              //     icon: <SoundOutlined />,
+              //     icon: <IconVolume size={16} />,
               //     type: 'primary',
               //     onClick: () => handleTriagedCallToPoli(record)
               //   })
@@ -325,12 +348,12 @@ export default function RegistrationQueue({
               //   actions.push(
               //     {
               //       label: 'Pulangkan',
-              //       icon: <CheckCircleOutlined />,
+              //       icon: <IconCircleCheck size={16} />,
               //       onClick: () => setDischargeModal({ open: true, record })
               //     },
               //     {
               //       label: 'Rujuk',
-              //       icon: <FileTextOutlined />,
+              //       icon: <IconClipboardList size={16} />,
               //       onClick: () => setReferralModal({ open: true, record })
               //     },
               //     {
@@ -344,7 +367,7 @@ export default function RegistrationQueue({
               if (record.paymentMethod === 'bpjs' && record.patientId && !record.sepId) {
                 actions.push({
                   label: 'Buat SEP',
-                  icon: <FileTextOutlined />,
+                  icon: <IconClipboardList size={16} />,
                   onClick: () => handleCreateSep(record)
                 })
               }
@@ -353,7 +376,7 @@ export default function RegistrationQueue({
               // if (record.status === 'TRIAGE') {
               //   actions.push({
               //     label: 'Triage Selesai',
-              //     icon: <CheckCircleOutlined />,
+              //     icon: <IconCircleCheck size={16} />,
               //     type: 'primary',
               //     onClick: () => handleTriageDone(record)
               //   })
@@ -416,6 +439,12 @@ export default function RegistrationQueue({
           />
         ) : null}
       </Modal>
+
+      <RegistrationQueueDetailModal
+        open={queueDetailModal.open}
+        record={queueDetailModal.record}
+        onClose={() => setQueueDetailModal({ open: false, record: undefined })}
+      />
     </div>
   )
 }
