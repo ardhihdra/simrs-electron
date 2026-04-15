@@ -18,7 +18,13 @@ import logoUrl from '@renderer/assets/logo.png'
 
 const { Title, Text } = Typography
 
-type InvoiceLineItemCategory = 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
+type InvoiceLineItemCategory =
+  | 'tindakan'
+  | 'bhp'
+  | 'service_request'
+  | 'obat'
+  | 'laboratory'
+  | 'radiology'
 
 interface InvoiceLineItem {
   category: InvoiceLineItemCategory
@@ -30,6 +36,7 @@ interface InvoiceLineItem {
 }
 
 interface Invoice {
+  encounterCode: string
   encounterId: string
   patientId: string
   total: number
@@ -55,7 +62,6 @@ interface Invoice {
   obatItems?: InvoiceLineItem[]
   paymentMethod?: string | null
 }
-
 
 interface PersistedInvoice {
   id: number
@@ -207,9 +213,13 @@ function buildCategoryRows(title: string, items: InvoiceLineItem[], accentColor:
     </tr>`
 }
 
-function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedInvoice | null): void {
+function generateInvoicePrintView(
+  invoice: Invoice,
+  persistedInvoice: PersistedInvoice | null
+): void {
   const namaPatient = invoice.namaPatient ?? invoice.patient?.name ?? '-'
-  const medicalRecordNumber = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
+  const medicalRecordNumber =
+    invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
   const tanggalLahir = formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
   const alamat = invoice.alamat ?? invoice.patient?.address ?? '-'
   const dokterPemeriksa = invoice.dokterPemeriksa ?? '-'
@@ -217,6 +227,7 @@ function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedI
   const penjamin = invoice.penjamin ?? 'Umum'
   const tanggalPendaftaran = formatPrintableDate(invoice.tanggalPendaftaran)
   const noPendaftaran = invoice.noPendaftaran ?? '-'
+  const noKunjungan = invoice.encounterCode ?? invoice.encounterId ?? '-'
   const caraBayar = invoice.penjamin ?? 'Umum'
   const metodeBayar = invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')
   const noInvoice = persistedInvoice?.kode ?? '-'
@@ -367,7 +378,7 @@ function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedI
             <tr><td class="meta-label">Penjamin</td><td>: ${escapeHtml(penjamin)}</td></tr>
           </table>
           <table class="meta-grid">
-            <tr><td class="meta-label">No. Kunjungan</td><td>: ${escapeHtml(invoice.encounterId)}</td></tr>
+            <tr><td class="meta-label">No. Kunjungan</td><td>: ${escapeHtml(noKunjungan)}</td></tr>
             <tr><td class="meta-label">No. Pendaftaran</td><td>: ${escapeHtml(noPendaftaran)}</td></tr>
             <tr><td class="meta-label">Tgl. Pendaftaran</td><td>: ${escapeHtml(tanggalPendaftaran)}</td></tr>
             <tr><td class="meta-label">Dokter</td><td>: ${escapeHtml(dokterPemeriksa)}</td></tr>
@@ -540,11 +551,7 @@ export default function InvoiceDetailPage() {
             cancelText="Batal"
             okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
           >
-            <Button
-              icon={<RollbackOutlined />}
-              danger
-              loading={reopenEncounterMutation.isPending}
-            >
+            <Button icon={<RollbackOutlined />} danger loading={reopenEncounterMutation.isPending}>
               Kembalikan ke Perawat
             </Button>
           </Popconfirm>
@@ -623,8 +630,14 @@ export default function InvoiceDetailPage() {
               <tbody>
                 {[
                   ['Nama Pasien', invoice.namaPatient ?? invoice.patient?.name ?? '-'],
-                  ['No. RM', invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'],
-                  ['Tgl. Lahir', formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)],
+                  [
+                    'No. RM',
+                    invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
+                  ],
+                  [
+                    'Tgl. Lahir',
+                    formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
+                  ],
                   ['Alamat', invoice.alamat ?? invoice.patient?.address ?? '-']
                 ].map(([label, value]) => (
                   <tr key={label}>
@@ -637,13 +650,16 @@ export default function InvoiceDetailPage() {
             <table className="w-full text-sm">
               <tbody>
                 {[
-                  ['No. Kunjungan', invoice.encounterId],
+                  ['No. Kunjungan', invoice.encounterCode ?? invoice.encounterId ?? '-'],
                   ['No. Pendaftaran', invoice.noPendaftaran ?? '-'],
                   ['Tgl. Pendaftaran', formatPrintableDate(invoice.tanggalPendaftaran)],
                   ['Dokter', invoice.dokterPemeriksa ?? '-'],
                   ['Ruangan', invoice.ruangan ?? '-'],
                   ['Cara Bayar', invoice.penjamin ?? 'Umum'],
-                  ['Metode Bayar', invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')]
+                  [
+                    'Metode Bayar',
+                    invoice.paymentMethod === 'cash' ? 'Tunai' : (invoice.paymentMethod ?? '-')
+                  ]
                 ].map(([label, value]) => (
                   <tr key={label}>
                     <td className="font-semibold text-gray-500 w-36 py-0.5 pr-2">{label}</td>
@@ -660,7 +676,11 @@ export default function InvoiceDetailPage() {
           </div>
 
           {/* Line item sections */}
-          <InvoiceSection title="Tindakan Medis" tagColor="blue" items={invoice.tindakanItems ?? []} />
+          <InvoiceSection
+            title="Tindakan Medis"
+            tagColor="blue"
+            items={invoice.tindakanItems ?? []}
+          />
           <InvoiceSection
             title="Bahan Habis Pakai (BHP)"
             tagColor="orange"
@@ -671,11 +691,7 @@ export default function InvoiceDetailPage() {
             tagColor="green"
             items={invoice.laboratoryItems ?? []}
           />
-          <InvoiceSection
-            title="Radiologi"
-            tagColor="cyan"
-            items={invoice.radiologyItems ?? []}
-          />
+          <InvoiceSection title="Radiologi" tagColor="cyan" items={invoice.radiologyItems ?? []} />
           <InvoiceSection title="Obat" tagColor="purple" items={invoice.obatItems ?? []} />
 
           {(invoice.tindakanItems?.length ?? 0) === 0 &&

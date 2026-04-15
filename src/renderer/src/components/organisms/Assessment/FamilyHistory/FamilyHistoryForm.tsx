@@ -241,7 +241,7 @@ export const FamilyHistoryForm: React.FC<FamilyHistoryFormProps> = ({
           await createFamilyHistory.mutateAsync(
             buildFamilyHistory({
               patientId: patientIdStr,
-              status: 'completed',
+              status: 'COMPLETED',
               relationship: row.relationship,
               relationshipDisplay: row.relationshipDisplay,
               note: row.note,

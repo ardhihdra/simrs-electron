@@ -7,10 +7,12 @@ export const useOperatingRoomList = (status?: string) => {
             const fn = window.api?.query?.operatingRoom?.list
             if (!fn) throw new Error('API operatingRoom tidak tersedia')
             const res = await fn({ status })
-            if (res.success && res.result) {
+            if (res.success && Array.isArray(res.result)) {
                 return res.result
             }
-            return []
+            if (res.success) return []
+            const message = (res as any)?.error || (res as any)?.message || 'Gagal memuat daftar ruang OK'
+            throw new Error(message)
         }
     })
 }
