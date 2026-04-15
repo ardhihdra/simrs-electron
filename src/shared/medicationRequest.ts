@@ -19,7 +19,7 @@ export interface MedicationRequestAttributes {
   priority?: MedicationRequestPriority
   medicationId?: number | null
   itemId?: number | null
-  patientId?: string | null
+  patientId: string
   encounterId?: string | null
   requesterId?: number | null
   authoredOn?: string | Date
