@@ -77,7 +77,7 @@ const items: DashboardMenuItem[] = [
   },
 
   {
-    label: 'Antrian',
+    label: 'Antrian Umum',
     key: '/dashboard/non-medic-queue',
     icon: <UnorderedListOutlined />,
     module: 'BILLING_KASIR',
