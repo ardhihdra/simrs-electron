@@ -100,7 +100,7 @@ export const DoctorPatientList = () => {
   const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | number | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>([dayjs(), dayjs()])
-  const [activeStatus, setActiveStatus] = useState<string>('all')
+  const [activeStatus, setActiveStatus] = useState<string>('IN_PROGRESS')
   const [isBulkSyncing, setIsBulkSyncing] = useState(false)
   const [syncingRows, setSyncingRows] = useState<Record<string, boolean>>({})
   const [dischargeModal, setDischargeModal] = useState<{
@@ -193,7 +193,6 @@ export const DoctorPatientList = () => {
       'list',
       selectedPoli,
       searchText,
-      activeStatus,
       dateRange,
       doctorTargetId
     ],
@@ -202,15 +201,6 @@ export const DoctorPatientList = () => {
       if (!fn) throw new Error('API encounter tidak tersedia')
       const params: any = {}
       if (searchText) params.q = searchText
-      if (activeStatus && activeStatus !== 'all') {
-        if (activeStatus === 'FINISHED') {
-          params.status = 'FINISHED'
-        } else {
-          params.status = activeStatus
-        }
-      } else {
-        params.status = 'IN_PROGRESS,FINISHED'
-      }
       if (selectedPoli != null && String(selectedPoli).trim() !== '') {
         params.poliCodeId = String(selectedPoli)
       }
@@ -226,7 +216,7 @@ export const DoctorPatientList = () => {
     enabled: !isPoliLockedFromRoute || !!selectedPoli
   })
 
-  const patients: PatientListTableData[] = (encounterData?.result || []).map(
+  const allPatients: PatientListTableData[] = (encounterData?.result || []).map(
     (enc: any, index: number) => {
       const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
       const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
@@ -280,6 +270,18 @@ export const DoctorPatientList = () => {
       }
     }
   )
+
+  const patients: PatientListTableData[] = useMemo(() => {
+    const filtered =
+      activeStatus === 'all'
+        ? allPatients
+        : allPatients.filter((patient) => String(patient.status || '') === activeStatus)
+
+    return filtered.map((patient, index) => ({
+      ...patient,
+      no: index + 1
+    }))
+  }, [activeStatus, allPatients])
 
   const markAsInProgress = async (record: PatientListTableData) => {
     try {
@@ -349,13 +351,7 @@ export const DoctorPatientList = () => {
       const params: any = {}
       if (searchText) params.q = searchText
       if (activeStatus && activeStatus !== 'all') {
-        if (activeStatus === 'FINISHED') {
-          params.status = 'FINISHED'
-        } else {
-          params.status = activeStatus
-        }
-      } else {
-        params.status = 'IN_PROGRESS,FINISHED'
+        params.status = activeStatus
       }
       if (selectedPoli != null && String(selectedPoli).trim() !== '') {
         params.poliCodeId = String(selectedPoli)
@@ -436,12 +432,12 @@ export const DoctorPatientList = () => {
     )
   }
 
-  const totalSynced = patients.filter(
+  const totalSynced = allPatients.filter(
     (p) => p.satuSehatSyncStatus?.encounterSynced || !!p.fhirId
   ).length
-  const totalNotSynced = patients.length - totalSynced
-  const totalInProgress = patients.filter((p) => p.status === 'IN_PROGRESS').length
-  const totalFinished = patients.filter((p) => p.status === 'FINISHED').length
+  const totalNotSynced = allPatients.length - totalSynced
+  const totalInProgress = allPatients.filter((p) => p.status === 'IN_PROGRESS').length
+  const totalFinished = allPatients.filter((p) => p.status === 'FINISHED').length
 
   const columns: ColumnsType<PatientListTableData> = [
     {
@@ -791,11 +787,11 @@ export const DoctorPatientList = () => {
   const statusTabItems = statusDisplayTabs.map(({ key, config }) => {
     let count = 0
     if (key === 'all') {
-      count = patients.length
+      count = allPatients.length
     } else if (key === 'FINISHED') {
-      count = patients.filter((p) => p.status === 'FINISHED').length
+      count = allPatients.filter((p) => p.status === 'FINISHED').length
     } else {
-      count = patients.filter((p) => p.status === key).length
+      count = allPatients.filter((p) => p.status === key).length
     }
 
     return {
