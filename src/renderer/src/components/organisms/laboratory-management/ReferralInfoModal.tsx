@@ -3,7 +3,15 @@ import {
   type ReferralInfoSource
 } from '@renderer/pages/laboratory-management/table-info'
 import { client } from '@renderer/utils/client'
-import { Alert, Descriptions, Modal, Spin } from 'antd'
+import {
+  ApartmentOutlined,
+  CalendarOutlined,
+  FileTextOutlined,
+  InfoCircleOutlined,
+  UserOutlined
+} from '@ant-design/icons'
+import { Alert, Card, Empty, Modal, Spin, Tag, Typography, theme } from 'antd'
+import type { ReactNode } from 'react'
 import { useMemo } from 'react'
 
 interface ReferralInfoModalProps {
@@ -33,16 +41,51 @@ function normalizeList<T>(data: unknown): T[] {
   )
 }
 
-function renderSummaryRows(rows: Array<{ label: string; value: string }>) {
+function getLatestReferral(rows: ReferralInfoSource[]) {
+  return [...rows].sort((left, right) => {
+    const leftTime = new Date(left.referralDate || left.createdAt || 0).getTime()
+    const rightTime = new Date(right.referralDate || right.createdAt || 0).getTime()
+    return rightTime - leftTime
+  })[0]
+}
+
+function ReferralDetailItem({
+  icon,
+  label,
+  value
+}: {
+  icon: ReactNode
+  label: string
+  value: string
+}) {
+  const { token } = theme.useToken()
+
   return (
-    <div className="space-y-1 text-xs leading-relaxed">
-      <Descriptions bordered column={1}>
-        {rows.map((row) => (
-          <Descriptions.Item key={row.label} label={row.label}>
-            {row.value}
-          </Descriptions.Item>
-        ))}
-      </Descriptions>
+    <div>
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <span style={{ color: token.colorTextTertiary, fontSize: token.fontSizeSM }}>{icon}</span>
+        <span
+          style={{
+            color: token.colorTextTertiary,
+            fontSize: 10,
+            fontWeight: 700,
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase'
+          }}
+        >
+          {label}
+        </span>
+      </div>
+      <div
+        className="rounded-xl px-3 py-2"
+        style={{
+          background: token.colorBgLayout,
+          border: `1px solid ${token.colorBorderSecondary}`,
+          color: token.colorText
+        }}
+      >
+        <Typography.Text>{value}</Typography.Text>
+      </div>
     </div>
   )
 }
@@ -53,6 +96,7 @@ export default function ReferralInfoModal({
   encounterId,
   sourcePoliName
 }: ReferralInfoModalProps) {
+  const { token } = theme.useToken()
   const referralQueryInput = useMemo(
     () => ({
       model: 'referral',
@@ -89,9 +133,24 @@ export default function ReferralInfoModal({
       fallbackSourcePoliName: sourcePoliName
     })
   }, [data, sourcePoliName])
-  console.log('ref:', data)
+  const latestReferral = useMemo(() => {
+    const referrals = normalizeList<ReferralRecord>(data?.result).map<ReferralInfoSource>(
+      (item) => ({
+        referralDate: item.referralDate,
+        createdAt: item.createdAt,
+        referringPractitionerName: item.referringPractitionerName,
+        diagnosisText: item.diagnosisText,
+        conditionAtTransfer: item.conditionAtTransfer,
+        keadaanKirim: item.keadaanKirim,
+        reasonForReferral: item.reasonForReferral
+      })
+    )
+
+    return referrals.length ? getLatestReferral(referrals) : null
+  }, [data])
+
   return (
-    <Modal open={open} title="Data Rujukan" width={680} footer={null} onCancel={onClose}>
+    <Modal open={open} title="Data Rujukan" width={760} footer={null} onCancel={onClose}>
       {open && encounterId && (isLoading || isFetching) ? (
         <div className="py-10 flex justify-center">
           <Spin />
@@ -107,9 +166,67 @@ export default function ReferralInfoModal({
             />
           ) : null}
           {summary.length > 0 ? (
-            renderSummaryRows(summary)
+            <Card styles={{ body: { padding: 0 } }} className="overflow-hidden rounded-xl" bordered={false}>
+              <div
+                className="flex items-start justify-between gap-4 px-6 py-4"
+                style={{
+                  background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
+                }}
+              >
+                <div>
+                  <Typography.Title
+                    level={4}
+                    className="!mb-1"
+                    style={{ color: token.colorTextLightSolid }}
+                  >
+                    Informasi Rujukan
+                  </Typography.Title>
+                  <Typography.Text style={{ color: 'rgba(255,255,255,0.82)' }}>
+                    Ringkasan rujukan pasien dari encounter terkait.
+                  </Typography.Text>
+                </div>
+
+                <div className="flex flex-col items-end gap-2">
+                  <Tag color="processing" bordered={false} className="m-0 rounded-lg px-3 py-1 font-semibold">
+                    Rujukan Aktif
+                  </Tag>
+                  <Typography.Text style={{ color: 'rgba(255,255,255,0.82)' }}>
+                    {latestReferral?.referralDate || latestReferral?.createdAt
+                      ? new Date(latestReferral.referralDate || latestReferral.createdAt || '')
+                          .toLocaleString()
+                      : '-'}
+                  </Typography.Text>
+                </div>
+              </div>
+
+              <div className="space-y-4 px-6 py-5" style={{ background: token.colorBgContainer }}>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {summary.map((row) => {
+                    const lowerLabel = row.label.toLowerCase()
+                    const icon = lowerLabel.includes('poli')
+                      ? <ApartmentOutlined />
+                      : lowerLabel.includes('dokter')
+                        ? <UserOutlined />
+                        : lowerLabel.includes('diagnosis')
+                          ? <FileTextOutlined />
+                          : lowerLabel.includes('alasan')
+                            ? <InfoCircleOutlined />
+                            : <CalendarOutlined />
+
+                    return (
+                      <ReferralDetailItem
+                        key={row.label}
+                        icon={icon}
+                        label={row.label}
+                        value={row.value}
+                      />
+                    )
+                  })}
+                </div>
+              </div>
+            </Card>
           ) : (
-            <div className="text-sm text-gray-500">Data rujukan tidak ditemukan.</div>
+            <Empty description="Data rujukan tidak ditemukan." image={Empty.PRESENTED_IMAGE_SIMPLE} />
           )}
         </div>
       )}

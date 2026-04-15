@@ -4,6 +4,7 @@ import type { FormInstance } from 'antd'
 import { Card, Checkbox, Empty, Form, Input, Select, Tag } from 'antd'
 import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { resolveActiveServiceRequestCategory } from './CreateServiceRequestForm.helpers'
 
 type ServiceRequestDomainValue = 'laboratory' | 'radiology'
 type ServiceRequestCategoriesResponse = {
@@ -183,7 +184,7 @@ function ServiceRequestCodeSelector({
       )}
 
       {domain && hasSelectedCategories && terminologyOptions.length > 0 ? (
-        <div className="grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+        <div className="grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-3">
           {terminologyOptions.map((item) => {
             const isChecked = selectedIds.has(item.masterServiceRequestCodeId)
 
@@ -234,13 +235,7 @@ function ServiceRequestCodeSelector({
 export default function CreateServiceRequestForm({ form, fixedCategory, extraFields }: Props) {
   const watchedCategory = Form.useWatch('category', form) as ServiceRequestDomainValue | undefined
   const selectedCategory = fixedCategory || watchedCategory
-  const selectedCategoryCodes = (Form.useWatch('serviceRequestCodeCategories', form) as
-    | string[]
-    | undefined) ?? []
-  const selectedCategoryCodesKey = useMemo(
-    () => selectedCategoryCodes.join('|'),
-    [selectedCategoryCodes]
-  )
+  const [activeCategoryCode, setActiveCategoryCode] = useState<string>()
 
   const { data: categoryData, isLoading: isLoadingCategories } =
     client.laboratoryManagement.getServiceRequestCategories.useQuery(
@@ -262,6 +257,11 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
     }))
   }, [categoryData, selectedCategory])
 
+  const activeCategoryCodes = useMemo(
+    () => (activeCategoryCode ? [activeCategoryCode] : []),
+    [activeCategoryCode]
+  )
+
   useEffect(() => {
     if (fixedCategory) {
       form.setFieldValue('category', fixedCategory)
@@ -274,11 +274,21 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
       selectedServiceRequestCodes: [],
       system: 'http://loinc.org'
     })
+    setActiveCategoryCode(undefined)
   }, [selectedCategory, form])
 
   useEffect(() => {
-    form.setFieldValue('selectedServiceRequestCodes', [])
-  }, [selectedCategoryCodesKey, form])
+    const resolvedActiveCategory = resolveActiveServiceRequestCategory(
+      categoryOptions.map((item) => item.value),
+      activeCategoryCode
+    )
+
+    setActiveCategoryCode(resolvedActiveCategory)
+    form.setFieldValue(
+      'serviceRequestCodeCategories',
+      resolvedActiveCategory ? [resolvedActiveCategory] : []
+    )
+  }, [activeCategoryCode, categoryOptions, form])
 
   return (
     <Form form={form} layout="vertical">
@@ -311,11 +321,46 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
           }
         ]}
       >
-        <Checkbox.Group
-          disabled={!selectedCategory || isLoadingCategories}
-          options={categoryOptions}
-          className="grid grid-cols-1 gap-2 md:grid-cols-2"
-        />
+        <div className="space-y-3">
+          <div className="grid gap-3 grid-cols-3 max-h-60 overflow-y-auto">
+            {categoryOptions.map((item) => {
+              const isActive = item.value === activeCategoryCode
+
+              return (
+                <Card
+                  key={item.value}
+                  size="small"
+                  className={`cursor-pointer transition-all ${
+                    isActive
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                  onClick={() => {
+                    setActiveCategoryCode(item.value)
+                    form.setFieldValue('serviceRequestCodeCategories', [item.value])
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-800">{item.label}</div>
+                      <div className="text-xs text-gray-500">{item.value}</div>
+                    </div>
+                    {isActive ? <Tag color="blue">Aktif</Tag> : null}
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+          {!selectedCategory || isLoadingCategories || categoryOptions.length === 0 ? (
+            <div className="rounded-md border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+              {!selectedCategory
+                ? 'Pilih kategori service request terlebih dahulu'
+                : isLoadingCategories
+                  ? 'Memuat kategori pemeriksaan...'
+                  : 'Kategori pemeriksaan tidak tersedia'}
+            </div>
+          ) : null}
+        </div>
       </Form.Item>
 
       <Form.Item
@@ -333,10 +378,7 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
           }
         ]}
       >
-        <ServiceRequestCodeSelector
-          domain={selectedCategory}
-          categoryCodes={selectedCategoryCodes}
-        />
+        <ServiceRequestCodeSelector domain={selectedCategory} categoryCodes={activeCategoryCodes} />
       </Form.Item>
 
       <Form.Item

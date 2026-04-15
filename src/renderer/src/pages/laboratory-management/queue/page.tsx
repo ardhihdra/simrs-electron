@@ -8,6 +8,8 @@ import {
   SearchOutlined,
   SyncOutlined
 } from '@ant-design/icons'
+import type { PatientInfoCardData } from '@renderer/components/molecules/PatientInfoCard'
+import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import CreateAncillaryModal from '@renderer/components/organisms/laboratory-management/CreateAncillaryModal'
 import CreateServiceRequestForm from '@renderer/components/organisms/laboratory-management/CreateServiceRequestForm'
@@ -28,7 +30,13 @@ import {
   type AncillaryCategory,
   type AncillarySection
 } from '../section-config'
-import { buildPatientSummary, type PatientInfoSource, type ReferralInfoSource } from '../table-info'
+import { buildAncillaryQueuePatientInfoCardData, type ReferralInfoSource } from '../table-info'
+import {
+  filterAndSortQueueEncounters,
+  findNextEncounterToServe,
+  normalizeEncounterStatus,
+  type EncounterStatusFilter
+} from './queue-helpers'
 
 interface EncounterRow {
   id: string
@@ -42,8 +50,11 @@ interface EncounterRow {
     medicalRecordNumber?: string
     nik?: string
     birthDate?: string
+    gender?: string
     address?: string
+    religion?: string
   }
+  partOfId?: string
   partOf?: {
     poli?: {
       name?: string
@@ -57,13 +68,25 @@ interface EncounterRow {
   }
   referrals?: ReferralInfoSource[]
   queueTicket?: {
+    paymentMethod?: string
     serviceUnit?: {
       display?: string
+    }
+    practitioner?: {
+      namaLengkap?: string
+      name?: string
     }
     poli?: {
       name?: string
     }
   }
+  practitioner?: {
+    namaLengkap?: string
+    fullName?: string
+    display?: string
+    name?: string
+  } | null
+  doctorName?: string
   poli?: {
     name?: string
   }
@@ -73,6 +96,8 @@ interface EncounterRow {
   startTime?: string
   endTime?: string
   serviceRequestId?: string | number
+  visitDate?: string
+  createdAt?: string
 }
 
 type EncounterStatusValue = 'PLANNED' | 'IN_PROGRESS' | 'FINISHED' | 'CANCELLED'
@@ -90,19 +115,6 @@ function normalizeList<T>(data: unknown): T[] {
 
 function mapEncounterCategoryToServiceRequest(category?: string): 'laboratory' | 'radiology' {
   return category === 'RADIOLOGY' ? 'radiology' : 'laboratory'
-}
-
-function normalizeEncounterStatus(status?: string): EncounterStatusValue | undefined {
-  const normalized = String(status || '').toUpperCase()
-  if (
-    normalized === 'PLANNED' ||
-    normalized === 'IN_PROGRESS' ||
-    normalized === 'FINISHED' ||
-    normalized === 'CANCELLED'
-  ) {
-    return normalized
-  }
-  return undefined
 }
 
 function renderEncounterStatusTag(status?: string) {
@@ -160,13 +172,15 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false)
   const [isServiceRequestModalOpen, setIsServiceRequestModalOpen] = useState(false)
   const [selectedEncounter, setSelectedEncounter] = useState<EncounterRow | null>(null)
-  const [patientInfo, setPatientInfo] = useState<PatientInfoSource | null>(null)
+  const [nextEncounterModal, setNextEncounterModal] = useState<EncounterRow | null>(null)
+  const [patientInfo, setPatientInfo] = useState<PatientInfoCardData | null>(null)
   const [referralInfo, setReferralInfo] = useState<{
     encounterId?: string
     sourcePoliName?: string
   } | null>(null)
   const [isSubmittingStatus, setIsSubmittingStatus] = useState(false)
   const [isServingEncounter, setIsServingEncounter] = useState(false)
+  const [statusFilter, setStatusFilter] = useState<EncounterStatusFilter>('ALL')
   const [queueCategory, setQueueCategory] = useState<QueueCategoryFilter>(
     fixedCategory || 'LABORATORY'
   )
@@ -196,25 +210,20 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
     method: 'get',
     params: {
       category: activeCategory,
+      sortBy: 'createdAt',
+      sortOrder: 'asc',
+      items: '100',
       include:
-        'patient,poli,queueTicket.poli,referrals.referringPractitioner,referrals.sourceLocation,partOf.poli,partOf.queueTicket.poli,partOf.referrals.referringPractitioner,partOf.referrals.sourceLocation'
+        'patient,poli,queueTicket.poli,queueTicket.practitioner,referrals.referringPractitioner,referrals.sourceLocation,partOf.poli,partOf.queueTicket.poli,partOf.referrals.referringPractitioner,partOf.referrals.sourceLocation'
     }
   })
 
   const filteredData = useMemo<EncounterRow[]>(() => {
     const data = encountersData ? normalizeList<EncounterRow>(encountersData || []) : []
-    if (!searchText) return data
+    return filterAndSortQueueEncounters(data, { searchText, statusFilter })
+  }, [encountersData, searchText, statusFilter])
 
-    return data?.filter(
-      (item) =>
-        (item.patientName || item.patient?.name)
-          ?.toLowerCase()
-          .includes(searchText.toLowerCase()) ||
-        (item.patientMrNo || item.patient?.mrn || '')
-          .toLowerCase()
-          .includes(searchText.toLowerCase())
-    )
-  }, [encountersData, searchText])
+  const nextEncounterToServe = useMemo(() => findNextEncounterToServe(filteredData), [filteredData])
 
   const columns: ColumnsType<EncounterRow> = [
     {
@@ -274,23 +283,8 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
     }
   ]
 
-  const getPatientInfo = (record: EncounterRow): PatientInfoSource => {
-    const summary = buildPatientSummary({
-      name: record.patientName || record.patient?.name,
-      medicalRecordNumber:
-        record.patient?.medicalRecordNumber || record.patientMrNo || record.patient?.mrn,
-      nik: record.patient?.nik,
-      birthDate: record.patient?.birthDate,
-      address: record.patient?.address
-    })
-
-    return {
-      name: summary[0]?.value,
-      medicalRecordNumber: summary[1]?.value,
-      nik: summary[2]?.value,
-      birthDate: record.patient?.birthDate,
-      address: summary[4]?.value
-    }
+  const getPatientInfo = (record: EncounterRow): PatientInfoCardData => {
+    return buildAncillaryQueuePatientInfoCardData(record)
   }
 
   const getReferralSourcePoliName = (record: EncounterRow): string | undefined => {
@@ -303,14 +297,20 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
     )
   }
 
-  const onSearch = (values: { patientName?: string; category?: QueueCategoryFilter }) => {
+  const onSearch = (values: {
+    patientName?: string
+    category?: QueueCategoryFilter
+    status?: EncounterStatusFilter
+  }) => {
     setSearchText(values.patientName || '')
     setQueueCategory(fixedCategory || values.category || 'LABORATORY')
+    setStatusFilter(values.status || 'ALL')
   }
 
   const handleResetFilters = () => {
     setSearchText('')
     setQueueCategory(fixedCategory || 'LABORATORY')
+    setStatusFilter('ALL')
   }
 
   const closeStatusModal = () => {
@@ -352,6 +352,13 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
     setIsServiceRequestModalOpen(true)
   }
 
+  const handleServeAndOpenServiceRequest = async (record: EncounterRow) => {
+    const served = await handleServeEncounter(record)
+    if (!served) return
+
+    handleOpenServiceRequestModal(record)
+  }
+
   const updateEncounterStatus = async (
     encounterId: string,
     status: EncounterStatusValue,
@@ -374,12 +381,12 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
     const currentStatus = normalizeEncounterStatus(record.status)
     if (currentStatus === 'IN_PROGRESS') {
       message.info('Encounter sudah dalam status IN_PROGRESS')
-      return
+      return false
     }
 
     if (currentStatus === 'FINISHED' || currentStatus === 'CANCELLED') {
       message.warning('Encounter dengan status FINISHED/CANCELLED tidak dapat dilayani')
-      return
+      return false
     }
 
     try {
@@ -394,8 +401,10 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
 
       message.success('Encounter berhasil dilayani (IN_PROGRESS)')
       await refetch()
+      return true
     } catch (error: any) {
       message.error(error?.message || 'Gagal melayani encounter')
+      return false
     } finally {
       setIsServingEncounter(false)
     }
@@ -502,6 +511,7 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
   }
 
   const handleCloseModal = () => {
+    refetch()
     setIsModalOpen(false)
   }
 
@@ -520,6 +530,19 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
         }}
         createLabel={sectionConfig.queueCreateLabel}
         loading={isLoading || isRefetching}
+        action={
+          <Button
+            onClick={() => setNextEncounterModal(nextEncounterToServe)}
+            disabled={!nextEncounterToServe || isServingEncounter}
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              borderColor: 'rgba(255,255,255,0.3)',
+              color: '#fff'
+            }}
+          >
+            Pasien Selanjutnya
+          </Button>
+        }
       >
         {!fixedCategory ? (
           <Form.Item
@@ -538,6 +561,18 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
             />
           </Form.Item>
         ) : null}
+        <Form.Item initialValue="ALL" name="status" style={{ minWidth: 220 }} label="Status">
+          <Select
+            size="large"
+            options={[
+              { value: 'ALL', label: 'Semua Status' },
+              { value: 'PLANNED', label: 'PLANNED' },
+              { value: 'IN_PROGRESS', label: 'IN_PROGRESS' },
+              { value: 'FINISHED', label: 'FINISHED' },
+              { value: 'CANCELLED', label: 'CANCELLED' }
+            ]}
+          />
+        </Form.Item>
         <Form.Item name="patientName" style={{ width: '100%' }} label="Pasien">
           <Input
             placeholder="Cari Nama / No. RM Pasien yang sedang dilayani"
@@ -562,7 +597,7 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
                   key: 'serve',
                   label: 'Layani',
                   disabled: normalizeEncounterStatus(record.status) !== 'PLANNED',
-                  onClick: () => handleServeEncounter(record)
+                  onClick: () => handleServeAndOpenServiceRequest(record)
                 },
                 {
                   key: 'finish',
@@ -600,7 +635,7 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
                         icon={<ApartmentOutlined />}
                         onClick={() =>
                           setReferralInfo({
-                            encounterId: String((record as any).partOfId || ''),
+                            encounterId: String(record.partOfId || ''),
                             sourcePoliName
                           })
                         }
@@ -630,8 +665,46 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
       <PatientInfoModal
         open={!!patientInfo}
         onClose={() => setPatientInfo(null)}
-        patient={patientInfo}
+        patientData={patientInfo}
       />
+      <Modal
+        title="Layani Pasien Selanjutnya"
+        open={!!nextEncounterModal}
+        onCancel={() => setNextEncounterModal(null)}
+        footer={[
+          <Button key="cancel" onClick={() => setNextEncounterModal(null)}>
+            Cancel
+          </Button>,
+          <Button
+            key="serve"
+            type="primary"
+            loading={isServingEncounter}
+            onClick={async () => {
+              if (!nextEncounterModal) return
+
+              const encounterToServe = nextEncounterModal
+              setNextEncounterModal(null)
+              await handleServeAndOpenServiceRequest(encounterToServe)
+            }}
+          >
+            Layani
+          </Button>
+        ]}
+        width={720}
+        centered
+        styles={{
+          body: {
+            padding: 0
+          }
+        }}
+      >
+        {nextEncounterModal ? (
+          <PatientInfoCard
+            patientData={getPatientInfo(nextEncounterModal)}
+            sections={{ showAllergies: false }}
+          />
+        ) : null}
+      </Modal>
       <ReferralInfoModal
         open={!!referralInfo}
         onClose={() => setReferralInfo(null)}
@@ -691,6 +764,7 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
         title={`Buat Service Request Baru`}
         open={isServiceRequestModalOpen}
         onCancel={closeServiceRequestModal}
+        width={800}
         footer={[
           <Button key="cancel" onClick={closeServiceRequestModal}>
             Batal

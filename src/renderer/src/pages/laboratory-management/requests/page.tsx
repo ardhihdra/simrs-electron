@@ -12,6 +12,7 @@ import {
   ThunderboltOutlined
 } from '@ant-design/icons'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
+import type { PatientInfoCardData } from '@renderer/components/molecules/PatientInfoCard'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import PatientInfoModal from '@renderer/components/organisms/laboratory-management/PatientInfoModal'
 import ReferralInfoModal from '@renderer/components/organisms/laboratory-management/ReferralInfoModal'
@@ -35,6 +36,8 @@ import {
   type AncillaryCategory,
   type AncillarySection
 } from '../section-config'
+import { buildPatientInfoCardData } from '../table-info'
+import { SampleModal } from './SampleModal'
 
 interface LaboratoryRequestsProps {
   fixedCategory?: AncillaryCategory
@@ -194,11 +197,12 @@ export default function LaboratoryRequests({
     toDate: dayjs().endOf('day').toISOString(),
     status: undefined as string | undefined
   })
-  const [patientInfo, setPatientInfo] = useState<EncounterGroupRow['patient'] | null>(null)
+  const [patientInfo, setPatientInfo] = useState<PatientInfoCardData | null>(null)
   const [referralInfo, setReferralInfo] = useState<{
     encounterId?: string
     sourcePoliName?: string
   } | null>(null)
+  const [sampleId, setSampleId] = useState<string | null>(null)
 
   const requestQueryParams = useMemo(() => {
     const params: Record<string, string> = {
@@ -428,29 +432,51 @@ export default function LaboratoryRequests({
             title: 'Info',
             width: 120,
             render: (record) => (
-              <Space size="small">
-                <Tooltip title="Info Pasien">
-                  <Button
-                    size="small"
-                    icon={<ProfileOutlined />}
-                    onClick={() => setPatientInfo(record.patient)}
-                  />
-                </Tooltip>
-                {record.sourcePoliName ? (
-                  <Tooltip title="Info Rujukan">
+              <div className="flex gap-2 justify-center">
+                <Space size="small">
+                  <Tooltip title="Info Pasien">
                     <Button
                       size="small"
-                      icon={<ApartmentOutlined />}
+                      icon={<ProfileOutlined />}
                       onClick={() =>
-                        setReferralInfo({
-                          encounterId: record?.encounter?.encounter?.partOfId,
-                          sourcePoliName: record.sourcePoliName
-                        })
+                        setPatientInfo(
+                          buildPatientInfoCardData({
+                            ...record.patient,
+                            poliName: record.sourcePoliName,
+                            visitDate: record.requests[0]?.requestedAt,
+                            status: record.requests[0]?.encounterStatus
+                          })
+                        )
                       }
                     />
                   </Tooltip>
-                ) : null}
-              </Space>
+                  {record.sourcePoliName ? (
+                    <Tooltip title="Info Rujukan">
+                      <Button
+                        size="small"
+                        icon={<ApartmentOutlined />}
+                        onClick={() =>
+                          setReferralInfo({
+                            encounterId: record?.encounter?.encounter?.partOfId,
+                            sourcePoliName: record.sourcePoliName
+                          })
+                        }
+                      />
+                    </Tooltip>
+                  ) : null}
+                </Space>
+                <Space size="small">
+                  <Tooltip title="Lihat Sample">
+                    <Button
+                      size="small"
+                      icon={<ProfileOutlined />}
+                      onClick={() => {
+                        setSampleId(record.id)
+                      }}
+                    />
+                  </Tooltip>
+                </Space>
+              </div>
             )
           }}
           tableProps={{
@@ -467,7 +493,7 @@ export default function LaboratoryRequests({
                       items: (record: NormalizedRequest) => {
                         const actions: any[] = []
 
-                        if (canCollectSpecimen(record) && canInputResult(record)) {
+                        if (canInputResult(record)) {
                           actions.push({
                             label: 'Ambil Sampel',
                             icon: <ExperimentOutlined />,
@@ -503,7 +529,7 @@ export default function LaboratoryRequests({
       <PatientInfoModal
         open={!!patientInfo}
         onClose={() => setPatientInfo(null)}
-        patient={patientInfo}
+        patientData={patientInfo}
       />
       <ReferralInfoModal
         open={!!referralInfo}
@@ -511,6 +537,8 @@ export default function LaboratoryRequests({
         encounterId={referralInfo?.encounterId}
         sourcePoliName={referralInfo?.sourcePoliName}
       />
+
+      <SampleModal id={sampleId} onClose={() => setSampleId(null)} />
     </div>
   )
 }

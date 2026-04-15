@@ -10,7 +10,11 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { type PatientInfoSource, type ReferralInfoSource } from '../table-info'
+import type { PatientInfoCardData } from '@renderer/components/molecules/PatientInfoCard'
+import {
+  buildPatientInfoCardData,
+  type ReferralInfoSource
+} from '../table-info'
 import {
   type AncillaryCategory,
   getAncillarySectionConfig,
@@ -78,7 +82,7 @@ export default function LaboratoryResults({
     patientName: '',
     status: 'COMPLETED'
   })
-  const [patientInfo, setPatientInfo] = useState<PatientInfoSource | null>(null)
+  const [patientInfo, setPatientInfo] = useState<PatientInfoCardData | null>(null)
   const [referralInfo, setReferralInfo] = useState<{
     encounterId?: string
     sourcePoliName?: string
@@ -285,7 +289,18 @@ export default function LaboratoryResults({
                   <Button
                     size="small"
                     icon={<ProfileOutlined />}
-                    onClick={() => setPatientInfo(record.patient || null)}
+                    onClick={() =>
+                      setPatientInfo(
+                        record.patient
+                          ? buildPatientInfoCardData({
+                              ...record.patient,
+                              poliName: record.sourcePoliName,
+                              visitDate: record.requestedAt,
+                              status: record.status
+                            })
+                          : null
+                      )
+                    }
                   />
                 </Tooltip>
                 {record.sourcePoliName ? (
@@ -317,7 +332,7 @@ export default function LaboratoryResults({
       <PatientInfoModal
         open={!!patientInfo}
         onClose={() => setPatientInfo(null)}
-        patient={patientInfo}
+        patientData={patientInfo}
       />
       <ReferralInfoModal
         open={!!referralInfo}
