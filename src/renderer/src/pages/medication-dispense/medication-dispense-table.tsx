@@ -14,6 +14,7 @@ import {
 import {
   SyncOutlined,
   MoreOutlined,
+  PlayCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   MedicineBoxOutlined,
@@ -33,6 +34,7 @@ import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
 import { printMedicationLabels } from './component/print-medication-label'
 import { SerahkanObatModal, type SerahkanObatFormValues } from './component/serahkan-obat-modal'
+import { TelaahAdministrasiForm, defaultTelaahResults, TelaahResults } from './component/telaah-administrasi-form'
 
 type PatientNameEntry = {
   text?: string
@@ -115,6 +117,8 @@ interface MedicationDispenseAttributes {
   identifier?: Array<{ system: string; value: string }> | null
   fhirId?: string | null
   servicedAt?: string | null
+  note?: any[] | null
+  telaah?: any | null
 }
 
 interface MedicationDispenseListArgs {
@@ -189,6 +193,9 @@ interface DispenseItemRow {
   expiryDate?: string
   paymentStatus?: string
   kekuatan?: string | number
+  caraPenyimpanan?: string
+  note?: any[] | null
+  telaah?: any | null
   children?: DispenseItemRow[]
 }
 
@@ -227,6 +234,50 @@ function getStatusTag(status: string) {
   if (status === 'in-progress') return <Tag color="geekblue" icon={<SyncOutlined spin />}>{label}</Tag>
   if (status === 'on-hold') return <Tag color="orange" icon={<PauseCircleOutlined />}>{label}</Tag>
   return <Tag color="default">{label}</Tag>
+}
+
+const extractTelaahResults = (record: any): TelaahResults | null => {
+  const criteriaKeys = [
+    'tanggalResep', 'parafDokter', 'identitasPasien', 'bbTb',
+    'namaObat', 'kekuatan', 'jumlahObat', 'signa',
+    'duplikasi', 'kontraindikasi', 'interaksi', 'dosisLazim', 'alergi',
+    'infoKesesuaianIdentitas', 'infoNamaDosisJumlah', 'infoCaraGuna', 'infoEso'
+  ]
+
+  // Try new 'telaah' property first
+  if (record.telaah && typeof record.telaah === 'object') {
+    const results = record.telaah
+    const missing = criteriaKeys.filter(key => {
+      const val = results[key]
+      return val !== true && val !== 1 && val !== 'true'
+    })
+
+    if (missing.length === 0) return results
+  }
+
+  // Fallback to notes (legacy)
+  const notes = record.note
+  if (!Array.isArray(notes)) return null
+  const telaahNote = notes.find(n => typeof n?.text === 'string' && n.text.startsWith('TEALAAH:'))
+  if (!telaahNote) return null
+  
+  try {
+    const jsonStr = telaahNote.text.replace('TEALAAH:', '').trim()
+    const results = JSON.parse(jsonStr)
+    const { keterangan, ...booleans } = results
+    
+    // For legacy, check against the exact keys that are in the JSON
+    // New design expects all criteria to be strictly checked
+    const allMet = criteriaKeys.every(key => {
+      const val = booleans[key]
+      return val === true || val === 1 || val === 'true'
+    })
+    
+    return allMet ? results : null
+  } catch (e) {
+    console.error('Failed to parse telaah note', e)
+    return null
+  }
 }
 
 function DispenseTimer({ servicedAt, handedOverAt, isBpjs }: { servicedAt?: string | null; handedOverAt?: string | null; isBpjs: boolean }) {
@@ -373,8 +424,12 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
   const hasStockInfo = typeof record.availableStock === 'number'
   const isStockInsufficient = hasStockInfo && quantityToDispense > (record.availableStock as number)
   const isPaid = record.paymentStatus === 'Lunas'
+  const isReviewed = useMemo(() => {
+    return !!extractTelaahResults(record)
+  }, [record])
+
   const canComplete =
-    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid && !!parentServicedAt
+    !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid && !!parentServicedAt && isReviewed
   const canVoid = isCompleted && typeof record.id === 'number'
   const isKomposisi = record.jenis === 'Komposisi'
 
@@ -388,7 +443,8 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
             unit: record.unit,
             instruksi: record.instruksi,
             expiryDate: (record as any).expiryDate,
-            batch: (record as any).batch
+            batch: (record as any).batch,
+            caraPenyimpanan: record.caraPenyimpanan
         }]
     })
   }
@@ -440,14 +496,14 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
           Stok obat kosong / tidak cukup, tidak dapat menyerahkan obat.
         </div>
       )}
-      {!isKomposisi && !isPaid && !isCompleted && !isTerminal && !isStockInsufficient && (
-        <div className="text-xs text-orange-500">
-          Pembayaran belum lunas, tidak dapat menyerahkan obat.
-        </div>
-      )}
       {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && !parentServicedAt && (
         <div className="text-xs text-orange-500 font-semibold bg-orange-50 border border-orange-200 p-1 px-2 rounded-md">
-          Harap &quot;Mulai Proses&quot; (di menu titik tiga) terlebih dahulu.
+          Harap klik &quot;Mulai Proses&quot; terlebih dahulu (pada baris utama).
+        </div>
+      )}
+      {!isKomposisi && isPaid && !isCompleted && !isTerminal && !isStockInsufficient && parentServicedAt && !isReviewed && (
+        <div className="text-xs text-red-500 font-semibold bg-red-50 border border-red-200 p-1 px-2 rounded-md">
+          Harap &quot;Periksa&quot; (Telaah Administrasi) terlebih dahulu.
         </div>
       )}
       <SerahkanObatModal
@@ -501,6 +557,21 @@ function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
 function MainRowActions({ record }: { record: ParentRow }) {
   const { message, modal } = AntdApp.useApp()
   const [syncingSatusehat, setSyncingSatusehat] = useState(false)
+  const [isTelaahModalVisible, setIsTelaahModalVisible] = useState(false)
+  const [currentTelaahResults, setCurrentTelaahResults] = useState<TelaahResults>(defaultTelaahResults)
+
+  const existingTelaah = useMemo(() => {
+    for (const item of record.items) {
+      const results = extractTelaahResults(item)
+      if (results) return results
+    }
+    return null
+  }, [record.items])
+
+  const handleOpenTelaah = () => {
+    setCurrentTelaahResults(existingTelaah || defaultTelaahResults)
+    setIsTelaahModalVisible(true)
+  }
 
   const syncItems = record.items.filter((i) => i.jenis !== 'Komposisi' && typeof i.id === 'number')
   const isAllSynced =
@@ -556,10 +627,23 @@ function MainRowActions({ record }: { record: ParentRow }) {
   }
 
   const isPaid = record.paymentStatus === 'Lunas'
+  const hasValidServicedAt = !!record.servicedAt && record.servicedAt !== '' && record.servicedAt !== 'null'
+  
   const hasItemsToProcess = record.items.some((i) => {
     const s = (i.status || '').toLowerCase()
-    return s === 'preparation' || (s === 'in-progress' && !record.servicedAt)
+    // Show "Mulai Proses" if status is preparation OR (in-progress but no valid timer start yet)
+    return s === 'preparation' || (s === 'in-progress' && !hasValidServicedAt)
   })
+
+  useEffect(() => {
+    if (!hasItemsToProcess && !record.servicedAt) {
+      console.log('[MD-Debug] MainRowActions - Button hidden because:', {
+        itemsCount: record.items.length,
+        statuses: record.items.map(i => i.status),
+        servicedAt: record.servicedAt
+      })
+    }
+  }, [hasItemsToProcess, record.items, record.servicedAt])
 
   const handleMulaiProsesGroup = () => {
     console.log('[handleMulaiProsesGroup] Executed from dropdown click!')
@@ -636,11 +720,20 @@ function MainRowActions({ record }: { record: ParentRow }) {
     menuItems.push({
       key: 'mulai-proses',
       label: 'Mulai Proses',
-      icon: <CheckCircleOutlined />,
+      icon: <PlayCircleOutlined />,
       onClick: handleMulaiProsesGroup
     })
     menuItems.push({ type: 'divider' })
   }
+
+  menuItems.push({
+    key: 'periksa',
+    label: 'Periksa (Telaah Administrasi)',
+    icon: <FileTextOutlined />,
+    onClick: handleOpenTelaah
+  })
+
+  menuItems.push({ type: 'divider' })
 
   menuItems.push({
     key: 'sync-satusehat',
@@ -651,9 +744,47 @@ function MainRowActions({ record }: { record: ParentRow }) {
   })
 
   return (
-    <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-      <Button type="text" icon={<MoreOutlined />} size="small" />
-    </Dropdown>
+    <>
+      <div className="flex gap-2">
+        <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+          <Button type="text" icon={<MoreOutlined />} size="small" />
+        </Dropdown>
+      </div>
+      <Modal
+        title="Telaah Administrasi & Farmasetik"
+        open={isTelaahModalVisible}
+        onCancel={() => setIsTelaahModalVisible(false)}
+        width={1000}
+        onOk={async () => {
+          const fn = window.api?.query?.medicationDispense?.update
+          if (!fn) {
+            message.error('API update tidak tersedia.')
+            return
+          }
+          try {
+            // Update all items in this group with the new telaah results
+            for (const item of record.items) {
+              if (typeof item.id === 'number') {
+                await fn({ id: item.id, telaahResults: currentTelaahResults } as any)
+              }
+            }
+
+            message.success('Telaah administrasi berhasil disimpan.')
+
+            setIsTelaahModalVisible(false)
+            queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
+          } catch (err) {
+            message.error('Gagal memproses perubahan: ' + String(err))
+          }
+        }}
+      >
+        <TelaahAdministrasiForm
+          isInternal={record.encounterType !== 'Luar' && !!record.servicedAt}
+          results={currentTelaahResults}
+          onChange={setCurrentTelaahResults}
+        />
+      </Modal>
+    </>
   )
 }
 
@@ -695,6 +826,19 @@ const columns = [
     dataIndex: 'status',
     key: 'status',
     render: (val: string) => getStatusTag(val)
+  },
+  {
+    title: 'Telaah',
+    key: 'telaah',
+    render: (_: any, row: ParentRow) => {
+      const mainItems = row.items.filter(i => i.jenis !== 'Komposisi')
+      const isReviewed = mainItems.length > 0 && mainItems.every(item => !!extractTelaahResults(item))
+      return isReviewed ? (
+        <Tag color="green" icon={<CheckCircleOutlined />}>Selesai</Tag>
+      ) : (
+        <Tag color="volcano" icon={<QuestionCircleOutlined />}>Belum Ditelaah</Tag>
+      )
+    }
   },
   {
     title: 'Pembayaran',
@@ -922,6 +1066,18 @@ export function MedicationDispenseTable() {
         if (u) {
           map.set(item.id, String(u).trim())
         }
+      }
+    }
+    return map
+  }, [itemSource?.result])
+
+  const itemCaraPenyimpananById = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    for (const item of source) {
+      if (typeof item.id === 'number') {
+        const cp = (item as any).caraPenyimpanan || ''
+        if (cp) map.set(item.id, String(cp))
       }
     }
     return map
@@ -1231,7 +1387,8 @@ export function MedicationDispenseTable() {
               instruksi: ing.note ?? ing.instruction,
               batch: ingBatch || '-',
               expiryDate: ingExpiryDate || '-',
-              kekuatan: (ing.strength || (typeof ingItemId === 'number' ? itemKekuatanById.get(ingItemId) : undefined)) || '-'
+              kekuatan: (ing.strength || (typeof ingItemId === 'number' ? itemKekuatanById.get(ingItemId) : undefined)) || '-',
+              caraPenyimpanan: typeof ingItemId === 'number' ? itemCaraPenyimpananById.get(ingItemId) : undefined
             }
           })
         }
@@ -1259,6 +1416,9 @@ export function MedicationDispenseTable() {
           typeof item.fhirId === 'string' && item.fhirId.trim().length > 0
             ? item.fhirId.trim()
             : undefined,
+        caraPenyimpanan: typeof item.itemId === 'number' ? itemCaraPenyimpananById.get(item.itemId) : undefined,
+        note: item.note,
+        telaah: item.telaah,
         children
       }
 

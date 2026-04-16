@@ -55,6 +55,10 @@ const dummyUsers = [
   {
     username: 'ok.admin',
     password: 'ok123'
+  },
+  {
+    username: 'farmasi.admin',
+    password: 'pharmacist123'
   }
 ]
 

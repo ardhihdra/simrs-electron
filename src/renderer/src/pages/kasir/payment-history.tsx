@@ -1,6 +1,9 @@
-import { Table, Typography, Button } from 'antd'
+import { Table, Typography, Button, Dropdown } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
+import { PrinterOutlined } from '@ant-design/icons'
+import { printReceipt } from '@renderer/utils/print-service'
+import type { Invoice, PersistedInvoice } from '@renderer/utils/print-service'
 
 interface PaymentRecord {
     id: number
@@ -13,6 +16,17 @@ interface PaymentRecord {
     note: string | null
     attachmentPath: string | null
     paymentStatus: string
+}
+
+
+
+interface PaymentHistoryProps {
+    payments: PaymentRecord[]
+    totalPaid: number
+    remaining: number
+    invoice?: Invoice
+    persistedInvoice?: PersistedInvoice | null
+    cashierName?: string
 }
 
 const methodLabel: Record<string, string> = {
@@ -29,74 +43,97 @@ function formatRupiah(value: number): string {
     }).format(value)
 }
 
-const columns: ColumnsType<PaymentRecord> = [
-    { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 180 },
-    {
-        title: 'Tanggal',
-        dataIndex: 'date',
-        key: 'date',
-        width: 160,
-        render: (v) => dayjs(v).format('DD MMM YYYY HH:mm'),
-    },
-    {
-        title: 'Metode',
-        dataIndex: 'paymentMethod',
-        key: 'paymentMethod',
-        render: (v, r) => (
-            <span>
-                {methodLabel[v] ?? v}
-                {r.bankName && (
-                    <span className="text-gray-500 ml-1 text-xs">({r.bankName})</span>
-                )}
-            </span>
-        ),
-    },
-    {
-        title: 'Referensi',
-        dataIndex: 'ref',
-        key: 'ref',
-        render: (v) => v ?? '-',
-    },
-    {
-        title: 'Jumlah',
-        dataIndex: 'amount',
-        key: 'amount',
-        align: 'right' as const,
-        render: (v) => formatRupiah(Number(v)),
-    },
-    {
-        title: 'Bukti',
-        key: 'attachment',
-        width: 80,
-        align: 'center' as const,
-        render: (_, r) =>
-            r.attachmentPath ? (
-                <Button
-                    type="link"
-                    size="small"
-                    onClick={() =>
-                        window.open(
-                            `${import.meta.env.VITE_FILE_SERVER_URL ?? ''}/${r.attachmentPath}`,
-                            '_blank',
-                        )
-                    }
-                >
-                    Lihat
-                </Button>
-            ) : (
-                <span className="text-gray-400 text-xs">-</span>
-            ),
-    },
-]
-
-interface PaymentHistoryProps {
-    payments: PaymentRecord[]
-    totalPaid: number
-    remaining: number
-}
-
-export function PaymentHistory({ payments, totalPaid, remaining }: PaymentHistoryProps) {
+export function PaymentHistory({ payments, totalPaid, remaining, invoice, persistedInvoice, cashierName }: PaymentHistoryProps) {
     if (payments.length === 0) return null
+
+    const columns: ColumnsType<PaymentRecord> = [
+        { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 170 },
+        {
+            title: 'Tanggal',
+            dataIndex: 'date',
+            key: 'date',
+            width: 150,
+            render: (v) => dayjs(v).format('DD MMM YYYY HH:mm'),
+        },
+        {
+            title: 'Metode',
+            dataIndex: 'paymentMethod',
+            key: 'paymentMethod',
+            width: 130,
+            render: (v, r) => (
+                <span>
+                    {methodLabel[v] ?? v}
+                    {r.bankName && (
+                        <span className="text-gray-500 ml-1 text-xs">({r.bankName})</span>
+                    )}
+                </span>
+            ),
+        },
+        {
+            title: 'Referensi',
+            dataIndex: 'ref',
+            key: 'ref',
+            render: (v) => v ?? '-',
+        },
+        {
+            title: 'Jumlah',
+            dataIndex: 'amount',
+            key: 'amount',
+            width: 130,
+            align: 'right' as const,
+            render: (v) => formatRupiah(Number(v)),
+        },
+        {
+            title: 'Bukti',
+            key: 'attachment',
+            width: 70,
+            align: 'center' as const,
+            render: (_, r) =>
+                r.attachmentPath ? (
+                    <Button
+                        type="link"
+                        size="small"
+                        onClick={() =>
+                            window.open(
+                                `${import.meta.env.VITE_FILE_SERVER_URL ?? ''}/${r.attachmentPath}`,
+                                '_blank',
+                            )
+                        }
+                    >
+                        Lihat
+                    </Button>
+                ) : (
+                    <span className="text-gray-400 text-xs">-</span>
+                ),
+        },
+        {
+            title: 'Aksi',
+            key: 'action',
+            width: 100,
+            align: 'center' as const,
+            render: (_, r) => (
+                <Dropdown
+                    menu={{
+                        items: [
+                            { 
+                                key: 'patient', 
+                                label: 'Cetak (An. Pasien)', 
+                                onClick: () => invoice && printReceipt(invoice, persistedInvoice || null, r, { printForKind: 'patient', cashierName }) 
+                            },
+                            { 
+                                key: 'guarantor', 
+                                label: 'Cetak (An. Penjamin)', 
+                                onClick: () => invoice && printReceipt(invoice, persistedInvoice || null, r, { printForKind: 'guarantor', cashierName }) 
+                            }
+                        ]
+                    }}
+                    trigger={['click']}
+                >
+                    <Button size="small" type="primary" icon={<PrinterOutlined />}>Kwitansi</Button>
+                </Dropdown>
+            )
+        }
+    ]
 
     return (
         <div className="mt-6">
