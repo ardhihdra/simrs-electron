@@ -1,5 +1,6 @@
 import { useMemo, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
 import {
   Table,
   Button,
@@ -28,10 +29,11 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
-import { client } from '@renderer/utils/client'
+import { client, rpc } from '@renderer/utils/client'
 import { PatientQueue, Gender } from '../../types/nurse.types'
 
 const { Option } = Select
+const { RangePicker } = DatePicker
 
 interface PatientQueueTableData extends Omit<PatientQueue, 'status'> {
   no: number
@@ -58,6 +60,12 @@ type QueueRow = {
   encounterId?: string
 }
 
+type QueueListResponse = {
+  success?: boolean
+  result?: QueueRow[]
+  error?: string
+}
+
 type ScopedPoli = {
   id: string
   name: string
@@ -65,11 +73,22 @@ type ScopedPoli = {
   lokasiKerjaId?: number
 }
 
-const NURSE_VISIBLE_STATUSES = ['CALLED','TRIAGE'] as const
+const NURSE_DEFAULT_STATUS = 'TRIAGE'
+const NURSE_TRIAGE_STATUS = 'TRIAGE'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; dotColor: string }> = {
   all: { label: 'Semua', color: '', dotColor: '#6b7280' },
   TRIAGE: { label: 'Pemeriksaan Awal', color: 'gold', dotColor: '#f59e0b' }
+}
+
+const STATUS_DISPLAY_CONFIG: Record<string, { label: string; color: string }> = {
+  TRIAGE: { label: 'Pemeriksaan Awal', color: 'gold' },
+  CHECKED_IN: { label: 'Check-in', color: 'cyan' },
+  IN_PROGRESS: { label: 'Diperiksa Dokter', color: 'orange' },
+  FINISHED: { label: 'Selesai', color: 'green' },
+  CANCELLED: { label: 'Dibatalkan', color: 'red' },
+  EXPIRED: { label: 'Kedaluwarsa', color: 'default' },
+  NO_SHOW: { label: 'Tidak Hadir', color: 'default' }
 }
 
 const normalizePoliCode = (value: string | number) => String(value).trim().toLowerCase()
@@ -86,6 +105,39 @@ const parseQueueNumber = (value?: number | string) => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+const parseTimestamp = (value?: string) => {
+  const parsed = dayjs(value)
+  return parsed.isValid() ? parsed.valueOf() : 0
+}
+
+const toStatusLabel = (status: string) => {
+  const value = String(status || '').trim()
+  if (!value) return '-'
+  const mapped = STATUS_DISPLAY_CONFIG[value]
+  if (mapped) return mapped.label
+  return value
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+}
+
+const buildDateRangeList = (range: [dayjs.Dayjs, dayjs.Dayjs]): string[] => {
+  const [startRaw, endRaw] = range
+  const start = startRaw.isAfter(endRaw, 'day') ? endRaw : startRaw
+  const end = endRaw.isAfter(startRaw, 'day') ? endRaw : startRaw
+
+  const dates: string[] = []
+  let cursor = start.startOf('day')
+  const last = end.startOf('day')
+
+  while (cursor.isBefore(last) || cursor.isSame(last, 'day')) {
+    dates.push(cursor.format('YYYY-MM-DD'))
+    cursor = cursor.add(1, 'day')
+  }
+
+  return dates
+}
+
 const PatientQueueTable = () => {
   const { message, modal } = App.useApp()
   const { token } = theme.useToken()
@@ -98,8 +150,8 @@ const PatientQueueTable = () => {
 
   const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
-  const [queueDate, setQueueDate] = useState<dayjs.Dayjs>(dayjs())
-  const [activeStatus, setActiveStatus] = useState<string>('all')
+  const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>([dayjs(), dayjs()])
+  const [activeStatus, setActiveStatus] = useState<string>(NURSE_DEFAULT_STATUS)
 
   const { data: poliData, isLoading: isPoliLoading } = client.visitManagement.poli.useQuery({})
   const scopedPolis = useMemo<ScopedPoli[]>(() => {
@@ -154,39 +206,139 @@ const PatientQueueTable = () => {
     }
   }, [routePoliCode, scopedPoliIdSet, selectedPoli])
 
+  const normalizedDateRange = useMemo<[dayjs.Dayjs, dayjs.Dayjs] | null>(() => {
+    if (!dateRange) return null
+    const [start, end] = dateRange
+    return start.isAfter(end, 'day') ? [end, start] : [start, end]
+  }, [dateRange])
+
   const {
     data: queueData,
     isLoading,
     refetch
-  } = client.registration.getQueues.useQuery({
-    queueDate: queueDate.format('YYYY-MM-DD'),
-    status: [...NURSE_VISIBLE_STATUSES]
+  } = useQuery<QueueListResponse>({
+    queryKey: [
+      'nurse',
+      'queue-list',
+      normalizedDateRange?.[0]?.format('YYYY-MM-DD') || 'all',
+      normalizedDateRange?.[1]?.format('YYYY-MM-DD') || 'all'
+    ],
+    queryFn: async () => {
+      if (!normalizedDateRange) {
+        const fn = window.api?.query?.encounter?.list
+        if (!fn) {
+          throw new Error('API encounter tidak tersedia')
+        }
+
+        const pageSize = 100
+        let page = 1
+        const allEncounters: any[] = []
+
+        while (page <= 20) {
+          const response = await fn({
+            page: String(page),
+            items: String(pageSize),
+            sortBy: 'updatedAt',
+            sortOrder: 'DESC'
+          })
+
+          if ((response as any)?.success === false) {
+            throw new Error((response as any)?.error || 'Gagal memuat data encounter')
+          }
+
+          const rows = Array.isArray((response as any)?.result) ? (response as any).result : []
+          if (rows.length === 0) break
+
+          allEncounters.push(...rows)
+          if (rows.length < pageSize) break
+          page += 1
+        }
+
+        const result: QueueRow[] = allEncounters.map((encounter: any) => {
+          const queueTicket = encounter?.queueTicket || {}
+          const patient = encounter?.patient || {}
+          const poli = queueTicket?.poli || {}
+          const practitioner = queueTicket?.practitioner || {}
+          const serviceUnit = encounter?.serviceUnit || {}
+
+          return {
+            queueId: queueTicket?.id ? String(queueTicket.id) : undefined,
+            id: queueTicket?.id ? String(queueTicket.id) : encounter?.id ? String(encounter.id) : undefined,
+            queueNumber: queueTicket?.queueNumber,
+            formattedQueueNumber: queueTicket?.formattedQueueNumber,
+            queueDate: queueTicket?.queueDate || encounter?.visitDate || encounter?.startTime || encounter?.createdAt,
+            createdAt: queueTicket?.createdAt || encounter?.createdAt,
+            updatedAt: queueTicket?.updatedAt || encounter?.updatedAt,
+            patientId: patient?.id ? String(patient.id) : undefined,
+            patientName: patient?.name,
+            patientBirthDate: patient?.birthDate,
+            patientMedicalRecordNumber: patient?.medicalRecordNumber || patient?.medical_record_number,
+            doctorName: practitioner?.namaLengkap || practitioner?.name,
+            poliCodeId: queueTicket?.poliCodeId || poli?.id || encounter?.serviceUnitId,
+            poliName: poli?.name || serviceUnit?.name,
+            status: queueTicket?.status || encounter?.status,
+            encounterId: encounter?.id ? String(encounter.id) : undefined
+          }
+        })
+
+        return {
+          success: true,
+          result
+        }
+      }
+
+      const dates = buildDateRangeList(normalizedDateRange)
+      const responses = await Promise.allSettled(
+        dates.map((queueDate) => rpc.registration.getQueues({ queueDate }))
+      )
+
+      const mergedRows = new Map<string, QueueRow>()
+      responses.forEach((response) => {
+        if (response.status !== 'fulfilled') return
+        const payload = response.value as QueueListResponse
+        const rows = Array.isArray(payload?.result) ? payload.result : []
+        rows.forEach((row) => {
+          const dedupeKey = String(
+            row.queueId ||
+            row.id ||
+            `${row.queueDate || ''}-${row.queueNumber || ''}-${row.patientId || ''}`
+          )
+          if (!mergedRows.has(dedupeKey)) {
+            mergedRows.set(dedupeKey, row)
+          }
+        })
+      })
+
+      return {
+        success: true,
+        result: Array.from(mergedRows.values())
+      }
+    }
   })
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
 
+  const fallbackDateIso = useMemo(
+    () => (normalizedDateRange?.[1] || dayjs()).toISOString(),
+    [normalizedDateRange]
+  )
+
   useEffect(() => {
+    const refreshIntervalMs = normalizedDateRange ? 5000 : 15000
     const intervalId = window.setInterval(() => {
       refetch()
-    }, 5000)
+    }, refreshIntervalMs)
 
     return () => {
       window.clearInterval(intervalId)
     }
-  }, [refetch])
+  }, [normalizedDateRange, refetch])
 
-  const filteredQueues = useMemo(() => {
+  const baseFilteredQueues = useMemo(() => {
     const rows = (queueData?.result || []) as QueueRow[]
     const search = searchText.trim().toLowerCase()
 
     return rows
       .filter((row) => {
-        const queueStatus = String(row.status || '')
-        if (
-          !NURSE_VISIBLE_STATUSES.includes(queueStatus as (typeof NURSE_VISIBLE_STATUSES)[number])
-        ) {
-          return false
-        }
-
         const queuePoliId = row.poliCodeId != null ? String(row.poliCodeId) : ''
         if (!queuePoliId || !scopedPoliIdSet.has(queuePoliId)) return false
         if (selectedPoli && queuePoliId !== selectedPoli) return false
@@ -196,65 +348,117 @@ const PatientQueueTable = () => {
         const queueLabel = String(row.formattedQueueNumber || row.queueNumber || '').toLowerCase()
         return patientName.includes(search) || queueLabel.includes(search)
       })
-      .filter((row) => (activeStatus === 'all' ? true : row.status === activeStatus))
-  }, [activeStatus, queueData?.result, scopedPoliIdSet, searchText, selectedPoli])
+      .sort(
+        (a, b) =>
+          parseTimestamp(b.updatedAt || b.createdAt || b.queueDate) -
+          parseTimestamp(a.updatedAt || a.createdAt || a.queueDate)
+      )
+  }, [queueData?.result, scopedPoliIdSet, searchText, selectedPoli])
 
-  const activePoliName = useMemo(() => {
-    if (selectedPoli) {
-      return scopedPolis.find((poli) => poli.id === selectedPoli)?.name ?? '-'
-    }
-    return 'Semua Poli (Lokasi Kerja Anda)'
-  }, [scopedPolis, selectedPoli])
+  const filteredQueues = useMemo(() => {
+    if (activeStatus === 'all') return baseFilteredQueues
+    return baseFilteredQueues.filter((row) => String(row.status || '') === activeStatus)
+  }, [activeStatus, baseFilteredQueues])
 
-  const patientQueue: PatientQueueTableData[] = useMemo(
-    () =>
-      filteredQueues.map((row, index) => {
-        const queueId = String(row.queueId || row.id || '')
-        const registrationDate = row.queueDate || queueDate.toISOString()
-        return {
-          no: index + 1,
-          key: queueId || String(index),
-          id: queueId || String(index),
-          queueId,
-          encounterId: row.encounterId,
-          queueNumber: parseQueueNumber(row.queueNumber),
-          patient: {
-            id: String(row.patientId || ''),
-            name: row.patientName || 'Unknown',
-            medicalRecordNumber: row.patientMedicalRecordNumber || '-',
-            gender: Gender.MALE,
-            birthDate: row.patientBirthDate ? String(row.patientBirthDate) : '',
-            age: row.patientBirthDate ? dayjs().diff(dayjs(row.patientBirthDate), 'year') : 0,
-            phone: '',
-            address: '',
-            identityNumber: ''
-          },
-          poli: {
-            id: String(row.poliCodeId || ''),
-            code: String(row.poliCodeId || ''),
-            name: row.poliName || '-'
-          },
-          doctor: {
-            id: '',
-            name: row.doctorName || '-',
-            specialization: 'General',
-            sipNumber: '-'
-          },
-          status: String(row.status || ''),
-          registrationDate,
-          encounterType: 'AMB'
-        }
-      }),
-    [filteredQueues, queueDate]
-  )
+  const patientQueue: PatientQueueTableData[] = useMemo(() => {
+    return filteredQueues.map((row, index) => {
+      const queueId = String(row.queueId || row.id || '')
+      const queueNumber = parseQueueNumber(row.queueNumber)
+      const formattedQueueNumber =
+        row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
+      const triageUpdatedAt =
+        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
+      const registrationDate =
+        row.queueDate || row.createdAt || fallbackDateIso
 
-  const markAsTriage = async (record: PatientQueueTableData) => {
-    await updateStatusMutation.mutateAsync({
-      queueId: record.queueId,
-      action: 'CALL_TO_TRIAGE'
+      return {
+        no: index + 1,
+        key: queueId || String(index),
+        id: queueId || String(index),
+        queueId,
+        encounterId: row.encounterId,
+        queueNumber,
+        formattedQueueNumber,
+        triageUpdatedAt,
+        patient: {
+          id: String(row.patientId || ''),
+          name: row.patientName || 'Unknown',
+          medicalRecordNumber: row.patientMedicalRecordNumber || '-',
+          gender: Gender.MALE,
+          birthDate: row.patientBirthDate ? String(row.patientBirthDate) : '',
+          age: row.patientBirthDate ? dayjs().diff(dayjs(row.patientBirthDate), 'year') : 0,
+          phone: '',
+          address: '',
+          identityNumber: ''
+        },
+        poli: {
+          id: String(row.poliCodeId || ''),
+          code: String(row.poliCodeId || ''),
+          name: row.poliName || '-'
+        },
+        doctor: {
+          id: '',
+          name: row.doctorName || '-',
+          specialization: 'General',
+          sipNumber: '-'
+        },
+        status: String(row.status || ''),
+        registrationDate,
+        encounterType: 'AMB'
+      }
     })
-    message.success(`Antrian ${record.queueNumber} dipanggil ke Triage`)
-  }
+  }, [fallbackDateIso, filteredQueues])
+
+  const allPatientQueue: PatientQueueTableData[] = useMemo(() => {
+    return baseFilteredQueues.map((row, index) => {
+      const queueId = String(row.queueId || row.id || '')
+      const queueNumber = parseQueueNumber(row.queueNumber)
+      const formattedQueueNumber =
+        row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
+      const triageUpdatedAt =
+        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
+      const registrationDate =
+        row.queueDate || row.createdAt || fallbackDateIso
+
+      return {
+        no: index + 1,
+        key: queueId || String(index),
+        id: queueId || String(index),
+        queueId,
+        encounterId: row.encounterId,
+        queueNumber,
+        formattedQueueNumber,
+        triageUpdatedAt,
+        patient: {
+          id: String(row.patientId || ''),
+          name: row.patientName || 'Unknown',
+          medicalRecordNumber: row.patientMedicalRecordNumber || '-',
+          gender: Gender.MALE,
+          birthDate: row.patientBirthDate ? String(row.patientBirthDate) : '',
+          age: row.patientBirthDate ? dayjs().diff(dayjs(row.patientBirthDate), 'year') : 0,
+          phone: '',
+          address: '',
+          identityNumber: ''
+        },
+        poli: {
+          id: String(row.poliCodeId || ''),
+          code: String(row.poliCodeId || ''),
+          name: row.poliName || '-'
+        },
+        doctor: {
+          id: '',
+          name: row.doctorName || '-',
+          specialization: 'General',
+          sipNumber: '-'
+        },
+        status: String(row.status || ''),
+        registrationDate,
+        encounterType: 'AMB'
+      }
+    })
+  }, [baseFilteredQueues, fallbackDateIso])
+
+  const latestTriageQueue = allPatientQueue.find((queue) => queue.status === NURSE_TRIAGE_STATUS)
 
   const handleExaminePatient = async (record: PatientQueueTableData) => {
     if (!record.encounterId) {
@@ -271,6 +475,11 @@ const PatientQueueTable = () => {
   }
 
   const handleMoveToPoliQueue = (record: PatientQueueTableData) => {
+    if (record.status !== NURSE_TRIAGE_STATUS) {
+      message.warning('Hanya pasien status TRIAGE yang bisa dipindahkan ke antrean poli.')
+      return
+    }
+
     if (!record.queueId) {
       message.error('ID Antrian tidak ditemukan')
       return
@@ -298,8 +507,15 @@ const PatientQueueTable = () => {
   }
 
   const getStatusTag = (status: string) => {
-    const cfg = STATUS_CONFIG[status]
-    if (!cfg) return <Tag>{status}</Tag>
+    const cfg = STATUS_DISPLAY_CONFIG[status]
+    if (!cfg) {
+      return (
+        <Tag color="default" bordered={false} className="font-medium rounded-md">
+          {toStatusLabel(status)}
+        </Tag>
+      )
+    }
+
     return (
       <Tag color={cfg.color} bordered={false} className="font-medium rounded-md">
         {cfg.label}
@@ -307,7 +523,11 @@ const PatientQueueTable = () => {
     )
   }
 
-  const totalTriage = patientQueue.filter((p) => p.status === 'TRIAGED').length
+  const totalTriage = allPatientQueue.filter((p) => p.status === NURSE_TRIAGE_STATUS).length
+  const latestTriageQueueId = latestTriageQueue?.queueId
+  const latestTriageTime = latestTriageQueue?.triageUpdatedAt
+    ? dayjs(latestTriageQueue.triageUpdatedAt).format('HH:mm')
+    : '-'
 
   const columns: ColumnsType<PatientQueueTableData> = [
     {
@@ -324,19 +544,34 @@ const PatientQueueTable = () => {
       title: 'Antrian',
       dataIndex: 'queueNumber',
       key: 'queueNumber',
-      width: 72,
-      align: 'center',
-      render: (num: number) => (
-        <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center mx-auto"
-          style={{
-            background: token.colorPrimaryBg,
-            border: `1px solid ${token.colorPrimaryBorder}`
-          }}
-        >
-          <span style={{ color: token.colorPrimaryText, fontWeight: 700, fontSize: 14 }}>
-            {num || '-'}
-          </span>
+      width: 170,
+      render: (queueLabel: string, record) => (
+        <div className="flex items-center gap-2">
+          <Tag color="blue" bordered={false} className="font-mono font-semibold m-0 w-fit">
+            {queueLabel || '-'}
+          </Tag>
+          {record.queueId === latestTriageQueueId ? (
+            <Badge
+              color={token.colorSuccess}
+              text={<span style={{ fontSize: 10 }}>Terbaru</span>}
+            />
+          ) : null}
+        </div>
+      )
+    },
+    {
+      title: 'Tanggal Antrian',
+      dataIndex: 'registrationDate',
+      key: 'registrationDate',
+      width: 160,
+      render: (date: string) => (
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}>
+            {date ? dayjs(date).format('DD MMM YYYY') : '-'}
+          </div>
+          <div style={{ fontSize: 12, color: token.colorTextTertiary }}>
+            {date ? dayjs(date).format('HH:mm') : '-'}
+          </div>
         </div>
       )
     },
@@ -435,19 +670,6 @@ const PatientQueueTable = () => {
       )
     },
     {
-      title: 'Tgl Antrian',
-      dataIndex: 'registrationDate',
-      key: 'registrationDate',
-      width: 140,
-      render: (date: string) => (
-        <div>
-          <div style={{ fontSize: 14, fontWeight: 500, color: token.colorText }}>
-            {date ? dayjs(date).format('DD MMM YYYY') : '-'}
-          </div>
-        </div>
-      )
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -462,35 +684,33 @@ const PatientQueueTable = () => {
       fixed: 'right',
       render: (_, record) => (
         <Space size={6} onClick={(e) => e.stopPropagation()}>
-          {(NURSE_VISIBLE_STATUSES.includes(record.status as typeof NURSE_VISIBLE_STATUSES[number])) && (
-            <>
-              <Button
-                type="primary"
-                icon={<MedicineBoxOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleExaminePatient(record)
-                }}
-                size="small"
-                disabled={updateStatusMutation.isPending}
-                style={{ background: '#f97316', borderColor: '#f97316' }}
-              >
-                Periksa
-              </Button>
-              <Button
-                type="primary"
-                icon={<SoundOutlined />}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleMoveToPoliQueue(record)
-                }}
-                size="small"
-                loading={updateStatusMutation.isPending}
-                disabled={updateStatusMutation.isPending}
-              >
-                Pindahkan ke Poli
-              </Button>
-            </>
+          <Button
+            type="primary"
+            icon={<MedicineBoxOutlined />}
+            onClick={(e) => {
+              e.stopPropagation()
+              handleExaminePatient(record)
+            }}
+            size="small"
+            disabled={updateStatusMutation.isPending || !record.encounterId}
+            style={{ background: '#f97316', borderColor: '#f97316' }}
+          >
+            Periksa
+          </Button>
+          {record.status === NURSE_TRIAGE_STATUS && (
+            <Button
+              type="primary"
+              icon={<SoundOutlined />}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleMoveToPoliQueue(record)
+              }}
+              size="small"
+              loading={updateStatusMutation.isPending}
+              disabled={updateStatusMutation.isPending}
+            >
+              Pindahkan ke Poli
+            </Button>
           )}
         </Space>
       )
@@ -499,7 +719,9 @@ const PatientQueueTable = () => {
 
   const statusTabItems = Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
     const count =
-      key === 'all' ? patientQueue.length : patientQueue.filter((p) => p.status === key).length
+      key === 'all'
+        ? allPatientQueue.length
+        : allPatientQueue.filter((p) => p.status === key).length
 
     return {
       key,
@@ -666,14 +888,14 @@ const PatientQueueTable = () => {
                 letterSpacing: '0.05em'
               }}
             >
-              Tanggal Antrian
+              Rentang Tanggal Antrian
             </div>
-            <DatePicker
+            <RangePicker
               className="w-full"
-              value={queueDate}
-              onChange={(value) => setQueueDate(value || dayjs())}
+              value={dateRange}
+              onChange={(dates) => setDateRange((dates as [dayjs.Dayjs, dayjs.Dayjs]) || null)}
               format="DD MMM YYYY"
-              allowClear={false}
+              allowClear
             />
           </Col>
         </Row>
@@ -691,29 +913,29 @@ const PatientQueueTable = () => {
                 style={
                   isActive
                     ? {
-                        background: token.colorPrimary,
-                        borderColor: token.colorPrimary,
-                        color: '#fff',
-                        padding: '6px 12px',
-                        borderRadius: token.borderRadiusSM,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }
+                      background: token.colorPrimary,
+                      borderColor: token.colorPrimary,
+                      color: '#fff',
+                      padding: '6px 12px',
+                      borderRadius: token.borderRadiusSM,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      border: '1px solid',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }
                     : {
-                        background: token.colorFillAlter,
-                        borderColor: token.colorBorderSecondary,
-                        color: token.colorTextSecondary,
-                        padding: '6px 12px',
-                        borderRadius: token.borderRadiusSM,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }
+                      background: token.colorFillAlter,
+                      borderColor: token.colorBorderSecondary,
+                      color: token.colorTextSecondary,
+                      padding: '6px 12px',
+                      borderRadius: token.borderRadiusSM,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      border: '1px solid',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }
                 }
               >
                 {tab.label}

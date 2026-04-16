@@ -99,7 +99,7 @@ export const DoctorPatientList = () => {
   const [searchText, setSearchText] = useState('')
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>([dayjs(), dayjs()])
-  const [activeStatus, setActiveStatus] = useState<string>('all')
+  const [activeStatus, setActiveStatus] = useState<string>('IN_PROGRESS')
   const [isBulkSyncing, setIsBulkSyncing] = useState(false)
   const [syncingRows, setSyncingRows] = useState<Record<string, boolean>>({})
   const [dischargeModal, setDischargeModal] = useState<{
@@ -166,7 +166,6 @@ export const DoctorPatientList = () => {
       'list',
       selectedPoli,
       searchText,
-      activeStatus,
       dateRange,
       doctorTargetId
     ],
@@ -175,16 +174,9 @@ export const DoctorPatientList = () => {
       if (!fn) throw new Error('API encounter tidak tersedia')
       const params: any = {}
       if (searchText) params.q = searchText
-      if (activeStatus && activeStatus !== 'all') {
-        if (activeStatus === 'FINISHED') {
-          params.status = 'FINISHED'
-        } else {
-          params.status = activeStatus
-        }
-      } else {
-        params.status = 'IN_PROGRESS,FINISHED'
+      if (selectedPoli != null && String(selectedPoli).trim() !== '') {
+        params.poliCodeId = String(selectedPoli)
       }
-      if (selectedPoli) params.serviceType = selectedPoli
       if (doctorTargetId) params.doctorId = doctorTargetId
       if (dateRange) {
         params.startDate = dateRange[0].startOf('day').toISOString()
@@ -197,7 +189,7 @@ export const DoctorPatientList = () => {
     enabled: !isPoliLockedFromRoute || !!selectedPoli
   })
 
-  const patients: PatientListTableData[] = (encounterData?.result || []).map(
+  const allPatients: PatientListTableData[] = (encounterData?.result || []).map(
     (enc: any, index: number) => {
       const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
       const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
@@ -233,13 +225,13 @@ export const DoctorPatientList = () => {
         },
         queueTicket: enc.queueTicket
           ? {
-              id: enc.queueTicket.id,
-              queueNumber: enc.queueTicket.queueNumber,
-              queueDate: enc.queueTicket.queueDate,
-              status: enc.queueTicket.status,
-              poli: enc.queueTicket.poli,
-              practitioner: enc.queueTicket.practitioner
-            }
+            id: enc.queueTicket.id,
+            queueNumber: enc.queueTicket.queueNumber,
+            queueDate: enc.queueTicket.queueDate,
+            status: enc.queueTicket.status,
+            poli: enc.queueTicket.poli,
+            practitioner: enc.queueTicket.practitioner
+          }
           : undefined,
         poli: { name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-' },
         status: enc.status || 'unknown',
@@ -250,6 +242,18 @@ export const DoctorPatientList = () => {
       }
     }
   )
+
+  const patients: PatientListTableData[] = useMemo(() => {
+    const filtered =
+      activeStatus === 'all'
+        ? allPatients
+        : allPatients.filter((patient) => String(patient.status || '') === activeStatus)
+
+    return filtered.map((patient, index) => ({
+      ...patient,
+      no: index + 1
+    }))
+  }, [activeStatus, allPatients])
 
   const markAsInProgress = async (record: PatientListTableData) => {
     try {
@@ -319,13 +323,7 @@ export const DoctorPatientList = () => {
       const params: any = {}
       if (searchText) params.q = searchText
       if (activeStatus && activeStatus !== 'all') {
-        if (activeStatus === 'FINISHED') {
-          params.status = 'FINISHED'
-        } else {
-          params.status = activeStatus
-        }
-      } else {
-        params.status = 'IN_PROGRESS,FINISHED'
+        params.status = activeStatus
       }
       if (selectedPoli) params.serviceType = selectedPoli
       if (doctorTargetId) params.doctorId = doctorTargetId
@@ -404,12 +402,12 @@ export const DoctorPatientList = () => {
     )
   }
 
-  const totalSynced = patients.filter(
+  const totalSynced = allPatients.filter(
     (p) => p.satuSehatSyncStatus?.encounterSynced || !!p.fhirId
   ).length
-  const totalNotSynced = patients.length - totalSynced
-  const totalInProgress = patients.filter((p) => p.status === 'IN_PROGRESS').length
-  const totalFinished = patients.filter((p) => p.status === 'FINISHED').length
+  const totalNotSynced = allPatients.length - totalSynced
+  const totalInProgress = allPatients.filter((p) => p.status === 'IN_PROGRESS').length
+  const totalFinished = allPatients.filter((p) => p.status === 'FINISHED').length
 
   const columns: ColumnsType<PatientListTableData> = [
     {
@@ -498,9 +496,9 @@ export const DoctorPatientList = () => {
               : poliName === 'IGD'
                 ? 'IGD'
                 : poliName
-                    .toLowerCase()
-                    .replace(/_/g, ' ')
-                    .replace(/\b\w/g, (l) => l.toUpperCase())
+                  .toLowerCase()
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, (l) => l.toUpperCase())
 
         let typeLabel = record.encounterType || '-'
         let typeColor = 'default'
@@ -659,8 +657,8 @@ export const DoctorPatientList = () => {
 
         const isFullyCompleted = s
           ? !Object.values(s.resources).some(
-              (r) => r.total > 0 && (r.synced < r.total || (r.logSummary?.failed ?? 0) > 0)
-            )
+            (r) => r.total > 0 && (r.synced < r.total || (r.logSummary?.failed ?? 0) > 0)
+          )
           : !!record.fhirId
 
         if (isSynced && hasPendingResync) {
@@ -740,11 +738,11 @@ export const DoctorPatientList = () => {
   const statusTabItems = statusDisplayTabs.map(({ key, config }) => {
     let count = 0
     if (key === 'all') {
-      count = patients.length
+      count = allPatients.length
     } else if (key === 'FINISHED') {
-      count = patients.filter((p) => p.status === 'FINISHED').length
+      count = allPatients.filter((p) => p.status === 'FINISHED').length
     } else {
-      count = patients.filter((p) => p.status === key).length
+      count = allPatients.filter((p) => p.status === key).length
     }
 
     return {
@@ -1024,29 +1022,29 @@ export const DoctorPatientList = () => {
                 style={
                   isActive
                     ? {
-                        background: token.colorPrimary,
-                        borderColor: token.colorPrimary,
-                        color: '#fff',
-                        padding: '6px 12px',
-                        borderRadius: token.borderRadiusSM,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }
+                      background: token.colorPrimary,
+                      borderColor: token.colorPrimary,
+                      color: '#fff',
+                      padding: '6px 12px',
+                      borderRadius: token.borderRadiusSM,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      border: '1px solid',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }
                     : {
-                        background: token.colorFillAlter,
-                        borderColor: token.colorBorderSecondary,
-                        color: token.colorTextSecondary,
-                        padding: '6px 12px',
-                        borderRadius: token.borderRadiusSM,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }
+                      background: token.colorFillAlter,
+                      borderColor: token.colorBorderSecondary,
+                      color: token.colorTextSecondary,
+                      padding: '6px 12px',
+                      borderRadius: token.borderRadiusSM,
+                      fontSize: 14,
+                      fontWeight: 500,
+                      border: '1px solid',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }
                 }
               >
                 {tab.label}
