@@ -4,6 +4,11 @@ import {
   CheckCircleOutlined,
   SyncOutlined,
   InfoCircleOutlined,
+  UserOutlined,
+  IdcardOutlined,
+  HomeOutlined,
+  HistoryOutlined,
+  SolutionOutlined,
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
 import {
@@ -567,37 +572,58 @@ export default function BillingAllocationPage() {
 
   return (
     <div className="p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>Kembali</Button>
-          <Title level={3} className="!mb-0">Alokasi Penjamin - {kode}</Title>
+      {/* Modern Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+        <div className="flex items-center gap-4">
+          <Button 
+            icon={<ArrowLeftOutlined />} 
+            onClick={() => navigate(-1)}
+            className="hover:!border-blue-500 hover:!text-blue-500 transition-all rounded-lg"
+          >
+            Kembali
+          </Button>
+          <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
+          <div>
+            <Title level={4} className="!mb-0 text-slate-800">Alokasi Penjamin</Title>
+            <Text type="secondary" className="text-xs uppercase tracking-wider">{kode}</Text>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Select
-            value={globalPayorType}
-            onChange={(v) => { setGlobalPayorType(v); setGlobalMitraId(null) }}
-            style={{ width: 150 }}
-            options={[
-              { label: 'Asuransi', value: 'insurance' },
-              { label: 'BPJS', value: 'bpjs' },
-              { label: 'Perusahaan', value: 'company' },
-              { label: 'Umum', value: 'hospital' },
-            ]}
-          />
-          <RPCSelectAsync
-            entity="mitra"
-            listAll
-            placeHolder="Pilih Penjamin Utama"
-            value={globalMitraId}
-            onChange={setGlobalMitraId}
-            className="w-64"
-          />
+        
+        <div className="flex items-center flex-wrap gap-2">
+          <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-100">
+            <Select
+              value={globalPayorType}
+              onChange={(v) => { setGlobalPayorType(v); setGlobalMitraId(null) }}
+              variant="borderless"
+              style={{ width: 130 }}
+              options={[
+                { label: 'Asuransi', value: 'insurance' },
+                { label: 'BPJS', value: 'bpjs' },
+                { label: 'Perusahaan', value: 'company' },
+                { label: 'Umum', value: 'hospital' },
+              ]}
+              className="font-medium"
+            />
+            <div className="h-6 w-[1px] bg-slate-200"></div>
+            <RPCSelectAsync
+              entity="mitra"
+              listAll
+              placeHolder="Pilih Penjamin Utama"
+              value={globalMitraId}
+              onChange={setGlobalMitraId}
+              variant="borderless"
+              className="w-56 font-medium"
+            />
+          </div>
+
           <Button
             icon={<SyncOutlined />}
             onClick={openAllocationModal}
+            className="rounded-lg hover:!text-blue-500 hover:!border-blue-500"
           >
-            Alokasi Otomatis
+            Otomatis
           </Button>
+          
           <Button
             type="primary"
             icon={<SaveOutlined />}
@@ -605,9 +631,65 @@ export default function BillingAllocationPage() {
             onClick={handleSave}
             disabled={validationStatus.hasError}
             title={validationStatus.message}
+            className="rounded-lg shadow-md shadow-blue-100 bg-blue-600 hover:bg-blue-700"
           >
             Simpan Alokasi
           </Button>
+        </div>
+      </div>
+
+      {/* Patient Info Banner */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 bg-gradient-to-br from-blue-600 to-blue-800 p-8 rounded-2xl text-white shadow-lg shadow-blue-100 relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
+          <SolutionOutlined style={{ fontSize: 160 }} />
+        </div>
+        
+        <div className="flex items-start gap-4 col-span-1 md:col-span-1">
+          <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm shadow-inner">
+            <UserOutlined style={{ fontSize: 24 }} />
+          </div>
+          <div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">Nama Pasien</div>
+            <div className="text-xl font-bold leading-tight">{invoice?.patientName || '-'}</div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-4">
+          <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+            <IdcardOutlined style={{ fontSize: 24 }} />
+          </div>
+          <div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">No. Rekam Medis</div>
+            <div className="text-lg font-semibold tracking-wide">{invoice?.mrn || '-'}</div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-4">
+          <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+            <HomeOutlined style={{ fontSize: 24 }} />
+          </div>
+          <div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">Alamat Pasien</div>
+            <div className="text-sm font-medium line-clamp-2 leading-snug">{invoice?.address || '-'}</div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-4">
+          <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+            <HistoryOutlined style={{ fontSize: 24 }} />
+          </div>
+          <div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">Tanggal Pelayanan</div>
+            <div className="text-sm font-semibold tracking-wide">
+              {invoice?.visitDate ? new Date(invoice.visitDate).toLocaleDateString('id-ID', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }) : '-'}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -783,26 +865,6 @@ export default function BillingAllocationPage() {
         </div>
       </Modal>
 
-      <Card size="small" className="bg-blue-50">
-        <Row gutter={24}>
-          <Col span={6}>
-            <Text type="secondary">Nama Pasien</Text><br />
-            <Text strong style={{ fontSize: 16 }}>{invoice?.patientName || '-'}</Text>
-          </Col>
-          <Col span={6}>
-            <Text type="secondary">No. Rekam Medis</Text><br />
-            <Text strong>{invoice?.mrn || '-'}</Text>
-          </Col>
-          <Col span={6}>
-            <Text type="secondary">Alamat</Text><br />
-            <Text>{invoice?.address || '-'}</Text>
-          </Col>
-          <Col span={6}>
-            <Text type="secondary">Tanggal Pelayanan</Text><br />
-            <Text>{invoice?.visitDate ? new Date(invoice.visitDate).toLocaleString('id-ID') : '-'}</Text>
-          </Col>
-        </Row>
-      </Card>
 
       {rows.length === 0 && !isLoading && (
         <Card className="text-center py-10 text-gray-400">
@@ -810,49 +872,89 @@ export default function BillingAllocationPage() {
         </Card>
       )}
 
-      {groupedData.map(group => (
-        <div key={group.category} className="mb-6 border border-gray-100 rounded-lg overflow-hidden shadow-sm">
-          <Title level={5} className="!px-4 !py-3 bg-gray-50/50 mb-0 border-b border-gray-100 !text-slate-700">
-            {group.category}
-          </Title>
-          <Table
-            dataSource={group.items}
-            columns={columns}
-            rowKey="id"
-            pagination={false}
-            size="small"
-            showHeader={true}
-            className="border-none"
-          />
-        </div>
-      ))}
+      <div className="space-y-8">
+        {groupedData.map(group => (
+          <div key={group.category} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 transition-all hover:shadow-md">
+            <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-6 bg-blue-500 rounded-full"></div>
+                <Title level={5} className="!mb-0 text-slate-700 uppercase tracking-wide text-sm font-bold">
+                  {group.category}
+                </Title>
+              </div>
+              <Tag color="blue" className="rounded-full px-3">{group.items.length} Item</Tag>
+            </div>
+            <Table
+              dataSource={group.items}
+              columns={columns}
+              rowKey="id"
+              pagination={false}
+              size="middle"
+              showHeader={true}
+              className="px-2"
+            />
+          </div>
+        ))}
+      </div>
 
       <Divider />
 
-      <Row gutter={24}>
-        <Col span={10}>
-          <Card size="small" title="Ringkasan Alokasi">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <Text>Total Biaya</Text>
-                <Text strong>{formatRupiah(summary.total)}</Text>
+      <div className="flex justify-end pt-4">
+        <div className="w-full md:w-[600px]">
+          <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
+            
+            <Title level={4} className="mb-6 flex items-center gap-2">
+              <CheckCircleOutlined className="text-green-500" />
+              <span>Ringkasan Alokasi</span>
+            </Title>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-50">
+                <Text className="text-slate-500 font-medium font-bold">Total Tagihan</Text>
+                <Text className="text-lg font-bold text-slate-800">{formatRupiah(summary.total)}</Text>
               </div>
-              <div className="flex justify-between text-blue-600">
-                <Text>Tanggungan Asuransi</Text>
-                <Text strong>{formatRupiah(summary.asuransi)}</Text>
+              
+              <div className="flex justify-between items-center py-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                  <Text className="text-slate-600">Tanggungan Asuransi</Text>
+                </div>
+                <Text strong className="text-blue-600 font-semibold">{formatRupiah(summary.asuransi)}</Text>
               </div>
-              <div className="flex justify-between text-orange-600">
-                <Text>Tanggungan RS</Text>
-                <Text strong>{formatRupiah(summary.rs)}</Text>
+              
+              <div className="flex justify-between items-center py-1">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                  <Text className="text-slate-600">Tanggungan RS</Text>
+                </div>
+                <Text strong className="text-orange-600 font-semibold">{formatRupiah(summary.rs)}</Text>
               </div>
-              <div className="flex justify-between text-green-600 border-t pt-2 mt-2">
-                <Title level={5} className="!mb-0">Tanggungan Pasien</Title>
-                <Title level={5} className="!mb-0">{formatRupiah(summary.pasien)}</Title>
+              
+              <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100">
+                <div className="flex justify-between items-center text-green-700">
+                  <div className="flex flex-col">
+                    <Text className="text-xs uppercase font-bold tracking-wider text-green-600">Sisa Tanggungan</Text>
+                    <Title level={3} className="!mb-0 !mt-1 !text-green-700 font-black">Pasien</Title>
+                  </div>
+                  <Title level={2} className="!mb-0 !text-green-700 font-black">{formatRupiah(summary.pasien)}</Title>
+                </div>
               </div>
+
+              {validationStatus.hasError && (
+                <div className="mt-4 animate-pulse">
+                   <Alert
+                    message={validationStatus.message}
+                    type="error"
+                    showIcon
+                    className="rounded-lg font-medium"
+                   />
+                </div>
+              )}
             </div>
-          </Card>
-        </Col>
-      </Row>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
