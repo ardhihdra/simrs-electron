@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
-import { serializeKioskaPublicError } from '../../../shared/kioska-public-error'
 import { t } from '../'
+import { serializeKioskaPublicError } from '../../../shared/kioska-public-error'
 
 const KIOSKA_PUBLIC_RPC_ERROR_CODE = 'KIOSKA_PUBLIC_ERROR'
 
@@ -61,7 +61,8 @@ export const kioskaPublicRpc = {
     .input(
       z
         .object({
-          serviceTypeCode: z.enum(['REGISTRASI', 'REGISTRASI_ASURANSI']).optional()
+          serviceTypeCode: z.enum(['REGISTRASI', 'REGISTRASI_ASURANSI']).optional(),
+          lokasiKerjaCode: z.string().optional()
         })
         .passthrough()
     )
@@ -71,7 +72,9 @@ export const kioskaPublicRpc = {
       if (input.serviceTypeCode) {
         params.set('serviceTypeCode', input.serviceTypeCode)
       }
-
+      if (input.lokasiKerjaCode) {
+        params.set('lokasiKerjaCode', input.lokasiKerjaCode)
+      }
       const suffix = params.size ? `?${params.toString()}` : ''
       return await fetchPublic(`/public/kioska/registration-location${suffix}`)
     }),
