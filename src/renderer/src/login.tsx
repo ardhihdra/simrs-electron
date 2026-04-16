@@ -6,9 +6,8 @@ import slide3Url from '@renderer/assets/image/Slide3.jpeg'
 import logoUrl from '@renderer/assets/logo.png'
 import { useProfileStore } from '@renderer/store/profileStore'
 import type { FormProps } from 'antd'
-import { Button, Carousel, Checkbox, Form, Input } from 'antd'
-import Alert from 'antd/es/alert/Alert'
-import React, { useState } from 'react'
+import { App, Button, Carousel, Checkbox, Form, Input } from 'antd'
+import React from 'react'
 import { useNavigate } from 'react-router'
 
 type FieldType = {
@@ -62,25 +61,30 @@ const dummyUsers = [
 const LoginForm: React.FC = () => {
   const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
   console.log('is dev', IS_DEVELOPMENT)
-  const [errorInfo, setErrorInfo] = useState<string>()
+  const { message } = App.useApp()
   const navigate = useNavigate()
   const setProfile = useProfileStore((state) => state.setProfile)
   const form = Form.useForm<FieldType>()[0]
   const onFinish: FormProps<FieldType>['onFinish'] = async (values) => {
-    const res = (await window.api.auth.login({
-      username: values.username,
-      password: values.password
-    })) as LoginResult
-    if (res.success && res.user) {
-      setProfile(res.user)
-      navigate('/module-selection')
-      setErrorInfo(undefined)
-    } else {
-      setErrorInfo(res.error ?? 'Gagal login')
+    try {
+      const res = (await window.api.auth.login({
+        username: values.username,
+        password: values.password
+      })) as LoginResult
+
+      if (res.success && res.user) {
+        setProfile(res.user)
+        navigate('/module-selection')
+        return
+      }
+
+      message.error(res.error ?? 'Gagal login')
+    } catch (error: any) {
+      message.error(error?.message ?? 'Gagal login')
     }
   }
   const onFinishFailed: FormProps<FieldType>['onFinishFailed'] = () => {
-    setErrorInfo('Failed to login')
+    message.error('Silakan isi username dan password terlebih dahulu')
   }
 
   return (
@@ -159,7 +163,7 @@ const LoginForm: React.FC = () => {
                 <button
                   type="button"
                   className="text-blue-600 hover:underline text-sm"
-                  onClick={() => setErrorInfo('Silakan hubungi admin untuk reset password')}
+                  onClick={() => message.info('Silakan hubungi admin untuk reset password')}
                 >
                   Forgot Password ?
                 </button>
@@ -171,14 +175,14 @@ const LoginForm: React.FC = () => {
                 </Button>
               </Form.Item>
             </Form>
-            <Button
-              size="large"
-              className="w-full"
-              onClick={() => rpc.window.create({ route: '/kioska/setup', title: 'Kioska Publik' })}
-            >
-              Buka Kioska Publik
-            </Button>
-            {errorInfo && <Alert message={errorInfo} type="error" className="mb-4" />}
+            <div className="flex gap-4 justify-center items-center">
+              <Button size="large" className="w-full" onClick={() => rpc.window.create({ route: '/kioska/setup', title: 'Kioska Publik' })}>
+                Kioska Publik
+              </Button>
+              <Button size="large" className="w-full" onClick={() => rpc.window.create({ route: '/kioska/global', title: 'Kioska Publik' })}>
+                Kioska Global
+              </Button>
+            </div>
           </div>
 
           <div className="p-8 bg-linear-to-br from-blue-50 to-blue-100 flex items-center justify-center h-full">

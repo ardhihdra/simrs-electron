@@ -1,9 +1,23 @@
-import { PlusOutlined } from '@ant-design/icons'
-import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
-import CreatePatientModal from '@renderer/components/organisms/visit-management/CreatePatientModal'
+import { PlusOutlined, UserOutlined } from '@ant-design/icons'
+import PatientLookupSelector from '@renderer/components/organisms/patient/PatientLookupSelector'
+import { buildConfirmQueueSelectedPatient } from '@renderer/components/organisms/visit-management/confirm-queue-patient'
+import { calculateAge } from '@renderer/utils/calculateAge'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
-import { App, Button, DatePicker, Descriptions, Form, Input, Modal, Select, Space } from 'antd'
+import type { PatientAttributes } from '@shared/patient'
+import {
+  App,
+  Button,
+  DatePicker,
+  Descriptions,
+  Form,
+  Input,
+  Modal,
+  Select,
+  Space,
+  Tag,
+  Typography
+} from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -12,13 +26,21 @@ export type ConfirmQueueModalProps = {
   onClose: () => void
   queue?: any // Typed as any for now, should be GetActiveQueueResult
   onSuccess?: () => void
+  onPendingChange?: (isPending: boolean) => void
 }
 
-const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModalProps) => {
+const ConfirmQueueModal = ({
+  open,
+  onClose,
+  queue,
+  onSuccess,
+  onPendingChange
+}: ConfirmQueueModalProps) => {
   const [form] = Form.useForm()
   const confirmMutation = client.visitManagement.confirmAttendance.useMutation()
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
-  const [createPatientModalOpen, setCreatePatientModalOpen] = useState(false)
+  const [isPatientPickerOpen, setIsPatientPickerOpen] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>(undefined)
   const { message, modal } = App.useApp()
   const paymentMethod = Form.useWatch('paymentMethod', form)
   const needsMitra =
@@ -54,8 +76,10 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
 
   useEffect(() => {
     if (open && queue) {
+      const initialPatient = buildConfirmQueueSelectedPatient(queue)
+      setSelectedPatient(initialPatient as PatientAttributes | undefined)
       form.setFieldsValue({
-        patientId: queue.patientId || undefined,
+        patientId: initialPatient?.id || queue.patientId || undefined,
         paymentMethod: queue.paymentMethod ? String(queue.paymentMethod).toUpperCase() : 'CASH',
         mitraId: queue.mitraId || undefined,
         mitraCodeNumber: queue.mitraCodeNumber || undefined,
@@ -75,6 +99,21 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
       mitraCodeExpiredDate: undefined
     })
   }, [needsMitra, form])
+
+  useEffect(() => {
+    if (!open) {
+      setIsPatientPickerOpen(false)
+      setSelectedPatient(undefined)
+      form.resetFields(['patientId'])
+      return
+    }
+
+    form.setFieldValue('patientId', selectedPatient?.id)
+  }, [form, open, selectedPatient])
+
+  useEffect(() => {
+    onPendingChange?.(confirmMutation.isPending || updateStatusMutation.isPending)
+  }, [confirmMutation.isPending, onPendingChange, updateStatusMutation.isPending])
 
   const submitConfirmation = async (values: any) => {
     if (!queue) return
@@ -162,15 +201,6 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
     })
   }
 
-  const handlePatientCreated = (data: any) => {
-    message.success(`Pasien ${data?.result?.name} dibuat. Silakan pilih.`)
-
-    // If data.result.id is compliant
-    if (data?.result?.id) {
-      form.setFieldsValue({ patientId: data.result.id })
-    }
-  }
-
   return (
     <Modal
       title="Konfirmasi Kehadiran"
@@ -230,28 +260,57 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
           )
         }
       >
-        <Form.Item label="Pasien" required className="-mb-2!">
-          <Space className="w-full" align="start" style={{ marginBottom: 0 }}>
-            <Form.Item
-              name="patientId"
-              rules={[{ required: true, message: 'Harap pilih pasien' }]}
-              className="flex-1 mb-0 w-full"
-            >
-              <SelectAsync
-                entity="patient"
-                display="name"
-                output="id"
-                // disabled={!!queue?.patientId}
-                placeHolder="Cari Data Pasien"
-                className="w-full"
-              />
-            </Form.Item>
-            {!queue?.patientId && (
-              <Button icon={<PlusOutlined />} onClick={() => setCreatePatientModalOpen(true)}>
-                Buat Pasien
+        <Form.Item
+          name="patientId"
+          hidden
+          rules={[{ required: true, message: 'Harap pilih pasien' }]}
+        >
+          <Input />
+        </Form.Item>
+
+        <Form.Item label="Pasien" required>
+          {selectedPatient ? (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <Space align="start">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                    <UserOutlined />
+                  </div>
+                  <div>
+                    <Typography.Text strong>{selectedPatient.name || '-'}</Typography.Text>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <Tag color="blue">RM {selectedPatient.medicalRecordNumber || '-'}</Tag>
+                      <Tag>NIK {selectedPatient.nik || '-'}</Tag>
+                      <Tag>Umur : {calculateAge(selectedPatient.birthDate)}</Tag>
+                    </div>
+                    <Typography.Paragraph
+                      type="secondary"
+                      style={{ marginBottom: 0, marginTop: 8 }}
+                    >
+                      {selectedPatient.address || 'Alamat belum tersedia'}
+                    </Typography.Paragraph>
+                  </div>
+                </Space>
+
+                <Button icon={<PlusOutlined />} onClick={() => setIsPatientPickerOpen(true)}>
+                  Ganti Pasien
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4">
+              <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
+                Belum ada pasien dipilih untuk antrian ini.
+              </Typography.Paragraph>
+              <Button
+                type="primary"
+                icon={<PlusOutlined />}
+                onClick={() => setIsPatientPickerOpen(true)}
+              >
+                Pilih Pasien
               </Button>
-            )}
-          </Space>
+            </div>
+          )}
         </Form.Item>
 
         <Form.Item
@@ -313,11 +372,27 @@ const ConfirmQueueModal = ({ open, onClose, queue, onSuccess }: ConfirmQueueModa
           )}
       </Form>
 
-      <CreatePatientModal
-        open={createPatientModalOpen}
-        onClose={() => setCreatePatientModalOpen(false)}
-        onSuccess={handlePatientCreated}
-      />
+      <Modal
+        title="Pilih Pasien"
+        open={isPatientPickerOpen}
+        onCancel={() => setIsPatientPickerOpen(false)}
+        footer={null}
+        width={1100}
+        destroyOnClose
+      >
+        <PatientLookupSelector
+          value={selectedPatient}
+          onChange={(patient) => {
+            if (!patient) return
+            setSelectedPatient(patient)
+            setIsPatientPickerOpen(false)
+          }}
+          title="Cari Pasien"
+          showSelectionSummary={false}
+          showClearButton={false}
+          createButtonLabel="Buat Pasien Baru"
+        />
+      </Modal>
     </Modal>
   )
 }

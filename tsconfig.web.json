@@ -10,20 +10,15 @@
   ],
   "compilerOptions": {
     "composite": true,
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "baseUrl": ".",
     "paths": {
-      "@main/*": [
-        "src/main/*"
-      ],
-      "@renderer/*": [
-        "src/renderer/src/*"
-      ],
-      "@shared/*": [
-        "src/shared/*"
-      ]
+      "@main/*": ["src/main/*"],
+      "@renderer/*": ["src/renderer/src/*"],
+      "@shared/*": ["src/shared/*"]
     }
   }
 }

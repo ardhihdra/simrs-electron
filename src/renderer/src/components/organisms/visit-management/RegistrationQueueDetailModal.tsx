@@ -59,6 +59,7 @@ type QueueDetailReferralSummary = {
 type QueueDetailData = {
   queueId: string
   queueNumber: string
+  globalQueueNumber?: number
   formattedQueueNumber: string
   queueDate: string
   status: string
@@ -557,6 +558,9 @@ export default function RegistrationQueueDetailModal({
               <Descriptions column={2} bordered size="small">
                 <Descriptions.Item label="No. Antrian">
                   {formatLabel(detail.formattedQueueNumber)}
+                </Descriptions.Item>
+                <Descriptions.Item label="No. Antrian Global">
+                  {detail.globalQueueNumber != null ? String(detail.globalQueueNumber).padStart(3, '0') : '-'}
                 </Descriptions.Item>
                 <Descriptions.Item label="Status">
                   <Tag color="blue">{formatLabel(detail.status)}</Tag>
