@@ -17,6 +17,7 @@ type PatientFormValues = Omit<
   district?: string
   village?: string
   familyEmployee?: number | null
+  kepegawaianId?: number | null
   relatedPerson?: any[]
 }
 
@@ -37,6 +38,7 @@ const BIODATA_FIELD_NAMES = new Set([
   'religion',
   'maritalStatus',
   'familyEmployee',
+  'kepegawaianId',
   'relatedPerson'
 ])
 
@@ -102,6 +104,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
             religion?: string
             allowSendToSatusehat: boolean
             familyEmployee: number | null | undefined
+            kepegawaianId: number | null | undefined
           }
         >
       | undefined
@@ -123,6 +126,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         religion: item.religion ?? undefined,
         maritalStatus: item.maritalStatus ?? undefined,
         familyEmployee: item.familyEmployee ?? undefined,
+        kepegawaianId: item.kepegawaianId ?? undefined,
         allowSendToSatusehat: item.allowSendToSatusehat ?? false
       })
     }
@@ -179,6 +183,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         religion: values.religion ?? '',
         maritalStatus: values.maritalStatus ?? '',
         familyEmployee: values.familyEmployee ?? null,
+        kepegawaianId: values.kepegawaianId ?? null,
         relatedPerson: values.relatedPerson ?? [],
         insuranceProvider: null,
         insuranceNumber: null,
@@ -452,7 +457,18 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
             >
               <SelectKepegawaian
                 allowClear
-                placeholder="Pilih pegawai yang berelasi dengan pasien"
+                placeholder="Pilih pegawai yang merupakan kerabat pasien"
+              />
+            </Form.Item>
+            <Form.Item
+              label="Karyawan RS (Profil Pegawai)"
+              name="kepegawaianId"
+              className="col-span-2"
+              extra="Opsional. Pilih jika pasien adalah pegawai Rumah Sakit itu sendiri."
+            >
+              <SelectKepegawaian
+                allowClear
+                placeholder="Pilih profil pegawai untuk pasien ini"
               />
             </Form.Item>
 
