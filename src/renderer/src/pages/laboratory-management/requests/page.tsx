@@ -7,9 +7,11 @@ import {
   ExperimentOutlined,
   FileTextOutlined,
   PauseCircleOutlined,
+  PlusOutlined,
   ProfileOutlined,
   SyncOutlined,
-  ThunderboltOutlined
+  ThunderboltOutlined,
+  UserOutlined
 } from '@ant-design/icons'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import type { PatientInfoCardData } from '@renderer/components/molecules/PatientInfoCard'
@@ -37,6 +39,7 @@ import {
   type AncillarySection
 } from '../section-config'
 import { buildPatientInfoCardData } from '../table-info'
+import ProcedureModal from './ProcedureModal'
 import { SampleModal } from './SampleModal'
 
 interface LaboratoryRequestsProps {
@@ -203,6 +206,7 @@ export default function LaboratoryRequests({
     sourcePoliName?: string
   } | null>(null)
   const [sampleId, setSampleId] = useState<string | null>(null)
+  const [procedureModal, setProcedureModal] = useState<string | null>(null)
 
   const requestQueryParams = useMemo(() => {
     const params: Record<string, string> = {
@@ -429,7 +433,7 @@ export default function LaboratoryRequests({
           rowKey="id"
           loading={isLoading || isRefetching}
           action={{
-            title: 'Info',
+            title: 'Aksi',
             width: 120,
             render: (record) => (
               <div className="flex gap-2 justify-center">
@@ -437,7 +441,7 @@ export default function LaboratoryRequests({
                   <Tooltip title="Info Pasien">
                     <Button
                       size="small"
-                      icon={<ProfileOutlined />}
+                      icon={<UserOutlined />}
                       onClick={() =>
                         setPatientInfo(
                           buildPatientInfoCardData({
@@ -472,6 +476,19 @@ export default function LaboratoryRequests({
                       icon={<ProfileOutlined />}
                       onClick={() => {
                         setSampleId(record.id)
+                      }}
+                    />
+                  </Tooltip>
+                </Space>
+                <Space size="small">
+                  <Tooltip title="Tambah Tindakan">
+                    <Button
+                      size="small"
+                      icon={<PlusOutlined />}
+                      type="primary"
+                      onClick={() => {
+                        setProcedureModal(record.id)
+                        setPatientInfo({ ...record.patient } as any)
                       }}
                     />
                   </Tooltip>
@@ -527,7 +544,7 @@ export default function LaboratoryRequests({
         />
       </div>
       <PatientInfoModal
-        open={!!patientInfo}
+        open={!!(patientInfo && !procedureModal)}
         onClose={() => setPatientInfo(null)}
         patientData={patientInfo}
       />
@@ -539,6 +556,15 @@ export default function LaboratoryRequests({
       />
 
       <SampleModal id={sampleId} onClose={() => setSampleId(null)} />
+      <ProcedureModal
+        open={!!procedureModal}
+        onClose={() => {
+          setProcedureModal(null)
+          setPatientInfo(null)
+        }}
+        patientData={patientInfo}
+        encounterId={procedureModal}
+      />
     </div>
   )
 }
