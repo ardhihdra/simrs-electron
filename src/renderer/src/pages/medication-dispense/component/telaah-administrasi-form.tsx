@@ -1,64 +1,86 @@
-import { Card, Space, Alert, Tag, Radio, Divider } from 'antd'
+import { Card, Space, Alert, Tag, Checkbox, Divider, Input, Row, Col, Button } from 'antd'
 import { CheckCircleFilled, WarningFilled } from '@ant-design/icons'
 import { useMemo } from 'react'
 
 export interface TelaahResults {
-	// 1. Telaah Resep
-	kejelasanResep: boolean;
-	benarNamaPasien: boolean;
-	benarNamaObat: boolean;
-	benarDosis: boolean;
-	benarWaktuFrekuensi: boolean;
-	benarCaraPemberian: boolean;
-	tidakAdaPolifarmasi: boolean;
-	tidakAdaDuplikasi: boolean;
-	tidakAdaInteraksi: boolean;
-	// 2. Verifikasi Obat
-	verifBenarObat: boolean;
-	verifBenarWaktu: boolean;
-	verifBenarFrekuensi: boolean;
-	verifBenarDosis: boolean;
-	verifBenarRute: boolean;
-	verifBenarIdentitas: boolean;
+	// 1. Administrasi
+	tanggalResep: boolean;
+	parafDokter: boolean;
+	identitasPasien: boolean;
+	bbTb: boolean;
+	// 2. Farmasetik
+	namaObat: boolean;
+	kekuatan: boolean;
+	jumlahObat: boolean;
+	signa: boolean;
+	// 3. Klinis
+	duplikasi: boolean;
+	kontraindikasi: boolean;
+	interaksi: boolean;
+	dosisLazim: boolean;
+	alergi: boolean;
+	// 4. Informasi & Edukasi
+	infoKesesuaianIdentitas: boolean;
+	infoNamaDosisJumlah: boolean;
+	infoCaraGuna: boolean;
+	infoEso: boolean;
+	// 5. Follow up
+	keterangan: string | null;
 }
 
 export const defaultTelaahResults: TelaahResults = {
-	kejelasanResep: true,
-	benarNamaPasien: true,
-	benarNamaObat: true,
-	benarDosis: true,
-	benarWaktuFrekuensi: true,
-	benarCaraPemberian: true,
-	tidakAdaPolifarmasi: true,
-	tidakAdaDuplikasi: true,
-	tidakAdaInteraksi: true,
-	verifBenarObat: true,
-	verifBenarWaktu: true,
-	verifBenarFrekuensi: true,
-	verifBenarDosis: true,
-	verifBenarRute: true,
-	verifBenarIdentitas: true,
+	tanggalResep: false,
+	parafDokter: false,
+	identitasPasien: false,
+	bbTb: false,
+	namaObat: false,
+	kekuatan: false,
+	jumlahObat: false,
+	signa: false,
+	duplikasi: false,
+	kontraindikasi: false,
+	interaksi: false,
+	dosisLazim: false,
+	alergi: false,
+	infoKesesuaianIdentitas: false,
+	infoNamaDosisJumlah: false,
+	infoCaraGuna: false,
+	infoEso: false,
+	keterangan: '',
 }
 
-const telaahResepCriteria = [
-	{ key: 'kejelasanResep', label: '1. Kejelasan Tulisan :' },
-	{ key: 'benarNamaPasien', label: '2. Benar Nama Pasien :' },
-	{ key: 'benarNamaObat', label: '3. Benar nama obat :' },
-	{ key: 'benarDosis', label: '4. Benar dosis :' },
-	{ key: 'benarWaktuFrekuensi', label: '5. Benar waktu dan frekuensi pemberian :' },
-	{ key: 'benarCaraPemberian', label: '6. Benar cara pemberian :' },
-	{ key: 'tidakAdaPolifarmasi', label: '7. Ada tidaknya polifarmasi :', invert: true },
-	{ key: 'tidakAdaDuplikasi', label: '8. Ada tidaknya duplikasi :', invert: true },
-	{ key: 'tidakAdaInteraksi', label: '9. Interaksi obat yang mungkin terjadi :', invert: true },
+interface Criterion {
+	key: keyof TelaahResults;
+	label: string;
+}
+
+const administrasiCriteria: Criterion[] = [
+	{ key: 'tanggalResep', label: 'Tanggal Resep' },
+	{ key: 'parafDokter', label: 'Paraf Dokter' },
+	{ key: 'identitasPasien', label: 'Identitas Pasien' },
+	{ key: 'bbTb', label: 'Berat Badan / Tinggi Badan' },
 ]
 
-const verifikasiObatCriteria = [
-	{ key: 'verifBenarObat', label: '1. Benar Obat :' },
-	{ key: 'verifBenarWaktu', label: '2. Benar Waktu :' },
-	{ key: 'verifBenarFrekuensi', label: '3. Benar Frekuensi :' },
-	{ key: 'verifBenarDosis', label: '4. Benar Dosis :' },
-	{ key: 'verifBenarRute', label: '5. Benar Rute :' },
-	{ key: 'verifBenarIdentitas', label: '6. Benar identitas pasien :' },
+const farmasetikCriteria: Criterion[] = [
+	{ key: 'namaObat', label: 'Nama Obat' },
+	{ key: 'kekuatan', label: 'Kekuatan' },
+	{ key: 'jumlahObat', label: 'Jumlah Obat' },
+	{ key: 'signa', label: 'Signa' },
+]
+
+const klinisCriteria: Criterion[] = [
+	{ key: 'duplikasi', label: 'Duplikasi' },
+	{ key: 'kontraindikasi', label: 'Kontraindikasi' },
+	{ key: 'interaksi', label: 'Interaksi' },
+	{ key: 'dosisLazim', label: 'Dosis Lazim' },
+	{ key: 'alergi', label: 'Alergi' },
+]
+
+const edukasiCriteria: Criterion[] = [
+	{ key: 'infoKesesuaianIdentitas', label: 'Kesesuaian Identitas Pasien' },
+	{ key: 'infoNamaDosisJumlah', label: 'Nama Obat, Dosis, Jumlah, Bentuk Sediaan' },
+	{ key: 'infoCaraGuna', label: 'Cara Penggunaan' },
+	{ key: 'infoEso', label: 'Efek Samping Obat (ESO)' },
 ]
 
 interface Props {
@@ -69,71 +91,143 @@ interface Props {
 
 export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props) => {
 	const allCriteriaMet = useMemo(() => {
-		return Object.values(results).every(v => v === true)
+		const { keterangan, ...booleans } = results
+		return Object.values(booleans).every(v => v === true)
 	}, [results])
 
-	const renderCriteria = (c: { key: string; label: string; invert?: boolean }) => {
-		const val = results[c.key as keyof TelaahResults]
-		// mapping: val true -> "Ya" (kecuali invert), val false -> "Tidak" (kecuali invert)
-		// Jika invert=true: Radio "Ya" -> val=false, Radio "Tidak" -> val=true
-		const radioVal = c.invert ? !val : val
-
-		return (
-			<div key={c.key} className="flex justify-between items-center py-1 px-2 border-b border-gray-50 last:border-0">
-				<span className="text-gray-700 text-sm">{c.label}</span>
-				<Radio.Group 
-					size="small"
-					value={radioVal}
-					onChange={(e) => {
-						const nextVal = c.invert ? !e.target.value : e.target.value
-						onChange({ ...results, [c.key]: nextVal })
-					}}
-				>
-					<Radio value={true}>Ya</Radio>
-					<Radio value={false}>Tidak</Radio>
-				</Radio.Group>
-			</div>
-		)
+	const handleCheckAll = () => {
+		const allTrueResults: TelaahResults = { ...results }
+		const criteriaKeys: (keyof TelaahResults)[] = [
+			...administrasiCriteria.map(c => c.key),
+			...farmasetikCriteria.map(c => c.key),
+			...klinisCriteria.map(c => c.key),
+			...edukasiCriteria.map(c => c.key)
+		]
+		criteriaKeys.forEach(key => {
+			(allTrueResults[key] as boolean) = true
+		})
+		onChange(allTrueResults)
 	}
+
+	const renderCheckbox = (c: Criterion) => (
+		<div key={c.key} className="py-1 px-2 hover:bg-gray-50 rounded-md transition-colors">
+			<Checkbox
+				checked={results[c.key] as boolean}
+				onChange={(e) => onChange({ ...results, [c.key]: e.target.checked })}
+			>
+				<span className="text-gray-700 text-sm">{c.label}</span>
+			</Checkbox>
+		</div>
+	)
 
 	return (
 		<Card 
 			title={
-				<Space>
-					<span>Telaah Administrasi & Verifikasi Obat</span>
-					{isInternal && <Tag color="blue" icon={<CheckCircleFilled />}>Internal</Tag>}
-				</Space>
+				<div className="flex justify-between items-center w-full">
+					<Space>
+						<span className="text-lg font-bold">Telaah Administrasi, Farmasetik & Klinis</span>
+						{isInternal && <Tag color="blue" icon={<CheckCircleFilled />}>Internal</Tag>}
+					</Space>
+					<Button 
+						type="primary" 
+						size="small" 
+						icon={<CheckCircleFilled />}
+						onClick={handleCheckAll}
+						className="bg-blue-600 border-none rounded-lg hover:bg-blue-700"
+					>
+						Ceklis Semua
+					</Button>
+				</div>
 			}
 			size="small"
-			styles={{ body: { padding: '16px' } }}
+			styles={{ body: { padding: '24px' } }}
+			className="shadow-sm border-none bg-gray-50/50"
 		>
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-x-12">
-				<div>
-					<Divider orientation="left" plain style={{ margin: '0 0 12px 0' }}>
-						<span className="font-bold text-gray-800">Telaah Resep</span>
-					</Divider>
-					<div className="flex flex-col">
-						{telaahResepCriteria.map(renderCriteria)}
+			<Row gutter={[24, 24]}>
+				<Col span={24} lg={6}>
+					<div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full">
+						<Divider orientation="left" plain style={{ margin: '0 0 16px 0' }}>
+							<span className="font-bold text-gray-800 flex items-center gap-2">
+								<div className="w-1.5 h-6 bg-blue-500 rounded-full" />
+								ADMINISTRASI
+							</span>
+						</Divider>
+						<div className="flex flex-col gap-1">
+							{administrasiCriteria.map(renderCheckbox)}
+						</div>
 					</div>
-				</div>
-				<div>
-					<Divider orientation="left" plain style={{ margin: '0 0 12px 0' }}>
-						<span className="font-bold text-gray-800 uppercase">Verifikasi Obat</span>
-					</Divider>
-					<div className="flex flex-col">
-						{verifikasiObatCriteria.map(renderCriteria)}
+				</Col>
+
+				<Col span={24} lg={6}>
+					<div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full">
+						<Divider orientation="left" plain style={{ margin: '0 0 16px 0' }}>
+							<span className="font-bold text-gray-800 flex items-center gap-2">
+								<div className="w-1.5 h-6 bg-green-500 rounded-full" />
+								FARMASETIK
+							</span>
+						</Divider>
+						<div className="flex flex-col gap-1">
+							{farmasetikCriteria.map(renderCheckbox)}
+						</div>
 					</div>
-				</div>
-			</div>
+				</Col>
+
+				<Col span={24} lg={6}>
+					<div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full">
+						<Divider orientation="left" plain style={{ margin: '0 0 16px 0' }}>
+							<span className="font-bold text-gray-800 flex items-center gap-2">
+								<div className="w-1.5 h-6 bg-purple-500 rounded-full" />
+								KLINIS
+							</span>
+						</Divider>
+						<div className="flex flex-col gap-1">
+							{klinisCriteria.map(renderCheckbox)}
+						</div>
+					</div>
+				</Col>
+
+				<Col span={24} lg={6}>
+					<div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full">
+						<Divider orientation="left" plain style={{ margin: '0 0 16px 0' }}>
+							<span className="font-bold text-gray-800 flex items-center gap-2">
+								<div className="w-1.5 h-6 bg-orange-500 rounded-full" />
+								INFO & EDUKASI
+							</span>
+						</Divider>
+						<div className="flex flex-col gap-1">
+							{edukasiCriteria.map(renderCheckbox)}
+						</div>
+					</div>
+				</Col>
+
+				<Col span={24}>
+					<div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+						<Divider orientation="left" plain style={{ margin: '0 0 12px 0' }}>
+							<span className="font-bold text-gray-800 flex items-center gap-2">
+								<div className="w-1.5 h-6 bg-gray-400 rounded-full" />
+								TINDAK LANJUT - KETERANGAN
+							</span>
+						</Divider>
+						<Input.TextArea
+							rows={3}
+							placeholder="Masukkan keterangan tindak lanjut jika diperlukan..."
+							value={results.keterangan || ''}
+							onChange={(e) => onChange({ ...results, keterangan: e.target.value })}
+							className="rounded-lg"
+						/>
+					</div>
+				</Col>
+			</Row>
 
 			{!allCriteriaMet && (
-				<div className="mt-6">
+				<div className="mt-8">
 					<Alert
 						message="Pemeriksaan Manual Diperlukan"
-						description="Pastikan semua kriteria telaah administrasi dan verifikasi obat telah diperiksa dan dipenuhi."
+						description="Pastikan semua kriteria telah diperiksa. Kriteria yang belum dicentang mengindikasikan ketidaksesuaian yang perlu ditindaklanjuti."
 						type="warning"
 						showIcon
 						icon={<WarningFilled />}
+						className="rounded-xl border-none shadow-sm"
 					/>
 				</div>
 			)}

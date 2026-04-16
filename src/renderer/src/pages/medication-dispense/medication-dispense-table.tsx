@@ -118,6 +118,7 @@ interface MedicationDispenseAttributes {
   fhirId?: string | null
   servicedAt?: string | null
   note?: any[] | null
+  telaah?: any | null
 }
 
 interface MedicationDispenseListArgs {
@@ -194,6 +195,7 @@ interface DispenseItemRow {
   kekuatan?: string | number
   caraPenyimpanan?: string
   note?: any[] | null
+  telaah?: any | null
   children?: DispenseItemRow[]
 }
 
@@ -234,15 +236,43 @@ function getStatusTag(status: string) {
   return <Tag color="default">{label}</Tag>
 }
 
-const extractTelaahResults = (notes: any[]): TelaahResults | null => {
+const extractTelaahResults = (record: any): TelaahResults | null => {
+  const criteriaKeys = [
+    'tanggalResep', 'parafDokter', 'identitasPasien', 'bbTb',
+    'namaObat', 'kekuatan', 'jumlahObat', 'signa',
+    'duplikasi', 'kontraindikasi', 'interaksi', 'dosisLazim', 'alergi',
+    'infoKesesuaianIdentitas', 'infoNamaDosisJumlah', 'infoCaraGuna', 'infoEso'
+  ]
+
+  // Try new 'telaah' property first
+  if (record.telaah && typeof record.telaah === 'object') {
+    const results = record.telaah
+    const missing = criteriaKeys.filter(key => {
+      const val = results[key]
+      return val !== true && val !== 1 && val !== 'true'
+    })
+
+    if (missing.length === 0) return results
+  }
+
+  // Fallback to notes (legacy)
+  const notes = record.note
   if (!Array.isArray(notes)) return null
   const telaahNote = notes.find(n => typeof n?.text === 'string' && n.text.startsWith('TEALAAH:'))
   if (!telaahNote) return null
+  
   try {
     const jsonStr = telaahNote.text.replace('TEALAAH:', '').trim()
     const results = JSON.parse(jsonStr)
-    // Validate if all criteria are met
-    const allMet = Object.values(results).every(v => v === true)
+    const { keterangan, ...booleans } = results
+    
+    // For legacy, check against the exact keys that are in the JSON
+    // New design expects all criteria to be strictly checked
+    const allMet = criteriaKeys.every(key => {
+      const val = booleans[key]
+      return val === true || val === 1 || val === 'true'
+    })
+    
     return allMet ? results : null
   } catch (e) {
     console.error('Failed to parse telaah note', e)
@@ -395,8 +425,8 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
   const isStockInsufficient = hasStockInfo && quantityToDispense > (record.availableStock as number)
   const isPaid = record.paymentStatus === 'Lunas'
   const isReviewed = useMemo(() => {
-    return !!extractTelaahResults(record.note || [])
-  }, [record.note])
+    return !!extractTelaahResults(record)
+  }, [record])
 
   const canComplete =
     !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid && !!parentServicedAt && isReviewed
@@ -532,7 +562,7 @@ function MainRowActions({ record }: { record: ParentRow }) {
 
   const existingTelaah = useMemo(() => {
     for (const item of record.items) {
-      const results = extractTelaahResults(item.note || [])
+      const results = extractTelaahResults(item)
       if (results) return results
     }
     return null
@@ -801,7 +831,8 @@ const columns = [
     title: 'Telaah',
     key: 'telaah',
     render: (_: any, row: ParentRow) => {
-      const isReviewed = row.items.every(item => !!extractTelaahResults(item.note || []))
+      const mainItems = row.items.filter(i => i.jenis !== 'Komposisi')
+      const isReviewed = mainItems.length > 0 && mainItems.every(item => !!extractTelaahResults(item))
       return isReviewed ? (
         <Tag color="green" icon={<CheckCircleOutlined />}>Selesai</Tag>
       ) : (
@@ -1386,6 +1417,8 @@ export function MedicationDispenseTable() {
             ? item.fhirId.trim()
             : undefined,
         caraPenyimpanan: typeof item.itemId === 'number' ? itemCaraPenyimpananById.get(item.itemId) : undefined,
+        note: item.note,
+        telaah: item.telaah,
         children
       }
 

@@ -312,7 +312,8 @@ const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
     performer: rawFhir.performer ?? undefined,
     medication: rawFhir.medication ?? undefined,
     authorizingPrescription: authorizingPrescriptionObj ?? null,
-    encounter: rawFhir.encounter ?? undefined
+    encounter: rawFhir.encounter ?? undefined,
+    telaah: rawFhir.telaah ?? null
   }
   return ui
 }
