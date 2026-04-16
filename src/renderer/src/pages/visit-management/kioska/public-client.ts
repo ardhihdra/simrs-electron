@@ -63,6 +63,7 @@ export async function fetchKioskaPolis() {
 
 export async function fetchKioskaRegistrationLocation(input?: {
   serviceTypeCode?: KioskaRegistrationServiceType
+  lokasiKerjaCode?: string
 }) {
   return (await rpc.kioskaPublic.registrationLocation(input ?? {})) as KioskaWorkLocation
 }

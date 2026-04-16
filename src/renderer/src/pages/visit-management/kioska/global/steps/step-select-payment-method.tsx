@@ -1,7 +1,10 @@
 import { App, Button, Card, Typography } from 'antd'
 import { useState } from 'react'
 
-import { fetchKioskaRegistrationLocation, type KioskaRegistrationPaymentMethod } from '../../public-client'
+import {
+  fetchKioskaRegistrationLocation,
+  type KioskaRegistrationPaymentMethod
+} from '../../public-client'
 import { useKioskaGlobalFlow } from '../kioska-global-context'
 import { resolveKioskaRegistrationServiceTypeFromPaymentMethod } from '../kioska-queue-submission'
 
@@ -32,7 +35,10 @@ export function StepSelectPaymentMethod() {
     try {
       setLoadingPaymentMethod(paymentMethod)
       const serviceTypeCode = resolveKioskaRegistrationServiceTypeFromPaymentMethod(paymentMethod)
-      const workLocation = await fetchKioskaRegistrationLocation({ serviceTypeCode })
+      const workLocation = await fetchKioskaRegistrationLocation({
+        serviceTypeCode,
+        lokasiKerjaCode: 'RJ'
+      })
 
       setPaymentMethod(paymentMethod)
       setRawatJalanLocation(workLocation)
