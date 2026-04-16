@@ -41,6 +41,9 @@ interface PatientQueueTableData extends Omit<PatientQueue, 'status'> {
   status: string
   queueId: string
   encounterType?: string
+  triageUpdatedAt?: string
+  formattedQueueNumber?: string
+  queueNumber: number
 }
 
 type QueueRow = {
@@ -58,6 +61,8 @@ type QueueRow = {
   poliName?: string
   status?: string
   encounterId?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 type QueueListResponse = {
@@ -459,6 +464,14 @@ const PatientQueueTable = () => {
   }, [baseFilteredQueues, fallbackDateIso])
 
   const latestTriageQueue = allPatientQueue.find((queue) => queue.status === NURSE_TRIAGE_STATUS)
+  
+  const markAsTriage = async (record: PatientQueueTableData) => {
+    await updateStatusMutation.mutateAsync({
+      queueId: record.queueId,
+      action: 'CALL_TO_TRIAGE'
+    })
+    message.success(`Antrian ${record.formattedQueueNumber} dipanggil ke Triage`)
+  }
 
   const handleExaminePatient = async (record: PatientQueueTableData) => {
     if (!record.encounterId) {
