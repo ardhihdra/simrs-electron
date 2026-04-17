@@ -44,11 +44,13 @@ import { client } from '@renderer/utils/client'
 const { RangePicker } = DatePicker
 
 interface PatientListTableData {
+  no: number
   key: string
   id: string
   encounterId: string
   fhirId: string
   queueNumber: number
+  formattedQueueNumber?: string
   patient: {
     id: string
     name: string
@@ -60,7 +62,7 @@ interface PatientListTableData {
   }
   queueTicket?: {
     id: string
-    queueNumber: number
+    queueNumber: number | string
     formattedQueueNumber?: string
     queueDate: string
     status: string
@@ -91,6 +93,10 @@ const STATUS_CONFIG: Record<
 }
 
 const normalizePoliCode = (value: string | number) => String(value).trim().toLowerCase()
+const parseQueueNumber = (value?: number | string) => {
+  const parsed = Number.parseInt(String(value ?? '0'), 10)
+  return Number.isFinite(parsed) ? parsed : 0
+}
 
 export const DoctorPatientList = () => {
   const { modal: appModal } = App.useApp()
@@ -220,6 +226,9 @@ export const DoctorPatientList = () => {
     (enc: any, index: number) => {
       const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
       const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
+      const queueNumber = parseQueueNumber(enc.queueTicket?.queueNumber)
+      const formattedQueueNumber =
+        enc.queueTicket?.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
 
       let parsedSyncStatus = null
       if (enc.satuSehatSyncStatus) {
@@ -240,7 +249,8 @@ export const DoctorPatientList = () => {
         id: enc.id,
         encounterId: enc.id,
         fhirId: enc.fhirId,
-        queueNumber: enc.queueTicket?.queueNumber || 0,
+        queueNumber,
+        formattedQueueNumber,
         patient: {
           id: enc.patient?.id || '',
           name: enc.patient?.name || 'Unknown',
@@ -253,7 +263,7 @@ export const DoctorPatientList = () => {
         queueTicket: enc.queueTicket
           ? {
               id: enc.queueTicket.id,
-              queueNumber: enc.queueTicket.queueNumber,
+              queueNumber,
               formattedQueueNumber: enc.queueTicket.formattedQueueNumber,
               queueDate: enc.queueTicket.queueDate,
               status: enc.queueTicket.status,
@@ -452,19 +462,14 @@ export const DoctorPatientList = () => {
     },
     {
       title: 'Antrian',
+      dataIndex: 'formattedQueueNumber',
       key: 'queueNumber',
       width: 108,
       align: 'center',
-      render: (_, record) => {
-        const queueLabel =
-          record.queueTicket?.formattedQueueNumber ||
-          (typeof record.queueTicket?.queueNumber === 'number'
-            ? String(record.queueTicket.queueNumber)
-            : '-')
-
+      render: (queueLabel?: string) => {
         return (
           <Tag color="blue" bordered={false} className="font-mono font-semibold m-0">
-            {queueLabel}
+            {queueLabel || '-'}
           </Tag>
         )
       }

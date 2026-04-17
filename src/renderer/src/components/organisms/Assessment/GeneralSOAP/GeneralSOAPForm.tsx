@@ -10,6 +10,7 @@ import {
   Space,
   Modal,
   Table,
+  TableProps,
   Tooltip,
   InputNumber
 } from 'antd'
@@ -21,6 +22,13 @@ import {
   FormOutlined
 } from '@ant-design/icons'
 import {
+  CompositionAttester,
+  CompositionSection,
+  CompositionStatus
+} from 'simrs-types'
+import {
+  CompositionEncounterItem,
+  CompositionUpsertPayload,
   useCompositionByEncounter,
   useUpsertComposition
 } from '@renderer/hooks/query/use-composition'
@@ -34,6 +42,7 @@ import {
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import { formatObservationSummary } from '@renderer/utils/formatters/observation-formatter'
 
 const { TextArea } = Input
@@ -44,6 +53,33 @@ interface GeneralSOAPFormProps {
   onSaveSuccess?: () => void
   showTTVSection?: boolean
   allowedRoles?: ('doctor' | 'nurse')[]
+}
+
+interface PerformerOption {
+  id: number | string
+  name: string
+  role: string
+}
+
+interface ObservationLite {
+  effectiveDateTime?: string | Date | null
+  issued?: string | Date | null
+}
+
+interface SOAPFormValues {
+  performerId?: number
+  status?: CompositionStatus
+  soapSubjective?: string
+  soapObjective?: string
+  soapAssessment?: string
+  soapPlan?: string
+  assessment_date?: Dayjs
+}
+
+type SOAPCompositionRecord = CompositionEncounterItem & {
+  authorName?: string | null
+  role?: string | null
+  sections?: CompositionSection[] | null
 }
 
 export const GeneralSOAPForm = ({
@@ -58,12 +94,12 @@ export const GeneralSOAPForm = ({
   const [form] = Form.useForm()
   const [isAddingNew, setIsAddingNew] = useState(false)
   const [hasFinalEntry, setHasFinalEntry] = useState(false)
-  const [draftEntry, setDraftEntry] = useState<any>(null)
+  const [draftEntry, setDraftEntry] = useState<SOAPCompositionRecord | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
 
   const { data: compositionData, isLoading, refetch } = useCompositionByEncounter(encounterId)
   const { data: obsData } = useQueryObservationByEncounter(encounterId)
-  const observationData = obsData?.result || []
+  const observationData: ObservationLite[] = Array.isArray(obsData?.result) ? obsData.result : []
   const upsertMutation = useUpsertComposition()
 
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers(
@@ -72,11 +108,13 @@ export const GeneralSOAPForm = ({
 
   const selectedPerformerId = Form.useWatch('performerId', form)
   const findPerformerById = (performerId: number | string | undefined | null) =>
-    performersData?.find((p: any) => String(p.id) === String(performerId))
+    (performersData as PerformerOption[] | undefined)?.find(
+      (p) => String(p.id) === String(performerId)
+    )
   const selectedPerformer = findPerformerById(selectedPerformerId)
   const currentRole = selectedPerformer?.role || profile?.hakAksesId
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: SOAPFormValues) => {
     try {
       if (currentRole === 'doctor' && values.status === 'final') {
         if (!values.soapAssessment || !values.soapPlan) {
@@ -168,7 +206,7 @@ export const GeneralSOAPForm = ({
         }
       ]
 
-      const payload: any = {
+      const payload: CompositionUpsertPayload = {
         encounterId,
         patientId: patientData.patient.id,
         doctorId: Number(values.performerId),
@@ -231,7 +269,7 @@ export const GeneralSOAPForm = ({
     }
 
     const sortedObs = [...observationData].sort(
-      (a: any, b: any) =>
+      (a, b) =>
         dayjs(b.effectiveDateTime || b.issued).valueOf() -
         dayjs(a.effectiveDateTime || a.issued).valueOf()
     )
@@ -308,7 +346,7 @@ export const GeneralSOAPForm = ({
     return { tags: null, remainingText: text }
   }
 
-  const handleEdit = (record: any) => {
+  const handleEdit = (record: SOAPCompositionRecord) => {
     const { remainingText } = parseVitals(record.soapObjective || '')
 
     form.setFieldsValue({
@@ -322,15 +360,18 @@ export const GeneralSOAPForm = ({
 
     form.setFieldValue('soapObjective', record.soapObjective)
 
-    setEditingId(record.id)
+    const recordId = Number(record.id)
+    setEditingId(Number.isFinite(recordId) && recordId > 0 ? recordId : null)
     setIsAddingNew(true)
   }
 
-  const handleVerify = async (record: any) => {
+  const handleVerify = async (record: SOAPCompositionRecord) => {
     try {
       if (record.status === 'final') return
 
-      const professionalAttester = record.attesters?.find((a: any) => a.mode === 'professional')
+      const professionalAttester = record.attesters?.find(
+        (a: CompositionAttester) => a.mode === 'professional'
+      )
       const attesterReferenceId = professionalAttester?.partyReference
         ? String(professionalAttester.partyReference).split('/')[1]
         : undefined
@@ -368,7 +409,7 @@ export const GeneralSOAPForm = ({
         return
       }
 
-      const sections =
+      const sections: CompositionSection[] =
         record.sections && record.sections.length > 0
           ? record.sections
           : [
@@ -414,7 +455,7 @@ export const GeneralSOAPForm = ({
                   div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapPlan?.replace(/\n/g, '<br/>') || '-'}</div>`
                 }
               }
-            ]
+            ] as CompositionSection[]
 
       await upsertMutation.mutateAsync({
         encounterId,
@@ -460,12 +501,12 @@ export const GeneralSOAPForm = ({
     }
   }
 
-  const columns = [
+  const columns: TableProps<SOAPCompositionRecord>['columns'] = [
     {
       title: 'No',
       key: 'no',
       width: 50,
-      render: (_: any, __: any, index: number) => index + 1
+      render: (_value, _record, index) => index + 1
     },
     {
       title: 'Tgl / Jam',
@@ -483,7 +524,7 @@ export const GeneralSOAPForm = ({
       title: 'PPA',
       key: 'ppa',
       width: 180,
-      render: (_: any, record: any) => (
+      render: (_value, record) => (
         <div className="flex items-center gap-3">
           <div className="flex flex-col">
             <span className="font-bold  text-sm">
@@ -499,7 +540,7 @@ export const GeneralSOAPForm = ({
     {
       title: 'SOAP',
       key: 'soap',
-      render: (_: any, record: any) => {
+      render: (_value, record) => {
         const { tags, remainingText } = parseVitals(record.soapObjective || '')
         return (
           <div className="flex flex-col gap-3 text-sm">
@@ -529,8 +570,8 @@ export const GeneralSOAPForm = ({
       title: 'Status',
       key: 'verification',
       width: 150,
-      render: (_: any, record: any) => {
-        const legalAttester = record.attesters?.find((a: any) => a.mode === 'legal')
+      render: (_value, record) => {
+        const legalAttester = record.attesters?.find((a: CompositionAttester) => a.mode === 'legal')
 
         return (
           <div className="flex flex-col gap-2 items-center">
@@ -587,12 +628,12 @@ export const GeneralSOAPForm = ({
 
   useEffect(() => {
     const soapEntries = (compositionData?.result || []).filter(
-      (comp: any) => comp.title === 'SOAP Umum'
+      (comp): comp is SOAPCompositionRecord => comp.title === 'SOAP Umum'
     )
-    const finalEntry = soapEntries.find((entry: any) => entry.status === 'final')
+    const finalEntry = soapEntries.find((entry) => entry.status === 'final')
     setHasFinalEntry(!!finalEntry)
 
-    const draft = soapEntries.find((entry: any) => entry.status === 'preliminary')
+    const draft = soapEntries.find((entry) => entry.status === 'preliminary')
     setDraftEntry(draft || null)
   }, [compositionData])
 
@@ -604,8 +645,8 @@ export const GeneralSOAPForm = ({
     )
   }
 
-  const soapHistory = (compositionData?.result || []).filter(
-    (comp: any) => comp.title === 'SOAP Umum'
+  const soapHistory: SOAPCompositionRecord[] = (compositionData?.result || []).filter(
+    (comp): comp is SOAPCompositionRecord => comp.title === 'SOAP Umum'
   )
 
   return (

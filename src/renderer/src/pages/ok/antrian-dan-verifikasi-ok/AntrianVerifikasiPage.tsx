@@ -19,36 +19,15 @@ import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useOperatingRoomList } from '@renderer/hooks/query/use-operating-room'
 import { getKelasTarifLabel, normalizeKelasTarifValue } from '@renderer/utils/tarif-kelas'
 
-interface BackendOkRequest {
-  id: number
-  kode?: string | null
-  encounterId?: string | null
-  sourceUnit?: string | null
-  dpjpId?: number | null
-  operatingRoomId?: number | null
-  requestedAt?: string | null
-  scheduledAt?: string | null
-  estimatedDurationMinutes?: number | null
-  priority?: string | null
-  status?: string | null
-  mainDiagnosis?: string | null
-  plannedProcedureSummary?: string | null
-  paketTindakanList?: Array<{
-    paketId?: number
-    paketNamaSnapshot?: string | null
-  }>
-}
+type OkRequestListApiResponse = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['okRequest']['list']>>
+>
+type OkRequestListItem = NonNullable<OkRequestListApiResponse['result']>[number]
 
-interface EncounterReadResult {
-  patient?: {
-    name?: string | null
-    medicalRecordNumber?: string | null
-  } | null
-  queueTicket?: {
-    paymentMethod?: string | null
-    mitraId?: number | null
-  } | null
-}
+type EncounterReadApiResponse = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['encounter']['read']>>
+>
+type EncounterReadResult = NonNullable<EncounterReadApiResponse['result']>
 
 interface EncounterEnrichmentItem {
   namaPasien: string
@@ -61,7 +40,7 @@ interface EncounterEnrichmentData {
   failedIds: string[]
 }
 
-const mapPriorityToSifat = (priority?: string | null): VerifikasiOkSifat => {
+const mapPriorityToSifat = (priority?: OkRequestListItem['priority']): VerifikasiOkSifat => {
   switch (priority) {
     case 'emergency':
       return 'cyto'
@@ -72,14 +51,16 @@ const mapPriorityToSifat = (priority?: string | null): VerifikasiOkSifat => {
   }
 }
 
-const mapStatusToQueueStatus = (status?: string | null): VerifikasiOkStatus => {
+const mapStatusToQueueStatus = (status?: OkRequestListItem['status']): VerifikasiOkStatus => {
   switch (status) {
     case 'verified':
-    case 'done':
       return 'disetujui'
+    case 'done':
+      return 'selesai'
     case 'rejected':
-    case 'cancelled':
       return 'ditolak'
+    case 'cancelled':
+      return 'dibatalkan'
     case 'in_progress':
       return 'diproses'
     default:
@@ -87,13 +68,16 @@ const mapStatusToQueueStatus = (status?: string | null): VerifikasiOkStatus => {
   }
 }
 
-const formatDate = (dateValue?: string | null): string => {
+const formatDate = (dateValue?: string | Date | null): string => {
   if (!dateValue) return '-'
   const parsed = dayjs(dateValue)
   return parsed.isValid() ? parsed.format('DD/MM/YYYY') : '-'
 }
 
-const formatTimeRange = (dateValue?: string | null, durationMinutes?: number | null): string => {
+const formatTimeRange = (
+  dateValue?: string | Date | null,
+  durationMinutes?: number | null
+): string => {
   if (!dateValue) return '-'
   const start = dayjs(dateValue)
   if (!start.isValid()) return '-'
@@ -106,7 +90,7 @@ const formatTimeRange = (dateValue?: string | null, durationMinutes?: number | n
   return start.format('HH:mm')
 }
 
-const buildNomorAntrian = (item: BackendOkRequest): string => {
+const buildNomorAntrian = (item: OkRequestListItem): string => {
   if (item.kode && item.kode.trim().length > 0) return item.kode
   return `OK-${String(item.id).padStart(6, '0')}`
 }
@@ -143,8 +127,8 @@ const AntrianVerifikasiPage = () => {
     error: operatingRoomError
   } = useOperatingRoomList()
 
-  const source = useMemo<BackendOkRequest[]>(() => {
-    return Array.isArray(data) ? (data as BackendOkRequest[]) : []
+  const source = useMemo<OkRequestListItem[]>(() => {
+    return Array.isArray(data) ? data : []
   }, [data])
 
   const encounterIds = useMemo(() => {
@@ -202,10 +186,7 @@ const AntrianVerifikasiPage = () => {
               String(response?.error || responseMessage || `Gagal memuat encounter ${encounterId}`)
             )
           }
-          return {
-            encounterId,
-            result: (response.result || null) as EncounterReadResult | null
-          }
+          return { encounterId, result: response.result || null }
         })
       )
 
@@ -214,6 +195,7 @@ const AntrianVerifikasiPage = () => {
 
       settled.forEach((entry, index) => {
         const encounterId = encounterIds[index]
+        if (!encounterId) return
         if (entry.status !== 'fulfilled') {
           failedIds.push(encounterId)
           return
