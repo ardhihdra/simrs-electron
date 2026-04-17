@@ -4,6 +4,7 @@ import type { FormInstance } from 'antd'
 import { Card, Checkbox, Empty, Form, Input, Select, Tag } from 'antd'
 import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { resolveActiveServiceRequestCategory } from './CreateServiceRequestForm.helpers'
 
 type ServiceRequestDomainValue = 'laboratory' | 'radiology'
 type ServiceRequestCategoriesResponse = {
@@ -24,6 +25,7 @@ interface SelectedServiceRequestCodeValue {
   code: string
   display: string
   system: string
+  category: string
 }
 
 function mapServiceRequestCategoryToTerminologyDomain(
@@ -43,23 +45,25 @@ function formatCategoryLabel(value: string): string {
 
 interface Props {
   form: FormInstance
+  fixedCategory?: ServiceRequestDomainValue
   extraFields?: () => ReactElement | null
 }
 
 interface ServiceRequestCodeSelectorProps {
   domain?: ServiceRequestDomainValue
-  categoryCode?: string
+  categoryCodes?: string[]
   value?: SelectedServiceRequestCodeValue[]
   onChange?: (value: SelectedServiceRequestCodeValue[]) => void
 }
 
 function ServiceRequestCodeSelector({
   domain,
-  categoryCode,
+  categoryCodes = [],
   value = [],
   onChange
 }: ServiceRequestCodeSelectorProps) {
   const [terminologySearch, setTerminologySearch] = useState('')
+  const categoryCodesKey = useMemo(() => categoryCodes.join('|'), [categoryCodes])
 
   const terminologyDomain = useMemo(
     () => mapServiceRequestCategoryToTerminologyDomain(domain),
@@ -70,14 +74,13 @@ function ServiceRequestCodeSelector({
     client.laboratoryManagement.getServiceRequestCodes.useQuery(
       {
         domain: terminologyDomain,
-        category: categoryCode || undefined,
         query: terminologySearch.trim() || undefined
       },
       {
-        enabled: !!domain && !!categoryCode,
+        enabled: !!domain,
         queryKey: [
           'lab-queue-service-request-codes',
-          { domain: terminologyDomain, category: categoryCode, query: terminologySearch }
+          { domain: terminologyDomain, query: terminologySearch }
         ]
       }
     )
@@ -91,13 +94,24 @@ function ServiceRequestCodeSelector({
       ...(result?.radiology ?? [])
     ]
 
-    return items.map((item) => ({
-      masterServiceRequestCodeId: item.id,
-      code: item.loinc,
-      display: item.display,
-      system: 'http://loinc.org'
-    }))
-  }, [terminologyData])
+    const selectedCategoryKeys = new Set(
+      categoryCodes.map((category) => String(category).trim().toLowerCase()).filter(Boolean)
+    )
+
+    return items
+      .filter((item) =>
+        selectedCategoryKeys.size === 0
+          ? false
+          : selectedCategoryKeys.has(String(item.category).trim().toLowerCase())
+      )
+      .map((item) => ({
+        masterServiceRequestCodeId: item.id,
+        code: item.loinc,
+        display: item.display,
+        system: 'http://loinc.org',
+        category: item.category
+      }))
+  }, [categoryCodes, terminologyData])
 
   const selectedIds = useMemo(
     () => new Set(value.map((item) => item.masterServiceRequestCodeId)),
@@ -106,7 +120,9 @@ function ServiceRequestCodeSelector({
 
   useEffect(() => {
     setTerminologySearch('')
-  }, [domain, categoryCode])
+  }, [categoryCodesKey, domain])
+
+  const hasSelectedCategories = categoryCodes.length > 0
 
   const handleCheckedChange = (checked: boolean, item: SelectedServiceRequestCodeValue) => {
     if (checked) {
@@ -133,14 +149,14 @@ function ServiceRequestCodeSelector({
     <div className="space-y-3">
       <Input
         allowClear
-        disabled={!domain || !categoryCode}
+        disabled={!domain || !hasSelectedCategories}
         value={terminologySearch}
         onChange={(event) => setTerminologySearch(event.target.value)}
         placeholder={
           !domain
             ? 'Pilih kategori service request terlebih dahulu'
-            : !categoryCode
-              ? 'Pilih kategori pemeriksaan terlebih dahulu'
+            : !hasSelectedCategories
+              ? 'Pilih minimal satu kategori pemeriksaan terlebih dahulu'
               : 'Cari kode atau nama pemeriksaan'
         }
         prefix={<SearchOutlined />}
@@ -161,14 +177,14 @@ function ServiceRequestCodeSelector({
         </div>
       ) : (
         <div className="text-xs text-gray-500">
-          {domain && categoryCode
+          {domain && hasSelectedCategories
             ? 'Pilih satu atau lebih kode pemeriksaan dari daftar di bawah.'
             : 'Pilih kategori service request dan kategori pemeriksaan untuk menampilkan daftar kode.'}
         </div>
       )}
 
-      {domain && categoryCode && terminologyOptions.length > 0 ? (
-        <div className="grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-2">
+      {domain && hasSelectedCategories && terminologyOptions.length > 0 ? (
+        <div className="grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-3">
           {terminologyOptions.map((item) => {
             const isChecked = selectedIds.has(item.masterServiceRequestCodeId)
 
@@ -203,8 +219,8 @@ function ServiceRequestCodeSelector({
             description={
               !domain
                 ? 'Pilih kategori service request terlebih dahulu'
-                : !categoryCode
-                  ? 'Pilih kategori pemeriksaan terlebih dahulu'
+                : !hasSelectedCategories
+                  ? 'Pilih minimal satu kategori pemeriksaan terlebih dahulu'
                   : isLoadingTerminology
                     ? 'Memuat kode pemeriksaan...'
                     : 'Kode pemeriksaan tidak ditemukan'
@@ -216,11 +232,10 @@ function ServiceRequestCodeSelector({
   )
 }
 
-export default function CreateServiceRequestForm({ form, extraFields }: Props) {
-  const selectedCategory = Form.useWatch('category', form) as ServiceRequestDomainValue | undefined
-  const selectedCategoryCode = Form.useWatch('serviceRequestCodeCategory', form) as
-    | string
-    | undefined
+export default function CreateServiceRequestForm({ form, fixedCategory, extraFields }: Props) {
+  const watchedCategory = Form.useWatch('category', form) as ServiceRequestDomainValue | undefined
+  const selectedCategory = fixedCategory || watchedCategory
+  const [activeCategoryCode, setActiveCategoryCode] = useState<string>()
 
   const { data: categoryData, isLoading: isLoadingCategories } =
     client.laboratoryManagement.getServiceRequestCategories.useQuery(
@@ -242,17 +257,38 @@ export default function CreateServiceRequestForm({ form, extraFields }: Props) {
     }))
   }, [categoryData, selectedCategory])
 
+  const activeCategoryCodes = useMemo(
+    () => (activeCategoryCode ? [activeCategoryCode] : []),
+    [activeCategoryCode]
+  )
+
+  useEffect(() => {
+    if (fixedCategory) {
+      form.setFieldValue('category', fixedCategory)
+    }
+  }, [fixedCategory, form])
+
   useEffect(() => {
     form.setFieldsValue({
-      serviceRequestCodeCategory: undefined,
+      serviceRequestCodeCategories: [],
       selectedServiceRequestCodes: [],
       system: 'http://loinc.org'
     })
+    setActiveCategoryCode(undefined)
   }, [selectedCategory, form])
 
   useEffect(() => {
-    form.setFieldValue('selectedServiceRequestCodes', [])
-  }, [selectedCategoryCode, form])
+    const resolvedActiveCategory = resolveActiveServiceRequestCategory(
+      categoryOptions.map((item) => item.value),
+      activeCategoryCode
+    )
+
+    setActiveCategoryCode(resolvedActiveCategory)
+    form.setFieldValue(
+      'serviceRequestCodeCategories',
+      resolvedActiveCategory ? [resolvedActiveCategory] : []
+    )
+  }, [activeCategoryCode, categoryOptions, form])
 
   return (
     <Form form={form} layout="vertical">
@@ -262,6 +298,7 @@ export default function CreateServiceRequestForm({ form, extraFields }: Props) {
         rules={[{ required: true, message: 'Harap pilih kategori' }]}
       >
         <Select
+          disabled={!!fixedCategory}
           options={[
             { value: 'laboratory', label: 'Laboratory' },
             { value: 'radiology', label: 'Radiology' }
@@ -270,17 +307,60 @@ export default function CreateServiceRequestForm({ form, extraFields }: Props) {
       </Form.Item>
 
       <Form.Item
-        name="serviceRequestCodeCategory"
+        name="serviceRequestCodeCategories"
         label="Kategori Pemeriksaan"
-        rules={[{ required: true, message: 'Harap pilih kategori pemeriksaan' }]}
+        rules={[
+          {
+            validator: (_, value: string[] | undefined) => {
+              if (Array.isArray(value) && value.length > 0) {
+                return Promise.resolve()
+              }
+
+              return Promise.reject(new Error('Harap pilih minimal satu kategori pemeriksaan'))
+            }
+          }
+        ]}
       >
-        <Select
-          allowClear
-          disabled={!selectedCategory}
-          loading={isLoadingCategories}
-          placeholder="Pilih kategori pemeriksaan"
-          options={categoryOptions}
-        />
+        <div className="space-y-3">
+          <div className="grid gap-3 grid-cols-3 max-h-60 overflow-y-auto">
+            {categoryOptions.map((item) => {
+              const isActive = item.value === activeCategoryCode
+
+              return (
+                <Card
+                  key={item.value}
+                  size="small"
+                  className={`cursor-pointer transition-all ${
+                    isActive
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                  }`}
+                  onClick={() => {
+                    setActiveCategoryCode(item.value)
+                    form.setFieldValue('serviceRequestCodeCategories', [item.value])
+                  }}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium text-gray-800">{item.label}</div>
+                      <div className="text-xs text-gray-500">{item.value}</div>
+                    </div>
+                    {isActive ? <Tag color="blue">Aktif</Tag> : null}
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+          {!selectedCategory || isLoadingCategories || categoryOptions.length === 0 ? (
+            <div className="rounded-md border border-dashed border-gray-200 p-4 text-sm text-gray-500">
+              {!selectedCategory
+                ? 'Pilih kategori service request terlebih dahulu'
+                : isLoadingCategories
+                  ? 'Memuat kategori pemeriksaan...'
+                  : 'Kategori pemeriksaan tidak tersedia'}
+            </div>
+          ) : null}
+        </div>
       </Form.Item>
 
       <Form.Item
@@ -298,7 +378,7 @@ export default function CreateServiceRequestForm({ form, extraFields }: Props) {
           }
         ]}
       >
-        <ServiceRequestCodeSelector domain={selectedCategory} categoryCode={selectedCategoryCode} />
+        <ServiceRequestCodeSelector domain={selectedCategory} categoryCodes={activeCategoryCodes} />
       </Form.Item>
 
       <Form.Item

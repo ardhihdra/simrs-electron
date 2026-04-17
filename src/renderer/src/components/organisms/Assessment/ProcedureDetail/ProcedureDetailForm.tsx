@@ -1,37 +1,37 @@
-import { useState, useEffect, useMemo } from 'react'
 import {
-  Form,
-  Input,
-  Select,
-  Button,
-  Card,
-  InputNumber,
-  App,
-  Modal,
-  Table,
-  Space,
-  Tooltip,
-  Popconfirm,
-  Spin,
-  Tag,
-  Row,
-  Col
-} from 'antd'
-import {
-  SaveOutlined,
-  PlusOutlined,
-  HistoryOutlined,
+  CheckCircleOutlined,
   DeleteOutlined,
-  CheckCircleOutlined
+  HistoryOutlined,
+  PlusOutlined,
+  SaveOutlined
 } from '@ant-design/icons'
-import dayjs from 'dayjs'
 import { AssessmentHeader } from '@renderer/components/organisms/Assessment/AssesmentHeader/AssessmentHeader'
-import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
   useCreateMedicationDispense,
   useMedicationDispenseByEncounter
 } from '@renderer/hooks/query/use-medication-dispense'
+import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Row,
+  Select,
+  Space,
+  Spin,
+  Table,
+  Tag,
+  Tooltip
+} from 'antd'
+import dayjs from 'dayjs'
+import { useEffect, useMemo, useState } from 'react'
 import { MedicationDispenseStatus } from 'simrs-types'
 
 const { TextArea } = Input
@@ -219,7 +219,11 @@ export const ProcedureDetailForm = ({ encounterId, patientData }: ProcedureDetai
   }
 
   const handleComplete = (id: number) => {
-    updateMutation.mutate({ id, status: MedicationDispenseStatus.COMPLETED, whenHandedOver: new Date().toISOString() })
+    updateMutation.mutate({
+      id,
+      status: MedicationDispenseStatus.COMPLETED,
+      whenHandedOver: new Date().toISOString()
+    })
   }
 
   const columns = [

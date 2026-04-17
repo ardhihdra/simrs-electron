@@ -1,38 +1,41 @@
-import React from 'react'
-import { Card, Tag, theme } from 'antd'
 import {
-  UserOutlined,
-  IdcardOutlined,
   CalendarOutlined,
-  MedicineBoxOutlined,
   CreditCardOutlined,
-  WarningFilled,
-  SafetyCertificateOutlined
+  IdcardOutlined,
+  MedicineBoxOutlined,
+  SafetyCertificateOutlined,
+  UserOutlined,
+  WarningFilled
 } from '@ant-design/icons'
+import { Card, Tag, theme } from 'antd'
 import dayjs from 'dayjs'
+import React from 'react'
+
+export interface PatientInfoCardData {
+  patient: {
+    medicalRecordNumber: string
+    name: string
+    nik?: string | null
+    gender?: string | null
+    age?: number | null
+    identityNumber?: string
+    address?: string
+    religion?: string
+  }
+  poli?: {
+    name: string
+  }
+  doctor?: {
+    name: string
+  }
+  visitDate?: string
+  paymentMethod?: string
+  status?: string
+  allergies?: string
+}
 
 interface PatientInfoCardProps {
-  patientData: {
-    patient: {
-      medicalRecordNumber: string
-      name: string
-      gender?: string | null
-      age?: number | null
-      identityNumber?: string
-      address?: string
-      religion?: string
-    }
-    poli?: {
-      name: string
-    }
-    doctor?: {
-      name: string
-    }
-    visitDate?: string
-    paymentMethod?: string
-    status?: string
-    allergies?: string
-  }
+  patientData: PatientInfoCardData
   action?: React.ReactNode
   sections?: {
     showIdentityNumber?: boolean
@@ -120,7 +123,7 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
   const { showIdentityNumber = true, showAllergies = true } = sections || {}
 
   const hasAllergy = allergies && allergies !== '-'
-  const normalizedGender = String(patient.gender || '').toLowerCase()
+  const normalizedGender = String(patient?.gender || '').toLowerCase()
   const genderLabel =
     normalizedGender === 'male' || normalizedGender === 'm'
       ? 'Laki-laki'
@@ -128,8 +131,8 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
         ? 'Perempuan'
         : '-'
   const ageLabel =
-    typeof patient.age === 'number' && Number.isFinite(patient.age) && patient.age >= 0
-      ? `${patient.age} th`
+    typeof patient?.age === 'number' && Number.isFinite(patient?.age) && patient?.age >= 0
+      ? `${patient?.age} th`
       : '-'
 
   return (
@@ -185,7 +188,11 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
               <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>•</span>
               <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
                 {patient.religion}
-              </span> 
+              </span>
+              <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>NIK:</span>
+              <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
+                {patient.nik || '-'}
+              </span>
             </div>
           </div>
         </div>

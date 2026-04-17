@@ -5,6 +5,7 @@ import { ModuleScopeGuard } from './services/ModuleScope/guard'
 import type { PageAccessEntry } from './services/ModuleScope/type'
 import { client } from './utils/client'
 
+import { Typography } from 'antd'
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
 import IframeView from './pages/IframeView'
@@ -30,8 +31,8 @@ import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
 import DoctorSchedule from './pages/doctor-schedule/DoctorSchedule'
-import { DoctorScheduleLegacyEditRedirect } from './pages/doctor-schedule/components/editor/DoctorScheduleLegacyEditRedirect'
 import { DoctorScheduleEditorShell } from './pages/doctor-schedule/components/editor/DoctorScheduleEditorShell'
+import { DoctorScheduleLegacyEditRedirect } from './pages/doctor-schedule/components/editor/DoctorScheduleLegacyEditRedirect'
 import DoctorScheduleCreatePage from './pages/doctor-schedule/create/page'
 import DoctorScheduleExceptionsPage from './pages/doctor-schedule/exceptions/page'
 import DoctorScheduleInfoPage from './pages/doctor-schedule/info/page'
@@ -59,6 +60,9 @@ import ItemTable from './pages/item/item-table'
 import Jaminan from './pages/jaminan/Jaminan'
 import JaminanForm from './pages/jaminan/jaminan-form'
 import JaminanTable from './pages/jaminan/jaminan-table'
+import KasirPage from './pages/kasir/KasirPage'
+import InvoiceDetailPage from './pages/kasir/invoice-detail'
+import KasirEncounterTable from './pages/kasir/kasir-encounter-table'
 import KfaCodeForm from './pages/kfa-code/kfa-code-form'
 import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import LaboratoryQueue from './pages/laboratory-management/queue'
@@ -80,11 +84,16 @@ import NonMedicQueuePage from './pages/non-medic-queue'
 import NonMedicQueueBillingKioskPage from './pages/non-medic-queue/kiosk/billing'
 import NonMedicQueueCashierKioskPage from './pages/non-medic-queue/kiosk/cashier'
 import NonMedicQueuePharmacyKioskPage from './pages/non-medic-queue/kiosk/pharmacy'
+import NonMedicQueueRegistrationKioskPage from './pages/non-medic-queue/kiosk/registration'
+import NonMedicQueueRegistrationInsuranceKioskPage from './pages/non-medic-queue/kiosk/registration-insurance'
 import NonMedicQueueServicePointWorkspacePage from './pages/non-medic-queue/service-point-workspace'
 import NonMedicQueueServicePointPage from './pages/non-medic-queue/service-points'
 import NurseCalling from './pages/nurse-calling/NurseCalling'
 import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
+import AntrianVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
+import DetailVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/DetailVerifikasiPage'
+import OKSubmissionPage from './pages/ok/ok-submission-page'
 import Patient from './pages/patient/Patient'
 import PatientForm from './pages/patient/patient-form'
 import PatientTable from './pages/patient/patient-table'
@@ -104,20 +113,17 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
-import KasirPage from './pages/kasir/KasirPage'
-import KasirEncounterTable from './pages/kasir/kasir-encounter-table'
-import InvoiceDetailPage from './pages/kasir/invoice-detail'
 import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
+import KioskaGlobalPage from './pages/visit-management/kioska/kiok-global'
 import KioskaSetupPage from './pages/visit-management/kioska/setup'
 import RegistrationPage from './pages/visit-management/registration'
+import RegistrationGlobalQueue from './pages/visit-management/registration-global-queue'
 import RegistrationQueue from './pages/visit-management/registration-queue'
-import AntrianVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
-import DetailVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/DetailVerifikasiPage'
 import RegistrationSelect from './pages/visit-management/registration-select'
 import UpcomingQueuePage from './pages/visit-management/upcoming-queue'
-import { Typography } from 'antd'
+import LaporanKunjunganPage from './pages/visit-management/laporan-kunjungan'
 
 const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode) => (
   <ModuleScopeGuard access={access} fallback={<Typography>No access to this page</Typography>}>
@@ -148,6 +154,8 @@ function MainRoute() {
       <Route path="/iframe-view" element={<IframeView />} />
       <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
       <Route path="/kioska/setup" element={<KioskaSetupPage />} />
+      <Route path="/kioska/global" element={<KioskaGlobalPage />} />
+      <Route path="/kioska/global/registration-insurance" element={<KioskaGlobalPage />} />
       <Route path="/kioska" element={<KioskaPage />} />
       <Route element={<AppLayout />}>
         <Route path="/" element={<HomePage />} />
@@ -159,13 +167,40 @@ function MainRoute() {
             <Route path="create" element={<ExpenseForm />} />
           </Route>
           <Route path="registration" element={g('/dashboard/registration', <Outlet />)}>
-            <Route index element={<RegistrationPage />} />
+            <Route path="manage" element={<RegistrationPage />} />
             <Route path="select" element={<RegistrationSelect />} />
-            <Route path="queue/:practitionerId" element={<RegistrationQueue />} />
+            <Route path="select/:practitionerId" element={<RegistrationQueue />} />
             <Route path="upcoming-queue" element={<UpcomingQueuePage />} />
+            <Route
+              path="global-queue"
+              element={g('/dashboard/registration/global-queue', <RegistrationGlobalQueue />)}
+            />
+            <Route
+              path="non-medic-queue"
+              element={g(
+                '/dashboard/registration/non-medic-queue',
+                <NonMedicQueuePage
+                  title="Antrian Pendaftaran"
+                  description="Kelola pengambilan nomor dan operasional antrean non-medis untuk counter pendaftaran."
+                  serviceTypeCode="REGISTRASI"
+                />
+              )}
+            />
+            <Route
+              path="non-medic-queue/registration-insurance"
+              element={g(
+                '/dashboard/registration/non-medic-queue/registration-insurance',
+                <NonMedicQueuePage
+                  title="Antrian Pendaftaran Asuransi"
+                  description="Kelola pengambilan nomor dan operasional antrean non-medis untuk counter pendaftaran asuransi."
+                  serviceTypeCode="REGISTRASI_ASURANSI"
+                />
+              )}
+            />
             <Route path="kioska" element={<Navigate to="/kioska" replace />} />
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
+            <Route path="laporan-kunjungan" element={<LaporanKunjunganPage />} />
           </Route>
           <Route path="patient" element={g('/dashboard/patient', <Patient />)}>
             <Route index element={<PatientTable />} />
@@ -334,15 +369,38 @@ function MainRoute() {
           <Route path="non-medic-queue" element={<Outlet />}>
             <Route
               path="kiosk/billing"
-              element={g('/dashboard/non-medic-queue/kiosk/billing', <NonMedicQueueBillingKioskPage />)}
+              element={g(
+                '/dashboard/non-medic-queue/kiosk/billing',
+                <NonMedicQueueBillingKioskPage />
+              )}
             />
             <Route
               path="kiosk/cashier"
-              element={g('/dashboard/non-medic-queue/kiosk/cashier', <NonMedicQueueCashierKioskPage />)}
+              element={g(
+                '/dashboard/non-medic-queue/kiosk/cashier',
+                <NonMedicQueueCashierKioskPage />
+              )}
             />
             <Route
               path="kiosk/pharmacy"
-              element={g('/dashboard/non-medic-queue/kiosk/pharmacy', <NonMedicQueuePharmacyKioskPage />)}
+              element={g(
+                '/dashboard/non-medic-queue/kiosk/pharmacy',
+                <NonMedicQueuePharmacyKioskPage />
+              )}
+            />
+            <Route
+              path="kiosk/registration"
+              element={g(
+                '/dashboard/non-medic-queue/kiosk/registration',
+                <NonMedicQueueRegistrationKioskPage />
+              )}
+            />
+            <Route
+              path="kiosk/registration-insurance"
+              element={g(
+                '/dashboard/non-medic-queue/kiosk/registration-insurance',
+                <NonMedicQueueRegistrationInsuranceKioskPage />
+              )}
             />
             <Route
               path="billing"
@@ -378,12 +436,40 @@ function MainRoute() {
               )}
             />
             <Route
+              path="registration"
+              element={g(
+                '/dashboard/non-medic-queue/registration',
+                <NonMedicQueuePage
+                  title="Antrian Pendaftaran"
+                  description="Kelola pengambilan nomor, pemanggilan, dan penyelesaian antrean non-medis untuk counter pendaftaran."
+                  serviceTypeCode="REGISTRASI"
+                />
+              )}
+            />
+            <Route
+              path="registration-insurance"
+              element={g(
+                '/dashboard/non-medic-queue/registration-insurance',
+                <NonMedicQueuePage
+                  title="Antrian Pendaftaran Asuransi"
+                  description="Kelola pengambilan nomor, pemanggilan, dan penyelesaian antrean non-medis untuk counter pendaftaran asuransi."
+                  serviceTypeCode="REGISTRASI_ASURANSI"
+                />
+              )}
+            />
+            <Route
               path="service-points"
-              element={g('/dashboard/non-medic-queue/service-points', <NonMedicQueueServicePointPage />)}
+              element={g(
+                '/dashboard/non-medic-queue/service-points',
+                <NonMedicQueueServicePointPage />
+              )}
             />
             <Route
               path="workspace"
-              element={g('/dashboard/non-medic-queue/workspace', <NonMedicQueueServicePointWorkspacePage />)}
+              element={g(
+                '/dashboard/non-medic-queue/workspace',
+                <NonMedicQueueServicePointWorkspacePage />
+              )}
             />
             <Route
               path="service-points/:servicePointId/workspace"
@@ -393,7 +479,10 @@ function MainRoute() {
               )}
             />
           </Route>
-          <Route path="laboratory-management" element={g('/dashboard/laboratory-management', <Outlet />)}>
+          <Route
+            path="laboratory-management"
+            element={g('/dashboard/laboratory-management', <Outlet />)}
+          >
             <Route
               index
               element={<LaboratoryQueue fixedCategory="LABORATORY" section="laboratory" />}
@@ -423,7 +512,10 @@ function MainRoute() {
               element={<LaboratoryReports fixedCategory="LABORATORY" section="laboratory" />}
             />
           </Route>
-          <Route path="radiology-management" element={g('/dashboard/radiology-management', <Outlet />)}>
+          <Route
+            path="radiology-management"
+            element={g('/dashboard/radiology-management', <Outlet />)}
+          >
             <Route
               index
               element={<LaboratoryQueue fixedCategory="RADIOLOGY" section="radiology" />}

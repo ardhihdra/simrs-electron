@@ -95,7 +95,7 @@ async function ensureEncounterInProgress(encounterId?: string) {
 interface UseLaboratoryActionsReturn {
   loading: string | null
   handleCreateOrder: (data: any) => Promise<void>
-  handleCollectSpecimen: (data: any) => Promise<void>
+  handleCollectSpecimen: (data: any) => Promise<any>
   handleRecordResult: (data: RecordResultInput) => Promise<void>
   handlePrintReport: (encounterId: string, options?: PrintReportOptions) => Promise<void>
 }
@@ -625,13 +625,15 @@ export function useLaboratoryActions(onSuccess?: () => void): UseLaboratoryActio
   const handleCollectSpecimen = async (data: any) => {
     setLoading('collect-specimen')
     try {
-      await collectSpecimenMutation.mutateAsync(data)
+      const response = await collectSpecimenMutation.mutateAsync(data)
       await invalidateLaboratoryQueries()
       message.success('Specimen collected')
       onSuccess?.()
+      return response?.result ?? response
     } catch (error: any) {
       console.error(error)
       message.error(error.message || 'Failed to collect specimen')
+      throw error
     } finally {
       setLoading(null)
     }
