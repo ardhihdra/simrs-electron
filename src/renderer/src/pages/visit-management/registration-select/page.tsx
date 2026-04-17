@@ -108,7 +108,7 @@ export default function RegistrationSelect() {
           if (session?.hakAksesId === 'administrator') return true
           return (
             listPoli?.some((poli) => poli.id === practitioner.poliId) &&
-            (!isDoctor || practitioner.id == session.kepegawaianId)
+            (!isDoctor || practitioner.doctorId == session.kepegawaianId)
           )
         })
         ?.map((practitioner) => ({
