@@ -9,7 +9,9 @@ import { createKioskaRegistrationTicket, registerKioskaQueue } from '../../publi
 import { KioskFeedbackOverlay } from '../components/kiosk-feedback-overlay'
 import { useKioskaGlobalFlow } from '../kioska-global-context'
 import {
+  createKioskaQueuePayload,
   createKioskaRegistrationTicketPayload,
+  resolveKioskaQueueSummaryMode,
   resolveInitialKioskaRegistrationPaymentMethodFromPath,
   resolveKioskaRegistrationServiceTypeFromPaymentMethod
 } from '../kioska-queue-submission'
@@ -22,6 +24,7 @@ export function StepQueueSummary() {
   const registrationServiceType =
     resolveKioskaRegistrationServiceTypeFromPaymentMethod(paymentMethod)
   const isInsuranceRegistration = paymentMethod === 'ASURANSI'
+  const summaryMode = resolveKioskaQueueSummaryMode(state.rawatJalan)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<{
@@ -29,7 +32,7 @@ export function StepQueueSummary() {
     title: string
     message: string
   } | null>(null)
-  const isRegistrationTicket = state.rawatJalan.hasMrn === false
+  const isRegistrationTicket = summaryMode === 'registration_ticket'
 
   const handleSubmit = async () => {
     if (isSubmitting) return
@@ -72,23 +75,14 @@ export function StepQueueSummary() {
         throw new Error('Silakan pilih dokter terlebih dahulu sebelum mengambil nomor antrian.')
       }
 
-      const normalizedMrn = state.rawatJalan.mrn.trim()
-      if (normalizedMrn && !state.rawatJalan.matchedPatient?.id) {
-        throw new Error('Periksa kembali MRN pasien sebelum melanjutkan proses antrian.')
-      }
-
       const queueDate = new Date().toISOString()
-      const result = await registerKioskaQueue({
-        queueDate,
-        visitDate: queueDate,
-        practitionerId: Number(state.rawatJalan.selectedDoctor.doctorId),
-        doctorScheduleId: Number(state.rawatJalan.selectedDoctor.doctorScheduleId),
-        patientId: state.rawatJalan.matchedPatient?.id,
-        registrationType: 'OFFLINE',
-        paymentMethod,
-        reason: 'Registrasi Kioska',
-        notes: normalizedMrn ? `KIOSKA_MRN:${normalizedMrn}` : undefined
-      })
+      const result = await registerKioskaQueue(
+        createKioskaQueuePayload({
+          queueDate,
+          paymentMethod,
+          rawatJalan: state.rawatJalan
+        })
+      )
 
       setFeedback({
         tone: 'success',
@@ -115,7 +109,9 @@ export function StepQueueSummary() {
         <Typography.Text className="text-base text-slate-500">
           {isRegistrationTicket
             ? 'Pasien tanpa MRN akan diarahkan ke loket pendaftaran untuk proses registrasi awal.'
-            : 'Pastikan data di bawah sudah sesuai sebelum mengambil nomor antrian.'}
+            : state.rawatJalan.hasMrn === false
+              ? 'Pasien tanpa MRN akan mengambil nomor antrian poli sesuai dokter yang dipilih.'
+              : 'Pastikan data di bawah sudah sesuai sebelum mengambil nomor antrian.'}
         </Typography.Text>
       </div>
 
@@ -168,7 +164,11 @@ export function StepQueueSummary() {
                 {
                   key: 'patient',
                   label: 'Pasien',
-                  children: state.rawatJalan.matchedPatient?.name || 'Pasien baru / tanpa MRN'
+                  children:
+                    state.rawatJalan.matchedPatient?.name ||
+                    (state.rawatJalan.hasMrn === false
+                      ? 'Pasien baru / tanpa MRN'
+                      : 'Pasien belum dipilih')
                 },
                 {
                   key: 'address',

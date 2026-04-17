@@ -9,6 +9,7 @@ import { resolveInitialKioskaRegistrationPaymentMethodFromPath } from './global/
 import {
   StepCheckin,
   StepHasMrn,
+  StepNewPatientRoute,
   StepQueueSummary,
   StepScanMrn,
   StepSelectAntrianType,
@@ -58,6 +59,8 @@ function KioskaGlobalContent() {
         return <StepHasMrn />
       case 'scan_mrn':
         return <StepScanMrn />
+      case 'new_patient_route':
+        return <StepNewPatientRoute />
       case 'poli':
         return <StepSelectPoli />
       case 'dokter':

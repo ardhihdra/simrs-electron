@@ -16,7 +16,7 @@ test('rawat jalan now enters payment method step before MRN question', () => {
 
 test('users without MRN go straight to queue confirmation instead of poli flow', () => {
   assert.equal(getNextStepAfterMrnAnswer(true), 'scan_mrn')
-  assert.equal(getNextStepAfterMrnAnswer(false), 'ambil_antrian')
+  assert.equal(getNextStepAfterMrnAnswer(false), 'new_patient_route')
 })
 
 test('rawat jalan lokasi kerja can be stored in flow state and resets with flow', () => {
@@ -61,6 +61,7 @@ test('goBack restores the previous step without clearing existing step data', ()
       location: null,
       paymentMethod: 'CASH',
       hasMrn: true,
+      newPatientRoute: null,
       mrn: '123456',
       matchedPatient: {
         id: 'patient-1',
@@ -98,6 +99,7 @@ test('changing MRN clears downstream rawat jalan selections', () => {
       location: null,
       paymentMethod: 'CASH',
       hasMrn: true,
+      newPatientRoute: null,
       mrn: '111111',
       matchedPatient: {
         id: 'patient-1',
@@ -141,6 +143,7 @@ test('changing payment method keeps MRN-related selections intact', () => {
       },
       paymentMethod: 'CASH',
       hasMrn: true,
+      newPatientRoute: null,
       mrn: '111111',
       matchedPatient: {
         id: 'patient-1',
@@ -171,6 +174,83 @@ test('changing payment method keeps MRN-related selections intact', () => {
   assert.equal(nextState.rawatJalan.matchedPatient?.id, 'patient-1')
   assert.equal(nextState.rawatJalan.poli?.id, 20)
   assert.equal(nextState.rawatJalan.selectedDoctor?.doctorScheduleId, 40)
+})
+
+test('new patient route can be stored in flow state and resets when MRN answer changes', () => {
+  const stateWithRoute = kioskaGlobalFlowReducer(createInitialKioskaGlobalFlowState(), {
+    type: 'SET_NEW_PATIENT_ROUTE',
+    route: 'poli'
+  })
+
+  assert.equal(stateWithRoute.rawatJalan.newPatientRoute, 'poli')
+
+  const stateAfterMrnAnswer = kioskaGlobalFlowReducer(
+    {
+      ...stateWithRoute,
+      rawatJalan: {
+        ...stateWithRoute.rawatJalan,
+        poli: {
+          id: 99,
+          name: 'Poli Mata'
+        },
+        selectedDoctor: {
+          doctorId: 10,
+          doctorName: 'dr. Rani',
+          doctorScheduleId: 20,
+          poliId: 99,
+          poliName: 'Poli Mata'
+        }
+      }
+    },
+    {
+      type: 'SET_HAS_MRN',
+      hasMrn: true
+    }
+  )
+
+  assert.equal(stateAfterMrnAnswer.rawatJalan.newPatientRoute, null)
+  assert.equal(stateAfterMrnAnswer.rawatJalan.poli, null)
+  assert.equal(stateAfterMrnAnswer.rawatJalan.selectedDoctor, null)
+})
+
+test('goBack from doctor step keeps new patient poli route state intact', () => {
+  const startingState: KioskaGlobalFlowState = {
+    ...createInitialKioskaGlobalFlowState(),
+    antrianType: 'rawat_jalan' as const,
+    step: 'dokter' as const,
+    history: ['antrian_type', 'payment_method', 'has_mrn', 'new_patient_route', 'poli'],
+    rawatJalan: {
+      location: null,
+      paymentMethod: 'CASH',
+      hasMrn: false,
+      newPatientRoute: 'poli',
+      mrn: '',
+      matchedPatient: null,
+      poli: {
+        id: 10,
+        name: 'Poli Umum'
+      },
+      selectedDoctor: {
+        doctorId: 22,
+        doctorName: 'dr. Andi',
+        doctorScheduleId: 99,
+        poliId: 10,
+        poliName: 'Poli Umum'
+      }
+    }
+  }
+
+  const nextState = kioskaGlobalFlowReducer(startingState, { type: 'GO_BACK' })
+
+  assert.equal(nextState.step, 'poli')
+  assert.deepEqual(nextState.history, [
+    'antrian_type',
+    'payment_method',
+    'has_mrn',
+    'new_patient_route'
+  ])
+  assert.equal(nextState.rawatJalan.newPatientRoute, 'poli')
+  assert.equal(nextState.rawatJalan.selectedDoctor?.doctorScheduleId, 99)
 })
 
 test('resetFlow clears the wizard back to its initial state', () => {
