@@ -100,7 +100,7 @@ export default function RegistrationPage() {
   return (
     <div>
       <TableHeader
-        title="Registrasi Kunjungan"
+        title="Registrasi Pasien"
         subtitle="Manajemen pendaftaran pasien"
         onSearch={(values) => setSearchParams(values)}
         onReset={() => setSearchParams({ nik: '', name: '', medicalRecordNumber: '' })}

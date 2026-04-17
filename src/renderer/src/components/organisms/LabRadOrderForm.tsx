@@ -39,6 +39,8 @@ interface SelectedServiceRequestCodeValue {
   code: string
   display: string
   system?: string
+  category?: string
+  categories?: string[]
 }
 
 interface KepegawaianItem {
@@ -483,7 +485,13 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
             masterServiceRequestCodeId: item.masterServiceRequestCodeId,
             code: item.code,
             display: item.display,
-            system: item.system
+            system: item.system,
+            categories:
+              item.categories && item.categories.length > 0
+                ? item.categories
+                : item.category
+                  ? [item.category]
+                  : undefined
           }))
         })
 

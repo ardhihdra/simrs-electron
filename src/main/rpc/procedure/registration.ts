@@ -19,7 +19,6 @@ import {
   SaveScheduleInfoInputSchema,
   SaveScheduleSessionsInputSchema,
   SyncScheduleQuotaInputSchema,
-  UpdateQueueStatusInputSchema,
   UpdateScheduleExceptionInputSchema,
   UpdateScheduleInfoInputSchema,
   UpdateScheduleInputSchema

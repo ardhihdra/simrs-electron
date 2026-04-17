@@ -47,7 +47,11 @@ import PaketTindakanTab from './PaketTindakanTab'
 import TindakanNonPaketTab from './TindakanNonPaketTab'
 import PaketBhpTab from './PaketBhpTab'
 import BhpNonPaketTab from './BhpNonPaketTab'
-import { ItemSelectorModal, ItemAttributes, ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
+import {
+  ItemSelectorModal,
+  ItemAttributes,
+  ItemOption
+} from '@renderer/components/organisms/ItemSelectorModal'
 import { ProcedureSelectorModal } from '@renderer/components/organisms/ProcedureSelectorModal'
 import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
 
@@ -131,16 +135,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
   const [searchPaketBhp, setSearchPaketBhp] = useState('')
-  
+
   // Modals for Advanced Selection
   const [itemSelectorState, setItemSelectorState] = useState<{
-    open: boolean;
-    onSelect?: (item: ItemOption) => void;
+    open: boolean
+    onSelect?: (item: ItemOption) => void
   }>({ open: false })
 
   const [procedureSelectorState, setProcedureSelectorState] = useState<{
-    open: boolean;
-    onSelect?: (item: MasterTindakanItem) => void;
+    open: boolean
+    onSelect?: (item: MasterTindakanItem) => void
   }>({ open: false })
   const [paketCache, setPaketCache] = useState<Record<number, any>>({})
   const [paketBhpCache, setPaketBhpCache] = useState<Record<number, any>>({})
@@ -249,7 +253,13 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const res = await api.read({ id })
       const plain = (res?.result ?? res?.data ?? null) as any
       if (!plain) return null
-      return { id: Number(plain.id), kode: String(plain.kode || '').trim().toUpperCase(), nama: String(plain.nama || '') }
+      return {
+        id: Number(plain.id),
+        kode: String(plain.kode || '')
+          .trim()
+          .toUpperCase(),
+        nama: String(plain.nama || '')
+      }
     },
     enabled: !!session?.lokasiKerjaId
   })
@@ -260,12 +270,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return lokasiKerjaFromSession.kode
       }
       if (myEmployeeData) {
-        const contracts = Array.isArray(myEmployeeData.kontrakPegawai) ? myEmployeeData.kontrakPegawai : []
+        const contracts = Array.isArray(myEmployeeData.kontrakPegawai)
+          ? myEmployeeData.kontrakPegawai
+          : []
         const active = contracts[0] // list.ts sorts by date desc
         if (active?.kodeLokasiKerja) return String(active.kodeLokasiKerja).trim().toUpperCase()
         if (active?.lokasiKerja?.kode) return String(active.lokasiKerja.kode).trim().toUpperCase()
       }
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     return 'GUDANG' // fallback
   }, [lokasiKerjaFromSession, myEmployeeData])
 
@@ -275,11 +289,21 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     queryFn: async () => {
       const api = (window.api?.query as any)?.inventoryStock
       const fn = api?.listByLocation
-      console.log('[BHP][Debug] call by-location, fn exists:', !!fn, 'kodeLokasi:', currentWorkLocation)
+      console.log(
+        '[BHP][Debug] call by-location, fn exists:',
+        !!fn,
+        'kodeLokasi:',
+        currentWorkLocation
+      )
       if (!fn) return null
       let res: any = null
       try {
-        res = await fn({ kodeLokasi: String(currentWorkLocation || '').trim().toUpperCase(), items: 1000 })
+        res = await fn({
+          kodeLokasi: String(currentWorkLocation || '')
+            .trim()
+            .toUpperCase(),
+          items: 1000
+        })
       } catch (e) {
         console.error('[BHP][Debug] by-location error:', e)
         return null
@@ -299,11 +323,22 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     const map = new Map<string, number>()
     try {
       const locs = Array.isArray(locationStockData) ? locationStockData : []
-      const target = String(currentWorkLocation || '').trim().toUpperCase()
-      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
+      const target = String(currentWorkLocation || '')
+        .trim()
+        .toUpperCase()
+      const current =
+        (locs[0] as any) ||
+        locs.find(
+          (l: any) =>
+            String(l?.kodeLokasi || '')
+              .trim()
+              .toUpperCase() === target
+        )
       const items = Array.isArray(current?.items) ? current.items : []
       items.forEach((it: any) => {
-        const kode = String(it.kodeItem || '').trim().toUpperCase()
+        const kode = String(it.kodeItem || '')
+          .trim()
+          .toUpperCase()
         if (kode) map.set(kode, Number(it.availableStock || 0))
       })
     } catch (err) {
@@ -313,20 +348,35 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }, [locationStockData, currentWorkLocation])
 
   const { data: fallbackBatchStocks } = useQuery({
-    queryKey: ['inventoryStock', 'batches-by-location', currentWorkLocation, (consumableItems || []).map((i) => i.kode).join(',')],
+    queryKey: [
+      'inventoryStock',
+      'batches-by-location',
+      currentWorkLocation,
+      (consumableItems || []).map((i) => i.kode).join(',')
+    ],
     queryFn: async () => {
       const api = (window.api?.query as any)?.inventoryStock
       const fn = api?.listBatchesByLocation
-      const kodeLokasi = String(currentWorkLocation || '').trim().toUpperCase()
+      const kodeLokasi = String(currentWorkLocation || '')
+        .trim()
+        .toUpperCase()
       if (!fn || !kodeLokasi) return null
       const codes = (consumableItems || [])
-        .map((it) => String(it.kode || '').trim().toUpperCase())
+        .map((it) =>
+          String(it.kode || '')
+            .trim()
+            .toUpperCase()
+        )
         .filter((s) => !!s)
       const out: Record<string, number> = {}
       for (const kodeItem of codes.slice(0, 100)) {
         try {
           const res = await fn({ kodeItem, kodeLokasi })
-          const arr = Array.isArray((res as any)?.result) ? (res as any).result : Array.isArray(res) ? (res as any) : []
+          const arr = Array.isArray((res as any)?.result)
+            ? (res as any).result
+            : Array.isArray(res)
+              ? (res as any)
+              : []
           const total = arr.reduce((sum: number, b: any) => sum + Number(b?.availableStock || 0), 0)
           out[kodeItem] = total
         } catch (e) {
@@ -335,7 +385,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       }
       return out
     },
-    enabled: !locationStockData || (Array.isArray(locationStockData) && locationStockData.length === 0)
+    enabled:
+      !locationStockData || (Array.isArray(locationStockData) && locationStockData.length === 0)
   })
 
   const fallbackStockByItemMap = useMemo(() => {
@@ -344,11 +395,15 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const obj = fallbackBatchStocks as Record<string, number> | null
       if (obj && typeof obj === 'object') {
         Object.entries(obj).forEach(([kode, qty]) => {
-          const key = String(kode || '').trim().toUpperCase()
+          const key = String(kode || '')
+            .trim()
+            .toUpperCase()
           if (key) map.set(key, Number(qty || 0))
         })
       }
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     return map
   }, [fallbackBatchStocks])
 
@@ -360,14 +415,25 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     const set = new Set<number>()
     try {
       const locs = Array.isArray(locationStockData) ? locationStockData : []
-      const target = String(currentWorkLocation || '').trim().toUpperCase()
-      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
+      const target = String(currentWorkLocation || '')
+        .trim()
+        .toUpperCase()
+      const current =
+        (locs[0] as any) ||
+        locs.find(
+          (l: any) =>
+            String(l?.kodeLokasi || '')
+              .trim()
+              .toUpperCase() === target
+        )
       const items = Array.isArray(current?.items) ? current.items : []
       items.forEach((it: any) => {
         const idVal = Number(it.itemId ?? it.id)
         if (Number.isFinite(idVal) && idVal > 0) set.add(idVal)
       })
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     return set
   }, [locationStockData, currentWorkLocation])
 
@@ -428,9 +494,19 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         kode: i.kode,
         nama: i.nama
       }))
-      console.log('[BHP][Debug] consumableItems preview:', preview, 'total:', (consumableItems || []).length)
+      console.log(
+        '[BHP][Debug] consumableItems preview:',
+        preview,
+        'total:',
+        (consumableItems || []).length
+      )
       const stockPreview = Array.from(stockByItemMap.entries()).slice(0, 10)
-      console.log('[BHP][Debug] stockByItemMap preview:', stockPreview, 'size:', stockByItemMap.size)
+      console.log(
+        '[BHP][Debug] stockByItemMap preview:',
+        stockPreview,
+        'size:',
+        stockByItemMap.size
+      )
     } catch (e) {
       console.log('[BHP][Debug] consumableItems log error:', e)
     }
@@ -443,13 +519,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
         const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
         const unitName = item.unit?.nama ?? unitCode
-        
+
         const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
         const name = item.nama ?? code
         const displayName = name || code || String(item.id)
         const label = unitName ? `${displayName} (${unitName})` : displayName
-        
-        const categoryId = typeof item.itemCategoryId === 'number' ? item.itemCategoryId : (item.category?.id ?? null)
+
+        const categoryId =
+          typeof item.itemCategoryId === 'number'
+            ? item.itemCategoryId
+            : (item.category?.id ?? null)
         const categoryType = item.category?.categoryType?.toLowerCase() || 'item'
 
         return {
@@ -492,7 +571,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             missingFromLocation.push(`ID:${bhp.itemId}`)
             continue
           }
-          const kode = String(item.kode || '').trim().toUpperCase()
+          const kode = String(item.kode || '')
+            .trim()
+            .toUpperCase()
           const stock = stockByItemMap.get(kode)
 
           if (stock === undefined) {
@@ -545,7 +626,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             missingFromLocation.push(`ID:${bhp.itemId}`)
             continue
           }
-          const kode = String(item.kode || '').trim().toUpperCase()
+          const kode = String(item.kode || '')
+            .trim()
+            .toUpperCase()
           const stock = stockByItemMap.get(kode)
 
           if (stock === undefined) {
@@ -1760,7 +1843,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   return (
     <div className="flex flex-col gap-4">
       <Card
-        title={"Detail Tindakan Medis"}
+        title={'Detail Tindakan Medis'}
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenModal}>
             Catat Tindakan Baru

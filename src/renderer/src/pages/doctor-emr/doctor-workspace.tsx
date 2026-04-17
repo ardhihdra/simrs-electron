@@ -34,6 +34,7 @@ const DoctorWorkspace = () => {
     setLoading(true)
     try {
       const data = await getPatientMedicalRecord(encounterId)
+      console.log('getPatientMedicalRecord', data)
       if (data) {
         setPatientData(data)
       } else {
@@ -85,9 +86,9 @@ const DoctorWorkspace = () => {
   const allergies =
     allergyData?.result && Array.isArray(allergyData.result) && allergyData.result.length > 0
       ? allergyData.result
-        .map((a: any) => a.note)
-        .filter(Boolean)
-        .join(', ')
+          .map((a: any) => a.note)
+          .filter(Boolean)
+          .join(', ')
       : '-'
 
   const currentStatus = encounterDetail?.result?.status || EncounterStatus.IN_PROGRESS

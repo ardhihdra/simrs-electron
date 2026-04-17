@@ -1,22 +1,29 @@
 import { client } from '@renderer/utils/client'
 import { App, Button, Modal } from 'antd'
+import { useEffect } from 'react'
 
 interface CallConfirmationModalProps {
   open: boolean
   record?: any
   onClose: () => void
   onSuccess: () => void
+  onPendingChange?: (isPending: boolean) => void
 }
 
 export default function CallConfirmationModal({
   open,
   record,
   onClose,
-  onSuccess
+  onSuccess,
+  onPendingChange
 }: CallConfirmationModalProps) {
   const { message, modal } = App.useApp()
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
   const isSkipped = record?.status === 'SKIPPED'
+
+  useEffect(() => {
+    onPendingChange?.(updateStatusMutation.isPending)
+  }, [onPendingChange, updateStatusMutation.isPending])
 
   const submitAction = async (action: 'CALL' | 'SKIP' | 'RECALL_TO_PRE_RESERVED') => {
     if (!record) return

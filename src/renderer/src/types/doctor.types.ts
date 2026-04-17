@@ -223,6 +223,7 @@ export interface SaveCompoundFormulationResponse {
 
 export interface PatientWithMedicalRecord extends PatientQueue {
     paymentMethod?: string
+    encounter?: Record<string, unknown>
     nurseRecord?: {
         vitalSigns: VitalSigns
         anamnesis: Anamnesis
