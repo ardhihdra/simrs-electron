@@ -23,6 +23,7 @@ interface PatientResult {
   id: string
   name: string
   medicalRecordNumber: string
+  needEmr?: boolean
   createdAt: string
 }
 
@@ -53,7 +54,8 @@ export const PatientSelectorWithService = ({
       if (serviceType === 'LUAR') {
         const fn = window.api?.query?.patient?.list
         if (!fn) throw new Error('API patient tidak tersedia')
-        return fn({ q: searchText, limit: 50 })
+        // Search specifically for patients registered as "Pasien Luar" (needEmr: false)
+        return fn({ name: searchText, needEmr: false, limit: 50 })
       } else {
         const fn = window.api?.query?.encounter?.list
         if (!fn) throw new Error('API encounter tidak tersedia')
@@ -61,7 +63,7 @@ export const PatientSelectorWithService = ({
         const params: any = {
           limit: 50,
           serviceType: serviceType,
-          q: searchText
+          patientName: searchText
         }
 
         const res = await fn(params)
@@ -69,7 +71,7 @@ export const PatientSelectorWithService = ({
         return res
       }
     },
-    enabled: serviceType !== 'LUAR'
+    enabled: true
   })
 
   useEffect(() => {
@@ -78,20 +80,27 @@ export const PatientSelectorWithService = ({
     }
   }, [initialValue])
 
-  const options = (results?.result || []).map((item: any) => {
+  const options = (results?.data || results?.result || []).map((item: any) => {
     // We still use any for the raw item because it can be either EncounterResult or PatientResult
     // but we'll cast it appropriately
     const isEncounter = serviceType !== 'LUAR'
-    const patient: PatientResult = isEncounter ? (item as EncounterResult).patient || {} : (item as PatientResult)
-    const mrn = patient.medicalRecordNumber || '-'
-    const name = patient.name || 'Unknown'
+    const patient: PatientResult = isEncounter ? (item as EncounterResult).patient || {} : (item as any)
+    const mrn = patient.medicalRecordNumber || "-"
+    const name = (patient as any).fullName || patient.name || "Unknown"
     const visitDate = isEncounter ? ((item as EncounterResult).startTime || (item as EncounterResult).createdAt) : patient.createdAt
 
     return {
       label: (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <Text strong>{name}</Text>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Text strong>{name}</Text>
+              {patient.needEmr === false && (
+                <Tag color="purple" bordered={false} style={{ fontSize: '10px', lineHeight: '16px' }}>
+                  Pasien Luar (Farmasi)
+                </Tag>
+              )}
+            </div>
             <div style={{ fontSize: '12px', color: token.colorTextTertiary }}>
               RM: {mrn}
             </div>
@@ -169,48 +178,25 @@ export const PatientSelectorWithService = ({
         </Radio.Group>
       </div>
 
-      {serviceType === 'LUAR' ? (
-        <div className="flex gap-3">
-          <div className="flex-1">
-            <Text className="mb-1 block">Nama Pasien:</Text>
-            <Input
-              placeholder="Ketik Nama Pasien Luar..."
-              size="large"
-              value={manualName}
-              onChange={(e) => handleManualChange(e.target.value, manualRM)}
-            />
-          </div>
-          <div className="w-1/3">
-            <Text className="mb-1 block">No. RM (Opsional):</Text>
-            <Input
-              placeholder="No. RM..."
-              size="large"
-              value={manualRM}
-              onChange={(e) => handleManualChange(manualName, e.target.value)}
-            />
-          </div>
-        </div>
-      ) : (
-        <div className="flex-1">
-          <Select
-            className="w-full"
-            optionLabelProp="display"
-            showSearch
-            placeholder="Cari Nama Pasien atau No. RM (Pilih layanan dulu)"
-            loading={isLoading}
-            onSearch={setSearchText}
-            onChange={handleSelect}
-            onClear={handleClear}
-            value={selectedValue}
-            options={options}
-            filterOption={false} // Loading server-side
-            allowClear
-            disabled={disabled}
-            size="large"
-            notFoundContent={isLoading ? 'Mencari...' : 'Data tidak ditemukan'}
-          />
-        </div>
-      )}
+      <div className="flex-1">
+        <Select
+          className="w-full"
+          optionLabelProp="display"
+          showSearch
+          placeholder={serviceType === 'LUAR' ? "Cari Pasien Luar (Ketik nama)..." : "Cari Nama Pasien atau No. RM (Pilih layanan dulu)"}
+          loading={isLoading}
+          onSearch={setSearchText}
+          onChange={handleSelect}
+          onClear={handleClear}
+          value={selectedValue}
+          options={options}
+          filterOption={false} // Loading server-side
+          allowClear
+          disabled={disabled}
+          size="large"
+          notFoundContent={isLoading ? 'Mencari...' : 'Data tidak ditemukan'}
+        />
+      </div>
     </div>
   )
 }

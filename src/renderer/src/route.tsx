@@ -290,6 +290,11 @@ function MainRoute() {
             <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
             <Route path="item-purchase" element={<ItemPurchasePage />} />
+            <Route path="patient" element={<Patient />}>
+              <Route index element={<PatientTable />} />
+              <Route path="register" element={<PatientForm />} />
+              <Route path="edit/:id" element={<PatientForm />} />
+            </Route>
           </Route>
           <Route path="nurse-calling" element={g('/dashboard/nurse-calling', <NurseCalling />)}>
             <Route index element={<PatientQueueTable />} />
