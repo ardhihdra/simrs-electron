@@ -6,6 +6,7 @@ import { DoctorScheduleDataTable, buildDoctorScheduleRangeLabel } from './Doctor
 import { DoctorScheduleFilters } from './DoctorScheduleFilters'
 import { DoctorScheduleHero } from './DoctorScheduleHero'
 import type { DoctorScheduleItem, DoctorScheduleListResult, DoctorScheduleRow } from './types'
+import { buildDoctorScheduleListQuery } from './doctorScheduleListPage.helpers'
 
 export default function DoctorScheduleListPage() {
   const { token } = theme.useToken()
@@ -15,13 +16,7 @@ export default function DoctorScheduleListPage() {
   const [searchJadwal, setSearchJadwal] = useState('')
 
   const { data, refetch, isError, isLoading } = client.query.entity.useQuery(
-    {
-      model: 'jadwalDokter',
-      method: 'get',
-      params: {
-        items: '100'
-      }
-    },
+    buildDoctorScheduleListQuery(),
     {
       queryKey: ['doctorSchedule', 'list']
     } as any
