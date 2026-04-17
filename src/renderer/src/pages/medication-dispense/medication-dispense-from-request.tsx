@@ -481,7 +481,13 @@ export default function MedicationDispenseFromRequest() {
 	}, [detail])
 
 	const allCriteriaMet = useMemo(() => {
-		return Object.values(telaahResults).every(v => v === true)
+		const criteriaKeys: (keyof TelaahResults)[] = [
+			'tanggalResep', 'parafDokter', 'identitasPasien', 'bbTb',
+			'namaObat', 'kekuatan', 'jumlahObat', 'signa',
+			'duplikasi', 'kontraindikasi', 'interaksi', 'dosisLazim', 'alergi',
+			'infoKesesuaianIdentitas', 'infoNamaDosisJumlah', 'infoCaraGuna', 'infoEso'
+		]
+		return criteriaKeys.every(key => telaahResults[key] === true)
 	}, [telaahResults])
 
 	const createDispenseMutation = useMutation({
@@ -905,10 +911,10 @@ export default function MedicationDispenseFromRequest() {
 			key: 'batchExpire',
 			render: (_: unknown, row: TableRow) => {
 				return (
-					<BatchSelectCell 
-						kodeItem={row.kodeItem} 
-						value={selectedBatches[row.key]} 
-						onChange={(val) => setSelectedBatches(prev => ({ ...prev, [row.key]: val }))} 
+					<BatchSelectCell
+						kodeItem={row.kodeItem}
+						value={selectedBatches[row.key]}
+						onChange={(val) => setSelectedBatches(prev => ({ ...prev, [row.key]: val }))}
 					/>
 				)
 			}
