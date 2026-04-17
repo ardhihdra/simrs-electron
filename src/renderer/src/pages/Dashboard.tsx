@@ -60,6 +60,10 @@ type Module = (typeof Modules)[keyof typeof Modules]
 
 const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = true
 
+const needsWorkspacePicker = (hakAksesId: string | undefined | null): boolean => {
+  return hakAksesId !== 'doctor' && hakAksesId !== 'nurse'
+}
+
 type DashboardMenuChild = {
   label: string
   key: string
@@ -172,6 +176,11 @@ const items: DashboardMenuItem[] = [
     icon: <FileTextOutlined />,
     module: Modules.OK,
     children: [
+      {
+        label: 'Dashboard OK',
+        key: '/dashboard/ok/dashboard',
+        icon: <DashboardOutlined />
+      },
       {
         label: 'Pengajuan OK',
         key: '/dashboard/ok/pengajuan',
@@ -620,9 +629,9 @@ function Dashboard() {
   const getTopKeyFromPath = (path: string): string => {
     if (
       path.startsWith('/dashboard/doctor') &&
-      visibleItems.some((item) => item.key === '/dashboard/doctor')
+      visibleItems.some((item) => item.key === '/dashboard/poli')
     ) {
-      return '/dashboard/doctor'
+      return '/dashboard/poli'
     }
     for (const top of visibleItems) {
       const children = Array.isArray(top.children) ? top.children : []
@@ -668,6 +677,13 @@ function Dashboard() {
     if (key === KIOSKA_KEY) {
       const base = window.location.href.split('#')[0]
       window.open(`${base}#${key}`, '_blank')
+      return
+    }
+    const selectedPoli = poliKeyMeta[key]
+    if (selectedPoli && needsWorkspacePicker(session?.hakAksesId)) {
+      const params = new URLSearchParams({ selectPoli: selectedPoli.code })
+      navigate(`/dashboard/poli?${params.toString()}`)
+      setActiveSide(key)
       return
     }
     navigate(key)

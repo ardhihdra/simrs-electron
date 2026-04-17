@@ -5,7 +5,13 @@ import { useNavigate } from 'react-router'
 
 const { Text } = Typography
 
-export type VerifikasiOkStatus = 'menunggu' | 'diproses' | 'disetujui' | 'ditolak'
+export type VerifikasiOkStatus =
+  | 'menunggu'
+  | 'diproses'
+  | 'disetujui'
+  | 'selesai'
+  | 'ditolak'
+  | 'dibatalkan'
 export type VerifikasiOkSifat = 'cyto' | 'segera' | 'efektif'
 
 export interface VerifikasiOkRow {
@@ -29,9 +35,11 @@ interface VerifikasiOKTableProps {
 
 const STATUS_MAP: Record<VerifikasiOkStatus, { label: string; color: string }> = {
   menunggu: { label: 'Menunggu Verifikasi', color: 'orange' },
-  diproses: { label: 'Sedang Diproses', color: 'blue' },
+  diproses: { label: 'Sedang Operasi', color: 'blue' },
   disetujui: { label: 'Disetujui', color: 'green' },
-  ditolak: { label: 'Ditolak', color: 'red' }
+  selesai: { label: 'Selesai Operasi', color: 'green' },
+  ditolak: { label: 'Ditolak', color: 'red' },
+  dibatalkan: { label: 'Dibatalkan', color: 'red' }
 }
 
 const SIFAT_MAP: Record<VerifikasiOkSifat, { color: string; label: string }> = {

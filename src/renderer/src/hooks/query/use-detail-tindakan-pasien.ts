@@ -103,15 +103,28 @@ export interface UpdateDetailTindakanInput extends CreateDetailTindakanInput {
     id: number;
 }
 
+type DetailTindakanByEncounterResponse = Awaited<
+    ReturnType<NonNullable<Window['api']['query']['detailTindakanPasien']['byEncounter']>>
+>
+type DetailTindakanCreateFn = NonNullable<Window['api']['query']['detailTindakanPasien']['create']>
+type DetailTindakanCreatePayload = Parameters<DetailTindakanCreateFn>[0]
+type DetailTindakanCreateResponse = Awaited<ReturnType<DetailTindakanCreateFn>>
+type DetailTindakanUpdateFn = NonNullable<Window['api']['query']['detailTindakanPasien']['update']>
+type DetailTindakanUpdatePayload = Parameters<DetailTindakanUpdateFn>[0]
+type DetailTindakanUpdateResponse = Awaited<ReturnType<DetailTindakanUpdateFn>>
+type DetailTindakanRemoveResponse = Awaited<
+    ReturnType<NonNullable<Window['api']['query']['detailTindakanPasien']['remove']>>
+>
+
 export const useDetailTindakanByEncounter = (encounterId: string | undefined) => {
     return useQuery({
         queryKey: ['detail-tindakan-pasien', 'by-encounter', encounterId],
         queryFn: async (): Promise<DetailTindakanPasienItem[]> => {
             const fn = window.api?.query?.detailTindakanPasien?.byEncounter
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
-            const res = await fn({ encounterId: encounterId! })
+            const res = (await fn({ encounterId: encounterId! })) as DetailTindakanByEncounterResponse
             if (!res.success) throw new Error(res.error ?? 'Gagal mengambil detail tindakan')
-            return (res.result ?? []) as unknown as DetailTindakanPasienItem[]
+            return (Array.isArray(res.result) ? res.result : []) as DetailTindakanPasienItem[]
         },
         enabled: !!encounterId,
         retry: (failureCount, error) => {
@@ -128,11 +141,11 @@ export const useDetailTindakanByEncounter = (encounterId: string | undefined) =>
 export const useCreateDetailTindakan = (encounterId: string | undefined) => {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: async (input: CreateDetailTindakanInput) => {
-            const fn = (window.api?.query?.detailTindakanPasien?.create as any)
+        mutationFn: async (input: DetailTindakanCreatePayload | CreateDetailTindakanInput) => {
+            const fn = window.api?.query?.detailTindakanPasien?.create
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
-            const res = await (fn as any)(input)
-            if (!res.success) throw new Error((res as any).error ?? 'Gagal menyimpan detail tindakan')
+            const res = (await fn(input as DetailTindakanCreatePayload)) as DetailTindakanCreateResponse
+            if (!res.success) throw new Error(res.error ?? 'Gagal menyimpan detail tindakan')
             return res
         },
         onSuccess: () => {
@@ -146,11 +159,11 @@ export const useCreateDetailTindakan = (encounterId: string | undefined) => {
 export const useUpdateDetailTindakan = (encounterId: string | undefined) => {
     const queryClient = useQueryClient()
     return useMutation({
-        mutationFn: async (input: UpdateDetailTindakanInput) => {
-            const fn = (window.api?.query?.detailTindakanPasien?.update as any)
+        mutationFn: async (input: DetailTindakanUpdatePayload | UpdateDetailTindakanInput) => {
+            const fn = window.api?.query?.detailTindakanPasien?.update
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
-            const res = await (fn as any)(input)
-            if (!res.success) throw new Error((res as any).error ?? 'Gagal memperbarui detail tindakan')
+            const res = (await fn(input as DetailTindakanUpdatePayload)) as DetailTindakanUpdateResponse
+            if (!res.success) throw new Error(res.error ?? 'Gagal memperbarui detail tindakan')
             return res
         },
         onSuccess: () => {
@@ -165,10 +178,10 @@ export const useVoidDetailTindakan = (encounterId: string | undefined) => {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (id: number) => {
-            const fn = (window.api?.query?.detailTindakanPasien?.remove as any)
+            const fn = window.api?.query?.detailTindakanPasien?.remove
             if (!fn) throw new Error('API detail tindakan tidak tersedia')
-            const res = await fn({ id })
-            if (!res.success) throw new Error((res as any).error ?? 'Gagal membatalkan tindakan')
+            const res = (await fn({ id })) as DetailTindakanRemoveResponse
+            if (!res.success) throw new Error(res.error ?? 'Gagal membatalkan tindakan')
             return res
         },
         onSuccess: () => {

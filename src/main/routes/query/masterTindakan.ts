@@ -29,6 +29,14 @@ export const schemas = {
         result: z.object({
             success: z.boolean(),
             result: z.array(MasterTindakanSchemaCompat).optional(),
+            pagination: z
+                .object({
+                    page: z.number(),
+                    pages: z.number(),
+                    count: z.number(),
+                    limit: z.number().optional()
+                })
+                .optional(),
             error: z.string().optional()
         })
     },
@@ -59,10 +67,24 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
         const queryString = params.toString()
         const url = `/api/mastertindakan${queryString ? `?${queryString}` : ''}`
         const res = await client.get(url)
-
         const ListSchema = BackendListSchema(MasterTindakanSchemaCompat)
-        const result = await parseBackendResponse(res, ListSchema)
-        return { success: true, result: result ?? [] }
+        const raw = await res.json().catch(() => ({ success: false, error: 'Invalid response' }))
+        const parsed = ListSchema.safeParse(raw)
+
+        if (!res.ok || !parsed.success || parsed.data.success === false) {
+            if (parsed.success && parsed.data.success === false) {
+                const msg = parsed.data.error || parsed.data.message || 'Gagal mengambil data master tindakan'
+                throw new Error(String(msg))
+            }
+            const msg = parsed.success ? `HTTP ${res.status}` : parsed.error.message
+            throw new Error(msg)
+        }
+
+        return {
+            success: true,
+            result: parsed.data.result ?? [],
+            pagination: parsed.data.pagination
+        }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         return { success: false, error: msg }

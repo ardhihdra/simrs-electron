@@ -1,54 +1,33 @@
 import z from 'zod'
 import { IpcContext } from '@main/ipc/router'
 import {
-    getClient
+    getClient,
+    parseBackendResponse
 } from '@main/utils/backendClient'
-import { CompositionSchema } from 'simrs-types'
+import {
+    CompositionCreateInputSchema,
+    CompositionGetByEncounterInputSchema,
+    CompositionListResponseSchema,
+    CompositionResponseSchema,
+    CompositionSchema
+} from 'simrs-types'
 export const requireSession = true
-
-const CompositionResultSchema = CompositionSchema.extend({
-    authorId: z.any().optional().nullable(),
-    section: z.any().optional().nullable(),
-    author: z.any().optional().nullable(),
-    attesters: z.any().optional().nullable(),
-    type: z.any().optional().nullable(),
-    types: z.any().optional().nullable(),
-    category: z.any().optional().nullable(),
-    categories: z.any().optional().nullable(),
-}).passthrough()
-
-export const CompositionSchemaPayload = CompositionSchema.extend({
-    id: z.union([z.string(), z.number()]).optional().nullable(),
-    date: z.union([z.string(), z.coerce.date()]).optional().nullable(),
-    createdAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
-    updatedAt: z.union([z.string(), z.coerce.date()]).optional().nullable(),
-    section: z.any().optional().nullable(),
-    type: z.any().optional().nullable(),
-    category: z.any().optional().nullable(),
-    custodian: z.any().optional().nullable(),
-})
 
 export const schemas = {
     create: {
-        args: CompositionSchemaPayload.extend({
-            encounterId: z.string(),
-            patientId: z.string(),
-            doctorId: z.union([z.number(), z.string()]),
-        }),
+        args: CompositionCreateInputSchema,
         result: z.object({
             success: z.boolean(),
-            result: CompositionResultSchema.optional().nullable(),
+            result: CompositionSchema.optional().nullable(),
             message: z.string().optional(),
             error: z.string().optional()
         })
     },
     getByEncounter: {
-        args: z.object({
-            encounterId: z.string()
-        }),
+        args: CompositionGetByEncounterInputSchema,
         result: z.object({
             success: z.boolean(),
-            result: z.array(CompositionResultSchema).optional().nullable(),
+            result: z.array(CompositionSchema).optional().nullable(),
             message: z.string().optional(),
             error: z.string().optional()
         })
@@ -77,17 +56,11 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
         }
 
         const res = await client.post('/api/module/composition', payload)
-
-        const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
-
-        if (!raw || typeof raw !== 'object' || raw.success === false) {
-            return { success: false, error: raw?.error || raw?.message || 'Unknown backend error' }
-        }
-
-        return raw as any
+        const result = await parseBackendResponse(res, CompositionResponseSchema)
+        return { success: true, result }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        return { success: false, error: msg }
+        return { success: false, message: msg, error: msg }
     }
 }
 
@@ -95,16 +68,10 @@ export const getByEncounter = async (ctx: IpcContext, args: z.infer<typeof schem
     try {
         const client = getClient(ctx)
         const res = await client.get(`/api/module/composition/${args.encounterId}`)
-
-        const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
-
-        if (!raw || typeof raw !== 'object' || raw.success === false) {
-            return { success: false, error: raw?.error || raw?.message || 'Unknown backend error' }
-        }
-
-        return raw as any
+        const result = await parseBackendResponse(res, CompositionListResponseSchema)
+        return { success: true, result: result ?? [] }
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
-        return { success: false, error: msg }
+        return { success: false, message: msg, error: msg }
     }
 }
