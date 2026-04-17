@@ -6,6 +6,7 @@ import { useState } from 'react'
 
 interface ServiceRequestFormValues {
   category: string
+  serviceRequestCodeCategories?: string[]
   code?: string
   display?: string
   priority?: string
@@ -17,6 +18,8 @@ interface ServiceRequestFormValues {
     code: string
     display: string
     system?: string
+    category?: string
+    categories?: string[]
   }>
 }
 
@@ -44,7 +47,8 @@ export const useCreateServiceRequest = ({
                   masterServiceRequestCodeId: values.masterServiceRequestCodeId,
                   code: values.code,
                   display: values.display,
-                  system: values.system
+                  system: values.system,
+                  categories: values.serviceRequestCodeCategories
                 }
               ]
             : []
@@ -66,6 +70,12 @@ export const useCreateServiceRequest = ({
             serviceRequests: [
               {
                 category: String(values.category),
+                categories:
+                  serviceRequest.categories && serviceRequest.categories.length > 0
+                    ? serviceRequest.categories
+                    : serviceRequest.category
+                      ? [String(serviceRequest.category)]
+                      : values.serviceRequestCodeCategories,
                 code: String(serviceRequest.code),
                 display: String(serviceRequest.display),
                 priority: String(values.priority || 'routine'),

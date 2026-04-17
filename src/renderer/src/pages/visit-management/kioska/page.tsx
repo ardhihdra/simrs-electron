@@ -1,104 +1,59 @@
-import {
-  BarcodeOutlined,
-  ClockCircleOutlined,
-  MedicineBoxOutlined,
-  ReloadOutlined,
-  TeamOutlined,
-  UserOutlined
-} from '@ant-design/icons'
-import { hasValidationErrors, notifyFormValidationError } from '@renderer/utils/form-feedback'
-import {
-  Alert,
-  App,
-  Button,
-  Card,
-  Col,
-  Form,
-  Input,
-  Row,
-  Space,
-  Tag,
-  Typography,
-  theme
-} from 'antd'
-import dayjs from 'dayjs'
-import { useEffect, useMemo, useState } from 'react'
+import { ArrowLeftOutlined } from '@ant-design/icons'
+import { Visibility } from '@renderer/components/atoms/Visibility'
+import { App, Button, Input, theme, Typography } from 'antd'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import {
-  fetchKioskaDoctors,
-  fetchKioskaPatients,
-  registerKioskaQueue,
-  type KioskaDoctor,
-  type KioskaPatient
-} from './public-client'
-import {
-  clearSelectedKioskaPoli,
-  getPoliColor,
-  readSelectedKioskaPoli,
-  type KioskaPoliOption
-} from './shared'
+import { KioskSelectDoctor } from './components/kiosk-select-doctor'
+import { KioskSelectPoli } from './components/kiosk-select-poli'
+import { fetchKioskaPatients, registerKioskaQueue } from './public-client'
 
-type QueueResult = {
-  formattedQueueNumber?: string
-  queueNumber?: number | string
-  queueDate?: string
-}
+type AntrianType = 'rawat_jalan' | 'rawat_inap' | 'penunjang' | 'checkin'
 
-export default function KioskaPage() {
+type Step =
+  | 'antrian_type'
+  | 'has_mrn'
+  | 'scan_mrn'
+  | 'poli'
+  | 'dokter'
+  | 'ambil_antrian'
+  | 'input_kode_antrian'
+
+const antrianTypeData: { label: string; value: AntrianType }[] = [
+  { label: 'Rawat Jalan', value: 'rawat_jalan' },
+  { label: 'Rawat Inap', value: 'rawat_inap' },
+  { label: 'Pemeriksaan Penunjang', value: 'penunjang' },
+  { label: 'Check-in', value: 'checkin' }
+]
+
+export default function KioskaGlobalPage() {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const { token } = theme.useToken()
-  const [form] = Form.useForm()
-  const [lastQueue, setLastQueue] = useState<QueueResult | null>(null)
-  const [selectedPoli, setSelectedPoli] = useState<KioskaPoliOption | null>(null)
-  const [availableDoctors, setAvailableDoctors] = useState<KioskaDoctor[]>([])
-  const [matchedPatient, setMatchedPatient] = useState<KioskaPatient | null>(null)
-  const [isLoadingDoctors, setIsLoadingDoctors] = useState(true)
+
+  const [step, setStep] = useState<Step>('antrian_type')
+  const [stepHistory, setStepHistory] = useState<Step[]>([])
+
+  const [antrianType, setAntrianType] = useState<AntrianType>('rawat_jalan')
+  const [hasMrn, setHasMrn] = useState<boolean | null>(null)
+
+  const [kodeAntrian, setKodeAntrian] = useState('')
+
+  // rawat jalan state
+  const [mrn, setMrn] = useState('')
+  const [doctorId, setDoctorId] = useState<number | null>(null)
+  const [selectedDoctor, setSelectedDoctor] = useState<any>(null)
+  const [poli, setPoli] = useState<any>(null)
+
+  const [matchedPatient, setMatchedPatient] = useState<any>(null)
   const [isResolvingPatient, setIsResolvingPatient] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const selectedDoctorScheduleId = Form.useWatch('doctorScheduleId', form)
-  const medicalRecordNumber = Form.useWatch('medicalRecordNumber', form)
   const kioskGradient = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
-  const queueDate = dayjs().format('YYYY-MM-DD')
 
+  // ===== resolve patient =====
   useEffect(() => {
-    const storedPoli = readSelectedKioskaPoli()
-    if (!storedPoli) {
-      navigate('/kioska/setup', { replace: true })
-      return
-    }
+    const normalizedMrn = String(mrn || '').trim()
 
-    setSelectedPoli(storedPoli)
-  }, [navigate])
-
-  useEffect(() => {
-    if (!selectedPoli) return
-
-    let cancelled = false
-
-    void (async () => {
-      try {
-        setIsLoadingDoctors(true)
-        const result = await fetchKioskaDoctors({ date: queueDate, poliId: selectedPoli.id })
-        if (cancelled) return
-        setAvailableDoctors(result.doctors || [])
-      } catch (error: any) {
-        if (cancelled) return
-        setAvailableDoctors([])
-        message.error(error?.message || 'Gagal memuat jadwal dokter kioska')
-      } finally {
-        if (!cancelled) setIsLoadingDoctors(false)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [message, queueDate, selectedPoli])
-
-  useEffect(() => {
-    const normalizedMrn = String(medicalRecordNumber || '').trim()
     if (!normalizedMrn) {
       setMatchedPatient(null)
       setIsResolvingPatient(false)
@@ -106,19 +61,27 @@ export default function KioskaPage() {
     }
 
     let cancelled = false
-    const timer = window.setTimeout(() => {
+
+    const timer = setTimeout(() => {
       void (async () => {
         try {
           setIsResolvingPatient(true)
-          const patients = await fetchKioskaPatients({ medicalRecordNumber: normalizedMrn })
+
+          const patients = await fetchKioskaPatients({
+            medicalRecordNumber: normalizedMrn
+          })
+
           if (cancelled) return
 
           const exactMatch =
             patients.find(
-              (patient) =>
-                String(patient.medicalRecordNumber || '').trim().toLowerCase() ===
-                normalizedMrn.toLowerCase()
-            ) || patients[0] || null
+              (p) =>
+                String(p.medicalRecordNumber || '')
+                  .trim()
+                  .toLowerCase() === normalizedMrn.toLowerCase()
+            ) ||
+            patients[0] ||
+            null
 
           setMatchedPatient(exactMatch)
         } catch (error: any) {
@@ -133,450 +96,262 @@ export default function KioskaPage() {
 
     return () => {
       cancelled = true
-      window.clearTimeout(timer)
+      clearTimeout(timer)
     }
-  }, [medicalRecordNumber, message])
+  }, [mrn, message])
 
-  const handleDummyScanBarcode = () => {
-    const dummyMrn = `MRN-${dayjs().format('YYYYMMDDHHmmss')}`
-    form.setFieldValue('medicalRecordNumber', dummyMrn)
-    message.success('MRN dummy berhasil di-scan')
+  // ===== summary =====
+  const formatStepSummary = () => {
+    if (antrianType !== 'rawat_jalan') return null
+
+    const parts: string[] = []
+
+    if (mrn) parts.push(mrn)
+    if (poli?.name) parts.push(poli.name)
+    if (selectedDoctor?.doctorName) parts.push(selectedDoctor.doctorName)
+
+    return parts.length ? parts.join(' → ') : null
   }
 
-  const handleRefresh = async () => {
-    if (!selectedPoli) return
+  // ===== navigation =====
+  const goTo = (next: Step) => {
+    setStepHistory((prev) => [...prev, step])
+    setStep(next)
+  }
 
-    try {
-      setIsLoadingDoctors(true)
-      const result = await fetchKioskaDoctors({ date: queueDate, poliId: selectedPoli.id })
-      setAvailableDoctors(result.doctors || [])
-      message.success('Data dokter diperbarui')
-    } catch (error: any) {
-      setAvailableDoctors([])
-      message.error(error?.message || 'Gagal memuat jadwal dokter kioska')
-    } finally {
-      setIsLoadingDoctors(false)
+  const goBack = () => {
+    setStepHistory((prev) => {
+      if (!prev.length) return prev
+      const next = [...prev]
+      const last = next.pop()
+      if (last) setStep(last)
+      return next
+    })
+  }
+
+  const resetFlow = () => {
+    setStep('antrian_type')
+    setStepHistory([])
+    setMrn('')
+    setKodeAntrian('')
+    setHasMrn(null)
+    setPoli(null)
+    setDoctorId(null)
+    setSelectedDoctor(null)
+    setMatchedPatient(null)
+  }
+
+  // ===== handlers =====
+  const handleSelectAntrianType = (type: AntrianType) => {
+    setAntrianType(type)
+
+    if (type === 'rawat_jalan') {
+      goTo('has_mrn')
+      return
     }
+
+    if (type === 'checkin') {
+      goTo('input_kode_antrian')
+      return
+    }
+
+    message.info('Fitur belum tersedia')
   }
 
-  const handleChangePoli = () => {
-    clearSelectedKioskaPoli()
-    navigate('/kioska/setup')
+  const handleHasMrn = (value: boolean) => {
+    setHasMrn(value)
+
+    if (value) {
+      goTo('scan_mrn')
+      return
+    }
+
+    goTo('ambil_antrian')
   }
 
-  const handleSubmit = async () => {
+  const handleSubmitMrn = () => {
+    if (!mrn) {
+      message.error('MRN wajib diisi')
+      return
+    }
+
+    goTo('poli')
+  }
+
+  const handleSubmitCheckin = async () => {
+    if (!kodeAntrian) {
+      message.error('Kode antrian wajib diisi')
+      return
+    }
+
+    message.success('Check-in berhasil')
+    resetFlow()
+  }
+
+  // ===== CREATE ANTRIAN (UPDATED) =====
+  const handleAmbilAntrian = async () => {
     try {
-      const values = await form.validateFields()
-      if (!selectedPoli) {
-        navigate('/kioska/setup', { replace: true })
+      if (isSubmitting) return
+
+      const queueDate = new Date().toISOString()
+      const normalizedMrn = String(mrn || '').trim()
+
+      if (!poli) {
+        message.error('Poli wajib dipilih')
         return
       }
-
-      if (!availableDoctors.length) {
-        message.error('Dokter belum tersedia untuk poli yang dipilih')
-        return
-      }
-
-      const selectedDoctor = availableDoctors.find(
-        (doctor) => String(doctor.doctorScheduleId) === String(values.doctorScheduleId)
-      )
 
       if (!selectedDoctor) {
-        message.error('Harap pilih dokter yang tersedia')
+        message.error('Dokter wajib dipilih')
         return
       }
 
-      const normalizedMrn = String(values.medicalRecordNumber || '').trim()
-      let resolvedPatient = matchedPatient
-      if (normalizedMrn && !resolvedPatient) {
-        const patients = await fetchKioskaPatients({ medicalRecordNumber: normalizedMrn })
-        resolvedPatient =
-          patients.find(
-            (patient) =>
-              String(patient.medicalRecordNumber || '').trim().toLowerCase() ===
-              normalizedMrn.toLowerCase()
-          ) || patients[0] || null
-        setMatchedPatient(resolvedPatient)
-      }
-
-      if (normalizedMrn && !resolvedPatient?.id) {
-        message.error('Data pasien dengan nomor rekam medis tersebut tidak ditemukan')
+      if (normalizedMrn && !matchedPatient?.id) {
+        message.error('Pasien tidak ditemukan')
         return
       }
 
       setIsSubmitting(true)
+
       const result = await registerKioskaQueue({
         queueDate,
         visitDate: queueDate,
         practitionerId: Number(selectedDoctor.doctorId),
         doctorScheduleId: Number(selectedDoctor.doctorScheduleId),
-        patientId: resolvedPatient?.id,
+        patientId: matchedPatient?.id,
         registrationType: 'OFFLINE',
         paymentMethod: 'CASH',
         reason: 'Registrasi Kioska',
         notes: normalizedMrn ? `KIOSKA_MRN:${normalizedMrn}` : undefined
       })
 
-      setLastQueue((result || {}) as QueueResult)
-      form.setFieldsValue({
-        doctorScheduleId: undefined,
-        medicalRecordNumber: undefined
-      })
-      setMatchedPatient(null)
-      message.success('Antrian berhasil diambil')
-    } catch (error: any) {
-      if (hasValidationErrors(error)) {
-        notifyFormValidationError(form, message, error, 'Lengkapi data antrian terlebih dahulu.')
-        return
-      }
+      message.success(`Nomor antrian berhasil diambil dengan nomor ${JSON.stringify(result)}`)
 
+      resetFlow()
+    } catch (error: any) {
       message.error(error?.message || 'Gagal mengambil antrian')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const patientStatus = useMemo(() => {
-    if (!medicalRecordNumber) return null
-    if (isResolvingPatient) return { type: 'info' as const, message: 'Mencari data pasien...' }
-    if (matchedPatient?.id) {
-      return {
-        type: 'success' as const,
-        message: `Pasien ditemukan: ${matchedPatient.name || '-'} (${matchedPatient.medicalRecordNumber || '-'})`
-      }
-    }
-    return {
-      type: 'warning' as const,
-      message: 'Nomor rekam medis tidak ditemukan. Antrian tidak bisa dikaitkan ke pasien.'
-    }
-  }, [isResolvingPatient, matchedPatient, medicalRecordNumber])
-
-  if (!selectedPoli) return null
-
+  // ===== render =====
   return (
-    <div className="space-y-6">
-      <Card
-        className="overflow-hidden! h-screen! rounded-none!"
-        styles={{
-          body: {
-            minHeight: 'calc(100vh - 11rem)',
-            padding: 0,
-            background: kioskGradient
-          }
-        }}
-      >
-        <div className="flex h-screen flex-col px-6 py-6 md:px-8 md:py-8">
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="max-w-3xl">
-              <Tag
-                className="mb-4 border-0 px-4 py-1 text-sm font-semibold !text-white"
-                style={{ backgroundColor: 'rgba(255,255,255,0.16)' }}
-              >
-                KIOSK ANTRIAN RAWAT JALAN
-              </Tag>
-              <Typography.Title
-                level={1}
-                className="!mb-3 !text-4xl !leading-tight !text-white md:!text-5xl"
-              >
-                Ambil Nomor Antrian Kunjungan
-              </Typography.Title>
-              <Space wrap size="middle">
-                <div className="rounded-full bg-white/12 px-4 py-2 text-sm text-white/90">
-                  Poli Aktif: {selectedPoli.name}
-                </div>
-                <div className="rounded-full bg-white/12 px-4 py-2 text-sm text-white/90">
-                  Tanggal: {dayjs(queueDate).format('DD MMM YYYY')}
-                </div>
-              </Space>
-            </div>
+    <div
+      className="h-screen flex flex-col items-center justify-between p-4"
+      style={{ background: kioskGradient }}
+    >
+      <div className="rounded bg-white p-4 w-full">
+        <Typography.Title level={1}>Ambil Nomor Antrian</Typography.Title>
+      </div>
 
-            <Space wrap>
-              <Button
-                onClick={handleChangePoli}
-                className="!h-12 !rounded-2xl !border-0 !px-6 !text-base !font-medium"
-              >
-                Ganti Poli
-              </Button>
-              <Button
-                icon={<ReloadOutlined />}
-                onClick={() => void handleRefresh()}
-                loading={isLoadingDoctors}
-                className="!h-12 !rounded-2xl !border-0 !px-6 !text-base !font-medium !text-white"
-                style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}
-              >
-                Refresh Data
-              </Button>
-            </Space>
-          </div>
+      <div className="rounded-2xl bg-white p-4 w-1/2 grid gap-8 min-h-60 shadow">
+        {step !== 'antrian_type' && (
+          <div className="flex items-center justify-between gap-4">
+            <Button size="large" onClick={goBack} icon={<ArrowLeftOutlined />}>
+              Kembali
+            </Button>
 
-          <div className="flex flex-1 items-center justify-center py-8">
-            <div className="grid w-full max-w-6xl gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-              <Card>
-                <div className="mb-0 flex items-center gap-4">
-                  <div
-                    className="flex h-16 w-16 items-center justify-center rounded-[24px] text-white"
-                    style={{ background: kioskGradient }}
-                  >
-                    <MedicineBoxOutlined className="text-3xl" />
-                  </div>
-                  <div>
-                    <Typography.Title level={3} className="!mb-1">
-                      Form Ambil Antrian
-                    </Typography.Title>
-                    <Typography.Text type="secondary">
-                      Poli sudah ditetapkan untuk kioska ini. Silakan pilih dokter yang tersedia.
-                    </Typography.Text>
-                  </div>
-                </div>
-
-                {/* <div className="mb-6 flex items-center justify-between rounded-[24px] border border-blue-100 bg-blue-50 px-5 py-4">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="flex h-12 w-12 items-center justify-center rounded-full text-white"
-                      style={{ background: kioskGradient }}
-                    >
-                      <MedicineBoxOutlined className="text-xl" />
-                    </div>
-                    <div>
-                      <Typography.Text type="secondary" className="!block">
-                        Poli dipilih
-                      </Typography.Text>
-                      <Typography.Title level={5} className="!mb-0">
-                        {selectedPoli.name}
-                      </Typography.Title>
-                    </div>
-                  </div>
-                  <Button onClick={handleChangePoli} className="!rounded-2xl">
-                    Ganti Poli
-                  </Button>
-                </div> */}
-
-                <Form
-                  form={form}
-                  layout="vertical"
-                  onFinish={handleSubmit}
-                  onFinishFailed={(errorInfo) =>
-                    notifyFormValidationError(
-                      form,
-                      message,
-                      errorInfo,
-                      'Lengkapi data antrian terlebih dahulu.'
-                    )
-                  }
-                >
-                  <Form.Item
-                    name="doctorScheduleId"
-                    rules={[{ required: true, message: 'Pilih dokter' }]}
-                  >
-                    <Input type="hidden" />
-                  </Form.Item>
-
-                  <div className="mb-4">
-                    <Typography.Title level={4} className="!mb-1">
-                      Pilih Dokter
-                    </Typography.Title>
-                    <Typography.Text type="secondary">
-                      Menampilkan dokter untuk poli {selectedPoli.name}.
-                    </Typography.Text>
-                  </div>
-
-                  {isLoadingDoctors ? (
-                    <div className="mb-6 rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-6 text-center text-slate-500">
-                      Memuat jadwal dokter...
-                    </div>
-                  ) : availableDoctors.length ? (
-                    <div className="mb-6 max-h-[28rem] overflow-y-auto rounded-[28px] border border-slate-100 bg-slate-50/60 p-3">
-                      <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-                        {availableDoctors.map((doctor) => {
-                          const isSelected =
-                            String(selectedDoctorScheduleId || '') ===
-                            String(doctor.doctorScheduleId)
-                          const color = getPoliColor(doctor.poliName || selectedPoli.name)
-
-                          return (
-                            <Card
-                              key={doctor.doctorScheduleId}
-                              hoverable
-                              onClick={() =>
-                                form.setFieldValue(
-                                  'doctorScheduleId',
-                                  String(doctor.doctorScheduleId)
-                                )
-                              }
-                              className={`group !rounded-[24px] transition-all duration-300 ${
-                                isSelected
-                                  ? '!border-blue-500 !bg-blue-50 shadow-lg'
-                                  : '!border-slate-200 hover:!border-blue-300 hover:shadow-md'
-                              }`}
-                              styles={{ body: { padding: 20 } }}
-                            >
-                              <div className="flex aspect-square h-full w-full flex-col items-center justify-center gap-4 text-center">
-                                <div
-                                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${color.bg} ${color.hover}`}
-                                >
-                                  <UserOutlined
-                                    className={`text-2xl transition-colors duration-300 group-hover:text-white ${color.icon}`}
-                                  />
-                                </div>
-                                <div className="text-xs font-bold capitalize">
-                                  {doctor.doctorName || 'Dokter'}
-                                </div>
-                              </div>
-                            </Card>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ) : (
-                    <Alert
-                      type="warning"
-                      showIcon
-                      message="Belum ada dokter tersedia untuk poli ini. Silakan ganti poli atau refresh data."
-                      className="!mb-6"
-                    />
-                  )}
-
-                  <Form.Item name="medicalRecordNumber" label="Nomor Rekam Medis (Opsional)">
-                    <Input
-                      placeholder="Scan atau masukkan nomor rekam medis"
-                      addonAfter={
-                        <Button
-                          type="text"
-                          icon={<BarcodeOutlined />}
-                          onClick={handleDummyScanBarcode}
-                          className="px-0"
-                        >
-                          Scan Dummy
-                        </Button>
-                      }
-                    />
-                  </Form.Item>
-
-                  {patientStatus ? (
-                    <Alert
-                      className="!mb-4"
-                      showIcon
-                      type={patientStatus.type}
-                      message={patientStatus.message}
-                    />
-                  ) : null}
-
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={isSubmitting}
-                    className="!mt-2 !h-16 !w-full !rounded-[20px] !border-0 !text-xl !font-semibold"
-                    style={{
-                      background: kioskGradient,
-                      boxShadow: token.boxShadowSecondary
-                    }}
-                  >
-                    Ambil Antrian
-                  </Button>
-                </Form>
-              </Card>
-
-              <div className="space-y-6">
-                <Card className="!overflow-hidden !border-0" styles={{ body: { padding: 0 } }}>
-                  <div className="px-8 py-8 text-center" style={{ background: kioskGradient }}>
-                    <Typography.Text className="!text-white/75">
-                      Nomor Antrian Terakhir
-                    </Typography.Text>
-                    <div className="mt-4 text-6xl font-semibold tracking-[0.18em] text-white">
-                      {lastQueue?.formattedQueueNumber || lastQueue?.queueNumber || '--'}
-                    </div>
-                    <Typography.Text className="!mt-4 !block !text-white/75">
-                      {lastQueue?.queueDate
-                        ? dayjs(lastQueue.queueDate).format('DD MMM YYYY')
-                        : 'Belum ada antrian yang diambil'}
-                    </Typography.Text>
-                  </div>
-                  <div className="px-8 py-6">
-                    <Typography.Title level={4} className="!mb-2">
-                      Panduan Singkat
-                    </Typography.Title>
-                    <div className="text-base text-slate-600">
-                      1. Pastikan poli kioska sudah sesuai.
-                      <br />
-                      2. Pilih dokter yang tersedia.
-                      <br />
-                      3. Tekan tombol ambil antrian dan tunggu panggilan.
-                    </div>
-                  </div>
-                </Card>
+            {formatStepSummary() && (
+              <div className="flex-1 text-right text-sm text-gray-500 font-medium truncate">
+                {formatStepSummary()}
               </div>
+            )}
+          </div>
+        )}
+
+        <Visibility visible={step === 'antrian_type'}>
+          <div className="grid grid-cols-2 gap-4">
+            {antrianTypeData.map((item) => (
+              <Button
+                key={item.value}
+                size="large"
+                className="h-36! text-2xl!"
+                onClick={() => handleSelectAntrianType(item.value)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+        </Visibility>
+
+        <Visibility visible={step === 'has_mrn'}>
+          <div className="flex flex-col gap-4">
+            <Typography.Title level={3}>Apakah Anda punya MRN?</Typography.Title>
+            <div className="flex gap-4">
+              <Button className="w-full h-24!" onClick={() => handleHasMrn(true)}>
+                Ya
+              </Button>
+              <Button className="w-full h-24!" onClick={() => handleHasMrn(false)}>
+                Tidak
+              </Button>
             </div>
           </div>
+        </Visibility>
 
-          <div className="mt-auto">
-            <Row gutter={[16, 16]}>
-              <Col xs={24} md={12} xl={8}>
-                <Card
-                  className="!rounded-[24px] !border-0"
-                  styles={{ body: { backgroundColor: token.colorBgContainer } }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Typography.Text type="secondary">Poli Aktif</Typography.Text>
-                      <div className="mt-2 text-2xl font-semibold text-slate-900">
-                        {selectedPoli.name}
-                      </div>
-                    </div>
-                    <div
-                      className="rounded-2xl p-3 text-white"
-                      style={{ background: kioskGradient }}
-                    >
-                      <MedicineBoxOutlined className="text-2xl" />
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-              <Col xs={24} md={12} xl={8}>
-                <Card
-                  className="!rounded-[24px] !border-0"
-                  styles={{ body: { backgroundColor: token.colorBgContainer } }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Typography.Text type="secondary">Dokter Tersedia</Typography.Text>
-                      <div className="mt-2 text-3xl font-semibold text-slate-900">
-                        {availableDoctors.length}
-                      </div>
-                    </div>
-                    <div
-                      className="rounded-2xl p-3 text-white"
-                      style={{ background: kioskGradient }}
-                    >
-                      <TeamOutlined className="text-2xl" />
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-              <Col xs={24} md={12} xl={8}>
-                <Card
-                  className="!rounded-[24px] !border-0"
-                  styles={{ body: { backgroundColor: token.colorBgContainer } }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <Typography.Text type="secondary">Update</Typography.Text>
-                      <div className="mt-2 text-2xl font-semibold text-slate-900">
-                        {dayjs().format('HH:mm')}
-                      </div>
-                    </div>
-                    <div
-                      className="rounded-2xl p-3 text-white"
-                      style={{ background: kioskGradient }}
-                    >
-                      <ClockCircleOutlined className="text-2xl" />
-                    </div>
-                  </div>
-                </Card>
-              </Col>
-            </Row>
+        <Visibility visible={step === 'scan_mrn'}>
+          <div className="flex flex-col gap-4">
+            <Typography.Title level={3}>Scan / Input MRN</Typography.Title>
+            <Input value={mrn} onChange={(e) => setMrn(e.target.value)} />
+
+            {isResolvingPatient && (
+              <Typography.Text type="secondary">Mencari pasien...</Typography.Text>
+            )}
+
+            {mrn && !isResolvingPatient && !matchedPatient && (
+              <Typography.Text type="danger">Pasien tidak ditemukan</Typography.Text>
+            )}
+
+            <Button type="primary" onClick={handleSubmitMrn}>
+              Lanjut
+            </Button>
           </div>
-        </div>
-      </Card>
+        </Visibility>
+
+        <Visibility visible={step === 'poli'}>
+          <KioskSelectPoli
+            onSelect={(poli: any) => {
+              setPoli(poli)
+              goTo('dokter')
+            }}
+          />
+        </Visibility>
+
+        <Visibility visible={step === 'dokter'}>
+          <KioskSelectDoctor
+            poliId={poli?.id}
+            onChange={(doctorScheduleId, doctor) => {
+              setDoctorId(doctor.doctorId)
+              setSelectedDoctor(doctor)
+              goTo('ambil_antrian')
+            }}
+          />
+        </Visibility>
+
+        <Visibility visible={step === 'ambil_antrian'}>
+          <Button
+            loading={isSubmitting}
+            type="primary"
+            className="h-20 text-xl"
+            onClick={handleAmbilAntrian}
+          >
+            Ambil Nomor
+          </Button>
+        </Visibility>
+
+        <Visibility visible={step === 'input_kode_antrian'}>
+          <div className="flex flex-col gap-4">
+            <Input value={kodeAntrian} onChange={(e) => setKodeAntrian(e.target.value)} />
+            <Button type="primary" onClick={handleSubmitCheckin}>
+              Check-in
+            </Button>
+          </div>
+        </Visibility>
+      </div>
+
+      <div className="rounded bg-white p-4">
+        <Typography.Text>Ikuti instruksi di layar</Typography.Text>
+      </div>
     </div>
   )
 }

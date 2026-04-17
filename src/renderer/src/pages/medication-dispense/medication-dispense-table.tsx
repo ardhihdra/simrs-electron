@@ -33,6 +33,7 @@ import dayjs from 'dayjs'
 import { queryClient } from '@renderer/query-client'
 import { printMedicationLabels } from './component/print-medication-label'
 import { SerahkanObatModal, type SerahkanObatFormValues } from './component/serahkan-obat-modal'
+import { TelaahResults, defaultTelaahResults } from './component/telaah-administrasi-form'
 
 type PatientNameEntry = {
   text?: string
@@ -115,6 +116,8 @@ interface MedicationDispenseAttributes {
   identifier?: Array<{ system: string; value: string }> | null
   fhirId?: string | null
   servicedAt?: string | null
+  note?: any[] | null
+  telaah?: any | null
 }
 
 interface MedicationDispenseListArgs {
@@ -189,6 +192,9 @@ interface DispenseItemRow {
   expiryDate?: string
   paymentStatus?: string
   kekuatan?: string | number
+  caraPenyimpanan?: string
+  note?: any[] | null
+  telaah?: any | null
   children?: DispenseItemRow[]
 }
 
@@ -229,6 +235,49 @@ function getStatusTag(status: string) {
   return <Tag color="default">{label}</Tag>
 }
 
+const extractTelaahResults = (record: any): any | null => {
+  const criteriaKeys = [
+    'tanggalResep', 'parafDokter', 'identitasPasien', 'bbTb',
+    'namaObat', 'kekuatan', 'jumlahObat', 'signa',
+    'duplikasi', 'kontraindikasi', 'interaksi', 'dosisLazim', 'alergi',
+    'infoKesesuaianIdentitas', 'infoNamaDosisJumlah', 'infoCaraGuna', 'infoEso'
+  ]
+
+  // Try new 'telaah' property first
+  if (record.telaah && typeof record.telaah === 'object') {
+    const results = record.telaah
+    const missing = criteriaKeys.filter(key => {
+      const val = results[key]
+      return val !== true && val !== 1 && val !== 'true'
+    })
+
+    if (missing.length === 0) return results
+  }
+
+  // Fallback to notes (legacy)
+  const notes = record.note
+  if (!Array.isArray(notes)) return null
+  const telaahNote = notes.find(n => typeof n?.text === 'string' && n.text.startsWith('TEALAAH:'))
+  if (!telaahNote) return null
+  
+  try {
+    const jsonStr = telaahNote.text.replace('TEALAAH:', '').trim()
+    const results = JSON.parse(jsonStr)
+    const { keterangan, ...booleans } = results
+    
+    // For legacy, check against the exact keys that are in the JSON
+    // New design expects all criteria to be strictly checked
+    const allMet = criteriaKeys.every(key => {
+      const val = booleans[key]
+      return val === true || val === 1 || val === 'true'
+    })
+    
+    return allMet ? results : null
+  } catch (e) {
+    console.error('Failed to parse telaah note', e)
+    return null
+  }
+}
 function DispenseTimer({ servicedAt, handedOverAt, isBpjs }: { servicedAt?: string | null; handedOverAt?: string | null; isBpjs: boolean }) {
   const [remaining, setRemaining] = useState<number | null>(null)
 
@@ -373,6 +422,10 @@ function RowActions({ record, patient, employees, employeeNameById, parentServic
   const hasStockInfo = typeof record.availableStock === 'number'
   const isStockInsufficient = hasStockInfo && quantityToDispense > (record.availableStock as number)
   const isPaid = record.paymentStatus === 'Lunas'
+  const isReviewed = useMemo(() => {
+    return !!extractTelaahResults(record)
+  }, [record])
+
   const canComplete =
     !isCompleted && !isTerminal && typeof record.id === 'number' && !isStockInsufficient && isPaid && !!parentServicedAt
   const canVoid = isCompleted && typeof record.id === 'number'
@@ -501,6 +554,22 @@ function getInstructionText(dosage?: DosageInstructionEntry[] | null): string {
 function MainRowActions({ record }: { record: ParentRow }) {
   const { message, modal } = AntdApp.useApp()
   const [syncingSatusehat, setSyncingSatusehat] = useState(false)
+  const [isTelaahModalVisible, setIsTelaahModalVisible] = useState(false)
+  const [currentTelaahResults, setCurrentTelaahResults] = useState<any>(defaultTelaahResults)
+
+  const existingTelaah = useMemo(() => {
+    for (const item of record.items) {
+      const results = extractTelaahResults(item)
+      if (results) return results
+    }
+    return null
+  }, [record.items])
+
+  const handleOpenTelaah = () => {
+    setCurrentTelaahResults(existingTelaah || defaultTelaahResults)
+    setIsTelaahModalVisible(true)
+  }
+
 
   const syncItems = record.items.filter((i) => i.jenis !== 'Komposisi' && typeof i.id === 'number')
   const isAllSynced =
@@ -695,6 +764,19 @@ const columns = [
     dataIndex: 'status',
     key: 'status',
     render: (val: string) => getStatusTag(val)
+  },
+  {
+    title: 'Telaah',
+    key: 'telaah',
+    render: (_: any, row: ParentRow) => {
+      const mainItems = row.items.filter(i => i.jenis !== 'Komposisi')
+      const isReviewed = mainItems.length > 0 && mainItems.every(item => !!extractTelaahResults(item))
+      return isReviewed ? (
+        <Tag color="green" icon={<CheckCircleOutlined />}>Selesai</Tag>
+      ) : (
+        <Tag color="volcano" icon={<QuestionCircleOutlined />}>Belum Ditelaah</Tag>
+      )
+    }
   },
   {
     title: 'Pembayaran',
@@ -933,6 +1015,21 @@ export function MedicationDispenseTable() {
     for (const item of source) {
       if (typeof item.id === 'number' && typeof item.kode === 'string') {
         map.set(item.id, item.kode.trim().toUpperCase())
+      }
+    }
+    return map
+  }, [itemSource?.result])
+
+  const itemCaraPenyimpananById = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    for (const item of source) {
+      if (typeof item.id === 'number') {
+        const raw = item as any
+        const cp = raw.caraPenyimpanan || ''
+        if (cp) {
+          map.set(item.id, String(cp).trim())
+        }
       }
     }
     return map
@@ -1259,6 +1356,9 @@ export function MedicationDispenseTable() {
           typeof item.fhirId === 'string' && item.fhirId.trim().length > 0
             ? item.fhirId.trim()
             : undefined,
+        caraPenyimpanan: typeof item.itemId === 'number' ? itemCaraPenyimpananById.get(item.itemId) : undefined,
+        note: item.note,
+        telaah: item.telaah,
         children
       }
 
