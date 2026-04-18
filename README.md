@@ -34,3 +34,36 @@ $ pnpm build:linux
 ```
 
 we have simrs-types repository, for development, you can use yalc (https://www.npmjs.com/package/yalc) to use local repo for npm
+
+## Changing the App Title and Icon
+
+### App Title
+
+Update the title in these three places:
+
+1. **`src/renderer/index.html`** — browser tab/window title:
+   ```html
+   <title>SIMRS ABION</title>
+   ```
+
+2. **`src/main/index.ts`** — native window title bar:
+   ```ts
+   const mainWindow = new BrowserWindow({
+     title: 'SIMRS ABION',
+     ...
+   })
+   ```
+
+3. **`electron-builder.yml`** — installer/packaged app name:
+   ```yaml
+   productName: SIMRS ABION
+   ```
+
+### App Icon
+
+Replace the file at **`resources/icon.png`** with your desired icon (PNG, minimum 512×512px recommended).
+
+The icon is automatically used for:
+- Windows & Linux: window icon and taskbar
+- macOS: dock icon (set via `app.dock.setIcon()` in `src/main/index.ts`)
+- Built installer/package (via `electron-builder`)

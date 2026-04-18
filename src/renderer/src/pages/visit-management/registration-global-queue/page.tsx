@@ -2,6 +2,7 @@ import {
   CheckCircleOutlined,
   EyeOutlined,
   FileTextOutlined,
+  GlobalOutlined,
   SoundOutlined
 } from '@ant-design/icons'
 import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
@@ -298,6 +299,7 @@ export default function RegistrationGlobalQueue() {
     <div>
       <TableHeader
         title="Antrian Global Pendaftaran"
+        icon={GlobalOutlined}
         subtitle="Manajemen seluruh antrian pendaftaran harian dengan nomor global."
         onSearch={onSearch}
         loading={isLoading || isRefetching}

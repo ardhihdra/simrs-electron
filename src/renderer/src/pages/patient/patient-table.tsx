@@ -110,6 +110,7 @@ const PatientTable = () => {
     <div>
       <TableHeader
         title="Master Pasien"
+        icon={TeamOutlined}
         subtitle="Manajemen pelayanan pasien"
         onSearch={(values) => setFilter((prev) => ({ ...prev, ...values }))}
         onReset={() => setFilter({ nik: '', name: '', medicalRecordNumber: '', address: '' })}

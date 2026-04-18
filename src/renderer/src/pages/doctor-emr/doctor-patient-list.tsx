@@ -93,7 +93,6 @@ const STATUS_CONFIG: Record<
 export const DoctorPatientList = () => {
   const { modal: appModal } = App.useApp()
   const { token } = theme.useToken()
-  const { profile } = useMyProfile()
   const { session } = useModuleScopeStore()
   const [searchParams] = useSearchParams()
   const [searchText, setSearchText] = useState('')
@@ -161,14 +160,7 @@ export const DoctorPatientList = () => {
     isLoading,
     refetch
   } = useQuery({
-    queryKey: [
-      'encounter',
-      'list',
-      selectedPoli,
-      searchText,
-      dateRange,
-      doctorTargetId
-    ],
+    queryKey: ['encounter', 'list', selectedPoli, searchText, dateRange, doctorTargetId],
     queryFn: async () => {
       const fn = window.api?.query?.encounter?.list
       if (!fn) throw new Error('API encounter tidak tersedia')
@@ -225,13 +217,13 @@ export const DoctorPatientList = () => {
         },
         queueTicket: enc.queueTicket
           ? {
-            id: enc.queueTicket.id,
-            queueNumber: enc.queueTicket.queueNumber,
-            queueDate: enc.queueTicket.queueDate,
-            status: enc.queueTicket.status,
-            poli: enc.queueTicket.poli,
-            practitioner: enc.queueTicket.practitioner
-          }
+              id: enc.queueTicket.id,
+              queueNumber: enc.queueTicket.queueNumber,
+              queueDate: enc.queueTicket.queueDate,
+              status: enc.queueTicket.status,
+              poli: enc.queueTicket.poli,
+              practitioner: enc.queueTicket.practitioner
+            }
           : undefined,
         poli: { name: enc.queueTicket?.poli?.name || enc.serviceUnitCodeId || '-' },
         status: enc.status || 'unknown',
@@ -496,9 +488,9 @@ export const DoctorPatientList = () => {
               : poliName === 'IGD'
                 ? 'IGD'
                 : poliName
-                  .toLowerCase()
-                  .replace(/_/g, ' ')
-                  .replace(/\b\w/g, (l) => l.toUpperCase())
+                    .toLowerCase()
+                    .replace(/_/g, ' ')
+                    .replace(/\b\w/g, (l) => l.toUpperCase())
 
         let typeLabel = record.encounterType || '-'
         let typeColor = 'default'
@@ -657,8 +649,8 @@ export const DoctorPatientList = () => {
 
         const isFullyCompleted = s
           ? !Object.values(s.resources).some(
-            (r) => r.total > 0 && (r.synced < r.total || (r.logSummary?.failed ?? 0) > 0)
-          )
+              (r) => r.total > 0 && (r.synced < r.total || (r.logSummary?.failed ?? 0) > 0)
+            )
           : !!record.fhirId
 
         if (isSynced && hasPendingResync) {
@@ -848,6 +840,7 @@ export const DoctorPatientList = () => {
               </Popconfirm>
             </Space>
           </div>
+          {/* Extra children for header e.g add stats view */}
           <div className="grid grid-cols-4 gap-3">
             <div
               className="rounded-xl px-4 py-3 flex items-center gap-3"
@@ -1022,29 +1015,29 @@ export const DoctorPatientList = () => {
                 style={
                   isActive
                     ? {
-                      background: token.colorPrimary,
-                      borderColor: token.colorPrimary,
-                      color: '#fff',
-                      padding: '6px 12px',
-                      borderRadius: token.borderRadiusSM,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      border: '1px solid',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }
+                        background: token.colorPrimary,
+                        borderColor: token.colorPrimary,
+                        color: '#fff',
+                        padding: '6px 12px',
+                        borderRadius: token.borderRadiusSM,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }
                     : {
-                      background: token.colorFillAlter,
-                      borderColor: token.colorBorderSecondary,
-                      color: token.colorTextSecondary,
-                      padding: '6px 12px',
-                      borderRadius: token.borderRadiusSM,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      border: '1px solid',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }
+                        background: token.colorFillAlter,
+                        borderColor: token.colorBorderSecondary,
+                        color: token.colorTextSecondary,
+                        padding: '6px 12px',
+                        borderRadius: token.borderRadiusSM,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }
                 }
               >
                 {tab.label}

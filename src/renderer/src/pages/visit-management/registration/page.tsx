@@ -1,5 +1,6 @@
 import {
   CheckCircleOutlined,
+  FormOutlined,
   HourglassOutlined,
   PlusOutlined,
   SyncOutlined,
@@ -101,6 +102,7 @@ export default function RegistrationPage() {
     <div>
       <TableHeader
         title="Registrasi Pasien"
+        icon={FormOutlined}
         subtitle="Manajemen pendaftaran pasien"
         onSearch={(values) => setSearchParams(values)}
         onReset={() => setSearchParams({ nik: '', name: '', medicalRecordNumber: '' })}

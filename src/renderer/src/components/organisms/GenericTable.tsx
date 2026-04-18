@@ -208,7 +208,8 @@ function GenericTable<T extends object>({
         pagination={false}
         size="small"
         bordered
-        scroll={{ x: 'max-content' }}
+        // style={{ width: 'max-content' }}
+        style={{ width: '100%' }}
         {...tableProps}
       />
     </div>

@@ -338,6 +338,7 @@ export default function RegistrationQueue({
     <div>
       <TableHeader
         title="Antrian Pendaftaran Poli"
+        icon={IconClipboardList}
         subtitle="Manajemen antrian pendaftaran pasien"
         onSearch={onSearch}
         loading={isLoading || isRefetching}

@@ -361,6 +361,7 @@ export default function LaboratoryRequests({
     <div className="p-4">
       <TableHeader
         title={sectionConfig.requestsTitle}
+        icon={ExperimentOutlined}
         subtitle={sectionConfig.requestsSubtitle}
         onSearch={onSearch}
         onRefresh={() => {

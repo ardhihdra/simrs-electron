@@ -519,6 +519,7 @@ export default function LaboratoryQueue({ fixedCategory, section }: LaboratoryQu
     <div className="p-4">
       <TableHeader
         title={sectionConfig.queueTitle}
+        icon={ProfileOutlined}
         subtitle={sectionConfig.queueSubtitle}
         onSearch={onSearch}
         onReset={handleResetFilters}
