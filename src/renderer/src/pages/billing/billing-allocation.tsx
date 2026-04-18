@@ -21,20 +21,18 @@ import {
   Select,
   InputNumber,
   Card,
-  Row,
-  Col,
-  Statistic,
-  Modal,
   App,
   Alert,
   Switch,
   Tooltip
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { RPCSelectAsync } from '@renderer/components/organisms/RPCSelectAsync'
+import DebouncedInputNumber from './DebouncedInputNumber'
+import GlobalAllocationModal from './GlobalAllocationModal'
 
 const { Title, Text } = Typography
 
@@ -54,54 +52,6 @@ interface AllocationRow {
   pasien: number
   mitraId?: number | null
   note?: string | null
-}
-
-/**
- * A local-state managed InputNumber that only notifies parent after a delay or on blur
- * This prevents the heavy total-table re-render on every keystroke
- */
-const DebouncedInputNumber = ({
-  value,
-  onChange,
-  debounceMs = 300,
-  ...props
-}: {
-  value: number
-  onChange: (val: number) => void
-  debounceMs?: number
-} & any) => {
-  const [localValue, setLocalValue] = useState<number>(value)
-  const timerRef = useRef<any>(null)
-
-  // Sync with global state changes (e.g. initial load or cross-field updates)
-  useEffect(() => {
-    setLocalValue(value)
-  }, [value])
-
-  const handleChange = (newValue: number | null) => {
-    const val = newValue || 0
-    setLocalValue(val)
-
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      onChange(val)
-    }, debounceMs)
-  }
-
-  const handleBlur = () => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    onChange(localValue)
-  }
-
-  return (
-    <InputNumber
-      {...props}
-      value={localValue}
-      onChange={handleChange}
-      onBlur={handleBlur}
-      onPressEnter={handleBlur}
-    />
-  )
 }
 
 export default function BillingAllocationPage() {
@@ -136,6 +86,7 @@ export default function BillingAllocationPage() {
   const { data, isLoading, isError, error } = client.billing.getInvoiceWithAllocations.useQuery({
     kode: kode!
   })
+  console.log('getInvoiceWithAllocations', data)
 
   useEffect(() => {
     if (data?.success && data.result) {
@@ -543,8 +494,8 @@ export default function BillingAllocationPage() {
 
   // Global validation: disable save if any row total is not 100% allocated
   const validationStatus = useMemo(() => {
-    const hasOver = rows.some((row) => row.asuransi + row.rs > row.totalAmount)
-    const hasUnder = rows.some((row) => row.asuransi + row.rs < row.totalAmount)
+    const hasOver = rows.some((row) => row.asuransi + row.rs + row.pasien > row.totalAmount)
+    const hasUnder = rows.some((row) => row.asuransi + row.rs + row.pasien < row.totalAmount)
     return {
       hasError: hasOver || hasUnder,
       hasOver,
@@ -664,7 +615,7 @@ export default function BillingAllocationPage() {
             onClick={openAllocationModal}
             className="rounded-lg hover:!text-blue-500 hover:!border-blue-500"
           >
-            Otomatis
+            Alokasikan Otomatis
           </Button>
 
           <Button
@@ -790,146 +741,16 @@ export default function BillingAllocationPage() {
         />
       )}
 
-      <Modal
-        title={
-          <div className="flex items-center gap-2 text-slate-700 pb-2 border-b">
-            <SyncOutlined />
-            <span>Alokasi Otomatis (Bagi Rata / Plafon Global)</span>
-          </div>
-        }
+      <GlobalAllocationModal
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
-        width={850}
-        footer={[
-          <Button key="cancel" onClick={() => setIsModalOpen(false)}>
-            Batal
-          </Button>,
-          <Button
-            key="reset"
-            danger
-            onClick={() => {
-              setGlobalAsuransi(0)
-              setGlobalRS(0)
-            }}
-          >
-            Reset Alokasi
-          </Button>,
-          <Button
-            key="apply"
-            type="primary"
-            icon={<SyncOutlined />}
-            onClick={applyGlobalAllocation}
-            disabled={globalAsuransi === 0 && globalRS === 0}
-          >
-            Terapkan Alokasi
-          </Button>
-        ]}
-      >
-        <div className="py-6 space-y-6">
-          <div className="bg-blue-50 p-4 rounded-lg flex justify-between items-center border border-blue-100 px-8">
-            <Statistic title="Total Tagihan" value={summary.total} prefix="Rp" />
-            <Statistic
-              title="Tanggungan Pasien (Sisa)"
-              value={Math.max(0, summary.total - globalAsuransi - globalRS)}
-              prefix="Rp"
-              valueStyle={{
-                color: summary.total - globalAsuransi - globalRS > 0 ? '#faad14' : '#52c41a'
-              }}
-            />
-          </div>
-
-          <div className="space-y-6">
-            <div className="flex justify-between items-center bg-slate-50 p-2 px-4 rounded border border-dashed">
-              <Text type="secondary">Otomatis seimbangkan (Pasien Rp 0)?</Text>
-              <Select
-                defaultValue="link"
-                size="small"
-                style={{ width: 180 }}
-                onChange={(val) => {
-                  if (val === 'link') {
-                    // Force balance now
-                    setGlobalRS(Math.max(0, summary.total - globalAsuransi))
-                  }
-                }}
-                options={[
-                  { label: 'Ya (Otomatis)', value: 'link' },
-                  { label: 'Tidak (Manual)', value: 'manual' }
-                ]}
-                id="allocation-mode-select"
-              />
-            </div>
-
-            <div className="space-y-4 px-4">
-              <Row align="middle" gutter={16}>
-                <Col span={6}>
-                  <Text strong className="text-slate-600">
-                    Plafon Asuransi
-                  </Text>
-                </Col>
-                <Col span={18}>
-                  <DebouncedInputNumber
-                    style={{ width: '100%' }}
-                    size="large"
-                    min={0}
-                    max={summary.total}
-                    value={globalAsuransi}
-                    onChange={(v: number) => {
-                      const newVal = v || 0
-                      setGlobalAsuransi(newVal)
-                      const mode =
-                        (document.getElementById('allocation-mode-select') as HTMLSelectElement)
-                          ?.value || 'link'
-                      if (mode === 'link') {
-                        setGlobalRS(Math.max(0, summary.total - newVal))
-                      }
-                    }}
-                    formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
-                    debounceMs={300}
-                  />
-                </Col>
-              </Row>
-
-              <Row align="middle" gutter={16}>
-                <Col span={6}>
-                  <Text strong className="text-slate-600">
-                    Plafon RS
-                  </Text>
-                </Col>
-                <Col span={18}>
-                  <DebouncedInputNumber
-                    style={{ width: '100%' }}
-                    size="large"
-                    min={0}
-                    max={summary.total}
-                    value={globalRS}
-                    onChange={(v: number) => {
-                      const newVal = v || 0
-                      setGlobalRS(newVal)
-                      const mode =
-                        (document.getElementById('allocation-mode-select') as HTMLSelectElement)
-                          ?.value || 'link'
-                      if (mode === 'link') {
-                        setGlobalAsuransi(Math.max(0, summary.total - newVal))
-                      }
-                    }}
-                    formatter={(value: any) => `Rp ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                    parser={(value: any) => Number(value!.replace(/\Rp\s?|(,*)/g, '')) || 0}
-                    debounceMs={300}
-                  />
-                </Col>
-              </Row>
-            </div>
-          </div>
-
-          <div className="bg-amber-50 p-3 rounded border border-amber-100 flex items-start gap-2">
-            <Text type="warning" className="text-xs">
-              ⓘ Tip: Gunakan mode <b>Otomatis</b> agar Anda cukup mengisi satu kolom saja, sistem
-              akan langsung menghitung sisanya untuk kolom lain.
-            </Text>
-          </div>
-        </div>
-      </Modal>
+        summary={summary}
+        globalAsuransi={globalAsuransi}
+        globalRS={globalRS}
+        setGlobalAsuransi={setGlobalAsuransi}
+        setGlobalRS={setGlobalRS}
+        onApply={applyGlobalAllocation}
+      />
 
       {rows.length === 0 && !isLoading && (
         <Card className="text-center py-10 text-gray-400">

@@ -387,6 +387,7 @@ export default function InvoiceDetailPage() {
     encounterId: encounterId!,
     patientId
   })
+  console.log('invoice data', data)
 
   // Persisted invoice (null if not yet confirmed)
   const {
@@ -398,6 +399,7 @@ export default function InvoiceDetailPage() {
     queryFn: () => rpc.kasir.getInvoiceDetail({ encounterId: encounterId! }),
     enabled: !!encounterId
   })
+  console.log('detailData', detailData)
 
   const invoice = (data as { result: Invoice } | undefined)?.result
   const persistedInvoice = (detailData as { result: PersistedInvoice } | undefined)?.result ?? null
