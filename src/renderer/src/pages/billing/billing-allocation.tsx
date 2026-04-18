@@ -8,7 +8,7 @@ import {
   IdcardOutlined,
   HomeOutlined,
   HistoryOutlined,
-  SolutionOutlined,
+  SolutionOutlined
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
 import {
@@ -28,7 +28,7 @@ import {
   App,
   Alert,
   Switch,
-  Tooltip,
+  Tooltip
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
@@ -66,9 +66,9 @@ const DebouncedInputNumber = ({
   debounceMs = 300,
   ...props
 }: {
-  value: number;
-  onChange: (val: number) => void;
-  debounceMs?: number;
+  value: number
+  onChange: (val: number) => void
+  debounceMs?: number
 } & any) => {
   const [localValue, setLocalValue] = useState<number>(value)
   const timerRef = useRef<any>(null)
@@ -141,7 +141,9 @@ export default function BillingAllocationPage() {
     if (data?.success && data.result) {
       const invoice = data.result
       const items: AllocationRow[] = (invoice.details || []).map((item: any) => {
-        const asuransiAlloc = item.allocations?.find((a: any) => ['bpjs', 'insurance', 'company'].includes(a.payorType))
+        const asuransiAlloc = item.allocations?.find((a: any) =>
+          ['bpjs', 'insurance', 'company'].includes(a.payorType)
+        )
         const rsAlloc = item.allocations?.find((a: any) => a.payorType === 'hospital')
         const pasienAlloc = item.allocations?.find((a: any) => a.payorType === 'patient')
 
@@ -167,7 +169,7 @@ export default function BillingAllocationPage() {
       })
       setRows(items)
 
-      const someMitraId = items.find(i => i.mitraId)?.mitraId
+      const someMitraId = items.find((i) => i.mitraId)?.mitraId
       if (someMitraId) setGlobalMitraId(someMitraId)
     }
   }, [data])
@@ -183,75 +185,88 @@ export default function BillingAllocationPage() {
     let cancelled = false
     setLoadingPreview(true)
 
-    rpc.billing.getAdminFeePreview({
-      payorType: globalPayorType,
-      mitraId: globalMitraId,
-      invoiceTotal,
-    }).then((res: any) => {
-      if (!cancelled) {
-        const preview = res?.result
-        setAdminFeePreview(preview ?? null)
-        if (preview?.applicable) {
-          setApplyAdminFee(true)
+    rpc.billing
+      .getAdminFeePreview({
+        payorType: globalPayorType,
+        mitraId: globalMitraId,
+        invoiceTotal
+      })
+      .then((res: any) => {
+        if (!cancelled) {
+          const preview = res?.result
+          setAdminFeePreview(preview ?? null)
+          if (preview?.applicable) {
+            setApplyAdminFee(true)
+          }
         }
-      }
-    }).catch(() => {
-      if (!cancelled) setAdminFeePreview(null)
-    }).finally(() => {
-      if (!cancelled) setLoadingPreview(false)
-    })
+      })
+      .catch(() => {
+        if (!cancelled) setAdminFeePreview(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPreview(false)
+      })
 
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+    }
   }, [globalPayorType, globalMitraId, rows.length])
 
   const handleAmountChange = useCallback((id: number, field: 'asuransi' | 'rs', value: number) => {
-    setRows(prev => prev.map(row => {
-      if (row.id !== id) return row
+    setRows((prev) =>
+      prev.map((row) => {
+        if (row.id !== id) return row
 
-      const updatedRow = { ...row, [field]: value }
+        const updatedRow = { ...row, [field]: value }
 
-      // Update percentage based on new amount
-      if (field === 'asuransi') {
-        updatedRow.asuransiPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
-      } else if (field === 'rs') {
-        updatedRow.rsPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
-      }
+        // Update percentage based on new amount
+        if (field === 'asuransi') {
+          updatedRow.asuransiPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
+        } else if (field === 'rs') {
+          updatedRow.rsPercent = row.totalAmount > 0 ? (value / row.totalAmount) * 100 : 0
+        }
 
-      // Recalculate Pasien remainder (Allow negative for validation)
-      updatedRow.pasien = row.totalAmount - updatedRow.asuransi - updatedRow.rs
+        // Recalculate Pasien remainder (Allow negative for validation)
+        updatedRow.pasien = row.totalAmount - updatedRow.asuransi - updatedRow.rs
 
-      return updatedRow
-    }))
+        return updatedRow
+      })
+    )
   }, [])
 
-  const handlePercentChange = useCallback((id: number, field: 'asuransi' | 'rs', percent: number) => {
-    setRows(prev => prev.map(row => {
-      if (row.id !== id) return row
+  const handlePercentChange = useCallback(
+    (id: number, field: 'asuransi' | 'rs', percent: number) => {
+      setRows((prev) =>
+        prev.map((row) => {
+          if (row.id !== id) return row
 
-      const updatedRow = { ...row }
-      const amount = Math.round((percent / 100) * row.totalAmount)
+          const updatedRow = { ...row }
+          const amount = Math.round((percent / 100) * row.totalAmount)
 
-      if (field === 'asuransi') {
-        updatedRow.asuransi = amount
-        updatedRow.asuransiPercent = percent
-      } else if (field === 'rs') {
-        updatedRow.rs = amount
-        updatedRow.rsPercent = percent
-      }
+          if (field === 'asuransi') {
+            updatedRow.asuransi = amount
+            updatedRow.asuransiPercent = percent
+          } else if (field === 'rs') {
+            updatedRow.rs = amount
+            updatedRow.rsPercent = percent
+          }
 
-      // Recalculate Pasien remainder (Allow negative for validation)
-      updatedRow.pasien = row.totalAmount - updatedRow.asuransi - updatedRow.rs
+          // Recalculate Pasien remainder (Allow negative for validation)
+          updatedRow.pasien = row.totalAmount - updatedRow.asuransi - updatedRow.rs
 
-      return updatedRow
-    }))
-  }, [])
+          return updatedRow
+        })
+      )
+    },
+    []
+  )
 
   const applyGlobalAllocation = () => {
     const totalInvoiceAmount = rows.reduce((sum, row) => sum + row.totalAmount, 0)
 
     if (totalInvoiceAmount === 0) return
 
-    setRows(prev => {
+    setRows((prev) => {
       // 1. Calculate ratios
       const ratioAsuransi = globalAsuransi / totalInvoiceAmount
       const ratioRS = globalRS / totalInvoiceAmount
@@ -260,7 +275,7 @@ export default function BillingAllocationPage() {
       let allocatedAsuransiSum = 0
       let allocatedRSSum = 0
 
-      const newRows = prev.map(row => {
+      const newRows = prev.map((row) => {
         const asuransi = Math.floor(row.totalAmount * ratioAsuransi)
         const rs = Math.floor(row.totalAmount * ratioRS)
 
@@ -296,7 +311,8 @@ export default function BillingAllocationPage() {
         }
 
         // 4. Update percentages and pasien remainder
-        updatedRow.asuransiPercent = row.totalAmount > 0 ? (updatedRow.asuransi / row.totalAmount) * 100 : 0
+        updatedRow.asuransiPercent =
+          row.totalAmount > 0 ? (updatedRow.asuransi / row.totalAmount) * 100 : 0
         updatedRow.rsPercent = row.totalAmount > 0 ? (updatedRow.rs / row.totalAmount) * 100 : 0
         updatedRow.pasien = Math.max(0, row.totalAmount - updatedRow.asuransi - updatedRow.rs)
 
@@ -304,7 +320,9 @@ export default function BillingAllocationPage() {
       })
     })
     setIsModalOpen(false)
-    message.success(`Alokasi Pro-rata diterapkan (Asuransi: ${Math.round((globalAsuransi / totalInvoiceAmount) * 100)}%)`)
+    message.success(
+      `Alokasi Pro-rata diterapkan (Asuransi: ${Math.round((globalAsuransi / totalInvoiceAmount) * 100)}%)`
+    )
   }
 
   const handleSave = async () => {
@@ -319,7 +337,7 @@ export default function BillingAllocationPage() {
 
     try {
       // 1. Pre-validation: If any row has insurance allocation, Mitra MUST be selected
-      const hasInsuranceAllocation = rows.some(r => r.asuransi > 0)
+      const hasInsuranceAllocation = rows.some((r) => r.asuransi > 0)
       if (hasInsuranceAllocation && !globalMitraId) {
         message.error('Silahkan pilih Penjamin (Mitra) terlebih dahulu!')
         hide()
@@ -328,7 +346,7 @@ export default function BillingAllocationPage() {
       }
 
       const payload: any[] = []
-      rows.forEach(row => {
+      rows.forEach((row) => {
         if (row.asuransi > 0) {
           payload.push({
             invoiceDetailId: Number(row.id),
@@ -354,14 +372,15 @@ export default function BillingAllocationPage() {
         }
       })
 
-      const shouldApplyAdminFee = applyAdminFee && adminFeePreview?.applicable && (adminFeePreview?.netFeeAmount ?? 0) > 0
+      const shouldApplyAdminFee =
+        applyAdminFee && adminFeePreview?.applicable && (adminFeePreview?.netFeeAmount ?? 0) > 0
 
       const res = await rpc.billing.saveAllocations({
         kode,
         allocations: payload,
         applyAdminFee: shouldApplyAdminFee,
         adminFeeAmount: shouldApplyAdminFee ? adminFeePreview!.netFeeAmount : null,
-        adminFeeDescription: shouldApplyAdminFee ? adminFeePreview!.description : null,
+        adminFeeDescription: shouldApplyAdminFee ? adminFeePreview!.description : null
       })
 
       if (res.success) {
@@ -461,14 +480,14 @@ export default function BillingAllocationPage() {
       key: 'pasien',
       width: 180,
       render: (_, record) => {
-        const diff = record.totalAmount - record.asuransi - record.rs
+        const diff = record.totalAmount - record.asuransi - record.rs - record.pasien
         const isMismatch = diff !== 0
-        
+
         return (
           <div className="flex flex-col">
             <InputNumber
-              value={diff}
-              disabled 
+              value={record.pasien}
+              disabled
               className={`w-full font-semibold ${
                 isMismatch ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-green-600'
               }`}
@@ -493,13 +512,13 @@ export default function BillingAllocationPage() {
       width: 130,
       align: 'right',
       render: (v) => formatRupiah(v)
-    },
+    }
   ]
 
   // Group by category
   const groupedData = useMemo(() => {
     const groups: Record<string, AllocationRow[]> = {}
-    rows.forEach(row => {
+    rows.forEach((row) => {
       if (!groups[row.category]) groups[row.category] = []
       groups[row.category].push(row)
     })
@@ -510,27 +529,30 @@ export default function BillingAllocationPage() {
   }, [rows])
 
   const summary = useMemo(() => {
-    return rows.reduce((acc, curr) => {
-      acc.total += curr.totalAmount
-      acc.asuransi += curr.asuransi
-      acc.rs += curr.rs
-      acc.pasien += (curr.totalAmount - curr.asuransi - curr.rs)
-      return acc
-    }, { total: 0, asuransi: 0, rs: 0, pasien: 0 })
+    return rows.reduce(
+      (acc, curr) => {
+        acc.total += curr.totalAmount
+        acc.asuransi += curr.asuransi
+        acc.rs += curr.rs
+        acc.pasien += curr.totalAmount - curr.asuransi - curr.rs
+        return acc
+      },
+      { total: 0, asuransi: 0, rs: 0, pasien: 0 }
+    )
   }, [rows])
 
   // Global validation: disable save if any row total is not 100% allocated
   const validationStatus = useMemo(() => {
-    const hasOver = rows.some(row => (row.asuransi + row.rs) > row.totalAmount)
-    const hasUnder = rows.some(row => (row.asuransi + row.rs) < row.totalAmount)
+    const hasOver = rows.some((row) => row.asuransi + row.rs > row.totalAmount)
+    const hasUnder = rows.some((row) => row.asuransi + row.rs < row.totalAmount)
     return {
       hasError: hasOver || hasUnder,
       hasOver,
       hasUnder,
-      message: hasOver 
-        ? 'Terdapat alokasi yang MELEBIHI total tagihan!' 
-        : hasUnder 
-          ? 'Terdapat tagihan yang BELUM dialokasi sepenuhnya!' 
+      message: hasOver
+        ? 'Terdapat alokasi yang MELEBIHI total tagihan!'
+        : hasUnder
+          ? 'Terdapat tagihan yang BELUM dialokasi sepenuhnya!'
           : ''
     }
   }, [rows])
@@ -542,41 +564,55 @@ export default function BillingAllocationPage() {
     setIsModalOpen(true)
   }
 
-  if (isLoading) return <div className="flex justify-center py-20"><Spin size="large" tip="Memuat detail tagihan..." /></div>
+  if (isLoading)
+    return (
+      <div className="flex justify-center py-20">
+        <Spin size="large" tip="Memuat detail tagihan..." />
+      </div>
+    )
 
-  if (isError) return (
-    <div className="p-10 text-center">
-      <Text type="danger">Terjadi kesalahan: {error?.message}</Text>
-      <br />
-      <Button onClick={() => navigate(-1)} className="mt-4">Kembali</Button>
-    </div>
-  )
+  if (isError)
+    return (
+      <div className="p-10 text-center">
+        <Text type="danger">Terjadi kesalahan: {error?.message}</Text>
+        <br />
+        <Button onClick={() => navigate(-1)} className="mt-4">
+          Kembali
+        </Button>
+      </div>
+    )
 
-  if (data && !data.success) return (
-    <div className="p-10 text-center">
-      <Text type="danger">Gagal memuat data: {data.message || 'Unknown Error'}</Text>
-      <br />
-      <Button onClick={() => navigate(-1)} className="mt-4">Kembali</Button>
-    </div>
-  )
+  if (data && !data.success)
+    return (
+      <div className="p-10 text-center">
+        <Text type="danger">Gagal memuat data: {data.message || 'Unknown Error'}</Text>
+        <br />
+        <Button onClick={() => navigate(-1)} className="mt-4">
+          Kembali
+        </Button>
+      </div>
+    )
 
   const invoice = data?.result
 
-  if (!invoice) return (
-    <div className="p-10 text-center">
-      <Text type="warning">Invoice dengan kode {kode} tidak ditemukan.</Text>
-      <br />
-      <Button onClick={() => navigate(-1)} className="mt-4">Kembali</Button>
-    </div>
-  )
+  if (!invoice)
+    return (
+      <div className="p-10 text-center">
+        <Text type="warning">Invoice dengan kode {kode} tidak ditemukan.</Text>
+        <br />
+        <Button onClick={() => navigate(-1)} className="mt-4">
+          Kembali
+        </Button>
+      </div>
+    )
 
   return (
     <div className="p-4 space-y-6">
       {/* Modern Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div className="flex items-center gap-4">
-          <Button 
-            icon={<ArrowLeftOutlined />} 
+          <Button
+            icon={<ArrowLeftOutlined />}
             onClick={() => navigate(-1)}
             className="hover:!border-blue-500 hover:!text-blue-500 transition-all rounded-lg"
           >
@@ -584,23 +620,30 @@ export default function BillingAllocationPage() {
           </Button>
           <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
           <div>
-            <Title level={4} className="!mb-0 text-slate-800">Alokasi Penjamin</Title>
-            <Text type="secondary" className="text-xs uppercase tracking-wider">{kode}</Text>
+            <Title level={4} className="!mb-0 text-slate-800">
+              Alokasi Penjamin
+            </Title>
+            <Text type="secondary" className="text-xs uppercase tracking-wider">
+              {kode}
+            </Text>
           </div>
         </div>
-        
+
         <div className="flex items-center flex-wrap gap-2">
           <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-100">
             <Select
               value={globalPayorType}
-              onChange={(v) => { setGlobalPayorType(v); setGlobalMitraId(null) }}
+              onChange={(v) => {
+                setGlobalPayorType(v)
+                setGlobalMitraId(null)
+              }}
               variant="borderless"
               style={{ width: 130 }}
               options={[
                 { label: 'Asuransi', value: 'insurance' },
                 { label: 'BPJS', value: 'bpjs' },
                 { label: 'Perusahaan', value: 'company' },
-                { label: 'Umum', value: 'hospital' },
+                { label: 'Umum', value: 'hospital' }
               ]}
               className="font-medium"
             />
@@ -623,7 +666,7 @@ export default function BillingAllocationPage() {
           >
             Otomatis
           </Button>
-          
+
           <Button
             type="primary"
             icon={<SaveOutlined />}
@@ -643,13 +686,15 @@ export default function BillingAllocationPage() {
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
           <SolutionOutlined style={{ fontSize: 160 }} />
         </div>
-        
+
         <div className="flex items-start gap-4 col-span-1 md:col-span-1">
           <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm shadow-inner">
             <UserOutlined style={{ fontSize: 24 }} />
           </div>
           <div>
-            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">Nama Pasien</div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">
+              Nama Pasien
+            </div>
             <div className="text-xl font-bold leading-tight">{invoice?.patientName || '-'}</div>
           </div>
         </div>
@@ -659,7 +704,9 @@ export default function BillingAllocationPage() {
             <IdcardOutlined style={{ fontSize: 24 }} />
           </div>
           <div>
-            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">No. Rekam Medis</div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">
+              No. Rekam Medis
+            </div>
             <div className="text-lg font-semibold tracking-wide">{invoice?.mrn || '-'}</div>
           </div>
         </div>
@@ -669,8 +716,12 @@ export default function BillingAllocationPage() {
             <HomeOutlined style={{ fontSize: 24 }} />
           </div>
           <div>
-            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">Alamat Pasien</div>
-            <div className="text-sm font-medium line-clamp-2 leading-snug">{invoice?.address || '-'}</div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">
+              Alamat Pasien
+            </div>
+            <div className="text-sm font-medium line-clamp-2 leading-snug">
+              {invoice?.address || '-'}
+            </div>
           </div>
         </div>
 
@@ -679,15 +730,19 @@ export default function BillingAllocationPage() {
             <HistoryOutlined style={{ fontSize: 24 }} />
           </div>
           <div>
-            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">Tanggal Pelayanan</div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">
+              Tanggal Pelayanan
+            </div>
             <div className="text-sm font-semibold tracking-wide">
-              {invoice?.visitDate ? new Date(invoice.visitDate).toLocaleDateString('id-ID', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              }) : '-'}
+              {invoice?.visitDate
+                ? new Date(invoice.visitDate).toLocaleDateString('id-ID', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                : '-'}
             </div>
           </div>
         </div>
@@ -703,13 +758,12 @@ export default function BillingAllocationPage() {
             <div className="flex items-center justify-between">
               <span>
                 <strong>{adminFeePreview.description}</strong>{' '}
-                {adminFeePreview.feeType === 'percentage'
-                  ? `(${adminFeePreview.feeValue}%)`
-                  : ''}{' '}
-                ={' '}
+                {adminFeePreview.feeType === 'percentage' ? `(${adminFeePreview.feeValue}%)` : ''} ={' '}
                 <strong>{formatRupiah(adminFeePreview.netFeeAmount)}</strong>
                 {adminFeePreview.discountAmount > 0 && (
-                  <span className="text-gray-400 line-through ml-2">{formatRupiah(adminFeePreview.feeAmount)}</span>
+                  <span className="text-gray-400 line-through ml-2">
+                    {formatRupiah(adminFeePreview.feeAmount)}
+                  </span>
                 )}
               </span>
               <div className="flex items-center gap-2 ml-6">
@@ -728,7 +782,12 @@ export default function BillingAllocationPage() {
         />
       )}
       {loadingPreview && (
-        <Alert type="info" message="Mengecek aturan biaya administrasi..." showIcon className="mb-2" />
+        <Alert
+          type="info"
+          message="Mengecek aturan biaya administrasi..."
+          showIcon
+          className="mb-2"
+        />
       )}
 
       <Modal
@@ -768,16 +827,14 @@ export default function BillingAllocationPage() {
       >
         <div className="py-6 space-y-6">
           <div className="bg-blue-50 p-4 rounded-lg flex justify-between items-center border border-blue-100 px-8">
-            <Statistic
-              title="Total Tagihan"
-              value={summary.total}
-              prefix="Rp"
-            />
+            <Statistic title="Total Tagihan" value={summary.total} prefix="Rp" />
             <Statistic
               title="Tanggungan Pasien (Sisa)"
               value={Math.max(0, summary.total - globalAsuransi - globalRS)}
               prefix="Rp"
-              valueStyle={{ color: (summary.total - globalAsuransi - globalRS) > 0 ? '#faad14' : '#52c41a' }}
+              valueStyle={{
+                color: summary.total - globalAsuransi - globalRS > 0 ? '#faad14' : '#52c41a'
+              }}
             />
           </div>
 
@@ -805,7 +862,9 @@ export default function BillingAllocationPage() {
             <div className="space-y-4 px-4">
               <Row align="middle" gutter={16}>
                 <Col span={6}>
-                  <Text strong className="text-slate-600">Plafon Asuransi</Text>
+                  <Text strong className="text-slate-600">
+                    Plafon Asuransi
+                  </Text>
                 </Col>
                 <Col span={18}>
                   <DebouncedInputNumber
@@ -817,7 +876,9 @@ export default function BillingAllocationPage() {
                     onChange={(v: number) => {
                       const newVal = v || 0
                       setGlobalAsuransi(newVal)
-                      const mode = (document.getElementById('allocation-mode-select') as HTMLSelectElement)?.value || 'link'
+                      const mode =
+                        (document.getElementById('allocation-mode-select') as HTMLSelectElement)
+                          ?.value || 'link'
                       if (mode === 'link') {
                         setGlobalRS(Math.max(0, summary.total - newVal))
                       }
@@ -831,7 +892,9 @@ export default function BillingAllocationPage() {
 
               <Row align="middle" gutter={16}>
                 <Col span={6}>
-                  <Text strong className="text-slate-600">Plafon RS</Text>
+                  <Text strong className="text-slate-600">
+                    Plafon RS
+                  </Text>
                 </Col>
                 <Col span={18}>
                   <DebouncedInputNumber
@@ -843,7 +906,9 @@ export default function BillingAllocationPage() {
                     onChange={(v: number) => {
                       const newVal = v || 0
                       setGlobalRS(newVal)
-                      const mode = (document.getElementById('allocation-mode-select') as HTMLSelectElement)?.value || 'link'
+                      const mode =
+                        (document.getElementById('allocation-mode-select') as HTMLSelectElement)
+                          ?.value || 'link'
                       if (mode === 'link') {
                         setGlobalAsuransi(Math.max(0, summary.total - newVal))
                       }
@@ -859,12 +924,12 @@ export default function BillingAllocationPage() {
 
           <div className="bg-amber-50 p-3 rounded border border-amber-100 flex items-start gap-2">
             <Text type="warning" className="text-xs">
-              ⓘ Tip: Gunakan mode <b>Otomatis</b> agar Anda cukup mengisi satu kolom saja, sistem akan langsung menghitung sisanya untuk kolom lain.
+              ⓘ Tip: Gunakan mode <b>Otomatis</b> agar Anda cukup mengisi satu kolom saja, sistem
+              akan langsung menghitung sisanya untuk kolom lain.
             </Text>
           </div>
         </div>
       </Modal>
-
 
       {rows.length === 0 && !isLoading && (
         <Card className="text-center py-10 text-gray-400">
@@ -873,16 +938,24 @@ export default function BillingAllocationPage() {
       )}
 
       <div className="space-y-8">
-        {groupedData.map(group => (
-          <div key={group.category} className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 transition-all hover:shadow-md">
+        {groupedData.map((group) => (
+          <div
+            key={group.category}
+            className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-100 transition-all hover:shadow-md"
+          >
             <div className="px-6 py-4 bg-slate-50/50 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-6 bg-blue-500 rounded-full"></div>
-                <Title level={5} className="!mb-0 text-slate-700 uppercase tracking-wide text-sm font-bold">
+                <Title
+                  level={5}
+                  className="!mb-0 text-slate-700 uppercase tracking-wide text-sm font-bold"
+                >
                   {group.category}
                 </Title>
               </div>
-              <Tag color="blue" className="rounded-full px-3">{group.items.length} Item</Tag>
+              <Tag color="blue" className="rounded-full px-3">
+                {group.items.length} Item
+              </Tag>
             </div>
             <Table
               dataSource={group.items}
@@ -903,52 +976,64 @@ export default function BillingAllocationPage() {
         <div className="w-full md:w-[600px]">
           <div className="bg-white p-8 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-100 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 opacity-50"></div>
-            
+
             <Title level={4} className="mb-6 flex items-center gap-2">
               <CheckCircleOutlined className="text-green-500" />
               <span>Ringkasan Alokasi</span>
             </Title>
-            
+
             <div className="space-y-4">
               <div className="flex justify-between items-center pb-3 border-b border-slate-50">
                 <Text className="text-slate-500 font-medium font-bold">Total Tagihan</Text>
-                <Text className="text-lg font-bold text-slate-800">{formatRupiah(summary.total)}</Text>
+                <Text className="text-lg font-bold text-slate-800">
+                  {formatRupiah(summary.total)}
+                </Text>
               </div>
-              
+
               <div className="flex justify-between items-center py-1">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-blue-500"></div>
                   <Text className="text-slate-600">Tanggungan Asuransi</Text>
                 </div>
-                <Text strong className="text-blue-600 font-semibold">{formatRupiah(summary.asuransi)}</Text>
+                <Text strong className="text-blue-600 font-semibold">
+                  {formatRupiah(summary.asuransi)}
+                </Text>
               </div>
-              
+
               <div className="flex justify-between items-center py-1">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-orange-500"></div>
                   <Text className="text-slate-600">Tanggungan RS</Text>
                 </div>
-                <Text strong className="text-orange-600 font-semibold">{formatRupiah(summary.rs)}</Text>
+                <Text strong className="text-orange-600 font-semibold">
+                  {formatRupiah(summary.rs)}
+                </Text>
               </div>
-              
+
               <div className="mt-6 p-4 bg-green-50 rounded-xl border border-green-100">
                 <div className="flex justify-between items-center text-green-700">
                   <div className="flex flex-col">
-                    <Text className="text-xs uppercase font-bold tracking-wider text-green-600">Sisa Tanggungan</Text>
-                    <Title level={3} className="!mb-0 !mt-1 !text-green-700 font-black">Pasien</Title>
+                    <Text className="text-xs uppercase font-bold tracking-wider text-green-600">
+                      Sisa Tanggungan
+                    </Text>
+                    <Title level={3} className="!mb-0 !mt-1 !text-green-700 font-black">
+                      Pasien
+                    </Title>
                   </div>
-                  <Title level={2} className="!mb-0 !text-green-700 font-black">{formatRupiah(summary.pasien)}</Title>
+                  <Title level={2} className="!mb-0 !text-green-700 font-black">
+                    {formatRupiah(summary.pasien)}
+                  </Title>
                 </div>
               </div>
 
               {validationStatus.hasError && (
                 <div className="mt-4 animate-pulse">
-                   <Alert
+                  <Alert
                     message={validationStatus.message}
                     type="error"
                     showIcon
                     className="rounded-lg font-medium"
-                   />
+                  />
                 </div>
               )}
             </div>

@@ -1,6 +1,8 @@
 import { Button, Input, Table, Tag, Card, Spin, theme } from 'antd'
 import {
   SyncOutlined,
+  MoreOutlined,
+  PlayCircleOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
   MedicineBoxOutlined,
@@ -348,27 +350,24 @@ export function MedicationDispenseTable() {
     return map
   }, [itemSource?.result])
 
+  const itemCaraPenyimpananById = useMemo(() => {
+    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
+    const map = new Map<number, string>()
+    for (const item of source) {
+      if (typeof item.id === 'number') {
+        const cp = (item as any).caraPenyimpanan || ''
+        if (cp) map.set(item.id, String(cp))
+      }
+    }
+    return map
+  }, [itemSource?.result])
+
   const itemKodeById = useMemo(() => {
     const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
     const map = new Map<number, string>()
     for (const item of source) {
       if (typeof item.id === 'number' && typeof item.kode === 'string') {
         map.set(item.id, item.kode.trim().toUpperCase())
-      }
-    }
-    return map
-  }, [itemSource?.result])
-
-  const itemCaraPenyimpananById = useMemo(() => {
-    const source: ItemAttributes[] = Array.isArray(itemSource?.result) ? itemSource.result : []
-    const map = new Map<number, string>()
-    for (const item of source) {
-      if (typeof item.id === 'number') {
-        const raw = item as any
-        const cp = raw.caraPenyimpanan || ''
-        if (cp) {
-          map.set(item.id, String(cp).trim())
-        }
       }
     }
     return map
@@ -676,7 +675,9 @@ export function MedicationDispenseTable() {
               kekuatan:
                 ing.strength ||
                 (typeof ingItemId === 'number' ? itemKekuatanById.get(ingItemId) : undefined) ||
-                '-'
+                '-',
+              caraPenyimpanan:
+                typeof ingItemId === 'number' ? itemCaraPenyimpananById.get(ingItemId) : undefined
             }
           })
         }

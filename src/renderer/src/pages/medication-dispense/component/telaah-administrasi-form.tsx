@@ -78,8 +78,13 @@ interface Props {
 
 export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props) => {
   const allCriteriaMet = useMemo(() => {
-    const { keterangan, ...booleans } = results
-    return Object.values(booleans).every((v) => v === true)
+    const criteriaKeys: (keyof TelaahResults)[] = [
+      ...administrasiCriteria.map((c) => c.key),
+      ...farmasetikCriteria.map((c) => c.key),
+      ...klinisCriteria.map((c) => c.key),
+      ...edukasiCriteria.map((c) => c.key)
+    ]
+    return criteriaKeys.every((v) => results[v] === true)
   }, [results])
 
   // useEffect(() => {
@@ -95,6 +100,15 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
   //     })
   //   }
   // }, [isInternal])
+
+  const handleCheckInternalCriteria = () => {
+    const allTrueResults: TelaahResults = { ...results }
+    const criteriaKeys: (keyof TelaahResults)[] = administrasiCriteria.map((c) => c.key)
+    criteriaKeys.forEach((key) => {
+      ;(allTrueResults[key] as boolean) = true
+    })
+    onChange(allTrueResults)
+  }
 
   const handleCheckAll = () => {
     const allTrueResults: TelaahResults = { ...results }
@@ -112,7 +126,7 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
 
   useEffect(() => {
     if (isInternal) {
-      handleCheckAll()
+      handleCheckInternalCriteria()
     }
   }, [isInternal])
 
@@ -135,7 +149,7 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
             <span className="text-lg font-bold">Telaah Administrasi, Farmasetik & Klinis</span>
             {isInternal && (
               <Tag color="blue" icon={<CheckCircleFilled />}>
-                Internal
+                Resep Internal Rumah Sakit
               </Tag>
             )}
           </Space>
@@ -164,7 +178,7 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
         />
       )}
 
-      <Row gutter={[24, 24]}>
+      <Row gutter={[24, 24]} className="mt-2">
         <Col span={24} lg={6}>
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full">
             <Divider orientation="left" plain style={{ margin: '0 0 16px 0' }}>

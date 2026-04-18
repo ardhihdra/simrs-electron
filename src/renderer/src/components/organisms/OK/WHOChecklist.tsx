@@ -9,177 +9,187 @@ import {
   Col,
   Tag,
   Alert,
-  Divider,
-  Typography,
   FormInstance
 } from 'antd'
-
-const { Text } = Typography
 
 interface WHOFormProps {
   standalone?: boolean
   externalForm?: FormInstance
+  performerOptions?: Array<{ label: string; value: number }>
+  isLoadingPerformers?: boolean
 }
 
-export const SignInForm = ({ standalone = true, externalForm }: WHOFormProps) => {
+interface StatusOption {
+  label: string
+  value: string
+}
+
+const YA_TIDAK_OPTIONS: StatusOption[] = [
+  { label: 'Ya', value: 'ya' },
+  { label: 'Tidak', value: 'tidak' }
+]
+
+export const SignInForm = ({
+  standalone = true,
+  externalForm,
+  performerOptions,
+  isLoadingPerformers = false
+}: WHOFormProps) => {
   const [internalForm] = Form.useForm()
   const form = externalForm || internalForm
+  const requirePerawatSelection = Array.isArray(performerOptions)
+  const nurseOptions = performerOptions || []
+  const getStatusTagColor = (value: string): string => {
+    const normalized = String(value || '').trim().toLowerCase()
+    if (normalized === 'ya') return 'green'
+    if (normalized === 'tidak') return 'red'
+    return 'default'
+  }
+
+  const renderStatusRadio = (options: StatusOption[] = YA_TIDAK_OPTIONS) => (
+    <Radio.Group className="flex flex-wrap gap-4">
+      {options.map((option) => (
+        <Radio key={option.value} value={option.value} className="!m-0">
+          <Tag color={getStatusTagColor(option.value)} className="!mr-0">
+            {option.label}
+          </Tag>
+        </Radio>
+      ))}
+    </Radio.Group>
+  )
 
   const content = (
     <div className="flex flex-col gap-4">
-      <Card size="small" title="1. Konfirmasi Identitas Pasien">
+      <Card size="small" title="1. Sign In">
         <Row gutter={16}>
           <Col xs={24} md={12}>
             <Form.Item
-              name="konfirmasiIdentitas"
-              label="Pasien telah mengkonfirmasi identitas?"
-              rules={[{ required: true }]}
+              name="identitas"
+              label="Identitas"
+              rules={[{ required: true, message: 'Pilih status identitas' }]}
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak / Tidak dapat dikonfirmasi</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio()}
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
             <Form.Item
-              name="konfirmasiProsedur"
-              label="Prosedur & area operasi sudah dikonfirmasi?"
-              rules={[{ required: true }]}
+              name="risikoKehilanganDarahAnak"
+              label="Risiko Kehilangan Darah untuk Anak"
+              rules={[{ required: true, message: 'Pilih status risiko kehilangan darah' }]}
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio()}
             </Form.Item>
           </Col>
-          <Col xs={24} md={12}>
-            <Form.Item
-              name="konfirmasiConsent"
-              label="Informed consent sudah ditandatangani?"
-              rules={[{ required: true }]}
-            >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
-            <Form.Item
-              name="sitemarking"
-              label="Site marking sudah dibuat?"
-              rules={[{ required: true }]}
-            >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-                <Radio value="na">
-                  <Tag>Tidak berlaku</Tag>
-                </Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
 
-      <Card size="small" title="2. Kesiapan Anestesi">
-        <Row gutter={16}>
+          <Col xs={24}>
+            <Form.Item
+              name="alergi"
+              label="Alergi"
+              rules={[{ required: true, message: 'Isi informasi alergi pasien' }]}
+            >
+              <Input.TextArea rows={2} placeholder="Tuliskan alergi pasien..." />
+            </Form.Item>
+          </Col>
+
+          <Col xs={24}>
+            <Form.Item
+              name="risikoAspirasiDanFaktorPenyulit"
+              label="Risiko Aspirasi & Faktor Penyulit"
+              rules={[{ required: true, message: 'Isi risiko aspirasi dan faktor penyulit' }]}
+            >
+              <Input.TextArea rows={2} placeholder="Tuliskan risiko aspirasi/faktor penyulit..." />
+            </Form.Item>
+          </Col>
+
           <Col xs={24} md={12}>
             <Form.Item
-              name="mesinAnestesi"
-              label="Mesin anestesi dan obat sudah diperiksa?"
-              rules={[{ required: true }]}
+              name="kesiapanAlatObatAnestesi"
+              label="Kesiapan & Alat Obat Anestesi"
+              rules={[{ required: true, message: 'Pilih status kesiapan alat/obat anestesi' }]}
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio()}
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
             <Form.Item
-              name="pulseOximetry"
-              label="Pulse oximetry terpasang dan berfungsi?"
-              rules={[{ required: true }]}
+              name="penandaanAreaOperasi"
+              label="Penandaan Area Operasi"
+              rules={[{ required: true, message: 'Pilih status penandaan area operasi' }]}
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio()}
+            </Form.Item>
+          </Col>
+
+          <Col xs={24} md={12}>
+            <Form.Item
+              name="jalurIvLine"
+              label="Jika Ada Jalur IV Line"
+              rules={[{ required: true, message: 'Pilih status jalur IV line' }]}
+            >
+              {renderStatusRadio()}
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
             <Form.Item
-              name="alergiDiketahui"
-              label="Apakah pasien memiliki alergi?"
-              rules={[{ required: true }]}
+              name="perawatKamarOperasiId"
+              label="Perawat Kamar Operasi"
+              rules={
+                requirePerawatSelection
+                  ? [{ required: true, message: 'Pilih perawat kamar operasi' }]
+                  : []
+              }
             >
-              <Radio.Group>
-                <Radio value="tidak">Tidak ada alergi yang diketahui</Radio>
-                <Radio value="ya">Ya, ada alergi:</Radio>
-              </Radio.Group>
+              <Select
+                placeholder="Pilih perawat..."
+                showSearch
+                optionFilterProp="label"
+                options={nurseOptions}
+                loading={isLoadingPerformers}
+              />
             </Form.Item>
           </Col>
-          <Col xs={24} md={12}>
-            <Form.Item name="detailAlergi" label="Detail alergi (jika ada)">
-              <Input placeholder="Sebutkan jenis alergi..." />
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
+
+          <Col xs={24}>
             <Form.Item
-              name="risikoAspirasi"
-              label="Apakah ada risiko aspirasi?"
-              rules={[{ required: true }]}
+              name="rencanaAntisipasiKehilanganDarah"
+              label="Jika Ada Risiko Kehilangan Darah, Rencana Antisipasi"
+              dependencies={['risikoKehilanganDarahAnak']}
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const risiko = getFieldValue('risikoKehilanganDarahAnak')
+                    if (risiko !== 'ya') return Promise.resolve()
+                    if (String(value || '').trim().length > 0) return Promise.resolve()
+                    return Promise.reject(
+                      new Error('Rencana antisipasi kehilangan darah wajib diisi saat risiko = Ya')
+                    )
+                  }
+                })
+              ]}
             >
-              <Radio.Group>
-                <Radio value="tidak">
-                  <Tag color="green">Tidak</Tag>
-                </Radio>
-                <Radio value="ya_persiapan">
-                  <Tag color="orange">Ya — peralatan sudah disiapkan</Tag>
-                </Radio>
-              </Radio.Group>
+              <Input.TextArea rows={2} placeholder="Tuliskan rencana antisipasi..." />
             </Form.Item>
           </Col>
-          <Col xs={24} md={12}>
+
+          <Col xs={24}>
             <Form.Item
-              name="risikoPerdarahan"
-              label="Perkiraan kehilangan darah > 500ml?"
-              rules={[{ required: true }]}
+              name="rencanaAntisipasiAnestesi"
+              label="Bila Tidak Lengkap, Rencana Antisipasi"
+              dependencies={['kesiapanAlatObatAnestesi']}
+              rules={[
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const kesiapan = getFieldValue('kesiapanAlatObatAnestesi')
+                    if (kesiapan !== 'tidak') return Promise.resolve()
+                    if (String(value || '').trim().length > 0) return Promise.resolve()
+                    return Promise.reject(
+                      new Error('Rencana antisipasi anestesi wajib diisi saat kesiapan = Tidak')
+                    )
+                  }
+                })
+              ]}
             >
-              <Radio.Group>
-                <Radio value="tidak">
-                  <Tag color="green">Tidak</Tag>
-                </Radio>
-                <Radio value="ya_dua_iv">
-                  <Tag color="orange">Ya — 2 IV line + cairan disiapkan</Tag>
-                </Radio>
-              </Radio.Group>
+              <Input.TextArea rows={2} placeholder="Tuliskan rencana antisipasi..." />
             </Form.Item>
           </Col>
         </Row>
@@ -192,7 +202,7 @@ export const SignInForm = ({ standalone = true, externalForm }: WHOFormProps) =>
       <Alert
         type="warning"
         showIcon
-        message="Sign-In dilakukan sebelum induksi anestesi dimulai. Seluruh item WAJIB dikonfirmasi oleh tim."
+        message="Sign-In dilakukan sebelum induksi anestesi dimulai. Lengkapi seluruh item wajib sebelum lanjut."
       />
       {standalone ? (
         <Form form={form} layout="vertical">
@@ -214,6 +224,24 @@ export const SignInForm = ({ standalone = true, externalForm }: WHOFormProps) =>
 export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) => {
   const [internalForm] = Form.useForm()
   const form = externalForm || internalForm
+  const getStatusTagColor = (value: string): string => {
+    const normalized = String(value || '').trim().toLowerCase()
+    if (normalized === 'ya') return 'green'
+    if (normalized === 'tidak') return 'red'
+    return 'default'
+  }
+
+  const renderStatusRadio = (options: StatusOption[] = YA_TIDAK_OPTIONS) => (
+    <Radio.Group className="flex flex-wrap gap-4">
+      {options.map((option) => (
+        <Radio key={option.value} value={option.value} className="!m-0">
+          <Tag color={getStatusTagColor(option.value)} className="!mr-0">
+            {option.label}
+          </Tag>
+        </Radio>
+      ))}
+    </Radio.Group>
+  )
 
   const content = (
     <div className="flex flex-col gap-4">
@@ -222,28 +250,14 @@ export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) =
           name="timKonfirmasi"
           label="Seluruh anggota tim telah memperkenalkan diri (nama & peran)?"
         >
-          <Radio.Group>
-            <Radio value="ya">
-              <Tag color="green">Ya</Tag>
-            </Radio>
-            <Radio value="tidak">
-              <Tag color="red">Tidak</Tag>
-            </Radio>
-          </Radio.Group>
+          {renderStatusRadio()}
         </Form.Item>
       </Card>
       <Card size="small" title="Konfirmasi Identitas & Prosedur">
         <Row gutter={16}>
           <Col xs={24} md={12}>
             <Form.Item name="konfirmasiNama" label="Nama pasien dikonfirmasi ulang?">
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio()}
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
@@ -251,14 +265,7 @@ export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) =
               name="konfirmasiProsedurFinal"
               label="Prosedur yang akan dilakukan didkonfirmasi?"
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio()}
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
@@ -266,17 +273,11 @@ export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) =
               name="konfirmasiSisi"
               label="Sisi/lokasi operasi dikonfirmasi dengan site mark?"
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-                <Radio value="na">
-                  <Tag>Tidak berlaku</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio([
+                { label: 'Ya', value: 'ya' },
+                { label: 'Tidak', value: 'tidak' },
+                { label: 'Tidak berlaku', value: 'na' }
+              ])}
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
@@ -284,14 +285,10 @@ export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) =
               name="antibiotikProfilaksis"
               label="Antibiotik profilaksis sudah diberikan (60 menit sebelum insisi)?"
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak perlu</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio([
+                { label: 'Ya', value: 'ya' },
+                { label: 'Tidak perlu', value: 'tidak' }
+              ])}
             </Form.Item>
           </Col>
         </Row>
@@ -303,17 +300,11 @@ export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) =
               name="imagingTersedia"
               label="Imaging essensial tersedia dan sudah ditampilkan?"
             >
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-                <Radio value="na">
-                  <Tag>Tidak diperlukan</Tag>
-                </Radio>
-              </Radio.Group>
+              {renderStatusRadio([
+                { label: 'Ya', value: 'ya' },
+                { label: 'Tidak', value: 'tidak' },
+                { label: 'Tidak diperlukan', value: 'na' }
+              ])}
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
@@ -321,10 +312,10 @@ export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) =
               name="catatanKritis"
               label="Apakah ada point kritis / kekhawatiran dari anggota tim?"
             >
-              <Radio.Group>
-                <Radio value="tidak">Tidak ada</Radio>
-                <Radio value="ya">Ya (catatan di bawah)</Radio>
-              </Radio.Group>
+              {renderStatusRadio([
+                { label: 'Tidak ada', value: 'tidak' },
+                { label: 'Ya (catatan di bawah)', value: 'ya' }
+              ])}
             </Form.Item>
           </Col>
           <Col xs={24}>
@@ -351,203 +342,6 @@ export const TimeOutForm = ({ standalone = true, externalForm }: WHOFormProps) =
             <Button>Reset</Button>
             <Button type="primary" size="large" style={{ background: '#3b82f6', border: 'none' }}>
               Konfirmasi Time-Out — Izinkan Insisi
-            </Button>
-          </div>
-        </Form>
-      ) : (
-        <div className="mt-2">{content}</div>
-      )}
-    </div>
-  )
-}
-
-export const SignOutForm = ({ standalone = true, externalForm }: WHOFormProps) => {
-  const [internalForm] = Form.useForm()
-  const form = externalForm || internalForm
-
-  const content = (
-    <div className="space-y-4">
-      <Card size="small" title="Verifikasi Instrumen & Material">
-        <Row gutter={16}>
-          <Col xs={24} md={8}>
-            <Form.Item name="hitungInstrumen" label="Hitungan instrumen lengkap?">
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya, lengkap</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak — lapor segera</Tag>
-                </Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={8}>
-            <Form.Item name="hitungKasa" label="Hitungan kasa lengkap?">
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya, lengkap</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={8}>
-            <Form.Item name="hitungJarum" label="Hitungan jarum/benda tajam lengkap?">
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya, lengkap</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
-            <Form.Item name="spesimenDilabeli" label="Spesimen sudah dilabeli dengan benar?">
-              <Radio.Group>
-                <Radio value="ya">
-                  <Tag color="green">Ya</Tag>
-                </Radio>
-                <Radio value="tidak">
-                  <Tag color="red">Tidak</Tag>
-                </Radio>
-                <Radio value="na">
-                  <Tag>Tidak ada spesimen</Tag>
-                </Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col xs={24} md={12}>
-            <Form.Item name="masalahPeralatan" label="Ada masalah peralatan yang perlu dilaporkan?">
-              <Radio.Group>
-                <Radio value="tidak">Tidak ada</Radio>
-                <Radio value="ya">Ya (catat di bawah)</Radio>
-              </Radio.Group>
-            </Form.Item>
-          </Col>
-          <Col xs={24}>
-            <Form.Item name="catatanSignOut" label="Catatan Tambahan">
-              <Input.TextArea rows={2} placeholder="Catatan insiden, masalah peralatan, dll..." />
-            </Form.Item>
-          </Col>
-        </Row>
-      </Card>
-
-      <Card size="small" title="Input Tim Operasi">
-        <Divider orientation="left" orientationMargin={0}>
-          <Text type="secondary" className="text-xs">
-            Dokter Operator
-          </Text>
-        </Divider>
-        <Row gutter={8} className="mb-2">
-          {['dokterOperator1', 'dokterOperator2'].map((field, i) => (
-            <Col xs={24} md={12} key={field}>
-              <Form.Item name={field} label={`Dokter Operator ${i + 1}`}>
-                <Select
-                  placeholder="Pilih dokter operator..."
-                  showSearch
-                  allowClear
-                  options={[
-                    { label: 'dr. Ahmad Fadillah, Sp.B', value: 'dr_ahmad' },
-                    { label: 'dr. Budi Santoso, Sp.OT', value: 'dr_budi' },
-                    { label: 'dr. Citra Dewi, Sp.OG', value: 'dr_citra' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          ))}
-        </Row>
-
-        <Divider orientation="left" orientationMargin={0}>
-          <Text type="secondary" className="text-xs">
-            Asisten Operasi
-          </Text>
-        </Divider>
-        <Row gutter={8} className="mb-2">
-          {['asisten1', 'asisten2'].map((field, i) => (
-            <Col xs={24} md={12} key={field}>
-              <Form.Item name={field} label={`Asisten ${i + 1}`}>
-                <Select
-                  placeholder="Pilih asisten..."
-                  showSearch
-                  allowClear
-                  options={[
-                    { label: 'dr. Dian Pratiwi', value: 'dr_dian' },
-                    { label: 'dr. Eka Putra', value: 'dr_eka' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          ))}
-        </Row>
-
-        <Divider orientation="left" orientationMargin={0}>
-          <Text type="secondary" className="text-xs">
-            Anestesiologi
-          </Text>
-        </Divider>
-        <Row gutter={8} className="mb-2">
-          {['anestesi1', 'anestesi2'].map((field, i) => (
-            <Col xs={24} md={12} key={field}>
-              <Form.Item name={field} label={`Dokter Anestesi ${i + 1}`}>
-                <Select
-                  placeholder="Pilih dokter anestesi..."
-                  showSearch
-                  allowClear
-                  options={[
-                    { label: 'dr. Eko Prasetyo, Sp.An', value: 'dr_eko' },
-                    { label: 'dr. Fitri Handayani, Sp.An', value: 'dr_fitri' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          ))}
-        </Row>
-
-        <Divider orientation="left" orientationMargin={0}>
-          <Text type="secondary" className="text-xs">
-            Perawat OK / Sirkuler
-          </Text>
-        </Divider>
-        <Row gutter={8}>
-          {['perawat1', 'perawat2', 'perawat3'].map((field, i) => (
-            <Col xs={24} md={8} key={field}>
-              <Form.Item name={field} label={`Perawat OK ${i + 1}`}>
-                <Select
-                  placeholder="Pilih perawat..."
-                  showSearch
-                  allowClear
-                  options={[
-                    { label: 'Ns. Rina Susanti, S.Kep', value: 'ns_rina' },
-                    { label: 'Ns. Siti Aminah, S.Kep', value: 'ns_siti' },
-                    { label: 'Ns. Dewi Kurnia, S.Kep', value: 'ns_dewi' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          ))}
-        </Row>
-      </Card>
-    </div>
-  )
-
-  return (
-    <div className="space-y-4">
-      <Alert
-        type="success"
-        showIcon
-        message="Sign-Out dilakukan sebelum penutupan luka. Pastikan semua instrumen, kasa, dan jarum sudah dihitung lengkap."
-      />
-      {standalone ? (
-        <Form form={form} layout="vertical">
-          {content}
-          <div className="flex justify-end gap-2 mt-4">
-            <Button>Reset</Button>
-            <Button type="primary" size="large" style={{ background: '#3b82f6', border: 'none' }}>
-              Konfirmasi Sign-Out & Selesaikan Operasi
             </Button>
           </div>
         </Form>

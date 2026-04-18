@@ -215,7 +215,11 @@ export const VerifikasiOKTable = ({
       <Row gutter={16} className="mb-4">
         <Col xs={8}>
           <Card size="small">
-            <Statistic title="Total Pengajuan" value={rows.length} valueStyle={{ color: '#3b82f6' }} />
+            <Statistic
+              title="Total Pengajuan"
+              value={rows.length}
+              valueStyle={{ color: '#3b82f6' }}
+            />
           </Card>
         </Col>
         <Col xs={8}>

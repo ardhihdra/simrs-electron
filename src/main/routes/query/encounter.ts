@@ -1,7 +1,6 @@
 import { IpcContext } from '@main/ipc/router'
-import { EncounterSchemaWithId } from '@main/models/encounter'
 import { BackendListSchema, getClient, parseBackendResponse } from '@main/utils/backendClient'
-import { EncounterSchema, QueueTicketSchema } from 'simrs-types'
+import { EncounterSchema } from 'simrs-types'
 import z from 'zod'
 
 const SyncLogSchema = z.object({
@@ -45,6 +44,39 @@ const SatuSehatSyncStatusSchema = z
   })
   .optional()
   .nullable()
+
+const EncounterSchemaWithId = EncounterSchema.partial().extend({
+  id: z.string(),
+  patientId: z.string().optional(),
+  startTime: z.union([z.date(), z.string()]).optional().nullable(),
+  endTime: z.union([z.date(), z.string()]).optional().nullable(),
+  visitDate: z.union([z.date(), z.string()]).optional().nullable(),
+  serviceType: z.union([z.string(), z.number()]).optional(),
+  resourceType: z.literal('Encounter').optional().default('Encounter'),
+  class: z.any().optional().nullable(),
+  classHistory: z.array(z.any()).optional().nullable(),
+  period: z.any().optional().nullable(),
+  serviceTypeCode: z.any().optional().nullable(),
+  subject: z.any().optional().nullable(),
+  participant: z.array(z.any()).optional().nullable(),
+  reasonCode: z.array(z.any()).optional().nullable(),
+  reasonReference: z.array(z.any()).optional().nullable(),
+  hospitalization: z.any().optional().nullable(),
+  location: z.array(z.any()).optional().nullable(),
+  encounterCode: z.string().optional().nullable(),
+  dischargeDisposition: z.string().optional().nullable(),
+  createdBy: z.union([z.number(), z.string()]).nullable().optional(),
+  updatedBy: z.union([z.number(), z.string()]).nullable().optional(),
+  deletedBy: z.union([z.number(), z.string()]).nullable().optional(),
+  createdAt: z.union([z.date(), z.string()]).optional().nullable(),
+  updatedAt: z.union([z.date(), z.string()]).optional().nullable(),
+  deletedAt: z.union([z.date(), z.string()]).optional().nullable(),
+  fhirId: z.string().optional().nullable(),
+  fhirServer: z.string().optional().nullable(),
+  fhirVersion: z.string().optional().nullable(),
+  lastFhirUpdated: z.union([z.date(), z.string()]).optional().nullable(),
+  lastSyncedAt: z.union([z.date(), z.string()]).optional().nullable()
+})
 
 const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
   startTime: z.union([z.date(), z.string()]).optional().nullable(),
@@ -93,6 +125,8 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
       poliCodeId: z.number().optional(),
       registrationChannelCodeId: z.string().optional(),
       assuranceCodeId: z.string().optional(),
+      paymentMethod: z.string().optional().nullable(),
+      mitraId: z.number().optional().nullable(),
       practitionerId: z.union([z.string(), z.number()]).nullable().optional(),
       formattedQueueNumber: z.string().optional().nullable(),
       poli: z
@@ -111,7 +145,7 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
   invoiceStatus: z.string().nullable().optional()
 })
 
-export const EncounterSchemaPayload = EncounterSchema.extend({
+export const EncounterSchemaPayload = EncounterSchemaWithId.partial().extend({
   id: z.string().nullable().optional(),
   createdAt: z.coerce.date().optional(),
   endTime: z.union([z.date().optional().nullable(), z.string().optional().nullable()]),
@@ -255,6 +289,7 @@ export const schemas = {
       pageSize: z.string().optional(),
       type: z.string().optional(),
       doctorId: z.string().optional(),
+      practitionerId: z.string().optional(),
       dateFrom: z.string().optional(),
       dateTo: z.string().optional()
     }),
@@ -265,12 +300,28 @@ export const schemas = {
           data: z.array(
             z.object({
               id: z.string(),
+              patientId: z.string(),
               date: z.string(),
               serviceUnit: z.string(),
               doctorName: z.string(),
               type: z.string(),
-              primaryDiagnosis: z.string(),
-              soapSummary: z.string().optional().nullable(),
+              status: z.string().optional().nullable(),
+              generalSoap: z
+                .object({
+                  id: z.union([z.string(), z.number()]).optional().nullable(),
+                  title: z.string().optional().nullable(),
+                  status: z.string().optional().nullable(),
+                  date: z.string().optional().nullable(),
+                  authorId: z.any().optional().nullable(),
+                  soapSubjective: z.string().optional().nullable(),
+                  soapObjective: z.string().optional().nullable(),
+                  soapAssessment: z.string().optional().nullable(),
+                  soapPlan: z.string().optional().nullable()
+                })
+                .optional()
+                .nullable(),
+              diagnosticOrders: z.array(z.any()).optional().nullable(),
+              diagnosticResults: z.array(z.any()).optional().nullable(),
               clinicals: z
                 .object({
                   compositions: z.array(z.any()),
@@ -655,6 +706,7 @@ export const getHistorySummary = async (
     })
 
     const parsedResult = (await parseBackendResponse(res, schema)) as any
+    console.log("data", parsedResult)
     return { success: true, result: parsedResult }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
@@ -669,19 +721,20 @@ export const getPatientEncountersPg = async (
 ) => {
   try {
     const client = getClient(ctx)
+    const { patientId, ...query } = args
 
     const queryParams = new URLSearchParams()
-    if (args) {
-      Object.entries(args).forEach(([key, value]) => {
+    if (query) {
+      Object.entries(query).forEach(([key, value]) => {
         if (value !== undefined && value !== null && value !== '') {
           queryParams.append(key, String(value))
         }
       })
     }
 
-    const res = await client.get(
-      `/api/module/encounter/patient/${args.patientId}/encounters?${queryParams.toString()}`
-    )
+    const queryString = queryParams.toString()
+    const endpoint = `/api/module/encounter/patient/${patientId}/encounters${queryString ? `?${queryString}` : ''}`
+    const res = await client.get(endpoint)
 
     const raw = (await res
       .json()

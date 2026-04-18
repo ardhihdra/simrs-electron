@@ -5,6 +5,11 @@ import { IpcRouter } from '@main/ipc/router'
 import { autoRegisterRoutes } from '@main/routes/loader'
 import '@main/rpc/rpc-entry'
 import { notificationService } from '@main/services/notification-service'
+import {
+  EXAM_WINDOW_CLOSE_ALLOW_ONCE_CHANNEL,
+  EXAM_WINDOW_CLOSE_REQUEST_CHANNEL,
+  isExamWorkspaceRoute
+} from '@shared/window-close-guard'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import * as fs from 'fs'
 import { join } from 'path'
@@ -49,6 +54,70 @@ console.warn = (...args) => {
 
 export const sessionStore = new SessionStore()
 export const router = new IpcRouter({ sessionStore })
+
+const guardedExamWindowIds = new Set<number>()
+const allowExamWindowCloseOnceIds = new Set<number>()
+
+const isGuardedExamWindow = (targetWindow: BrowserWindow): boolean => {
+  const windowId = targetWindow.webContents.id
+  if (guardedExamWindowIds.has(windowId)) {
+    return true
+  }
+
+  const currentUrl = targetWindow.webContents.getURL()
+  if (isExamWorkspaceRoute(currentUrl)) {
+    guardedExamWindowIds.add(windowId)
+    return true
+  }
+
+  return false
+}
+
+const registerExamWindowCloseGuard = (targetWindow: BrowserWindow, openedUrl?: string): void => {
+  const windowId = targetWindow.webContents.id
+  if (openedUrl && isExamWorkspaceRoute(openedUrl)) {
+    guardedExamWindowIds.add(windowId)
+  }
+
+  targetWindow.on('close', (event) => {
+    if (!isGuardedExamWindow(targetWindow)) {
+      return
+    }
+
+    if (allowExamWindowCloseOnceIds.has(windowId)) {
+      allowExamWindowCloseOnceIds.delete(windowId)
+      return
+    }
+
+    event.preventDefault()
+
+    if (!targetWindow.isDestroyed() && !targetWindow.webContents.isDestroyed()) {
+      targetWindow.webContents.send(EXAM_WINDOW_CLOSE_REQUEST_CHANNEL)
+    }
+  })
+
+  targetWindow.on('closed', () => {
+    guardedExamWindowIds.delete(windowId)
+    allowExamWindowCloseOnceIds.delete(windowId)
+  })
+}
+
+const registerExamWindowCloseAllowOnceChannel = (): void => {
+  if (ipcMain.listenerCount(EXAM_WINDOW_CLOSE_ALLOW_ONCE_CHANNEL) > 0) {
+    return
+  }
+
+  ipcMain.on(EXAM_WINDOW_CLOSE_ALLOW_ONCE_CHANNEL, (event) => {
+    const senderWindow = BrowserWindow.fromWebContents(event.sender)
+    if (!senderWindow || !isGuardedExamWindow(senderWindow)) {
+      return
+    }
+
+    const senderWindowId = senderWindow.webContents.id
+    allowExamWindowCloseOnceIds.add(senderWindowId)
+    senderWindow.close()
+  })
+}
 
 function createWindow(): void {
   try {
@@ -130,7 +199,7 @@ function createWindow(): void {
     })
 
     // Share session from main window to newly created windows
-    mainWindow.webContents.on('did-create-window', (newWindow) => {
+    mainWindow.webContents.on('did-create-window', (newWindow, details) => {
       const mainWindowId = mainWindow.webContents.id
       const newWindowId = newWindow.webContents.id
 
@@ -146,6 +215,8 @@ function createWindow(): void {
           sessionStore.setScopeTokenForWindow(newWindowId, scopeToken)
         }
       }
+
+      registerExamWindowCloseGuard(newWindow, details.url)
 
       // Optional: Open DevTools in dev mode for the new window
       if (is.dev) {
@@ -294,6 +365,7 @@ app.whenReady().then(() => {
   initDatabase()
   autoRegisterRoutes(router, { sessionStore })
   router.generatePreloadTypes()
+  registerExamWindowCloseAllowOnceChannel()
   createWindow()
 
   app.on('activate', function () {

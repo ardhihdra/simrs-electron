@@ -40,9 +40,9 @@ interface PatientQueueTableData extends Omit<PatientQueue, 'status'> {
   key: string
   status: string
   queueId: string
-  encounterType?: string
-  triageUpdatedAt?: string
   formattedQueueNumber?: string
+  triageUpdatedAt?: string
+  encounterType?: string
   queueNumber: number
 }
 
@@ -268,16 +268,25 @@ const PatientQueueTable = () => {
 
           return {
             queueId: queueTicket?.id ? String(queueTicket.id) : undefined,
-            id: queueTicket?.id ? String(queueTicket.id) : encounter?.id ? String(encounter.id) : undefined,
+            id: queueTicket?.id
+              ? String(queueTicket.id)
+              : encounter?.id
+                ? String(encounter.id)
+                : undefined,
             queueNumber: queueTicket?.queueNumber,
             formattedQueueNumber: queueTicket?.formattedQueueNumber,
-            queueDate: queueTicket?.queueDate || encounter?.visitDate || encounter?.startTime || encounter?.createdAt,
+            queueDate:
+              queueTicket?.queueDate ||
+              encounter?.visitDate ||
+              encounter?.startTime ||
+              encounter?.createdAt,
             createdAt: queueTicket?.createdAt || encounter?.createdAt,
             updatedAt: queueTicket?.updatedAt || encounter?.updatedAt,
             patientId: patient?.id ? String(patient.id) : undefined,
             patientName: patient?.name,
             patientBirthDate: patient?.birthDate,
-            patientMedicalRecordNumber: patient?.medicalRecordNumber || patient?.medical_record_number,
+            patientMedicalRecordNumber:
+              patient?.medicalRecordNumber || patient?.medical_record_number,
             doctorName: practitioner?.namaLengkap || practitioner?.name,
             poliCodeId: queueTicket?.poliCodeId || poli?.id || encounter?.serviceUnitId,
             poliName: poli?.name || serviceUnit?.name,
@@ -305,8 +314,8 @@ const PatientQueueTable = () => {
         rows.forEach((row) => {
           const dedupeKey = String(
             row.queueId ||
-            row.id ||
-            `${row.queueDate || ''}-${row.queueNumber || ''}-${row.patientId || ''}`
+              row.id ||
+              `${row.queueDate || ''}-${row.queueNumber || ''}-${row.patientId || ''}`
           )
           if (!mergedRows.has(dedupeKey)) {
             mergedRows.set(dedupeKey, row)
@@ -366,15 +375,19 @@ const PatientQueueTable = () => {
   }, [activeStatus, baseFilteredQueues])
 
   const patientQueue: PatientQueueTableData[] = useMemo(() => {
+    const sortedRows = [...filteredQueues].sort(
+      (a, b) =>
+        parseTimestamp(b.updatedAt || b.createdAt || b.queueDate) -
+        parseTimestamp(a.updatedAt || a.createdAt || a.queueDate)
+    )
+
     return filteredQueues.map((row, index) => {
       const queueId = String(row.queueId || row.id || '')
       const queueNumber = parseQueueNumber(row.queueNumber)
       const formattedQueueNumber =
         row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
-      const triageUpdatedAt =
-        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
-      const registrationDate =
-        row.queueDate || row.createdAt || fallbackDateIso
+      const triageUpdatedAt = row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
+      const registrationDate = row.queueDate || row.createdAt || fallbackDateIso
 
       return {
         no: index + 1,
@@ -420,10 +433,8 @@ const PatientQueueTable = () => {
       const queueNumber = parseQueueNumber(row.queueNumber)
       const formattedQueueNumber =
         row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
-      const triageUpdatedAt =
-        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
-      const registrationDate =
-        row.queueDate || row.createdAt || fallbackDateIso
+      const triageUpdatedAt = row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
+      const registrationDate = row.queueDate || row.createdAt || fallbackDateIso
 
       return {
         no: index + 1,
@@ -464,7 +475,7 @@ const PatientQueueTable = () => {
   }, [baseFilteredQueues, fallbackDateIso])
 
   const latestTriageQueue = allPatientQueue.find((queue) => queue.status === NURSE_TRIAGE_STATUS)
-  
+
   const markAsTriage = async (record: PatientQueueTableData) => {
     await updateStatusMutation.mutateAsync({
       queueId: record.queueId,
@@ -473,15 +484,10 @@ const PatientQueueTable = () => {
     message.success(`Antrian ${record.formattedQueueNumber} dipanggil ke Triage`)
   }
 
-  const handleExaminePatient = async (record: PatientQueueTableData) => {
+  const handleExaminePatient = (record: PatientQueueTableData) => {
     if (!record.encounterId) {
       message.warning('Encounter belum tersedia untuk pasien ini.')
       return
-    }
-    try {
-      await markAsTriage(record)
-    } catch (error: any) {
-      message.error(error.message || 'Gagal memanggil pasien ke Triage')
     }
 
     window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
@@ -555,7 +561,7 @@ const PatientQueueTable = () => {
     },
     {
       title: 'Antrian',
-      dataIndex: 'queueNumber',
+      dataIndex: 'formattedQueueNumber',
       key: 'queueNumber',
       width: 170,
       render: (queueLabel: string, record) => (
@@ -770,11 +776,6 @@ const PatientQueueTable = () => {
               <p className="text-sm text-blue-200 m-0 ml-12">
                 Menampilkan pasien yang sudah dipanggil ke pemeriksaan awal (triase)
               </p>
-              <div className="ml-12 mt-2 flex flex-wrap items-center gap-2">
-                {/* <Tag color="blue" bordered={false} className="m-0 font-medium">
-                  Poli Aktif: {activePoliName}
-                </Tag> */}
-              </div>
             </div>
             <Button
               icon={<ReloadOutlined />}
@@ -790,7 +791,7 @@ const PatientQueueTable = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div
               className="rounded-xl px-4 py-3 flex items-center gap-3"
               style={{
@@ -833,6 +834,50 @@ const PatientQueueTable = () => {
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
                   Pemeriksaan Awal
                 </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorSuccess}33` }}
+              >
+                <MedicineBoxOutlined style={{ color: '#fff', fontSize: 16 }} />
+              </div>
+              <div className="min-w-0">
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Antrian TRIAGE Terbaru
+                </div>
+                {latestTriageQueue ? (
+                  <>
+                    <div
+                      className="truncate"
+                      style={{ fontSize: 16, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}
+                      title={`${latestTriageQueue.formattedQueueNumber || '-'} • ${latestTriageQueue.patient.name} • ${latestTriageQueue.poli.name} • ${latestTriageTime}`}
+                    >
+                      {latestTriageQueue.formattedQueueNumber || '-'} •{' '}
+                      {latestTriageQueue.patient.name}
+                    </div>
+                    <div
+                      className="truncate"
+                      style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}
+                    >
+                      {latestTriageQueue.poli.name} • {latestTriageTime}
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className="truncate"
+                    style={{ fontSize: 12, color: 'rgba(255,255,255,0.80)', lineHeight: 1.2 }}
+                  >
+                    Belum ada antrian TRIAGE
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -926,29 +971,29 @@ const PatientQueueTable = () => {
                 style={
                   isActive
                     ? {
-                      background: token.colorPrimary,
-                      borderColor: token.colorPrimary,
-                      color: '#fff',
-                      padding: '6px 12px',
-                      borderRadius: token.borderRadiusSM,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      border: '1px solid',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }
+                        background: token.colorPrimary,
+                        borderColor: token.colorPrimary,
+                        color: '#fff',
+                        padding: '6px 12px',
+                        borderRadius: token.borderRadiusSM,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }
                     : {
-                      background: token.colorFillAlter,
-                      borderColor: token.colorBorderSecondary,
-                      color: token.colorTextSecondary,
-                      padding: '6px 12px',
-                      borderRadius: token.borderRadiusSM,
-                      fontSize: 14,
-                      fontWeight: 500,
-                      border: '1px solid',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }
+                        background: token.colorFillAlter,
+                        borderColor: token.colorBorderSecondary,
+                        color: token.colorTextSecondary,
+                        padding: '6px 12px',
+                        borderRadius: token.borderRadiusSM,
+                        fontSize: 14,
+                        fontWeight: 500,
+                        border: '1px solid',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }
                 }
               >
                 {tab.label}

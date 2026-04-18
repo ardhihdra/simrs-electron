@@ -1,16 +1,6 @@
 import { FileProtectOutlined, ReloadOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
-import {
-  Button,
-  DatePicker,
-  Input,
-  Select,
-  Tooltip,
-  Tag,
-  Divider,
-  Row,
-  Col,
-} from 'antd'
+import { Button, DatePicker, Input, Select, Tooltip, Tag, Divider, Row, Col } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
@@ -40,7 +30,10 @@ interface BillingInvoiceRow {
 
 const formatEnum = (val?: string) => {
   if (!val) return '-'
-  return val.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
+  return val
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 
 const formatRupiah = (value: number): string => {
@@ -66,16 +59,16 @@ const columns: ColumnsType<BillingInvoiceRow> = [
     key: 'startTime',
     render: (v) => (v ? dayjs(v).format('HH:mm') : '-')
   },
-  { 
-    title: 'Jenis Kedatangan', 
-    dataIndex: 'arrivalType', 
+  {
+    title: 'Jenis Kedatangan',
+    dataIndex: 'arrivalType',
     key: 'arrivalType',
     render: (v) => formatEnum(v)
   },
   { title: 'Pasien', dataIndex: 'patientName', key: 'patientName' },
-  { 
-    title: 'Unit Layanan', 
-    dataIndex: 'unitName', 
+  {
+    title: 'Unit Layanan',
+    dataIndex: 'unitName',
     key: 'unitName',
     render: (v) => v ?? '-'
   },
@@ -102,9 +95,7 @@ const columns: ColumnsType<BillingInvoiceRow> = [
     key: 'allocationStatus',
     width: 120,
     render: (v) => (
-      <Tag color={v === 'done' ? 'green' : 'orange'}>
-        {v === 'done' ? 'Done' : 'Draft'}
-      </Tag>
+      <Tag color={v === 'done' ? 'green' : 'orange'}>{v === 'done' ? 'Done' : 'Draft'}</Tag>
     )
   }
 ]
@@ -119,7 +110,7 @@ export default function BillingPage() {
   const [unitCode, setUnitCode] = useState<number | undefined>()
 
   const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [status, setStatus] = useState<string | undefined>('draft')
+  const [status, setStatus] = useState<string | undefined>()
   const [visitDate, setVisitDate] = useState<dayjs.Dayjs | null>(null)
 
   useEffect(() => {
@@ -142,7 +133,7 @@ export default function BillingPage() {
     unitCode: unitCode ? String(unitCode) : undefined,
     status: status || undefined,
     dateFrom: visitDate ? visitDate.startOf('day').toISOString() : undefined,
-    dateTo: visitDate ? visitDate.endOf('day').toISOString() : undefined,
+    dateTo: visitDate ? visitDate.endOf('day').toISOString() : undefined
   })
 
   const rows = useMemo<BillingInvoiceRow[]>(() => {
@@ -163,11 +154,7 @@ export default function BillingPage() {
 
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-semibold">Daftar Tagihan Pasien</h3>
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={() => refetch()}
-          loading={isRefetching}
-        >
+        <Button icon={<ReloadOutlined />} onClick={() => refetch()} loading={isRefetching}>
           Refresh
         </Button>
       </div>
@@ -199,7 +186,7 @@ export default function BillingPage() {
           options={[
             { label: 'Draft (Belum Verifikasi)', value: 'draft' },
             { label: 'Terkonfirmasi', value: 'issued' },
-            { label: 'Lunas', value: 'balanced' },
+            { label: 'Lunas', value: 'balanced' }
           ]}
           className="w-full"
         />
@@ -234,7 +221,9 @@ export default function BillingPage() {
                 icon={<FileProtectOutlined />}
                 size="small"
                 type="primary"
-                onClick={() => navigate(`/dashboard/billing/allocate/${encodeURIComponent(record.kode)}`)}
+                onClick={() =>
+                  navigate(`/dashboard/billing/allocate/${encodeURIComponent(record.kode)}`)
+                }
               />
             </Tooltip>
           )

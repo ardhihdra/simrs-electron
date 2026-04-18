@@ -25,6 +25,7 @@ import {
   dummyPrescriptions
 } from './doctor-dummy-data'
 import { dummyPatientQueue, dummyMedicalRecords } from './dummy-data'
+import { normalizeKelasTarifValue } from '../utils/tarif-kelas'
 
 const simulateDelay = (ms: number = 500): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms))
