@@ -3,9 +3,11 @@ import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { PatientAttributes } from 'simrs-types'
-import { App, Button, DatePicker, Form, Input, Select, Space } from 'antd'
+import { App, Button, DatePicker, Form, Input, Select, Space, TimePicker } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo } from 'react'
+
+import { buildDoctorQueryInput, buildDoctorSelectionResetKey } from './VisitQueueForm.helpers'
 
 type VisitQueueFormProps = {
   patient?: PatientAttributes
@@ -40,21 +42,38 @@ export default function VisitQueueForm({
 
   const visitDate = Form.useWatch('visitDate', form)
   const poliId = Form.useWatch('poliId', form)
+  const hour = Form.useWatch('hour', form)
   const paymentMethod = Form.useWatch('paymentMethod', form)
   const needsMitra =
     paymentMethod === 'INSURANCE' || paymentMethod === 'COMPANY' || paymentMethod === 'BPJS'
 
+  const now = dayjs()
+  const roundedMinutes = Math.floor(now.minute() / 15) * 15
+  const defaultTime = now.minute(roundedMinutes).second(0)
+
   const doctorQueryInput = useMemo(
-    () => ({
-      date: visitDate ? dayjs(visitDate).format('YYYY-MM-DD') : undefined,
-      poliId: poliId ? Number(poliId) : undefined
-    }),
-    [visitDate, poliId]
+    () =>
+      buildDoctorQueryInput({
+        visitDate,
+        poliId,
+        hour
+      }),
+    [hour, poliId, visitDate]
+  )
+
+  const doctorSelectionResetKey = useMemo(
+    () =>
+      buildDoctorSelectionResetKey({
+        visitDate,
+        poliId,
+        hour
+      }),
+    [hour, poliId, visitDate]
   )
 
   const doctorsQuery = client.registration.getAvailableDoctors.useQuery(doctorQueryInput, {
     enabled: !!doctorQueryInput.date && !!doctorQueryInput.poliId,
-    queryKey: ['availableDoctors', { date: doctorQueryInput.date, poliId: doctorQueryInput.poliId }]
+    queryKey: ['availableDoctors', doctorQueryInput]
   })
 
   const availableDoctors = useMemo(() => {
@@ -127,7 +146,7 @@ export default function VisitQueueForm({
 
   useEffect(() => {
     form.setFieldValue('doctorScheduleId', undefined)
-  }, [visitDate, poliId, form])
+  }, [doctorSelectionResetKey, form])
 
   const handleSubmit = async (values: any) => {
     try {
@@ -215,6 +234,20 @@ export default function VisitQueueForm({
         hidden={!showDate}
       >
         <DatePicker style={{ width: '100%' }} />
+      </Form.Item>
+
+      <Form.Item
+        name="hour"
+        label="Jam Kunjungan (Opsional)"
+        hidden={!showDate}
+        initialValue={defaultTime}
+      >
+        <TimePicker
+          style={{ width: '100%' }}
+          format="HH:mm"
+          minuteStep={15}
+          placeholder="Pilih jam"
+        />
       </Form.Item>
 
       <Form.Item

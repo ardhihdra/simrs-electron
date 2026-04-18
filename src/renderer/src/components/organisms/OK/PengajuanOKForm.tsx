@@ -28,7 +28,12 @@ import bodyMapImage from '@renderer/assets/images/body_map.png'
 import { InformedConsentForm } from '../InformedConsentForm'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useOperatingRoomList } from '@renderer/hooks/query/use-operating-room'
-import { useCreateOkRequest, useUploadOkSupportingDocument } from '@renderer/hooks/query/use-ok-request'
+import {
+  findOkRequestScheduleConflicts,
+  useCreateOkRequest,
+  useOkRequestList,
+  useUploadOkSupportingDocument
+} from '@renderer/hooks/query/use-ok-request'
 import { useCreateQuestionnaireResponse } from '@renderer/hooks/query/use-questionnaire-response'
 import { SelectKelasTarif } from '@renderer/components/molecules/SelectKelasTarif'
 import {
@@ -42,7 +47,12 @@ import {
   useMasterPaketTindakanList,
   type MasterPaketTindakanItem
 } from '@renderer/hooks/query/use-master-paket-tindakan'
-import { QuestionnaireResponseStatus } from '@renderer/types/questionnaire.types'
+import {
+  QuestionnaireResponseStatus,
+  type QuestionnaireResponseItem
+} from '@renderer/types/questionnaire.types'
+import type { Dayjs } from 'dayjs'
+import { OkRequestPriority, OkRequestSourceUnit, OkRequestStatus } from 'simrs-types'
 
 const { Title, Text } = Typography
 const { Dragger } = Upload
@@ -51,7 +61,7 @@ interface ServiceConfig {
   label: string
   color: string
   accentColor: string
-  defaultStatus: string
+  defaultStatus: 'draft' | 'diajukan'
   tab4Label: string
   showEmergencyAlert?: boolean
 }
@@ -84,7 +94,7 @@ const SERVICE_CONFIGS: Record<string, ServiceConfig> = {
 interface PengajuanOKProps {
   type: 'rajal' | 'ranap' | 'igd'
   encounterId: string
-  patientData: any
+  patientData: OkPatientData
   onSuccess?: () => void
 }
 
@@ -94,10 +104,89 @@ interface ActivePaketTarif {
 }
 
 interface BodyMapMarker {
+  [key: string]: unknown
   id: number
   x: number
   y: number
   note: string
+}
+
+type TarifListRow = NonNullable<MasterPaketTindakanItem['tarifList']>[number] & {
+  tarifPaket?: number | string | null
+  nominal?: number | string | null
+}
+
+type CreateOkRequestPayload = Parameters<NonNullable<Window['api']['query']['okRequest']['create']>>[0]
+type CreateOkRequestResult = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['okRequest']['create']>>
+>
+type UploadOkSupportingDocumentResult = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['okRequest']['uploadSupportingDocument']>>
+>
+
+interface OkPatientData {
+  subjectId?: string | null
+  patient?: {
+    id?: string | null
+  } | null
+  queueTicket?: {
+    paymentMethod?: string | null
+  } | null
+  encounter?: {
+    queueTicket?: {
+      paymentMethod?: string | null
+    } | null
+  } | null
+}
+
+interface PengajuanOKFormValues {
+  mainDiagnosis: string
+  sifatOperasi: 'cyto' | 'efektif' | string
+  jenisOperasi: string
+  status: 'draft' | 'diajukan'
+  perujuk: number | string
+  ruangOK: number | string
+  rencanaMulai: Dayjs
+  rencanaSelesai: Dayjs
+  catatanBodyMap?: string
+  selectedTarifKelas?: string
+  selectedPaketIds?: Array<number | string>
+  dokumenPendukung?: string | null
+  receiver_name?: string
+  receiver_birthdate?: Dayjs
+  receiver_address?: string
+  consent_type?: string
+  assessment_date?: Dayjs
+  performerId?: number | string | null
+  witness1_name?: string
+  witness2_name?: string
+  info_diagnosis?: string
+  check_diagnosis?: boolean
+  info_basis?: string
+  check_basis?: boolean
+  info_procedure?: string
+  check_procedure?: boolean
+  info_indication?: string
+  check_indication?: boolean
+  info_method?: string
+  check_method?: boolean
+  info_objective?: string
+  check_objective?: boolean
+  info_risk?: string
+  check_risk?: boolean
+  info_complication?: string
+  check_complication?: boolean
+  info_prognosis?: string
+  check_prognosis?: boolean
+  info_alternative?: string
+  check_alternative?: boolean
+}
+
+interface FormFinishErrorInfo {
+  errorFields?: Array<{
+    name?: unknown
+    errors?: string[]
+  }>
 }
 
 const FIELD_TAB_MAP: Record<string, string> = {
@@ -143,16 +232,29 @@ const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
   }
 }
 
-const mapSifatOperasiToPriority = (sifatOperasi: unknown): 'elective' | 'emergency' => {
+const mapSifatOperasiToPriority = (sifatOperasi: unknown): OkRequestPriority => {
   const normalized = String(sifatOperasi || '')
     .trim()
     .toLowerCase()
 
   if (normalized === 'cyto' || normalized === 'cito' || normalized === 'emergency') {
-    return 'emergency'
+    return OkRequestPriority.EMERGENCY
   }
 
-  return 'elective'
+  return OkRequestPriority.ELECTIVE
+}
+
+const mapSourceUnit = (type: PengajuanOKProps['type']): OkRequestSourceUnit => {
+  switch (type) {
+    case 'rajal':
+      return OkRequestSourceUnit.RAJAL
+    case 'ranap':
+      return OkRequestSourceUnit.RANAP
+    case 'igd':
+      return OkRequestSourceUnit.IGD
+    default:
+      return OkRequestSourceUnit.RAJAL
+  }
 }
 
 const resolveTabByFieldName = (namePath: unknown): string => {
@@ -161,6 +263,22 @@ const resolveTabByFieldName = (namePath: unknown): string => {
   if (FIELD_TAB_MAP[fieldName]) return FIELD_TAB_MAP[fieldName]
   if (fieldName.startsWith('info_') || fieldName.startsWith('check_')) return '3'
   return '1'
+}
+
+const normalizeOperationEndDateTime = (startAt: Dayjs, endAt: Dayjs): Dayjs => {
+  if (!startAt.isValid() || !endAt.isValid()) return endAt
+
+  // Support operasi lintas tengah malam:
+  // jika tanggal sama tapi jam selesai < jam mulai, anggap selesai di hari berikutnya.
+  if (endAt.isBefore(startAt) && endAt.isSame(startAt, 'day')) {
+    return endAt.add(1, 'day')
+  }
+
+  return endAt
+}
+
+const formatScheduleDateTime = (value: Date): string => {
+  return dayjs(value).format('DD/MM/YYYY HH:mm')
 }
 
 const classifySubmitErrorSource = (messageText: string): 'Validasi Form' | 'IPC' | 'Backend' => {
@@ -206,7 +324,7 @@ const classifySubmitErrorSource = (messageText: string): 'Validasi Form' | 'IPC'
 
 const getKelasLabel = getKelasTarifLabel
 
-const extractTarifValue = (tarifRow: any): number | null => {
+const extractTarifValue = (tarifRow: TarifListRow | null | undefined): number | null => {
   const candidates = [tarifRow?.tarifTotal, tarifRow?.tarifPaket, tarifRow?.nominal]
   for (const value of candidates) {
     const num = Number(value)
@@ -215,9 +333,9 @@ const extractTarifValue = (tarifRow: any): number | null => {
   return null
 }
 
-const pickActiveTarifByKelas = (tarifList: any[]): ActivePaketTarif[] => {
+const pickActiveTarifByKelas = (tarifList: Array<TarifListRow | null | undefined>): ActivePaketTarif[] => {
   const today = dayjs().startOf('day')
-  const latestByKelas = new Map<string, { effectiveFrom: dayjs.Dayjs; tarif: number }>()
+  const latestByKelas = new Map<string, { effectiveFrom: Dayjs; tarif: number }>()
 
   for (const row of Array.isArray(tarifList) ? tarifList : []) {
     if (row?.aktif === false) continue
@@ -283,6 +401,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     items: 500
   })
   const { data: referenceKelasOptions = DEFAULT_KELAS_TARIF_OPTIONS } = useTarifKelasOptions()
+  const { data: existingOkRequests = [] } = useOkRequestList()
   const createOkRequest = useCreateOkRequest()
   const uploadSupportingDocument = useUploadOkSupportingDocument()
   const { mutateAsync: createQuestionnaireResponse } = useCreateQuestionnaireResponse()
@@ -338,6 +457,44 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
 
   const selectedPaketIds = Form.useWatch('selectedPaketIds', form) as Array<number | string> | undefined
   const selectedTarifKelas = Form.useWatch('selectedTarifKelas', form) as string | undefined
+  const selectedOperatingRoom = Form.useWatch('ruangOK', form) as number | string | undefined
+  const selectedScheduleStart = Form.useWatch('rencanaMulai', form) as Dayjs | undefined
+  const selectedScheduleEnd = Form.useWatch('rencanaSelesai', form) as Dayjs | undefined
+
+  const selectedOperatingRoomLabel = useMemo(() => {
+    const roomId = Number(selectedOperatingRoom)
+    if (!Number.isInteger(roomId) || roomId <= 0) return ''
+    const selected = roomOptions.find((item) => Number(item?.value) === roomId)
+    return String(selected?.label || '').trim()
+  }, [roomOptions, selectedOperatingRoom])
+
+  const selectedScheduleWindow = useMemo(() => {
+    const roomId = Number(selectedOperatingRoom)
+    if (!Number.isInteger(roomId) || roomId <= 0) return null
+    if (!selectedScheduleStart || !selectedScheduleEnd) return null
+
+    const startAt = dayjs(selectedScheduleStart)
+    const endAt = normalizeOperationEndDateTime(startAt, dayjs(selectedScheduleEnd))
+    if (!startAt.isValid() || !endAt.isValid()) return null
+    if (endAt.isBefore(startAt)) return null
+
+    return {
+      operatingRoomId: roomId,
+      startAt,
+      endAt
+    }
+  }, [selectedOperatingRoom, selectedScheduleEnd, selectedScheduleStart])
+
+  const scheduleConflicts = useMemo(() => {
+    if (!selectedScheduleWindow) return []
+    return findOkRequestScheduleConflicts(existingOkRequests, {
+      operatingRoomId: selectedScheduleWindow.operatingRoomId,
+      scheduledStartAt: selectedScheduleWindow.startAt.toDate(),
+      scheduledEndAt: selectedScheduleWindow.endAt.toDate()
+    })
+  }, [existingOkRequests, selectedScheduleWindow])
+
+  const firstScheduleConflict = scheduleConflicts[0]
 
   const selectedPaketDetails = useMemo(() => {
     const ids = Array.isArray(selectedPaketIds) ? selectedPaketIds : []
@@ -435,6 +592,45 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
   }, [selectedKelasTarifByPaketId, selectedTarifKelasNormalized])
 
   useEffect(() => {
+    const paketList = Array.isArray(masterPaketList) ? masterPaketList : []
+    const selectableIds = Array.from(selectablePaketIdSet.values())
+
+    const tableRows = paketList.map((paket) => {
+      const paketId = Number(paket?.id)
+      const activeTarif = activeTarifByPaketId.get(paketId) || []
+      return {
+        id: paketId,
+        kodePaket: paket?.kodePaket,
+        namaPaket: paket?.namaPaket,
+        kategoriPaket: paket?.kategoriPaket,
+        aktif: paket?.aktif,
+        isPaketOk: paket?.isPaketOk,
+        selectable: selectablePaketIdSet.has(paketId),
+        activeTarifKelas: activeTarif.map((row) => row.kelas).join(', '),
+        activeTarifCount: activeTarif.length
+      }
+    })
+
+    console.groupCollapsed(
+      `[PengajuanOKForm][Debug Paket] total=${paketList.length} selectable=${selectableIds.length}`
+    )
+    console.log('selectedTarifKelasNormalized:', selectedTarifKelasNormalized)
+    console.log('referenceKelasOptions:', referenceKelasOptions)
+    console.log('availableKelasOptions:', availableKelasOptions)
+    console.log('selectablePaketIds:', selectableIds)
+    console.log('masterPaketList(raw):', paketList)
+    console.table(tableRows)
+    console.groupEnd()
+  }, [
+    activeTarifByPaketId,
+    availableKelasOptions,
+    masterPaketList,
+    referenceKelasOptions,
+    selectablePaketIdSet,
+    selectedTarifKelasNormalized
+  ])
+
+  useEffect(() => {
     const rawSelected = Array.isArray(selectedPaketIds) ? selectedPaketIds : []
     if (!selectedTarifKelasNormalized) {
       if (rawSelected.length > 0) form.setFieldValue('selectedPaketIds', [])
@@ -506,7 +702,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     setMarkers((prev) => prev.filter((marker) => marker.id !== id))
   }
 
-  const handleFinish = (values: any) => {
+  const handleFinish = (values: PengajuanOKFormValues) => {
     if (uploadSupportingDocument.isPending) {
       notifyError('Upload dokumen masih diproses. Mohon tunggu hingga selesai.')
       return
@@ -581,20 +777,57 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
 
     // Hitung durasi dalam menit
     let estimatedDurationMinutes = 0
+    let scheduledStartAt: Dayjs | null = null
+    let scheduledEndAt: Dayjs | null = null
     if (values.rencanaMulai && values.rencanaSelesai) {
-      estimatedDurationMinutes = dayjs(values.rencanaSelesai).diff(dayjs(values.rencanaMulai), 'minute')
+      const startAt = dayjs(values.rencanaMulai)
+      const endAt = normalizeOperationEndDateTime(startAt, dayjs(values.rencanaSelesai))
+      const diffMinutes = endAt.diff(startAt, 'minute')
+
+      if (!Number.isFinite(diffMinutes) || diffMinutes < 0) {
+        setActiveTab('1')
+        notifyError('Estimasi selesai tidak valid. Periksa kembali jadwal operasi.')
+        return
+      }
+
+      scheduledStartAt = startAt
+      scheduledEndAt = endAt
+      estimatedDurationMinutes = Math.floor(diffMinutes)
     }
 
-    const payload = {
+    const normalizedOperatingRoomId = Number(values.ruangOK)
+    if (
+      Number.isInteger(normalizedOperatingRoomId) &&
+      normalizedOperatingRoomId > 0 &&
+      scheduledStartAt &&
+      scheduledEndAt
+    ) {
+      const submitConflicts = findOkRequestScheduleConflicts(existingOkRequests, {
+        operatingRoomId: normalizedOperatingRoomId,
+        scheduledStartAt: scheduledStartAt.toDate(),
+        scheduledEndAt: scheduledEndAt.toDate()
+      })
+      const firstConflict = submitConflicts[0]
+      if (firstConflict) {
+        const roomLabel =
+          roomOptions.find((room) => Number(room.value) === normalizedOperatingRoomId)?.label ||
+          `Ruang #${normalizedOperatingRoomId}`
+        messageApi.warning(
+          `Jadwal bentrok di ${roomLabel} dengan ${firstConflict.kode || `ID ${firstConflict.id}`} (${formatScheduleDateTime(firstConflict.scheduledStartAt)} - ${formatScheduleDateTime(firstConflict.scheduledEndAt)}).`
+        )
+      }
+    }
+
+    const payload: CreateOkRequestPayload = {
       encounterId,
-      sourceUnit: type,
+      sourceUnit: mapSourceUnit(type),
       dpjpId: values.perujuk,
       referrerId: values.perujuk,
       operatingRoomId: values.ruangOK,
-      scheduledAt: values.rencanaMulai ? dayjs(values.rencanaMulai).toISOString() : null,
+      scheduledAt: scheduledStartAt ? scheduledStartAt.toISOString() : null,
       estimatedDurationMinutes,
       priority,
-      status: values.status,
+      status: values.status === 'diajukan' ? 'diajukan' : OkRequestStatus.DRAFT,
       klasifikasi: values.jenisOperasi,
       mainDiagnosis: values.mainDiagnosis,
       plannedProcedureSummary,
@@ -602,18 +835,18 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
       paketTindakanList,
       markers,
       notes: values.catatanBodyMap,
-      dokumenPendukung: values.dokumenPendukung || null,
-      notes_additional: values.catatanTambahanLokasi // if any
+      dokumenPendukung: values.dokumenPendukung || null
     }
 
     createOkRequest.mutate(payload, {
-      onSuccess: async (res: any) => {
-        const okRequestId = res.result?.id
+      onSuccess: async (res) => {
+        const typedResult = res as CreateOkRequestResult
+        const okRequestId = typedResult.result?.id
 
         // Jika ada data informed consent, simpan QuestionnaireResponse
         if (values.receiver_name && okRequestId) {
           try {
-            const items = [
+            const items: QuestionnaireResponseItem[] = [
               { linkId: 'receiver-name', text: 'Nama Penerima', valueString: values.receiver_name },
               { linkId: 'receiver-birthdate', text: 'Tanggal Lahir Penerima', valueDateTime: values.receiver_birthdate?.toISOString() },
               { linkId: 'receiver-address', text: 'Alamat Penerima', valueString: values.receiver_address },
@@ -653,15 +886,19 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
         notifySuccess('Pengajuan OK berhasil dikirim')
         onSuccess?.()
       },
-      onError: (err: any) => {
+      onError: (err: unknown) => {
+        const typedError = err as { message?: unknown }
         const rawMessage =
-          typeof err?.message === 'string' && err.message.length > 0
-            ? err.message
+          typeof typedError?.message === 'string' && typedError.message.length > 0
+            ? typedError.message
             : 'Terjadi kesalahan saat submit pengajuan OK'
+        if (rawMessage.toLowerCase().includes('jadwal operasi bentrok')) {
+          setActiveTab('1')
+        }
         const source = classifySubmitErrorSource(rawMessage)
         console.error('[PengajuanOKForm] submit failed', {
           source,
-          error: err,
+          error: typedError,
           message: rawMessage
         })
         notifyError(`${source}: ${rawMessage}`)
@@ -669,7 +906,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     })
   }
 
-  const handleFinishFailed = (errorInfo: any) => {
+  const handleFinishFailed = (errorInfo: FormFinishErrorInfo) => {
     const firstErrorField = Array.isArray(errorInfo?.errorFields) ? errorInfo.errorFields[0] : null
     const firstFieldNamePath = firstErrorField?.name
     const targetTab = resolveTabByFieldName(firstFieldNamePath)
@@ -702,11 +939,11 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
         ])
 
         const arrayBuffer = await rawFile.arrayBuffer()
-        const response = await uploadSupportingDocument.mutateAsync({
+        const response = (await uploadSupportingDocument.mutateAsync({
           file: arrayBuffer,
           filename: rawFile.name,
           mimetype: rawFile.type || null
-        })
+        })) as UploadOkSupportingDocumentResult
 
         const uploadedPath = response?.result?.path
         if (!uploadedPath) {
@@ -847,7 +1084,11 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                 </Form.Item>
               </Col>
               <Col span={24} md={8}>
-                <Form.Item name="rencanaMulai" label="Rencana Mulai" rules={[{ required: true }]}>
+                <Form.Item
+                  name="rencanaMulai"
+                  label="Rencana Mulai"
+                  rules={[{ required: true, message: 'Rencana mulai wajib diisi' }]}
+                >
                   <DatePicker
                     className="w-full"
                     showTime={{ format: 'HH:mm' }}
@@ -858,8 +1099,28 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
               <Col span={24} md={8}>
                 <Form.Item
                   name="rencanaSelesai"
+                  dependencies={['rencanaMulai']}
                   label="Estimasi Selesai"
-                  rules={[{ required: true }]}
+                  rules={[
+                    { required: true, message: 'Estimasi selesai wajib diisi' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        const startValue = getFieldValue('rencanaMulai')
+                        if (!startValue || !value) return Promise.resolve()
+
+                        const startAt = dayjs(startValue)
+                        const rawEndAt = dayjs(value)
+                        const endAt = normalizeOperationEndDateTime(startAt, rawEndAt)
+                        if (!startAt.isValid() || !endAt.isValid()) return Promise.resolve()
+                        if (endAt.isBefore(startAt)) {
+                          return Promise.reject(
+                            new Error('Estimasi selesai harus sama atau setelah rencana mulai')
+                          )
+                        }
+                        return Promise.resolve()
+                      }
+                    })
+                  ]}
                 >
                   <DatePicker
                     className="w-full"
@@ -868,6 +1129,23 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                   />
                 </Form.Item>
               </Col>
+              {selectedScheduleWindow && firstScheduleConflict && (
+                <Col span={24}>
+                  <Alert
+                    type="warning"
+                    showIcon
+                    message="Jadwal operasi berpotensi bentrok"
+                    description={
+                      <span>
+                        Slot di {selectedOperatingRoomLabel || `Ruang #${selectedScheduleWindow.operatingRoomId}`} bentrok dengan{' '}
+                        {firstScheduleConflict.kode || `ID ${firstScheduleConflict.id}`} (
+                        {formatScheduleDateTime(firstScheduleConflict.scheduledStartAt)} -{' '}
+                        {formatScheduleDateTime(firstScheduleConflict.scheduledEndAt)}).
+                      </span>
+                    }
+                  />
+                </Col>
+              )}
             </Row>
           </section>
 
@@ -982,7 +1260,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     },
     {
       key: '2',
-      label: '2. Jenis Tindakan & Tarif',
+      label: '2. Paket Tindakan & Kelas Tarif',
       children: (
         <div className="flex flex-col gap-4">
           <Card size="small" className="shadow-none border-gray-200">

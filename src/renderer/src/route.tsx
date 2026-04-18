@@ -25,6 +25,8 @@ import DiagnosticTable from './pages/diagnostic/diagnostic-table'
 import DoctorEMR from './pages/doctor-emr/doctor-emr'
 import { DoctorPatientList } from './pages/doctor-emr/doctor-patient-list'
 import DoctorWorkspace from './pages/doctor-emr/doctor-workspace'
+import OKSubmissionPage from './pages/ok/ok-submission-page'
+import OKDashboardPage from './pages/ok/ok-dashboard-page'
 import DoctorLeave from './pages/doctor-leave/DoctorLeave'
 import DoctorLeaveForm from './pages/doctor-leave/doctor-leave-form'
 import DoctorLeaveTable from './pages/doctor-leave/doctor-leave-table'
@@ -91,7 +93,6 @@ import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
 import AntrianVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
 import DetailVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/DetailVerifikasiPage'
-import OKSubmissionPage from './pages/ok/ok-submission-page'
 import Patient from './pages/patient/Patient'
 import PatientForm from './pages/patient/patient-form'
 import PatientTable from './pages/patient/patient-table'
@@ -339,10 +340,17 @@ function MainRoute() {
             <Route path=":encounterId" element={<DoctorWorkspace />} />
           </Route>
           <Route path="ok" element={g('/dashboard/ok', <Outlet />)}>
-            <Route index element={g('/dashboard/ok', <OKSubmissionPage />)} />
+            <Route index element={g('/dashboard/ok', <Navigate to="dashboard" replace />)} />
+            <Route path="dashboard" element={g('/dashboard/ok/dashboard', <OKDashboardPage />)} />
             <Route path="pengajuan" element={g('/dashboard/ok/pengajuan', <OKSubmissionPage />)} />
-            <Route path="verifikasi" element={g('/dashboard/ok/verifikasi', <AntrianVerifikasiPage />)} />
-            <Route path="verifikasi/:id" element={g('/dashboard/ok/verifikasi', <DetailVerifikasiPage />)} />
+            <Route
+              path="verifikasi"
+              element={g('/dashboard/ok/verifikasi', <AntrianVerifikasiPage />)}
+            />
+            <Route
+              path="verifikasi/:id"
+              element={g('/dashboard/ok/verifikasi', <DetailVerifikasiPage />)}
+            />
           </Route>
           <Route path="services" element={g('/dashboard/services', <Services />)}>
             <Route index element={<PemeriksaanUtamaPage />} />

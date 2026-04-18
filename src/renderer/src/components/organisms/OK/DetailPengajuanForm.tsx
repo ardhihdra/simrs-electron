@@ -30,13 +30,6 @@ const RUANG_OPERASI = [
   { label: 'Kamar OK Cyto', value: 'OK_CYTO' }
 ]
 
-const TARIF_SIMULASI = {
-  OK1: { VIP: 8500000, KELAS_1: 6000000, KELAS_2: 4500000, KELAS_3: 3000000, BPJS: 2500000 },
-  OK2: { VIP: 10000000, KELAS_1: 7500000, KELAS_2: 5500000, KELAS_3: 4000000, BPJS: 3000000 },
-  OK3: { VIP: 9000000, KELAS_1: 6500000, KELAS_2: 5000000, KELAS_3: 3500000, BPJS: 2800000 },
-  OK_CYTO: { VIP: 12000000, KELAS_1: 9000000, KELAS_2: 7000000, KELAS_3: 5000000, BPJS: 4000000 }
-}
-
 interface DetailPengajuanFormProps {
   encounterId: string
   patientData: any
@@ -119,11 +112,7 @@ export const DetailPengajuanForm = ({ encounterId, patientData }: DetailPengajua
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item
-                name="tanggalRujukan"
-                label="Tanggal Rujukan"
-                rules={[{ required: true }]}
-              >
+              <Form.Item name="tanggalRujukan" label="Tanggal Rujukan" rules={[{ required: true }]}>
                 <DatePicker className="w-full" format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
@@ -152,11 +141,7 @@ export const DetailPengajuanForm = ({ encounterId, patientData }: DetailPengajua
               </Form.Item>
             </Col>
             <Col xs={24} md={8}>
-              <Form.Item
-                name="jamMulai"
-                label="Jam Mulai"
-                rules={[{ required: true }]}
-              >
+              <Form.Item name="jamMulai" label="Jam Mulai" rules={[{ required: true }]}>
                 <TimePicker className="w-full" format="HH:mm" minuteStep={15} />
               </Form.Item>
             </Col>
@@ -274,7 +259,8 @@ export const DetailPengajuanForm = ({ encounterId, patientData }: DetailPengajua
           </Row>
           <Divider className="my-3" />
           <Text type="secondary" className="text-xs">
-            BHP (Bahan Habis Pakai) akan dihitung terpisah setelah operasi selesai berdasarkan pemakaian aktual.
+            BHP (Bahan Habis Pakai) akan dihitung terpisah setelah operasi selesai berdasarkan
+            pemakaian aktual.
           </Text>
         </Card>
 

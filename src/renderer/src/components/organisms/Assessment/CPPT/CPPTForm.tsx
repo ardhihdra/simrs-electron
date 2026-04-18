@@ -10,6 +10,7 @@ import {
   Space,
   Modal,
   Table,
+  TableProps,
   Tooltip,
   InputNumber
 } from 'antd'
@@ -22,6 +23,13 @@ import {
   FormOutlined
 } from '@ant-design/icons'
 import {
+  CompositionAttester,
+  CompositionSection,
+  CompositionStatus
+} from 'simrs-types'
+import {
+  CompositionEncounterItem,
+  CompositionUpsertPayload,
   useCompositionByEncounter,
   useUpsertComposition
 } from '../../../../hooks/query/use-composition'
@@ -35,6 +43,7 @@ import {
 } from '../../../../config/maps/composition-maps'
 import { AssessmentHeader } from '../AssesmentHeader/AssessmentHeader'
 import dayjs from 'dayjs'
+import type { Dayjs } from 'dayjs'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 
@@ -46,6 +55,29 @@ interface CPPTFormProps {
   onSaveSuccess?: () => void
 }
 
+interface PerformerOption {
+  id: number | string
+  name: string
+  role: string
+}
+
+interface CPPTFormValues {
+  id?: string | number
+  performerId?: number
+  status?: CompositionStatus
+  soapSubjective?: string
+  soapObjective?: string
+  soapAssessment?: string
+  soapPlan?: string
+  assessment_date?: Dayjs
+}
+
+type CPPTCompositionRecord = CompositionEncounterItem & {
+  authorName?: string | null
+  role?: string | null
+  sections?: CompositionSection[] | null
+}
+
 export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormProps) => {
   const { message } = App.useApp()
   const { profile } = useMyProfile()
@@ -54,8 +86,17 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
   const { data: compositionData, isLoading, refetch } = useCompositionByEncounter(encounterId)
   const { data: obsData } = useQueryObservationByEncounter(encounterId)
-  const observationData = obsData?.result || []
   const { data: condData } = useConditionByEncounter(encounterId)
+  const observationData: Parameters<typeof formatObservationSummary>[0] = Array.isArray(
+    obsData?.result
+  )
+    ? (obsData.result as Parameters<typeof formatObservationSummary>[0])
+    : []
+  const conditionData: Parameters<typeof formatObservationSummary>[1] = Array.isArray(
+    condData?.result
+  )
+    ? (condData.result as Parameters<typeof formatObservationSummary>[1])
+    : []
   const upsertMutation = useUpsertComposition()
   const { data: performersData, isLoading: isLoadingPerformers } = usePerformers([
     'nurse',
@@ -64,11 +105,13 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
 
   const selectedPerformerId = Form.useWatch('performerId', form)
   const findPerformerById = (performerId: number | string | undefined | null) =>
-    performersData?.find((p: any) => String(p.id) === String(performerId))
+    (performersData as PerformerOption[] | undefined)?.find(
+      (p) => String(p.id) === String(performerId)
+    )
   const selectedPerformer = findPerformerById(selectedPerformerId)
   const currentRole = selectedPerformer?.role || profile?.hakAksesId
 
-  const handleSubmit = async (values: any) => {
+  const handleSubmit = async (values: CPPTFormValues) => {
     try {
       const assessmentDate = values.assessment_date ? dayjs(values.assessment_date) : dayjs()
 
@@ -155,7 +198,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         }
       ]
 
-      await upsertMutation.mutateAsync({
+      const payload: CompositionUpsertPayload = {
         id: values.id,
         encounterId,
         patientId: patientData.patient.id,
@@ -189,7 +232,9 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         soapAssessment: values.soapAssessment,
         soapPlan: values.soapPlan,
         section: sections
-      })
+      }
+
+      await upsertMutation.mutateAsync(payload)
 
       const statusMsg = values.status === 'final' ? 'Final' : 'Draft'
       message.success(`CPPT berhasil disimpan (${statusMsg})`)
@@ -210,12 +255,12 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     }
 
     const sortedObs = [...observationData].sort(
-      (a: any, b: any) =>
+      (a, b) =>
         dayjs(b.effectiveDateTime || b.issued).valueOf() -
         dayjs(a.effectiveDateTime || a.issued).valueOf()
     )
 
-    const summary = formatObservationSummary(sortedObs, condData?.result || [])
+    const summary = formatObservationSummary(sortedObs, conditionData)
     const { vitalSigns, physicalExamination } = summary
 
     form.setFieldsValue({
@@ -284,7 +329,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     return { tags: null, remainingText: text }
   }
 
-  const handleEdit = (record: any) => {
+  const handleEdit = (record: CPPTCompositionRecord) => {
     const { remainingText } = parseVitals(record.soapObjective || '')
 
     form.setFieldsValue({
@@ -302,7 +347,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     setIsAddingNew(true)
   }
 
-  const handleVerify = async (record: any) => {
+  const handleVerify = async (record: CPPTCompositionRecord) => {
     try {
       if (record.status === 'final') return
 
@@ -311,7 +356,9 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         return
       }
 
-      const professionalAttester = record.attesters?.find((a: any) => a.mode === 'professional')
+      const professionalAttester = record.attesters?.find(
+        (a: CompositionAttester) => a.mode === 'professional'
+      )
       const attesterReferenceId = professionalAttester?.partyReference
         ? String(professionalAttester.partyReference).split('/')[1]
         : undefined
@@ -349,7 +396,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         return
       }
 
-      const sections =
+      const sections: CompositionSection[] =
         record.sections && record.sections.length > 0
           ? record.sections
           : [
@@ -395,7 +442,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                   div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapPlan?.replace(/\n/g, '<br/>') || '-'}</div>`
                 }
               }
-            ]
+            ] as CompositionSection[]
 
       await upsertMutation.mutateAsync({
         id: record.id,
@@ -441,12 +488,12 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     }
   }
 
-  const columns = [
+  const columns: TableProps<CPPTCompositionRecord>['columns'] = [
     {
       title: 'No',
       key: 'no',
       width: 50,
-      render: (_: any, __: any, index: number) => index + 1
+      render: (_value, _record, index) => index + 1
     },
     {
       title: 'Tgl / Jam',
@@ -464,7 +511,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       title: 'PPA',
       key: 'ppa',
       width: 180,
-      render: (_: any, record: any) => (
+      render: (_value, record) => (
         <div className="flex items-center gap-3">
           <div className="flex flex-col">
             <span className="font-bold  text-sm">
@@ -480,7 +527,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     {
       title: 'Hasil Pemeriksaan, Analisis & Tindak Lanjut',
       key: 'soap',
-      render: (_: any, record: any) => {
+      render: (_value, record) => {
         const { tags, remainingText } = parseVitals(record.soapObjective || '')
         return (
           <div className="flex flex-col gap-3 text-sm">
@@ -507,7 +554,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       title: 'Instruksi PPA',
       key: 'plan',
       width: 250,
-      render: (_: any, record: any) => (
+      render: (_value, record) => (
         <div className="flex gap-2 text-sm bg-yellow-50 p-2 rounded border border-yellow-100">
           <span className="font-bold text-yellow-600 w-4">P:</span>
           <div className="flex-1 whitespace-pre-wrap text-black">{record.soapPlan}</div>
@@ -518,8 +565,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       title: 'Verifikasi',
       key: 'verification',
       width: 150,
-      render: (_: any, record: any) => {
-        const legalAttester = record.attesters?.find((a: any) => a.mode === 'legal')
+      render: (_value, record) => {
+        const legalAttester = record.attesters?.find((a: CompositionAttester) => a.mode === 'legal')
 
         return (
           <div className="flex flex-col gap-2 items-center">
@@ -583,8 +630,9 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
     )
   }
 
-  const cpptHistory = (compositionData?.result || []).filter(
-    (comp: any) => comp.title === 'CPPT - Catatan Perkembangan Pasien Terintegrasi'
+  const cpptHistory: CPPTCompositionRecord[] = (compositionData?.result || []).filter(
+    (comp): comp is CPPTCompositionRecord =>
+      comp.title === 'CPPT - Catatan Perkembangan Pasien Terintegrasi'
   )
 
   return (

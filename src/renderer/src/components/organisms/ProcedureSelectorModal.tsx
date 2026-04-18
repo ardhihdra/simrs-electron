@@ -1,7 +1,14 @@
 import { Modal, Table, Input, Button, Space, Tag, Select } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
-import { useState, useMemo } from 'react'
-import { MasterTindakanItem, CATEGORY_BPJS_VALUES } from '@renderer/hooks/query/use-master-tindakan'
+import { useEffect, useMemo, useState } from 'react'
+import type { ColumnsType } from 'antd/es/table'
+import { useDebounce } from '@renderer/hooks/useDebounce'
+import {
+  CATEGORY_BPJS_VALUES,
+  type MasterTindakanItem,
+  type MasterTindakanPagination,
+  type CategoryBpjs
+} from '@renderer/hooks/query/use-master-tindakan'
 
 interface ProcedureSelectorModalProps {
   open: boolean
@@ -9,6 +16,16 @@ interface ProcedureSelectorModalProps {
   onSelect: (item: MasterTindakanItem) => void
   procedures: MasterTindakanItem[]
   loading?: boolean
+  pagination?: MasterTindakanPagination
+  pageSize: number
+  searchValue: string
+  selectedCategory?: string
+  selectedBpjsCategory?: CategoryBpjs
+  categoryOptions?: Array<{ label: string; value: string }>
+  onSearchChange: (value: string) => void
+  onCategoryChange: (value?: string) => void
+  onBpjsCategoryChange: (value?: CategoryBpjs) => void
+  onPageChange: (page: number, pageSize: number) => void
 }
 
 export const ProcedureSelectorModal = ({
@@ -16,34 +33,44 @@ export const ProcedureSelectorModal = ({
   onCancel,
   onSelect,
   procedures,
-  loading
+  loading,
+  pagination,
+  pageSize,
+  searchValue,
+  selectedCategory,
+  selectedBpjsCategory,
+  categoryOptions,
+  onSearchChange,
+  onCategoryChange,
+  onBpjsCategoryChange,
+  onPageChange
 }: ProcedureSelectorModalProps) => {
-  const [searchText, setSearchText] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string | undefined>(undefined)
-  const [selectedBpjsCategory, setSelectedBpjsCategory] = useState<string | undefined>(undefined)
+  const [searchText, setSearchText] = useState(searchValue || '')
+  const debouncedSearchText = useDebounce(searchText, 300)
 
   const categories = useMemo(() => {
-    const types = new Set(procedures.map((p) => p.kategoriTindakan).filter(Boolean))
-    return Array.from(types)
-      .sort()
-      .map((type) => ({ label: type!, value: type! }))
-  }, [procedures])
+    if (Array.isArray(categoryOptions) && categoryOptions.length > 0) {
+      return categoryOptions
+    }
+    const typeSet = new Set(
+      procedures.map((item) => String(item.kategoriTindakan || '').trim()).filter((value) => value.length > 0)
+    )
+    return Array.from(typeSet)
+      .sort((left, right) => left.localeCompare(right))
+      .map((value) => ({ label: value, value }))
+  }, [categoryOptions, procedures])
 
-  const filteredData = useMemo(() => {
-    const q = searchText.toLowerCase()
-    return procedures.filter((item) => {
-      const nameMatch = item.namaTindakan.toLowerCase().includes(q)
-      const codeMatch = item.kodeTindakan.toLowerCase().includes(q)
-      const searchMatch = !searchText || nameMatch || codeMatch
+  useEffect(() => {
+    if (!open) return
+    setSearchText(searchValue || '')
+  }, [open, searchValue])
 
-      const categoryMatch = !selectedCategory || item.kategoriTindakan === selectedCategory
-      const bpjsMatch = !selectedBpjsCategory || item.categoryBpjs === selectedBpjsCategory
+  useEffect(() => {
+    if (!open) return
+    onSearchChange(debouncedSearchText.trim())
+  }, [debouncedSearchText, onSearchChange, open])
 
-      return searchMatch && categoryMatch && bpjsMatch
-    })
-  }, [procedures, searchText, selectedCategory, selectedBpjsCategory])
-
-  const columns = [
+  const columns: ColumnsType<MasterTindakanItem> = [
     {
       title: 'Kode',
       dataIndex: 'kodeTindakan',
@@ -109,7 +136,7 @@ export const ProcedureSelectorModal = ({
             style={{ width: 180 }}
             options={categories}
             value={selectedCategory}
-            onChange={setSelectedCategory}
+            onChange={(value) => onCategoryChange(value)}
           />
           <Select
             placeholder="Kategori BPJS"
@@ -117,7 +144,7 @@ export const ProcedureSelectorModal = ({
             style={{ width: 180 }}
             options={CATEGORY_BPJS_VALUES.map((v) => ({ label: v, value: v }))}
             value={selectedBpjsCategory}
-            onChange={setSelectedBpjsCategory}
+            onChange={(value) => onBpjsCategoryChange(value as CategoryBpjs | undefined)}
           />
           <Input
             placeholder="Cari Nama or Kode Tindakan..."
@@ -130,11 +157,23 @@ export const ProcedureSelectorModal = ({
           />
         </div>
         <Table
-          dataSource={filteredData}
+          dataSource={procedures}
           columns={columns}
           rowKey="id"
           loading={loading}
-          pagination={{ pageSize: 12 }}
+          pagination={{
+            current: pagination?.page ?? 1,
+            pageSize: pagination?.limit ?? pageSize,
+            total: pagination?.count ?? 0,
+            showSizeChanger: true,
+            showTotal: (total, range) => `${range[0]}-${range[1]} dari ${total}`
+          }}
+          onChange={(tablePagination) => {
+            onPageChange(
+              tablePagination.current ?? 1,
+              tablePagination.pageSize ?? pageSize
+            )
+          }}
           onRow={(record) => ({
             onDoubleClick: () => onSelect(record),
             style: { cursor: 'pointer' }

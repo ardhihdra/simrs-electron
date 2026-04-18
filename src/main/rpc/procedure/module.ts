@@ -50,7 +50,7 @@ export const mmoduleRpc = {
     .query(async ({ client }) => {
       const data = await client.get('/api/module/my')
       const result = await data.json()
-      console.log('MYGET:', result)
+      // console.log('MYGET:', result)
       return result
     }),
   myById: t
@@ -133,7 +133,7 @@ export const mmoduleRpc = {
           : result
       const parsedResult = ScopeSessionOutputSchema.safeParse(enrichedResult)
       if (!parsedResult.success && typeof senderId === 'number') {
-        console.error("failed to parse session", parsedResult)
+        console.error('failed to parse session', parsedResult)
         sessionStore?.clearScopeTokenForWindow?.(senderId)
       }
       console.log('SESSION:', enrichedResult)

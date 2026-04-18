@@ -6,6 +6,7 @@ import {
   App,
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Empty,
   Form,
@@ -42,6 +43,7 @@ import {
 import AutoRolePetugasListCard from '../../../components/organisms/Assessment/DetailTindakan/AutoRolePetugasListCard'
 import PaketOperationBreakdown from '../../../components/organisms/Assessment/DetailTindakan/PaketOperationBreakdown'
 import {
+  findOkRequestScheduleConflicts,
   useOkRequestList,
   useSaveOkRequestChecklists,
   useVerifyOkRequest
@@ -50,9 +52,13 @@ import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useOperatingRoomList } from '@renderer/hooks/query/use-operating-room'
 import { useEncounterDetail } from '@renderer/hooks/query/use-encounter'
 import { useMasterJenisKomponenList } from '@renderer/hooks/query/use-master-jenis-komponen'
-import { useMasterPaketTindakanList } from '@renderer/hooks/query/use-master-paket-tindakan'
+import {
+  useMasterPaketTindakanList,
+  type MasterPaketTindakanItem
+} from '@renderer/hooks/query/use-master-paket-tindakan'
 import {
   useCreateDetailTindakan,
+  type DetailTindakanPasienItem,
   useDetailTindakanByEncounter,
   useUpdateDetailTindakan
 } from '@renderer/hooks/query/use-detail-tindakan-pasien'
@@ -68,118 +74,25 @@ import type { OkRequestStatus } from 'simrs-types'
 const { Text } = Typography
 const OK_REQUEST_STATUS = {
   VERIFIED: 'verified' as OkRequestStatus,
-  REJECTED: 'rejected' as OkRequestStatus
+  REJECTED: 'rejected' as OkRequestStatus,
+  IN_PROGRESS: 'in_progress' as OkRequestStatus,
+  DONE: 'done' as OkRequestStatus,
+  CANCELLED: 'cancelled' as OkRequestStatus
 } as const
 
-interface BackendOkRequestPaket {
-  id?: number
-  paketId?: number
-  paketKodeSnapshot?: string | null
-  paketNamaSnapshot?: string | null
-  kategoriPaketSnapshot?: string | null
-  kelasTarifSnapshot?: string | null
-  tarifPaketSnapshot?: number | string | null
-  sortOrder?: number | null
-}
+type OkRequestListApiResponse = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['okRequest']['list']>>
+>
+type BackendOkRequest = NonNullable<OkRequestListApiResponse['result']>[number]
+type BackendOkRequestPaket = NonNullable<BackendOkRequest['paketTindakanList']>[number]
+type BackendPreOpChecklist = NonNullable<BackendOkRequest['preOpChecklist']>
+type BackendWhoChecklist = NonNullable<BackendOkRequest['whoChecklist']>
+type BackendPostOpChecklist = NonNullable<BackendOkRequest['postOpChecklist']>
 
-interface BackendPreOpChecklist {
-  preopIdentitas?: string | null
-  preopSuratIjinBedah?: string | null
-  preopPersiapanDarah?: string | null
-  preopKeadaanUmumPasien?: string | null
-  preopSuratIjinAnestesi?: string | null
-  preopPenandaAreaOperasi?: string | null
-  preopSuratIjinTransfusi?: string | null
-  preopPerlengkapanKhususImplan?: string | null
-  preopPenunjangRadiologi?: string | null
-  preopPenunjangLsig?: string | null
-  preopPenunjangMri?: string | null
-  preopPenunjangEkg?: string | null
-  preopPenunjangCtScan?: string | null
-  petugasRuanganId?: number | null
-  petugasOkId?: number | null
-  catatanDPJP?: string | null
-  catatanAnestesi?: string | null
-}
-
-interface BackendWhoChecklist {
-  signIn?: {
-    identitas?: string | null
-    alergi?: string | null
-    risikoAspirasiDanFaktorPenyulit?: string | null
-    risikoKehilanganDarahAnak?: string | null
-    rencanaAntisipasiKehilanganDarah?: string | null
-    kesiapanAlatObatAnestesi?: string | null
-    rencanaAntisipasiAnestesi?: string | null
-    penandaanAreaOperasi?: string | null
-    jalurIvLine?: string | null
-    perawatKamarOperasiId?: number | null
-  } | null
-  timeOut?: {
-    timKonfirmasi?: string | null
-    konfirmasiNama?: string | null
-    konfirmasiProsedurFinal?: string | null
-    konfirmasiSisi?: string | null
-    antibiotikProfilaksis?: string | null
-    imagingTersedia?: string | null
-    catatanKritis?: string | null
-    catatanTimeOut?: string | null
-  } | null
-}
-
-interface BackendPostOpChecklist {
-  signOut?: {
-    hitungInstrumen?: string | null
-    hitungKasa?: string | null
-    hitungJarum?: string | null
-    spesimenDilabeli?: string | null
-    masalahPeralatan?: string | null
-    catatanSignOut?: string | null
-  } | null
-  checklist?: {
-    kondisi_pasien?: Record<string, string | null | undefined>
-    luka_operasi?: Record<string, string | null | undefined>
-    administrasi_keluar_ok?: Record<string, string | null | undefined>
-  } | null
-}
-
-interface BackendOkRequest {
-  id: number
-  kode?: string | null
-  encounterId?: string | null
-  sourceUnit?: string | null
-  dpjpId?: number | null
-  operatingRoomId?: number | null
-  requestedAt?: string | null
-  scheduledAt?: string | null
-  estimatedDurationMinutes?: number | null
-  priority?: string | null
-  status?: string | null
-  mainDiagnosis?: string | null
-  plannedProcedureSummary?: string | null
-  notes?: string | null
-  dokumenPendukung?: string | null
-  rejectionReason?: string | null
-  createdBy?: number | null
-  paketTindakanList?: BackendOkRequestPaket[]
-  preOpChecklist?: BackendPreOpChecklist | null
-  whoChecklist?: BackendWhoChecklist | null
-  postOpChecklist?: BackendPostOpChecklist | null
-}
-
-interface EncounterDetailResponse {
-  result?: {
-    patient?: {
-      id?: string
-      name?: string
-      medicalRecordNumber?: string
-    }
-    patientId?: string
-    queueTicket?: {
-      paymentMethod?: string | null
-    }
-  }
-}
+type EncounterReadApiResponse = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['encounter']['read']>>
+>
+type EncounterDetailResult = NonNullable<EncounterReadApiResponse['result']>
 
 interface TeamMember {
   roleTenaga: string
@@ -221,6 +134,7 @@ interface PaketTeamState {
 interface PaketTarifKomponenRef {
   jenisKomponenId?: number | string | null
   kode?: string | null
+  nominal?: number | string | null
   jenisKomponen?: {
     id?: number
     kode?: string | null
@@ -238,6 +152,7 @@ interface PaketTarifHeaderRef {
   kelas?: string | null
   effectiveFrom?: string | null
   effectiveTo?: string | null
+  tarifTotal?: number | string | null
   rincianTarif?: PaketTarifRincianRef[] | null
 }
 
@@ -271,22 +186,38 @@ interface PaketMasterBhpItemRef {
   } | null
 }
 
+type MasterPaketExtended = Omit<
+  MasterPaketTindakanItem,
+  'tarifList' | 'detailItems' | 'listTindakan' | 'listBHP'
+> & {
+  tarifList?: PaketTarifHeaderRef[] | null
+  detailItems?: PaketMasterDetailItemRef[] | null
+  listTindakan?: PaketMasterDetailItemRef[] | null
+  listBHP?: PaketMasterBhpItemRef[] | null
+}
+
+type SyncedDetailTindakanRecord = DetailTindakanPasienItem & {
+  tindakanPaket?: Array<{
+    catatanTambahan?: string | null
+  }>
+}
+
 const STATUS_META: Record<string, { label: string; color: string }> = {
   draft: { label: 'Menunggu Verifikasi', color: 'orange' },
-  verified: { label: 'Disetujui', color: 'green' },
+  verified: { label: 'Disetujui / Siap Operasi', color: 'green' },
   rejected: { label: 'Ditolak', color: 'red' },
-  in_progress: { label: 'Sedang Diproses', color: 'blue' },
-  done: { label: 'Selesai', color: 'green' },
+  in_progress: { label: 'Sedang Operasi', color: 'blue' },
+  done: { label: 'Selesai Operasi', color: 'green' },
   cancelled: { label: 'Dibatalkan', color: 'red' }
 }
 
-const formatDate = (value?: string | null): string => {
+const formatDate = (value?: string | Date | null): string => {
   if (!value) return '-'
   const parsed = dayjs(value)
   return parsed.isValid() ? parsed.format('DD/MM/YYYY') : '-'
 }
 
-const formatDateTime = (value?: string | null): string => {
+const formatDateTime = (value?: string | Date | null): string => {
   if (!value) return '-'
   const parsed = dayjs(value)
   return parsed.isValid() ? parsed.format('DD/MM/YYYY HH:mm') : '-'
@@ -295,7 +226,10 @@ const formatDateTime = (value?: string | null): string => {
 const formatCurrency = (value?: number | null): string =>
   `Rp ${Number(value || 0).toLocaleString('id-ID')}`
 
-const formatTimeRange = (startAt?: string | null, durationMinutes?: number | null): string => {
+const formatTimeRange = (
+  startAt?: string | Date | null,
+  durationMinutes?: number | null
+): string => {
   if (!startAt) return '-'
   const start = dayjs(startAt)
   if (!start.isValid()) return '-'
@@ -306,6 +240,14 @@ const formatTimeRange = (startAt?: string | null, durationMinutes?: number | nul
   }
 
   return start.format('HH:mm')
+}
+
+const normalizeOperationEndDateTime = (startAt: dayjs.Dayjs, endAt: dayjs.Dayjs): dayjs.Dayjs => {
+  if (!startAt.isValid() || !endAt.isValid()) return endAt
+  if (endAt.isBefore(startAt) && endAt.isSame(startAt, 'day')) {
+    return endAt.add(1, 'day')
+  }
+  return endAt
 }
 
 const normalizeKelas = (kelas: unknown): string => normalizeKelasTarifValue(kelas)
@@ -546,6 +488,15 @@ const DetailVerifikasiPage = () => {
   const [paketTeamModalWarning, setPaketTeamModalWarning] = useState<string | null>(null)
   const [isPaketTeamInitialized, setIsPaketTeamInitialized] = useState(false)
   const [restoreWarning, setRestoreWarning] = useState<string | null>(null)
+  const [scheduleDraft, setScheduleDraft] = useState<{
+    operatingRoomId: number | null
+    rencanaMulai: dayjs.Dayjs | null
+    rencanaSelesai: dayjs.Dayjs | null
+  }>({
+    operatingRoomId: null,
+    rencanaMulai: null,
+    rencanaSelesai: null
+  })
 
   const routeId = String(id || '').trim()
 
@@ -583,7 +534,7 @@ const DetailVerifikasiPage = () => {
   const saveOkRequestChecklists = useSaveOkRequestChecklists()
 
   const okRequests = useMemo<BackendOkRequest[]>(() => {
-    return Array.isArray(okRequestData) ? (okRequestData as BackendOkRequest[]) : []
+    return Array.isArray(okRequestData) ? okRequestData : []
   }, [okRequestData])
 
   const selectedRequest = useMemo(() => {
@@ -593,6 +544,41 @@ const DetailVerifikasiPage = () => {
     )
   }, [okRequests, routeId])
 
+  useEffect(() => {
+    if (!selectedRequest) {
+      setScheduleDraft({
+        operatingRoomId: null,
+        rencanaMulai: null,
+        rencanaSelesai: null
+      })
+      return
+    }
+
+    const initialStartAt = dayjs(
+      selectedRequest.scheduledAt || selectedRequest.requestedAt || dayjs().toISOString()
+    )
+    const safeStartAt = initialStartAt.isValid() ? initialStartAt : dayjs()
+    const rawDuration = Number(selectedRequest.estimatedDurationMinutes ?? 0)
+    const durationMinutes =
+      Number.isFinite(rawDuration) && rawDuration >= 0 ? Math.floor(rawDuration) : 0
+
+    setScheduleDraft({
+      operatingRoomId:
+        Number.isInteger(Number(selectedRequest.operatingRoomId)) &&
+        Number(selectedRequest.operatingRoomId) > 0
+          ? Number(selectedRequest.operatingRoomId)
+          : null,
+      rencanaMulai: safeStartAt,
+      rencanaSelesai: safeStartAt.add(durationMinutes, 'minute')
+    })
+  }, [
+    selectedRequest?.id,
+    selectedRequest?.estimatedDurationMinutes,
+    selectedRequest?.operatingRoomId,
+    selectedRequest?.requestedAt,
+    selectedRequest?.scheduledAt
+  ])
+
   const createDetailTindakan = useCreateDetailTindakan(selectedRequest?.encounterId || undefined)
   const updateDetailTindakan = useUpdateDetailTindakan(selectedRequest?.encounterId || undefined)
 
@@ -600,7 +586,7 @@ const DetailVerifikasiPage = () => {
     selectedRequest?.encounterId || undefined
   )
 
-  const encounterDetail = (encounterDetailResponse as EncounterDetailResponse | undefined)?.result
+  const encounterDetail = encounterDetailResponse?.result as EncounterDetailResult | undefined
 
   const { data: detailTindakanByEncounter = [] } = useDetailTindakanByEncounter(
     selectedRequest?.encounterId || undefined
@@ -643,12 +629,21 @@ const DetailVerifikasiPage = () => {
     return map
   }, [operatingRooms])
 
+  const operatingRoomOptions = useMemo(() => {
+    return (operatingRooms || [])
+      .filter((item) => Number.isFinite(Number(item?.id)) && Number(item.id) > 0)
+      .map((item) => ({
+        value: Number(item.id),
+        label: `${item.nama || 'Ruang OK'}${item.kelas ? ` (${item.kelas})` : ''}`
+      }))
+  }, [operatingRooms])
+
   const paketById = useMemo(() => {
-    const map = new Map<number, any>()
+    const map = new Map<number, MasterPaketExtended>()
     ;(masterPaketList || []).forEach((item) => {
       const paketId = Number(item?.id)
       if (Number.isFinite(paketId) && paketId > 0) {
-        map.set(paketId, item)
+        map.set(paketId, item as unknown as MasterPaketExtended)
       }
     })
     return map
@@ -699,8 +694,8 @@ const DetailVerifikasiPage = () => {
       optionMap.set(normalizedValue, item.label)
     })
     ;(masterPaketList || []).forEach((paket) => {
-      const tarifList = Array.isArray((paket as any)?.tarifList)
-        ? ((paket as any).tarifList as PaketTarifHeaderRef[])
+      const tarifList = Array.isArray((paket as unknown as MasterPaketExtended)?.tarifList)
+        ? ((paket as unknown as MasterPaketExtended).tarifList as PaketTarifHeaderRef[])
         : []
       tarifList.forEach((tarif) => {
         const kelas = normalizeKelas(tarif?.kelas)
@@ -719,10 +714,12 @@ const DetailVerifikasiPage = () => {
   }, [masterPaketList, referenceKelasOptions, selectedTarifKelas])
 
   const roleResolutionDate = useMemo(() => {
-    const rawDate =
+    const draftStartAt = scheduleDraft.rencanaMulai ? dayjs(scheduleDraft.rencanaMulai) : null
+    if (draftStartAt?.isValid()) return draftStartAt.format('YYYY-MM-DD')
+    const fallbackDate =
       selectedRequest?.scheduledAt || selectedRequest?.requestedAt || dayjs().toISOString()
-    return dayjs(rawDate).format('YYYY-MM-DD')
-  }, [selectedRequest?.requestedAt, selectedRequest?.scheduledAt])
+    return dayjs(fallbackDate).format('YYYY-MM-DD')
+  }, [scheduleDraft.rencanaMulai, selectedRequest?.requestedAt, selectedRequest?.scheduledAt])
 
   const resolveRolesFromPaketByClass = useCallback(
     (paketId: number, kelas: string): string[] => {
@@ -742,7 +739,7 @@ const DetailVerifikasiPage = () => {
           : []
       const entryDetailIds = new Set<number>(
         detailItems
-          .map((item: any) => Number(item?.id))
+          .map((item) => Number(item?.id))
           .filter((detailId: number) => Number.isFinite(detailId) && detailId > 0)
       )
 
@@ -816,6 +813,72 @@ const DetailVerifikasiPage = () => {
     .toLowerCase()
   const canTakeDecision =
     normalizedRequestStatus === 'draft' || normalizedRequestStatus === 'diajukan'
+  const canStartOperation = normalizedRequestStatus === OK_REQUEST_STATUS.VERIFIED
+  const canFinishOperation = normalizedRequestStatus === OK_REQUEST_STATUS.IN_PROGRESS
+  const canAdjustSchedule = canTakeDecision || canStartOperation || canFinishOperation
+  const canCancelOperation = canStartOperation || canFinishOperation
+  const isOperationCompleted = normalizedRequestStatus === OK_REQUEST_STATUS.DONE
+  const isOperationCancelled = normalizedRequestStatus === OK_REQUEST_STATUS.CANCELLED
+  const cancellationNote = useMemo(() => {
+    if (!isOperationCancelled) return ''
+    return String(selectedRequest?.notes || '').trim()
+  }, [isOperationCancelled, selectedRequest?.notes])
+
+  const scheduleDraftValidation = useMemo(() => {
+    const operatingRoomId = Number(scheduleDraft.operatingRoomId)
+    const startAt = scheduleDraft.rencanaMulai ? dayjs(scheduleDraft.rencanaMulai) : null
+    const rawEndAt = scheduleDraft.rencanaSelesai ? dayjs(scheduleDraft.rencanaSelesai) : null
+
+    if (!Number.isInteger(operatingRoomId) || operatingRoomId <= 0) {
+      return {
+        isReady: false as const,
+        message: 'Ruang OK wajib dipilih untuk penjadwalan operasi.'
+      }
+    }
+
+    if (!startAt || !rawEndAt || !startAt.isValid() || !rawEndAt.isValid()) {
+      return {
+        isReady: false as const,
+        message: 'Rencana mulai dan estimasi selesai wajib diisi.'
+      }
+    }
+
+    const endAt = normalizeOperationEndDateTime(startAt, rawEndAt)
+    const diffMinutes = endAt.diff(startAt, 'minute')
+    if (!Number.isFinite(diffMinutes) || diffMinutes < 0) {
+      return {
+        isReady: false as const,
+        message: 'Estimasi selesai harus sama atau setelah rencana mulai.'
+      }
+    }
+
+    return {
+      isReady: true as const,
+      operatingRoomId,
+      startAt,
+      endAt,
+      estimatedDurationMinutes: Math.floor(diffMinutes)
+    }
+  }, [scheduleDraft.operatingRoomId, scheduleDraft.rencanaMulai, scheduleDraft.rencanaSelesai])
+
+  const scheduleDraftConflicts = useMemo(() => {
+    if (!scheduleDraftValidation.isReady) return []
+    return findOkRequestScheduleConflicts(okRequests, {
+      operatingRoomId: scheduleDraftValidation.operatingRoomId,
+      scheduledStartAt: scheduleDraftValidation.startAt.toDate(),
+      scheduledEndAt: scheduleDraftValidation.endAt.toDate(),
+      excludeId: selectedRequest?.id ? Number(selectedRequest.id) : null
+    })
+  }, [okRequests, scheduleDraftValidation, selectedRequest?.id])
+
+  const firstScheduleConflict = scheduleDraftConflicts[0]
+  const draftOperatingRoomLabel = useMemo(() => {
+    if (!scheduleDraftValidation.isReady) return '-'
+    return (
+      operatingRoomMap.get(scheduleDraftValidation.operatingRoomId) ||
+      `Ruang #${scheduleDraftValidation.operatingRoomId}`
+    )
+  }, [operatingRoomMap, scheduleDraftValidation])
 
   const selectedPaketRows = useMemo<PaketRow[]>(() => {
     const source = Array.isArray(selectedRequest?.paketTindakanList)
@@ -852,14 +915,14 @@ const DetailVerifikasiPage = () => {
     [selectedRequest?.priority]
   )
 
-  const getPaketTindakanItems = useCallback((paket: any): PaketMasterDetailItemRef[] => {
+  const getPaketTindakanItems = useCallback((paket: MasterPaketExtended | undefined): PaketMasterDetailItemRef[] => {
     if (Array.isArray(paket?.listTindakan)) return paket.listTindakan as PaketMasterDetailItemRef[]
     if (Array.isArray(paket?.detailItems)) return paket.detailItems as PaketMasterDetailItemRef[]
     return []
   }, [])
 
   const getPaketBhpItems = useCallback(
-    (paket: any): PaketMasterBhpItemRef[] => {
+    (paket: MasterPaketExtended | undefined): PaketMasterBhpItemRef[] => {
       if (Array.isArray(paket?.listBHP)) return paket.listBHP as PaketMasterBhpItemRef[]
 
       return getPaketTindakanItems(paket).flatMap((detail) =>
@@ -955,14 +1018,14 @@ const DetailVerifikasiPage = () => {
       const resolvedKelas = normalizeKelas(
         paketTeamMap[row.paketId]?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
       )
-      const tarifList = Array.isArray((paket as any)?.tarifList)
-        ? ((paket as any).tarifList as PaketTarifHeaderRef[])
+      const tarifList = Array.isArray(paket?.tarifList)
+        ? (paket.tarifList as PaketTarifHeaderRef[])
         : []
       const pickedTarif = pickTarifForKelasAndDate(tarifList, resolvedKelas, roleResolutionDate)
 
       const snapshotTarif = parseNumber(row.tarifSnapshot)
-      const masterTarif = parseNumber((pickedTarif as any)?.tarifTotal)
-      const pickedKelas = normalizeKelas((pickedTarif as any)?.kelas)
+      const masterTarif = parseNumber(pickedTarif?.tarifTotal)
+      const pickedKelas = normalizeKelas(pickedTarif?.kelas)
 
       if (!pickedTarif) {
         warningSet.add(
@@ -1010,8 +1073,8 @@ const DetailVerifikasiPage = () => {
         }
       })
 
-      const rincianTarif = Array.isArray((pickedTarif as any)?.rincianTarif)
-        ? ((pickedTarif as any).rincianTarif as PaketTarifRincianRef[])
+      const rincianTarif = Array.isArray(pickedTarif?.rincianTarif)
+        ? (pickedTarif.rincianTarif as PaketTarifRincianRef[])
         : []
       if (pickedTarif && rincianTarif.length === 0) {
         warningSet.add(`[${row.kode}] ${row.nama}: rincian komponen tarif belum tersedia.`)
@@ -1035,7 +1098,7 @@ const DetailVerifikasiPage = () => {
                 komponen?.kode ||
                 `Komponen ${komponenIndex + 1}`
             ).trim() || '-'
-          const nominal = parseNumber((komponen as any)?.nominal) ?? 0
+          const nominal = parseNumber(komponen?.nominal) ?? 0
 
           komponenRows.push({
             key: `komponen-${row.paketId}-${paketDetailId || rincianIndex}-${komponenIndex}`,
@@ -1121,14 +1184,16 @@ const DetailVerifikasiPage = () => {
   const syncedDetailTindakan = useMemo(() => {
     if (!okRequestSyncMarker) return null
 
-    return (Array.isArray(detailTindakanByEncounter) ? detailTindakanByEncounter : []).find(
-      (record: any) => {
+    const source = (Array.isArray(detailTindakanByEncounter)
+      ? detailTindakanByEncounter
+      : []) as SyncedDetailTindakanRecord[]
+
+    return source.find((record) => {
         const tindakanPaket = Array.isArray(record?.tindakanPaket) ? record.tindakanPaket : []
-        return tindakanPaket.some((item: any) =>
+        return tindakanPaket.some((item) =>
           String(item?.catatanTambahan || '').includes(okRequestSyncMarker)
         )
-      }
-    )
+      })
   }, [detailTindakanByEncounter, okRequestSyncMarker])
 
   useEffect(() => {
@@ -1146,18 +1211,17 @@ const DetailVerifikasiPage = () => {
     })
 
     signInForm.setFieldsValue({
-      ...((selectedRequest.whoChecklist?.signIn as Record<string, unknown>) || {})
+      ...(selectedRequest.whoChecklist?.signIn || {})
     })
     timeOutForm.setFieldsValue({
-      ...((selectedRequest.whoChecklist?.timeOut as Record<string, unknown>) || {})
+      ...(selectedRequest.whoChecklist?.timeOut || {})
     })
 
     signOutForm.setFieldsValue({
-      ...((selectedRequest.postOpChecklist?.signOut as Record<string, unknown>) || {})
+      ...(selectedRequest.postOpChecklist?.signOut || {})
     })
     postOpCheckForm.setFieldsValue({
-      postopChecklist:
-        (selectedRequest.postOpChecklist?.checklist as Record<string, unknown> | undefined) || {}
+      postopChecklist: selectedRequest.postOpChecklist?.checklist || {}
     })
   }, [
     postOpCheckForm,
@@ -1242,7 +1306,12 @@ const DetailVerifikasiPage = () => {
   ])
 
   const displayData = useMemo(() => {
-    const rencanaAt = selectedRequest?.scheduledAt || selectedRequest?.requestedAt
+    const rencanaAt = scheduleDraftValidation.isReady
+      ? scheduleDraftValidation.startAt.toISOString()
+      : selectedRequest?.scheduledAt || selectedRequest?.requestedAt
+    const estimatedDuration = scheduleDraftValidation.isReady
+      ? scheduleDraftValidation.estimatedDurationMinutes
+      : selectedRequest?.estimatedDurationMinutes
 
     return {
       transaksiId: selectedRequest?.kode || routeId || '-',
@@ -1252,12 +1321,14 @@ const DetailVerifikasiPage = () => {
       dpjp: selectedRequest?.dpjpId
         ? performerMap.get(selectedRequest.dpjpId) || `ID ${selectedRequest.dpjpId}`
         : '-',
-      ruangOK: selectedRequest?.operatingRoomId
-        ? operatingRoomMap.get(selectedRequest.operatingRoomId) ||
-          `Ruang #${selectedRequest.operatingRoomId}`
-        : '-',
+      ruangOK: scheduleDraftValidation.isReady
+        ? draftOperatingRoomLabel
+        : selectedRequest?.operatingRoomId
+          ? operatingRoomMap.get(selectedRequest.operatingRoomId) ||
+            `Ruang #${selectedRequest.operatingRoomId}`
+          : '-',
       tanggalRencana: formatDate(rencanaAt),
-      jamRencana: formatTimeRange(rencanaAt, selectedRequest?.estimatedDurationMinutes),
+      jamRencana: formatTimeRange(rencanaAt, estimatedDuration),
       dibuatPada: formatDateTime(selectedRequest?.requestedAt),
       dibuatOleh: selectedRequest?.createdBy
         ? performerMap.get(selectedRequest.createdBy) || `User ID ${selectedRequest.createdBy}`
@@ -1267,9 +1338,11 @@ const DetailVerifikasiPage = () => {
     }
   }, [
     encounterDetail,
+    draftOperatingRoomLabel,
     operatingRoomMap,
     performerMap,
     routeId,
+    scheduleDraftValidation,
     selectedRequest,
     selectedTarifKelas
   ])
@@ -1338,7 +1411,7 @@ const DetailVerifikasiPage = () => {
         return
       }
 
-      detailItems.forEach((detail: any) => {
+      detailItems.forEach((detail: PaketMasterDetailItemRef) => {
         const paketDetailId = Number(detail?.id)
         const masterTindakanId = Number(detail?.masterTindakanId)
         if (!Number.isFinite(paketDetailId) || paketDetailId <= 0) return
@@ -1673,8 +1746,9 @@ const DetailVerifikasiPage = () => {
       const payload = {
         encounterId: selectedRequest.encounterId,
         patientId,
-        tanggalTindakan:
-          selectedRequest.scheduledAt || selectedRequest.requestedAt || dayjs().toISOString(),
+        tanggalTindakan: scheduleDraftValidation.isReady
+          ? scheduleDraftValidation.startAt.toISOString()
+          : selectedRequest.scheduledAt || selectedRequest.requestedAt || dayjs().toISOString(),
         cyto: isSelectedRequestCyto,
         catatanTambahan: `${okRequestSyncMarker || '[OK_REQUEST]'} sinkron dari verifikasi OK`,
         petugasList,
@@ -1699,6 +1773,47 @@ const DetailVerifikasiPage = () => {
       const text = error instanceof Error ? error.message : String(error)
       message.error(`Gagal sinkron ke detail tindakan: ${text}`)
       return false
+    }
+  }
+
+  const resolveSchedulePayloadForMutation = (
+    targetStatus: OkRequestStatus,
+    strict = true
+  ): {
+    scheduledAt: string | null
+    estimatedDurationMinutes: number | undefined
+    operatingRoomId: number | null
+  } | null => {
+    if (scheduleDraftValidation.isReady) {
+      const requiresConflictCheck =
+        targetStatus === OK_REQUEST_STATUS.VERIFIED || targetStatus === OK_REQUEST_STATUS.IN_PROGRESS
+      if (requiresConflictCheck && firstScheduleConflict) {
+        const conflictingCode = firstScheduleConflict.kode || `ID ${firstScheduleConflict.id}`
+        message.warning(
+          `Jadwal bentrok di ${draftOperatingRoomLabel} dengan ${conflictingCode} (${formatDateTime(firstScheduleConflict.scheduledStartAt)} - ${formatDateTime(firstScheduleConflict.scheduledEndAt)}).`
+        )
+      }
+
+      return {
+        scheduledAt: scheduleDraftValidation.startAt.toISOString(),
+        estimatedDurationMinutes: scheduleDraftValidation.estimatedDurationMinutes,
+        operatingRoomId: scheduleDraftValidation.operatingRoomId
+      }
+    }
+
+    if (strict) {
+      message.error(scheduleDraftValidation.message)
+      return null
+    }
+
+    const estimatedDurationValue = Number(selectedRequest?.estimatedDurationMinutes)
+    return {
+      scheduledAt: selectedRequest?.scheduledAt ? dayjs(selectedRequest.scheduledAt).toISOString() : null,
+      estimatedDurationMinutes:
+        Number.isInteger(estimatedDurationValue) && estimatedDurationValue >= 0
+          ? estimatedDurationValue
+          : undefined,
+      operatingRoomId: selectedRequest?.operatingRoomId ?? null
     }
   }
 
@@ -1746,22 +1861,19 @@ const DetailVerifikasiPage = () => {
       return
     }
 
-    const syncSuccess = await savePaketTeamsToDetailTindakan()
-    if (!syncSuccess) return
-
     try {
-      const estimatedDurationValue = Number(selectedRequest.estimatedDurationMinutes)
-      const estimatedDurationMinutes =
-        Number.isInteger(estimatedDurationValue) && estimatedDurationValue > 0
-          ? estimatedDurationValue
-          : undefined
+      const schedulePayload = resolveSchedulePayloadForMutation(OK_REQUEST_STATUS.VERIFIED)
+      if (!schedulePayload) return
+
+      const syncSuccess = await savePaketTeamsToDetailTindakan()
+      if (!syncSuccess) return
 
       await verifyOkRequest.mutateAsync({
         id: Number(selectedRequest.id),
         status: OK_REQUEST_STATUS.VERIFIED,
-        scheduledAt: selectedRequest.scheduledAt || null,
-        estimatedDurationMinutes,
-        operatingRoomId: selectedRequest.operatingRoomId ?? null,
+        scheduledAt: schedulePayload.scheduledAt,
+        estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
+        operatingRoomId: schedulePayload.operatingRoomId,
         notes: selectedRequest.notes || 'Disetujui melalui verifikasi OK'
       })
 
@@ -1811,6 +1923,117 @@ const DetailVerifikasiPage = () => {
     })
   }
 
+  const handleOperationalStatusUpdate = (
+    nextStatus: typeof OK_REQUEST_STATUS.IN_PROGRESS | typeof OK_REQUEST_STATUS.DONE
+  ) => {
+    if (!selectedRequest?.id) return
+
+    const schedulePayload = resolveSchedulePayloadForMutation(nextStatus)
+    if (!schedulePayload) return
+
+    const isStartAction = nextStatus === OK_REQUEST_STATUS.IN_PROGRESS
+    const title = isStartAction ? 'Mulai Operasi' : 'Selesaikan Operasi'
+    const successMessage = isStartAction
+      ? 'Status operasi berhasil diubah menjadi sedang operasi'
+      : 'Status operasi berhasil diubah menjadi selesai operasi'
+    const failureMessage = isStartAction
+      ? 'Gagal memperbarui status ke sedang operasi'
+      : 'Gagal memperbarui status ke selesai operasi'
+    const notes = isStartAction
+      ? 'Status diperbarui: sedang operasi'
+      : 'Status diperbarui: selesai operasi'
+
+    modal.confirm({
+      title,
+      content: (
+        <Text type="secondary">
+          {isStartAction
+            ? 'Pastikan pasien sudah masuk ruang operasi dan tim siap sebelum memulai.'
+            : 'Pastikan tindakan operasi sudah selesai sebelum menutup proses operasi.'}
+        </Text>
+      ),
+      okText: isStartAction ? 'Ya, Mulai Operasi' : 'Ya, Selesaikan',
+      cancelText: 'Batal',
+      okButtonProps: {
+        type: 'primary'
+      },
+      onOk: async () => {
+        try {
+          await verifyOkRequest.mutateAsync({
+            id: Number(selectedRequest.id),
+            status: nextStatus,
+            scheduledAt: schedulePayload.scheduledAt,
+            estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
+            operatingRoomId: schedulePayload.operatingRoomId,
+            notes
+          })
+          message.success(successMessage)
+          void refetchOkRequest()
+        } catch (error) {
+          const text = error instanceof Error ? error.message : String(error)
+          message.error(`${failureMessage}: ${text}`)
+          throw error
+        }
+      }
+    })
+  }
+
+  const handleCancelOperation = () => {
+    if (!selectedRequest?.id || !canCancelOperation) return
+
+    let cancellationReason = ''
+    const schedulePayload = resolveSchedulePayloadForMutation(OK_REQUEST_STATUS.CANCELLED, false)
+    if (!schedulePayload) return
+
+    modal.confirm({
+      title: 'Batalkan Operasi',
+      content: (
+        <div className="space-y-2">
+          <Text type="secondary" className="block">
+            Pembatalan operasi membutuhkan alasan yang jelas.
+          </Text>
+          <Input.TextArea
+            rows={4}
+            placeholder="Alasan pembatalan operasi"
+            onChange={(event) => {
+              cancellationReason = event.target.value
+            }}
+          />
+        </div>
+      ),
+      okText: 'Ya, Batalkan Operasi',
+      okButtonProps: {
+        danger: true
+      },
+      cancelText: 'Batal',
+      onOk: async () => {
+        const reason = cancellationReason.trim()
+        if (!reason) {
+          message.error('Alasan pembatalan wajib diisi')
+          throw new Error('Alasan pembatalan wajib diisi')
+        }
+
+        try {
+          await verifyOkRequest.mutateAsync({
+            id: Number(selectedRequest.id),
+            status: OK_REQUEST_STATUS.CANCELLED,
+            scheduledAt: schedulePayload.scheduledAt,
+            estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
+            operatingRoomId: schedulePayload.operatingRoomId,
+            notes: reason
+          })
+
+          message.success('Status operasi berhasil diubah menjadi dibatalkan')
+          void refetchOkRequest()
+        } catch (error) {
+          const text = error instanceof Error ? error.message : String(error)
+          message.error(`Gagal membatalkan operasi: ${text}`)
+          throw error
+        }
+      }
+    })
+  }
+
   const tabItems = [
     {
       key: 'verifikasi',
@@ -1823,6 +2046,77 @@ const DetailVerifikasiPage = () => {
               className="shadow-none border-gray-100"
               size="small"
             >
+              {canAdjustSchedule && (
+                <div className="mb-4 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Text type="secondary" className="text-xs">
+                        Ruang OK
+                      </Text>
+                      <Select
+                        className="mt-1 w-full"
+                        value={scheduleDraft.operatingRoomId ?? undefined}
+                        options={operatingRoomOptions}
+                        placeholder="Pilih ruang OK"
+                        onChange={(value) => {
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            operatingRoomId: Number.isFinite(Number(value)) ? Number(value) : null
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">
+                        Rencana Mulai
+                      </Text>
+                      <DatePicker
+                        className="mt-1 w-full"
+                        showTime={{ format: 'HH:mm' }}
+                        format="DD/MM/YYYY HH:mm"
+                        value={scheduleDraft.rencanaMulai}
+                        onChange={(value) => {
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            rencanaMulai: value
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">
+                        Estimasi Selesai
+                      </Text>
+                      <DatePicker
+                        className="mt-1 w-full"
+                        showTime={{ format: 'HH:mm' }}
+                        format="DD/MM/YYYY HH:mm"
+                        value={scheduleDraft.rencanaSelesai}
+                        onChange={(value) => {
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            rencanaSelesai: value
+                          }))
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {!scheduleDraftValidation.isReady && (
+                    <Alert type="warning" showIcon message={scheduleDraftValidation.message} />
+                  )}
+
+                  {scheduleDraftValidation.isReady && firstScheduleConflict && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="Jadwal operasi berpotensi bentrok"
+                      description={`Konflik dengan ${firstScheduleConflict.kode || `ID ${firstScheduleConflict.id}`} (${formatDateTime(firstScheduleConflict.scheduledStartAt)} - ${formatDateTime(firstScheduleConflict.scheduledEndAt)}).`}
+                    />
+                  )}
+                </div>
+              )}
+
               <Descriptions bordered column={2} size="small">
                 <Descriptions.Item label="Nama Pasien" span={2}>
                   {displayData.namaPasien}
@@ -1837,6 +2131,11 @@ const DetailVerifikasiPage = () => {
                 <Descriptions.Item label="Estimasi Waktu">
                   {displayData.jamRencana}
                 </Descriptions.Item>
+                {isOperationCancelled && (
+                  <Descriptions.Item label="Catatan Pembatalan" span={2}>
+                    {cancellationNote || '-'}
+                  </Descriptions.Item>
+                )}
                 <Descriptions.Item label="Surat Praoperasi" span={2}>
                   {dokumenPendukungUrl ? (
                     <Space size="small" wrap>
@@ -2019,7 +2318,7 @@ const DetailVerifikasiPage = () => {
           </div>
 
           <div className="space-y-6">
-            <Card title="Verifikasi Keputusan" className="shadow-none border-gray-100" size="small">
+            <Card title="Keputusan & Status Operasi" className="shadow-none border-gray-100" size="small">
               <div className="space-y-4">
                 {canTakeDecision ? (
                   <Space direction="vertical" className="w-full">
@@ -2051,6 +2350,85 @@ const DetailVerifikasiPage = () => {
                       Tolak Pengajuan
                     </Button>
                   </Space>
+                ) : canStartOperation ? (
+                  <Space direction="vertical" className="w-full">
+                    <Alert
+                      type="success"
+                      showIcon
+                      className="!mb-2"
+                      message="Pengajuan sudah disetujui dan siap dieksekusi di ruang operasi."
+                    />
+                    <Button
+                      type="primary"
+                      block
+                      size="large"
+                      icon={<HistoryOutlined />}
+                      style={{ background: '#2563eb', borderColor: '#2563eb' }}
+                      loading={verifyOkRequest.isPending}
+                      onClick={() => {
+                        handleOperationalStatusUpdate(OK_REQUEST_STATUS.IN_PROGRESS)
+                      }}
+                    >
+                      Mulai Operasi
+                    </Button>
+                    <Button
+                      danger
+                      block
+                      size="large"
+                      icon={<CloseCircleOutlined />}
+                      loading={verifyOkRequest.isPending}
+                      onClick={handleCancelOperation}
+                    >
+                      Batalkan Operasi
+                    </Button>
+                  </Space>
+                ) : canFinishOperation ? (
+                  <Space direction="vertical" className="w-full">
+                    <Alert
+                      type="info"
+                      showIcon
+                      className="!mb-2"
+                      message="Operasi sedang berjalan. Lanjutkan ke status selesai jika tindakan telah tuntas."
+                    />
+                    <Button
+                      type="primary"
+                      block
+                      size="large"
+                      icon={<CheckCircleOutlined />}
+                      style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                      loading={verifyOkRequest.isPending}
+                      onClick={() => {
+                        handleOperationalStatusUpdate(OK_REQUEST_STATUS.DONE)
+                      }}
+                    >
+                      Selesaikan Operasi
+                    </Button>
+                    <Button
+                      danger
+                      block
+                      size="large"
+                      icon={<CloseCircleOutlined />}
+                      loading={verifyOkRequest.isPending}
+                      onClick={handleCancelOperation}
+                    >
+                      Batalkan Operasi
+                    </Button>
+                  </Space>
+                ) : isOperationCompleted ? (
+                  <Alert
+                    type="success"
+                    showIcon
+                    className="!mb-3"
+                    message="Operasi telah selesai. Tidak ada aksi status lanjutan."
+                  />
+                ) : isOperationCancelled ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    className="!mb-3"
+                    message="Operasi telah dibatalkan. Tidak ada aksi status lanjutan."
+                    description={cancellationNote || 'Tidak ada catatan pembatalan.'}
+                  />
                 ) : (
                   <Alert
                     type="info"

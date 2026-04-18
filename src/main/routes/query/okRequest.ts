@@ -1,104 +1,44 @@
 import { IpcContext } from '@main/ipc/router'
 import {
-  BackendListSchema,
   createBackendClient,
   parseBackendResponse
 } from '@main/utils/backendClient'
 import {
-  OkRequestInputStatusSchema,
-  OkRequestPostOpChecklistItemsSchema,
-  OkRequestPostOpSignOutSchema,
-  OkRequestPreOpChecklistSchema,
-  OkRequestSchema,
-  OkRequestSchemaWithId,
-  OkRequestWhoSignInSchema,
-  OkRequestWhoTimeOutSchema
+  OkRequestCreateInputSchema,
+  OkRequestListInputSchema,
+  OkRequestListResponseSchema,
+  OkRequestResponseSchema,
+  OkRequestSaveChecklistsInputSchema,
+  OkRequestSupportingDocumentUploadInputSchema,
+  OkRequestSupportingDocumentUploadResponseSchema,
+  OkRequestVerifyInputSchema
 } from 'simrs-types'
 import z from 'zod'
 
 export const requireSession = true
 
 const MODULE_ENDPOINT = '/api/module/ok-request'
-const OkRequestCreateSchema = OkRequestSchema.partial().extend({
-  status: OkRequestInputStatusSchema.optional()
-})
-
-const BackendResponseSchema = z.object({
-  success: z.boolean(),
-  result: OkRequestSchemaWithId.optional(),
-  message: z.string().optional(),
-  error: z.string().optional()
-})
 
 export const schemas = {
   list: {
-    args: z.object({
-      encounterId: z.string().optional()
-    }).optional(),
-    result: z.object({
-      success: z.boolean(),
-      result: OkRequestSchemaWithId.array().optional(),
-      message: z.string().optional(),
-      error: z.string().optional()
-    })
+    args: OkRequestListInputSchema.optional(),
+    result: OkRequestListResponseSchema
   },
   create: {
-    args: OkRequestCreateSchema,
-    result: BackendResponseSchema
+    args: OkRequestCreateInputSchema,
+    result: OkRequestResponseSchema
   },
   uploadSupportingDocument: {
-    args: z.object({
-      file: z.any(),
-      filename: z.string().min(1),
-      mimetype: z.string().optional().nullable()
-    }),
-    result: z.object({
-      success: z.boolean(),
-      result: z
-        .object({
-          path: z.string()
-        })
-        .optional(),
-      message: z.string().optional(),
-      error: z.string().optional()
-    })
+    args: OkRequestSupportingDocumentUploadInputSchema,
+    result: OkRequestSupportingDocumentUploadResponseSchema
   },
   verify: {
-    args: z.object({
-      id: z.number(),
-      status: OkRequestInputStatusSchema,
-      scheduledAt: z.string().optional().nullable(),
-      estimatedDurationMinutes: z.number().optional().nullable(),
-      operatingRoomId: z.number().optional().nullable(),
-      notes: z.string().optional().nullable(),
-      rejectionReason: z.string().optional().nullable(),
-      updatedBy: z.number().optional().nullable()
-    }),
-    result: BackendResponseSchema
+    args: OkRequestVerifyInputSchema,
+    result: OkRequestResponseSchema
   },
   saveChecklists: {
-    args: z.object({
-      id: z.number(),
-      preOpChecklist: OkRequestPreOpChecklistSchema.partial().optional().nullable(),
-      whoChecklist: z
-        .object({
-          signIn: OkRequestWhoSignInSchema.partial().optional().nullable(),
-          timeOut: OkRequestWhoTimeOutSchema.partial().optional().nullable()
-        })
-        .partial()
-        .optional()
-        .nullable(),
-      postOpChecklist: z
-        .object({
-          signOut: OkRequestPostOpSignOutSchema.partial().optional().nullable(),
-          checklist: OkRequestPostOpChecklistItemsSchema.partial().optional().nullable()
-        })
-        .partial()
-        .optional()
-        .nullable(),
-      updatedBy: z.number().optional().nullable()
-    }),
-    result: BackendResponseSchema
+    args: OkRequestSaveChecklistsInputSchema,
+    result: OkRequestResponseSchema
   }
 } as const
 
@@ -111,8 +51,8 @@ export const list = async (ctx: IpcContext, args?: z.infer<typeof schemas.list.a
     const queryString = params.toString()
     const path = queryString ? `${MODULE_ENDPOINT}?${queryString}` : MODULE_ENDPOINT
     const res = await client.get(path)
-    const result = await parseBackendResponse(res, BackendListSchema(OkRequestSchemaWithId))
-    return { success: true, result }
+    const result = await parseBackendResponse(res, OkRequestListResponseSchema)
+    return { success: true, result: result ?? [] }
   } catch (err) {
     return {
       success: false,
@@ -131,7 +71,7 @@ export const create = async (ctx: IpcContext, args: z.infer<typeof schemas.creat
     }
 
     const res = await client.post(MODULE_ENDPOINT, normalizedPayload)
-    const result = await parseBackendResponse(res, BackendResponseSchema)
+    const result = await parseBackendResponse(res, OkRequestResponseSchema)
     return { success: true, result }
   } catch (err) {
     return {
@@ -201,19 +141,18 @@ export const verify = async (ctx: IpcContext, args: z.infer<typeof schemas.verif
     const normalizedEstimatedDuration = Number(args.estimatedDurationMinutes)
     const payload = {
       status: args.status === 'diajukan' ? 'verified' : args.status,
-      scheduledAt: args.scheduledAt ?? null,
-      estimatedDurationMinutes:
-        Number.isInteger(normalizedEstimatedDuration) && normalizedEstimatedDuration > 0
-          ? normalizedEstimatedDuration
-          : undefined,
-      operatingRoomId: args.operatingRoomId ?? null,
-      notes: args.notes ?? null,
-      rejectionReason: args.rejectionReason ?? null,
-      updatedBy: args.updatedBy ?? null
+      ...(args.scheduledAt !== undefined ? { scheduledAt: args.scheduledAt } : {}),
+      ...(Number.isInteger(normalizedEstimatedDuration) && normalizedEstimatedDuration >= 0
+        ? { estimatedDurationMinutes: normalizedEstimatedDuration }
+        : {}),
+      ...(args.operatingRoomId !== undefined ? { operatingRoomId: args.operatingRoomId } : {}),
+      ...(args.notes !== undefined ? { notes: args.notes } : {}),
+      ...(args.rejectionReason !== undefined ? { rejectionReason: args.rejectionReason } : {}),
+      ...(args.updatedBy !== undefined ? { updatedBy: args.updatedBy } : {})
     }
 
     const res = await client.patch(`${MODULE_ENDPOINT}/${args.id}/verify`, payload)
-    const result = await parseBackendResponse(res, BackendResponseSchema)
+    const result = await parseBackendResponse(res, OkRequestResponseSchema)
     return { success: true, result }
   } catch (err) {
     return {
@@ -238,7 +177,7 @@ export const saveChecklists = async (
     }
 
     const res = await client.patch(`${MODULE_ENDPOINT}/${args.id}/checklists`, payload)
-    const result = await parseBackendResponse(res, BackendResponseSchema)
+    const result = await parseBackendResponse(res, OkRequestResponseSchema)
     return { success: true, result }
   } catch (err) {
     return {
