@@ -1,3 +1,4 @@
+import { FileTextOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'

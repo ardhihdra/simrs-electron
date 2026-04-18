@@ -36,6 +36,7 @@ export interface Invoice {
   radiologyItems?: InvoiceLineItem[]
   obatItems?: InvoiceLineItem[]
   paymentMethod?: string | null
+  administrasiItems?: InvoiceLineItem[]
 }
 
 export interface PersistedInvoice {

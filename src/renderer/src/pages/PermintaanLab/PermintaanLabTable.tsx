@@ -1,3 +1,4 @@
+import { ExperimentOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { Col, Form, Input, Tag } from 'antd'
@@ -118,6 +119,7 @@ export function PermintaanLabTable({ data, isLoading }: PermintaanLabTableProps)
     <div>
       <TableHeader
         title="Daftar Permintaan Laboratorium"
+        icon={ExperimentOutlined}
         subtitle="Manajemen permintaan laboratorium"
         onSearch={(values) => setFilter(values)}
         onReset={() => setFilter({ name: '', medicalRecordNumber: '' })}

@@ -93,7 +93,6 @@ import MedicalRecordForm from './pages/nurse-calling/medical-record-form'
 import PatientQueueTable from './pages/nurse-calling/patient-queue-table'
 import AntrianVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/AntrianVerifikasiPage'
 import DetailVerifikasiPage from './pages/ok/antrian-dan-verifikasi-ok/DetailVerifikasiPage'
-import OKSubmissionPage from './pages/ok/ok-submission-page'
 import Patient from './pages/patient/Patient'
 import PatientForm from './pages/patient/patient-form'
 import PatientTable from './pages/patient/patient-table'
@@ -114,6 +113,8 @@ import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
 import ActiveEncountersPage from './pages/visit-management/active-encounters'
+import BillingPage from './pages/billing/BillingPage'
+import BillingAllocationPage from './pages/billing/billing-allocation'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
 import KioskaGlobalPage from './pages/visit-management/kioska/kiok-global'
@@ -324,6 +325,11 @@ function MainRoute() {
             <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
             <Route path="item-purchase" element={<ItemPurchasePage />} />
+            <Route path="patient" element={<Patient />}>
+              <Route index element={<PatientTable />} />
+              <Route path="register" element={<PatientForm />} />
+              <Route path="edit/:id" element={<PatientForm />} />
+            </Route>
           </Route>
           <Route path="nurse-calling" element={g('/dashboard/nurse-calling', <NurseCalling />)}>
             <Route index element={<PatientQueueTable />} />
@@ -337,8 +343,14 @@ function MainRoute() {
             <Route index element={g('/dashboard/ok', <Navigate to="dashboard" replace />)} />
             <Route path="dashboard" element={g('/dashboard/ok/dashboard', <OKDashboardPage />)} />
             <Route path="pengajuan" element={g('/dashboard/ok/pengajuan', <OKSubmissionPage />)} />
-            <Route path="verifikasi" element={g('/dashboard/ok/verifikasi', <AntrianVerifikasiPage />)} />
-            <Route path="verifikasi/:id" element={g('/dashboard/ok/verifikasi', <DetailVerifikasiPage />)} />
+            <Route
+              path="verifikasi"
+              element={g('/dashboard/ok/verifikasi', <AntrianVerifikasiPage />)}
+            />
+            <Route
+              path="verifikasi/:id"
+              element={g('/dashboard/ok/verifikasi', <DetailVerifikasiPage />)}
+            />
           </Route>
           <Route path="services" element={g('/dashboard/services', <Services />)}>
             <Route index element={<PemeriksaanUtamaPage />} />
@@ -365,6 +377,10 @@ function MainRoute() {
           <Route path="kasir" element={g('/dashboard/kasir', <KasirPage />)}>
             <Route index element={<KasirEncounterTable />} />
             <Route path="invoice/:encounterId" element={<InvoiceDetailPage />} />
+          </Route>
+          <Route path="billing" element={g('/dashboard/billing', <Outlet />)}>
+            <Route index element={<BillingPage />} />
+            <Route path="allocate/*" element={<BillingAllocationPage />} />
           </Route>
           <Route path="non-medic-queue" element={<Outlet />}>
             <Route

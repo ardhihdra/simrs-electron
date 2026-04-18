@@ -27,6 +27,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useActiveLokasiKerjaName } from '../useActiveLokasiKerjaName'
+import { formatEnum } from '@renderer/utils/formatters/enum-formatter'
 
 type TicketDto = {
   ticketId: string
@@ -263,12 +264,12 @@ function NonMedicQueueServicePointWorkspacePage() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
-          <Card>
+          <Card className="min-h-32">
             <Statistic title="Lokasi Aktif" value={lokasiKerjaName} />
           </Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card>
+          <Card className="min-h-32">
             <Statistic
               title="Service Point Kamu"
               value={servicePointFromBoard?.displayName || servicePointFromBoard?.name || '-'}
@@ -281,12 +282,15 @@ function NonMedicQueueServicePointWorkspacePage() {
           </Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card>
-            <Statistic title="Service Type" value={servicePointFromBoard?.serviceTypeCode ?? '-'} />
+          <Card className="min-h-32">
+            <Statistic
+              title="Service Type"
+              value={formatEnum(servicePointFromBoard?.serviceTypeCode) ?? '-'}
+            />
           </Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card>
+          <Card className="min-h-32">
             <Statistic title="Sisa Antrian" value={board?.waitingTotal ?? 0} />
           </Card>
         </Col>

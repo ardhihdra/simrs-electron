@@ -11,10 +11,7 @@ import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import type { PatientInfoCardData } from '@renderer/components/molecules/PatientInfoCard'
-import {
-  buildPatientInfoCardData,
-  type ReferralInfoSource
-} from '../table-info'
+import { buildPatientInfoCardData, type ReferralInfoSource } from '../table-info'
 import {
   type AncillaryCategory,
   getAncillarySectionConfig,
@@ -73,7 +70,7 @@ export default function LaboratoryResults({
   section
 }: LaboratoryResultsProps = {}) {
   const navigate = useNavigate()
-  const sectionConfig = section
+const sectionConfig = section
     ? getAncillarySectionConfig(section)
     : getAncillarySectionConfigByCategory(fixedCategory)
   const [searchParams, setSearchParams] = useState({
@@ -103,32 +100,35 @@ export default function LaboratoryResults({
   const groupedData = useMemo<EncounterResultGroup[]>(() => {
     if (!requestData?.result) return []
 
-    const groups = requestData.result.reduce((acc: Record<string, EncounterResultGroup>, current: any) => {
-      const encounterId = String(current.encounterId || '')
-      if (!encounterId) {
-        return acc
-      }
-
-      if (!acc[encounterId]) {
-        acc[encounterId] = {
-          key: encounterId,
-          encounterId,
-          queueNumber: current.queueTicket?.number,
-          patient: current.patient,
-          referrals: current.referrals,
-          sourcePoliName: current.sourcePoliName,
-          requestedAt: current.requestedAt,
-          status: current.status,
-          tests: []
+    const groups = requestData.result.reduce(
+      (acc: Record<string, EncounterResultGroup>, current: any) => {
+        const encounterId = String(current.encounterId || '')
+        if (!encounterId) {
+          return acc
         }
-      }
 
-      acc[encounterId].tests.push({
-        ...current,
-        id: String(current.id)
-      })
-      return acc
-    }, {})
+        if (!acc[encounterId]) {
+          acc[encounterId] = {
+            key: encounterId,
+            encounterId,
+            queueNumber: current.queueTicket?.number,
+            patient: current.patient,
+            referrals: current.referrals,
+            sourcePoliName: current.sourcePoliName,
+            requestedAt: current.requestedAt,
+            status: current.status,
+            tests: []
+          }
+        }
+
+        acc[encounterId].tests.push({
+          ...current,
+          id: String(current.id)
+        })
+        return acc
+      },
+      {}
+    )
 
     const patientKeyword = searchParams.patientName.trim().toLowerCase()
 
@@ -211,6 +211,7 @@ export default function LaboratoryResults({
     <div className="p-4">
       <TableHeader
         title={sectionConfig.resultsTitle}
+        icon={FileSearchOutlined}
         subtitle={sectionConfig.resultsSubtitle}
         onSearch={onSearch}
         onRefresh={() => {

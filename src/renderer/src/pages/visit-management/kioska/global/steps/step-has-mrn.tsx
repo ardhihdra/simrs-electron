@@ -15,10 +15,11 @@ export function StepHasMrn() {
     <div className="flex h-full flex-col items-center justify-center gap-8 text-center">
       <div className="max-w-2xl">
         <Typography.Title level={2} className="!mb-3">
-          Apakah Anda Sudah Memiliki MRN?
+          Apakah Anda Sudah Memiliki Nomor Rekam Medis?
         </Typography.Title>
         <Typography.Text className="text-base text-slate-500">
-          Jika sudah memiliki nomor rekam medis, silakan lanjutkan dengan scan atau input MRN.
+          Jika anda sudah pernah diperiksa di Rumah Sakit kami maka anda seharusnya sudah memiliki
+          Nomor Rekam Medis. Jika sudah, silakan lanjutkan dengan scan atau input MRN.
         </Typography.Text>
       </div>
 

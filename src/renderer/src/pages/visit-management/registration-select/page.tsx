@@ -1,9 +1,9 @@
-import { UserOutlined } from '@ant-design/icons'
+import { SearchOutlined, UserOutlined } from '@ant-design/icons'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import { client } from '@renderer/utils/client'
-import { Card, Col, Row, Typography } from 'antd'
+import { Card, Col, Input, Row, Typography } from 'antd'
 import dayjs from 'dayjs'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 const { Title, Text } = Typography
@@ -79,6 +79,7 @@ export default function RegistrationSelect() {
   const { session } = useModuleScopeStore()
   const isDoctor = session?.hakAksesId === 'doctor'
   const navigate = useNavigate()
+  const [search, setSearch] = useState('')
 
   const { data: practitionerData } = client.registration.getAvailableDoctors.useQuery({
     date: dayjs().format('YYYY-MM-DD')
@@ -124,6 +125,14 @@ export default function RegistrationSelect() {
     ]
   )
 
+  const displayedPractitioners = useMemo(() => {
+    if (!search.trim()) return filteredPractitioners
+    const q = search.toLowerCase()
+    return filteredPractitioners?.filter(
+      (p) => p.doctorName?.toLowerCase().includes(q) || p.poliName?.toLowerCase().includes(q)
+    )
+  }, [filteredPractitioners, search])
+
   useEffect(() => {
     if (filteredPractitioners?.length !== 1) {
       return
@@ -141,8 +150,20 @@ export default function RegistrationSelect() {
         <Text type="secondary">Silakan pilih dokter untuk melihat antrian pendaftaran.</Text>
       </div>
 
+      <div className="mb-6">
+        <Input
+          prefix={<SearchOutlined className="text-gray-400" />}
+          placeholder="Cari nama dokter atau poli..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          allowClear
+          size="large"
+          className="max-w-md"
+        />
+      </div>
+
       <Row gutter={[24, 24]}>
-        {filteredPractitioners?.map((practitioner) => {
+        {displayedPractitioners?.map((practitioner) => {
           const color = getPoliColor(practitioner.poliName ?? '')
           return (
             <Col xs={24} sm={12} md={8} lg={6} key={practitioner.id}>
@@ -181,7 +202,7 @@ export default function RegistrationSelect() {
         })}
       </Row>
 
-      {(!filteredPractitioners || filteredPractitioners.length === 0) && (
+      {(!displayedPractitioners || displayedPractitioners.length === 0) && (
         <div className="text-center py-20 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
           <Text type="secondary" className="text-lg">
             Tidak ada dokter yang tersedia saat ini.

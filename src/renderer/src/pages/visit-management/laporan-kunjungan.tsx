@@ -178,7 +178,7 @@ export default function LaporanKunjunganPage() {
             <TableHeader
                 title="Laporan Kunjungan Pasien Rawat Jalan"
                 subtitle="Kunjungan per ruangan · per dokter · per cara bayar"
-                icon={<FileTextOutlined className="text-white text-lg" />}
+                icon={FileTextOutlined}
                 onSearch={onSearch}
                 onRefresh={() => refetch()}
                 loading={isLoading || isRefetching}

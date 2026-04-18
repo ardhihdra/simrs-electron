@@ -365,7 +365,6 @@ export default function RecordResultPage() {
     )
   }
 
-  console.log(nilaiRujukanData)
   return (
     <div className="p-4">
       <div className="mb-4">

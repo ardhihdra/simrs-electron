@@ -208,7 +208,8 @@ function GenericTable<T extends object>({
         pagination={false}
         size="small"
         bordered
-        // scroll={{ x: 'max-content' }} ini menyebabkan tabel header jadi ada dua
+        // style={{ width: 'max-content' }}
+        style={{ width: '100%' }}
         {...tableProps}
       />
     </div>

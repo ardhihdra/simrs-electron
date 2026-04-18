@@ -43,6 +43,7 @@ interface PatientQueueTableData extends Omit<PatientQueue, 'status'> {
   formattedQueueNumber?: string
   triageUpdatedAt?: string
   encounterType?: string
+  queueNumber: number
 }
 
 type QueueRow = {
@@ -51,8 +52,6 @@ type QueueRow = {
   queueNumber?: number | string
   formattedQueueNumber?: string
   queueDate?: string
-  createdAt?: string
-  updatedAt?: string
   patientId?: string
   patientName?: string
   patientBirthDate?: string | Date
@@ -62,6 +61,8 @@ type QueueRow = {
   poliName?: string
   status?: string
   encounterId?: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 type QueueListResponse = {
@@ -267,16 +268,25 @@ const PatientQueueTable = () => {
 
           return {
             queueId: queueTicket?.id ? String(queueTicket.id) : undefined,
-            id: queueTicket?.id ? String(queueTicket.id) : encounter?.id ? String(encounter.id) : undefined,
+            id: queueTicket?.id
+              ? String(queueTicket.id)
+              : encounter?.id
+                ? String(encounter.id)
+                : undefined,
             queueNumber: queueTicket?.queueNumber,
             formattedQueueNumber: queueTicket?.formattedQueueNumber,
-            queueDate: queueTicket?.queueDate || encounter?.visitDate || encounter?.startTime || encounter?.createdAt,
+            queueDate:
+              queueTicket?.queueDate ||
+              encounter?.visitDate ||
+              encounter?.startTime ||
+              encounter?.createdAt,
             createdAt: queueTicket?.createdAt || encounter?.createdAt,
             updatedAt: queueTicket?.updatedAt || encounter?.updatedAt,
             patientId: patient?.id ? String(patient.id) : undefined,
             patientName: patient?.name,
             patientBirthDate: patient?.birthDate,
-            patientMedicalRecordNumber: patient?.medicalRecordNumber || patient?.medical_record_number,
+            patientMedicalRecordNumber:
+              patient?.medicalRecordNumber || patient?.medical_record_number,
             doctorName: practitioner?.namaLengkap || practitioner?.name,
             poliCodeId: queueTicket?.poliCodeId || poli?.id || encounter?.serviceUnitId,
             poliName: poli?.name || serviceUnit?.name,
@@ -365,15 +375,19 @@ const PatientQueueTable = () => {
   }, [activeStatus, baseFilteredQueues])
 
   const patientQueue: PatientQueueTableData[] = useMemo(() => {
+    const sortedRows = [...filteredQueues].sort(
+      (a, b) =>
+        parseTimestamp(b.updatedAt || b.createdAt || b.queueDate) -
+        parseTimestamp(a.updatedAt || a.createdAt || a.queueDate)
+    )
+
     return filteredQueues.map((row, index) => {
       const queueId = String(row.queueId || row.id || '')
       const queueNumber = parseQueueNumber(row.queueNumber)
       const formattedQueueNumber =
         row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
-      const triageUpdatedAt =
-        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
-      const registrationDate =
-        row.queueDate || row.createdAt || fallbackDateIso
+      const triageUpdatedAt = row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
+      const registrationDate = row.queueDate || row.createdAt || fallbackDateIso
 
       return {
         no: index + 1,
@@ -419,10 +433,8 @@ const PatientQueueTable = () => {
       const queueNumber = parseQueueNumber(row.queueNumber)
       const formattedQueueNumber =
         row.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
-      const triageUpdatedAt =
-        row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
-      const registrationDate =
-        row.queueDate || row.createdAt || fallbackDateIso
+      const triageUpdatedAt = row.updatedAt || row.createdAt || row.queueDate || fallbackDateIso
+      const registrationDate = row.queueDate || row.createdAt || fallbackDateIso
 
       return {
         no: index + 1,
@@ -463,6 +475,14 @@ const PatientQueueTable = () => {
   }, [baseFilteredQueues, fallbackDateIso])
 
   const latestTriageQueue = allPatientQueue.find((queue) => queue.status === NURSE_TRIAGE_STATUS)
+
+  const markAsTriage = async (record: PatientQueueTableData) => {
+    await updateStatusMutation.mutateAsync({
+      queueId: record.queueId,
+      action: 'CALL_TO_TRIAGE'
+    })
+    message.success(`Antrian ${record.formattedQueueNumber} dipanggil ke Triage`)
+  }
 
   const handleExaminePatient = (record: PatientQueueTableData) => {
     if (!record.encounterId) {

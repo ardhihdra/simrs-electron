@@ -1,5 +1,6 @@
 import {
   CheckCircleOutlined,
+  FormOutlined,
   HourglassOutlined,
   PlusOutlined,
   SyncOutlined,
@@ -10,7 +11,7 @@ import { TableHeader } from '@renderer/components/TableHeader'
 import { TableHeaderStats } from '@renderer/components/TableHeaderStats'
 import { useDebounce } from '@renderer/hooks/useDebounce'
 import { client, rpc } from '@renderer/utils/client'
-import { PatientAttributes } from '@shared/patient'
+import { PatientAttributes } from 'simrs-types'
 import { App, Button, Form, Input } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
@@ -101,6 +102,7 @@ export default function RegistrationPage() {
     <div>
       <TableHeader
         title="Registrasi Pasien"
+        icon={FormOutlined}
         subtitle="Manajemen pendaftaran pasien"
         onSearch={(values) => setSearchParams(values)}
         onReset={() => setSearchParams({ nik: '', name: '', medicalRecordNumber: '' })}

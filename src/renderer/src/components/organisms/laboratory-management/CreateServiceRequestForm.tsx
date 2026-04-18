@@ -1,16 +1,11 @@
 import { SearchOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
 import type { FormInstance } from 'antd'
-import { Card, Checkbox, Empty, Form, Input, Select, Tag } from 'antd'
+import { Checkbox, Empty, Form, Input, Select, Tag } from 'antd'
 import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { resolveActiveServiceRequestCategory } from './CreateServiceRequestForm.helpers'
 
 type ServiceRequestDomainValue = 'laboratory' | 'radiology'
-type ServiceRequestCategoriesResponse = {
-  laboratory?: string[]
-  radiology?: string[]
-}
 
 interface MasterServiceRequestCodeItem {
   id: number
@@ -51,41 +46,35 @@ interface Props {
 
 interface ServiceRequestCodeSelectorProps {
   domain?: ServiceRequestDomainValue
-  categoryCodes?: string[]
   value?: SelectedServiceRequestCodeValue[]
   onChange?: (value: SelectedServiceRequestCodeValue[]) => void
 }
 
 function ServiceRequestCodeSelector({
   domain,
-  categoryCodes = [],
   value = [],
   onChange
 }: ServiceRequestCodeSelectorProps) {
-  const [terminologySearch, setTerminologySearch] = useState('')
-  const categoryCodesKey = useMemo(() => categoryCodes.join('|'), [categoryCodes])
+  const [search, setSearch] = useState('')
 
   const terminologyDomain = useMemo(
     () => mapServiceRequestCategoryToTerminologyDomain(domain),
     [domain]
   )
 
-  const { data: terminologyData, isLoading: isLoadingTerminology } =
+  const { data: terminologyData, isLoading } =
     client.laboratoryManagement.getServiceRequestCodes.useQuery(
       {
         domain: terminologyDomain,
-        query: terminologySearch.trim() || undefined
+        query: search.trim() || undefined
       },
       {
         enabled: !!domain,
-        queryKey: [
-          'lab-queue-service-request-codes',
-          { domain: terminologyDomain, query: terminologySearch }
-        ]
+        queryKey: ['lab-queue-service-request-codes', { domain: terminologyDomain, query: search }]
       }
     )
 
-  const terminologyOptions = useMemo(() => {
+  const groupedItems = useMemo(() => {
     const result = terminologyData?.result as
       | { laboratory?: MasterServiceRequestCodeItem[]; radiology?: MasterServiceRequestCodeItem[] }
       | undefined
@@ -94,24 +83,13 @@ function ServiceRequestCodeSelector({
       ...(result?.radiology ?? [])
     ]
 
-    const selectedCategoryKeys = new Set(
-      categoryCodes.map((category) => String(category).trim().toLowerCase()).filter(Boolean)
-    )
-
-    return items
-      .filter((item) =>
-        selectedCategoryKeys.size === 0
-          ? false
-          : selectedCategoryKeys.has(String(item.category).trim().toLowerCase())
-      )
-      .map((item) => ({
-        masterServiceRequestCodeId: item.id,
-        code: item.loinc,
-        display: item.display,
-        system: 'http://loinc.org',
-        category: item.category
-      }))
-  }, [categoryCodes, terminologyData])
+    const groups = new Map<string, MasterServiceRequestCodeItem[]>()
+    for (const item of items) {
+      if (!groups.has(item.category)) groups.set(item.category, [])
+      groups.get(item.category)!.push(item)
+    }
+    return groups
+  }, [terminologyData])
 
   const selectedIds = useMemo(
     () => new Set(value.map((item) => item.masterServiceRequestCodeId)),
@@ -119,10 +97,8 @@ function ServiceRequestCodeSelector({
   )
 
   useEffect(() => {
-    setTerminologySearch('')
-  }, [categoryCodesKey, domain])
-
-  const hasSelectedCategories = categoryCodes.length > 0
+    setSearch('')
+  }, [domain])
 
   const handleCheckedChange = (checked: boolean, item: SelectedServiceRequestCodeValue) => {
     if (checked) {
@@ -130,12 +106,8 @@ function ServiceRequestCodeSelector({
       onChange?.([...value, item])
       return
     }
-
     onChange?.(
-      value.filter(
-        (selectedItem) =>
-          selectedItem.masterServiceRequestCodeId !== item.masterServiceRequestCodeId
-      )
+      value.filter((v) => v.masterServiceRequestCodeId !== item.masterServiceRequestCodeId)
     )
   }
 
@@ -149,20 +121,18 @@ function ServiceRequestCodeSelector({
     <div className="space-y-3">
       <Input
         allowClear
-        disabled={!domain || !hasSelectedCategories}
-        value={terminologySearch}
-        onChange={(event) => setTerminologySearch(event.target.value)}
+        disabled={!domain}
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
         placeholder={
           !domain
             ? 'Pilih kategori service request terlebih dahulu'
-            : !hasSelectedCategories
-              ? 'Pilih minimal satu kategori pemeriksaan terlebih dahulu'
-              : 'Cari kode atau nama pemeriksaan'
+            : 'Cari kode atau nama pemeriksaan'
         }
         prefix={<SearchOutlined />}
       />
 
-      {value.length > 0 ? (
+      {value.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {value.map((item) => (
             <Tag
@@ -175,56 +145,76 @@ function ServiceRequestCodeSelector({
             </Tag>
           ))}
         </div>
-      ) : (
-        <div className="text-xs text-gray-500">
-          {domain && hasSelectedCategories
-            ? 'Pilih satu atau lebih kode pemeriksaan dari daftar di bawah.'
-            : 'Pilih kategori service request dan kategori pemeriksaan untuk menampilkan daftar kode.'}
-        </div>
       )}
 
-      {domain && hasSelectedCategories && terminologyOptions.length > 0 ? (
-        <div className="grid max-h-72 grid-cols-1 gap-3 overflow-y-auto pr-1 md:grid-cols-3">
-          {terminologyOptions.map((item) => {
-            const isChecked = selectedIds.has(item.masterServiceRequestCodeId)
-
-            return (
-              <Card
-                key={item.masterServiceRequestCodeId}
-                size="small"
-                className={`cursor-pointer transition-all ${
-                  isChecked ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
-                }`}
-                onClick={() => handleCheckedChange(!isChecked, item)}
-              >
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={isChecked}
-                    onChange={(event) => handleCheckedChange(event.target.checked, item)}
-                    onClick={(event) => event.stopPropagation()}
-                  />
-                  <div className="min-w-0">
-                    <div className="font-medium text-gray-800">{item.display}</div>
-                    <div className="text-xs text-gray-500">{item.code}</div>
-                  </div>
+      {domain ? (
+        groupedItems.size > 0 ? (
+          <div className="max-h-96 overflow-y-auto grid grid-cols-1 gap-3 pr-1 md:grid-cols-2">
+            {Array.from(groupedItems.entries()).map(([category, items]) => (
+              <div key={category} className="overflow-hidden rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2.5 border-b border-blue-200 bg-blue-500 px-3 py-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-white">
+                    {formatCategoryLabel(category)}
+                  </span>
+                  <span className="ml-auto rounded-full bg-white/20 px-2 py-0.5 text-xs font-medium text-white">
+                    {items.length}
+                  </span>
                 </div>
-              </Card>
-            )
-          })}
-        </div>
+                <div className="grid grid-cols-1 gap-1.5 p-2 md:grid-cols-2">
+                  {items.map((item) => {
+                    const mapped: SelectedServiceRequestCodeValue = {
+                      masterServiceRequestCodeId: item.id,
+                      code: item.loinc,
+                      display: item.display,
+                      system: 'http://loinc.org',
+                      category: item.category
+                    }
+                    const isChecked = selectedIds.has(item.id)
+
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleCheckedChange(!isChecked, mapped)}
+                        className={`flex cursor-pointer items-start gap-2.5 rounded-md border px-3 py-2 transition-all ${
+                          isChecked
+                            ? 'border-blue-400 bg-blue-50 shadow-sm'
+                            : 'border-transparent bg-white hover:border-blue-200 hover:bg-blue-50/40'
+                        }`}
+                      >
+                        <Checkbox
+                          checked={isChecked}
+                          onChange={(event) => handleCheckedChange(event.target.checked, mapped)}
+                          onClick={(event) => event.stopPropagation()}
+                          className="mt-0.5 flex-shrink-0"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium leading-snug text-gray-800">
+                            {item.display}
+                          </div>
+                          <div className="mt-0.5 font-mono text-xs text-gray-400">{item.loinc}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-md border border-dashed border-gray-200 p-4">
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description={
+                isLoading ? 'Memuat kode pemeriksaan...' : 'Kode pemeriksaan tidak ditemukan'
+              }
+            />
+          </div>
+        )
       ) : (
         <div className="rounded-md border border-dashed border-gray-200 p-4">
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={
-              !domain
-                ? 'Pilih kategori service request terlebih dahulu'
-                : !hasSelectedCategories
-                  ? 'Pilih minimal satu kategori pemeriksaan terlebih dahulu'
-                  : isLoadingTerminology
-                    ? 'Memuat kode pemeriksaan...'
-                    : 'Kode pemeriksaan tidak ditemukan'
-            }
+            description="Pilih kategori service request terlebih dahulu"
           />
         </div>
       )}
@@ -235,32 +225,6 @@ function ServiceRequestCodeSelector({
 export default function CreateServiceRequestForm({ form, fixedCategory, extraFields }: Props) {
   const watchedCategory = Form.useWatch('category', form) as ServiceRequestDomainValue | undefined
   const selectedCategory = fixedCategory || watchedCategory
-  const [activeCategoryCode, setActiveCategoryCode] = useState<string>()
-
-  const { data: categoryData, isLoading: isLoadingCategories } =
-    client.laboratoryManagement.getServiceRequestCategories.useQuery(
-      {},
-      {
-        // @ts-ignore - queryKey is not assignable to type never
-        queryKey: ['lab-service-request-categories']
-      }
-    )
-
-  const categoryOptions = useMemo(() => {
-    const result = categoryData?.result as ServiceRequestCategoriesResponse | undefined
-    const items =
-      selectedCategory === 'radiology' ? (result?.radiology ?? []) : (result?.laboratory ?? [])
-
-    return items.map((item) => ({
-      value: item,
-      label: formatCategoryLabel(item)
-    }))
-  }, [categoryData, selectedCategory])
-
-  const activeCategoryCodes = useMemo(
-    () => (activeCategoryCode ? [activeCategoryCode] : []),
-    [activeCategoryCode]
-  )
 
   useEffect(() => {
     if (fixedCategory) {
@@ -270,25 +234,10 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
 
   useEffect(() => {
     form.setFieldsValue({
-      serviceRequestCodeCategories: [],
       selectedServiceRequestCodes: [],
       system: 'http://loinc.org'
     })
-    setActiveCategoryCode(undefined)
   }, [selectedCategory, form])
-
-  useEffect(() => {
-    const resolvedActiveCategory = resolveActiveServiceRequestCategory(
-      categoryOptions.map((item) => item.value),
-      activeCategoryCode
-    )
-
-    setActiveCategoryCode(resolvedActiveCategory)
-    form.setFieldValue(
-      'serviceRequestCodeCategories',
-      resolvedActiveCategory ? [resolvedActiveCategory] : []
-    )
-  }, [activeCategoryCode, categoryOptions, form])
 
   return (
     <Form form={form} layout="vertical">
@@ -307,63 +256,6 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
       </Form.Item>
 
       <Form.Item
-        name="serviceRequestCodeCategories"
-        label="Kategori Pemeriksaan"
-        rules={[
-          {
-            validator: (_, value: string[] | undefined) => {
-              if (Array.isArray(value) && value.length > 0) {
-                return Promise.resolve()
-              }
-
-              return Promise.reject(new Error('Harap pilih minimal satu kategori pemeriksaan'))
-            }
-          }
-        ]}
-      >
-        <div className="space-y-3">
-          <div className="grid gap-3 grid-cols-3 max-h-60 overflow-y-auto">
-            {categoryOptions.map((item) => {
-              const isActive = item.value === activeCategoryCode
-
-              return (
-                <Card
-                  key={item.value}
-                  size="small"
-                  className={`cursor-pointer transition-all ${
-                    isActive
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                  onClick={() => {
-                    setActiveCategoryCode(item.value)
-                    form.setFieldValue('serviceRequestCodeCategories', [item.value])
-                  }}
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium text-gray-800">{item.label}</div>
-                      <div className="text-xs text-gray-500">{item.value}</div>
-                    </div>
-                    {isActive ? <Tag color="blue">Aktif</Tag> : null}
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-          {!selectedCategory || isLoadingCategories || categoryOptions.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-200 p-4 text-sm text-gray-500">
-              {!selectedCategory
-                ? 'Pilih kategori service request terlebih dahulu'
-                : isLoadingCategories
-                  ? 'Memuat kategori pemeriksaan...'
-                  : 'Kategori pemeriksaan tidak tersedia'}
-            </div>
-          ) : null}
-        </div>
-      </Form.Item>
-
-      <Form.Item
         name="selectedServiceRequestCodes"
         label="Kode Pemeriksaan"
         rules={[
@@ -372,13 +264,12 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
               if (Array.isArray(value) && value.length > 0) {
                 return Promise.resolve()
               }
-
               return Promise.reject(new Error('Harap pilih minimal satu kode pemeriksaan'))
             }
           }
         ]}
       >
-        <ServiceRequestCodeSelector domain={selectedCategory} categoryCodes={activeCategoryCodes} />
+        <ServiceRequestCodeSelector domain={selectedCategory} />
       </Form.Item>
 
       <Form.Item

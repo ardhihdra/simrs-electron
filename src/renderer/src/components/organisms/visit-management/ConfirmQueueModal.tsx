@@ -4,7 +4,7 @@ import { buildConfirmQueueSelectedPatient } from '@renderer/components/organisms
 import { calculateAge } from '@renderer/utils/calculateAge'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
-import type { PatientAttributes } from '@shared/patient'
+import { PatientAttributes } from 'simrs-types'
 import {
   App,
   Button,

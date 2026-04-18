@@ -35,7 +35,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useActiveLokasiKerjaName } from './useActiveLokasiKerjaName'
-import type { PatientAttributes } from '@shared/patient'
+import { PatientAttributes } from 'simrs-types'
 
 type TicketDto = {
   ticketId: string

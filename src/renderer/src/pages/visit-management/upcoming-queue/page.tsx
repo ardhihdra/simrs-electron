@@ -1,3 +1,4 @@
+import { CalendarOutlined } from '@ant-design/icons'
 import GenericTable from '@renderer/components/organisms/GenericTable'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
@@ -126,6 +127,7 @@ export default function UpcomingQueuePage() {
     <div>
       <TableHeader
         title="Antrian Mendatang"
+        icon={CalendarOutlined}
         subtitle="Daftar antrian yang akan datang berdasarkan tanggal dan poli"
         onSearch={onSearch}
         loading={isLoading || isRefetching}

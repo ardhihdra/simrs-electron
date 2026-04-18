@@ -134,9 +134,7 @@ const AntrianVerifikasiPage = () => {
   const encounterIds = useMemo(() => {
     return Array.from(
       new Set(
-        source
-          .map((item) => String(item.encounterId || '').trim())
-          .filter((id) => id.length > 0)
+        source.map((item) => String(item.encounterId || '').trim()).filter((id) => id.length > 0)
       )
     ).sort()
   }, [source])
@@ -220,7 +218,9 @@ const AntrianVerifikasiPage = () => {
     return source.map((item) => {
       const rencanaAt = item.scheduledAt || item.requestedAt
       const encounterId = String(item.encounterId || '').trim()
-      const encounterMeta = encounterId ? encounterEnrichment?.byEncounterId?.[encounterId] : undefined
+      const encounterMeta = encounterId
+        ? encounterEnrichment?.byEncounterId?.[encounterId]
+        : undefined
 
       return {
         id: item.id,
@@ -228,10 +228,13 @@ const AntrianVerifikasiPage = () => {
         namaPasien: encounterMeta?.namaPasien || '-',
         noRM: encounterMeta?.noRM || '-',
         kelas: encounterMeta?.kelas || '-',
+        tindakan: item.plannedProcedureSummary || '-',
+        spesialis: '-',
         sifat: mapPriorityToSifat(item.priority),
         tanggalRencana: formatDate(rencanaAt),
         jamRencana: formatTimeRange(rencanaAt, item.estimatedDurationMinutes),
         dpjp: item.dpjpId ? performerMap.get(item.dpjpId) || `ID ${item.dpjpId}` : '-',
+        dokterOperator: item.dpjpId ? performerMap.get(item.dpjpId) || `ID ${item.dpjpId}` : '-',
         ruangOK: item.operatingRoomId
           ? operatingRoomMap.get(Number(item.operatingRoomId)) || `Ruang #${item.operatingRoomId}`
           : '-',

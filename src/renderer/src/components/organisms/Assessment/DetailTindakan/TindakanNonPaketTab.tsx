@@ -16,10 +16,12 @@ interface TindakanNonPaketTabProps {
   isLoadingPerformers: boolean
   performers: any[]
   roleLabelByCode: Map<string, string>
-  setProcedureSelectorState: (
-    state: { open: boolean; onSelect?: (item: MasterTindakanItem) => void }
-  ) => void
+  setProcedureSelectorState: (state: {
+    open: boolean
+    onSelect?: (item: MasterTindakanItem) => void
+  }) => void
   masterTindakanList: MasterTindakanItem[]
+  defaultKelas?: string
 }
 
 export default function TindakanNonPaketTab({
@@ -30,7 +32,8 @@ export default function TindakanNonPaketTab({
   performers,
   roleLabelByCode,
   setProcedureSelectorState,
-  masterTindakanList
+  masterTindakanList,
+  defaultKelas
 }: TindakanNonPaketTabProps) {
   const masterTindakanMap = new Map(masterTindakanList.map((t) => [t.id, t]))
 

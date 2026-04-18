@@ -173,6 +173,7 @@ export default function LaboratoryReports({
     <div className="p-4">
       <TableHeader
         title={sectionConfig.reportsTitle}
+        icon={PrinterOutlined}
         subtitle={sectionConfig.reportsSubtitle}
         onSearch={onSearch}
         onRefresh={() => {

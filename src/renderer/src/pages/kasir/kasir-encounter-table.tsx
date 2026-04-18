@@ -147,10 +147,10 @@ export default function KasirEncounterTable() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold mb-6">Kasir & Billing</h2>
+      <h2 className="text-3xl font-bold mb-6">Kasir</h2>
 
       {/* Kiosk Calling Section at the top */}
-      <KioskCallingWorkspace />
+      <KioskCallingWorkspace allowedTypes={['CASHIER']} />
 
       <Divider />
 

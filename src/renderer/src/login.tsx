@@ -180,11 +180,23 @@ const LoginForm: React.FC = () => {
               </Form.Item>
             </Form>
             <div className="flex gap-4 justify-center items-center">
-              <Button size="large" className="w-full" onClick={() => rpc.window.create({ route: '/kioska/setup', title: 'Kioska Publik' })}>
-                Kioska Publik
+              <Button
+                size="large"
+                className="w-full"
+                onClick={() =>
+                  rpc.window.create({ route: '/kioska/setup', title: 'Kioska Publik' })
+                }
+              >
+                Kioska (old)
               </Button>
-              <Button size="large" className="w-full" onClick={() => rpc.window.create({ route: '/kioska/global', title: 'Kioska Publik' })}>
-                Kioska Global
+              <Button
+                size="large"
+                className="w-full"
+                onClick={() =>
+                  rpc.window.create({ route: '/kioska/global', title: 'Kioska Publik' })
+                }
+              >
+                Kioska
               </Button>
             </div>
           </div>

@@ -2,6 +2,7 @@ import {
   DeleteOutlined,
   EditOutlined,
   EyeOutlined,
+  OrderedListOutlined,
   PlusOutlined,
   ReloadOutlined
 } from '@ant-design/icons'
@@ -314,6 +315,7 @@ export function EncounterTable() {
     <div>
       <TableHeader
         title="Daftar Antrian"
+        icon={OrderedListOutlined}
         onSearch={(values) => setQueueFilter(values)}
         onReset={() => setQueueFilter({ name: '', medicalRecordNumber: '' })}
         loading={isQueueLoading || isQueueRefetching}

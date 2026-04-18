@@ -13,6 +13,8 @@ interface RPCSelectAsyncProps {
   disabled?: boolean
   className?: string
   listAll?: boolean
+  allowClear?: boolean
+  variant?: 'outlined' | 'borderless' | 'filled'
 }
 
 export const RPCSelectAsync = ({
@@ -26,7 +28,9 @@ export const RPCSelectAsync = ({
   defaultValue,
   disabled,
   className,
-  listAll = false
+  allowClear,
+  listAll = false,
+  variant
 }: RPCSelectAsyncProps) => {
   const { data, isLoading, isRefetching } = client.query.entity.useQuery(
     {
@@ -70,6 +74,8 @@ export const RPCSelectAsync = ({
       defaultValue={defaultValue}
       disabled={disabled}
       className={className}
+      allowClear={allowClear}
+      variant={variant}
       showSearch
       optionFilterProp="label"
     />

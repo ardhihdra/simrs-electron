@@ -1,3 +1,4 @@
+import { HeartOutlined } from '@ant-design/icons'
 import {  Tag, Form, Input, App } from 'antd'
 import { client, rpc } from '@renderer/utils/client'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
@@ -269,6 +270,7 @@ export default function ActiveEncountersPage() {
     <div>
       <TableHeader
         title="Kunjungan Aktif"
+        icon={HeartOutlined}
         subtitle="Manajemen kunjungan aktif"
         loading={isLoading}
         onSearch={onSearch}

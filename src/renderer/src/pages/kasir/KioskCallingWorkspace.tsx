@@ -66,7 +66,11 @@ type BoardDto = {
   servicePoints: ServicePointDto[]
 }
 
-export default function KioskCallingWorkspace() {
+export default function KioskCallingWorkspace({ 
+  allowedTypes = ['CASHIER', 'BILLING'] 
+}: { 
+  allowedTypes?: string[] 
+}) {
   const { message } = App.useApp()
   const navigate = useNavigate()
   const { lokasiKerjaId } = useActiveLokasiKerjaName()
@@ -93,7 +97,7 @@ export default function KioskCallingWorkspace() {
   const allServicePoints = (servicePointQuery.data?.result as ServicePointDto[] | undefined) ?? []
   const relevantServicePoints = useMemo(
     () => allServicePoints
-      .filter((sp) => ['CASHIER', 'BILLING'].includes(sp.serviceTypeCode))
+      .filter((sp) => allowedTypes.includes(sp.serviceTypeCode))
       .sort((a, b) => {
         if (a.serviceTypeCode === 'BILLING' && b.serviceTypeCode === 'CASHIER') return -1
         if (a.serviceTypeCode === 'CASHIER' && b.serviceTypeCode === 'BILLING') return 1

@@ -1,5 +1,5 @@
 import VisitQueueForm from '@renderer/components/organisms/visit-management/VisitQueueForm'
-import type { PatientAttributes } from '@shared/patient'
+import { PatientAttributes } from 'simrs-types'
 import { Drawer } from 'antd'
 
 export type CreateQueueModalProps = {

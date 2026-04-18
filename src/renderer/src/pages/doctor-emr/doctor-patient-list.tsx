@@ -194,19 +194,15 @@ export const DoctorPatientList = () => {
     isLoading,
     refetch
   } = useQuery({
-    queryKey: [
-      'encounter',
-      'list',
-      selectedPoli,
-      searchText,
-      dateRange,
-      doctorTargetId
-    ],
+    queryKey: ['encounter', 'list', selectedPoli, searchText, dateRange, doctorTargetId],
     queryFn: async () => {
       const fn = window.api?.query?.encounter?.list
       if (!fn) throw new Error('API encounter tidak tersedia')
       const params: any = {}
       if (searchText) params.q = searchText
+      if (selectedPoli != null && String(selectedPoli).trim() !== '') {
+        params.poliCodeId = String(selectedPoli)
+      }
       if (selectedPoli != null && String(selectedPoli).trim() !== '') {
         params.poliCodeId = String(selectedPoli)
       }
@@ -902,6 +898,7 @@ export const DoctorPatientList = () => {
               </Popconfirm>
             </Space>
           </div>
+          {/* Extra children for header e.g add stats view */}
           <div className="grid grid-cols-4 gap-3">
             <div
               className="rounded-xl px-4 py-3 flex items-center gap-3"
