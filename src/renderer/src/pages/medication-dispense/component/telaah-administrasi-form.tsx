@@ -1,6 +1,6 @@
 import { Card, Space, Alert, Tag, Checkbox, Divider, Input, Row, Col, Button } from 'antd'
 import { CheckCircleFilled, WarningFilled } from '@ant-design/icons'
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 export interface TelaahResults {
   // kejelasanResep: boolean;
@@ -110,6 +110,12 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
     onChange(allTrueResults)
   }
 
+  useEffect(() => {
+    if (isInternal) {
+      handleCheckAll()
+    }
+  }, [isInternal])
+
   const renderCheckbox = (c: Criterion) => (
     <div key={c.key} className="py-1 px-2 hover:bg-gray-50 rounded-md transition-colors">
       <Checkbox
@@ -148,6 +154,16 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
       styles={{ body: { padding: '24px' } }}
       className="shadow-sm border-none bg-gray-50/50"
     >
+      {isInternal && (
+        <Alert
+          message="Validasi Otomatis (Internal)"
+          description="Resep ini berasal dari sistem internal SIMRS dan telah divalidasi secara otomatis melalui integrasi E-Resep. Seluruh kriteria telah dicentang otomatis."
+          type="info"
+          showIcon
+          className="mb-6 rounded-xl border-blue-100 bg-blue-50/50"
+        />
+      )}
+
       <Row gutter={[24, 24]}>
         <Col span={24} lg={6}>
           <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 h-full">

@@ -364,8 +364,11 @@ export function MedicationDispenseTable() {
     const map = new Map<number, string>()
     for (const item of source) {
       if (typeof item.id === 'number') {
-        const k = (item as any).caraPenyimpanan || ''
-        if (k) map.set(item.id, String(k))
+        const raw = item as any
+        const cp = raw.caraPenyimpanan || ''
+        if (cp) {
+          map.set(item.id, String(cp).trim())
+        }
       }
     }
     return map

@@ -2,7 +2,7 @@ import PatientLookupSelector from '@renderer/components/organisms/patient/Patien
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
-import type { PatientAttributes } from '@shared/patient'
+import { PatientAttributes } from 'simrs-types'
 import { App, Button, DatePicker, Form, Input, Select, Space } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo } from 'react'

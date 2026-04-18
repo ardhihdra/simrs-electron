@@ -68,7 +68,21 @@ const PatientTable = () => {
       key: 'birthDate',
       render: (value: string | Date) => (value ? dayjs(value).format('DD MMM YYYY') : '-')
     },
-    { title: 'Alamat', dataIndex: 'address', key: 'address' }
+    { title: 'Alamat', dataIndex: 'address', key: 'address' },
+    {
+      title: 'Tipe',
+      dataIndex: 'needEmr',
+      key: 'needEmr',
+      render: (value: boolean) => (
+        <span
+          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+            value ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
+          }`}
+        >
+          {value ? 'Rekam Medis' : 'Luar (Farmasi)'}
+        </span>
+      )
+    }
   ]
 
   const dataSource: PatientTableRow[] = (queryData?.result || []).map((item, idx) => ({
@@ -99,7 +113,7 @@ const PatientTable = () => {
         subtitle="Manajemen pelayanan pasien"
         onSearch={(values) => setFilter((prev) => ({ ...prev, ...values }))}
         onReset={() => setFilter({ nik: '', name: '', medicalRecordNumber: '', address: '' })}
-        onCreate={() => navigate('/dashboard/patient/register')}
+        onCreate={() => navigate('register', { relative: 'path' })}
         createLabel="Pasien Baru"
         loading={isLoading || isRefetching}
         action={
@@ -158,7 +172,7 @@ const PatientTable = () => {
                 {
                   label: 'Ubah Data',
                   icon: <EditOutlined />,
-                  onClick: () => navigate(`/dashboard/patient/edit/${record.id}`)
+                  onClick: () => navigate(`edit/${record.id}`, { relative: 'path' })
                 }
               ]
             }

@@ -5,7 +5,7 @@ import {
   ReloadOutlined,
   SaveOutlined
 } from '@ant-design/icons'
-import type { PatientAttributes } from '@shared/patient'
+import { PatientAttributes } from 'simrs-types'
 import type {
   ServiceRequestAttributes,
   ServiceRequestIntent,

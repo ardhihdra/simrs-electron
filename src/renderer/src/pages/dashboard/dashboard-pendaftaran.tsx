@@ -59,7 +59,7 @@ export default function DashboardPendaftaran() {
         <DashboardOutlined className="text-2xl text-blue-500" />
         <div>
           <Title level={4} className="!mb-0">
-            Dashboard Pendaftarannn
+            Dashboard Pendaftaran
           </Title>
           <Text type="secondary" className="text-xs">
             Data real-time · Auto refresh setiap 1 menit

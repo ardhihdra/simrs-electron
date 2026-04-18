@@ -262,6 +262,7 @@ const items: DashboardMenuItem[] = [
     module: 'FARMASI',
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
+      { label: 'Pasien', key: '/dashboard/medicine/patient', icon: <UserOutlined /> },
       {
         label: 'Permintaan Obat (Resep)',
         key: '/dashboard/medicine/medication-requests',

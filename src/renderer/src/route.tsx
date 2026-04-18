@@ -111,9 +111,9 @@ import PemeriksaanUtamaEditPage from './pages/services/pemeriksaan-utama/edit'
 import PemeriksaanUtamaPage from './pages/services/pemeriksaan-utama/page'
 import Services from './pages/services/services'
 import TriagePage from './pages/triage'
+import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import BillingPage from './pages/billing/BillingPage'
 import BillingAllocationPage from './pages/billing/billing-allocation'
-import ActiveEncountersPage from './pages/visit-management/active-encounters'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
 import KioskaGlobalPage from './pages/visit-management/kioska/kiok-global'
@@ -324,6 +324,11 @@ function MainRoute() {
             <Route path="medication-dispenses" element={<MedicationDispenseTable />} />
             <Route path="medication-dispenses/report" element={<MedicationDispenseReport />} />
             <Route path="item-purchase" element={<ItemPurchasePage />} />
+            <Route path="patient" element={<Patient />}>
+              <Route index element={<PatientTable />} />
+              <Route path="register" element={<PatientForm />} />
+              <Route path="edit/:id" element={<PatientForm />} />
+            </Route>
           </Route>
           <Route path="nurse-calling" element={g('/dashboard/nurse-calling', <NurseCalling />)}>
             <Route index element={<PatientQueueTable />} />

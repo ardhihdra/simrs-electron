@@ -1,9 +1,9 @@
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
-import { PatientAttributes } from '@shared/patient'
 import { useMutation } from '@tanstack/react-query'
 import { Button, DatePicker, Drawer, Form, Space } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect } from 'react'
+import { PatientAttributes } from 'simrs-types'
 
 export type RegistrationSheetProps = {
   open: boolean

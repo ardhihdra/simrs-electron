@@ -18,7 +18,7 @@ import logoUrl from '@renderer/assets/logo.png'
 
 const { Title, Text } = Typography
 
-type InvoiceLineItemCategory = 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology'
+type InvoiceLineItemCategory = 'tindakan' | 'bhp' | 'service_request' | 'obat' | 'laboratory' | 'radiology' | 'administrasi'
 
 interface InvoiceLineItem {
   category: InvoiceLineItemCategory
@@ -53,6 +53,7 @@ interface Invoice {
   laboratoryItems?: InvoiceLineItem[]
   radiologyItems?: InvoiceLineItem[]
   obatItems?: InvoiceLineItem[]
+  administrasiItems?: InvoiceLineItem[]
   paymentMethod?: string | null
 }
 
@@ -227,17 +228,19 @@ function generateInvoicePrintView(invoice: Invoice, persistedInvoice: PersistedI
   const labRows = buildCategoryRows('Laboratorium', invoice.laboratoryItems ?? [], '#14532d')
   const radRows = buildCategoryRows('Radiologi', invoice.radiologyItems ?? [], '#0e7490')
   const obatRows = buildCategoryRows('Obat', invoice.obatItems ?? [], '#581c87')
+  const adminRows = buildCategoryRows('Administrasi', invoice.administrasiItems ?? [], '#475569')
 
   const allEmpty =
     (invoice.tindakanItems?.length ?? 0) === 0 &&
     (invoice.bhpItems?.length ?? 0) === 0 &&
     (invoice.laboratoryItems?.length ?? 0) === 0 &&
     (invoice.radiologyItems?.length ?? 0) === 0 &&
-    (invoice.obatItems?.length ?? 0) === 0
+    (invoice.obatItems?.length ?? 0) === 0 &&
+    (invoice.administrasiItems?.length ?? 0) === 0
 
   const tableBody = allEmpty
     ? '<tr><td colspan="5" class="center" style="padding:16px;color:#6b7280;">Tidak ada item tagihan untuk kunjungan ini.</td></tr>'
-    : tindakanRows + bhpRows + labRows + radRows + obatRows
+    : tindakanRows + bhpRows + labRows + radRows + obatRows + adminRows
 
   const paymentRows =
     persistedInvoice && persistedInvoice.payments?.length > 0
@@ -677,12 +680,14 @@ export default function InvoiceDetailPage() {
             items={invoice.radiologyItems ?? []}
           />
           <InvoiceSection title="Obat" tagColor="purple" items={invoice.obatItems ?? []} />
+          <InvoiceSection title="Administrasi" tagColor="gray" items={invoice.administrasiItems ?? []} />
 
           {(invoice.tindakanItems?.length ?? 0) === 0 &&
             (invoice.bhpItems?.length ?? 0) === 0 &&
             (invoice.laboratoryItems?.length ?? 0) === 0 &&
             (invoice.radiologyItems?.length ?? 0) === 0 &&
-            (invoice.obatItems?.length ?? 0) === 0 && (
+            (invoice.obatItems?.length ?? 0) === 0 &&
+            (invoice.administrasiItems?.length ?? 0) === 0 && (
               <div className="text-center py-8 text-gray-400">
                 Tidak ada item tagihan untuk kunjungan ini.
               </div>

@@ -157,6 +157,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const { profile } = useMyProfile()
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
+  const encounterType = patientData?.encounter?.encounterType || ''
+  const isRawatJalan = encounterType === 'AMB' || encounterType === 'ambulatory'
+  const defaultKelas = isRawatJalan ? 'umum' : undefined
 
   const { data: performers = [], isLoading: isLoadingPerformers } = usePerformers([
     'doctor',
@@ -1399,7 +1402,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       assessment_date: dayjs(),
       kelas: matchedKelas?.value || fallbackKelas,
       petugasList: [],
-      tindakanList: [{ jumlah: 1, cyto: false }],
+      tindakanList: [{ jumlah: 1, cyto: false, kelas: defaultKelas }],
       bhpList: [],
       paketCytoGlobal: false,
       paketIds: [],
@@ -1956,6 +1959,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     roleLabelByCode={roleLabelByCode}
                     setProcedureSelectorState={setProcedureSelectorState}
                     masterTindakanList={masterTindakanList}
+                    defaultKelas={defaultKelas}
                   />
                 )
               },
