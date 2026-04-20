@@ -3,12 +3,115 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src:
+      local('Inter'),
+      url('./fonts/inter/InterVariable.woff2') format('woff2');
+  }
+
+  @font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 100 900;
+    font-display: swap;
+    src:
+      local('Inter Italic'),
+      url('./fonts/inter/InterVariable-Italic.woff2') format('woff2');
+  }
+
   body {
     @apply bg-white text-gray-900 dark:bg-[#141414] dark:text-gray-100;
+  }
+
+  .desktop-theme-scope {
+    font-feature-settings:
+      'liga' 1,
+      'calt' 1;
   }
 }
 
 @layer components {
+  .desktop-input-field .ant-input,
+  .desktop-input-field .ant-input-affix-wrapper,
+  .desktop-input-field .ant-select-selector {
+    height: var(--ds-input-h) !important;
+    border-radius: var(--ds-radius-md) !important;
+    border-color: var(--ds-color-border-strong) !important;
+    background: var(--ds-color-surface) !important;
+    box-shadow: none !important;
+    padding-inline: var(--ds-space-md) !important;
+    font-size: var(--ds-font-size-body) !important;
+    color: var(--ds-color-text) !important;
+  }
+
+  .desktop-input-field .ant-input,
+  .desktop-input-field .ant-input-affix-wrapper input,
+  .desktop-input-field .ant-select-selection-item,
+  .desktop-input-field .ant-select-selection-placeholder,
+  .desktop-input-field .ant-input::placeholder {
+    font-size: var(--ds-font-size-body) !important;
+  }
+
+  .desktop-input-field .ant-select-selector {
+    align-items: center !important;
+  }
+
+  .desktop-input-field .ant-input:focus,
+  .desktop-input-field .ant-input-affix-wrapper-focused,
+  .desktop-input-field .ant-select-focused .ant-select-selector,
+  .desktop-input-field .ant-input:focus-within {
+    border-color: var(--ds-color-accent) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
+  }
+
+  .desktop-input-field textarea.ant-input {
+    min-height: calc(var(--ds-input-h-lg) * 2.4) !important;
+    padding-block: var(--ds-space-sm) !important;
+  }
+
+  .desktop-generic-table .ant-table {
+    background: transparent !important;
+    color: var(--ds-color-text) !important;
+    font-size: var(--ds-font-size-body) !important;
+  }
+
+  .desktop-generic-table .ant-table-container {
+    border-inline-start: none !important;
+    border-top: none !important;
+  }
+
+  .desktop-generic-table .ant-table-thead > tr > th {
+    height: var(--ds-table-header-h) !important;
+    background: var(--ds-color-surface-muted) !important;
+    border-bottom: 1px solid var(--ds-color-border) !important;
+    color: var(--ds-color-text-subtle) !important;
+    font-size: var(--ds-font-size-caption) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+  }
+
+  .desktop-generic-table .ant-table-tbody > tr > td {
+    height: var(--ds-table-row-h) !important;
+    border-bottom: 1px solid var(--ds-color-border) !important;
+    background: var(--ds-color-surface) !important;
+    color: var(--ds-color-text) !important;
+    padding-block: var(--ds-space-xs) !important;
+    padding-inline: var(--ds-space-md) !important;
+  }
+
+  .desktop-generic-table .ant-table-tbody > tr.ant-table-row:hover > td {
+    background: var(--ds-color-surface-muted) !important;
+  }
+
+  .desktop-generic-table .ant-dropdown-menu {
+    border-radius: var(--ds-radius-md) !important;
+  }
+
   .dark .notification-popover .ant-popover-inner {
     background: #1f1f1f !important;
     border: 1px solid rgb(31 41 55) !important;
