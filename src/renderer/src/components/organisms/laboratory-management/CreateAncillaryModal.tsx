@@ -1,15 +1,10 @@
-import { SaveOutlined } from '@ant-design/icons'
+import { SaveOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
+import PatientLookupSelector from '@renderer/components/organisms/patient/PatientLookupSelector'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
-import { App, Button, Card, Col, Form, Modal, Row, Select } from 'antd'
+import { App, Button, Card, Col, Empty, Form, Modal, Row, Select, Space, Tag, Typography } from 'antd'
+import type { PatientAttributes } from 'simrs-types'
 import { useEffect, useMemo, useState } from 'react'
-
-interface PatientItem {
-  id: string
-  name?: string
-  identifier?: string
-  medicalRecordNumber?: string
-}
 
 interface ServiceRequestItem {
   id: string | number
@@ -114,32 +109,12 @@ export default function CreateAncillaryModal({
   const [form] = Form.useForm()
   const { message } = App.useApp()
 
-  const [patientSearch, setPatientSearch] = useState('')
+  const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>(undefined)
+  const [isPatientPickerOpen, setIsPatientPickerOpen] = useState(false)
   const [doctorSearch, setDoctorSearch] = useState('')
   const [requestedByDoctorSearch, setRequestedByDoctorSearch] = useState('')
   const category = Form.useWatch('category', form) as EncounterCategory | undefined
   const patientId = Form.useWatch('patientId', form) as string | undefined
-
-  const patientParams = useMemo(() => {
-    const params: Record<string, string> = { page: '1', items: '30' }
-    if (patientSearch.trim()) {
-      params.q = patientSearch.trim()
-      params.fields = 'name,identifier,mrn'
-    }
-    return params
-  }, [patientSearch])
-
-  const { data: patientsData, isLoading: isLoadingPatients } = client.query.entity.useQuery(
-    {
-      model: 'patient',
-      method: 'get',
-      params: patientParams
-    },
-    {
-      enabled: open,
-      queryKey: ['ancillary-patient-search', patientParams]
-    } as any
-  )
 
   const serviceRequestParams = useMemo(() => {
     const params: Record<string, string> = {
@@ -215,19 +190,6 @@ export default function CreateAncillaryModal({
       queryKey: ['ancillary-kepegawaian-doctors', requestedByDoctorParams]
     } as any
   )
-
-  const patientOptions = useMemo(() => {
-    const patients = normalizeList<PatientItem>(patientsData)
-    return patients.map((p: any) => ({
-      value: String(p.id),
-      label: `${p.name || 'Unknown Patient'} (${p.mrn || p.medicalRecordNumber})`
-    }))
-  }, [patientsData])
-
-  const selectedPatient = useMemo(() => {
-    const patients = normalizeList<PatientItem>(patientsData)
-    return patients.find((p) => String(p.id) === String(patientId)) || null
-  }, [patientsData, patientId])
 
   const serviceRequestOptions = useMemo(() => {
     const requests = normalizeList<ServiceRequestItem>(serviceRequestsData)
@@ -320,7 +282,8 @@ export default function CreateAncillaryModal({
 
   const handleClose = () => {
     form.resetFields()
-    setPatientSearch('')
+    setSelectedPatient(undefined)
+    setIsPatientPickerOpen(false)
     setDoctorSearch('')
     setRequestedByDoctorSearch('')
     onClose()
@@ -374,19 +337,58 @@ export default function CreateAncillaryModal({
             <Col span={10}>
               <Card title="Informasi Pasien" size="small">
                 <Form.Item
-                  name="patientId"
                   label="Pasien"
-                  rules={[{ required: true, message: 'Harap pilih pasien' }]}
+                  required
+                  validateStatus={!patientId ? 'error' : undefined}
+                  help={!patientId ? 'Harap pilih pasien' : undefined}
                 >
-                  <Select
-                    showSearch
-                    placeholder="Cari pasien..."
-                    loading={isLoadingPatients}
-                    options={patientOptions}
-                    filterOption={false}
-                    onSearch={setPatientSearch}
-                    optionFilterProp="label"
-                  />
+                  <div className="space-y-3">
+                    <Button
+                      icon={<SearchOutlined />}
+                      onClick={() => setIsPatientPickerOpen(true)}
+                      className="!rounded-xl"
+                    >
+                      {selectedPatient ? 'Ganti Pasien' : 'Pilih Pasien'}
+                    </Button>
+
+                    {selectedPatient ? (
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+                        <Space align="start">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                            <UserOutlined />
+                          </div>
+                          <div>
+                            <Typography.Text strong>{selectedPatient.name || '-'}</Typography.Text>
+                            <div className="mt-1 flex flex-wrap gap-2">
+                              <Tag color="green">
+                                RM {selectedPatient.medicalRecordNumber || '-'}
+                              </Tag>
+                              <Tag>NIK {selectedPatient.nik || '-'}</Tag>
+                            </div>
+                            <Typography.Paragraph
+                              type="secondary"
+                              style={{ marginBottom: 0, marginTop: 8 }}
+                            >
+                              {selectedPatient.address || 'Alamat belum tersedia'}
+                            </Typography.Paragraph>
+                          </div>
+                        </Space>
+                      </div>
+                    ) : (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="Belum ada pasien dipilih."
+                      />
+                    )}
+                  </div>
+                </Form.Item>
+
+                <Form.Item
+                  name="patientId"
+                  rules={[{ required: true, message: 'Harap pilih pasien' }]}
+                  hidden
+                >
+                  <input type="hidden" />
                 </Form.Item>
 
                 <Form.Item
@@ -498,6 +500,29 @@ export default function CreateAncillaryModal({
           </Row>
         </Form>
       </div>
+
+      <Modal
+        title="Pilih Pasien"
+        open={isPatientPickerOpen}
+        onCancel={() => setIsPatientPickerOpen(false)}
+        footer={null}
+        width={1100}
+        destroyOnClose
+      >
+        <PatientLookupSelector
+          value={selectedPatient}
+          onChange={(patient) => {
+            if (!patient) return
+            setSelectedPatient(patient)
+            form.setFieldValue('patientId', patient.id)
+            setIsPatientPickerOpen(false)
+          }}
+          title="Cari Pasien"
+          showSelectionSummary={false}
+          showClearButton={false}
+          createButtonLabel="Buat Pasien Baru"
+        />
+      </Modal>
     </Modal>
   )
 }
