@@ -279,7 +279,7 @@ export default function PatientLookupSelector({
         </Col>
         <Col xs={24} md={12}>
           <InputNumber
-            className="w-full"
+            className="w-full!"
             min={0}
             precision={0}
             value={searchParams.age}

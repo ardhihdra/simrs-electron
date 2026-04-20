@@ -26,9 +26,9 @@ import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleSco
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
 import type { MenuProps } from 'antd'
-import { Menu, theme, Badge } from 'antd'
-import dayjs from 'dayjs'
+import { Badge, Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
+import dayjs from 'dayjs'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { Modules } from 'simrs-types'
@@ -88,23 +88,8 @@ const items: DashboardMenuItem[] = [
     module: 'BILLING_KASIR',
     children: [
       {
-        label: 'KIOSK Billing',
-        key: '/dashboard/non-medic-queue/kiosk/billing',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Kasir',
-        key: '/dashboard/non-medic-queue/kiosk/cashier',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Farmasi',
-        key: '/dashboard/non-medic-queue/kiosk/pharmacy',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Pendaftaran',
-        key: '/dashboard/non-medic-queue/kiosk/registration',
+        label: 'Buka Kiosk',
+        key: '/kioska/global',
         icon: <BarcodeOutlined />
       },
       {
@@ -145,6 +130,11 @@ const items: DashboardMenuItem[] = [
     icon: <CalendarOutlined />,
     module: 'REGISTRASI',
     children: [
+      {
+        label: 'Buka Kioska',
+        key: '/kioska/global',
+        icon: <BarcodeOutlined />
+      },
       { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
       {
         label: 'Pendaftaran',
@@ -171,11 +161,7 @@ const items: DashboardMenuItem[] = [
         key: '/dashboard/registration/non-medic-queue',
         icon: <UnorderedListOutlined />
       },
-      {
-        label: 'Kioska',
-        key: '/kioska/global',
-        icon: <BarcodeOutlined />
-      },
+
       // {
       //   label: 'Daftar Kunjungan',
       //   key: '/dashboard/registration/active-encounters',
