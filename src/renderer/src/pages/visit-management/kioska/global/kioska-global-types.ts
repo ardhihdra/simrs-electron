@@ -13,10 +13,13 @@ export type KioskaGlobalStep =
   | 'payment_method'
   | 'has_mrn'
   | 'scan_mrn'
+  | 'new_patient_route'
   | 'poli'
   | 'dokter'
   | 'ambil_antrian'
   | 'input_kode_antrian'
+
+export type KioskaNewPatientRoute = 'poli' | 'pendaftaran'
 
 export type KioskaSelectedPatient = KioskaPatient
 export type KioskaSelectedPoli = KioskaPoliOption
@@ -27,6 +30,7 @@ export type KioskaRawatJalanFlowState = {
   location: KioskaSelectedWorkLocation | null
   paymentMethod: KioskaRegistrationPaymentMethod | null
   hasMrn: boolean | null
+  newPatientRoute: KioskaNewPatientRoute | null
   mrn: string
   matchedPatient: KioskaSelectedPatient | null
   poli: KioskaSelectedPoli | null
@@ -50,6 +54,7 @@ export type KioskaGlobalFlowAction =
   | { type: 'SET_RAWAT_JALAN_LOCATION'; location: KioskaSelectedWorkLocation | null }
   | { type: 'SET_PAYMENT_METHOD'; paymentMethod: KioskaRegistrationPaymentMethod | null }
   | { type: 'SET_HAS_MRN'; hasMrn: boolean | null }
+  | { type: 'SET_NEW_PATIENT_ROUTE'; route: KioskaNewPatientRoute | null }
   | { type: 'SET_MRN'; mrn: string }
   | { type: 'SET_MATCHED_PATIENT'; patient: KioskaSelectedPatient | null }
   | { type: 'SET_POLI'; poli: KioskaSelectedPoli | null }

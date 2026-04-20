@@ -9,6 +9,7 @@ export function createInitialKioskaGlobalFlowState(): KioskaGlobalFlowState {
       location: null,
       paymentMethod: null,
       hasMrn: null,
+      newPatientRoute: null,
       mrn: '',
       matchedPatient: null,
       poli: null,
@@ -26,6 +27,7 @@ function resetRawatJalanState(state: KioskaGlobalFlowState): KioskaGlobalFlowSta
     location: null,
     paymentMethod: null,
     hasMrn: null,
+    newPatientRoute: null,
     mrn: '',
     matchedPatient: null,
     poli: null,
@@ -38,7 +40,7 @@ export function getNextStepAfterAntrianType(antrianType: KioskaGlobalFlowState['
 }
 
 export function getNextStepAfterMrnAnswer(hasMrn: boolean) {
-  return hasMrn ? 'scan_mrn' : 'ambil_antrian'
+  return hasMrn ? 'scan_mrn' : 'new_patient_route'
 }
 
 export function formatKioskaGlobalSummary(state: KioskaGlobalFlowState) {
@@ -89,10 +91,22 @@ export function kioskaGlobalFlowReducer(
         rawatJalan: {
           ...state.rawatJalan,
           hasMrn: action.hasMrn,
+          newPatientRoute: null,
           mrn: action.hasMrn ? state.rawatJalan.mrn : '',
           matchedPatient: action.hasMrn ? state.rawatJalan.matchedPatient : null,
           poli: null,
           selectedDoctor: null
+        }
+      }
+
+    case 'SET_NEW_PATIENT_ROUTE':
+      return {
+        ...state,
+        rawatJalan: {
+          ...state.rawatJalan,
+          newPatientRoute: action.route,
+          poli: action.route === 'poli' ? state.rawatJalan.poli : null,
+          selectedDoctor: action.route === 'poli' ? state.rawatJalan.selectedDoctor : null
         }
       }
 

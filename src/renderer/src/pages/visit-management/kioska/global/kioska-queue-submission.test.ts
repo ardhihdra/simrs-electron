@@ -2,7 +2,9 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  createKioskaQueuePayload,
   createKioskaRegistrationTicketPayload,
+  resolveKioskaQueueSummaryMode,
   resolveInitialKioskaRegistrationPaymentMethodFromPath,
   resolveKioskaRegistrationServiceTypeFromPaymentMethod
 } from './kioska-queue-submission.ts'
@@ -50,5 +52,142 @@ test('insurance route prefills ASURANSI payment method but general route stays C
   assert.equal(
     resolveInitialKioskaRegistrationPaymentMethodFromPath('/kioska/global/registration-insurance'),
     'ASURANSI'
+  )
+})
+
+test('new patient going to pendaftaran keeps registration ticket summary mode', () => {
+  assert.equal(
+    resolveKioskaQueueSummaryMode({
+      location: {
+        id: 9,
+        code: 'RJ',
+        name: 'Rawat Jalan'
+      },
+      paymentMethod: 'CASH',
+      hasMrn: false,
+      newPatientRoute: 'pendaftaran',
+      mrn: '',
+      matchedPatient: null,
+      poli: null,
+      selectedDoctor: null
+    }),
+    'registration_ticket'
+  )
+})
+
+test('new patient choosing poli uses queue summary mode instead of registration ticket', () => {
+  assert.equal(
+    resolveKioskaQueueSummaryMode({
+      location: {
+        id: 9,
+        code: 'RJ',
+        name: 'Rawat Jalan'
+      },
+      paymentMethod: 'CASH',
+      hasMrn: false,
+      newPatientRoute: 'poli',
+      mrn: '',
+      matchedPatient: null,
+      poli: {
+        id: 3,
+        name: 'Poli Umum'
+      },
+      selectedDoctor: {
+        doctorId: 12,
+        doctorName: 'dr. Ani',
+        doctorScheduleId: 30,
+        poliId: 3,
+        poliName: 'Poli Umum'
+      }
+    }),
+    'queue'
+  )
+})
+
+test('queue payload for patient without MRN and choosing poli omits patient linkage fields', () => {
+  assert.deepEqual(
+    createKioskaQueuePayload({
+      queueDate: '2026-04-14T07:00:00.000Z',
+      paymentMethod: 'CASH',
+      rawatJalan: {
+        location: {
+          id: 9,
+          code: 'RJ',
+          name: 'Rawat Jalan'
+        },
+        paymentMethod: 'CASH',
+        hasMrn: false,
+        newPatientRoute: 'poli',
+        mrn: '',
+        matchedPatient: null,
+        poli: {
+          id: 3,
+          name: 'Poli Umum'
+        },
+        selectedDoctor: {
+          doctorId: 12,
+          doctorName: 'dr. Ani',
+          doctorScheduleId: 30,
+          poliId: 3,
+          poliName: 'Poli Umum'
+        }
+      }
+    }),
+    {
+      queueDate: '2026-04-14T07:00:00.000Z',
+      visitDate: '2026-04-14T07:00:00.000Z',
+      practitionerId: 12,
+      doctorScheduleId: 30,
+      registrationType: 'OFFLINE',
+      paymentMethod: 'CASH',
+      reason: 'Registrasi Kioska'
+    }
+  )
+})
+
+test('queue payload for patient with MRN keeps patient linkage and notes', () => {
+  assert.deepEqual(
+    createKioskaQueuePayload({
+      queueDate: '2026-04-14T07:00:00.000Z',
+      paymentMethod: 'ASURANSI',
+      rawatJalan: {
+        location: {
+          id: 9,
+          code: 'RJ',
+          name: 'Rawat Jalan'
+        },
+        paymentMethod: 'ASURANSI',
+        hasMrn: true,
+        newPatientRoute: null,
+        mrn: '123456',
+        matchedPatient: {
+          id: 'patient-1',
+          medicalRecordNumber: '123456',
+          name: 'Budi'
+        },
+        poli: {
+          id: 3,
+          name: 'Poli Umum'
+        },
+        selectedDoctor: {
+          doctorId: 12,
+          doctorName: 'dr. Ani',
+          doctorScheduleId: 30,
+          poliId: 3,
+          poliName: 'Poli Umum'
+        }
+      }
+    }),
+    {
+      queueDate: '2026-04-14T07:00:00.000Z',
+      visitDate: '2026-04-14T07:00:00.000Z',
+      practitionerId: 12,
+      doctorScheduleId: 30,
+      patientId: 'patient-1',
+      registrationType: 'OFFLINE',
+      paymentMethod: 'ASURANSI',
+      reason: 'Registrasi Kioska',
+      notes: 'KIOSKA_MRN:123456'
+    }
   )
 })

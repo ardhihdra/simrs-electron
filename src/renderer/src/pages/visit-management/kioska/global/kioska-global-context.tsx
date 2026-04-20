@@ -6,6 +6,7 @@ import type {
   KioskaGlobalFlowAction,
   KioskaGlobalFlowState,
   KioskaGlobalStep,
+  KioskaNewPatientRoute,
   KioskaSelectedDoctor,
   KioskaSelectedPatient,
   KioskaSelectedPoli,
@@ -22,6 +23,7 @@ type KioskaGlobalFlowActions = {
   setRawatJalanLocation: (location: KioskaSelectedWorkLocation | null) => void
   setPaymentMethod: (paymentMethod: KioskaRegistrationPaymentMethod | null) => void
   setHasMrn: (hasMrn: boolean | null) => void
+  setNewPatientRoute: (route: KioskaNewPatientRoute | null) => void
   setMrn: (mrn: string) => void
   setMatchedPatient: (patient: KioskaSelectedPatient | null) => void
   setPoli: (poli: KioskaSelectedPoli | null) => void
@@ -73,6 +75,8 @@ export function useKioskaGlobalFlowActions(): KioskaGlobalFlowActions {
       setPaymentMethod: (paymentMethod: KioskaRegistrationPaymentMethod | null) =>
         dispatch({ type: 'SET_PAYMENT_METHOD', paymentMethod }),
       setHasMrn: (hasMrn: boolean | null) => dispatch({ type: 'SET_HAS_MRN', hasMrn }),
+      setNewPatientRoute: (route: KioskaNewPatientRoute | null) =>
+        dispatch({ type: 'SET_NEW_PATIENT_ROUTE', route }),
       setMrn: (mrn: string) => dispatch({ type: 'SET_MRN', mrn }),
       setMatchedPatient: (patient: KioskaSelectedPatient | null) =>
         dispatch({ type: 'SET_MATCHED_PATIENT', patient }),
