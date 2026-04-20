@@ -70,7 +70,7 @@ const PatientTable = () => {
     },
     { title: 'Alamat', dataIndex: 'address', key: 'address' },
     {
-      title: 'Tipe',
+      title: 'Perlu Rekam Medis',
       dataIndex: 'needEmr',
       key: 'needEmr',
       render: (value: boolean) => (
@@ -79,7 +79,7 @@ const PatientTable = () => {
             value ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
           }`}
         >
-          {value ? 'Rekam Medis' : 'Luar (Farmasi)'}
+          {value ? 'Ya' : 'Tidak, Pasien Farmasi'}
         </span>
       )
     }
