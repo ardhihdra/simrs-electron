@@ -5,13 +5,13 @@ import {
   Dropdown,
   Popconfirm,
   Space,
-  Spin,
-  Table,
   Tooltip
 } from 'antd'
 import type { MenuProps, TableProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import type { ReactNode } from 'react'
+
+import { DesktopTable } from './DesktopTable'
 
 type AlignType = 'left' | 'center' | 'right'
 
@@ -190,20 +190,15 @@ export function DesktopGenericTable<T extends object>({
     : columns
 
   return (
-    <div className="desktop-generic-table relative overflow-hidden rounded-[var(--ds-radius-lg)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] shadow-[var(--ds-shadow-xs)]">
-      {loading ? (
-        <div className="absolute inset-0 z-10 flex items-center justify-center bg-[var(--ds-color-scrim)]">
-          <Spin size="large" />
-        </div>
-      ) : null}
-      <Table<T>
-        columns={mergedColumns as ColumnsType<T>}
-        dataSource={dataSource}
-        rowKey={rowKey as keyof T}
-        pagination={false}
-        size="small"
-        {...tableProps}
-      />
-    </div>
+    <DesktopTable<T>
+      className="desktop-generic-table"
+      columns={mergedColumns as ColumnsType<T>}
+      dataSource={dataSource}
+      rowKey={rowKey as keyof T}
+      pagination={false}
+      size="small"
+      loading={loading}
+      {...tableProps}
+    />
   )
 }

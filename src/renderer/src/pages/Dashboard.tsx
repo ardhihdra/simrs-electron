@@ -22,6 +22,7 @@ import {
   type DesktopMenuShellNavItem,
   type DesktopMenuShellTabItem
 } from '@renderer/components/design-system/organisms/DesktopMenuShell'
+import type { DesktopPageListGroup } from '@renderer/components/design-system/organisms/DesktopPageList'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
@@ -876,12 +877,18 @@ function Dashboard() {
     )
   }
   const currentModuleLabel = visibleItems.find((item) => item.key === activeTop)?.label ?? 'Dashboard'
-  const sidebarNavItems: DesktopMenuShellNavItem[] = sideItems.map((item) => ({
-    key: item.key,
-    label: item.label,
-    icon: item.icon,
-    badge: item.badge
-  }))
+  const sidebarNavItems: DesktopPageListGroup[] = [
+    {
+      key: `${activeTop}-pages`,
+      label: currentModuleLabel,
+      items: sideItems.map((item) => ({
+        key: item.key,
+        label: item.label,
+        icon: item.icon,
+        badge: item.badge
+      }))
+    }
+  ]
   const moduleNavItems: DesktopMenuShellNavItem[] = visibleItems.map((item) => ({
     key: item.key,
     label: item.label,

@@ -141,12 +141,20 @@
     font-size: var(--ds-font-size-body) !important;
   }
 
-  .desktop-generic-table .ant-table-container {
+  .desktop-table .ant-table {
+    background: transparent !important;
+    color: var(--ds-color-text) !important;
+    font-size: var(--ds-font-size-body) !important;
+  }
+
+  .desktop-generic-table .ant-table-container,
+  .desktop-table .ant-table-container {
     border-inline-start: none !important;
     border-top: none !important;
   }
 
-  .desktop-generic-table .ant-table-thead > tr > th {
+  .desktop-generic-table .ant-table-thead > tr > th,
+  .desktop-table .ant-table-thead > tr > th {
     height: var(--ds-table-header-h) !important;
     background: var(--ds-color-surface-muted) !important;
     border-bottom: 1px solid var(--ds-color-border) !important;
@@ -157,7 +165,8 @@
     text-transform: uppercase !important;
   }
 
-  .desktop-generic-table .ant-table-tbody > tr > td {
+  .desktop-generic-table .ant-table-tbody > tr > td,
+  .desktop-table .ant-table-tbody > tr > td {
     height: var(--ds-table-row-h) !important;
     border-bottom: 1px solid var(--ds-color-border) !important;
     background: var(--ds-color-surface) !important;
@@ -166,12 +175,43 @@
     padding-inline: var(--ds-space-md) !important;
   }
 
-  .desktop-generic-table .ant-table-tbody > tr.ant-table-row:hover > td {
+  .desktop-generic-table .ant-table-tbody > tr.ant-table-row:hover > td,
+  .desktop-table .ant-table-tbody > tr.ant-table-row:hover > td {
     background: var(--ds-color-surface-muted) !important;
   }
 
   .desktop-generic-table .ant-dropdown-menu {
     border-radius: var(--ds-radius-md) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-nav::before {
+    border-bottom-color: var(--ds-color-border) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-tab {
+    border-radius: var(--ds-radius-md) var(--ds-radius-md) 0 0 !important;
+    border-color: var(--ds-color-border) !important;
+    background: var(--ds-color-surface-raised) !important;
+    color: var(--ds-color-text-muted) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-tab.ant-tabs-tab-active {
+    background: var(--ds-color-surface) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn,
+  .desktop-content-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+    color: var(--ds-color-text) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-ink-bar {
+    background: var(--ds-color-accent) !important;
+  }
+
+  .desktop-segmented-control .ant-segmented-item-selected {
+    background: var(--ds-color-surface) !important;
+    color: var(--ds-color-text) !important;
+    box-shadow: var(--ds-shadow-xs) !important;
   }
 
   .dark .notification-popover .ant-popover-inner {

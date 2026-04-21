@@ -9,6 +9,7 @@ export interface DesktopCardProps {
   extra?: AntdCardProps['extra']
   children: AntdCardProps['children']
   compact?: boolean
+  tone?: 'default' | 'muted'
 }
 
 export function DesktopCard({
@@ -16,12 +17,17 @@ export function DesktopCard({
   subtitle,
   extra,
   children,
-  compact = false
+  compact = false,
+  tone = 'default'
 }: DesktopCardProps) {
   return (
     <Card
       bordered={false}
-      className="desktop-card !rounded-[var(--ds-radius-lg)] !border !border-[var(--ds-color-border)] !bg-[var(--ds-color-surface)] !shadow-[var(--ds-shadow-xs)]"
+      className={`desktop-card !rounded-[var(--ds-radius-lg)] !border !border-[var(--ds-color-border)] !shadow-[var(--ds-shadow-xs)] ${
+        tone === 'muted'
+          ? '!bg-[var(--ds-color-surface-muted)]'
+          : '!bg-[var(--ds-color-surface)]'
+      }`}
       styles={{
         body: {
           padding: compact ? 'var(--ds-card-padding-compact)' : 'var(--ds-card-padding)'

@@ -1,22 +1,43 @@
-import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons'
+import { DesktopAvatar } from '@renderer/components/design-system/atoms/DesktopAvatar'
 import { DesktopBadge } from '@renderer/components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '@renderer/components/design-system/atoms/DesktopButton'
+import { DesktopIcon } from '@renderer/components/design-system/atoms/DesktopIcon'
+import { DesktopKeyboardShortcut } from '@renderer/components/design-system/atoms/DesktopKeyboardShortcut'
+import { DesktopProgressBar } from '@renderer/components/design-system/atoms/DesktopProgressBar'
+import { DesktopStatusDot } from '@renderer/components/design-system/atoms/DesktopStatusDot'
+import { DesktopTag } from '@renderer/components/design-system/atoms/DesktopTag'
 import {
   desktopThemeTokens,
   type DesktopThemeTokens
 } from '@renderer/components/design-system/foundation/desktop-theme'
 import { CopyCodeButton } from '@renderer/components/design-system/molecules/CopyCodeButton'
 import { DesktopCard } from '@renderer/components/design-system/molecules/DesktopCard'
+import { DesktopFormField } from '@renderer/components/design-system/molecules/DesktopFormField'
+import { DesktopInput } from '@renderer/components/design-system/molecules/DesktopInput'
 import { DesktopInputField } from '@renderer/components/design-system/molecules/DesktopInputField'
+import { DesktopNotificationItem } from '@renderer/components/design-system/molecules/DesktopNotificationItem'
+import { DesktopSegmentedControl } from '@renderer/components/design-system/molecules/DesktopSegmentedControl'
+import { DesktopStatCard } from '@renderer/components/design-system/molecules/DesktopStatCard'
+import { DesktopContentTabs } from '@renderer/components/design-system/organisms/DesktopContentTabs'
+import { DesktopDocTabs } from '@renderer/components/design-system/organisms/DesktopDocTabs'
 import {
   DesktopGenericTable,
   type DesktopGenericTableProps
 } from '@renderer/components/design-system/organisms/DesktopGenericTable'
 import { DesktopMenuShell } from '@renderer/components/design-system/organisms/DesktopMenuShell'
+import { DesktopModuleBar } from '@renderer/components/design-system/organisms/DesktopModuleBar'
+import { DesktopPageHeader } from '@renderer/components/design-system/organisms/DesktopPageHeader'
+import { DesktopPageList } from '@renderer/components/design-system/organisms/DesktopPageList'
+import { DesktopStatusBar } from '@renderer/components/design-system/organisms/DesktopStatusBar'
+import { DesktopTable } from '@renderer/components/design-system/organisms/DesktopTable'
 import { THEME_REGISTRY } from '@renderer/themes'
 import type { ColumnsType } from 'antd/es/table'
 import type * as React from 'react'
-import { DESIGN_SYSTEM_COMPONENTS, type DesignSystemCatalogItem } from './design-system.registry'
+import {
+  DESIGN_SYSTEM_COMPONENTS,
+  type DesignSystemCatalogItem,
+  type DesignSystemCategory
+} from './design-system.registry'
 
 type VisitQueueRow = {
   id: string
@@ -35,6 +56,14 @@ type SwatchDefinition = {
 }
 
 type DesktopCardComponentProps = React.ComponentProps<typeof DesktopCard>
+
+const CATEGORY_ORDER: DesignSystemCategory[] = [
+  'Actions',
+  'Identity & Status',
+  'Inputs & Forms',
+  'Navigation & Shell',
+  'Data Display'
+]
 
 const TYPOGRAPHY_PREVIEW = [
   {
@@ -178,11 +207,21 @@ const TABLE_COLUMNS: ColumnsType<VisitQueueRow> = [
 const TABLE_ACTION: DesktopGenericTableProps<VisitQueueRow>['action'] = {
   fixedRight: true,
   items: (record) => [
-    { label: 'Lihat Detail', icon: <EyeOutlined />, type: 'link', onClick: () => void record.id },
-    { label: 'Ubah Data', icon: <EditOutlined />, type: 'link', onClick: () => void record.id },
+    {
+      label: 'Lihat Detail',
+      icon: <DesktopIcon name="search" size={14} />,
+      type: 'link',
+      onClick: () => void record.id
+    },
+    {
+      label: 'Ubah Data',
+      icon: <DesktopIcon name="settings" size={14} />,
+      type: 'link',
+      onClick: () => void record.id
+    },
     {
       label: 'Batalkan',
-      icon: <DeleteOutlined />,
+      icon: <DesktopIcon name="x" size={14} />,
       danger: true,
       type: 'text',
       confirm: {
@@ -196,6 +235,13 @@ const TABLE_ACTION: DesktopGenericTableProps<VisitQueueRow>['action'] = {
 
 function swatchStyle(color: string) {
   return { backgroundColor: color }
+}
+
+function groupCatalogItems() {
+  return CATEGORY_ORDER.map((category) => ({
+    category,
+    items: DESIGN_SYSTEM_COMPONENTS.filter((item) => item.category === category)
+  }))
 }
 
 function TokenPanel({
@@ -286,12 +332,100 @@ function renderComponentPreview(itemId: string) {
     case 'desktop-button':
       return (
         <div className="flex flex-wrap gap-[var(--ds-space-sm)]">
-          <DesktopButton emphasis="primary" icon={<PlusOutlined />}>
-            Buat Pendaftaran
+          <DesktopButton emphasis="primary" icon={<DesktopIcon name="plus" size={14} />}>
+            Primary
           </DesktopButton>
-          <DesktopButton emphasis="secondary">Simpan Draft</DesktopButton>
-          <DesktopButton emphasis="ghost">Lihat Log</DesktopButton>
+          <DesktopButton emphasis="secondary">Secondary</DesktopButton>
+          <DesktopButton emphasis="toolbar" icon={<DesktopIcon name="filter" size={14} />}>
+            Toolbar
+          </DesktopButton>
+          <DesktopButton emphasis="quiet">Quiet</DesktopButton>
           <DesktopButton emphasis="danger">Batalkan</DesktopButton>
+        </div>
+      )
+
+    case 'desktop-badge':
+      return (
+        <div className="flex flex-wrap gap-[var(--ds-space-sm)]">
+          <DesktopBadge tone="accent">24 Baru</DesktopBadge>
+          <DesktopBadge tone="success">Online</DesktopBadge>
+          <DesktopBadge tone="warning">Pending</DesktopBadge>
+          <DesktopBadge tone="danger">Rejected</DesktopBadge>
+        </div>
+      )
+
+    case 'desktop-tag':
+      return (
+        <div className="flex flex-wrap gap-[var(--ds-space-sm)]">
+          <DesktopTag tone="accent">BPJS</DesktopTag>
+          <DesktopTag tone="success" icon={<DesktopIcon name="check" size={12} />}>
+            Tervalidasi
+          </DesktopTag>
+          <DesktopTag tone="warning">Perlu Review</DesktopTag>
+        </div>
+      )
+
+    case 'desktop-avatar':
+      return (
+        <div className="flex items-center gap-[var(--ds-space-sm)]">
+          <DesktopAvatar label="SW" />
+          <DesktopAvatar label="RJ" size="lg" />
+          <DesktopAvatar icon={<DesktopIcon name="bell" size={14} />} tone="neutral" />
+        </div>
+      )
+
+    case 'desktop-status-dot':
+      return (
+        <div className="flex flex-wrap gap-[var(--ds-space-md)]">
+          <DesktopStatusDot status="success" label="Server online" />
+          <DesktopStatusDot status="warning" label="Sinkronisasi tertunda" />
+          <DesktopStatusDot status="danger" label="Bridging gagal" />
+        </div>
+      )
+
+    case 'desktop-progress-bar':
+      return <DesktopProgressBar value={72} />
+
+    case 'desktop-icon':
+      return (
+        <div className="grid grid-cols-4 gap-[var(--ds-space-sm)] md:grid-cols-6">
+          {['dashboard', 'users', 'bed', 'bell', 'shield', 'chart', 'plus', 'filter'].map(
+            (name) => (
+              <div
+                key={name}
+                className="flex flex-col items-center gap-[var(--ds-space-xs)] rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] p-[var(--ds-space-sm)]"
+              >
+                <DesktopIcon name={name} size={18} />
+                <span className="text-[length:var(--ds-font-size-caption)] text-[var(--ds-color-text-muted)]">
+                  {name}
+                </span>
+              </div>
+            )
+          )}
+        </div>
+      )
+
+    case 'desktop-keyboard-shortcut':
+      return (
+        <div className="flex flex-wrap gap-[var(--ds-space-md)]">
+          <DesktopKeyboardShortcut keys={['Ctrl', 'P']} />
+          <DesktopKeyboardShortcut keys={['Ctrl', 'Shift', 'F']} />
+          <DesktopKeyboardShortcut keys={['Alt', 'F4']} />
+        </div>
+      )
+
+    case 'desktop-input':
+      return (
+        <div className="grid gap-[var(--ds-space-md)] lg:grid-cols-2">
+          <DesktopInput placeholder="Cari pasien" />
+          <DesktopInput
+            type="select"
+            placeholder="Pilih poli"
+            options={[
+              { label: 'Poli Anak', value: 'anak' },
+              { label: 'Poli Interna', value: 'interna' }
+            ]}
+          />
         </div>
       )
 
@@ -314,56 +448,186 @@ function renderComponentPreview(itemId: string) {
               { label: 'Poli Bedah', value: 'bedah' }
             ]}
           />
-          <div className="lg:col-span-2">
-            <DesktopInputField
-              label="Catatan Operasional"
-              type="textarea"
-              placeholder="Tulis catatan tambahan"
-              hint="Textarea mengikuti sizing dan spacing desktop theme."
-            />
-          </div>
         </div>
+      )
+
+    case 'desktop-segmented-control':
+      return (
+        <DesktopSegmentedControl
+          value="active"
+          options={[
+            { label: 'Aktif', value: 'active' },
+            { label: 'Selesai', value: 'done' },
+            { label: 'Arsip', value: 'archive' }
+          ]}
+        />
+      )
+
+    case 'desktop-form-field':
+      return (
+        <DesktopFormField label="Nomor SEP" hint="Nomor akan diverifikasi otomatis.">
+          <DesktopInput placeholder="Masukkan nomor SEP" />
+        </DesktopFormField>
       )
 
     case 'desktop-card':
       return (
-        <div className="grid gap-[var(--ds-space-md)] lg:grid-cols-2">
-          <DesktopCard
-            title="Ringkasan Antrian"
-            subtitle="Snapshot operasional 08:30 WIB"
-            extra={<DesktopBadge tone="accent">Live</DesktopBadge>}
-            compact
-          >
-            <div className="space-y-[var(--ds-space-sm)] text-[length:var(--ds-font-size-body)] text-[var(--ds-color-text-muted)]">
-              <div className="flex items-center justify-between rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-md)] py-[var(--ds-space-sm)]">
-                <span>Antrian aktif</span>
-                <strong className="text-[var(--ds-color-text)]">18</strong>
-              </div>
-              <div className="flex items-center justify-between rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-md)] py-[var(--ds-space-sm)]">
-                <span>SEP pending</span>
-                <DesktopBadge tone="warning">03</DesktopBadge>
-              </div>
+        <DesktopCard
+          title="Ringkasan Antrian"
+          subtitle="Snapshot operasional 08:30 WIB"
+          extra={<DesktopBadge tone="accent">Live</DesktopBadge>}
+          compact
+        >
+          <div className="space-y-[var(--ds-space-sm)] text-[length:var(--ds-font-size-body)] text-[var(--ds-color-text-muted)]">
+            <div className="flex items-center justify-between rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-md)] py-[var(--ds-space-sm)]">
+              <span>Antrian aktif</span>
+              <strong className="text-[var(--ds-color-text)]">18</strong>
             </div>
-          </DesktopCard>
-          <DesktopCard
-            title="Validasi Form"
-            subtitle="Tone surface dan spacing kartu desktop"
-            extra={<DesktopButton emphasis="secondary" size="small">Review</DesktopButton>}
-          >
-            <div className="grid gap-[var(--ds-space-sm)]">
-              <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-md)] py-[var(--ds-space-sm)] text-[length:var(--ds-font-size-body)] text-[var(--ds-color-text-muted)]">
-                Semua padding, border radius, dan gap berasal dari token desktop.
-              </div>
-              <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-md)] py-[var(--ds-space-sm)] text-[length:var(--ds-font-size-body)] text-[var(--ds-color-text-muted)]">
-                Card dipakai sebagai surface default untuk blok operasional.
-              </div>
+            <div className="flex items-center justify-between rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface-muted)] px-[var(--ds-space-md)] py-[var(--ds-space-sm)]">
+              <span>SEP pending</span>
+              <DesktopBadge tone="warning">03</DesktopBadge>
             </div>
-          </DesktopCard>
-        </div>
+          </div>
+        </DesktopCard>
       )
+
+    case 'desktop-stat-card':
+      return <DesktopStatCard title="Pasien Hari Ini" value="128" delta="+8.2%" trend="up" />
+
+    case 'desktop-content-tabs':
+      return (
+        <DesktopContentTabs
+          items={[
+            { key: 'overview', label: 'Overview', children: <div className="py-4">Overview tab</div> },
+            { key: 'detail', label: 'Detail', children: <div className="py-4">Detail tab</div> }
+          ]}
+          activeKey="overview"
+        />
+      )
+
+    case 'desktop-doc-tabs':
+      return (
+        <DesktopDocTabs
+          activeKey="queue"
+          tabs={[
+            {
+              key: 'registration',
+              label: 'Pendaftaran Baru',
+              closable: true,
+              icon: <DesktopIcon name="plus" size={12} />
+            },
+            {
+              key: 'queue',
+              label: 'Antrian Pendaftaran',
+              closable: true,
+              dirty: true,
+              icon: <DesktopIcon name="clock" size={12} />
+            }
+          ]}
+        />
+      )
+
+    case 'desktop-table':
+      return <DesktopTable rowKey="id" columns={TABLE_COLUMNS} dataSource={QUEUE_ROWS} />
 
     case 'desktop-menu-shell':
       return <DesktopMenuShell />
+
+    case 'desktop-page-header':
+      return (
+        <DesktopPageHeader
+          eyebrow="Rawat Jalan"
+          title="Antrian Aktif"
+          subtitle="Queue operasional poli hari ini"
+          status="Live"
+          actions={
+            <div className="flex gap-[var(--ds-space-sm)]">
+              <DesktopButton emphasis="toolbar" icon={<DesktopIcon name="filter" size={14} />}>
+                Filter
+              </DesktopButton>
+              <DesktopButton emphasis="primary" icon={<DesktopIcon name="plus" size={14} />}>
+                Panggil Berikutnya
+              </DesktopButton>
+            </div>
+          }
+        />
+      )
+
+    case 'desktop-module-bar':
+      return (
+        <DesktopModuleBar
+          activeKey="registration"
+          items={[
+            { key: 'dashboard', label: 'Dashboard', icon: <DesktopIcon name="dashboard" size={14} /> },
+            {
+              key: 'registration',
+              label: 'Pendaftaran',
+              icon: <DesktopIcon name="id" size={14} />,
+              badge: <DesktopBadge tone="accent">24</DesktopBadge>
+            },
+            {
+              key: 'outpatient',
+              label: 'Rawat Jalan',
+              icon: <DesktopIcon name="users" size={14} />,
+              badge: <DesktopBadge tone="accent">142</DesktopBadge>
+            }
+          ]}
+        />
+      )
+
+    case 'desktop-page-list':
+      return (
+        <DesktopPageList
+          activeKey="queue"
+          groups={[
+            {
+              key: 'ops',
+              label: 'Operasional',
+              items: [
+                {
+                  key: 'registration',
+                  label: 'Pendaftaran Baru',
+                  icon: <DesktopIcon name="plus" size={14} />
+                },
+                {
+                  key: 'queue',
+                  label: 'Antrian Aktif',
+                  icon: <DesktopIcon name="clock" size={14} />,
+                  badge: <DesktopBadge>8</DesktopBadge>
+                }
+              ]
+            }
+          ]}
+        />
+      )
+
+    case 'desktop-status-bar':
+      return (
+        <DesktopStatusBar
+          leftItems={[
+            { key: 'server', content: <DesktopStatusDot status="success" label="Terhubung" /> },
+            { key: 'shift', content: <span>Shift pagi</span> }
+          ]}
+          rightItems={[
+            { key: 'records', content: <span>Record 142/142</span> },
+            { key: 'version', content: <span>v4.12.1</span> }
+          ]}
+        />
+      )
+
+    case 'desktop-notification-item':
+      return (
+        <DesktopNotificationItem
+          id="notif-1"
+          title="Bridging BPJS selesai"
+          body="SEP pasien A-003 berhasil diterbitkan dan siap dicetak."
+          time="2 menit lalu"
+          status="success"
+          avatarLabel="BP"
+          unread
+          action={<DesktopButton emphasis="ghost">Buka</DesktopButton>}
+        />
+      )
 
     case 'desktop-generic-table':
       return (
@@ -431,10 +695,12 @@ function DesignSystemPage() {
                 wajib tampil di sini lengkap dengan payload props serta usage snippet JSX.
               </p>
               <div className="mt-[var(--ds-space-lg)] flex flex-wrap gap-[var(--ds-space-sm)]">
-                <DesktopButton emphasis="primary" icon={<PlusOutlined />}>
+                <DesktopButton emphasis="primary" icon={<DesktopIcon name="plus" size={14} />}>
                   Primary Action
                 </DesktopButton>
-                <DesktopButton emphasis="secondary">Desktop Only Scope</DesktopButton>
+                <DesktopButton emphasis="toolbar" icon={<DesktopIcon name="filter" size={14} />}>
+                  Filter Toolbar
+                </DesktopButton>
                 <DesktopBadge tone="success">Inter bundled locally</DesktopBadge>
               </div>
             </div>
@@ -641,66 +907,22 @@ function DesignSystemPage() {
           <DesktopMenuShell />
         </DesktopCard>
 
-        <div className="grid gap-[var(--ds-space-lg)] xl:grid-cols-[0.85fr_1.15fr]">
-          <TokenPanel
-            title="Form Input Field"
-            subtitle="Wrapper field desktop untuk input, select, dan textarea."
-            extra={<DesktopBadge tone="success">molecule</DesktopBadge>}
+        {groupCatalogItems().map(({ category, items }) => (
+          <DesktopCard
+            key={category}
+            title={category}
+            subtitle={`Showcase komponen ${category.toLowerCase()} yang tersedia di desktop design system.`}
+            extra={<DesktopBadge tone="accent">{items.length} entries</DesktopBadge>}
           >
-            <div className="grid gap-[var(--ds-space-md)]">
-              <div className="grid gap-[var(--ds-space-md)] lg:grid-cols-2">
-                <DesktopInputField
-                  label="Nama Pasien"
-                  placeholder="Masukkan nama pasien"
-                  hint="Field standar dengan sizing desktop."
-                  required
-                />
-                <DesktopInputField
-                  label="Poli"
-                  type="select"
-                  placeholder="Pilih poli"
-                  options={[
-                    { label: 'Poli Anak', value: 'anak' },
-                    { label: 'Poli Interna', value: 'interna' },
-                    { label: 'Poli Mata', value: 'mata' }
-                  ]}
-                />
-              </div>
-              <DesktopInputField
-                label="Catatan Tambahan"
-                type="textarea"
-                placeholder="Masukkan instruksi operasional tambahan"
-              />
+            <div className="space-y-[var(--ds-space-lg)]">
+              {items.map((item) => (
+                <ShowcaseCard key={item.id} item={item}>
+                  {renderComponentPreview(item.id)}
+                </ShowcaseCard>
+              ))}
             </div>
-          </TokenPanel>
-
-          <TokenPanel
-            title="Desktop Generic Table"
-            subtitle="Wrapper tabel baru yang tetap menjaga kontrak dasar GenericTable untuk migrasi bertahap."
-            extra={<DesktopBadge tone="accent">organism</DesktopBadge>}
-          >
-            <DesktopGenericTable<VisitQueueRow>
-              rowKey="id"
-              columns={TABLE_COLUMNS}
-              dataSource={QUEUE_ROWS}
-              action={TABLE_ACTION}
-            />
-          </TokenPanel>
-        </div>
-
-        <DesktopCard
-          title="Design System Components"
-          subtitle="Setiap komponen baru wajib tampil di katalog ini lengkap dengan payload props dan copyable JSX snippet."
-          extra={<DesktopBadge tone="accent">{DESIGN_SYSTEM_COMPONENTS.length} entries</DesktopBadge>}
-        >
-          <div className="space-y-[var(--ds-space-lg)]">
-            {DESIGN_SYSTEM_COMPONENTS.map((item) => (
-              <ShowcaseCard key={item.id} item={item}>
-                {renderComponentPreview(item.id)}
-              </ShowcaseCard>
-            ))}
-          </div>
-        </DesktopCard>
+          </DesktopCard>
+        ))}
       </div>
     </div>
   )
