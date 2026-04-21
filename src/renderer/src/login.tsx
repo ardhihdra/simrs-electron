@@ -64,7 +64,6 @@ const dummyUsers = [
 
 const LoginForm: React.FC = () => {
   const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
-  console.log('is dev', IS_DEVELOPMENT)
   const { message } = App.useApp()
   const navigate = useNavigate()
   const setProfile = useProfileStore((state) => state.setProfile)
