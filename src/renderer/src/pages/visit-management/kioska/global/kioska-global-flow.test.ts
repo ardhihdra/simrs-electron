@@ -11,6 +11,11 @@ import type { KioskaGlobalFlowState } from './kioska-global-types'
 
 test('rawat jalan now enters payment method step before MRN question', () => {
   assert.equal(getNextStepAfterAntrianType('rawat_jalan'), 'payment_method')
+  assert.equal(getNextStepAfterAntrianType('rawat_inap'), 'payment_method')
+  assert.equal(getNextStepAfterAntrianType('penunjang'), 'penunjang_type')
+  assert.equal(getNextStepAfterAntrianType('billing'), 'non_medic_kiosk')
+  assert.equal(getNextStepAfterAntrianType('cashier'), 'non_medic_kiosk')
+  assert.equal(getNextStepAfterAntrianType('pharmacy'), 'non_medic_kiosk')
   assert.equal(getNextStepAfterAntrianType('checkin'), 'input_kode_antrian')
 })
 
@@ -49,6 +54,35 @@ test('payment method can be stored in flow state and resets with flow', () => {
 
   const resetState = kioskaGlobalFlowReducer(stateWithPaymentMethod, { type: 'RESET_FLOW' })
   assert.equal(resetState.rawatJalan.paymentMethod, null)
+})
+
+test('public queue target and payment method can be stored for rawat inap or penunjang flows', () => {
+  const stateWithTarget = kioskaGlobalFlowReducer(createInitialKioskaGlobalFlowState(), {
+    type: 'SET_PUBLIC_QUEUE_TARGET',
+    target: 'laboratory'
+  })
+
+  const stateWithPaymentMethod = kioskaGlobalFlowReducer(stateWithTarget, {
+    type: 'SET_PUBLIC_QUEUE_PAYMENT_METHOD',
+    paymentMethod: 'ASURANSI'
+  })
+
+  assert.equal(stateWithPaymentMethod.publicQueue.target, 'laboratory')
+  assert.equal(stateWithPaymentMethod.publicQueue.paymentMethod, 'ASURANSI')
+
+  const resetState = kioskaGlobalFlowReducer(stateWithPaymentMethod, { type: 'RESET_FLOW' })
+  assert.equal(resetState.publicQueue.target, null)
+  assert.equal(resetState.publicQueue.paymentMethod, null)
+})
+
+test('public queue target can be stored for direct non-medic kiosk flows', () => {
+  const stateWithTarget = kioskaGlobalFlowReducer(createInitialKioskaGlobalFlowState(), {
+    type: 'SET_PUBLIC_QUEUE_TARGET',
+    target: 'billing'
+  })
+
+  assert.equal(stateWithTarget.publicQueue.target, 'billing')
+  assert.equal(stateWithTarget.publicQueue.paymentMethod, null)
 })
 
 test('goBack restores the previous step without clearing existing step data', () => {

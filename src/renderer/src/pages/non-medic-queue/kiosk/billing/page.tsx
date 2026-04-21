@@ -9,6 +9,9 @@ function NonMedicQueueBillingKioskPage() {
       serviceTypeCode="BILLING"
       serviceLabel="Billing"
       icon={<WalletOutlined className="text-2xl" />}
+      payload={{
+        LokasiKerjaCode: 'ADM'
+      }}
     />
   )
 }

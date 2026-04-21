@@ -6,6 +6,7 @@ import type {
   KioskaGlobalFlowAction,
   KioskaGlobalFlowState,
   KioskaGlobalStep,
+  KioskaNonMedicQueueTarget,
   KioskaSelectedDoctor,
   KioskaSelectedPatient,
   KioskaSelectedPoli,
@@ -26,6 +27,8 @@ type KioskaGlobalFlowActions = {
   setMatchedPatient: (patient: KioskaSelectedPatient | null) => void
   setPoli: (poli: KioskaSelectedPoli | null) => void
   setSelectedDoctor: (doctor: KioskaSelectedDoctor | null) => void
+  setPublicQueueTarget: (target: KioskaNonMedicQueueTarget | null) => void
+  setPublicQueuePaymentMethod: (paymentMethod: KioskaRegistrationPaymentMethod | null) => void
   setCheckinQueueNumber: (queueNumber: string) => void
   goTo: (step: KioskaGlobalStep) => void
   goBack: () => void
@@ -79,6 +82,10 @@ export function useKioskaGlobalFlowActions(): KioskaGlobalFlowActions {
       setPoli: (poli: KioskaSelectedPoli | null) => dispatch({ type: 'SET_POLI', poli }),
       setSelectedDoctor: (doctor: KioskaSelectedDoctor | null) =>
         dispatch({ type: 'SET_SELECTED_DOCTOR', doctor }),
+      setPublicQueueTarget: (target: KioskaNonMedicQueueTarget | null) =>
+        dispatch({ type: 'SET_PUBLIC_QUEUE_TARGET', target }),
+      setPublicQueuePaymentMethod: (paymentMethod: KioskaRegistrationPaymentMethod | null) =>
+        dispatch({ type: 'SET_PUBLIC_QUEUE_PAYMENT_METHOD', paymentMethod }),
       setCheckinQueueNumber: (queueNumber: string) =>
         dispatch({ type: 'SET_CHECKIN_QUEUE_NUMBER', queueNumber }),
       goTo: (step: KioskaGlobalStep) => dispatch({ type: 'GO_TO', step }),
