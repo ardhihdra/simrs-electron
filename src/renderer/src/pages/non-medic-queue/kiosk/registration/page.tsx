@@ -9,6 +9,9 @@ function NonMedicQueueRegistrationKioskPage() {
       serviceTypeCode="REGISTRASI"
       serviceLabel="Pendaftaran"
       icon={<TeamOutlined className="text-2xl" />}
+      payload={{
+        LokasiKerjaCode: 'RJ'
+      }}
     />
   )
 }

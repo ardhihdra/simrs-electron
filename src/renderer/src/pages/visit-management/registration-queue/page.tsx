@@ -120,10 +120,7 @@ export default function RegistrationQueue({
       'RESERVED',
       'REGISTERED',
       'SKIPPED',
-      ...(IS_DEVELOPMENT ? ['CALLED'] : [])
-      // 'TRIAGE',
-      // 'TRIAGED',
-      // 'IN_PROGRESS'
+      ...(IS_DEVELOPMENT ? ['CALLED', 'TRIAGE', 'TRIAGED', 'IN_PROGRESS'] : [])
     ],
     practitionerId: activePractitionerId ? Number(activePractitionerId) : undefined
   })
