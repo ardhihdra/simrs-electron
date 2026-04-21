@@ -8,3 +8,7 @@ export function resolveActiveServiceRequestCategory(
 
   return availableCategories[0]
 }
+
+export function mapCitoToServiceRequestPriority(cito?: boolean | null): 'routine' | 'stat' {
+  return cito ? 'stat' : 'routine'
+}

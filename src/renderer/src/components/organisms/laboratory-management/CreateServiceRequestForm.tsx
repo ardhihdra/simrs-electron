@@ -1,9 +1,10 @@
 import { SearchOutlined } from '@ant-design/icons'
 import { client } from '@renderer/utils/client'
 import type { FormInstance } from 'antd'
-import { Checkbox, Empty, Form, Input, Select, Tag } from 'antd'
+import { Checkbox, Empty, Form, Input, Select, Switch, Tag } from 'antd'
 import type { ReactElement } from 'react'
 import { useEffect, useMemo, useState } from 'react'
+import { mapCitoToServiceRequestPriority } from './CreateServiceRequestForm.helpers'
 
 type ServiceRequestDomainValue = 'laboratory' | 'radiology'
 
@@ -224,6 +225,7 @@ function ServiceRequestCodeSelector({
 
 export default function CreateServiceRequestForm({ form, fixedCategory, extraFields }: Props) {
   const watchedCategory = Form.useWatch('category', form) as ServiceRequestDomainValue | undefined
+  const watchedCito = Form.useWatch('cito', form) as boolean | undefined
   const selectedCategory = fixedCategory || watchedCategory
 
   useEffect(() => {
@@ -235,9 +237,15 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
   useEffect(() => {
     form.setFieldsValue({
       selectedServiceRequestCodes: [],
+      cito: false,
+      priority: mapCitoToServiceRequestPriority(false),
       system: 'http://loinc.org'
     })
   }, [selectedCategory, form])
+
+  useEffect(() => {
+    form.setFieldValue('priority', mapCitoToServiceRequestPriority(watchedCito))
+  }, [form, watchedCito])
 
   return (
     <Form form={form} layout="vertical">
@@ -273,18 +281,16 @@ export default function CreateServiceRequestForm({ form, fixedCategory, extraFie
       </Form.Item>
 
       <Form.Item
-        name="priority"
-        label="Prioritas"
-        rules={[{ required: true, message: 'Harap pilih prioritas' }]}
+        name="cito"
+        label="Cito"
+        valuePropName="checked"
+        tooltip="Aktifkan untuk order cito/stat"
       >
-        <Select
-          options={[
-            { value: 'routine', label: 'Routine' },
-            { value: 'urgent', label: 'Urgent' },
-            { value: 'asap', label: 'ASAP' },
-            { value: 'stat', label: 'STAT' }
-          ]}
-        />
+        <Switch checkedChildren="Ya" unCheckedChildren="Tidak" />
+      </Form.Item>
+
+      <Form.Item name="priority" hidden>
+        <Input type="hidden" />
       </Form.Item>
 
       <Form.Item name="system" label="Coding System">
