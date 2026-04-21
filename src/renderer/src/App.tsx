@@ -1,33 +1,31 @@
-import { QueryClientProvider } from '@tanstack/react-query'
-import { HashRouter, useLocation } from 'react-router'
-import MainRoute from '@renderer/route'
-import { App as AntdApp } from 'antd'
-import { queryClient } from '@renderer/query-client'
 import { useNotificationListener } from '@renderer/hooks/useNotificationListener'
-import { ThemeProvider } from '@renderer/providers/ThemeProvider'
 import { DesignSystemThemeProvider } from '@renderer/providers/DesignSystemThemeProvider'
-import { getAppShellKind } from '@renderer/app-shell'
+import { queryClient } from '@renderer/query-client'
+import MainRoute from '@renderer/route'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { App as AntdApp } from 'antd'
+import { HashRouter } from 'react-router'
 
 function AppShell() {
-  const location = useLocation()
-  const shellKind = getAppShellKind(location.pathname)
+  // const location = useLocation()
+  // const shellKind = getAppShellKind(location.pathname)
 
-  if (shellKind === 'design-system') {
-    return (
-      <DesignSystemThemeProvider>
-        <AntdApp>
-          <MainRoute />
-        </AntdApp>
-      </DesignSystemThemeProvider>
-    )
-  }
+  // if (shellKind === 'design-system') {
+  //   return (
+  //     <DesignSystemThemeProvider>
+  //       <AntdApp>
+  //         <MainRoute />
+  //       </AntdApp>
+  //     </DesignSystemThemeProvider>
+  //   )
+  // }
 
   return (
-    <ThemeProvider>
+    <DesignSystemThemeProvider>
       <AntdApp>
         <MainRoute />
       </AntdApp>
-    </ThemeProvider>
+    </DesignSystemThemeProvider>
   )
 }
 

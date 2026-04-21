@@ -4,7 +4,7 @@ import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router
 import { ModuleScopeGuard } from './services/ModuleScope/guard'
 import type { PageAccessEntry } from './services/ModuleScope/type'
 import { client } from './utils/client'
-import { getAppShellKind, getDefaultHomePath } from './app-shell'
+import { getDefaultHomePath } from './app-shell'
 
 import { Typography } from 'antd'
 import AppLayout from './components/templates/AppLayout'
@@ -136,13 +136,7 @@ const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode
 
 function MainRoute() {
   const location = useLocation()
-  const shellKind = getAppShellKind(location.pathname)
-  const shouldLoadPageAccess = shellKind === 'dashboard'
-
-  const { data: pageAccessData } = client.pageAccess.list.useQuery(
-    {},
-    { enabled: shouldLoadPageAccess, queryKey: ['pageAccess', {}] }
-  )
+  const { data: pageAccessData } = client.pageAccess.list.useQuery({}, { queryKey: ['pageAccess', {}] })
   const pageAccessMap = useMemo(() => {
     const map: Record<string, PageAccessEntry> = {}
     for (const item of pageAccessData?.result ?? []) {

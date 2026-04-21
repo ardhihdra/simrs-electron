@@ -7,13 +7,13 @@ export type DesktopButtonProps = ButtonProps & {
 
 const EMPHASIS_CLASSNAME: Record<NonNullable<DesktopButtonProps['emphasis']>, string> = {
   primary:
-    '!border-[var(--ds-color-accent)] !bg-[var(--ds-color-accent)] !text-[var(--ds-color-accent-text)] hover:!border-[var(--ds-color-accent-hover)] hover:!bg-[var(--ds-color-accent-hover)]',
+    '!border-ds-accent !bg-ds-accent !text-ds-accent-text hover:!border-ds-accent hover:!brightness-95',
   secondary:
-    '!border-[var(--ds-color-border-strong)] !bg-[var(--ds-color-surface)] !text-[var(--ds-color-text)] hover:!border-[var(--ds-color-accent)] hover:!text-[var(--ds-color-accent)]',
+    '!border-ds-border-strong !bg-ds-surface !text-ds-text hover:!border-ds-accent hover:!text-ds-accent',
   ghost:
-    '!border-transparent !bg-transparent !text-[var(--ds-color-text-muted)] hover:!bg-[var(--ds-color-surface-muted)] hover:!text-[var(--ds-color-text)]',
+    '!border-transparent !bg-transparent !text-ds-muted hover:!bg-ds-surface-muted hover:!text-ds-text',
   danger:
-    '!border-[var(--ds-color-danger)] !bg-[var(--ds-color-danger)] !text-[var(--ds-color-danger-text)] hover:!border-[var(--ds-color-danger)] hover:!bg-[color-mix(in_srgb,var(--ds-color-danger)_92%,var(--ds-color-text))]'
+    '!border-ds-danger !bg-ds-danger !text-ds-danger-text hover:!border-ds-danger hover:!brightness-95'
 }
 
 export function DesktopButton({
@@ -24,16 +24,16 @@ export function DesktopButton({
 }: DesktopButtonProps) {
   const heightClassName =
     size === 'small'
-      ? '!h-[var(--ds-button-h-sm)]'
+      ? '!h-ds-button-sm'
       : size === 'large'
-        ? '!h-[var(--ds-button-h-lg)]'
-        : '!h-[var(--ds-button-h)]'
+        ? '!h-ds-button-lg'
+        : '!h-ds-button'
 
   return (
     <Button
       {...props}
       size={size}
-      className={`desktop-button !rounded-[var(--ds-radius-md)] !px-[var(--ds-space-md)] !text-[length:var(--ds-font-size-body)] !font-semibold !shadow-none ${heightClassName} ${EMPHASIS_CLASSNAME[emphasis]} ${className}`.trim()}
+      className={`desktop-button !rounded-ds-md !px-ds-space-md !text-ds-body !font-semibold !shadow-none ${heightClassName} ${EMPHASIS_CLASSNAME[emphasis]} ${className}`.trim()}
     />
   )
 }

@@ -1,20 +1,23 @@
 import { THEME_REGISTRY, type ThemeMode } from '@renderer/themes/index'
 import {
   buildDesktopCssVariables,
+  buildDesktopTailwindThemeVariables,
   desktopThemeTokens
 } from '@renderer/components/design-system/foundation/desktop-theme'
 import { ConfigProvider, theme } from 'antd'
+import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
 import { ThemeContext } from './theme-context'
 
 const DESIGN_SYSTEM_THEME_KEY = 'design-system-theme-mode'
 const DESIGN_SYSTEM_DEFAULT_THEME: ThemeMode = 'desktop'
 
-function normalizeDesignSystemTheme(_: ThemeMode | null): ThemeMode {
+function normalizeDesignSystemTheme(themeMode: ThemeMode | null): ThemeMode {
+  void themeMode
   return DESIGN_SYSTEM_DEFAULT_THEME
 }
 
-export function DesignSystemThemeProvider({ children }: { children: any }) {
+export function DesignSystemThemeProvider({ children }: { children: ReactNode }) {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => {
     const saved = localStorage.getItem(DESIGN_SYSTEM_THEME_KEY)
     const nextTheme =
@@ -38,6 +41,7 @@ export function DesignSystemThemeProvider({ children }: { children: any }) {
   const { defaultAlgorithm, darkAlgorithm } = theme
   const activeTheme = THEME_REGISTRY[themeMode] ?? THEME_REGISTRY[DESIGN_SYSTEM_DEFAULT_THEME]
   const cssVariables = buildDesktopCssVariables(desktopThemeTokens)
+  const tailwindThemeVariables = buildDesktopTailwindThemeVariables(desktopThemeTokens)
 
   return (
     <ThemeContext.Provider
@@ -57,6 +61,7 @@ export function DesignSystemThemeProvider({ children }: { children: any }) {
           className="desktop-theme-scope min-h-screen"
           style={{
             ...cssVariables,
+            ...tailwindThemeVariables,
             fontFamily: `var(--ds-font-sans), var(--ds-font-sans-fallback)`,
             backgroundColor: 'var(--ds-color-background)',
             color: 'var(--ds-color-text)'
