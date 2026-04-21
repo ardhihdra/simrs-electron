@@ -26,6 +26,7 @@ interface BillingInvoiceRow {
   remaining: number
   allocationStatus: 'draft' | 'done'
   no?: number
+  penjaminName?: string | null
 }
 
 const formatEnum = (val?: string) => {
@@ -73,6 +74,12 @@ const columns: ColumnsType<BillingInvoiceRow> = [
     render: (v) => v ?? '-'
   },
   {
+    title: 'Penjamin',
+    dataIndex: 'penjaminName',
+    key: 'penjaminName',
+    render: (v) => <Tag color={v === 'UMUM (TUNAI)' ? 'default' : 'cyan'}>{v || '-'}</Tag>
+  },
+  {
     title: 'Selesai Pemeriksaan',
     dataIndex: 'status',
     key: 'status',
@@ -111,6 +118,7 @@ export default function BillingPage() {
 
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [status, setStatus] = useState<string | undefined>()
+  const [mitraId, setMitraId] = useState<number | undefined>()
   const [visitDate, setVisitDate] = useState<dayjs.Dayjs | null>(null)
 
   useEffect(() => {
@@ -132,6 +140,7 @@ export default function BillingPage() {
     queueNumber: queueNumber || undefined,
     unitCode: unitCode ? String(unitCode) : undefined,
     status: status || undefined,
+    mitraId: mitraId || undefined,
     dateFrom: visitDate ? visitDate.startOf('day').toISOString() : undefined,
     dateTo: visitDate ? visitDate.endOf('day').toISOString() : undefined
   })
@@ -195,6 +204,14 @@ export default function BillingPage() {
           className="w-full"
           value={visitDate}
           onChange={(date) => setVisitDate(date)}
+        />
+        <RPCSelectAsync
+          placeHolder="Semua Penjamin"
+          entity="mitra"
+          value={mitraId}
+          onChange={(v) => setMitraId(v as number)}
+          display="name"
+          allowClear
         />
         <RPCSelectAsync
           placeHolder="Semua Unit Layanan"
