@@ -65,12 +65,52 @@ export function printMedicationLabels({ patientName, items }: PrintMedicationLab
         return
     }
 
-    const labelBlocks = labelLinesList
-        .map((lines) => {
-            const inner = lines
-                .map((line) => `<div class="line">${line}</div>`)
-                .join('')
-            return `<div class="label">${inner}</div>`
+    const labelBlocks = items
+        .map((item) => {
+            const name = item.medicineName ?? 'Obat'
+            const quantityValue = typeof item.quantity === 'number' ? item.quantity : 0
+            const unitLabel = item.unit ?? ''
+            const instructionText = item.instruksi ?? ''
+            const expiryDate = item.expiryDate
+            const batch = item.batch
+            const penyimpanan = item.caraPenyimpanan
+
+            const formattedExp = expiryDate && dayjs(expiryDate).isValid() 
+                ? dayjs(expiryDate).format('DD/MM/YYYY') 
+                : expiryDate || '-'
+
+            return `
+<div class="label-container">
+    <div class="label-top">
+        <div class="patient-info">
+            <span class="tag">PASIEN</span>
+            <span class="patient-name">${patientName.toUpperCase()}</span>
+        </div>
+    </div>
+    
+    <div class="label-mid">
+        <div class="medicine-info">
+            <div class="medicine-name">${name.toUpperCase()}</div>
+            <div class="medicine-quantity">${Math.round(quantityValue)} ${unitLabel}</div>
+        </div>
+
+        <div class="signa-box">
+            <div class="signa-label">ATURAN PAKAI</div>
+            <div class="signa-content">${instructionText || '-'}</div>
+        </div>
+    </div>
+
+    <div class="label-bottom">
+        <div class="bottom-item">
+            <span class="bottom-label">Penyimpanan:</span>
+            <span class="bottom-value">${penyimpanan || '-'}</span>
+        </div>
+        <div class="bottom-item">
+            <span class="bottom-label">Exp:</span>
+            <span class="bottom-value">${formattedExp}</span>
+        </div>
+    </div>
+</div>`
         })
         .join('')
 
@@ -80,29 +120,135 @@ export function printMedicationLabels({ patientName, items }: PrintMedicationLab
   <meta charset="UTF-8" />
   <title>Label Obat</title>
   <style>
+    @page { margin: 0; }
     body { 
-      font-family: inherit; 
-      font-size: 14px; 
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+      font-size: 11px; 
       margin: 0;
       padding: 0;
+      color: #333;
+      background: #fff;
     }
-    .label { 
-      border: 1px dashed #ccc; 
-      padding: 10px; 
-      width: 300px; 
-      margin-bottom: 15px; 
+    
+    .label-container { 
+      width: 280px; 
+      height: 150px;
+      padding: 10px;
+      margin: 0 auto 20px;
+      border: 1px solid #000;
+      display: flex;
+      flex-direction: column;
+      box-sizing: border-box;
       page-break-after: always;
+      position: relative;
+      overflow: hidden;
     }
-    .line { 
-      margin-bottom: 4px; 
-      word-wrap: break-word;
-      border-bottom: 1px dotted #eee;
-      padding-bottom: 2px;
+
+    .label-top {
+      border-bottom: 1px solid #eee;
+      padding-bottom: 5px;
+      margin-bottom: 8px;
     }
-    .line:last-child { border-bottom: none; }
+    
+    .tag {
+      font-size: 7px;
+      font-weight: 800;
+      color: #fff;
+      background: #000;
+      padding: 1px 4px;
+      border-radius: 2px;
+      margin-right: 5px;
+      vertical-align: middle;
+    }
+    
+    .patient-name {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .label-mid {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .medicine-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+    
+    .medicine-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: #000;
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .medicine-quantity {
+      font-size: 10px;
+      font-weight: 600;
+      color: #666;
+    }
+
+    .signa-box {
+      background: #f4f4f4;
+      border-radius: 4px;
+      padding: 6px;
+      text-align: center;
+      border: 1px solid #ddd;
+    }
+    
+    .signa-label {
+      font-size: 7px;
+      font-weight: 800;
+      color: #888;
+      margin-bottom: 2px;
+      letter-spacing: 1px;
+    }
+    
+    .signa-content {
+      font-size: 15px;
+      font-weight: 900;
+      color: #000;
+      line-height: 1.2;
+    }
+
+    .label-bottom {
+      margin-top: 8px;
+      border-top: 1px dashed #ccc;
+      padding-top: 5px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 9px;
+    }
+    
+    .bottom-item {
+      display: flex;
+      gap: 3px;
+    }
+    
+    .bottom-label {
+      color: #777;
+      font-weight: 600;
+    }
+    
+    .bottom-value {
+      font-weight: 700;
+      color: #000;
+    }
+
     @media print {
-      body { margin: 0; }
-      .label { border: none; padding: 0; margin-bottom: 0; width: 100%; }
+      body { padding: 0; }
+      .label-container { 
+        margin: 0; 
+        border: 1px solid #000;
+      }
     }
   </style>
 </head>
