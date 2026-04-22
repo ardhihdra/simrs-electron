@@ -58,6 +58,11 @@ export interface AuthorizingPrescriptionInfo {
         value?: string
     } | null
     requester?: { name?: string }
+    penyiapObatId?: number | null
+    pelabelObatId?: number | null
+    penyerahObatId?: number | null
+    namaPenerima?: string | null
+    hubunganPenerima?: string | null
 }
 
 export interface MedicationDispenseAttributes {
@@ -81,6 +86,11 @@ export interface MedicationDispenseAttributes {
     servicedAt?: string | null
     note?: any[] | null
     telaah?: any | null
+    penyiapObatId?: number | null
+    pelabelObatId?: number | null
+    penyerahObatId?: number | null
+    namaPenerima?: string | null
+    hubunganPenerima?: string | null
 }
 
 export interface MedicationDispenseListArgs {
@@ -158,6 +168,11 @@ export interface DispenseItemRow {
     caraPenyimpanan?: string
     note?: any[] | null
     telaah?: any | null
+    penyiapObatId?: number | null
+    pelabelObatId?: number | null
+    penyerahObatId?: number | null
+    namaPenerima?: string | null
+    hubunganPenerima?: string | null
     children?: DispenseItemRow[]
 }
 

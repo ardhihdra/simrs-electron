@@ -52,7 +52,12 @@ export const MedicationDispenseSchema = z.object({
   performerId: z.number().nullable().optional(),
   dosageInstruction: z.array(DosageInstructionEntrySchema).nullable().optional(),
   note: z.array(z.object({ text: z.string().optional() }).passthrough()).nullable().optional(),
-  receiver: z.array(z.object({ display: z.string().optional() }).passthrough()).nullable().optional()
+  receiver: z.array(z.object({ display: z.string().optional() }).passthrough()).nullable().optional(),
+  penyiapObatId: z.number().nullable().optional(),
+  pelabelObatId: z.number().nullable().optional(),
+  penyerahObatId: z.number().nullable().optional(),
+  namaPenerima: z.string().nullable().optional(),
+  hubunganPenerima: z.string().nullable().optional()
 })
 
 export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({

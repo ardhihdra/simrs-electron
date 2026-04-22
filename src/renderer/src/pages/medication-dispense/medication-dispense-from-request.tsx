@@ -9,7 +9,10 @@ import {
   App,
   Alert,
   Tag,
-  Select
+  Select,
+  Input,
+  Row,
+  Col
 } from 'antd'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
@@ -301,6 +304,11 @@ export default function MedicationDispenseFromRequest() {
   const [quantityOverrides, setQuantityOverrides] = useState<Record<number, number>>({})
   const [telaahResults, setTelaahResults] = useState<TelaahResults>({})
   const [selectedBatches, setSelectedBatches] = useState<Record<string, string>>({})
+  const [penyiapObatId, setPenyiapObatId] = useState<number | undefined>()
+  const [pelabelObatId, setPelabelObatId] = useState<number | undefined>()
+  const [penyerahObatId, setPenyerahObatId] = useState<number | undefined>()
+  const [hubunganPenerima, setHubunganPenerima] = useState<string>('Sendiri')
+  const [namaPenerima, setNamaPenerima] = useState<string>('')
 
   const { data, isLoading } = useQuery({
     queryKey: ['medicationRequest', 'detail', requestId],
@@ -413,6 +421,27 @@ export default function MedicationDispenseFromRequest() {
       return fn()
     }
   })
+
+  const { data: employeeData } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'for-medication-dispense-from-request'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) return { success: false, result: [] }
+      return fn()
+    }
+  })
+
+  const employeeOptions = useMemo(() => {
+    const source = Array.isArray(employeeData?.result)
+      ? (employeeData.result as Array<{ id?: number; namaLengkap?: string }>)
+      : []
+    return source
+      .filter(
+        (e): e is { id: number; namaLengkap: string } =>
+          typeof e.id === 'number' && typeof e.namaLengkap === 'string'
+      )
+      .map((e) => ({ value: e.id, label: e.namaLengkap }))
+  }, [employeeData])
 
   const { data: medicineData } = useQuery({
     queryKey: ['medicine', 'list'],
@@ -600,7 +629,12 @@ export default function MedicationDispenseFromRequest() {
             unit: item.unit
           },
           selectedBatches: mappedBatches,
-          telaahResults
+          telaahResults,
+          penyiapObatId,
+          pelabelObatId,
+          penyerahObatId,
+          namaPenerima: hubunganPenerima === 'Sendiri' ? '' : namaPenerima,
+          hubunganPenerima
         }
         console.log('DEBUG: Calling API with args', args)
         const result = await window.api.query.medicationDispense.createFromRequest(args as any)
@@ -1086,6 +1120,74 @@ export default function MedicationDispenseFromRequest() {
         results={telaahResults}
         onChange={setTelaahResults}
       />
+
+      <Card title="Proses Penyiapan & Penyerahan" size="small">
+        <Row gutter={[16, 16]}>
+          <Col xs={24} md={8}>
+            <div className="text-xs font-bold mb-1 uppercase opacity-60">Petugas Penyiap</div>
+            <Select
+              className="w-full"
+              placeholder="Pilih petugas penyiap"
+              options={employeeOptions}
+              value={penyiapObatId}
+              onChange={setPenyiapObatId}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Col>
+          <Col xs={24} md={8}>
+            <div className="text-xs font-bold mb-1 uppercase opacity-60">Petugas Pelabel</div>
+            <Select
+              className="w-full"
+              placeholder="Pilih petugas pelabel"
+              options={employeeOptions}
+              value={pelabelObatId}
+              onChange={setPelabelObatId}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Col>
+          <Col xs={24} md={8}>
+            <div className="text-xs font-bold mb-1 uppercase opacity-60">Petugas Penyerah</div>
+            <Select
+              className="w-full"
+              placeholder="Pilih petugas penyerah"
+              options={employeeOptions}
+              value={penyerahObatId}
+              onChange={setPenyerahObatId}
+              showSearch
+              optionFilterProp="label"
+            />
+          </Col>
+          <Col xs={24} md={12}>
+            <div className="text-xs font-bold mb-1 uppercase opacity-60">Obat Diserahkan Kepada</div>
+            <Select
+              className="w-full"
+              placeholder="Pilih hubungan"
+              options={[
+                { value: 'Sendiri', label: 'Sendiri (Pasien)' },
+                { value: 'Suami', label: 'Suami' },
+                { value: 'Istri', label: 'Istri' },
+                { value: 'Anak', label: 'Anak' },
+                { value: 'Orang Tua', label: 'Orang Tua' },
+                { value: 'Saudara', label: 'Saudara' },
+                { value: 'Lainnya', label: 'Lainnya' }
+              ]}
+              value={hubunganPenerima}
+              onChange={setHubunganPenerima}
+            />
+          </Col>
+          <Col xs={24} md={12}>
+            <div className="text-xs font-bold mb-1 uppercase opacity-60">Nama Penerima</div>
+            <Input
+              placeholder={hubunganPenerima === 'Sendiri' ? 'Pasien sendiri' : 'Masukkan nama penerima'}
+              disabled={hubunganPenerima === 'Sendiri'}
+              value={hubunganPenerima === 'Sendiri' ? '' : namaPenerima}
+              onChange={(e) => setNamaPenerima(e.target.value)}
+            />
+          </Col>
+        </Row>
+      </Card>
 
       <div className="mt-4 flex justify-end gap-2">
         <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
