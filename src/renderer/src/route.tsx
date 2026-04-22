@@ -52,6 +52,11 @@ import Expense from './pages/expense/Expense'
 import { default as ExpenseForm, default as IncomeForm } from './pages/expense/expense-form'
 import ExpenseTable from './pages/expense/expense-table'
 import HomePage from './pages/home'
+import IgdBedMapRoute from './pages/igd/IgdBedMapPage'
+import IgdDaftarRoute from './pages/igd/IgdDaftarPage'
+import { IGD_PAGE_PATHS } from './pages/igd/igd.config'
+import IgdRegistrasiRoute from './pages/igd/IgdRegistrasiPage'
+import IgdTriaseRoute from './pages/igd/IgdTriasePage'
 import Income from './pages/income/income'
 import IncomeTable from './pages/income/income-table'
 import MedicineCategoryForm from './pages/item-category/medicine-category-form'
@@ -340,6 +345,16 @@ function MainRoute() {
           <Route path="doctor" element={g('/dashboard/doctor', <DoctorEMR />)}>
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
+          </Route>
+          <Route path="igd" element={g('/dashboard/igd', <Outlet />)}>
+            <Route index element={g('/dashboard/igd', <Navigate to="daftar" replace />)} />
+            <Route path="daftar" element={g(IGD_PAGE_PATHS.daftar, <IgdDaftarRoute />)} />
+            <Route
+              path="registrasi"
+              element={g(IGD_PAGE_PATHS.registrasi, <IgdRegistrasiRoute />)}
+            />
+            <Route path="triase" element={g(IGD_PAGE_PATHS.triase, <IgdTriaseRoute />)} />
+            <Route path="bed-map" element={g(IGD_PAGE_PATHS.bedMap, <IgdBedMapRoute />)} />
           </Route>
           <Route path="ok" element={g('/dashboard/ok', <Outlet />)}>
             <Route index element={g('/dashboard/ok', <Navigate to="dashboard" replace />)} />
