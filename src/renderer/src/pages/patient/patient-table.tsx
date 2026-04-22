@@ -10,7 +10,7 @@ import { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { PatientAttributes } from 'simrs-types'
+import { PatientAttributes } from '@shared/patient'
 import RegistrationSheet from './components/RegistrationSheet'
 
 type PatientTableRow = PatientAttributes & {
@@ -104,7 +104,7 @@ const PatientTable = () => {
         loading={isLoading || isRefetching}
         action={
           <ExportButton
-            data={dataSource}
+            data={dataSource as any}
             fileName="daftar-pasien"
             columns={[
               { key: 'medicalRecordNumber', label: 'RM' },

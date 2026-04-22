@@ -31,7 +31,7 @@ export interface PatientAttributes {
   province: string
   postalCode: string
   country: string
-  religion?: string
+  religion?: string | null
   relatedPerson: RelatedPerson[]
   insuranceProvider?: string | null
   insuranceNumber?: string | null

@@ -1,54 +1,15 @@
 import { DashboardOutlined } from '@ant-design/icons'
-import { client } from '@renderer/utils/client'
-import { Card, Col, Divider, Row, Skeleton, Space, Typography } from 'antd'
-import dayjs from 'dayjs'
-import { useRef } from 'react'
+import { Card, Col, Divider, Row, Space, Typography } from 'antd'
 import { PremiumBarChart } from '../../components/atoms/charts/PremiumBarChart'
 import { PremiumDonut } from '../../components/atoms/charts/PremiumDonut'
 import SummaryCardGrid from './components/summery-card'
-import type {
-  RegistrationAnalyticsData,
-  RegistrationSummaryMetrics
-} from './types/dashboard-pendaftaran.types'
+import { DUMMY_ANALYTICS_DATA, DUMMY_SUMMARY_METRICS } from './data/dashboard-pendaftaran.data'
 
 const { Title, Text } = Typography
 
-const EMPTY_METRICS: RegistrationSummaryMetrics = {
-  totalPatientsToday: 0,
-  newPatients: 0,
-  returningPatients: 0,
-  activeQueueCount: 0,
-  averageWaitTimeMinutes: 0,
-  waitTimeStatus: 'green',
-  topClinic: { clinicName: '-', patientCount: 0 },
-  activeEncounterCount: 0
-}
-
-const EMPTY_ANALYTICS: RegistrationAnalyticsData = {
-  patientsPerHour: [],
-  patientsPerClinic: [],
-  waitTimeTrend: [],
-  patientTypeRatio: [],
-  paymentMethodRatio: []
-}
-
 export default function DashboardPendaftaran() {
-  const today = dayjs().format('YYYY-MM-DD')
-  const hasLoadedOnce = useRef(false)
-
-  const { data, isLoading } = client.outpatientReporting.getDashboardMetrics.useQuery(
-    { date: today },
-    {
-      queryKey: ['dashboard-metrics', { date: today }],
-      refetchInterval: 60 * 1000
-    }
-  )
-
-  if (!isLoading && data) hasLoadedOnce.current = true
-  const showSkeleton = isLoading && !hasLoadedOnce.current
-
-  const metrics: RegistrationSummaryMetrics = data?.result ?? EMPTY_METRICS
-  const analytics: RegistrationAnalyticsData = data?.result ?? EMPTY_ANALYTICS
+  const metrics = DUMMY_SUMMARY_METRICS
+  const analytics = DUMMY_ANALYTICS_DATA
 
   // Adapt data for PremiumBarChart (Patients Per Hour)
   const patientsPerHourData = analytics.patientsPerHour.map((p) => ({
@@ -81,7 +42,7 @@ export default function DashboardPendaftaran() {
             Dashboard Pendaftaran
           </Title>
           <Text type="secondary" className="text-xs">
-            Data real-time · Auto refresh setiap 1 menit
+            Data operasional · Preview Mode (Main Branch)
           </Text>
         </div>
       </Space>
@@ -93,11 +54,7 @@ export default function DashboardPendaftaran() {
           Ringkasan Operasional
         </Text>
         <div className="mt-3">
-          {showSkeleton ? (
-            <Skeleton active paragraph={{ rows: 2 }} />
-          ) : (
-            <SummaryCardGrid metrics={metrics} />
-          )}
+          <SummaryCardGrid metrics={metrics} />
         </div>
       </div>
 
