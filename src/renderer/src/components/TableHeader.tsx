@@ -1,6 +1,6 @@
-import { ClearOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
+import { AppstoreOutlined, ClearOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { Button, Card, Form, theme } from 'antd'
-import { ReactNode } from 'react'
+import { ComponentType, ReactNode } from 'react'
 
 export interface TableHeaderProps {
   title: string
@@ -13,7 +13,7 @@ export interface TableHeaderProps {
   loading?: boolean
   children: ReactNode
   action?: ReactNode
-  icon?: ReactNode
+  icon?: ComponentType
   stats?: ReactNode
 }
 
@@ -33,12 +33,14 @@ export const TableHeader = ({
 }: TableHeaderProps) => {
   const [form] = Form.useForm()
   const { token } = theme.useToken()
+  const IconComponent = icon ?? AppstoreOutlined
 
   return (
     <div className="flex flex-col gap-4 w-full mb-6">
       <Card
         styles={{ body: { padding: '20px 24px' } }}
         variant="borderless"
+        className="min-h-32"
         style={{
           background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
         }}
@@ -47,15 +49,13 @@ export const TableHeader = ({
           <div className="flex justify-between items-start">
             <div>
               <div className="flex items-center gap-3 mb-1">
-                {icon && (
-                  <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
-                    {icon}
-                  </div>
-                )}
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                  <IconComponent className="text-base" style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+                </div>
                 <h1 className="text-xl font-bold text-white m-0 leading-tight">{title}</h1>
               </div>
               {subtitle && (
-                <p className={`text-sm text-blue-200 m-0 ${icon ? 'ml-12' : ''}`}>{subtitle}</p>
+                <p className="text-sm text-blue-200 m-0 ml-12">{subtitle}</p>
               )}
             </div>
             <div className="flex flex-wrap items-center gap-2">

@@ -1,10 +1,4 @@
-import {
-  Button,
-  Form,
-  Input,
-  Select,
-  App as AntdApp
-} from 'antd'
+import { Button, Form, Input, Select, App as AntdApp } from 'antd'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { useNavigate, useParams } from 'react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -18,14 +12,13 @@ import {
 } from 'simrs-types'
 import { MedicationOtherItemsTable } from './components/MedicationOtherItemsTable'
 import { MedicationCompoundsSection } from './components/MedicationCompoundsSection'
-import { PatientSelectorWithService, PatientSelectorValue } from '@renderer/components/organisms/PatientSelectorWithService'
+import {
+  PatientSelectorWithService,
+  PatientSelectorValue
+} from '@renderer/components/organisms/PatientSelectorWithService'
 import { SignaCreateModal } from './components/SignaCreateModal'
 
-import {
-  FormData,
-  EncounterOptionSource,
-  EncounterListPayload
-} from './types'
+import { FormData, EncounterOptionSource, EncounterListPayload } from './types'
 import { useMedicationRequestCreate } from './hooks/useMedicationRequestCreate'
 import { useMedicationRequestUpdate } from './hooks/useMedicationRequestUpdate'
 
@@ -46,29 +39,34 @@ export function MedicationRequestForm() {
 
   // Batch options per item row
   type BatchOption = {
-    batchNumber: string;
-    expiryDate: string | null;
-    availableStock: number;
-    firstReceivedDate?: string;
+    batchNumber: string
+    expiryDate: string | null
+    availableStock: number
+    firstReceivedDate?: string
   }
   const [batchOptionsMap, setBatchOptionsMap] = useState<Map<string, BatchOption[]>>(new Map())
   const [batchLoadingMap, setBatchLoadingMap] = useState<Map<string, boolean>>(new Map())
   const [batchSortModeMap, setBatchSortModeMap] = useState<Map<string, boolean>>(new Map())
 
-  const sortBatches = useCallback((batches: BatchOption[], rowKey: string): BatchOption[] => {
-    const isFefo = batchSortModeMap.get(rowKey) ?? true
-    return [...batches].sort((a, b) => {
-      if (isFefo) {
-        if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate)
-        if (a.expiryDate) return -1
-        if (b.expiryDate) return 1
-        if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
-        return 0
-      }
-      if (a.firstReceivedDate && b.firstReceivedDate) return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
-      return a.batchNumber.localeCompare(b.batchNumber)
-    })
-  }, [batchSortModeMap])
+  const sortBatches = useCallback(
+    (batches: BatchOption[], rowKey: string): BatchOption[] => {
+      const isFefo = batchSortModeMap.get(rowKey) ?? true
+      return [...batches].sort((a, b) => {
+        if (isFefo) {
+          if (a.expiryDate && b.expiryDate) return a.expiryDate.localeCompare(b.expiryDate)
+          if (a.expiryDate) return -1
+          if (b.expiryDate) return 1
+          if (a.firstReceivedDate && b.firstReceivedDate)
+            return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
+          return 0
+        }
+        if (a.firstReceivedDate && b.firstReceivedDate)
+          return a.firstReceivedDate.localeCompare(b.firstReceivedDate)
+        return a.batchNumber.localeCompare(b.batchNumber)
+      })
+    },
+    [batchSortModeMap]
+  )
 
   useEffect(() => {
     window.api.auth.getSession().then((res) => {
@@ -171,8 +169,9 @@ export function MedicationRequestForm() {
         const unitName = item.unit?.nama ?? unitCode
         const name = item.nama ?? item.kode ?? String(item.id)
         const label = unitName ? `${name} (${unitName})` : name
-        
-        const categoryId = typeof item.itemCategoryId === 'number' ? item.itemCategoryId : (item.category?.id || null)
+
+        const categoryId =
+          typeof item.itemCategoryId === 'number' ? item.itemCategoryId : item.category?.id || null
         let categoryType = ''
         if (categoryId && itemCategoryMap.has(categoryId)) {
           categoryType = itemCategoryMap.get(categoryId) || ''
@@ -207,10 +206,11 @@ export function MedicationRequestForm() {
       const employees = requesterData.result as any[]
       const sessionId = Number(session.user.id)
       const sessionUsername = String(session.user.username || '').trim()
-      const foundEmployee = employees.find(e => 
-        e.id === sessionId || 
-        (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
-        (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+      const foundEmployee = employees.find(
+        (e) =>
+          e.id === sessionId ||
+          (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
+          (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
       )
       if (foundEmployee) form.setFieldValue('resepturId', foundEmployee.id)
     }
@@ -224,10 +224,10 @@ export function MedicationRequestForm() {
       const api = (window.api?.query as any).medicationRequest
       const res = await api.getById({ id: Number(id) })
       if (!res.success) throw new Error(res.message || 'Gagal mengambil data.')
-      
+
       const mainRecord = res.data?.result || res.data || res.result
       const groupId = mainRecord?.groupIdentifier?.value
-      
+
       if (groupId) {
         const groupRes = await api.list({ limit: 100, groupIdentifier: groupId })
         if (groupRes.success && Array.isArray(groupRes.data)) {
@@ -241,7 +241,11 @@ export function MedicationRequestForm() {
   })
 
   const { onFinish: onCreate, createLoading } = useMedicationRequestCreate(itemOptions, itemSource)
-  const { onFinish: onUpdate, updateLoading } = useMedicationRequestUpdate(id || '', itemOptions, itemSource)
+  const { onFinish: onUpdate, updateLoading } = useMedicationRequestUpdate(
+    id || '',
+    itemOptions,
+    itemSource
+  )
 
   const onFinish = (values: FormData) => {
     if (isEditMode) onUpdate(values)
@@ -268,15 +272,18 @@ export function MedicationRequestForm() {
 
       existingData.forEach((data: any) => {
         const categories = Array.isArray(data.category) ? data.category : []
-        const isCompound = categories.some((c: any) => c.code === 'compound' || c.text?.toLowerCase() === 'racikan')
+        const isCompound = categories.some(
+          (c: any) => c.code === 'compound' || c.text?.toLowerCase() === 'racikan'
+        )
         const dosageArr = Array.isArray(data.dosageInstruction) ? data.dosageInstruction : []
         const instructionText = dosageArr.length > 0 ? dosageArr[0].text : ''
         const quantityValue = data.dispenseRequest?.quantity?.value
         const quantityUnit = data.dispenseRequest?.quantity?.unit
 
         if (isCompound) {
-          const ingredients = (Array.isArray(data.supportingInformation) ? data.supportingInformation : [])
-            .filter((info: any) => (info.resourceType || info.resource_type) === 'Ingredient')
+          const ingredients = (
+            Array.isArray(data.supportingInformation) ? data.supportingInformation : []
+          ).filter((info: any) => (info.resourceType || info.resource_type) === 'Ingredient')
           mappedData.compounds?.push({
             name: data.note?.replace('[Racikan: ', '').replace(']', '') || 'Racikan',
             dosageInstruction: instructionText,
@@ -336,13 +343,20 @@ export function MedicationRequestForm() {
           <h2 className="text-xl font-bold text-gray-800">
             {isEditMode ? 'Edit Permintaan Obat' : 'Permintaan Obat Baru'}
           </h2>
-          <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>Kembali</Button>
+          <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
+            Kembali
+          </Button>
         </div>
 
         <Form form={form} layout="vertical" onFinish={onFinish}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 mb-6">
             <div className="md:col-span-2 bg-gray-50 p-0 mb-4">
-              <Form.Item noStyle shouldUpdate={(prev, curr) => prev.patientId !== curr.patientId || prev.encounterId !== curr.encounterId}>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, curr) =>
+                  prev.patientId !== curr.patientId || prev.encounterId !== curr.encounterId
+                }
+              >
                 {({ getFieldValue, setFieldsValue }) => (
                   <PatientSelectorWithService
                     initialValue={getFieldValue('encounterId')}
@@ -361,28 +375,63 @@ export function MedicationRequestForm() {
                   />
                 )}
               </Form.Item>
-              <Form.Item name="patientId" hidden><Input /></Form.Item>
-              <Form.Item name="encounterId" hidden><Input /></Form.Item>
+              <Form.Item name="patientId" hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name="encounterId" hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name="manualPatientName" hidden>
+                <Input />
+              </Form.Item>
+              <Form.Item name="manualMedicalRecordNumber" hidden>
+                <Input />
+              </Form.Item>
             </div>
 
             <div className="space-y-2">
               <Form.Item label="Lokasi/Ruangan" name="roomId">
-                <SelectAsync entity="room" display="roomCodeId" output="id" placeHolder="Pilih Lokasi" />
+                <SelectAsync
+                  entity="room"
+                  display="roomCodeId"
+                  output="id"
+                  placeHolder="Pilih Lokasi"
+                />
+              </Form.Item>
+              <Form.Item label="Status" name="status" rules={[{ required: true }]}>
+                <Select
+                  options={Object.values(MedicationRequestStatus).map((v) => ({
+                    label: v,
+                    value: v
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item label="Tujuan" name="intent" rules={[{ required: true }]}>
+                <Select
+                  options={Object.values(MedicationRequestIntent).map((v) => ({
+                    label: v,
+                    value: v
+                  }))}
+                />
+              </Form.Item>
+              <Form.Item label="Prioritas" name="priority">
+                <Select
+                  options={Object.values(MedicationRequestPriority).map((v) => ({
+                    label: v,
+                    value: v
+                  }))}
+                />
               </Form.Item>
             </div>
 
             <div className="space-y-2">
-              <Form.Item label="Status" name="status" rules={[{ required: true }]}>
-                <Select options={Object.values(MedicationRequestStatus).map((v) => ({ label: v, value: v }))} />
-              </Form.Item>
-              <Form.Item label="Tujuan" name="intent" rules={[{ required: true }]}>
-                <Select options={Object.values(MedicationRequestIntent).map((v) => ({ label: v, value: v }))} />
-              </Form.Item>
-              <Form.Item label="Prioritas" name="priority">
-                <Select options={Object.values(MedicationRequestPriority).map((v) => ({ label: v, value: v }))} />
-              </Form.Item>
               <Form.Item label="Dokter" name="requesterId">
-                <SelectAsync display="namaLengkap" entity="kepegawaian" output="id" filters={{ hakAksesId: 'doctor' }} />
+                <SelectAsync
+                  display="namaLengkap"
+                  entity="kepegawaian"
+                  output="id"
+                  filters={{ hakAksesId: 'doctor' }}
+                />
               </Form.Item>
               <Form.Item label="Reseptur" name="resepturId">
                 <SelectAsync display="namaLengkap" entity="kepegawaian" output="id" />
@@ -411,15 +460,26 @@ export function MedicationRequestForm() {
           />
 
           <div className="flex gap-3 justify-end mt-6 border-t pt-4">
-            <Button type="primary" htmlType="submit" loading={createLoading || updateLoading || isFetchingData} className="px-6 bg-orange-600 border-none">
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={createLoading || updateLoading || isFetchingData}
+              className="px-6 bg-orange-600 border-none"
+            >
               Simpan
             </Button>
-            <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>Batal</Button>
+            <Button onClick={() => navigate('/dashboard/medicine/medication-requests')}>
+              Batal
+            </Button>
           </div>
         </Form>
       </div>
 
-      <SignaCreateModal open={isSignaModalOpen} onCancel={() => setIsSignaModalOpen(false)} onSuccess={handleSignaSuccess} />
+      <SignaCreateModal
+        open={isSignaModalOpen}
+        onCancel={() => setIsSignaModalOpen(false)}
+        onSuccess={handleSignaSuccess}
+      />
     </div>
   )
 }

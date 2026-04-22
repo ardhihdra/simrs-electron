@@ -70,10 +70,32 @@ export class IpcRouter {
       try {
         const res = await final(ctx, args)
         let success: boolean | undefined
+        let error: unknown
+        let message: unknown
+        let details: unknown
         if (res && typeof res === 'object' && 'success' in (res as object)) {
-          success = (res as { success?: boolean }).success
+          const typedRes = res as {
+            success?: boolean
+            error?: unknown
+            message?: unknown
+            details?: unknown
+          }
+          success = typedRes.success
+          error = typedRes.error
+          message = typedRes.message
+          details = typedRes.details
         }
-        console.log('[ipc] result', channel, { success })
+
+        if (success === false) {
+          console.warn('[ipc] result', channel, {
+            success,
+            error,
+            message,
+            details
+          })
+        } else {
+          console.log('[ipc] result', channel, { success })
+        }
         return res
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)

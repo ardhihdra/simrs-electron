@@ -31,7 +31,6 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
 import { SelectPoli } from '@renderer/components/molecules/SelectPoli'
-import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import dayjs from 'dayjs'
 import logoUrl from '@renderer/assets/logo.png'
@@ -45,11 +44,13 @@ import { client } from '@renderer/utils/client'
 const { RangePicker } = DatePicker
 
 interface PatientListTableData {
+  no: number
   key: string
   id: string
   encounterId: string
   fhirId: string
   queueNumber: number
+  formattedQueueNumber?: string
   patient: {
     id: string
     name: string
@@ -61,7 +62,8 @@ interface PatientListTableData {
   }
   queueTicket?: {
     id: string
-    queueNumber: number
+    queueNumber: number | string
+    formattedQueueNumber?: string
     queueDate: string
     status: string
     poli?: { id: number; name: string; location: string }
@@ -90,16 +92,21 @@ const STATUS_CONFIG: Record<
   DISCHARGED: { label: 'Pulang', color: 'blue', antColor: 'processing', dotColor: '#3b82f6' }
 }
 
+const normalizePoliCode = (value: string | number) => String(value).trim().toLowerCase()
+const parseQueueNumber = (value?: number | string) => {
+  const parsed = Number.parseInt(String(value ?? '0'), 10)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
 export const DoctorPatientList = () => {
   const { modal: appModal } = App.useApp()
   const { token } = theme.useToken()
-  const { profile } = useMyProfile()
   const { session } = useModuleScopeStore()
   const [searchParams] = useSearchParams()
   const [searchText, setSearchText] = useState('')
-  const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
+  const [selectedPoli, setSelectedPoli] = useState<string | number | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>([dayjs(), dayjs()])
-  const [activeStatus, setActiveStatus] = useState<string>('all')
+  const [activeStatus, setActiveStatus] = useState<string>('IN_PROGRESS')
   const [isBulkSyncing, setIsBulkSyncing] = useState(false)
   const [syncingRows, setSyncingRows] = useState<Record<string, boolean>>({})
   const [dischargeModal, setDischargeModal] = useState<{
@@ -109,24 +116,50 @@ export const DoctorPatientList = () => {
     open: false
   })
   const isDoctorRole = session?.hakAksesId === 'doctor'
+  const isAdministrator = session?.hakAksesId === 'administrator'
   const doctorTargetId =
     isDoctorRole && session?.kepegawaianId != null ? String(session.kepegawaianId) : undefined
-  const routePoliName = searchParams.get('poliName')?.trim() || undefined
-  // const routePoliCode = searchParams.get('poliCode')?.trim() || undefined
-  const isPoliLockedFromRoute = searchParams.get('from') === 'poli-select' && Boolean(routePoliName)
+  const routePoliCode = searchParams.get('poliCode')?.trim() || undefined
+  const isPoliLockedFromRoute = searchParams.get('from') === 'poli-select' && Boolean(routePoliCode)
   // const activePoliLabel = selectedPoli || 'Semua Poli'
   // const doctorTargetLabel = useMemo(() => {
   //   if (!isDoctorRole) return undefined
   //   return profile?.username || (doctorTargetId ? `ID ${doctorTargetId}` : 'Tidak Diketahui')
   // }, [doctorTargetId, isDoctorRole, profile?.username])
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
+  const { data: poliData, isLoading: isPoliLoading } = client.visitManagement.poli.useQuery({})
+  const scopedPolis = useMemo(() => {
+    const allPolis = poliData?.result ?? []
+    return allPolis
+      .map((poli) => ({
+        id: poli.id,
+        code: String(poli.code || poli.id),
+        lokasiKerjaId:
+          typeof poli.location?.id === 'number'
+            ? poli.location.id
+            : Number.parseInt(String(poli.location?.id), 10)
+      }))
+      .filter((poli) => {
+        if (isAdministrator) return true
+        if (!session) return false
+        return poli.lokasiKerjaId === session.lokasiKerjaId
+      })
+  }, [isAdministrator, poliData?.result, session])
+  const routePoli = useMemo(() => {
+    if (!routePoliCode) return undefined
+    return scopedPolis.find(
+      (poli) => normalizePoliCode(poli.code) === normalizePoliCode(routePoliCode)
+    )
+  }, [routePoliCode, scopedPolis])
 
   useEffect(() => {
-    if (!isPoliLockedFromRoute || !routePoliName) return
-    if (selectedPoli !== routePoliName) {
-      setSelectedPoli(routePoliName)
+    if (!isPoliLockedFromRoute || !routePoliCode) return
+    if (isPoliLoading) return
+    if (!routePoli) return
+    if (selectedPoli !== routePoli.id) {
+      setSelectedPoli(routePoli.id)
     }
-  }, [isPoliLockedFromRoute, routePoliName, selectedPoli])
+  }, [isPoliLoading, isPoliLockedFromRoute, routePoli, routePoliCode, selectedPoli])
 
   const handleOpenSyncDetail = (status: SatuSehatSyncStatus | null, fhirId: string) => {
     if (!status && !fhirId) return
@@ -161,30 +194,18 @@ export const DoctorPatientList = () => {
     isLoading,
     refetch
   } = useQuery({
-    queryKey: [
-      'encounter',
-      'list',
-      selectedPoli,
-      searchText,
-      activeStatus,
-      dateRange,
-      doctorTargetId
-    ],
+    queryKey: ['encounter', 'list', selectedPoli, searchText, dateRange, doctorTargetId],
     queryFn: async () => {
       const fn = window.api?.query?.encounter?.list
       if (!fn) throw new Error('API encounter tidak tersedia')
       const params: any = {}
       if (searchText) params.q = searchText
-      if (activeStatus && activeStatus !== 'all') {
-        if (activeStatus === 'FINISHED') {
-          params.status = 'FINISHED'
-        } else {
-          params.status = activeStatus
-        }
-      } else {
-        params.status = 'IN_PROGRESS,FINISHED'
+      if (selectedPoli != null && String(selectedPoli).trim() !== '') {
+        params.poliCodeId = String(selectedPoli)
       }
-      if (selectedPoli) params.serviceType = selectedPoli
+      if (selectedPoli != null && String(selectedPoli).trim() !== '') {
+        params.poliCodeId = String(selectedPoli)
+      }
       if (doctorTargetId) params.doctorId = doctorTargetId
       if (dateRange) {
         params.startDate = dateRange[0].startOf('day').toISOString()
@@ -197,10 +218,13 @@ export const DoctorPatientList = () => {
     enabled: !isPoliLockedFromRoute || !!selectedPoli
   })
 
-  const patients: PatientListTableData[] = (encounterData?.result || []).map(
+  const allPatients: PatientListTableData[] = (encounterData?.result || []).map(
     (enc: any, index: number) => {
       const validDate = enc.patient?.birthDate ? new Date(enc.patient.birthDate) : null
       const age = validDate ? new Date().getFullYear() - validDate.getFullYear() : 0
+      const queueNumber = parseQueueNumber(enc.queueTicket?.queueNumber)
+      const formattedQueueNumber =
+        enc.queueTicket?.formattedQueueNumber || (queueNumber > 0 ? String(queueNumber) : '-')
 
       let parsedSyncStatus = null
       if (enc.satuSehatSyncStatus) {
@@ -221,7 +245,8 @@ export const DoctorPatientList = () => {
         id: enc.id,
         encounterId: enc.id,
         fhirId: enc.fhirId,
-        queueNumber: enc.queueTicket?.queueNumber || 0,
+        queueNumber,
+        formattedQueueNumber,
         patient: {
           id: enc.patient?.id || '',
           name: enc.patient?.name || 'Unknown',
@@ -234,7 +259,8 @@ export const DoctorPatientList = () => {
         queueTicket: enc.queueTicket
           ? {
               id: enc.queueTicket.id,
-              queueNumber: enc.queueTicket.queueNumber,
+              queueNumber,
+              formattedQueueNumber: enc.queueTicket.formattedQueueNumber,
               queueDate: enc.queueTicket.queueDate,
               status: enc.queueTicket.status,
               poli: enc.queueTicket.poli,
@@ -250,6 +276,18 @@ export const DoctorPatientList = () => {
       }
     }
   )
+
+  const patients: PatientListTableData[] = useMemo(() => {
+    const filtered =
+      activeStatus === 'all'
+        ? allPatients
+        : allPatients.filter((patient) => String(patient.status || '') === activeStatus)
+
+    return filtered.map((patient, index) => ({
+      ...patient,
+      no: index + 1
+    }))
+  }, [activeStatus, allPatients])
 
   const markAsInProgress = async (record: PatientListTableData) => {
     try {
@@ -319,15 +357,11 @@ export const DoctorPatientList = () => {
       const params: any = {}
       if (searchText) params.q = searchText
       if (activeStatus && activeStatus !== 'all') {
-        if (activeStatus === 'FINISHED') {
-          params.status = 'FINISHED'
-        } else {
-          params.status = activeStatus
-        }
-      } else {
-        params.status = 'IN_PROGRESS,FINISHED'
+        params.status = activeStatus
       }
-      if (selectedPoli) params.serviceType = selectedPoli
+      if (selectedPoli != null && String(selectedPoli).trim() !== '') {
+        params.poliCodeId = String(selectedPoli)
+      }
       if (doctorTargetId) params.doctorId = doctorTargetId
       if (dateRange) {
         params.startDate = dateRange[0].startOf('day').toISOString()
@@ -404,12 +438,12 @@ export const DoctorPatientList = () => {
     )
   }
 
-  const totalSynced = patients.filter(
+  const totalSynced = allPatients.filter(
     (p) => p.satuSehatSyncStatus?.encounterSynced || !!p.fhirId
   ).length
-  const totalNotSynced = patients.length - totalSynced
-  const totalInProgress = patients.filter((p) => p.status === 'IN_PROGRESS').length
-  const totalFinished = patients.filter((p) => p.status === 'FINISHED').length
+  const totalNotSynced = allPatients.length - totalSynced
+  const totalInProgress = allPatients.filter((p) => p.status === 'IN_PROGRESS').length
+  const totalFinished = allPatients.filter((p) => p.status === 'FINISHED').length
 
   const columns: ColumnsType<PatientListTableData> = [
     {
@@ -421,6 +455,20 @@ export const DoctorPatientList = () => {
       render: (num: number) => (
         <span style={{ fontSize: 12, fontWeight: 500, color: token.colorTextTertiary }}>{num}</span>
       )
+    },
+    {
+      title: 'Antrian',
+      dataIndex: 'formattedQueueNumber',
+      key: 'queueNumber',
+      width: 108,
+      align: 'center',
+      render: (queueLabel?: string) => {
+        return (
+          <Tag color="blue" bordered={false} className="font-mono font-semibold m-0">
+            {queueLabel || '-'}
+          </Tag>
+        )
+      }
     },
     {
       title: 'Pasien',
@@ -740,11 +788,11 @@ export const DoctorPatientList = () => {
   const statusTabItems = statusDisplayTabs.map(({ key, config }) => {
     let count = 0
     if (key === 'all') {
-      count = patients.length
+      count = allPatients.length
     } else if (key === 'FINISHED') {
-      count = patients.filter((p) => p.status === 'FINISHED').length
+      count = allPatients.filter((p) => p.status === 'FINISHED').length
     } else {
-      count = patients.filter((p) => p.status === key).length
+      count = allPatients.filter((p) => p.status === key).length
     }
 
     return {
@@ -850,6 +898,7 @@ export const DoctorPatientList = () => {
               </Popconfirm>
             </Space>
           </div>
+          {/* Extra children for header e.g add stats view */}
           <div className="grid grid-cols-4 gap-3">
             <div
               className="rounded-xl px-4 py-3 flex items-center gap-3"
@@ -979,7 +1028,7 @@ export const DoctorPatientList = () => {
               Unit Pelayanan
             </div>
             <SelectPoli
-              valueType="name"
+              valueType="id"
               placeholder="-- Semua Unit --"
               className="w-full"
               allowClear={!isPoliLockedFromRoute}

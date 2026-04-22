@@ -74,5 +74,7 @@ export const MedicationDispenseWithIdSchema = MedicationDispenseSchema.extend({
   authorizingPrescription: MedicationRequestWithIdSchema.nullable().optional(),
   encounter: z.object({
     encounterType: z.string().optional()
-  }).nullable().optional()
+  }).nullable().optional(),
+  telaahResults: z.any().optional(),
+  telaah: z.any().nullable().optional()
 })

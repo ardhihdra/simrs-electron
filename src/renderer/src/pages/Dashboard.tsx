@@ -5,6 +5,7 @@ import {
   DashboardOutlined,
   ExperimentOutlined,
   FileAddOutlined,
+  FileProtectOutlined,
   FileSearchOutlined,
   FileTextOutlined,
   LeftCircleFilled,
@@ -25,16 +26,12 @@ import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleSco
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
 import type { MenuProps } from 'antd'
-import { Menu, theme, Badge } from 'antd'
-import dayjs from 'dayjs'
+import { Badge, Menu, theme } from 'antd'
 import { ItemType } from 'antd/es/menu/interface'
+import dayjs from 'dayjs'
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { Modules } from 'simrs-types'
-
-// Mirrors simrs-api Modules enum — keep in sync with src/utils/constant.ts
-type Module = (typeof Modules)[keyof typeof Modules]
-
 // const SendNotificationButton = () => {
 //   const { message } = AntdApp.useApp()
 //   return (
@@ -60,6 +57,10 @@ type Module = (typeof Modules)[keyof typeof Modules]
 
 const DEFAULT_VISIBILITY_ON_UNREGISTERED_PAGE = true
 
+const needsWorkspacePicker = (hakAksesId: string | undefined | null): boolean => {
+  return hakAksesId !== 'doctor' && hakAksesId !== 'nurse'
+}
+
 type DashboardMenuChild = {
   label: string
   key: string
@@ -67,7 +68,7 @@ type DashboardMenuChild = {
 }
 
 type DashboardMenuItem = DashboardMenuChild & {
-  module?: Module
+  module?: string
   children?: DashboardMenuChild[]
 }
 
@@ -79,20 +80,69 @@ const items: DashboardMenuItem[] = [
     key: DASHBOARD_ROOT_KEY,
     icon: <DashboardOutlined />
   },
+
+  {
+    label: 'Antrian Umum',
+    key: '/dashboard/non-medic-queue',
+    icon: <UnorderedListOutlined />,
+    module: 'BILLING_KASIR',
+    children: [
+      {
+        label: 'Buka Kiosk',
+        key: '/kioska/global',
+        icon: <BarcodeOutlined />
+      },
+      {
+        label: 'Billing',
+        key: '/dashboard/non-medic-queue/billing',
+        icon: <WalletOutlined />
+      },
+      {
+        label: 'Kasir',
+        key: '/dashboard/non-medic-queue/cashier',
+        icon: <WalletOutlined />
+      },
+      {
+        label: 'Farmasi',
+        key: '/dashboard/non-medic-queue/pharmacy',
+        icon: <MedicineBoxOutlined />
+      },
+      {
+        label: 'Pendaftaran',
+        key: '/dashboard/non-medic-queue/registration',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Service Point',
+        key: '/dashboard/non-medic-queue/service-points',
+        icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Workspace Counter',
+        key: '/dashboard/non-medic-queue/workspace',
+        icon: <PhoneOutlined />
+      }
+    ]
+  },
   {
     label: 'Registrasi',
     key: '/dashboard/registration',
     icon: <CalendarOutlined />,
-    module: Modules.REGISTRASI,
+    module: 'REGISTRASI',
     children: [
+      {
+        label: 'Buka Kioska',
+        key: '/kioska/global',
+        icon: <BarcodeOutlined />
+      },
       { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
       {
         label: 'Pendaftaran',
-        key: '/dashboard/registration',
+        key: '/dashboard/registration/manage',
         icon: <DashboardOutlined />
       },
       {
-        label: 'Antrian Pasien',
+        label: 'Antrian Poli',
         key: '/dashboard/registration/select',
         icon: <DashboardOutlined />
       },
@@ -102,16 +152,22 @@ const items: DashboardMenuItem[] = [
         icon: <UnorderedListOutlined />
       },
       {
-        label: 'Kioska',
-        key: '/dashboard/registration/kioska',
-        icon: <BarcodeOutlined />
+        label: 'Antrian Global Pendaftaran',
+        key: '/dashboard/registration/global-queue',
+        icon: <UnorderedListOutlined />
       },
+      {
+        label: 'Antrian Pendaftaran Non-Medis',
+        key: '/dashboard/registration/non-medic-queue',
+        icon: <UnorderedListOutlined />
+      },
+
       // {
       //   label: 'Daftar Kunjungan',
       //   key: '/dashboard/registration/active-encounters',
       //   icon: <UnorderedListOutlined />
       // },
-      { label: 'Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
+      { label: 'Monitor Antrian', key: '/dashboard/queue', icon: <CalendarOutlined /> },
       {
         label: 'Monitor Antrian Dokter',
         key: '/dashboard/queue/monitor',
@@ -121,6 +177,11 @@ const items: DashboardMenuItem[] = [
         label: 'Jadwal Dokter',
         key: '/dashboard/registration/doctor-schedule',
         icon: <CalendarOutlined />
+      },
+      {
+        label: 'Laporan Kunjungan',
+        key: '/dashboard/registration/laporan-kunjungan',
+        icon: <FileTextOutlined />
       }
     ]
   },
@@ -128,7 +189,7 @@ const items: DashboardMenuItem[] = [
     label: 'Rawat Jalan',
     key: '/dashboard/poli',
     icon: <CalendarOutlined />,
-    module: Modules.RAWAT_JALAN,
+    module: 'RAWAT_JALAN',
     children: [
       { label: 'Poli', key: '/dashboard/poli', icon: <CalendarOutlined /> },
       {
@@ -152,7 +213,7 @@ const items: DashboardMenuItem[] = [
     label: 'Rawat Inap',
     key: '/dashboard/rawat-inap',
     icon: <CalendarOutlined />,
-    module: Modules.RAWAT_INAP,
+    module: 'RAWAT_INAP',
     children: [
       {
         label: 'Rawat Inap 1',
@@ -170,8 +231,13 @@ const items: DashboardMenuItem[] = [
     label: 'Kamar Operasi (OK)',
     key: '/dashboard/ok',
     icon: <FileTextOutlined />,
-    module: Modules.OK,
+    module: 'OK',
     children: [
+      {
+        label: 'Dashboard OK',
+        key: '/dashboard/ok/dashboard',
+        icon: <DashboardOutlined />
+      },
       {
         label: 'Pengajuan OK',
         key: '/dashboard/ok/pengajuan',
@@ -188,9 +254,10 @@ const items: DashboardMenuItem[] = [
     label: 'Farmasi',
     key: '/dashboard/medicine',
     icon: <WalletOutlined />,
-    module: Modules.FARMASI,
+    module: 'FARMASI',
     children: [
       { label: 'Dashboard Obat', key: '/dashboard/medicine', icon: <MedicineBoxOutlined /> },
+      { label: 'Pasien', key: '/dashboard/medicine/patient', icon: <UserOutlined /> },
       {
         label: 'Permintaan Obat (Resep)',
         key: '/dashboard/medicine/medication-requests',
@@ -221,7 +288,7 @@ const items: DashboardMenuItem[] = [
     label: 'Laboratorium',
     key: '/dashboard/laboratory-management',
     icon: <ExperimentOutlined />,
-    module: Modules.LAB,
+    module: 'LAB',
     children: [
       {
         label: 'Antrian',
@@ -277,60 +344,17 @@ const items: DashboardMenuItem[] = [
     label: 'Kasir & Billing',
     key: '/dashboard/kasir',
     icon: <WalletOutlined />,
-    module: Modules.BILLING_KASIR,
+    module: 'BILLING_KASIR',
     children: [
       {
-        label: 'Tagihan Pasien',
+        label: 'Billing (Verifikasi)',
+        key: '/dashboard/billing',
+        icon: <FileProtectOutlined />
+      },
+      {
+        label: 'Kasir (Pembayaran)',
         key: '/dashboard/kasir',
         icon: <FileTextOutlined />
-      }
-    ]
-  },
-  {
-    label: 'Antrian Non-Medis',
-    key: '/dashboard/non-medic-queue',
-    icon: <UnorderedListOutlined />,
-    module: Modules.BILLING_KASIR,
-    children: [
-      {
-        label: 'KIOSK Billing',
-        key: '/dashboard/non-medic-queue/kiosk/billing',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Kasir',
-        key: '/dashboard/non-medic-queue/kiosk/cashier',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Farmasi',
-        key: '/dashboard/non-medic-queue/kiosk/pharmacy',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'Billing',
-        key: '/dashboard/non-medic-queue/billing',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Kasir',
-        key: '/dashboard/non-medic-queue/cashier',
-        icon: <WalletOutlined />
-      },
-      {
-        label: 'Farmasi',
-        key: '/dashboard/non-medic-queue/pharmacy',
-        icon: <MedicineBoxOutlined />
-      },
-      {
-        label: 'Service Point',
-        key: '/dashboard/non-medic-queue/service-points',
-        icon: <UnorderedListOutlined />
-      },
-      {
-        label: 'Workspace Counter',
-        key: '/dashboard/non-medic-queue/workspace',
-        icon: <PhoneOutlined />
       }
     ]
   },
@@ -338,7 +362,7 @@ const items: DashboardMenuItem[] = [
     label: 'Sistem',
     key: '/dashboard/pegawai',
     icon: <DashboardOutlined />,
-    module: Modules.SYSTEM_ADMIN,
+    module: 'SYSTEM_ADMIN',
     children: [
       {
         label: 'Data Petugas Medis',
@@ -527,7 +551,12 @@ function Dashboard() {
                 label: (
                   <div className="flex items-center justify-between w-full pr-4">
                     <span>{child.label}</span>
-                    <Badge count={waitingBilling} size="small" offset={[10, 0]} overflowCount={99} />
+                    <Badge
+                      count={waitingBilling}
+                      size="small"
+                      offset={[10, 0]}
+                      overflowCount={99}
+                    />
                   </div>
                 )
               }
@@ -538,7 +567,12 @@ function Dashboard() {
                 label: (
                   <div className="flex items-center justify-between w-full pr-4">
                     <span>{child.label}</span>
-                    <Badge count={waitingCashier} size="small" offset={[10, 0]} overflowCount={99} />
+                    <Badge
+                      count={waitingCashier}
+                      size="small"
+                      offset={[10, 0]}
+                      overflowCount={99}
+                    />
                   </div>
                 )
               }
@@ -601,6 +635,7 @@ function Dashboard() {
     '/dashboard/rawat-inap',
     '/dashboard/poli',
     '/dashboard/kasir',
+    '/dashboard/billing',
     '/dashboard/ok',
     '/dashboard/non-medic-queue'
   ]
@@ -620,9 +655,9 @@ function Dashboard() {
   const getTopKeyFromPath = (path: string): string => {
     if (
       path.startsWith('/dashboard/doctor') &&
-      visibleItems.some((item) => item.key === '/dashboard/doctor')
+      visibleItems.some((item) => item.key === '/dashboard/poli')
     ) {
-      return '/dashboard/doctor'
+      return '/dashboard/poli'
     }
     for (const top of visibleItems) {
       const children = Array.isArray(top.children) ? top.children : []
@@ -668,6 +703,13 @@ function Dashboard() {
     if (key === KIOSKA_KEY) {
       const base = window.location.href.split('#')[0]
       window.open(`${base}#${key}`, '_blank')
+      return
+    }
+    const selectedPoli = poliKeyMeta[key]
+    if (selectedPoli && needsWorkspacePicker(session?.hakAksesId)) {
+      const params = new URLSearchParams({ selectPoli: selectedPoli.code })
+      navigate(`/dashboard/poli?${params.toString()}`)
+      setActiveSide(key)
       return
     }
     navigate(key)

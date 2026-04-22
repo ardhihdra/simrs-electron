@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Select } from 'antd'
+import { useState } from 'react'
 
 interface SelectAsyncProps {
   entity: string
@@ -12,6 +13,7 @@ interface SelectAsyncProps {
   defaultValue?: any
   disabled?: boolean
   className?: string
+  searchFields?: string
 }
 
 export const SelectAsync = ({
@@ -24,16 +26,22 @@ export const SelectAsync = ({
   value,
   defaultValue,
   disabled,
-  className
+  className,
+  searchFields = 'name'
 }: SelectAsyncProps) => {
+  const [search, setSearch] = useState<string>('')
+
   const fn = window.api.query[entity]?.listAll
   if (!fn) {
     throw new Error(`Entity ${entity} not found`)
   }
+
+  const activeFilters = search ? { ...filters, q: search, fields: searchFields } : filters
+
   const data = useQuery({
-    queryKey: [entity, filters],
+    queryKey: [entity, activeFilters],
     queryFn: () => {
-      return fn(filters)
+      return fn(activeFilters)
     },
     select: (data: any) => {
       return data.data?.map((item: any) => {
@@ -55,6 +63,10 @@ export const SelectAsync = ({
       defaultValue={defaultValue}
       disabled={disabled}
       className={className}
+      showSearch
+      onSearch={setSearch}
+      filterOption={false}
+      allowClear
     />
   )
 }

@@ -39,6 +39,8 @@ interface SelectedServiceRequestCodeValue {
   code: string
   display: string
   system?: string
+  category?: string
+  categories?: string[]
 }
 
 interface KepegawaianItem {
@@ -190,11 +192,12 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   const { message } = App.useApp()
   const session = useModuleScopeStore((state) => state.session)
 
-  const { data: serviceRequestData, isLoading, isError } = useServiceRequestByEncounter(encounterId, true)
-  const selectedCategory = Form.useWatch('category', form) as
-    | 'laboratory'
-    | 'radiology'
-    | undefined
+  const {
+    data: serviceRequestData,
+    isLoading,
+    isError
+  } = useServiceRequestByEncounter(encounterId, true)
+  const selectedCategory = Form.useWatch('category', form) as 'laboratory' | 'radiology' | undefined
   const orderMode = Form.useWatch('orderMode', form) as OrderMode | undefined
 
   const {
@@ -256,11 +259,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
 
       const response = await api.read({ id: parentPoliCodeId })
       const record =
-        response?.result ??
-        response?.data?.result ??
-        response?.data?.data ??
-        response?.data ??
-        null
+        response?.result ?? response?.data?.result ?? response?.data?.data ?? response?.data ?? null
 
       return record as PoliItem | null
     },
@@ -380,7 +379,6 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
 
   const locationOptions = useMemo(() => {
     const locations = normalizeList<LokasiKerjaItem>(locationsData)
-    console.log('apaan nih', locations)
     return (locations ?? [])
       .map((location) => {
         const numericId = Number(location.id)
@@ -422,6 +420,7 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
   const handleSubmit = async () => {
     try {
       const values = await form.validateFields()
+      console.log('cek value', values)
 
       if (values.orderMode === 'internal-referral') {
         if (!Number.isFinite(activePractitionerId)) {
@@ -436,6 +435,10 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
         const selectedServiceRequestCodes = Array.isArray(values.selectedServiceRequestCodes)
           ? (values.selectedServiceRequestCodes as SelectedServiceRequestCodeValue[])
           : []
+
+        if (selectedServiceRequestCodes.length === 0) {
+          throw new Error('Harap pilih minimal satu kode pemeriksaan')
+        }
 
         if (!parentPoliCodeId) {
           throw new Error(
@@ -483,7 +486,13 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
             masterServiceRequestCodeId: item.masterServiceRequestCodeId,
             code: item.code,
             display: item.display,
-            system: item.system
+            system: item.system,
+            categories:
+              item.categories && item.categories.length > 0
+                ? item.categories
+                : item.category
+                  ? [item.category]
+                  : undefined
           }))
         })
 
@@ -519,7 +528,10 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
       setLocationSearch('')
       setShowForm(false)
     } catch (error) {
-      if (error !== null && typeof error === 'object' && 'errorFields' in error) return
+      if (error !== null && typeof error === 'object' && 'errorFields' in error) {
+        message.warning('Harap lengkapi semua field yang wajib diisi')
+        return
+      }
       console.error('Error creating service request:', error)
       message.error(error instanceof Error ? error.message : 'Gagal menyimpan penunjang medis')
     }
@@ -616,7 +628,9 @@ export const LabRadOrderForm = ({ encounterId, patientData }: LabRadOrderFormPro
                       <Form.Item
                         name="targetLocationId"
                         label={internalLocationLabel}
-                        rules={[{ required: true, message: 'Pilih lokasi tujuan rujukan internal' }]}
+                        rules={[
+                          { required: true, message: 'Pilih lokasi tujuan rujukan internal' }
+                        ]}
                       >
                         <Select
                           showSearch

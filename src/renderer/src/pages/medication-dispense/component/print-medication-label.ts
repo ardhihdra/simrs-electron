@@ -8,6 +8,7 @@ export interface MedicationLabelItem {
     instruksi?: string
     expiryDate?: string
     batch?: string
+    caraPenyimpanan?: string
 }
 
 export interface PrintMedicationLabelParams {
@@ -49,6 +50,10 @@ export function printMedicationLabels({ patientName, items }: PrintMedicationLab
 
             if (batchExpParts.length > 0) {
                 lines.push(batchExpParts.join(' | '))
+            }
+
+            if (item.caraPenyimpanan && item.caraPenyimpanan.trim().length > 0) {
+                lines.push(`Penyimpanan: ${item.caraPenyimpanan}`)
             }
             
             return lines

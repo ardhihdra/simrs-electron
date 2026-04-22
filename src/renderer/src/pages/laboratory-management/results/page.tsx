@@ -1,13 +1,17 @@
-import { FileSearchOutlined } from '@ant-design/icons'
+import { ApartmentOutlined, FileSearchOutlined, ProfileOutlined } from '@ant-design/icons'
 import { ExportButton } from '@renderer/components/molecules/ExportButton'
 import GenericTable from '@renderer/components/organisms/GenericTable'
+import PatientInfoModal from '@renderer/components/organisms/laboratory-management/PatientInfoModal'
+import ReferralInfoModal from '@renderer/components/organisms/laboratory-management/ReferralInfoModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { client } from '@renderer/utils/client'
-import { DatePicker, Form, Input, Tag } from 'antd'
+import { Button, DatePicker, Form, Input, Space, Tag, Tooltip } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
+import type { PatientInfoCardData } from '@renderer/components/molecules/PatientInfoCard'
+import { buildPatientInfoCardData, type ReferralInfoSource } from '../table-info'
 import {
   type AncillaryCategory,
   getAncillarySectionConfig,
@@ -30,7 +34,13 @@ interface ResultRow {
   patient?: {
     name?: string
     mrn?: string
+    medicalRecordNumber?: string
+    nik?: string
+    birthDate?: string
+    address?: string
   }
+  referrals?: ReferralInfoSource[]
+  sourcePoliName?: string
   queueTicket?: {
     number?: string | number
   }
@@ -43,7 +53,13 @@ interface EncounterResultGroup {
   patient?: {
     name?: string
     mrn?: string
+    medicalRecordNumber?: string
+    nik?: string
+    birthDate?: string
+    address?: string
   }
+  referrals?: ReferralInfoSource[]
+  sourcePoliName?: string
   requestedAt?: string
   status?: string
   tests: ResultRow[]
@@ -54,7 +70,7 @@ export default function LaboratoryResults({
   section
 }: LaboratoryResultsProps = {}) {
   const navigate = useNavigate()
-  const sectionConfig = section
+const sectionConfig = section
     ? getAncillarySectionConfig(section)
     : getAncillarySectionConfigByCategory(fixedCategory)
   const [searchParams, setSearchParams] = useState({
@@ -63,6 +79,11 @@ export default function LaboratoryResults({
     patientName: '',
     status: 'COMPLETED'
   })
+  const [patientInfo, setPatientInfo] = useState<PatientInfoCardData | null>(null)
+  const [referralInfo, setReferralInfo] = useState<{
+    encounterId?: string
+    sourcePoliName?: string
+  } | null>(null)
 
   const {
     data: requestData,
@@ -79,30 +100,35 @@ export default function LaboratoryResults({
   const groupedData = useMemo<EncounterResultGroup[]>(() => {
     if (!requestData?.result) return []
 
-    const groups = requestData.result.reduce((acc: Record<string, EncounterResultGroup>, current: any) => {
-      const encounterId = String(current.encounterId || '')
-      if (!encounterId) {
-        return acc
-      }
-
-      if (!acc[encounterId]) {
-        acc[encounterId] = {
-          key: encounterId,
-          encounterId,
-          queueNumber: current.queueTicket?.number,
-          patient: current.patient,
-          requestedAt: current.requestedAt,
-          status: current.status,
-          tests: []
+    const groups = requestData.result.reduce(
+      (acc: Record<string, EncounterResultGroup>, current: any) => {
+        const encounterId = String(current.encounterId || '')
+        if (!encounterId) {
+          return acc
         }
-      }
 
-      acc[encounterId].tests.push({
-        ...current,
-        id: String(current.id)
-      })
-      return acc
-    }, {})
+        if (!acc[encounterId]) {
+          acc[encounterId] = {
+            key: encounterId,
+            encounterId,
+            queueNumber: current.queueTicket?.number,
+            patient: current.patient,
+            referrals: current.referrals,
+            sourcePoliName: current.sourcePoliName,
+            requestedAt: current.requestedAt,
+            status: current.status,
+            tests: []
+          }
+        }
+
+        acc[encounterId].tests.push({
+          ...current,
+          id: String(current.id)
+        })
+        return acc
+      },
+      {}
+    )
 
     const patientKeyword = searchParams.patientName.trim().toLowerCase()
 
@@ -114,37 +140,43 @@ export default function LaboratoryResults({
     })
   }, [requestData?.result, searchParams.patientName])
 
-  const parentColumns: ColumnsType<EncounterResultGroup> = [
-    {
-      title: 'Tgl. Selesai',
-      dataIndex: 'requestedAt',
-      key: 'requestedAt',
-      width: 150,
-      render: (date?: string) => (date ? dayjs(date).format('DD/MM/YYYY HH:mm') : '-')
-    },
-    {
-      title: 'No. Antrian',
-      dataIndex: 'queueNumber',
-      key: 'queueNumber',
-      render: (_, record) => <span className="font-semibold text-gray-700">{record.queueNumber || '-'}</span>
-    },
-    {
-      title: 'Pasien',
-      dataIndex: ['patient', 'name'],
-      key: 'patientName',
-      render: (text, record) => (
-        <div>
-          <span className="text-gray-500 text-xs">{record.patient?.mrn || '-'} - </span>
-          <span className="font-medium">{text || '-'}</span>
-        </div>
-      )
-    },
-    {
-      title: 'Total Pemeriksaan',
-      key: 'totalTests',
-      render: (_, record) => <span>{record.tests.length} Pemeriksaan</span>
-    }
-  ]
+  const parentColumns: ColumnsType<EncounterResultGroup> = useMemo(() => {
+    return [
+      {
+        title: 'Tgl. Selesai',
+        dataIndex: 'requestedAt',
+        key: 'requestedAt',
+        width: 150,
+        render: (date?: string) => (date ? dayjs(date).format('DD/MM/YYYY HH:mm') : '-')
+      },
+      {
+        title: 'No. Antrian',
+        dataIndex: 'queueNumber',
+        key: 'queueNumber',
+        render: (_, record) => (
+          <span className="font-semibold text-gray-700">{record.queueNumber || '-'}</span>
+        )
+      },
+      {
+        title: 'Pasien',
+        dataIndex: ['patient', 'name'],
+        key: 'patientName',
+        render: (text, record) => (
+          <div>
+            <span className="text-gray-500 text-xs">
+              {record.patient?.medicalRecordNumber || record.patient?.mrn || '-'} -{' '}
+            </span>
+            <span className="font-medium">{text || '-'}</span>
+          </div>
+        )
+      },
+      {
+        title: 'Total Pemeriksaan',
+        key: 'totalTests',
+        render: (_, record) => <span>{record.tests.length} Pemeriksaan</span>
+      }
+    ]
+  }, [])
 
   const childColumns: ColumnsType<ResultRow> = [
     {
@@ -179,6 +211,7 @@ export default function LaboratoryResults({
     <div className="p-4">
       <TableHeader
         title={sectionConfig.resultsTitle}
+        icon={FileSearchOutlined}
         subtitle={sectionConfig.resultsSubtitle}
         onSearch={onSearch}
         onRefresh={() => {
@@ -250,18 +283,64 @@ export default function LaboratoryResults({
           }}
           action={{
             title: 'Aksi',
-            width: 100,
-            items: (record) => [
-              {
-                label: 'Lihat',
-                icon: <FileSearchOutlined />,
-                type: 'default',
-                onClick: () => handleViewReport(record)
-              }
-            ]
+            width: 160,
+            render: (record) => (
+              <Space size="small">
+                <Tooltip title="Info Pasien">
+                  <Button
+                    size="small"
+                    icon={<ProfileOutlined />}
+                    onClick={() =>
+                      setPatientInfo(
+                        record.patient
+                          ? buildPatientInfoCardData({
+                              ...record.patient,
+                              poliName: record.sourcePoliName,
+                              visitDate: record.requestedAt,
+                              status: record.status
+                            })
+                          : null
+                      )
+                    }
+                  />
+                </Tooltip>
+                {record.sourcePoliName ? (
+                  <Tooltip title="Info Rujukan">
+                    <Button
+                      size="small"
+                      icon={<ApartmentOutlined />}
+                      onClick={() =>
+                        setReferralInfo({
+                          encounterId: record.encounterId,
+                          sourcePoliName: record.sourcePoliName
+                        })
+                      }
+                    />
+                  </Tooltip>
+                ) : null}
+                <Tooltip title="Lihat Hasil">
+                  <Button
+                    size="small"
+                    icon={<FileSearchOutlined />}
+                    onClick={() => handleViewReport(record)}
+                  />
+                </Tooltip>
+              </Space>
+            )
           }}
         />
       </div>
+      <PatientInfoModal
+        open={!!patientInfo}
+        onClose={() => setPatientInfo(null)}
+        patientData={patientInfo}
+      />
+      <ReferralInfoModal
+        open={!!referralInfo}
+        onClose={() => setReferralInfo(null)}
+        encounterId={referralInfo?.encounterId}
+        sourcePoliName={referralInfo?.sourcePoliName}
+      />
     </div>
   )
 }

@@ -39,6 +39,8 @@ export interface PatientAttributes {
   fhirId?: string | null
   fhirServer?: string | null
   fhirVersion?: string | null
+  needEmr: boolean
+  kepegawaianId?: number | null
   lastFhirUpdated?: Date | null
   lastSyncedAt?: Date | null
   // Deprecated/Removed fields but keeping optional just in case? No, clean break is better for "alignment".

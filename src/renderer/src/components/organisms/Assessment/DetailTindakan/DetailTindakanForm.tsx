@@ -28,7 +28,11 @@ import dayjs from 'dayjs'
 
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useMyProfile } from '@renderer/hooks/useProfile'
-import { useMasterTindakanList } from '@renderer/hooks/query/use-master-tindakan'
+import {
+  useMasterTindakanList,
+  type MasterTindakanItem,
+  type CategoryBpjs
+} from '@renderer/hooks/query/use-master-tindakan'
 import {
   useMasterPaketTindakanList,
   type PaketDetailItem,
@@ -47,9 +51,22 @@ import PaketTindakanTab from './PaketTindakanTab'
 import TindakanNonPaketTab from './TindakanNonPaketTab'
 import PaketBhpTab from './PaketBhpTab'
 import BhpNonPaketTab from './BhpNonPaketTab'
-import { ItemSelectorModal, ItemAttributes, ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
+import PaketOperationBreakdown from './PaketOperationBreakdown'
+import {
+  ItemSelectorModal,
+  ItemAttributes,
+  ItemOption
+} from '@renderer/components/organisms/ItemSelectorModal'
 import { ProcedureSelectorModal } from '@renderer/components/organisms/ProcedureSelectorModal'
-import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
+import {
+  DEFAULT_TARIF_KELAS_CODE,
+  DEFAULT_KELAS_TARIF_OPTIONS,
+  buildKelasTarifPriority,
+  ensureUmumOption,
+  normalizeKelasTarifValue,
+  sortKelasTarifOptions
+} from '@renderer/utils/tarif-kelas'
+import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
 
 interface DetailTindakanFormProps {
   encounterId: string
@@ -64,15 +81,6 @@ interface ItemListResponse {
 }
 
 // Using ItemAttributes defined in ItemSelectorModal
-
-const kelasOptions = [
-  { value: 'kelas_1', label: 'Kelas 1' },
-  { value: 'kelas_2', label: 'Kelas 2' },
-  { value: 'kelas_3', label: 'Kelas 3' },
-  { value: 'vip', label: 'VIP' },
-  { value: 'vvip', label: 'VVIP' },
-  { value: 'umum', label: 'Umum / Non Kelas' }
-]
 
 interface MasterTarifKomponenRef {
   jenisKomponenId?: number | string | null
@@ -120,29 +128,62 @@ interface PaketTarifHeaderRef {
   rincianTarif?: PaketTarifRincianRef[] | null
 }
 
+type InputTabKey = 'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket'
+
 export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanFormProps) => {
   const { message } = App.useApp()
   const { token } = theme.useToken()
   const [modalForm] = Form.useForm()
   const [isModalOpen, setIsModalOpen] = useState(false)
-  const [activeInputTab, setActiveInputTab] = useState<
-    'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket'
-  >('paket')
+  const [activeInputTab, setActiveInputTab] = useState<InputTabKey>('paket')
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
   const [searchPaketBhp, setSearchPaketBhp] = useState('')
-  
+  const [procedureQuery, setProcedureQuery] = useState<{
+    page: number
+    items: number
+    q?: string
+    kategori?: string
+    categoryBpjs?: CategoryBpjs
+  }>({
+    page: 1,
+    items: 10
+  })
+
   // Modals for Advanced Selection
   const [itemSelectorState, setItemSelectorState] = useState<{
-    open: boolean;
-    onSelect?: (item: ItemOption) => void;
+    open: boolean
+    onSelect?: (item: ItemOption) => void
   }>({ open: false })
 
   const [procedureSelectorState, setProcedureSelectorState] = useState<{
-    open: boolean;
-    onSelect?: (item: MasterTindakanItem) => void;
+    open: boolean
+    onSelect?: (item: MasterTindakanItem) => void
   }>({ open: false })
+  const [masterTindakanCache, setMasterTindakanCache] = useState<
+    Record<number, MasterTindakanItem>
+  >({})
   const [paketCache, setPaketCache] = useState<Record<number, any>>({})
+  const { data: kelasOptions = DEFAULT_KELAS_TARIF_OPTIONS } = useTarifKelasOptions()
+  const resolvedKelasOptions = useMemo(() => {
+    const optionMap = new Map<string, string>()
+    kelasOptions.forEach((opt) => {
+      const normalized = normalizeKelasTarifValue(opt?.value)
+      if (!normalized) return
+      if (!optionMap.has(normalized)) {
+        optionMap.set(normalized, String(opt?.label || '').trim() || normalized)
+      }
+    })
+
+    return ensureUmumOption(
+      sortKelasTarifOptions(
+        Array.from(optionMap.entries()).map(([value, label]) => ({
+          value,
+          label
+        }))
+      )
+    )
+  }, [kelasOptions])
   const [paketBhpCache, setPaketBhpCache] = useState<Record<number, any>>({})
   const [masterTindakanDetailCache, setMasterTindakanDetailCache] = useState<
     Record<number, MasterTindakanDetailRef | null>
@@ -153,6 +194,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const { profile } = useMyProfile()
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
+  const encounterType = patientData?.encounter?.encounterType || ''
+  const isRawatJalan = encounterType === 'AMB' || encounterType === 'ambulatory'
+  const defaultKelas = isRawatJalan ? 'umum' : undefined
 
   const { data: performers = [], isLoading: isLoadingPerformers } = usePerformers([
     'doctor',
@@ -160,14 +204,118 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     'bidan'
   ])
 
-  const { data: masterTindakanList = [], isLoading: isLoadingMaster } = useMasterTindakanList({
-    q: searchTindakan || undefined,
-    items: 10,
-    status: 'active'
-  })
+  const { data: masterTindakanResponse, isLoading: isLoadingMaster } = useMasterTindakanList(
+    {
+      page: procedureQuery.page,
+      items: procedureQuery.items,
+      q: procedureQuery.q || undefined,
+      kategori: procedureQuery.kategori || undefined,
+      categoryBpjs: procedureQuery.categoryBpjs,
+      status: 'active'
+    },
+    {
+      enabled: procedureSelectorState.open
+    }
+  )
+  const masterTindakanList = masterTindakanResponse?.rows ?? []
+  const masterTindakanPagination = masterTindakanResponse?.pagination
+
+  useEffect(() => {
+    if (!procedureSelectorState.open) return
+    setProcedureQuery((prev) => ({ ...prev, page: 1 }))
+  }, [procedureSelectorState.open])
+
+  useEffect(() => {
+    if (!Array.isArray(masterTindakanList) || masterTindakanList.length === 0) return
+    setMasterTindakanCache((prev) => {
+      const next = { ...prev }
+      masterTindakanList.forEach((item) => {
+        const id = Number(item.id)
+        if (!Number.isFinite(id) || id <= 0) return
+        next[id] = item
+      })
+      return next
+    })
+  }, [masterTindakanList])
+
+  const handleProcedureSearchChange = useCallback((value: string) => {
+    const normalized = value.trim()
+    setProcedureQuery((prev) => {
+      if ((prev.q || '') === normalized && prev.page === 1) return prev
+      return {
+        ...prev,
+        q: normalized || undefined,
+        page: 1
+      }
+    })
+  }, [])
+
+  const handleProcedureCategoryChange = useCallback((value?: string) => {
+    setProcedureQuery((prev) => {
+      if ((prev.kategori || undefined) === (value || undefined) && prev.page === 1) return prev
+      return {
+        ...prev,
+        kategori: value || undefined,
+        page: 1
+      }
+    })
+  }, [])
+
+  const handleProcedureBpjsCategoryChange = useCallback((value?: CategoryBpjs) => {
+    setProcedureQuery((prev) => {
+      if ((prev.categoryBpjs || undefined) === (value || undefined) && prev.page === 1) return prev
+      return {
+        ...prev,
+        categoryBpjs: value || undefined,
+        page: 1
+      }
+    })
+  }, [])
+
+  const handleProcedurePageChange = useCallback((page: number, pageSize: number) => {
+    setProcedureQuery((prev) => {
+      if (prev.page === page && prev.items === pageSize) return prev
+      return {
+        ...prev,
+        page,
+        items: pageSize
+      }
+    })
+  }, [])
+
+  const procedureCategoryOptions = useMemo(() => {
+    const categories = new Set<string>()
+    Object.values(masterTindakanCache).forEach((item) => {
+      const kategori = String(item.kategoriTindakan || '').trim()
+      if (kategori) categories.add(kategori)
+    })
+    masterTindakanList.forEach((item) => {
+      const kategori = String(item.kategoriTindakan || '').trim()
+      if (kategori) categories.add(kategori)
+    })
+    return Array.from(categories)
+      .sort((left, right) => left.localeCompare(right))
+      .map((value) => ({ value, label: value }))
+  }, [masterTindakanCache, masterTindakanList])
+
+  const masterTindakanDisplayList = useMemo(() => {
+    const map = new Map<number, MasterTindakanItem>()
+    Object.values(masterTindakanCache).forEach((item) => {
+      const id = Number(item.id)
+      if (!Number.isFinite(id) || id <= 0) return
+      map.set(id, item)
+    })
+    masterTindakanList.forEach((item) => {
+      const id = Number(item.id)
+      if (!Number.isFinite(id) || id <= 0) return
+      map.set(id, item)
+    })
+    return Array.from(map.values())
+  }, [masterTindakanCache, masterTindakanList])
 
   const { data: paketList = [], isLoading: isLoadingPaket } = useMasterPaketTindakanList({
     q: searchPaket || undefined,
+    isPaketOk: false,
     items: 10,
     depth: 1
   })
@@ -249,7 +397,13 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const res = await api.read({ id })
       const plain = (res?.result ?? res?.data ?? null) as any
       if (!plain) return null
-      return { id: Number(plain.id), kode: String(plain.kode || '').trim().toUpperCase(), nama: String(plain.nama || '') }
+      return {
+        id: Number(plain.id),
+        kode: String(plain.kode || '')
+          .trim()
+          .toUpperCase(),
+        nama: String(plain.nama || '')
+      }
     },
     enabled: !!session?.lokasiKerjaId
   })
@@ -260,12 +414,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return lokasiKerjaFromSession.kode
       }
       if (myEmployeeData) {
-        const contracts = Array.isArray(myEmployeeData.kontrakPegawai) ? myEmployeeData.kontrakPegawai : []
+        const contracts = Array.isArray(myEmployeeData.kontrakPegawai)
+          ? myEmployeeData.kontrakPegawai
+          : []
         const active = contracts[0] // list.ts sorts by date desc
         if (active?.kodeLokasiKerja) return String(active.kodeLokasiKerja).trim().toUpperCase()
         if (active?.lokasiKerja?.kode) return String(active.lokasiKerja.kode).trim().toUpperCase()
       }
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     return 'GUDANG' // fallback
   }, [lokasiKerjaFromSession, myEmployeeData])
 
@@ -275,11 +433,21 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     queryFn: async () => {
       const api = (window.api?.query as any)?.inventoryStock
       const fn = api?.listByLocation
-      console.log('[BHP][Debug] call by-location, fn exists:', !!fn, 'kodeLokasi:', currentWorkLocation)
+      console.log(
+        '[BHP][Debug] call by-location, fn exists:',
+        !!fn,
+        'kodeLokasi:',
+        currentWorkLocation
+      )
       if (!fn) return null
       let res: any = null
       try {
-        res = await fn({ kodeLokasi: String(currentWorkLocation || '').trim().toUpperCase(), items: 1000 })
+        res = await fn({
+          kodeLokasi: String(currentWorkLocation || '')
+            .trim()
+            .toUpperCase(),
+          items: 1000
+        })
       } catch (e) {
         console.error('[BHP][Debug] by-location error:', e)
         return null
@@ -299,11 +467,22 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     const map = new Map<string, number>()
     try {
       const locs = Array.isArray(locationStockData) ? locationStockData : []
-      const target = String(currentWorkLocation || '').trim().toUpperCase()
-      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
+      const target = String(currentWorkLocation || '')
+        .trim()
+        .toUpperCase()
+      const current =
+        (locs[0] as any) ||
+        locs.find(
+          (l: any) =>
+            String(l?.kodeLokasi || '')
+              .trim()
+              .toUpperCase() === target
+        )
       const items = Array.isArray(current?.items) ? current.items : []
       items.forEach((it: any) => {
-        const kode = String(it.kodeItem || '').trim().toUpperCase()
+        const kode = String(it.kodeItem || '')
+          .trim()
+          .toUpperCase()
         if (kode) map.set(kode, Number(it.availableStock || 0))
       })
     } catch (err) {
@@ -313,20 +492,35 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   }, [locationStockData, currentWorkLocation])
 
   const { data: fallbackBatchStocks } = useQuery({
-    queryKey: ['inventoryStock', 'batches-by-location', currentWorkLocation, (consumableItems || []).map((i) => i.kode).join(',')],
+    queryKey: [
+      'inventoryStock',
+      'batches-by-location',
+      currentWorkLocation,
+      (consumableItems || []).map((i) => i.kode).join(',')
+    ],
     queryFn: async () => {
       const api = (window.api?.query as any)?.inventoryStock
       const fn = api?.listBatchesByLocation
-      const kodeLokasi = String(currentWorkLocation || '').trim().toUpperCase()
+      const kodeLokasi = String(currentWorkLocation || '')
+        .trim()
+        .toUpperCase()
       if (!fn || !kodeLokasi) return null
       const codes = (consumableItems || [])
-        .map((it) => String(it.kode || '').trim().toUpperCase())
+        .map((it) =>
+          String(it.kode || '')
+            .trim()
+            .toUpperCase()
+        )
         .filter((s) => !!s)
       const out: Record<string, number> = {}
       for (const kodeItem of codes.slice(0, 100)) {
         try {
           const res = await fn({ kodeItem, kodeLokasi })
-          const arr = Array.isArray((res as any)?.result) ? (res as any).result : Array.isArray(res) ? (res as any) : []
+          const arr = Array.isArray((res as any)?.result)
+            ? (res as any).result
+            : Array.isArray(res)
+              ? (res as any)
+              : []
           const total = arr.reduce((sum: number, b: any) => sum + Number(b?.availableStock || 0), 0)
           out[kodeItem] = total
         } catch (e) {
@@ -335,7 +529,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       }
       return out
     },
-    enabled: !locationStockData || (Array.isArray(locationStockData) && locationStockData.length === 0)
+    enabled:
+      !locationStockData || (Array.isArray(locationStockData) && locationStockData.length === 0)
   })
 
   const fallbackStockByItemMap = useMemo(() => {
@@ -344,11 +539,15 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const obj = fallbackBatchStocks as Record<string, number> | null
       if (obj && typeof obj === 'object') {
         Object.entries(obj).forEach(([kode, qty]) => {
-          const key = String(kode || '').trim().toUpperCase()
+          const key = String(kode || '')
+            .trim()
+            .toUpperCase()
           if (key) map.set(key, Number(qty || 0))
         })
       }
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     return map
   }, [fallbackBatchStocks])
 
@@ -360,14 +559,25 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     const set = new Set<number>()
     try {
       const locs = Array.isArray(locationStockData) ? locationStockData : []
-      const target = String(currentWorkLocation || '').trim().toUpperCase()
-      const current = (locs[0] as any) || locs.find((l: any) => String(l?.kodeLokasi || '').trim().toUpperCase() === target)
+      const target = String(currentWorkLocation || '')
+        .trim()
+        .toUpperCase()
+      const current =
+        (locs[0] as any) ||
+        locs.find(
+          (l: any) =>
+            String(l?.kodeLokasi || '')
+              .trim()
+              .toUpperCase() === target
+        )
       const items = Array.isArray(current?.items) ? current.items : []
       items.forEach((it: any) => {
         const idVal = Number(it.itemId ?? it.id)
         if (Number.isFinite(idVal) && idVal > 0) set.add(idVal)
       })
-    } catch { /* empty */ }
+    } catch {
+      /* empty */
+    }
     return set
   }, [locationStockData, currentWorkLocation])
 
@@ -428,9 +638,19 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         kode: i.kode,
         nama: i.nama
       }))
-      console.log('[BHP][Debug] consumableItems preview:', preview, 'total:', (consumableItems || []).length)
+      console.log(
+        '[BHP][Debug] consumableItems preview:',
+        preview,
+        'total:',
+        (consumableItems || []).length
+      )
       const stockPreview = Array.from(stockByItemMap.entries()).slice(0, 10)
-      console.log('[BHP][Debug] stockByItemMap preview:', stockPreview, 'size:', stockByItemMap.size)
+      console.log(
+        '[BHP][Debug] stockByItemMap preview:',
+        stockPreview,
+        'size:',
+        stockByItemMap.size
+      )
     } catch (e) {
       console.log('[BHP][Debug] consumableItems log error:', e)
     }
@@ -443,13 +663,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         const unitCodeRaw = typeof item.kodeUnit === 'string' ? item.kodeUnit : item.unit?.kode
         const unitCode = unitCodeRaw ? unitCodeRaw.trim().toUpperCase() : ''
         const unitName = item.unit?.nama ?? unitCode
-        
+
         const code = typeof item.kode === 'string' ? item.kode.trim().toUpperCase() : ''
         const name = item.nama ?? code
         const displayName = name || code || String(item.id)
         const label = unitName ? `${displayName} (${unitName})` : displayName
-        
-        const categoryId = typeof item.itemCategoryId === 'number' ? item.itemCategoryId : (item.category?.id ?? null)
+
+        const categoryId =
+          typeof item.itemCategoryId === 'number'
+            ? item.itemCategoryId
+            : (item.category?.id ?? null)
         const categoryType = item.category?.categoryType?.toLowerCase() || 'item'
 
         return {
@@ -492,7 +715,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             missingFromLocation.push(`ID:${bhp.itemId}`)
             continue
           }
-          const kode = String(item.kode || '').trim().toUpperCase()
+          const kode = String(item.kode || '')
+            .trim()
+            .toUpperCase()
           const stock = stockByItemMap.get(kode)
 
           if (stock === undefined) {
@@ -545,7 +770,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             missingFromLocation.push(`ID:${bhp.itemId}`)
             continue
           }
-          const kode = String(item.kode || '').trim().toUpperCase()
+          const kode = String(item.kode || '')
+            .trim()
+            .toUpperCase()
           const stock = stockByItemMap.get(kode)
 
           if (stock === undefined) {
@@ -580,13 +807,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     [listJenisKomponen]
   )
 
-  const normalizeKelas = useCallback(
-    (value: unknown) =>
-      String(value ?? '')
-        .trim()
-        .toLowerCase(),
-    []
-  )
+  const normalizeKelas = useCallback((value: unknown) => normalizeKelasTarifValue(value), [])
 
   const isDateWithinPeriod = useCallback(
     (tanggal: string, from?: string | null, to?: string | null) => {
@@ -602,8 +823,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const pickTarifForKelasAndDate = useCallback(
     (tarifList: MasterTarifTindakanRef[], kelas: string, tanggal: string) => {
-      const kelasTarget = normalizeKelas(kelas)
-      const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+      const kelasPriority = buildKelasTarifPriority(kelas)
 
       const candidates = (tarifList || [])
         .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
@@ -673,8 +893,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         : []
       if (tarifList.length === 0) return []
 
-      const kelasTarget = normalizeKelas(entry?.kelas)
-      const kelasPriority = Array.from(new Set([kelasTarget, 'umum'].filter(Boolean)))
+      const kelasPriority = buildKelasTarifPriority(entry?.kelas)
       const pickedTarif = [...tarifList]
         .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
         .sort((a, b) => {
@@ -894,7 +1113,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   ])
 
   const tindakanOptions = useMemo(() => {
-    const list = masterTindakanList.map((t) => ({
+    const list = masterTindakanDisplayList.map((t) => ({
       value: t.id,
       label: `[${t.kodeTindakan}] ${t.namaTindakan}${t.kategoriTindakan ? ` — ${t.kategoriTindakan}` : ''}`
     }))
@@ -925,7 +1144,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       })
     }
     return list
-  }, [masterTindakanList, paketList, currentTindakanList])
+  }, [masterTindakanDisplayList, paketList, currentTindakanList])
 
   const paketOptions = useMemo(() => {
     const optionMap = new Map<number, any>()
@@ -954,6 +1173,29 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const createMutation = useCreateDetailTindakan(encounterId)
   const updateMutation = useUpdateDetailTindakan(encounterId)
   const voidMutation = useVoidDetailTindakan(encounterId)
+
+  const normalizeToValidKelas = useCallback(
+    (value: unknown): string => {
+      const normalized = normalizeKelasTarifValue(value)
+      return kelasOptions.some((opt) => opt.value === normalized) ? normalized : ''
+    },
+    [kelasOptions]
+  )
+
+  const resolveEncounterDefaultKelas = useCallback((): string => {
+    const candidates = [
+      patientData?.encounter?.kelasId,
+      patientData?.kelasTarif,
+      patientData?.kelas?.id
+    ]
+
+    for (const candidate of candidates) {
+      const normalized = normalizeToValidKelas(candidate)
+      if (normalized) return normalized
+    }
+
+    return DEFAULT_TARIF_KELAS_CODE
+  }, [normalizeToValidKelas, patientData])
 
   const mergeBhpList = (existingBhpList: any[], incomingBhpList: any[]) => {
     const merged = new Map<
@@ -991,7 +1233,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const handlePaketEntryChange = (entryIndex: number, rawPaketId?: number) => {
     const currentEntries = modalForm.getFieldValue('paketEntries') || []
-    const entryKelas = currentEntries?.[entryIndex]?.kelas
+    const entryKelas =
+      normalizeToValidKelas(currentEntries?.[entryIndex]?.kelas) ||
+      normalizeToValidKelas(modalForm.getFieldValue('kelas')) ||
+      DEFAULT_TARIF_KELAS_CODE
     const paketId = Number(rawPaketId)
     if (!Number.isFinite(paketId) || paketId <= 0) {
       modalForm.setFieldsValue({
@@ -1025,7 +1270,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       const tindakan = getDetailMasterTindakan(d)
       return {
         masterTindakanId: d.masterTindakanId,
-        kelas: entryKelas ?? (d as any)?.kelas ?? undefined,
+        kelas: entryKelas || normalizeToValidKelas((d as any)?.kelas) || DEFAULT_TARIF_KELAS_CODE,
         paketId: Number(selected.id),
         paketDetailId: d.id,
         jumlah: Number(d.qty ?? 1),
@@ -1188,6 +1433,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return !entry?.kelas
       })
       if (missingKelasIdx >= 0) {
+        setActiveInputTab('paket')
         message.error(`Kelas wajib dipilih pada Paket #${missingKelasIdx + 1}`)
         return
       }
@@ -1203,6 +1449,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return entryPetugas.length === 0
       })
       if (missingPetugasIdx >= 0) {
+        setActiveInputTab('paket')
         message.error(
           `Role tenaga medis belum tersedia pada Paket #${missingPetugasIdx + 1}. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.`
         )
@@ -1219,6 +1466,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         )
       )
       if (invalidBhpPaketIdx >= 0) {
+        setActiveInputTab('paket')
         message.error(
           `Jumlah BHP pada Paket #${invalidBhpPaketIdx + 1} harus bilangan bulat (1, 2, 3, ...).`
         )
@@ -1234,6 +1482,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         (item: any) => item?.masterTindakanId && !item?.kelas
       )
       if (missingKelasNonPaketIdx >= 0) {
+        setActiveInputTab('non-paket')
         message.error(`Kelas wajib dipilih pada Tindakan Non-Paket #${missingKelasNonPaketIdx + 1}`)
         return
       }
@@ -1246,6 +1495,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return itemPetugas.length === 0
       })
       if (missingPetugasNonPaketIdx >= 0) {
+        setActiveInputTab('non-paket')
         message.error(
           `Role tenaga medis belum tersedia pada Tindakan Non-Paket #${missingPetugasNonPaketIdx + 1}. Pastikan tindakan di kelas terpilih memiliki komponen jasa medis, lalu isi nama petugas.`
         )
@@ -1253,6 +1503,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       }
 
       if (hasNonPaketBhp && !hasNonPaketTindakan) {
+        setActiveInputTab('bhp-non-paket')
         message.error('BHP non-paket hanya bisa disimpan jika ada minimal 1 tindakan non-paket')
         return
       }
@@ -1265,6 +1516,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
             !Number.isInteger(Number(bhp.jumlah)))
       )
       if (invalidBhpQty) {
+        setActiveInputTab('bhp-non-paket')
         message.error('Jumlah BHP non-paket harus bilangan bulat (1, 2, 3, ...).')
         return
       }
@@ -1298,25 +1550,50 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     }
   }
 
+  const resolveInputTabByFieldName = (namePath: (string | number)[]): InputTabKey => {
+    const rootName = String(namePath?.[0] ?? '')
+    if (rootName === 'paketEntries') return 'paket'
+    if (rootName === 'tindakanList') return 'non-paket'
+    if (rootName === 'paketBhpEntries') return 'paket-bhp'
+    if (rootName === 'bhpList') return 'bhp-non-paket'
+    return 'paket'
+  }
+
+  const handleFormFinishFailed = (errorInfo: {
+    errorFields?: Array<{ name: (string | number)[]; errors?: string[] }>
+  }) => {
+    const firstFieldWithError = (errorInfo?.errorFields || []).find(
+      (field) => Array.isArray(field?.errors) && field.errors.length > 0
+    )
+    const targetTab = resolveInputTabByFieldName(firstFieldWithError?.name || [])
+    setActiveInputTab(targetTab)
+
+    const firstMessage =
+      firstFieldWithError?.errors?.[0] || 'Periksa kembali data form yang wajib diisi.'
+    message.error(`Validasi Form: ${firstMessage}`)
+
+    if (Array.isArray(firstFieldWithError?.name) && firstFieldWithError.name.length > 0) {
+      try {
+        modalForm.scrollToField(firstFieldWithError.name)
+      } catch {
+        // noop
+      }
+    }
+  }
+
   const handleOpenModal = () => {
     modalForm.resetFields()
     setEditingId(null)
     setInitialPetugas([])
     setInitialPaketPetugas({})
     setActiveInputTab('paket')
-    const fallbackKelas = patientData?.encounter?.kelasId || patientData?.kelas?.id || undefined
-    const matchedKelas = kelasOptions.find(
-      (opt) =>
-        opt.value === fallbackKelas ||
-        opt.value === `kelas_${fallbackKelas}` ||
-        opt.label.toLowerCase().includes(String(fallbackKelas).toLowerCase())
-    )
+    const fallbackKelas = resolveEncounterDefaultKelas()
 
     modalForm.setFieldsValue({
       assessment_date: dayjs(),
-      kelas: matchedKelas?.value || fallbackKelas,
+      kelas: fallbackKelas,
       petugasList: [],
-      tindakanList: [{ jumlah: 1, cyto: false }],
+      tindakanList: [{ jumlah: 1, cyto: false, kelas: defaultKelas }],
       bhpList: [],
       paketCytoGlobal: false,
       paketIds: [],
@@ -1333,20 +1610,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     const assessment_date = dayjs(record.tanggalTindakan)
     const cytoGlobal = Boolean(record.cyto)
 
-    const fallbackKelas = patientData?.encounter?.kelasId || patientData?.kelas?.id || undefined
-    const matchedKelas = kelasOptions.find(
-      (opt) =>
-        opt.value === fallbackKelas ||
-        opt.value === `kelas_${fallbackKelas}` ||
-        opt.label.toLowerCase().includes(String(fallbackKelas).toLowerCase())
-    )
-
-    let kelasGlobal = matchedKelas?.value || fallbackKelas
-    if (record.tindakanNonPaket?.length > 0 && record.tindakanNonPaket[0].kelas) {
-      kelasGlobal = record.tindakanNonPaket[0].kelas
-    } else if (record.tindakanPaket?.length > 0 && record.tindakanPaket[0].kelas) {
-      kelasGlobal = record.tindakanPaket[0].kelas
-    }
+    const fallbackKelas = resolveEncounterDefaultKelas()
+    const tindakanNonPaketKelas = normalizeToValidKelas(record?.tindakanNonPaket?.[0]?.kelas)
+    const tindakanPaketKelas = normalizeToValidKelas(record?.tindakanPaket?.[0]?.kelas)
+    let kelasGlobal = tindakanNonPaketKelas || tindakanPaketKelas || fallbackKelas
 
     const flatPetugasDB = (record.tindakanPelaksanaList || []).map((p: any) => ({
       roleTenaga: p.roleTenaga,
@@ -1362,7 +1629,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           newInitialPaket[t.paketId] = flatPetugasDB // Share db officers to all packages initially
           paketEntriesMap.set(t.paketId, {
             paketId: t.paketId,
-            kelas: t.kelas || kelasGlobal,
+            kelas: normalizeToValidKelas(t.kelas) || kelasGlobal,
             tindakanList: [],
             bhpList: [],
             petugasList: flatPetugasDB
@@ -1372,7 +1639,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           masterTindakanId: t.paketDetail?.masterTindakanId,
           paketId: t.paketId,
           paketDetailId: t.paketDetailId,
-          kelas: t.kelas || kelasGlobal,
+          kelas: normalizeToValidKelas(t.kelas) || kelasGlobal,
           jumlah: Number(t.qty),
           satuan: t.satuan,
           cyto: t.cyto,
@@ -1403,14 +1670,13 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
     const tindakanList = (record.tindakanNonPaket || []).map((t: any) => ({
       masterTindakanId: t.masterTindakanId,
-      kelas: t.kelas || kelasGlobal,
+      kelas: normalizeToValidKelas(t.kelas) || kelasGlobal,
       jumlah: Number(t.qty),
       satuan: t.satuan,
       cyto: t.cyto,
       catatanTambahan: t.catatanTambahan,
       petugasList: flatPetugasDB
     }))
-    if (tindakanList.length === 0) tindakanList.push({ jumlah: 1, cyto: false, petugasList: [] })
 
     const bhpList = (record.bhpNonPaket || []).map((b: any) => ({
       itemId: b.itemId,
@@ -1447,34 +1713,22 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const renderExpandedRecord = (record: any) => {
     const tabItems: any[] = []
-
-    const paketColumns = [
-      { title: 'Dari Paket', dataIndex: 'namaPaket', key: 'namaPaket' },
-      { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
-      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 60, align: 'center' as const },
-      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 80 },
-      {
-        title: 'Cyto',
-        dataIndex: 'cyto',
-        key: 'cyto',
-        width: 70,
-        align: 'center' as const,
-        render: (_: any, rec: any) =>
-          rec.cyto === true || String(rec.cyto).toLowerCase() === 'true' ? (
-            <Tag color="error" style={{ margin: 0 }}>
-              Cyto
-            </Tag>
-          ) : (
-            <span className="text-slate-400">Tidak</span>
-          )
-      },
-      {
-        title: 'Catatan Tambahan',
-        dataIndex: 'catatanTambahan',
-        key: 'catatanTambahan',
-        render: (val: string) => val || '-'
-      }
-    ]
+    const paketRows: Array<{
+      key: string
+      namaPaket: string
+      item: string
+      qty: number
+      satuan: string
+      cyto: boolean
+      catatanTambahan: string | null
+    }> = []
+    const paketBhpRows: Array<{
+      key: string
+      namaPaket: string
+      item: string
+      qty: number
+      satuan: string
+    }> = []
 
     const nonPaketColumns = [
       { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
@@ -1526,13 +1780,6 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       }
     ]
 
-    const paketBhpColumns = [
-      { title: 'Dari Paket', dataIndex: 'namaPaket', key: 'namaPaket' },
-      { title: 'Item / Nama', dataIndex: 'item', key: 'item' },
-      { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 60, align: 'center' as const },
-      { title: 'Satuan', dataIndex: 'satuan', key: 'satuan', width: 80 }
-    ]
-
     const bhpNonPaketColumns = [
       { title: 'Item BHP', dataIndex: 'item', key: 'item' },
       { title: 'Qty', dataIndex: 'qty', key: 'qty', width: 80, align: 'center' as const },
@@ -1547,15 +1794,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         item: t.namaTindakan || '-',
         qty: Number(t.jumlah || t.qty || 1),
         satuan: t.satuan || '-',
-        informasiDetail: t.kelas ? `Kelas ${t.kelas}` : '-',
         cyto: Boolean(t.cyto),
         catatanTambahan: t.catatanTambahan
       }))
-      tabItems.push({
-        key: 'paket',
-        label: `Paket (${data.length})`,
-        children: <Table columns={paketColumns} dataSource={data} pagination={false} size="small" />
-      })
+      paketRows.push(...data)
     }
 
     // 2. Tindakan Non Paket
@@ -1618,13 +1860,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         qty: Number(t.jumlah || t.qty || 1),
         satuan: t.satuan || '-'
       }))
-      tabItems.push({
-        key: 'paketBhp',
-        label: `Pkt. BHP (${data.length})`,
-        children: (
-          <Table columns={paketBhpColumns} dataSource={data} pagination={false} size="small" />
-        )
-      })
+      paketBhpRows.push(...data)
     }
 
     // 6. BHP Non Paket
@@ -1644,20 +1880,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       })
     }
 
-    if (tabItems.length === 0) {
-      return (
-        <div className="py-6 px-4 text-center text-slate-400 bg-slate-50/50 italic text-sm border-t border-slate-200">
-          - Belum ada detail data -
-        </div>
-      )
-    }
-
     return (
-      <div className="p-4 sm:p-5 bg-slate-50 shadow-inner border-y border-slate-200">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-          <Tabs items={tabItems} size="small" />
-        </div>
-      </div>
+      <PaketOperationBreakdown
+        paketRows={paketRows}
+        paketBhpRows={paketBhpRows}
+        extraTabItems={tabItems}
+      />
     )
   }
 
@@ -1760,7 +1988,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   return (
     <div className="flex flex-col gap-4">
       <Card
-        title={"Detail Tindakan Medis"}
+        title={'Detail Tindakan Medis'}
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenModal}>
             Catat Tindakan Baru
@@ -1820,14 +2048,13 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           form={modalForm}
           layout="vertical"
           onFinish={handleSubmit}
+          onFinishFailed={handleFormFinishFailed}
           className="flex! flex-col! gap-4!"
           initialValues={{ assessment_date: dayjs(), petugasList: [] }}
         >
           <Tabs
             activeKey={activeInputTab}
-            onChange={(key) =>
-              setActiveInputTab(key as 'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket')
-            }
+            onChange={(key) => setActiveInputTab(key as InputTabKey)}
             size="small"
             items={[
               {
@@ -1842,7 +2069,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     isLoadingPaket={isLoadingPaket}
                     paketOptions={filteredPaketOptions}
                     handlePaketEntryChange={handlePaketEntryChange}
-                    kelasOptions={kelasOptions}
+                    kelasOptions={resolvedKelasOptions}
                     tindakanOptions={tindakanOptions}
                     consumableItemOptions={consumableItemOptions}
                     isLoadingConsumableItems={isLoadingConsumableItems}
@@ -1852,7 +2079,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     roleLabelByCode={roleLabelByCode}
                     setItemSelectorState={setItemSelectorState}
                     setProcedureSelectorState={setProcedureSelectorState}
-                    masterTindakanList={masterTindakanList}
+                    masterTindakanList={masterTindakanDisplayList}
                   />
                 )
               },
@@ -1864,7 +2091,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                   <TindakanNonPaketTab
                     modalForm={modalForm}
                     token={token}
-                    kelasOptions={kelasOptions}
+                    kelasOptions={resolvedKelasOptions}
                     setSearchTindakan={setSearchTindakan}
                     isLoadingMaster={isLoadingMaster}
                     tindakanOptions={tindakanOptions}
@@ -1873,6 +2100,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     roleLabelByCode={roleLabelByCode}
                     setProcedureSelectorState={setProcedureSelectorState}
                     masterTindakanList={masterTindakanList}
+                    defaultKelas={defaultKelas}
                   />
                 )
               },
@@ -1929,11 +2157,25 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         open={procedureSelectorState.open}
         onCancel={() => setProcedureSelectorState({ open: false })}
         onSelect={(proc) => {
+          setMasterTindakanCache((prev) => ({
+            ...prev,
+            [proc.id]: proc
+          }))
           if (procedureSelectorState.onSelect) procedureSelectorState.onSelect(proc)
           setProcedureSelectorState({ open: false })
         }}
         procedures={masterTindakanList}
         loading={isLoadingMaster}
+        pagination={masterTindakanPagination}
+        pageSize={procedureQuery.items}
+        searchValue={procedureQuery.q || ''}
+        selectedCategory={procedureQuery.kategori}
+        selectedBpjsCategory={procedureQuery.categoryBpjs}
+        categoryOptions={procedureCategoryOptions}
+        onSearchChange={handleProcedureSearchChange}
+        onCategoryChange={handleProcedureCategoryChange}
+        onBpjsCategoryChange={handleProcedureBpjsCategoryChange}
+        onPageChange={handleProcedurePageChange}
       />
     </div>
   )

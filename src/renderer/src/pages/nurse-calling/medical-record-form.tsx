@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { App, Spin, Layout, Menu, theme, Input, Modal, Empty, Typography, Button } from 'antd'
 import type { MenuProps } from 'antd'
 import {
@@ -11,7 +11,8 @@ import {
   UserOutlined,
   SearchOutlined,
   SoundOutlined,
-  FileTextOutlined
+  FileTextOutlined,
+  DisconnectOutlined
 } from '@ant-design/icons'
 import { useNavigate, useParams } from 'react-router'
 import { client } from '@renderer/utils/client'
@@ -25,8 +26,13 @@ import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTFor
 import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 import { EncounterTimeline } from '@renderer/components/organisms/EncounterTimeline'
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
+import { ReferralForm } from '@renderer/components/organisms/ReferralForm'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useEncounterDetail } from '@renderer/hooks/query/use-encounter'
+import {
+  EXAM_WINDOW_CLOSE_ALLOW_ONCE_CHANNEL,
+  EXAM_WINDOW_CLOSE_REQUEST_CHANNEL
+} from '@shared/window-close-guard'
 
 type MenuItem = Required<MenuProps>['items'][number]
 
@@ -43,6 +49,15 @@ const rawatInapMenu: MenuItem[] = [
   }
 ]
 
+const NURSE_TERMINAL_STATUSES = new Set(['FINISHED', 'CANCELLED', 'EXPIRED'])
+
+const isNurseCloseReminderRequired = (status?: string): boolean => {
+  if (!status) return false
+  const normalizedStatus = status.trim().toUpperCase()
+  if (!normalizedStatus) return false
+  return !NURSE_TERMINAL_STATUSES.has(normalizedStatus)
+}
+
 const MedicalRecordForm = () => {
   const navigate = useNavigate()
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -52,10 +67,20 @@ const MedicalRecordForm = () => {
   const [searchText, setSearchText] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [modalSearch, setModalSearch] = useState('')
+  const [closeReminderOpen, setCloseReminderOpen] = useState(false)
+  const closeConfirmOpenRef = useRef(false)
   const { token } = theme.useToken()
   const { profile } = useMyProfile()
 
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
+
+  const allowCloseWindow = useCallback(() => {
+    if (!window.electron?.ipcRenderer) {
+      window.close()
+      return
+    }
+    window.electron.ipcRenderer.send(EXAM_WINDOW_CLOSE_ALLOW_ONCE_CHANNEL)
+  }, [])
 
   const handleCallToPoli = () => {
     const queueId = patientData?.queueId
@@ -85,7 +110,7 @@ const MedicalRecordForm = () => {
             action: actionVal
           })
           message.success('Status antrian berhasil diperbarui')
-          window.close()
+          allowCloseWindow()
         } catch (error: any) {
           message.error(error.message || 'Gagal memproses antrian')
         }
@@ -143,6 +168,74 @@ const MedicalRecordForm = () => {
   }, [encounterResponse?.result])
 
   const encounterType = (encounterResponse?.result as any)?.encounterType || ''
+  const normalizedPatientStatus = String(patientData?.status || '')
+    .trim()
+    .toUpperCase()
+  const canFinishFromCloseReminder = normalizedPatientStatus === 'TRIAGE'
+
+  const closeCloseReminder = useCallback(() => {
+    closeConfirmOpenRef.current = false
+    setCloseReminderOpen(false)
+  }, [])
+
+  const closeWindowFromReminder = useCallback(() => {
+    closeCloseReminder()
+    allowCloseWindow()
+  }, [allowCloseWindow, closeCloseReminder])
+
+  const finishAndCloseFromReminder = useCallback(async () => {
+    if (!canFinishFromCloseReminder || updateStatusMutation.isPending) {
+      return
+    }
+
+    const queueId = patientData?.queueId
+    if (!queueId) {
+      message.error('ID antrian tidak ditemukan. Tidak bisa menyelesaikan pemeriksaan.')
+      return
+    }
+
+    try {
+      await updateStatusMutation.mutateAsync({
+        queueId,
+        action: 'TRIAGE_DONE'
+      })
+      message.success('Pemeriksaan awal selesai. Pasien dipindahkan ke antrean poli.')
+      closeCloseReminder()
+      allowCloseWindow()
+    } catch (error: any) {
+      message.error(error.message || 'Gagal menyelesaikan pemeriksaan.')
+    }
+  }, [
+    allowCloseWindow,
+    canFinishFromCloseReminder,
+    closeCloseReminder,
+    message,
+    patientData?.queueId,
+    updateStatusMutation
+  ])
+
+  useEffect(() => {
+    const removeListener = window.electron.ipcRenderer.on(EXAM_WINDOW_CLOSE_REQUEST_CHANNEL, () => {
+      const shouldShowReminder = isNurseCloseReminderRequired(patientData?.status)
+      if (!shouldShowReminder) {
+        allowCloseWindow()
+        return
+      }
+
+      if (closeConfirmOpenRef.current) {
+        return
+      }
+
+      closeConfirmOpenRef.current = true
+      setCloseReminderOpen(true)
+    })
+
+    return () => {
+      setCloseReminderOpen(false)
+      closeConfirmOpenRef.current = false
+      removeListener()
+    }
+  }, [allowCloseWindow, patientData?.status])
 
   useEffect(() => {
     if (isEncounterLoading) return
@@ -188,6 +281,11 @@ const MedicalRecordForm = () => {
         key: 'initial-assessment',
         icon: <SolutionOutlined />,
         label: 'Asesmen Awal'
+      },
+      {
+        key: 'referral',
+        icon: <DisconnectOutlined />,
+        label: 'Rujukan'
       },
       ...(patientData?.poli?.name?.includes('RAWAT_INAP') ||
       patientData?.poli?.code === 'RAWAT_INAP'
@@ -293,6 +391,14 @@ const MedicalRecordForm = () => {
             />
           </div>
         )
+      case 'referral':
+        return (
+          <ReferralForm
+            encounterId={encounterId}
+            patientId={patientData?.patient?.id}
+            patientData={patientData as any}
+          />
+        )
       case 'triage':
         return <TriageForm encounterId={encounterId} patientData={patientData as any} />
       case 'monitoring-ttv':
@@ -319,6 +425,104 @@ const MedicalRecordForm = () => {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       <div className="flex-1 px-4 pb-4 overflow-hidden relative flex flex-col min-h-0">
+        <Modal
+          open={closeReminderOpen}
+          centered
+          width={620}
+          title="Tutup halaman pemeriksaan?"
+          onCancel={closeCloseReminder}
+          styles={{ body: { paddingTop: 8 } }}
+          okButtonProps={{ style: { display: 'none' } }}
+          cancelButtonProps={{ style: { display: 'none' } }}
+          footer={
+            <div className="flex w-full justify-end gap-2">
+              <Button onClick={closeCloseReminder}>Kembali</Button>
+              <Button onClick={closeWindowFromReminder}>Tutup Halaman</Button>
+              <Button
+                type="primary"
+                onClick={finishAndCloseFromReminder}
+                disabled={!canFinishFromCloseReminder || updateStatusMutation.isPending}
+                loading={canFinishFromCloseReminder && updateStatusMutation.isPending}
+              >
+                Selesaikan Pemeriksaan
+              </Button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <div
+              className="rounded-xl border px-4 py-3"
+              style={{
+                background: token.colorFillAlter,
+                borderColor: token.colorBorderSecondary
+              }}
+            >
+              <p className="m-0 text-sm font-medium" style={{ color: token.colorText }}>
+                Pastikan status pemeriksaan sudah sesuai sebelum menutup halaman.
+              </p>
+              <div
+                className="inline-flex mt-2 px-2.5 py-1 rounded-md font-mono text-xs font-semibold"
+                style={{
+                  background: token.colorBgContainer,
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                  color: token.colorText
+                }}
+              >
+                Status saat ini: {normalizedPatientStatus || '-'}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <div
+                className="rounded-lg border px-3 py-2.5"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                <div className="text-sm font-semibold" style={{ color: token.colorText }}>
+                  Kembali
+                </div>
+                <div className="text-xs" style={{ color: token.colorTextSecondary }}>
+                  Lanjutkan pengisian pemeriksaan tanpa menutup halaman.
+                </div>
+              </div>
+              <div
+                className="rounded-lg border px-3 py-2.5"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                <div className="text-sm font-semibold" style={{ color: token.colorText }}>
+                  Tutup Halaman
+                </div>
+                <div className="text-xs" style={{ color: token.colorTextSecondary }}>
+                  Keluar sekarang tanpa mengubah status pemeriksaan.
+                </div>
+              </div>
+              <div
+                className="rounded-lg border px-3 py-2.5"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                <div className="text-sm font-semibold" style={{ color: token.colorText }}>
+                  Selesaikan Pemeriksaan
+                </div>
+                <div className="text-xs" style={{ color: token.colorTextSecondary }}>
+                  Selesaikan pemeriksaan awal (TRIAGE_DONE), lalu tutup halaman otomatis.
+                </div>
+              </div>
+            </div>
+            {!canFinishFromCloseReminder ? (
+              <p
+                className="m-0 rounded-md px-3 py-2 text-xs font-medium"
+                style={{
+                  color: token.colorTextSecondary,
+                  background: token.colorFillAlter,
+                  border: `1px solid ${token.colorBorderSecondary}`
+                }}
+              >
+                Tombol <strong>Selesaikan Pemeriksaan</strong> hanya aktif saat status pasien{' '}
+                <strong>TRIAGE</strong>.
+              </p>
+            ) : null}
+          </div>
+        </Modal>
+
         <Modal
           open={modalOpen}
           onCancel={() => {

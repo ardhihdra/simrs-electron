@@ -6,6 +6,12 @@ import { SessionStore } from '@main/ipc/protected/session-store'
 type ZodSchema<T = any> = { parse: (data: any) => T }
 type HandlerSchemas = { args?: ZodSchema; result?: ZodSchema }
 
+function getValidationDetails(err: unknown) {
+  if (!err || typeof err !== 'object') return undefined
+  const maybeIssues = (err as { issues?: unknown }).issues
+  return Array.isArray(maybeIssues) ? maybeIssues : undefined
+}
+
 function wrapWithSchemas<Args = any, Result = any>(
   handler: (ctx: any, args: Args) => Promise<Result> | Result,
   schemas?: HandlerSchemas
@@ -17,7 +23,11 @@ function wrapWithSchemas<Args = any, Result = any>(
       try {
         validatedArgs = (schemas.args as ZodSchema<Args>).parse(args)
       } catch (err: any) {
-        return { success: false, error: err?.message || 'invalid arguments' }
+        return {
+          success: false,
+          error: err?.message || 'invalid arguments',
+          details: getValidationDetails(err)
+        }
       }
     }
     const res = await handler(ctx, validatedArgs)
@@ -25,7 +35,11 @@ function wrapWithSchemas<Args = any, Result = any>(
       try {
         return (schemas.result as ZodSchema<Result>).parse(res)
       } catch (err: any) {
-        return { success: false, error: err?.message || 'invalid result' }
+        return {
+          success: false,
+          error: err?.message || 'invalid result',
+          details: getValidationDetails(err)
+        }
       }
     }
     return res

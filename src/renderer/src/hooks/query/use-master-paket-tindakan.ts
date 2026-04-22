@@ -57,17 +57,38 @@ export interface MasterPaketTindakanItem {
     kodePaket: string
     namaPaket: string
     kategoriPaket?: string | null
+    isPaketOk?: boolean
     deskripsi?: string | null
     tarifPaket: number | string
     aktif?: boolean
+    tarifList?: {
+        id?: number
+        paketId?: number
+        kelas?: string | null
+        effectiveFrom?: string | null
+        effectiveTo?: string | null
+        tarifTotal?: number | string | null
+        aktif?: boolean | null
+    }[] | null
     detailItems?: PaketDetailItem[] | null
     listTindakan?: PaketDetailItem[] | null
     listBHP?: PaketBhpItem[] | null
 }
 
+type MasterPaketTindakanListParams = Parameters<
+    NonNullable<Window['api']['query']['masterPaketTindakan']['list']>
+>[0]
+type MasterPaketTindakanListResponse = Awaited<
+    ReturnType<NonNullable<Window['api']['query']['masterPaketTindakan']['list']>>
+>
+type MasterPaketTindakanGetByIdResponse = Awaited<
+    ReturnType<NonNullable<Window['api']['query']['masterPaketTindakan']['getById']>>
+>
+
 export const useMasterPaketTindakanList = (params?: {
     q?: string
     aktif?: boolean
+    isPaketOk?: boolean
     items?: number
     depth?: number
 }) => {
@@ -76,9 +97,10 @@ export const useMasterPaketTindakanList = (params?: {
         queryFn: async (): Promise<MasterPaketTindakanItem[]> => {
             const fn = window.api?.query?.masterPaketTindakan?.list
             if (!fn) throw new Error('API master paket tindakan tidak tersedia')
-            const res = await fn({ ...params })
-            if (!res.success) throw new Error((res as any).error ?? 'Gagal mengambil data paket tindakan')
-            return ((res as any).result ?? []) as MasterPaketTindakanItem[]
+            const payload: MasterPaketTindakanListParams = { ...(params ?? {}) }
+            const res = (await fn(payload)) as MasterPaketTindakanListResponse
+            if (!res.success) throw new Error(res.error ?? 'Gagal mengambil data paket tindakan')
+            return Array.isArray(res.result) ? (res.result as MasterPaketTindakanItem[]) : []
         },
         staleTime: 5 * 60 * 1000
     })
@@ -90,9 +112,9 @@ export const useMasterPaketTindakanById = (id: number | undefined) => {
         queryFn: async (): Promise<MasterPaketTindakanItem | null> => {
             const fn = window.api?.query?.masterPaketTindakan?.getById
             if (!fn) throw new Error('API master paket tindakan tidak tersedia')
-            const res = await fn({ id: id! })
-            if (!res.success) throw new Error((res as any).error ?? 'Gagal mengambil data paket tindakan')
-            return ((res as any).result) as MasterPaketTindakanItem | null
+            const res = (await fn({ id: id! })) as MasterPaketTindakanGetByIdResponse
+            if (!res.success) throw new Error(res.error ?? 'Gagal mengambil data paket tindakan')
+            return (res.result ?? null) as MasterPaketTindakanItem | null
         },
         enabled: !!id,
         staleTime: 2 * 60 * 1000

@@ -1,100 +1,235 @@
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import dayjs from 'dayjs'
 import {
   Alert,
+  App,
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Empty,
   Form,
+  Input,
+  Modal,
+  Select,
   Space,
   Spin,
   Table,
   Tabs,
   Tag,
   Typography,
-  message
+  theme
 } from 'antd'
 import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
+  EditOutlined,
   FileTextOutlined,
   HistoryOutlined,
   SaveOutlined
 } from '@ant-design/icons'
 import { ChecklistPreOpForm } from '../../../components/organisms/OK/ChecklistPreOpForm'
-import { SignInForm, TimeOutForm, SignOutForm } from '../../../components/organisms/OK/WHOChecklist'
+import { SignInForm, TimeOutForm } from '../../../components/organisms/OK/WHOChecklist'
+import { SignOutForm, ChecklistPostOpForm } from '../../../components/organisms/OK/PostOpForms'
 import {
-  ChecklistPostOpForm,
-  AdministrasiOKForm,
-  TagihanOKView
-} from '../../../components/organisms/OK/PostOpForms'
-import { useOkRequestList } from '@renderer/hooks/query/use-ok-request'
+  TagihanOKView,
+  type BillingChargeRow,
+  type BillingComputedData,
+  type BillingKomponenRow,
+  type BillingLetterMeta
+} from '../../../components/organisms/OK/BillingTagihanView'
+import AutoRolePetugasListCard from '../../../components/organisms/Assessment/DetailTindakan/AutoRolePetugasListCard'
+import PaketOperationBreakdown from '../../../components/organisms/Assessment/DetailTindakan/PaketOperationBreakdown'
+import {
+  findOkRequestScheduleConflicts,
+  useOkRequestList,
+  useSaveOkRequestChecklists,
+  useVerifyOkRequest
+} from '@renderer/hooks/query/use-ok-request'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import { useOperatingRoomList } from '@renderer/hooks/query/use-operating-room'
 import { useEncounterDetail } from '@renderer/hooks/query/use-encounter'
+import { useMasterJenisKomponenList } from '@renderer/hooks/query/use-master-jenis-komponen'
+import {
+  useMasterPaketTindakanList,
+  type MasterPaketTindakanItem
+} from '@renderer/hooks/query/use-master-paket-tindakan'
+import {
+  useCreateDetailTindakan,
+  type DetailTindakanPasienItem,
+  useDetailTindakanByEncounter,
+  useUpdateDetailTindakan
+} from '@renderer/hooks/query/use-detail-tindakan-pasien'
+import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
+import {
+  DEFAULT_KELAS_TARIF_OPTIONS,
+  buildKelasTarifPriority,
+  getKelasTarifLabel,
+  normalizeKelasTarifValue
+} from '@renderer/utils/tarif-kelas'
+import type { OkRequestStatus } from 'simrs-types'
 
 const { Text } = Typography
+const OK_REQUEST_STATUS = {
+  VERIFIED: 'verified' as OkRequestStatus,
+  REJECTED: 'rejected' as OkRequestStatus,
+  IN_PROGRESS: 'in_progress' as OkRequestStatus,
+  DONE: 'done' as OkRequestStatus,
+  CANCELLED: 'cancelled' as OkRequestStatus
+} as const
 
-interface BackendOkRequest {
-  id: number
-  kode?: string | null
-  encounterId?: string | null
-  sourceUnit?: string | null
-  surgeonId?: number | null
-  operatingRoomId?: number | null
-  requestedAt?: string | null
-  scheduledAt?: string | null
-  estimatedDurationMinutes?: number | null
-  priority?: string | null
-  status?: string | null
-  mainDiagnosis?: string | null
-  plannedProcedureSummary?: string | null
-  createdBy?: number | null
+type OkRequestListApiResponse = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['okRequest']['list']>>
+>
+type BackendOkRequest = NonNullable<OkRequestListApiResponse['result']>[number]
+type BackendOkRequestPaket = NonNullable<BackendOkRequest['paketTindakanList']>[number]
+type BackendPreOpChecklist = NonNullable<BackendOkRequest['preOpChecklist']>
+type BackendWhoChecklist = NonNullable<BackendOkRequest['whoChecklist']>
+type BackendPostOpChecklist = NonNullable<BackendOkRequest['postOpChecklist']>
+
+type EncounterReadApiResponse = Awaited<
+  ReturnType<NonNullable<Window['api']['query']['encounter']['read']>>
+>
+type EncounterDetailResult = NonNullable<EncounterReadApiResponse['result']>
+
+interface TeamMember {
+  roleTenaga: string
+  pegawaiId: number
 }
 
-interface BHPRow {
+interface TeamMemberAssignment {
+  roleTenaga: string
+  pegawaiId?: number
+}
+
+interface TeamMemberFormItem {
+  roleTenaga?: string
+  pegawaiId?: number | null
+}
+
+interface TeamOperationFormValues {
+  kelas?: string
+  teamMembers?: TeamMemberFormItem[]
+}
+
+interface PaketRow {
+  key: string
+  no: number
+  paketId: number
+  kode: string
   nama: string
-  qty: number
-  satuan: string
-  harga: number
+  kategori: string
+  kelasTarifSnapshot: string | null
+  tarifSnapshot: number | null
 }
 
-interface EncounterDetailResponse {
-  result?: {
-    patient?: {
-      id?: string
-      name?: string
-      medicalRecordNumber?: string
-    }
-    patientId?: string
-  }
+interface PaketTeamState {
+  kelas: string
+  roleList: string[]
+  teamMembers: TeamMemberAssignment[]
+}
+
+interface PaketTarifKomponenRef {
+  jenisKomponenId?: number | string | null
+  kode?: string | null
+  nominal?: number | string | null
+  jenisKomponen?: {
+    id?: number
+    kode?: string | null
+    label?: string | null
+    isUntukMedis?: boolean | null
+  } | null
+}
+
+interface PaketTarifRincianRef {
+  paketDetailId?: number | string | null
+  komponenTarifList?: PaketTarifKomponenRef[] | null
+}
+
+interface PaketTarifHeaderRef {
+  kelas?: string | null
+  effectiveFrom?: string | null
+  effectiveTo?: string | null
+  tarifTotal?: number | string | null
+  rincianTarif?: PaketTarifRincianRef[] | null
+}
+
+interface PaketMasterDetailItemRef {
+  id?: number | string | null
+  paketId?: number | string | null
+  masterTindakanId?: number | string | null
+  qty?: number | string | null
+  satuan?: string | null
+  tindakan?: {
+    namaTindakan?: string | null
+  } | null
+  masterTindakan?: {
+    namaTindakan?: string | null
+  } | null
+  bhpList?: PaketMasterBhpItemRef[] | null
+}
+
+interface PaketMasterBhpItemRef {
+  id?: number | string | null
+  paketDetailId?: number | string | null
+  itemId?: number | string | null
+  includedInPaket?: boolean | null
+  jumlahDefault?: number | string | null
+  jumlah?: number | string | null
+  qty?: number | string | null
+  satuan?: string | null
+  item?: {
+    nama?: string | null
+    sellingPrice?: number | string | null
+  } | null
+}
+
+type MasterPaketExtended = Omit<
+  MasterPaketTindakanItem,
+  'tarifList' | 'detailItems' | 'listTindakan' | 'listBHP'
+> & {
+  tarifList?: PaketTarifHeaderRef[] | null
+  detailItems?: PaketMasterDetailItemRef[] | null
+  listTindakan?: PaketMasterDetailItemRef[] | null
+  listBHP?: PaketMasterBhpItemRef[] | null
+}
+
+type SyncedDetailTindakanRecord = DetailTindakanPasienItem & {
+  tindakanPaket?: Array<{
+    catatanTambahan?: string | null
+  }>
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   draft: { label: 'Menunggu Verifikasi', color: 'orange' },
-  verified: { label: 'Disetujui', color: 'green' },
+  verified: { label: 'Disetujui / Siap Operasi', color: 'green' },
   rejected: { label: 'Ditolak', color: 'red' },
-  in_progress: { label: 'Sedang Diproses', color: 'blue' },
-  done: { label: 'Selesai', color: 'green' },
+  in_progress: { label: 'Sedang Operasi', color: 'blue' },
+  done: { label: 'Selesai Operasi', color: 'green' },
   cancelled: { label: 'Dibatalkan', color: 'red' }
 }
 
-const formatDate = (value?: string | null): string => {
+const formatDate = (value?: string | Date | null): string => {
   if (!value) return '-'
   const parsed = dayjs(value)
   return parsed.isValid() ? parsed.format('DD/MM/YYYY') : '-'
 }
 
-const formatDateTime = (value?: string | null): string => {
+const formatDateTime = (value?: string | Date | null): string => {
   if (!value) return '-'
   const parsed = dayjs(value)
   return parsed.isValid() ? parsed.format('DD/MM/YYYY HH:mm') : '-'
 }
 
-const formatTimeRange = (startAt?: string | null, durationMinutes?: number | null): string => {
+const formatCurrency = (value?: number | null): string =>
+  `Rp ${Number(value || 0).toLocaleString('id-ID')}`
+
+const formatTimeRange = (
+  startAt?: string | Date | null,
+  durationMinutes?: number | null
+): string => {
   if (!startAt) return '-'
   const start = dayjs(startAt)
   if (!start.isValid()) return '-'
@@ -107,15 +242,261 @@ const formatTimeRange = (startAt?: string | null, durationMinutes?: number | nul
   return start.format('HH:mm')
 }
 
+const normalizeOperationEndDateTime = (startAt: dayjs.Dayjs, endAt: dayjs.Dayjs): dayjs.Dayjs => {
+  if (!startAt.isValid() || !endAt.isValid()) return endAt
+  if (endAt.isBefore(startAt) && endAt.isSame(startAt, 'day')) {
+    return endAt.add(1, 'day')
+  }
+  return endAt
+}
+
+const normalizeKelas = (kelas: unknown): string => normalizeKelasTarifValue(kelas)
+
+const isCytoFromPriority = (priority: unknown): boolean => {
+  const normalized = String(priority || '')
+    .trim()
+    .toLowerCase()
+
+  if (normalized === 'emergency' || normalized === 'cyto' || normalized === 'cito') {
+    return true
+  }
+
+  return false
+}
+
+const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
+  const normalized = String(paymentMethod || '')
+    .trim()
+    .toLowerCase()
+
+  switch (normalized) {
+    case 'cash':
+    case 'bpjs':
+    case 'asuransi':
+    case 'company':
+    case 'general':
+    case 'umum':
+      return 'UMUM'
+    default:
+      return normalizeKelas(paymentMethod) || 'UMUM'
+  }
+}
+
+const getKelasLabel = getKelasTarifLabel
+
+type ParsedUiError = {
+  message: string
+  source: 'validation' | 'runtime'
+  fieldName?: string
+}
+
+const WHO_SIGN_IN_FIELDS = new Set([
+  'identitas',
+  'alergi',
+  'risikoAspirasiDanFaktorPenyulit',
+  'risikoKehilanganDarahAnak',
+  'rencanaAntisipasiKehilanganDarah',
+  'kesiapanAlatObatAnestesi',
+  'rencanaAntisipasiAnestesi',
+  'penandaanAreaOperasi',
+  'jalurIvLine',
+  'perawatKamarOperasiId'
+])
+
+const WHO_TIME_OUT_FIELDS = new Set([
+  'timKonfirmasi',
+  'konfirmasiNama',
+  'konfirmasiProsedurFinal',
+  'konfirmasiSisi',
+  'antibiotikProfilaksis',
+  'imagingTersedia',
+  'catatanKritis',
+  'catatanTimeOut'
+])
+
+const toCompactText = (value: unknown): string => {
+  if (typeof value === 'string') {
+    const text = value.trim()
+    return text && text !== '[object Object]' ? text : ''
+  }
+  if (value instanceof Error) {
+    const text = String(value.message || '').trim()
+    return text && text !== '[object Object]' ? text : ''
+  }
+  if (Array.isArray(value)) {
+    return value.map(toCompactText).filter(Boolean).join(', ')
+  }
+  if (value && typeof value === 'object') {
+    const maybe = value as Record<string, unknown>
+    const fromError = toCompactText(maybe.error)
+    if (fromError) return fromError
+    const fromMessage = toCompactText(maybe.message)
+    if (fromMessage) return fromMessage
+  }
+  return ''
+}
+
+const extractUiError = (error: unknown, fallback: string): ParsedUiError => {
+  if (error && typeof error === 'object') {
+    const maybe = error as {
+      errorFields?: Array<{
+        name?: Array<string | number>
+        errors?: string[]
+      }>
+      error?: unknown
+      message?: unknown
+    }
+
+    if (Array.isArray(maybe.errorFields) && maybe.errorFields.length > 0) {
+      const firstError = maybe.errorFields[0]
+      const fieldName =
+        Array.isArray(firstError?.name) && firstError.name.length > 0
+          ? String(firstError.name[0] || '')
+          : undefined
+      const validationMessage =
+        Array.isArray(firstError?.errors) && firstError.errors.length > 0
+          ? String(firstError.errors[0] || '').trim()
+          : ''
+
+      return {
+        message: validationMessage || fallback,
+        source: 'validation',
+        fieldName
+      }
+    }
+
+    const objectMessage = toCompactText(maybe.error) || toCompactText(maybe.message)
+    if (objectMessage) {
+      return {
+        message: objectMessage,
+        source: 'runtime'
+      }
+    }
+  }
+
+  const message = toCompactText(error)
+  return {
+    message: message || fallback,
+    source: 'runtime'
+  }
+}
+
+const parseNumber = (value: unknown): number | null => {
+  if (value === undefined || value === null || value === '') return null
+  const num = Number(value)
+  return Number.isFinite(num) ? num : null
+}
+
+const isDateWithinPeriod = (tanggal: string, from?: string | null, to?: string | null) => {
+  const start = String(from || '')
+  const end = to ? String(to) : null
+  if (!start) return false
+  if (start > tanggal) return false
+  if (end && end < tanggal) return false
+  return true
+}
+
+const pickTarifForKelasAndDate = (
+  tarifList: PaketTarifHeaderRef[],
+  kelas: string,
+  tanggal: string
+) => {
+  const kelasPriority = buildKelasTarifPriority(kelas)
+
+  const candidates = (tarifList || [])
+    .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
+    .sort((a, b) => {
+      const kelasA = normalizeKelas(a?.kelas)
+      const kelasB = normalizeKelas(b?.kelas)
+      const rankA = kelasPriority.indexOf(kelasA)
+      const rankB = kelasPriority.indexOf(kelasB)
+      const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
+      const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
+      if (safeRankA !== safeRankB) return safeRankA - safeRankB
+
+      const fromA = String(a?.effectiveFrom ?? '')
+      const fromB = String(b?.effectiveFrom ?? '')
+      return fromB.localeCompare(fromA)
+    })
+
+  return candidates[0]
+}
+
+const normalizeTeamAssignments = (
+  source: TeamMemberFormItem[] | TeamMemberAssignment[] | TeamMember[]
+): TeamMemberAssignment[] => {
+  const mapped = (Array.isArray(source) ? source : [])
+    .map((item) => ({
+      roleTenaga: String(item?.roleTenaga || '').trim(),
+      pegawaiId:
+        Number.isFinite(Number(item?.pegawaiId)) && Number(item?.pegawaiId) > 0
+          ? Number(item?.pegawaiId)
+          : undefined
+    }))
+    .filter((item) => item.roleTenaga)
+
+  const deduped = new Map<string, TeamMemberAssignment>()
+  mapped.forEach((item) => {
+    const existing = deduped.get(item.roleTenaga)
+    if (!existing || item.pegawaiId) {
+      deduped.set(item.roleTenaga, item)
+    }
+  })
+
+  return Array.from(deduped.values())
+}
+
+const toValidTeamMembers = (source: TeamMemberAssignment[]): TeamMember[] => {
+  const deduped = new Map<string, TeamMember>()
+  ;(Array.isArray(source) ? source : []).forEach((item) => {
+    const roleTenaga = String(item?.roleTenaga || '').trim()
+    const pegawaiId = Number(item?.pegawaiId)
+    if (!roleTenaga || !Number.isFinite(pegawaiId) || pegawaiId <= 0) return
+    deduped.set(`${roleTenaga}::${pegawaiId}`, { roleTenaga, pegawaiId })
+  })
+  return Array.from(deduped.values())
+}
+
+const buildRoleAssigneeMap = (source: TeamMemberAssignment[] | TeamMember[]) => {
+  const map = new Map<string, number>()
+  ;(Array.isArray(source) ? source : []).forEach((item) => {
+    const roleTenaga = String(item?.roleTenaga || '').trim()
+    const pegawaiId = Number(item?.pegawaiId)
+    if (!roleTenaga || !Number.isFinite(pegawaiId) || pegawaiId <= 0) return
+    if (!map.has(roleTenaga)) {
+      map.set(roleTenaga, pegawaiId)
+    }
+  })
+  return map
+}
+
 const DetailVerifikasiPage = () => {
   const { id } = useParams()
-  const navigate = useNavigate()
+  const { modal, message } = App.useApp()
+  const { token } = theme.useToken()
 
   const [preOpForm] = Form.useForm()
   const [signInForm] = Form.useForm()
   const [timeOutForm] = Form.useForm()
   const [signOutForm] = Form.useForm()
   const [postOpCheckForm] = Form.useForm()
+  const [paketTeamForm] = Form.useForm<TeamOperationFormValues>()
+
+  const [paketTeamMap, setPaketTeamMap] = useState<Record<number, PaketTeamState>>({})
+  const [isPaketTeamModalOpen, setIsPaketTeamModalOpen] = useState(false)
+  const [activePaketForTeam, setActivePaketForTeam] = useState<PaketRow | null>(null)
+  const [paketTeamModalWarning, setPaketTeamModalWarning] = useState<string | null>(null)
+  const [isPaketTeamInitialized, setIsPaketTeamInitialized] = useState(false)
+  const [restoreWarning, setRestoreWarning] = useState<string | null>(null)
+  const [scheduleDraft, setScheduleDraft] = useState<{
+    operatingRoomId: number | null
+    rencanaMulai: dayjs.Dayjs | null
+    rencanaSelesai: dayjs.Dayjs | null
+  }>({
+    operatingRoomId: null,
+    rencanaMulai: null,
+    rencanaSelesai: null
+  })
 
   const routeId = String(id || '').trim()
 
@@ -127,11 +508,33 @@ const DetailVerifikasiPage = () => {
     refetch: refetchOkRequest
   } = useOkRequestList()
 
-  const { data: performers } = usePerformers(['doctor'])
+  const { data: performers, isLoading: isLoadingPerformers } = usePerformers([
+    'doctor',
+    'nurse',
+    'bidan'
+  ])
+  const { data: preOpPerformers = [], isLoading: isLoadingPreOpPerformers } = usePerformers([
+    'doctor',
+    'nurse'
+  ])
+  const { data: signInNursePerformers = [], isLoading: isLoadingSignInNursePerformers } =
+    usePerformers(['nurse'])
   const { data: operatingRooms } = useOperatingRoomList()
+  const { data: listJenisKomponen = [] } = useMasterJenisKomponenList({
+    isUntukMedis: true,
+    items: 200
+  })
+  const { data: masterPaketList = [] } = useMasterPaketTindakanList({
+    aktif: true,
+    items: 500,
+    depth: 1
+  })
+
+  const verifyOkRequest = useVerifyOkRequest()
+  const saveOkRequestChecklists = useSaveOkRequestChecklists()
 
   const okRequests = useMemo<BackendOkRequest[]>(() => {
-    return Array.isArray(okRequestData) ? (okRequestData as BackendOkRequest[]) : []
+    return Array.isArray(okRequestData) ? okRequestData : []
   }, [okRequestData])
 
   const selectedRequest = useMemo(() => {
@@ -141,7 +544,51 @@ const DetailVerifikasiPage = () => {
     )
   }, [okRequests, routeId])
 
+  useEffect(() => {
+    if (!selectedRequest) {
+      setScheduleDraft({
+        operatingRoomId: null,
+        rencanaMulai: null,
+        rencanaSelesai: null
+      })
+      return
+    }
+
+    const initialStartAt = dayjs(
+      selectedRequest.scheduledAt || selectedRequest.requestedAt || dayjs().toISOString()
+    )
+    const safeStartAt = initialStartAt.isValid() ? initialStartAt : dayjs()
+    const rawDuration = Number(selectedRequest.estimatedDurationMinutes ?? 0)
+    const durationMinutes =
+      Number.isFinite(rawDuration) && rawDuration >= 0 ? Math.floor(rawDuration) : 0
+
+    setScheduleDraft({
+      operatingRoomId:
+        Number.isInteger(Number(selectedRequest.operatingRoomId)) &&
+        Number(selectedRequest.operatingRoomId) > 0
+          ? Number(selectedRequest.operatingRoomId)
+          : null,
+      rencanaMulai: safeStartAt,
+      rencanaSelesai: safeStartAt.add(durationMinutes, 'minute')
+    })
+  }, [
+    selectedRequest?.id,
+    selectedRequest?.estimatedDurationMinutes,
+    selectedRequest?.operatingRoomId,
+    selectedRequest?.requestedAt,
+    selectedRequest?.scheduledAt
+  ])
+
+  const createDetailTindakan = useCreateDetailTindakan(selectedRequest?.encounterId || undefined)
+  const updateDetailTindakan = useUpdateDetailTindakan(selectedRequest?.encounterId || undefined)
+
   const { data: encounterDetailResponse, isLoading: isLoadingEncounter } = useEncounterDetail(
+    selectedRequest?.encounterId || undefined
+  )
+
+  const encounterDetail = encounterDetailResponse?.result as EncounterDetailResult | undefined
+
+  const { data: detailTindakanByEncounter = [] } = useDetailTindakanByEncounter(
     selectedRequest?.encounterId || undefined
   )
 
@@ -152,6 +599,24 @@ const DetailVerifikasiPage = () => {
     })
     return map
   }, [performers])
+
+  const preOpPerformerOptions = useMemo(() => {
+    return (preOpPerformers || [])
+      .filter((item) => Number.isFinite(Number(item?.id)) && Number(item.id) > 0)
+      .map((item) => ({
+        value: Number(item.id),
+        label: item.name
+      }))
+  }, [preOpPerformers])
+
+  const signInNurseOptions = useMemo(() => {
+    return (signInNursePerformers || [])
+      .filter((item) => Number.isFinite(Number(item?.id)) && Number(item.id) > 0)
+      .map((item) => ({
+        value: Number(item.id),
+        label: item.name
+      }))
+  }, [signInNursePerformers])
 
   const operatingRoomMap = useMemo(() => {
     const map = new Map<number, string>()
@@ -164,39 +629,871 @@ const DetailVerifikasiPage = () => {
     return map
   }, [operatingRooms])
 
-  const encounterDetail = (encounterDetailResponse as EncounterDetailResponse | undefined)?.result
+  const operatingRoomOptions = useMemo(() => {
+    return (operatingRooms || [])
+      .filter((item) => Number.isFinite(Number(item?.id)) && Number(item.id) > 0)
+      .map((item) => ({
+        value: Number(item.id),
+        label: `${item.nama || 'Ruang OK'}${item.kelas ? ` (${item.kelas})` : ''}`
+      }))
+  }, [operatingRooms])
+
+  const paketById = useMemo(() => {
+    const map = new Map<number, MasterPaketExtended>()
+    ;(masterPaketList || []).forEach((item) => {
+      const paketId = Number(item?.id)
+      if (Number.isFinite(paketId) && paketId > 0) {
+        map.set(paketId, item as unknown as MasterPaketExtended)
+      }
+    })
+    return map
+  }, [masterPaketList])
+
+  const roleOptions = useMemo(() => {
+    const fromMaster = listJenisKomponen
+      .map((item) => {
+        const kode = String(item?.kode || '').trim()
+        const label = String(item?.label || '').trim()
+        if (!kode || !label) return null
+        return { value: kode, label }
+      })
+      .filter((item): item is { value: string; label: string } => !!item)
+
+    if (fromMaster.length > 0) return fromMaster
+
+    return [
+      { value: 'operator_utama', label: 'Dokter Operator Utama' },
+      { value: 'anestesi', label: 'Dokter Anestesi' },
+      { value: 'asisten_operator', label: 'Asisten Operator' },
+      { value: 'perawat_instrumen', label: 'Perawat Instrumen' },
+      { value: 'perawat_sirkuler', label: 'Perawat Sirkuler' }
+    ]
+  }, [listJenisKomponen])
+
+  const roleLabelByCode = useMemo(
+    () => new Map(roleOptions.map((item) => [item.value, item.label])),
+    [roleOptions]
+  )
+
+  const roleByKomponenId = useMemo(
+    () => new Map((listJenisKomponen || []).map((item) => [Number(item.id), item.kode])),
+    [listJenisKomponen]
+  )
+  const { data: referenceKelasOptions = DEFAULT_KELAS_TARIF_OPTIONS } = useTarifKelasOptions()
+
+  const selectedTarifKelas = useMemo(() => {
+    const paymentMethod = encounterDetail?.queueTicket?.paymentMethod
+    return normalizeKelas(mapPaymentMethodToTarifKelas(paymentMethod)) || 'UMUM'
+  }, [encounterDetail?.queueTicket?.paymentMethod])
+
+  const kelasOptions = useMemo(() => {
+    const optionMap = new Map<string, string>()
+    referenceKelasOptions.forEach((item) => {
+      const normalizedValue = normalizeKelas(item.value)
+      if (!normalizedValue) return
+      optionMap.set(normalizedValue, item.label)
+    })
+    ;(masterPaketList || []).forEach((paket) => {
+      const tarifList = Array.isArray((paket as unknown as MasterPaketExtended)?.tarifList)
+        ? ((paket as unknown as MasterPaketExtended).tarifList as PaketTarifHeaderRef[])
+        : []
+      tarifList.forEach((tarif) => {
+        const kelas = normalizeKelas(tarif?.kelas)
+        if (!kelas) return
+        if (!optionMap.has(kelas)) {
+          optionMap.set(kelas, getKelasLabel(kelas))
+        }
+      })
+    })
+
+    if (!optionMap.has(selectedTarifKelas)) {
+      optionMap.set(selectedTarifKelas, getKelasLabel(selectedTarifKelas))
+    }
+
+    return Array.from(optionMap.entries()).map(([value, label]) => ({ value, label }))
+  }, [masterPaketList, referenceKelasOptions, selectedTarifKelas])
+
+  const roleResolutionDate = useMemo(() => {
+    const draftStartAt = scheduleDraft.rencanaMulai ? dayjs(scheduleDraft.rencanaMulai) : null
+    if (draftStartAt?.isValid()) return draftStartAt.format('YYYY-MM-DD')
+    const fallbackDate =
+      selectedRequest?.scheduledAt || selectedRequest?.requestedAt || dayjs().toISOString()
+    return dayjs(fallbackDate).format('YYYY-MM-DD')
+  }, [scheduleDraft.rencanaMulai, selectedRequest?.requestedAt, selectedRequest?.scheduledAt])
+
+  const resolveRolesFromPaketByClass = useCallback(
+    (paketId: number, kelas: string): string[] => {
+      const selectedPaket = paketById.get(paketId)
+      const tarifList = Array.isArray(selectedPaket?.tarifList)
+        ? (selectedPaket.tarifList as PaketTarifHeaderRef[])
+        : []
+      if (!selectedPaket || tarifList.length === 0) return []
+
+      const pickedTarif = pickTarifForKelasAndDate(tarifList, kelas, roleResolutionDate)
+      if (!pickedTarif) return []
+
+      const detailItems = Array.isArray(selectedPaket?.listTindakan)
+        ? selectedPaket.listTindakan
+        : Array.isArray(selectedPaket?.detailItems)
+          ? selectedPaket.detailItems
+          : []
+      const entryDetailIds = new Set<number>(
+        detailItems
+          .map((item) => Number(item?.id))
+          .filter((detailId: number) => Number.isFinite(detailId) && detailId > 0)
+      )
+
+      const roleSet = new Set<string>()
+      const rincianList = Array.isArray(pickedTarif?.rincianTarif) ? pickedTarif.rincianTarif : []
+
+      rincianList.forEach((rincian) => {
+        const paketDetailId = Number(rincian?.paketDetailId)
+        if (
+          entryDetailIds.size > 0 &&
+          (!Number.isFinite(paketDetailId) || !entryDetailIds.has(paketDetailId))
+        ) {
+          return
+        }
+
+        const komponenList = Array.isArray(rincian?.komponenTarifList)
+          ? rincian.komponenTarifList
+          : []
+
+        komponenList.forEach((komponen) => {
+          const komponenId = Number(komponen?.jenisKomponenId)
+          const isUntukMedis = komponen?.jenisKomponen?.isUntukMedis === true
+          const fallbackKode = String(komponen?.kode || komponen?.jenisKomponen?.kode || '').trim()
+          const roleKode = roleByKomponenId.get(komponenId) || (isUntukMedis ? fallbackKode : '')
+          if (roleKode) roleSet.add(roleKode)
+        })
+      })
+
+      return Array.from(roleSet)
+    },
+    [paketById, roleByKomponenId, roleResolutionDate]
+  )
+
+  const buildPaketTeamState = useCallback(
+    (
+      paketId: number,
+      kelas: string,
+      initialAssignees?: Map<string, number>,
+      fallbackDpjpId?: number | null
+    ): PaketTeamState => {
+      const normalizedClass = normalizeKelas(kelas) || 'UMUM'
+      const roleList = resolveRolesFromPaketByClass(paketId, normalizedClass)
+      const teamMembers = roleList.map((roleTenaga, idx) => {
+        const fromInitial = initialAssignees?.get(roleTenaga)
+        const fromDpjp = idx === 0 && fallbackDpjpId ? Number(fallbackDpjpId) : undefined
+        const pegawaiId =
+          Number.isFinite(Number(fromInitial)) && Number(fromInitial) > 0
+            ? Number(fromInitial)
+            : Number.isFinite(Number(fromDpjp)) && Number(fromDpjp) > 0
+              ? Number(fromDpjp)
+              : undefined
+
+        return { roleTenaga, pegawaiId }
+      })
+
+      return {
+        kelas: normalizedClass,
+        roleList,
+        teamMembers
+      }
+    },
+    [resolveRolesFromPaketByClass]
+  )
 
   const statusMeta = STATUS_META[selectedRequest?.status || 'draft'] || {
     label: selectedRequest?.status || 'Menunggu Verifikasi',
     color: 'default'
   }
+  const normalizedRequestStatus = String(selectedRequest?.status || 'draft')
+    .trim()
+    .toLowerCase()
+  const canTakeDecision =
+    normalizedRequestStatus === 'draft' || normalizedRequestStatus === 'diajukan'
+  const canStartOperation = normalizedRequestStatus === OK_REQUEST_STATUS.VERIFIED
+  const canFinishOperation = normalizedRequestStatus === OK_REQUEST_STATUS.IN_PROGRESS
+  const canAdjustSchedule = canTakeDecision || canStartOperation || canFinishOperation
+  const canCancelOperation = canStartOperation || canFinishOperation
+  const isOperationCompleted = normalizedRequestStatus === OK_REQUEST_STATUS.DONE
+  const isOperationCancelled = normalizedRequestStatus === OK_REQUEST_STATUS.CANCELLED
+  const cancellationNote = useMemo(() => {
+    if (!isOperationCancelled) return ''
+    return String(selectedRequest?.notes || '').trim()
+  }, [isOperationCancelled, selectedRequest?.notes])
 
-  const bhpRows: BHPRow[] = []
-  const bhpTotal = bhpRows.reduce((sum, b) => sum + b.qty * b.harga, 0)
+  const scheduleDraftValidation = useMemo(() => {
+    const operatingRoomId = Number(scheduleDraft.operatingRoomId)
+    const startAt = scheduleDraft.rencanaMulai ? dayjs(scheduleDraft.rencanaMulai) : null
+    const rawEndAt = scheduleDraft.rencanaSelesai ? dayjs(scheduleDraft.rencanaSelesai) : null
+
+    if (!Number.isInteger(operatingRoomId) || operatingRoomId <= 0) {
+      return {
+        isReady: false as const,
+        message: 'Ruang OK wajib dipilih untuk penjadwalan operasi.'
+      }
+    }
+
+    if (!startAt || !rawEndAt || !startAt.isValid() || !rawEndAt.isValid()) {
+      return {
+        isReady: false as const,
+        message: 'Rencana mulai dan estimasi selesai wajib diisi.'
+      }
+    }
+
+    const endAt = normalizeOperationEndDateTime(startAt, rawEndAt)
+    const diffMinutes = endAt.diff(startAt, 'minute')
+    if (!Number.isFinite(diffMinutes) || diffMinutes < 0) {
+      return {
+        isReady: false as const,
+        message: 'Estimasi selesai harus sama atau setelah rencana mulai.'
+      }
+    }
+
+    return {
+      isReady: true as const,
+      operatingRoomId,
+      startAt,
+      endAt,
+      estimatedDurationMinutes: Math.floor(diffMinutes)
+    }
+  }, [scheduleDraft.operatingRoomId, scheduleDraft.rencanaMulai, scheduleDraft.rencanaSelesai])
+
+  const scheduleDraftConflicts = useMemo(() => {
+    if (!scheduleDraftValidation.isReady) return []
+    return findOkRequestScheduleConflicts(okRequests, {
+      operatingRoomId: scheduleDraftValidation.operatingRoomId,
+      scheduledStartAt: scheduleDraftValidation.startAt.toDate(),
+      scheduledEndAt: scheduleDraftValidation.endAt.toDate(),
+      excludeId: selectedRequest?.id ? Number(selectedRequest.id) : null
+    })
+  }, [okRequests, scheduleDraftValidation, selectedRequest?.id])
+
+  const firstScheduleConflict = scheduleDraftConflicts[0]
+  const draftOperatingRoomLabel = useMemo(() => {
+    if (!scheduleDraftValidation.isReady) return '-'
+    return (
+      operatingRoomMap.get(scheduleDraftValidation.operatingRoomId) ||
+      `Ruang #${scheduleDraftValidation.operatingRoomId}`
+    )
+  }, [operatingRoomMap, scheduleDraftValidation])
+
+  const selectedPaketRows = useMemo<PaketRow[]>(() => {
+    const source = Array.isArray(selectedRequest?.paketTindakanList)
+      ? [...(selectedRequest?.paketTindakanList || [])].sort(
+          (a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0)
+        )
+      : []
+
+    return source
+      .map((item, index) => {
+        const paketId = Number(item?.paketId)
+        if (!Number.isFinite(paketId) || paketId <= 0) return null
+        const masterPaket = paketById.get(paketId)
+        return {
+          key: `${item.id || paketId || index}`,
+          no: index + 1,
+          paketId,
+          kode: String(item?.paketKodeSnapshot || masterPaket?.kodePaket || '-'),
+          nama: String(item?.paketNamaSnapshot || masterPaket?.namaPaket || '-'),
+          kategori: String(item?.kategoriPaketSnapshot || masterPaket?.kategoriPaket || '-'),
+          kelasTarifSnapshot: item?.kelasTarifSnapshot ? String(item.kelasTarifSnapshot) : null,
+          tarifSnapshot: parseNumber(item?.tarifPaketSnapshot)
+        }
+      })
+      .filter((item): item is PaketRow => !!item)
+  }, [paketById, selectedRequest?.paketTindakanList])
+
+  const selectedPaketIds = useMemo(
+    () => selectedPaketRows.map((row) => row.paketId).filter((id) => Number.isFinite(id) && id > 0),
+    [selectedPaketRows]
+  )
+  const isSelectedRequestCyto = useMemo(
+    () => isCytoFromPriority(selectedRequest?.priority),
+    [selectedRequest?.priority]
+  )
+
+  const getPaketTindakanItems = useCallback((paket: MasterPaketExtended | undefined): PaketMasterDetailItemRef[] => {
+    if (Array.isArray(paket?.listTindakan)) return paket.listTindakan as PaketMasterDetailItemRef[]
+    if (Array.isArray(paket?.detailItems)) return paket.detailItems as PaketMasterDetailItemRef[]
+    return []
+  }, [])
+
+  const getPaketBhpItems = useCallback(
+    (paket: MasterPaketExtended | undefined): PaketMasterBhpItemRef[] => {
+      if (Array.isArray(paket?.listBHP)) return paket.listBHP as PaketMasterBhpItemRef[]
+
+      return getPaketTindakanItems(paket).flatMap((detail) =>
+        (Array.isArray(detail?.bhpList) ? detail.bhpList : []).map((bhp) => ({
+          ...bhp,
+          paketDetailId: bhp?.paketDetailId ?? detail?.id
+        }))
+      )
+    },
+    [getPaketTindakanItems]
+  )
+
+  const paketOperationDetailById = useMemo(() => {
+    const detailMap = new Map<
+      number,
+      {
+        tindakanRows: Array<{
+          key: string
+          namaPaket: string
+          item: string
+          qty: number
+          satuan: string
+          cyto: boolean
+          catatanTambahan: string
+        }>
+        bhpRows: Array<{
+          key: string
+          namaPaket: string
+          item: string
+          qty: number
+          satuan: string
+        }>
+      }
+    >()
+
+    selectedPaketRows.forEach((row) => {
+      const paket = paketById.get(row.paketId)
+      const tindakanRows = getPaketTindakanItems(paket).map((detail, index) => {
+        const masterTindakanId = Number(detail?.masterTindakanId)
+        const itemName =
+          detail?.tindakan?.namaTindakan ||
+          detail?.masterTindakan?.namaTindakan ||
+          (Number.isFinite(masterTindakanId) && masterTindakanId > 0
+            ? `Tindakan ID: ${masterTindakanId}`
+            : '-')
+
+        return {
+          key: `ok-paket-tindakan-${row.paketId}-${detail?.id ?? index}`,
+          namaPaket: `[${row.kode}] ${row.nama}`,
+          item: String(itemName || '-'),
+          qty: Number(detail?.qty || 1),
+          satuan: String(detail?.satuan || '-'),
+          cyto: false,
+          catatanTambahan: '-'
+        }
+      })
+
+      const bhpRows = getPaketBhpItems(paket).map((bhp, index) => {
+        const itemId = Number(bhp?.itemId)
+        const itemName =
+          bhp?.item?.nama || (Number.isFinite(itemId) && itemId > 0 ? `Item ID: ${itemId}` : '-')
+
+        return {
+          key: `ok-paket-bhp-${row.paketId}-${bhp?.id ?? index}`,
+          namaPaket: `[${row.kode}] ${row.nama}`,
+          item: String(itemName || '-'),
+          qty: Number(bhp?.jumlahDefault || bhp?.jumlah || bhp?.qty || 1),
+          satuan: String(bhp?.satuan || '-')
+        }
+      })
+
+      detailMap.set(row.paketId, { tindakanRows, bhpRows })
+    })
+
+    return detailMap
+  }, [getPaketBhpItems, getPaketTindakanItems, paketById, selectedPaketRows])
+
+  const billingComputation = useMemo<{
+    computedData: BillingComputedData | null
+    warnings: string[]
+  }>(() => {
+    const warningSet = new Set<string>()
+    const chargeRows: BillingChargeRow[] = []
+    const komponenRows: BillingKomponenRow[] = []
+
+    selectedPaketRows.forEach((row) => {
+      const paket = paketById.get(row.paketId)
+      if (!paket) {
+        warningSet.add(`Master paket tidak ditemukan untuk [${row.kode}] ${row.nama}.`)
+        return
+      }
+
+      const resolvedKelas = normalizeKelas(
+        paketTeamMap[row.paketId]?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
+      )
+      const tarifList = Array.isArray(paket?.tarifList)
+        ? (paket.tarifList as PaketTarifHeaderRef[])
+        : []
+      const pickedTarif = pickTarifForKelasAndDate(tarifList, resolvedKelas, roleResolutionDate)
+
+      const snapshotTarif = parseNumber(row.tarifSnapshot)
+      const masterTarif = parseNumber(pickedTarif?.tarifTotal)
+      const pickedKelas = normalizeKelas(pickedTarif?.kelas)
+
+      if (!pickedTarif) {
+        warningSet.add(
+          `Tarif aktif tidak ditemukan untuk [${row.kode}] ${row.nama} pada kelas ${getKelasLabel(resolvedKelas)}.`
+        )
+      } else if (pickedKelas && pickedKelas !== resolvedKelas) {
+        warningSet.add(
+          `[${row.kode}] ${row.nama}: kelas ${getKelasLabel(resolvedKelas)} tidak tersedia, fallback ke ${getKelasLabel(pickedKelas)}.`
+        )
+      }
+
+      if (
+        snapshotTarif !== null &&
+        masterTarif !== null &&
+        Math.abs(snapshotTarif - masterTarif) > 1
+      ) {
+        warningSet.add(
+          `[${row.kode}] ${row.nama}: nominal snapshot (${formatCurrency(snapshotTarif)}) berbeda dari master aktif (${formatCurrency(masterTarif)}).`
+        )
+      }
+
+      const tarifPaketNominal = snapshotTarif ?? masterTarif ?? 0
+      chargeRows.push({
+        key: `charge-paket-${row.paketId}`,
+        kategori: 'Tarif Paket',
+        paket: `[${row.kode}] ${row.nama}`,
+        keterangan: row.nama,
+        kelas: getKelasLabel(pickedKelas || resolvedKelas),
+        jumlah: 1,
+        satuan: 'paket',
+        harga: tarifPaketNominal,
+        subtotal: tarifPaketNominal
+      })
+
+      const detailItems = getPaketTindakanItems(paket)
+      const detailNameById = new Map<number, string>()
+      detailItems.forEach((detail, index) => {
+        const detailId = Number(detail?.id)
+        const tindakanName =
+          detail?.tindakan?.namaTindakan ||
+          detail?.masterTindakan?.namaTindakan ||
+          `Detail ${index + 1}`
+        if (Number.isFinite(detailId) && detailId > 0) {
+          detailNameById.set(detailId, String(tindakanName))
+        }
+      })
+
+      const rincianTarif = Array.isArray(pickedTarif?.rincianTarif)
+        ? (pickedTarif.rincianTarif as PaketTarifRincianRef[])
+        : []
+      if (pickedTarif && rincianTarif.length === 0) {
+        warningSet.add(`[${row.kode}] ${row.nama}: rincian komponen tarif belum tersedia.`)
+      }
+
+      rincianTarif.forEach((rincian, rincianIndex) => {
+        const paketDetailId = Number(rincian?.paketDetailId)
+        const tindakanName =
+          (Number.isFinite(paketDetailId) && paketDetailId > 0
+            ? detailNameById.get(paketDetailId)
+            : null) || `Tindakan ${rincianIndex + 1}`
+        const komponenTarifList = Array.isArray(rincian?.komponenTarifList)
+          ? rincian.komponenTarifList
+          : []
+
+        komponenTarifList.forEach((komponen, komponenIndex) => {
+          const komponenLabel =
+            String(
+              komponen?.jenisKomponen?.label ||
+                komponen?.jenisKomponen?.kode ||
+                komponen?.kode ||
+                `Komponen ${komponenIndex + 1}`
+            ).trim() || '-'
+          const nominal = parseNumber(komponen?.nominal) ?? 0
+
+          komponenRows.push({
+            key: `komponen-${row.paketId}-${paketDetailId || rincianIndex}-${komponenIndex}`,
+            paket: `[${row.kode}] ${row.nama}`,
+            kelas: getKelasLabel(pickedKelas || resolvedKelas),
+            tindakan: tindakanName,
+            komponen: komponenLabel,
+            nominal
+          })
+        })
+      })
+
+      const bhpItems = getPaketBhpItems(paket).filter((item) => item?.includedInPaket !== true)
+      bhpItems.forEach((bhp, index) => {
+        const qty = Number(bhp?.jumlahDefault || bhp?.jumlah || bhp?.qty || 1)
+        const jumlah = Number.isFinite(qty) && qty > 0 ? qty : 1
+        const hargaSatuan = parseNumber(bhp?.item?.sellingPrice) ?? 0
+        const namaItem = String(
+          bhp?.item?.nama || (Number.isFinite(Number(bhp?.itemId)) ? `Item #${bhp?.itemId}` : '-')
+        )
+        if (hargaSatuan <= 0) {
+          warningSet.add(
+            `[${row.kode}] ${row.nama}: harga BHP "${namaItem}" belum tersedia (subtotal dihitung 0).`
+          )
+        }
+
+        chargeRows.push({
+          key: `charge-bhp-${row.paketId}-${bhp?.id ?? index}`,
+          kategori: 'BHP Tambahan',
+          paket: `[${row.kode}] ${row.nama}`,
+          keterangan: namaItem,
+          kelas: getKelasLabel(pickedKelas || resolvedKelas),
+          jumlah,
+          satuan: String(bhp?.satuan || 'pcs'),
+          harga: hargaSatuan,
+          subtotal: jumlah * hargaSatuan
+        })
+      })
+    })
+
+    const tarifPaketTotal = chargeRows
+      .filter((row) => row.kategori === 'Tarif Paket')
+      .reduce((sum, row) => sum + Number(row.subtotal || 0), 0)
+    const bhpTambahanTotal = chargeRows
+      .filter((row) => row.kategori === 'BHP Tambahan')
+      .reduce((sum, row) => sum + Number(row.subtotal || 0), 0)
+    const grandTotal = tarifPaketTotal + bhpTambahanTotal
+
+    if (chargeRows.length === 0) {
+      return {
+        computedData: null,
+        warnings: Array.from(warningSet)
+      }
+    }
+
+    return {
+      computedData: {
+        chargeRows,
+        komponenRows,
+        totals: {
+          tarifPaketTotal,
+          bhpTambahanTotal,
+          grandTotal
+        }
+      },
+      warnings: Array.from(warningSet)
+    }
+  }, [
+    getPaketBhpItems,
+    getPaketTindakanItems,
+    paketById,
+    paketTeamMap,
+    roleResolutionDate,
+    selectedPaketRows,
+    selectedTarifKelas
+  ])
+
+  const okRequestSyncMarker = useMemo(() => {
+    if (!selectedRequest?.id) return null
+    return `[OK_REQUEST:${selectedRequest.id}]`
+  }, [selectedRequest?.id])
+
+  const syncedDetailTindakan = useMemo(() => {
+    if (!okRequestSyncMarker) return null
+
+    const source = (Array.isArray(detailTindakanByEncounter)
+      ? detailTindakanByEncounter
+      : []) as SyncedDetailTindakanRecord[]
+
+    return source.find((record) => {
+        const tindakanPaket = Array.isArray(record?.tindakanPaket) ? record.tindakanPaket : []
+        return tindakanPaket.some((item) =>
+          String(item?.catatanTambahan || '').includes(okRequestSyncMarker)
+        )
+      })
+  }, [detailTindakanByEncounter, okRequestSyncMarker])
+
+  useEffect(() => {
+    if (!selectedRequest?.id) {
+      preOpForm.resetFields()
+      signInForm.resetFields()
+      timeOutForm.resetFields()
+      signOutForm.resetFields()
+      postOpCheckForm.resetFields()
+      return
+    }
+
+    preOpForm.setFieldsValue({
+      ...(selectedRequest.preOpChecklist || {})
+    })
+
+    signInForm.setFieldsValue({
+      ...(selectedRequest.whoChecklist?.signIn || {})
+    })
+    timeOutForm.setFieldsValue({
+      ...(selectedRequest.whoChecklist?.timeOut || {})
+    })
+
+    signOutForm.setFieldsValue({
+      ...(selectedRequest.postOpChecklist?.signOut || {})
+    })
+    postOpCheckForm.setFieldsValue({
+      postopChecklist: selectedRequest.postOpChecklist?.checklist || {}
+    })
+  }, [
+    postOpCheckForm,
+    preOpForm,
+    selectedRequest?.id,
+    selectedRequest?.postOpChecklist,
+    selectedRequest?.preOpChecklist,
+    selectedRequest?.whoChecklist,
+    signInForm,
+    signOutForm,
+    timeOutForm
+  ])
+
+  useEffect(() => {
+    setPaketTeamMap({})
+    setIsPaketTeamInitialized(false)
+    setRestoreWarning(null)
+    setPaketTeamModalWarning(null)
+    setIsPaketTeamModalOpen(false)
+    setActivePaketForTeam(null)
+  }, [selectedRequest?.id])
+
+  useEffect(() => {
+    if (!selectedRequest?.id) return
+    if (isPaketTeamInitialized) return
+    if (selectedPaketRows.length === 0) {
+      setIsPaketTeamInitialized(true)
+      return
+    }
+
+    const persistedTeams = toValidTeamMembers(
+      (Array.isArray(syncedDetailTindakan?.tindakanPelaksanaList)
+        ? syncedDetailTindakan?.tindakanPelaksanaList
+        : []) as TeamMember[]
+    )
+    const persistedAssigneeMap = buildRoleAssigneeMap(persistedTeams)
+
+    if (persistedTeams.length > 0) {
+      const nextMap: Record<number, PaketTeamState> = {}
+      selectedPaketRows.forEach((row) => {
+        const initialKelas = normalizeKelas(row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM')
+        nextMap[row.paketId] = buildPaketTeamState(
+          row.paketId,
+          initialKelas,
+          persistedAssigneeMap,
+          null
+        )
+      })
+      setPaketTeamMap(nextMap)
+      setRestoreWarning(
+        'Data historis tidak menyimpan tim per paket. Sistem memuat tim yang sama ke semua paket dari data sinkron sebelumnya.'
+      )
+      setIsPaketTeamInitialized(true)
+      return
+    }
+
+    const firstPaket = selectedPaketRows[0]
+    if (firstPaket) {
+      const nextMap: Record<number, PaketTeamState> = {}
+      selectedPaketRows.forEach((row, index) => {
+        const initialKelas = normalizeKelas(row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM')
+        nextMap[row.paketId] = buildPaketTeamState(
+          row.paketId,
+          initialKelas,
+          undefined,
+          index === 0 ? selectedRequest?.dpjpId : null
+        )
+      })
+      setPaketTeamMap(nextMap)
+    }
+
+    setIsPaketTeamInitialized(true)
+  }, [
+    buildPaketTeamState,
+    isPaketTeamInitialized,
+    selectedTarifKelas,
+    selectedPaketRows,
+    selectedRequest?.dpjpId,
+    selectedRequest?.id,
+    syncedDetailTindakan?.id,
+    syncedDetailTindakan?.tindakanPelaksanaList
+  ])
 
   const displayData = useMemo(() => {
-    const rencanaAt = selectedRequest?.scheduledAt || selectedRequest?.requestedAt
+    const rencanaAt = scheduleDraftValidation.isReady
+      ? scheduleDraftValidation.startAt.toISOString()
+      : selectedRequest?.scheduledAt || selectedRequest?.requestedAt
+    const estimatedDuration = scheduleDraftValidation.isReady
+      ? scheduleDraftValidation.estimatedDurationMinutes
+      : selectedRequest?.estimatedDurationMinutes
 
     return {
       transaksiId: selectedRequest?.kode || routeId || '-',
       namaPasien: encounterDetail?.patient?.name || '-',
       noRM: encounterDetail?.patient?.medicalRecordNumber || '-',
-      kelas: '-',
-      tindakan: selectedRequest?.plannedProcedureSummary || selectedRequest?.mainDiagnosis || '-',
-      dokterOperator: selectedRequest?.surgeonId
-        ? performerMap.get(selectedRequest.surgeonId) || `ID ${selectedRequest.surgeonId}`
+      kelas: getKelasLabel(selectedTarifKelas),
+      dpjp: selectedRequest?.dpjpId
+        ? performerMap.get(selectedRequest.dpjpId) || `ID ${selectedRequest.dpjpId}`
         : '-',
-      ruangOK: selectedRequest?.operatingRoomId
-        ? operatingRoomMap.get(selectedRequest.operatingRoomId) || `Ruang #${selectedRequest.operatingRoomId}`
-        : '-',
+      ruangOK: scheduleDraftValidation.isReady
+        ? draftOperatingRoomLabel
+        : selectedRequest?.operatingRoomId
+          ? operatingRoomMap.get(selectedRequest.operatingRoomId) ||
+            `Ruang #${selectedRequest.operatingRoomId}`
+          : '-',
       tanggalRencana: formatDate(rencanaAt),
-      jamRencana: formatTimeRange(rencanaAt, selectedRequest?.estimatedDurationMinutes),
+      jamRencana: formatTimeRange(rencanaAt, estimatedDuration),
       dibuatPada: formatDateTime(selectedRequest?.requestedAt),
       dibuatOleh: selectedRequest?.createdBy
         ? performerMap.get(selectedRequest.createdBy) || `User ID ${selectedRequest.createdBy}`
-        : '-'
+        : selectedRequest?.dpjpId
+          ? performerMap.get(selectedRequest.dpjpId) || `DPJP ID ${selectedRequest.dpjpId}`
+          : 'Sistem'
     }
-  }, [encounterDetail, operatingRoomMap, performerMap, routeId, selectedRequest])
+  }, [
+    encounterDetail,
+    draftOperatingRoomLabel,
+    operatingRoomMap,
+    performerMap,
+    routeId,
+    scheduleDraftValidation,
+    selectedRequest,
+    selectedTarifKelas
+  ])
+
+  const billingLetterMeta = useMemo<BillingLetterMeta>(
+    () => ({
+      transactionCode: displayData.transaksiId,
+      encounterId: selectedRequest?.encounterId || null,
+      patientName: displayData.namaPasien,
+      medicalRecordNumber: displayData.noRM,
+      dpjpName: displayData.dpjp,
+      operatingRoomName: displayData.ruangOK,
+      plannedDate: displayData.tanggalRencana,
+      plannedTime: displayData.jamRencana,
+      createdByName: displayData.dibuatOleh,
+      verifiedByName: displayData.dpjp
+    }),
+    [displayData, selectedRequest?.encounterId]
+  )
+
+  const dokumenPendukungPath = useMemo(() => {
+    return String(selectedRequest?.dokumenPendukung || '').trim()
+  }, [selectedRequest?.dokumenPendukung])
+
+  const dokumenPendukungUrl = useMemo(() => {
+    if (!dokumenPendukungPath) return ''
+    const base = (import.meta.env.VITE_FILE_SERVER_URL ?? '').replace(/\/$/, '')
+    return `${base}/public/${dokumenPendukungPath}`
+  }, [dokumenPendukungPath])
+
+  const tindakanPaketPayload = useMemo(() => {
+    const rows = Array.isArray(selectedRequest?.paketTindakanList)
+      ? selectedRequest.paketTindakanList
+      : []
+    const mapped: Array<{
+      masterTindakanId: number
+      paketId: number
+      paketDetailId: number
+      kelas: string
+      jumlah: number
+      satuan: string | null
+      cyto: boolean
+      catatanTambahan: string
+    }> = []
+    const missingPaketIds: number[] = []
+    const missingDetailPaketIds: number[] = []
+
+    rows.forEach((item) => {
+      const paketId = Number(item?.paketId)
+      if (!Number.isFinite(paketId) || paketId <= 0) return
+
+      const paket = paketById.get(paketId)
+      if (!paket) {
+        missingPaketIds.push(paketId)
+        return
+      }
+
+      const detailItems = Array.isArray(paket?.listTindakan)
+        ? paket.listTindakan
+        : Array.isArray(paket?.detailItems)
+          ? paket.detailItems
+          : []
+
+      if (detailItems.length === 0) {
+        missingDetailPaketIds.push(paketId)
+        return
+      }
+
+      detailItems.forEach((detail: PaketMasterDetailItemRef) => {
+        const paketDetailId = Number(detail?.id)
+        const masterTindakanId = Number(detail?.masterTindakanId)
+        if (!Number.isFinite(paketDetailId) || paketDetailId <= 0) return
+        if (!Number.isFinite(masterTindakanId) || masterTindakanId <= 0) return
+
+        const jumlahRaw = Number(detail?.qty)
+        const jumlah = Number.isFinite(jumlahRaw) && jumlahRaw > 0 ? jumlahRaw : 1
+        const kelasPaket = normalizeKelas(
+          paketTeamMap[paketId]?.kelas || item?.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
+        )
+
+        mapped.push({
+          masterTindakanId,
+          paketId,
+          paketDetailId,
+          kelas: kelasPaket,
+          jumlah,
+          satuan: detail?.satuan ? String(detail.satuan) : null,
+          cyto: isSelectedRequestCyto,
+          catatanTambahan: `${okRequestSyncMarker || '[OK_REQUEST]'} sinkron verifikasi OK`
+        })
+      })
+    })
+
+    const unique = new Map<string, (typeof mapped)[number]>()
+    mapped.forEach((row) => {
+      unique.set(`${row.paketId}-${row.paketDetailId}`, row)
+    })
+
+    return {
+      rows: Array.from(unique.values()),
+      missingPaketIds: Array.from(new Set(missingPaketIds)),
+      missingDetailPaketIds: Array.from(new Set(missingDetailPaketIds))
+    }
+  }, [
+    okRequestSyncMarker,
+    paketById,
+    paketTeamMap,
+    isSelectedRequestCyto,
+    selectedRequest?.paketTindakanList,
+    selectedTarifKelas
+  ])
+
+  const paketTeamStatusMap = useMemo(() => {
+    const map: Record<
+      number,
+      {
+        kelas: string
+        roleCount: number
+        assignedCount: number
+        complete: boolean
+        hasRole: boolean
+      }
+    > = {}
+
+    selectedPaketRows.forEach((row) => {
+      const state = paketTeamMap[row.paketId]
+      const kelas = normalizeKelas(
+        state?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
+      )
+      const roleList = Array.isArray(state?.roleList) ? state.roleList : []
+      const teamMembers = normalizeTeamAssignments(state?.teamMembers || [])
+      const assignedMap = buildRoleAssigneeMap(teamMembers)
+      const assignedCount = roleList.filter((role) => assignedMap.has(role)).length
+      const hasRole = roleList.length > 0
+      const complete = hasRole && assignedCount === roleList.length
+
+      map[row.paketId] = {
+        kelas,
+        roleCount: roleList.length,
+        assignedCount,
+        complete,
+        hasRole
+      }
+    })
+
+    return map
+  }, [paketTeamMap, selectedPaketRows, selectedTarifKelas])
+
+  const invalidTeamRows = useMemo(() => {
+    return selectedPaketRows.filter((row) => !paketTeamStatusMap[row.paketId]?.complete)
+  }, [paketTeamStatusMap, selectedPaketRows])
 
   const isLoadingPage = isLoadingOkRequest || isFetchingOkRequest || isLoadingEncounter
   const errorMessage =
@@ -207,121 +1504,939 @@ const DetailVerifikasiPage = () => {
         : ''
 
   const handleSavePreOp = async () => {
+    if (!selectedRequest?.id) {
+      message.error('Data pengajuan OK belum tersedia')
+      return
+    }
+
     try {
       const values = await preOpForm.validateFields()
-      console.log('Saving Pre-Op:', values)
+      await saveOkRequestChecklists.mutateAsync({
+        id: Number(selectedRequest.id),
+        preOpChecklist: values
+      })
       message.success('Checklist Pre-Op berhasil disimpan')
-    } catch {
-      message.error('Mohon lengkapi seluruh field wajib di Checklist Pre-Op')
+      void refetchOkRequest()
+    } catch (error) {
+      const parsed = extractUiError(error, 'Mohon lengkapi seluruh field wajib di Checklist Pre-Op')
+      if (parsed.source === 'validation') {
+        message.error(`Validasi Form: ${parsed.message}`)
+        return
+      }
+      message.error(parsed.message)
     }
   }
 
   const handleSaveIntraOp = async () => {
+    if (!selectedRequest?.id) {
+      message.error('Data pengajuan OK belum tersedia')
+      return
+    }
+
     try {
       const signInValues = await signInForm.validateFields()
-      const timeOutValues = await timeOutForm.validateFields()
-      console.log('Saving Intra-Op:', { signInValues, timeOutValues })
-      message.success('WHO Checklist (Sign-In & Time-Out) berhasil dikonfirmasi')
-    } catch {
-      message.error('Mohon lengkapi seluruh item WHO Checklist yang wajib diisi')
+      const timeOutValues = timeOutForm.getFieldsValue()
+      await saveOkRequestChecklists.mutateAsync({
+        id: Number(selectedRequest.id),
+        whoChecklist: {
+          signIn: signInValues,
+          timeOut: timeOutValues
+        }
+      })
+      message.success('WHO Checklist berhasil disimpan')
+      void refetchOkRequest()
+    } catch (error) {
+      const parsed = extractUiError(error, 'Mohon lengkapi seluruh item wajib WHO Checklist')
+      if (parsed.source === 'validation') {
+        const fieldName = String(parsed.fieldName || '').trim()
+        const area = WHO_TIME_OUT_FIELDS.has(fieldName)
+          ? 'Time-Out'
+          : WHO_SIGN_IN_FIELDS.has(fieldName)
+            ? 'Sign-In'
+            : 'WHO'
+        message.error(`Validasi ${area}: ${parsed.message}`)
+        return
+      }
+      message.error(parsed.message)
     }
   }
 
   const handleSavePostOp = async () => {
+    if (!selectedRequest?.id) {
+      message.error('Data pengajuan OK belum tersedia')
+      return
+    }
+
     try {
       const signOutValues = await signOutForm.validateFields()
       const postOpValues = await postOpCheckForm.validateFields()
-      console.log('Saving Post-Op:', { signOutValues, postOpValues })
+      await saveOkRequestChecklists.mutateAsync({
+        id: Number(selectedRequest.id),
+        postOpChecklist: {
+          signOut: signOutValues,
+          checklist: (postOpValues as { postopChecklist?: Record<string, unknown> })?.postopChecklist
+        }
+      })
       message.success('Data Post-Operasi berhasil disimpan')
-    } catch {
-      message.error('Mohon lengkapi seluruh field wajib di form Post-Op')
+      void refetchOkRequest()
+    } catch (error) {
+      const parsed = extractUiError(error, 'Mohon lengkapi seluruh field wajib di form Post-Op')
+      if (parsed.source === 'validation') {
+        message.error(`Validasi Form: ${parsed.message}`)
+        return
+      }
+      message.error(parsed.message)
     }
+  }
+
+  const syncModalTeamMembersByClass = (
+    paketId: number,
+    kelasRaw: string,
+    sourceAssignments?: TeamMemberAssignment[] | TeamMemberFormItem[]
+  ) => {
+    const kelas = normalizeKelas(kelasRaw) || 'UMUM'
+    const roleList = resolveRolesFromPaketByClass(paketId, kelas)
+    const assigneeMap = buildRoleAssigneeMap(
+      normalizeTeamAssignments(
+        sourceAssignments || (paketTeamForm.getFieldValue('teamMembers') ?? [])
+      )
+    )
+    const teamMembers: TeamMemberAssignment[] = roleList.map((roleTenaga) => ({
+      roleTenaga,
+      pegawaiId: assigneeMap.get(roleTenaga)
+    }))
+
+    paketTeamForm.setFieldsValue({
+      kelas,
+      teamMembers
+    })
+
+    if (roleList.length === 0) {
+      setPaketTeamModalWarning(
+        'Role tenaga medis belum tersedia untuk paket dan kelas ini. Pastikan komponen jasa medis pada tarif paket sudah dikonfigurasi.'
+      )
+    } else {
+      setPaketTeamModalWarning(null)
+    }
+
+    return { kelas, roleList, teamMembers }
+  }
+
+  const openPaketTeamModal = (row: PaketRow) => {
+    const existingState = paketTeamMap[row.paketId]
+    const kelas = normalizeKelas(
+      existingState?.kelas || row.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
+    )
+    const sourceAssignments = normalizeTeamAssignments(existingState?.teamMembers || [])
+
+    setActivePaketForTeam(row)
+    setPaketTeamModalWarning(null)
+    paketTeamForm.setFieldsValue({ kelas, teamMembers: sourceAssignments })
+    syncModalTeamMembersByClass(row.paketId, kelas, sourceAssignments)
+    setIsPaketTeamModalOpen(true)
+  }
+
+  const handleSavePaketTeamModal = async () => {
+    if (!activePaketForTeam) return
+
+    try {
+      const values = await paketTeamForm.validateFields()
+      const kelas = normalizeKelas(values?.kelas || selectedTarifKelas || 'UMUM')
+      const roleList = resolveRolesFromPaketByClass(activePaketForTeam.paketId, kelas)
+      if (roleList.length === 0) {
+        message.error('Role tenaga medis belum tersedia untuk paket dan kelas yang dipilih')
+        return
+      }
+      const teamMembers = normalizeTeamAssignments(values?.teamMembers || [])
+      const assigneeMap = buildRoleAssigneeMap(teamMembers)
+      const missingRoles = roleList.filter((role) => !assigneeMap.has(role))
+      if (missingRoles.length > 0) {
+        message.error('Semua role tenaga medis wajib diisi petugas')
+        return
+      }
+
+      const normalizedMembers = roleList.map((roleTenaga) => ({
+        roleTenaga,
+        pegawaiId: assigneeMap.get(roleTenaga)
+      }))
+
+      setPaketTeamMap((prev) => ({
+        ...prev,
+        [activePaketForTeam.paketId]: {
+          kelas,
+          roleList,
+          teamMembers: normalizedMembers
+        }
+      }))
+
+      message.success(`Tim pelaksana paket ${activePaketForTeam.kode} tersimpan`)
+      setIsPaketTeamModalOpen(false)
+      setActivePaketForTeam(null)
+      setPaketTeamModalWarning(null)
+    } catch {
+      message.error('Mohon lengkapi data tim pelaksana paket')
+    }
+  }
+
+  const buildFlattenedPetugasList = (): TeamMember[] => {
+    const flattened: TeamMember[] = []
+    selectedPaketIds.forEach((paketId) => {
+      const list = toValidTeamMembers(
+        normalizeTeamAssignments(paketTeamMap[paketId]?.teamMembers || [])
+      )
+      flattened.push(...list)
+    })
+    return toValidTeamMembers(flattened)
+  }
+
+  const savePaketTeamsToDetailTindakan = async (): Promise<boolean> => {
+    if (!selectedRequest?.encounterId || !selectedRequest?.id) {
+      message.error('Encounter pengajuan OK tidak ditemukan')
+      return false
+    }
+
+    const patientId =
+      String(encounterDetail?.patient?.id || encounterDetail?.patientId || '').trim() || undefined
+
+    if (!patientId) {
+      message.error(
+        'Patient ID dari encounter tidak ditemukan, tidak dapat membuat detail tindakan'
+      )
+      return false
+    }
+
+    if (tindakanPaketPayload.rows.length === 0) {
+      if (tindakanPaketPayload.missingPaketIds.length > 0) {
+        message.error(
+          `Paket tidak ditemukan di master: ${tindakanPaketPayload.missingPaketIds.join(', ')}`
+        )
+        return false
+      }
+
+      if (tindakanPaketPayload.missingDetailPaketIds.length > 0) {
+        message.error(
+          `Detail tindakan paket belum tersedia: ${tindakanPaketPayload.missingDetailPaketIds.join(', ')}`
+        )
+        return false
+      }
+
+      message.error('Tidak ada item tindakan paket yang bisa disinkronkan ke detail tindakan')
+      return false
+    }
+
+    if (invalidTeamRows.length > 0) {
+      const detail = invalidTeamRows
+        .map((row) => {
+          const status = paketTeamStatusMap[row.paketId]
+          if (!status?.hasRole) return `[${row.kode}] ${row.nama} (role medis belum tersedia)`
+          return `[${row.kode}] ${row.nama} (pelaksana ${status.assignedCount}/${status.roleCount})`
+        })
+        .join(', ')
+      message.error(`Tim pelaksana belum lengkap: ${detail}`)
+      return false
+    }
+
+    const petugasList = buildFlattenedPetugasList()
+    if (petugasList.length === 0) {
+      message.error('Tim pelaksana belum valid untuk disimpan')
+      return false
+    }
+
+    try {
+      const payload = {
+        encounterId: selectedRequest.encounterId,
+        patientId,
+        tanggalTindakan: scheduleDraftValidation.isReady
+          ? scheduleDraftValidation.startAt.toISOString()
+          : selectedRequest.scheduledAt || selectedRequest.requestedAt || dayjs().toISOString(),
+        cyto: isSelectedRequestCyto,
+        catatanTambahan: `${okRequestSyncMarker || '[OK_REQUEST]'} sinkron dari verifikasi OK`,
+        petugasList,
+        tindakanPaketList: tindakanPaketPayload.rows,
+        tindakanSatuanList: [],
+        bhpSatuanList: [],
+        bhpPaketList: []
+      }
+
+      if (syncedDetailTindakan?.id) {
+        await updateDetailTindakan.mutateAsync({
+          id: Number(syncedDetailTindakan.id),
+          ...payload
+        })
+      } else {
+        await createDetailTindakan.mutateAsync(payload)
+      }
+
+      message.success('Tim pelaksana paket berhasil disimpan ke detail tindakan pasien')
+      return true
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error)
+      message.error(`Gagal sinkron ke detail tindakan: ${text}`)
+      return false
+    }
+  }
+
+  const resolveSchedulePayloadForMutation = (
+    targetStatus: OkRequestStatus,
+    strict = true
+  ): {
+    scheduledAt: string | null
+    estimatedDurationMinutes: number | undefined
+    operatingRoomId: number | null
+  } | null => {
+    if (scheduleDraftValidation.isReady) {
+      const requiresConflictCheck =
+        targetStatus === OK_REQUEST_STATUS.VERIFIED || targetStatus === OK_REQUEST_STATUS.IN_PROGRESS
+      if (requiresConflictCheck && firstScheduleConflict) {
+        const conflictingCode = firstScheduleConflict.kode || `ID ${firstScheduleConflict.id}`
+        message.warning(
+          `Jadwal bentrok di ${draftOperatingRoomLabel} dengan ${conflictingCode} (${formatDateTime(firstScheduleConflict.scheduledStartAt)} - ${formatDateTime(firstScheduleConflict.scheduledEndAt)}).`
+        )
+      }
+
+      return {
+        scheduledAt: scheduleDraftValidation.startAt.toISOString(),
+        estimatedDurationMinutes: scheduleDraftValidation.estimatedDurationMinutes,
+        operatingRoomId: scheduleDraftValidation.operatingRoomId
+      }
+    }
+
+    if (strict) {
+      message.error(scheduleDraftValidation.message)
+      return null
+    }
+
+    const estimatedDurationValue = Number(selectedRequest?.estimatedDurationMinutes)
+    return {
+      scheduledAt: selectedRequest?.scheduledAt ? dayjs(selectedRequest.scheduledAt).toISOString() : null,
+      estimatedDurationMinutes:
+        Number.isInteger(estimatedDurationValue) && estimatedDurationValue >= 0
+          ? estimatedDurationValue
+          : undefined,
+      operatingRoomId: selectedRequest?.operatingRoomId ?? null
+    }
+  }
+
+  const handleApproveVerification = async () => {
+    if (!selectedRequest?.id) return
+
+    if (invalidTeamRows.length > 0) {
+      const firstInvalidRow = invalidTeamRows[0]
+      const invalidItems = invalidTeamRows.map((row) => {
+        const status = paketTeamStatusMap[row.paketId]
+        const detail = !status?.hasRole
+          ? 'Role medis belum tersedia'
+          : `Pelaksana ${status.assignedCount}/${status.roleCount}`
+        return {
+          key: row.key,
+          text: `[${row.kode}] ${row.nama}`,
+          detail
+        }
+      })
+
+      modal.confirm({
+        title: 'Tim pelaksana paket belum lengkap',
+        okText: 'Isi Tim Sekarang',
+        cancelText: 'Nanti',
+        content: (
+          <div className="space-y-2">
+            <Text className="text-sm text-gray-600">
+              Lengkapi tim pelaksana pada paket berikut sebelum verifikasi disetujui:
+            </Text>
+            <ul className="list-disc pl-5 mb-0">
+              {invalidItems.map((item) => (
+                <li key={item.key}>
+                  <Text strong>{item.text}</Text> - <Text type="secondary">{item.detail}</Text>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ),
+        onOk: () => {
+          if (firstInvalidRow) {
+            openPaketTeamModal(firstInvalidRow)
+          }
+        }
+      })
+      return
+    }
+
+    try {
+      const schedulePayload = resolveSchedulePayloadForMutation(OK_REQUEST_STATUS.VERIFIED)
+      if (!schedulePayload) return
+
+      const syncSuccess = await savePaketTeamsToDetailTindakan()
+      if (!syncSuccess) return
+
+      await verifyOkRequest.mutateAsync({
+        id: Number(selectedRequest.id),
+        status: OK_REQUEST_STATUS.VERIFIED,
+        scheduledAt: schedulePayload.scheduledAt,
+        estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
+        operatingRoomId: schedulePayload.operatingRoomId,
+        notes: selectedRequest.notes || 'Disetujui melalui verifikasi OK'
+      })
+
+      message.success('Pengajuan OK berhasil disetujui')
+      void refetchOkRequest()
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error)
+      message.error(`Gagal menyetujui pengajuan OK: ${text}`)
+    }
+  }
+
+  const handleRejectVerification = () => {
+    if (!selectedRequest?.id) return
+
+    let rejectionReason = ''
+    modal.confirm({
+      title: 'Tolak Pengajuan OK',
+      content: (
+        <Input.TextArea
+          rows={4}
+          placeholder="Alasan penolakan"
+          onChange={(event) => {
+            rejectionReason = event.target.value
+          }}
+        />
+      ),
+      okText: 'Tolak Pengajuan',
+      okButtonProps: { danger: true },
+      cancelText: 'Batal',
+      onOk: async () => {
+        const reason = rejectionReason.trim()
+        if (!reason) {
+          message.error('Alasan penolakan wajib diisi')
+          throw new Error('Alasan penolakan wajib diisi')
+        }
+
+        await verifyOkRequest.mutateAsync({
+          id: Number(selectedRequest.id),
+          status: OK_REQUEST_STATUS.REJECTED,
+          rejectionReason: reason,
+          notes: reason
+        })
+
+        message.success('Pengajuan OK berhasil ditolak')
+        void refetchOkRequest()
+      }
+    })
+  }
+
+  const handleOperationalStatusUpdate = (
+    nextStatus: typeof OK_REQUEST_STATUS.IN_PROGRESS | typeof OK_REQUEST_STATUS.DONE
+  ) => {
+    if (!selectedRequest?.id) return
+
+    const schedulePayload = resolveSchedulePayloadForMutation(nextStatus)
+    if (!schedulePayload) return
+
+    const isStartAction = nextStatus === OK_REQUEST_STATUS.IN_PROGRESS
+    const title = isStartAction ? 'Mulai Operasi' : 'Selesaikan Operasi'
+    const successMessage = isStartAction
+      ? 'Status operasi berhasil diubah menjadi sedang operasi'
+      : 'Status operasi berhasil diubah menjadi selesai operasi'
+    const failureMessage = isStartAction
+      ? 'Gagal memperbarui status ke sedang operasi'
+      : 'Gagal memperbarui status ke selesai operasi'
+    const notes = isStartAction
+      ? 'Status diperbarui: sedang operasi'
+      : 'Status diperbarui: selesai operasi'
+
+    modal.confirm({
+      title,
+      content: (
+        <Text type="secondary">
+          {isStartAction
+            ? 'Pastikan pasien sudah masuk ruang operasi dan tim siap sebelum memulai.'
+            : 'Pastikan tindakan operasi sudah selesai sebelum menutup proses operasi.'}
+        </Text>
+      ),
+      okText: isStartAction ? 'Ya, Mulai Operasi' : 'Ya, Selesaikan',
+      cancelText: 'Batal',
+      okButtonProps: {
+        type: 'primary'
+      },
+      onOk: async () => {
+        try {
+          await verifyOkRequest.mutateAsync({
+            id: Number(selectedRequest.id),
+            status: nextStatus,
+            scheduledAt: schedulePayload.scheduledAt,
+            estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
+            operatingRoomId: schedulePayload.operatingRoomId,
+            notes
+          })
+          message.success(successMessage)
+          void refetchOkRequest()
+        } catch (error) {
+          const text = error instanceof Error ? error.message : String(error)
+          message.error(`${failureMessage}: ${text}`)
+          throw error
+        }
+      }
+    })
+  }
+
+  const handleCancelOperation = () => {
+    if (!selectedRequest?.id || !canCancelOperation) return
+
+    let cancellationReason = ''
+    const schedulePayload = resolveSchedulePayloadForMutation(OK_REQUEST_STATUS.CANCELLED, false)
+    if (!schedulePayload) return
+
+    modal.confirm({
+      title: 'Batalkan Operasi',
+      content: (
+        <div className="space-y-2">
+          <Text type="secondary" className="block">
+            Pembatalan operasi membutuhkan alasan yang jelas.
+          </Text>
+          <Input.TextArea
+            rows={4}
+            placeholder="Alasan pembatalan operasi"
+            onChange={(event) => {
+              cancellationReason = event.target.value
+            }}
+          />
+        </div>
+      ),
+      okText: 'Ya, Batalkan Operasi',
+      okButtonProps: {
+        danger: true
+      },
+      cancelText: 'Batal',
+      onOk: async () => {
+        const reason = cancellationReason.trim()
+        if (!reason) {
+          message.error('Alasan pembatalan wajib diisi')
+          throw new Error('Alasan pembatalan wajib diisi')
+        }
+
+        try {
+          await verifyOkRequest.mutateAsync({
+            id: Number(selectedRequest.id),
+            status: OK_REQUEST_STATUS.CANCELLED,
+            scheduledAt: schedulePayload.scheduledAt,
+            estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
+            operatingRoomId: schedulePayload.operatingRoomId,
+            notes: reason
+          })
+
+          message.success('Status operasi berhasil diubah menjadi dibatalkan')
+          void refetchOkRequest()
+        } catch (error) {
+          const text = error instanceof Error ? error.message : String(error)
+          message.error(`Gagal membatalkan operasi: ${text}`)
+          throw error
+        }
+      }
+    })
   }
 
   const tabItems = [
     {
       key: 'verifikasi',
-      label: '1. Verifikasi & BHP',
+      label: '1. Verifikasi & Tim Operasi',
       children: (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 gap-4 flex flex-col">
-            <Card title="Informasi Pasien & Operasi" className="shadow-none border-gray-100" size="small">
+            <Card
+              title="Informasi Pasien & Operasi"
+              className="shadow-none border-gray-100"
+              size="small"
+            >
+              {canAdjustSchedule && (
+                <div className="mb-4 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Text type="secondary" className="text-xs">
+                        Ruang OK
+                      </Text>
+                      <Select
+                        className="mt-1 w-full"
+                        value={scheduleDraft.operatingRoomId ?? undefined}
+                        options={operatingRoomOptions}
+                        placeholder="Pilih ruang OK"
+                        onChange={(value) => {
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            operatingRoomId: Number.isFinite(Number(value)) ? Number(value) : null
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">
+                        Rencana Mulai
+                      </Text>
+                      <DatePicker
+                        className="mt-1 w-full"
+                        showTime={{ format: 'HH:mm' }}
+                        format="DD/MM/YYYY HH:mm"
+                        value={scheduleDraft.rencanaMulai}
+                        onChange={(value) => {
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            rencanaMulai: value
+                          }))
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Text type="secondary" className="text-xs">
+                        Estimasi Selesai
+                      </Text>
+                      <DatePicker
+                        className="mt-1 w-full"
+                        showTime={{ format: 'HH:mm' }}
+                        format="DD/MM/YYYY HH:mm"
+                        value={scheduleDraft.rencanaSelesai}
+                        onChange={(value) => {
+                          setScheduleDraft((prev) => ({
+                            ...prev,
+                            rencanaSelesai: value
+                          }))
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {!scheduleDraftValidation.isReady && (
+                    <Alert type="warning" showIcon message={scheduleDraftValidation.message} />
+                  )}
+
+                  {scheduleDraftValidation.isReady && firstScheduleConflict && (
+                    <Alert
+                      type="warning"
+                      showIcon
+                      message="Jadwal operasi berpotensi bentrok"
+                      description={`Konflik dengan ${firstScheduleConflict.kode || `ID ${firstScheduleConflict.id}`} (${formatDateTime(firstScheduleConflict.scheduledStartAt)} - ${formatDateTime(firstScheduleConflict.scheduledEndAt)}).`}
+                    />
+                  )}
+                </div>
+              )}
+
               <Descriptions bordered column={2} size="small">
                 <Descriptions.Item label="Nama Pasien" span={2}>
                   {displayData.namaPasien}
                 </Descriptions.Item>
                 <Descriptions.Item label="No. Rekam Medis">{displayData.noRM}</Descriptions.Item>
-                <Descriptions.Item label="Kelas Layanan">{displayData.kelas}</Descriptions.Item>
-                <Descriptions.Item label="Jenis Tindakan" span={2}>
-                  {displayData.tindakan}
-                </Descriptions.Item>
-                <Descriptions.Item label="Dokter Operator">{displayData.dokterOperator}</Descriptions.Item>
+                <Descriptions.Item label="Kelas Tarif">{displayData.kelas}</Descriptions.Item>
+                <Descriptions.Item label="DPJP">{displayData.dpjp}</Descriptions.Item>
                 <Descriptions.Item label="Ruang OK">{displayData.ruangOK}</Descriptions.Item>
-                <Descriptions.Item label="Tanggal Rencana">{displayData.tanggalRencana}</Descriptions.Item>
-                <Descriptions.Item label="Estimasi Waktu">{displayData.jamRencana}</Descriptions.Item>
+                <Descriptions.Item label="Tanggal Rencana">
+                  {displayData.tanggalRencana}
+                </Descriptions.Item>
+                <Descriptions.Item label="Estimasi Waktu">
+                  {displayData.jamRencana}
+                </Descriptions.Item>
+                {isOperationCancelled && (
+                  <Descriptions.Item label="Catatan Pembatalan" span={2}>
+                    {cancellationNote || '-'}
+                  </Descriptions.Item>
+                )}
+                <Descriptions.Item label="Surat Praoperasi" span={2}>
+                  {dokumenPendukungUrl ? (
+                    <Space size="small" wrap>
+                      <Button
+                        type="link"
+                        className="p-0"
+                        onClick={() => {
+                          window.open(dokumenPendukungUrl, '_blank', 'noopener,noreferrer')
+                        }}
+                      >
+                        Lihat Dokumen
+                      </Button>
+                      <a href={dokumenPendukungUrl} target="_blank" rel="noopener noreferrer" download>
+                        Unduh
+                      </a>
+                    </Space>
+                  ) : (
+                    '-'
+                  )}
+                </Descriptions.Item>
               </Descriptions>
             </Card>
 
-            <Card title="Daftar Permintaan BHP" className="shadow-none border-gray-100" size="small">
-              <Table<BHPRow>
+            <Card
+              title="Paket Tindakan Pengajuan"
+              className="shadow-none border-gray-100"
+              size="small"
+            >
+              {restoreWarning && (
+                <Alert className="!mb-3" type="info" showIcon message={restoreWarning} />
+              )}
+
+              {invalidTeamRows.length > 0 && (
+                <Alert
+                  className="!mb-3"
+                  type="warning"
+                  showIcon
+                  message={`Tim pelaksana belum lengkap pada ${invalidTeamRows.length} paket.`}
+                />
+              )}
+
+              <Table<PaketRow>
                 size="small"
-                dataSource={bhpRows}
-                rowKey="nama"
+                dataSource={selectedPaketRows}
+                rowKey="key"
                 pagination={false}
-                locale={{ emptyText: <Empty description="Belum ada data BHP dari backend" /> }}
+                expandable={{
+                  rowExpandable: (row) => {
+                    const detail = paketOperationDetailById.get(row.paketId)
+                    return Boolean(
+                      detail &&
+                        ((detail.tindakanRows?.length || 0) > 0 ||
+                          (detail.bhpRows?.length || 0) > 0)
+                    )
+                  },
+                  expandedRowRender: (row) => {
+                    const detail = paketOperationDetailById.get(row.paketId)
+                    return (
+                      <PaketOperationBreakdown
+                        paketRows={detail?.tindakanRows || []}
+                        paketBhpRows={detail?.bhpRows || []}
+                      />
+                    )
+                  }
+                }}
+                locale={{
+                  emptyText: <Empty description="Belum ada paket tindakan pada pengajuan" />
+                }}
                 columns={[
-                  { title: 'Item', dataIndex: 'nama', key: 'nama' },
-                  { title: 'Qty', dataIndex: 'qty', key: 'qty', align: 'right' },
-                  { title: 'Satuan', dataIndex: 'satuan', key: 'satuan' },
+                  // { title: 'No', dataIndex: 'no', key: 'no', width: 64 },
                   {
-                    title: 'Harga',
-                    dataIndex: 'harga',
-                    key: 'harga',
-                    align: 'right',
-                    render: (v: number) => `Rp ${v.toLocaleString('id-ID')}`
+                    title: 'Paket',
+                    key: 'paket',
+                    render: (_, row) => (
+                      <div>
+                        <div className="font-semibold">
+                          [{row.kode}] {row.nama}
+                        </div>
+                      </div>
+                    )
                   },
                   {
-                    title: 'Subtotal',
-                    key: 'subtotal',
+                    title: 'Kelas',
+                    key: 'kelas',
+                    width: 150,
+                    render: (_, row) => {
+                      const status = paketTeamStatusMap[row.paketId]
+                      return getKelasLabel(
+                        status?.kelas ||
+                          normalizeKelas(row.kelasTarifSnapshot) ||
+                          selectedTarifKelas
+                      )
+                    }
+                  },
+                  {
+                    title: 'Tim Pelaksana',
+                    key: 'teamStatus',
+                    width: 240,
+                    render: (_, row) => {
+                      const status = paketTeamStatusMap[row.paketId]
+                      if (!status?.hasRole) {
+                        return (
+                          <Space direction="vertical" size={2}>
+                            <Tag color="red">Role belum tersedia</Tag>
+                            <Text type="secondary" className="text-xs">
+                              Cek konfigurasi tarif komponen medis
+                            </Text>
+                          </Space>
+                        )
+                      }
+                      if (!status?.complete) {
+                        return (
+                          <Space direction="vertical" size={2}>
+                            <Tag color="orange">Belum lengkap</Tag>
+                            <Text type="secondary" className="text-xs">
+                              {status?.assignedCount || 0}/{status?.roleCount || 0} pelaksana
+                            </Text>
+                          </Space>
+                        )
+                      }
+                      return (
+                        <Space direction="vertical" size={2}>
+                          <Tag color="green">Lengkap</Tag>
+                          <Text type="secondary" className="text-xs">
+                            {status?.assignedCount || 0}/{status?.roleCount || 0} pelaksana
+                          </Text>
+                        </Space>
+                      )
+                    }
+                  },
+                  {
+                    title: 'Tarif Snapshot',
+                    key: 'tarifSnapshot',
                     align: 'right',
-                    render: (_, r) => `Rp ${(r.qty * r.harga).toLocaleString('id-ID')}`
+                    width: 170,
+                    render: (_, row) =>
+                      typeof row.tarifSnapshot === 'number'
+                        ? `Rp ${row.tarifSnapshot.toLocaleString('id-ID')}`
+                        : '-'
+                  },
+                  {
+                    title: 'Aksi',
+                    key: 'aksi',
+                    width: 120,
+                    render: (_, row) => (
+                      <Space wrap>
+                        <Button
+                          size="small"
+                          icon={<EditOutlined />}
+                          onClick={() => {
+                            openPaketTeamModal(row)
+                          }}
+                        >
+                          Isi Tim
+                        </Button>
+                      </Space>
+                    )
                   }
                 ]}
-                summary={() => (
-                  <Table.Summary.Row>
-                    <Table.Summary.Cell index={0} colSpan={4}>
-                      <Text strong>Total Estimasi Biaya BHP</Text>
-                    </Table.Summary.Cell>
-                    <Table.Summary.Cell index={1} align="right">
-                      <Text strong>Rp {bhpTotal.toLocaleString('id-ID')}</Text>
-                    </Table.Summary.Cell>
-                  </Table.Summary.Row>
-                )}
               />
+
+              {tindakanPaketPayload.missingPaketIds.length > 0 && (
+                <Alert
+                  className="mt-3"
+                  type="warning"
+                  showIcon
+                  message={`Master paket belum ditemukan untuk ID: ${tindakanPaketPayload.missingPaketIds.join(', ')}`}
+                />
+              )}
+
+              {tindakanPaketPayload.missingDetailPaketIds.length > 0 && (
+                <Alert
+                  className="mt-3"
+                  type="warning"
+                  showIcon
+                  message={`Detail tindakan paket belum tersedia untuk paket ID: ${tindakanPaketPayload.missingDetailPaketIds.join(', ')}`}
+                />
+              )}
             </Card>
           </div>
 
           <div className="space-y-6">
-            <Card title="Verifikasi Keputusan" className="shadow-none border-gray-100" size="small">
+            <Card title="Keputusan & Status Operasi" className="shadow-none border-gray-100" size="small">
               <div className="space-y-4">
-                <p className="text-gray-600 text-sm">
-                  Setelah disetujui, jadwal akan otomatis masuk ke kalender ruang operasi dan
-                  notifikasi akan dikirim ke dokter pengaju.
-                </p>
-                <Space direction="vertical" className="w-full">
-                  <Button
-                    type="primary"
-                    block
-                    size="large"
-                    icon={<CheckCircleOutlined />}
-                    style={{ background: '#10b981', borderColor: '#10b981' }}
-                  >
-                    Setujui & Jadwalkan
-                  </Button>
-                  <Button danger block size="large" icon={<CloseCircleOutlined />}>
-                    Tolak Pengajuan
-                  </Button>
-                </Space>
+                {canTakeDecision ? (
+                  <Space direction="vertical" className="w-full">
+                    <Button
+                      type="primary"
+                      block
+                      size="large"
+                      icon={<CheckCircleOutlined />}
+                      style={{ background: '#10b981', borderColor: '#10b981' }}
+                      loading={
+                        verifyOkRequest.isPending ||
+                        createDetailTindakan.isPending ||
+                        updateDetailTindakan.isPending
+                      }
+                      onClick={() => {
+                        void handleApproveVerification()
+                      }}
+                    >
+                      Setujui & Sinkronkan
+                    </Button>
+                    <Button
+                      danger
+                      block
+                      size="large"
+                      icon={<CloseCircleOutlined />}
+                      loading={verifyOkRequest.isPending}
+                      onClick={handleRejectVerification}
+                    >
+                      Tolak Pengajuan
+                    </Button>
+                  </Space>
+                ) : canStartOperation ? (
+                  <Space direction="vertical" className="w-full">
+                    <Alert
+                      type="success"
+                      showIcon
+                      className="!mb-2"
+                      message="Pengajuan sudah disetujui dan siap dieksekusi di ruang operasi."
+                    />
+                    <Button
+                      type="primary"
+                      block
+                      size="large"
+                      icon={<HistoryOutlined />}
+                      style={{ background: '#2563eb', borderColor: '#2563eb' }}
+                      loading={verifyOkRequest.isPending}
+                      onClick={() => {
+                        handleOperationalStatusUpdate(OK_REQUEST_STATUS.IN_PROGRESS)
+                      }}
+                    >
+                      Mulai Operasi
+                    </Button>
+                    <Button
+                      danger
+                      block
+                      size="large"
+                      icon={<CloseCircleOutlined />}
+                      loading={verifyOkRequest.isPending}
+                      onClick={handleCancelOperation}
+                    >
+                      Batalkan Operasi
+                    </Button>
+                  </Space>
+                ) : canFinishOperation ? (
+                  <Space direction="vertical" className="w-full">
+                    <Alert
+                      type="info"
+                      showIcon
+                      className="!mb-2"
+                      message="Operasi sedang berjalan. Lanjutkan ke status selesai jika tindakan telah tuntas."
+                    />
+                    <Button
+                      type="primary"
+                      block
+                      size="large"
+                      icon={<CheckCircleOutlined />}
+                      style={{ background: '#16a34a', borderColor: '#16a34a' }}
+                      loading={verifyOkRequest.isPending}
+                      onClick={() => {
+                        handleOperationalStatusUpdate(OK_REQUEST_STATUS.DONE)
+                      }}
+                    >
+                      Selesaikan Operasi
+                    </Button>
+                    <Button
+                      danger
+                      block
+                      size="large"
+                      icon={<CloseCircleOutlined />}
+                      loading={verifyOkRequest.isPending}
+                      onClick={handleCancelOperation}
+                    >
+                      Batalkan Operasi
+                    </Button>
+                  </Space>
+                ) : isOperationCompleted ? (
+                  <Alert
+                    type="success"
+                    showIcon
+                    className="!mb-3"
+                    message="Operasi telah selesai. Tidak ada aksi status lanjutan."
+                  />
+                ) : isOperationCancelled ? (
+                  <Alert
+                    type="warning"
+                    showIcon
+                    className="!mb-3"
+                    message="Operasi telah dibatalkan. Tidak ada aksi status lanjutan."
+                    description={cancellationNote || 'Tidak ada catatan pembatalan.'}
+                  />
+                ) : (
+                  <Alert
+                    type="info"
+                    showIcon
+                    className="!mb-3"
+                    message={`Pengajuan sudah berstatus "${statusMeta.label}" dan tidak bisa diputuskan ulang dari halaman ini.`}
+                  />
+                )}
                 <div className="bg-gray-50 p-3 rounded text-xs text-gray-500">
                   <FileTextOutlined className="mr-1" />
                   Dibuat oleh {displayData.dibuatOleh} pada {displayData.dibuatPada}
@@ -338,7 +2453,12 @@ const DetailVerifikasiPage = () => {
       children: (
         <div className="space-y-6">
           <Form form={preOpForm} layout="vertical">
-            <ChecklistPreOpForm standalone={false} externalForm={preOpForm} />
+            <ChecklistPreOpForm
+              standalone={false}
+              externalForm={preOpForm}
+              performerOptions={preOpPerformerOptions}
+              isLoadingPerformers={isLoadingPreOpPerformers}
+            />
             <div className="flex justify-end mt-6">
               <Button
                 type="primary"
@@ -360,8 +2480,17 @@ const DetailVerifikasiPage = () => {
       children: (
         <div className="space-y-4">
           <div className="space-y-4">
-            <SignInForm standalone={false} externalForm={signInForm} />
-            <TimeOutForm standalone={false} externalForm={timeOutForm} />
+            <Form form={signInForm} layout="vertical">
+              <SignInForm
+                standalone={false}
+                externalForm={signInForm}
+                performerOptions={signInNurseOptions}
+                isLoadingPerformers={isLoadingSignInNursePerformers}
+              />
+            </Form>
+            <Form form={timeOutForm} layout="vertical">
+              <TimeOutForm standalone={false} externalForm={timeOutForm} />
+            </Form>
           </div>
           <div className="flex justify-end mt-6">
             <Button
@@ -371,7 +2500,7 @@ const DetailVerifikasiPage = () => {
               onClick={handleSaveIntraOp}
               style={{ background: '#3b82f6', border: 'none' }}
             >
-              Simpan WHO Checklist (SignIn + TimeOut)
+              Simpan WHO Checklist (SignIn)
             </Button>
           </div>
         </div>
@@ -382,8 +2511,12 @@ const DetailVerifikasiPage = () => {
       label: '4. SignOut & Post-Op',
       children: (
         <div className="space-y-4">
-          <SignOutForm standalone={false} externalForm={signOutForm} />
-          <ChecklistPostOpForm standalone={false} externalForm={postOpCheckForm} />
+          <Form form={signOutForm} layout="vertical">
+            <SignOutForm standalone={false} externalForm={signOutForm} />
+          </Form>
+          <Form form={postOpCheckForm} layout="vertical">
+            <ChecklistPostOpForm standalone={false} externalForm={postOpCheckForm} />
+          </Form>
           <div className="flex justify-end mt-6">
             <Button
               type="primary"
@@ -399,20 +2532,17 @@ const DetailVerifikasiPage = () => {
       )
     },
     {
-      key: 'administrasi',
-      label: '5. Administrasi & Order',
-      children: (
-        <div className="space-y-6">
-          <AdministrasiOKForm />
-        </div>
-      )
-    },
-    {
       key: 'billing',
-      label: '6. Billing & Tagihan',
+      label: '5. Billing & Tagihan',
       children: (
         <div className="space-y-6">
-          <TagihanOKView />
+          <TagihanOKView
+            computedData={billingComputation.computedData}
+            warnings={billingComputation.warnings}
+            letterMeta={billingLetterMeta}
+            isLoading={isLoadingPage}
+            emptyState="Belum ada data paket pengajuan untuk dihitung sebagai tagihan."
+          />
         </div>
       )
     }
@@ -420,17 +2550,6 @@ const DetailVerifikasiPage = () => {
 
   return (
     <div>
-      <div className="mb-4">
-        <Button
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate('/dashboard/ok/verifikasi')}
-          type="text"
-          className="text-gray-500 hover:text-blue-500"
-        >
-          Kembali ke Daftar Antrian
-        </Button>
-      </div>
-
       {isLoadingPage ? (
         <Card className="shadow-none border-gray-100">
           <div className="py-10 flex justify-center">
@@ -490,6 +2609,78 @@ const DetailVerifikasiPage = () => {
           />
         </Card>
       )}
+
+      <Modal
+        title={
+          activePaketForTeam
+            ? `Isi Tim Pelaksana - [${activePaketForTeam.kode}] ${activePaketForTeam.nama}`
+            : 'Isi Tim Pelaksana Paket'
+        }
+        open={isPaketTeamModalOpen}
+        onCancel={() => {
+          setIsPaketTeamModalOpen(false)
+          setActivePaketForTeam(null)
+          setPaketTeamModalWarning(null)
+          paketTeamForm.resetFields()
+        }}
+        onOk={() => {
+          void handleSavePaketTeamModal()
+        }}
+        okText="Simpan Tim"
+        cancelText="Batal"
+        width={860}
+        destroyOnClose
+      >
+        <Form form={paketTeamForm} layout="vertical" className="flex! flex-col! gap-4!">
+          <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <Form.Item
+              name="kelas"
+              label={<span className="font-bold">Kelas</span>}
+              rules={[{ required: true, message: 'Kelas wajib dipilih' }]}
+              className="mb-0!"
+            >
+              <Select
+                placeholder="Pilih kelas..."
+                options={kelasOptions}
+                onChange={(nextKelas) => {
+                  if (!activePaketForTeam) return
+                  syncModalTeamMembersByClass(activePaketForTeam.paketId, String(nextKelas || ''))
+                }}
+              />
+            </Form.Item>
+          </div>
+
+          {paketTeamModalWarning && (
+            <Alert className="mb-3" type="warning" showIcon message={paketTeamModalWarning} />
+          )}
+
+          <AutoRolePetugasListCard
+            form={paketTeamForm}
+            listName="teamMembers"
+            token={token}
+            performers={performers || []}
+            isLoadingPerformers={isLoadingPerformers}
+            roleLabelByCode={roleLabelByCode}
+            listRules={[
+              {
+                validator: async (_: unknown, value: TeamMemberFormItem[]) => {
+                  const list = normalizeTeamAssignments(value || [])
+                  if (list.length === 0) {
+                    throw new Error('Role tenaga medis belum tersedia untuk paket dan kelas ini')
+                  }
+                  const invalid = list.some(
+                    (item) =>
+                      !Number.isFinite(Number(item.pegawaiId)) || Number(item.pegawaiId) <= 0
+                  )
+                  if (invalid) {
+                    throw new Error('Semua role tenaga medis wajib diisi petugas')
+                  }
+                }
+              }
+            ]}
+          />
+        </Form>
+      </Modal>
 
       <style>{`
         .ok-tabs-custom .ant-tabs-tab {

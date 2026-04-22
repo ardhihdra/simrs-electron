@@ -40,18 +40,18 @@
     "jspdf-autotable": "^5.0.7",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
     "react-router": "^7.9.3",
     "react-to-print": "^3.2.0",
     "sequelize": "^6.37.7",
-    "simrs-types": "file:.yalc/simrs-types",
+    "simrs-types": "git+https://git.asmuldev.web.id/asmuldev/shared.git#1.0.8",
     "sqlite3": "^5.1.7",
     "tailwindcss": "^4.1.14",
     "ws": "^8.18.3",
     "xlsx": "^0.18.5",
     "zod": "^4.3.5",
-    "zustand": "^5.0.8",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",

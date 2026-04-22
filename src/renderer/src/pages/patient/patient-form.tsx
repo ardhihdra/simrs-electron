@@ -5,7 +5,7 @@ import { client } from '@renderer/utils/client'
 import { App, Button, DatePicker, Form, Input, Select, Steps } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router'
+import { useLocation, useNavigate, useParams } from 'react-router'
 import type { PatientAttributes } from 'simrs-types'
 
 type PatientFormValues = Omit<
@@ -17,7 +17,9 @@ type PatientFormValues = Omit<
   district?: string
   village?: string
   familyEmployee?: number | null
+  kepegawaianId?: number | null
   relatedPerson?: any[]
+  needEmr: boolean
 }
 
 const BIODATA_FIELD_NAMES = new Set([
@@ -37,6 +39,7 @@ const BIODATA_FIELD_NAMES = new Set([
   'religion',
   'maritalStatus',
   'familyEmployee',
+  'kepegawaianId',
   'relatedPerson'
 ])
 
@@ -76,10 +79,13 @@ export interface PatientFormComponentProps {
 
 export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormComponentProps) {
   const [form] = Form.useForm<PatientFormValues>()
+  const needEmr = Form.useWatch('needEmr', form)
   const { message } = App.useApp()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
+  const location = useLocation()
+  const isPharmacyContext = location.pathname.includes('/medicine/')
 
   // Use passed id or fallback to undefined (for create mode)
   const isEdit = !!id
@@ -97,16 +103,13 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       | Partial<
           // FIX ME: update type to simrs-types PatientAttributes
           PatientAttributes & {
-            district: string;
-            village: string;
-            religion?: string
             allowSendToSatusehat: boolean
-            familyEmployee: number | null | undefined
           }
         >
       | undefined
     if (item) {
       form.setFieldsValue({
+        needEmr: item.needEmr ?? true,
         nik: item.nik,
         name: item.name,
         gender: item.gender,
@@ -123,10 +126,13 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         religion: item.religion ?? undefined,
         maritalStatus: item.maritalStatus ?? undefined,
         familyEmployee: item.familyEmployee ?? undefined,
+        kepegawaianId: item.kepegawaianId ?? undefined,
         allowSendToSatusehat: item.allowSendToSatusehat ?? false
       })
+    } else {
+      // Set defaults for new patient
     }
-  }, [detail.data, form])
+  }, [detail.data, form, isPharmacyContext])
 
   const createMutation = client.patient.create.useMutation({
     onSuccess: (data) => {
@@ -135,7 +141,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       if (onSuccess) {
         onSuccess(data)
       } else {
-        navigate('/dashboard/patient')
+        navigate('..', { relative: 'path' })
       }
     },
     onError: (error) => {
@@ -149,7 +155,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       if (onSuccess) {
         onSuccess(data)
       } else {
-        navigate('/dashboard/patient')
+        navigate('..', { relative: 'path' })
       }
     },
     onError: (error) => {
@@ -162,6 +168,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
       setSubmitting(true)
       const payload: any = {
         active: values.active ?? true,
+        needEmr: values.needEmr ?? true,
         nik: values.nik,
         medicalRecordNumber: '', // Placeholder as per schema requirement if strictly validated
         name: values.name,
@@ -179,6 +186,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         religion: values.religion ?? '',
         maritalStatus: values.maritalStatus ?? '',
         familyEmployee: values.familyEmployee ?? null,
+        kepegawaianId: values.kepegawaianId ?? null,
         relatedPerson: values.relatedPerson ?? [],
         insuranceProvider: null,
         insuranceNumber: null,
@@ -241,7 +249,8 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
         'postalCode',
         'country',
         'religion',
-        'maritalStatus'
+        'maritalStatus',
+        'needEmr'
       ])
       setCurrentStep(currentStep + 1)
     } catch (error) {
@@ -445,6 +454,16 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
               </Select>
             </Form.Item>
             <Form.Item
+              label="Status Pasien"
+              name="needEmr"
+              rules={[{ required: true, message: 'Status pasien wajib dipilih' }]}
+            >
+              <Select placeholder="Pilih status pasien">
+                <Select.Option value={true}>Internal (Rekam Medis)</Select.Option>
+                <Select.Option value={false}>Pasien Luar (Farmasi)</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item
               label="Kerabat Karyawan"
               name="familyEmployee"
               className="col-span-2"
@@ -452,8 +471,16 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
             >
               <SelectKepegawaian
                 allowClear
-                placeholder="Pilih pegawai yang berelasi dengan pasien"
+                placeholder="Pilih pegawai yang merupakan kerabat pasien"
               />
+            </Form.Item>
+            <Form.Item
+              label="Karyawan RS (Profil Pegawai)"
+              name="kepegawaianId"
+              className="col-span-2"
+              extra="Opsional. Pilih jika pasien adalah pegawai Rumah Sakit itu sendiri."
+            >
+              <SelectKepegawaian allowClear placeholder="Pilih profil pegawai untuk pasien ini" />
             </Form.Item>
 
             <div className="col-span-2 mt-2">
@@ -547,7 +574,7 @@ export function PatientFormComponent({ id, onSuccess, onCancel }: PatientFormCom
               if (onCancel) {
                 onCancel()
               } else {
-                navigate('/dashboard/patient')
+                navigate('..', { relative: 'path' })
               }
             }}
           >

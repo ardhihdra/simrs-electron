@@ -116,9 +116,10 @@ export default function KioskaPage() {
           const exactMatch =
             patients.find(
               (patient) =>
-                String(patient.medicalRecordNumber || '').trim().toLowerCase() ===
-                normalizedMrn.toLowerCase()
-            ) || patients[0] || null
+                String(patient.medicalRecordNumber || '')
+                  .trim()
+                  .toLowerCase() === normalizedMrn.toLowerCase()
+            ) || null
 
           setMatchedPatient(exactMatch)
         } catch (error: any) {
@@ -193,9 +194,12 @@ export default function KioskaPage() {
         resolvedPatient =
           patients.find(
             (patient) =>
-              String(patient.medicalRecordNumber || '').trim().toLowerCase() ===
-              normalizedMrn.toLowerCase()
-          ) || patients[0] || null
+              String(patient.medicalRecordNumber || '')
+                .trim()
+                .toLowerCase() === normalizedMrn.toLowerCase()
+          ) ||
+          patients[0] ||
+          null
         setMatchedPatient(resolvedPatient)
       }
 

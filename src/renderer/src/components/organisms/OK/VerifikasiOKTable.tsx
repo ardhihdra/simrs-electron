@@ -23,7 +23,13 @@ import {
 
 const { Title, Text } = Typography
 
-export type VerifikasiOkStatus = 'menunggu' | 'diproses' | 'disetujui' | 'ditolak'
+export type VerifikasiOkStatus =
+  | 'menunggu'
+  | 'diproses'
+  | 'disetujui'
+  | 'selesai'
+  | 'ditolak'
+  | 'dibatalkan'
 export type VerifikasiOkSifat = 'cyto' | 'segera' | 'efektif'
 
 export interface VerifikasiOkRow {
@@ -60,7 +66,10 @@ const STATUS_MAP: Record<
   menunggu: { label: 'Menunggu Verifikasi', badge: 'processing', textColor: '#d97706' },
   diproses: { label: 'Sedang Diproses', badge: 'warning', textColor: '#2563eb' },
   disetujui: { label: 'Disetujui', badge: 'success' },
-  ditolak: { label: 'Ditolak', badge: 'error' }
+  ditolak: { label: 'Ditolak', badge: 'error' },
+  // conflict here
+  selesai: { label: 'Selesai Operasi', textColor: 'green', badge: 'success' },
+  dibatalkan: { label: 'Dibatalkan', textColor: 'red', badge: 'error' }
 }
 
 const SIFAT_MAP: Record<VerifikasiOkSifat, { color: string; label: string }> = {
@@ -215,7 +224,11 @@ export const VerifikasiOKTable = ({
       <Row gutter={16} className="mb-4">
         <Col xs={8}>
           <Card size="small">
-            <Statistic title="Total Pengajuan" value={rows.length} valueStyle={{ color: '#3b82f6' }} />
+            <Statistic
+              title="Total Pengajuan"
+              value={rows.length}
+              valueStyle={{ color: '#3b82f6' }}
+            />
           </Card>
         </Col>
         <Col xs={8}>
