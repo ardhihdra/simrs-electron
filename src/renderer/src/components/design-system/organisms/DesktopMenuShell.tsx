@@ -182,55 +182,54 @@ export function DesktopMenuShell({
   const resolvedActiveModuleKey = activeModuleKey ?? moduleItems[1]?.key ?? moduleItems[0]?.key
   const resolvedActiveSidebarKey = activeSidebarKey ?? flattenedSidebarItems[0]?.key
   const resolvedActiveTabKey = activeTabKey ?? tabs[0]?.key
+  const resolvedStatusBar = statusBar ?? (
+    <DesktopStatusBar
+      leftItems={[
+        { key: 'server', content: <span className="font-semibold text-ds-muted">Server online</span> },
+        { key: 'shift', content: <span>Shift pagi</span> }
+      ]}
+      rightItems={[{ key: 'preview', content: <span>SIMRS Desktop Preview</span> }]}
+    />
+  )
 
   return (
-    <div className="flex h-screen min-h-ds-shell-min overflow-hidden bg-ds-background text-ds-text">
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <DesktopModuleBar
-          items={moduleItems}
-          activeKey={resolvedActiveModuleKey}
-          brandMark={brandMark}
-          brandTitle={brandTitle}
-          brandSubtitle={brandSubtitle}
-          actions={headerActions}
-          onSelect={onModuleSelect}
+    <div className="flex h-screen min-h-ds-shell-min flex-col overflow-hidden bg-ds-background text-ds-text">
+      <DesktopModuleBar
+        items={moduleItems}
+        activeKey={resolvedActiveModuleKey}
+        brandMark={brandMark}
+        brandTitle={brandTitle}
+        brandSubtitle={brandSubtitle}
+        actions={headerActions}
+        onSelect={onModuleSelect}
+      />
+
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <DesktopPageList
+          groups={sidebarItems}
+          activeKey={resolvedActiveSidebarKey}
+          title={title}
+          subtitle={subtitle}
+          collapsed={sidebarCollapsed}
+          footer={sidebarFooter}
+          onSelect={onSidebarSelect}
         />
 
-        <div className="flex min-h-0 flex-1 overflow-hidden">
-          <DesktopPageList
-            groups={sidebarItems}
-            activeKey={resolvedActiveSidebarKey}
-            title={title}
-            subtitle={subtitle}
-            collapsed={sidebarCollapsed}
-            footer={sidebarFooter}
-            onSelect={onSidebarSelect}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <DesktopDocTabs
+            tabs={tabs}
+            activeKey={resolvedActiveTabKey}
+            onTabSelect={onTabSelect}
+            onTabClose={onTabClose}
           />
 
-          <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-            <DesktopDocTabs
-              tabs={tabs}
-              activeKey={resolvedActiveTabKey}
-              onTabSelect={onTabSelect}
-              onTabClose={onTabClose}
-            />
-
-            <div className="flex-1 overflow-y-auto p-ds-page-padding">
-              {children ?? <DefaultPreviewContent />}
-            </div>
-
-            {statusBar ?? (
-              <DesktopStatusBar
-                leftItems={[
-                  { key: 'server', content: <span className="font-semibold text-ds-muted">Server online</span> },
-                  { key: 'shift', content: <span>Shift pagi</span> }
-                ]}
-                rightItems={[{ key: 'preview', content: <span>SIMRS Desktop Preview</span> }]}
-              />
-            )}
+          <div className="flex-1 overflow-y-auto p-ds-page-padding">
+            {children ?? <DefaultPreviewContent />}
           </div>
         </div>
       </div>
+
+      {resolvedStatusBar}
     </div>
   )
 }

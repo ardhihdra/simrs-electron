@@ -23,6 +23,7 @@ import {
   type DesktopMenuShellTabItem
 } from '@renderer/components/design-system/organisms/DesktopMenuShell'
 import type { DesktopPageListGroup } from '@renderer/components/design-system/organisms/DesktopPageList'
+import { DesktopStatusBar } from '@renderer/components/design-system/organisms/DesktopStatusBar'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
@@ -30,22 +31,14 @@ import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
-<<<<<<< system-design
 import dayjs from 'dayjs'
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
-=======
-import type { MenuProps } from 'antd'
-import { Badge, Menu, theme } from 'antd'
-import { ItemType } from 'antd/es/menu/interface'
-import dayjs from 'dayjs'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
->>>>>>> main
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { Modules } from 'simrs-types'
 import {
   closeDashboardTab,
-  isCloseActiveTabShortcut,
   ensureDashboardTab,
+  isCloseActiveTabShortcut,
   resolveInitialDashboardTabs,
   syncDashboardTabsWithLocation,
   type DashboardTabItem
@@ -570,14 +563,18 @@ function Dashboard() {
               return {
                 ...child,
                 badge:
-                  waitingBilling > 0 ? <span className="text-xs font-semibold">{waitingBilling}</span> : undefined
+                  waitingBilling > 0 ? (
+                    <span className="text-xs font-semibold">{waitingBilling}</span>
+                  ) : undefined
               }
             }
             if (child.key === '/dashboard/non-medic-queue/cashier') {
               return {
                 ...child,
                 badge:
-                  waitingCashier > 0 ? <span className="text-xs font-semibold">{waitingCashier}</span> : undefined
+                  waitingCashier > 0 ? (
+                    <span className="text-xs font-semibold">{waitingCashier}</span>
+                  ) : undefined
               }
             }
             return child
@@ -645,14 +642,17 @@ function Dashboard() {
     if (path === DASHBOARD_ROOT_KEY) return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))
   }
-  const findLabelByPath = useCallback((path: string): string => {
-    const candidates = visibleItems.flatMap((item) => [item, ...(item.children ?? [])])
-    const match = candidates
-      .filter((item) => path.startsWith(item.key))
-      .sort((a, b) => b.key.length - a.key.length)[0]
+  const findLabelByPath = useCallback(
+    (path: string): string => {
+      const candidates = visibleItems.flatMap((item) => [item, ...(item.children ?? [])])
+      const match = candidates
+        .filter((item) => path.startsWith(item.key))
+        .sort((a, b) => b.key.length - a.key.length)[0]
 
-    return match?.label ?? path
-  }, [visibleItems])
+      return match?.label ?? path
+    },
+    [visibleItems]
+  )
   const getTopKeyFromPath = (path: string): string => {
     if (
       path.startsWith('/dashboard/doctor') &&
@@ -677,13 +677,16 @@ function Dashboard() {
     }
     return [{ label: top.label, key: top.key, icon: top.icon, badge: top.badge }]
   }
-  const childKeysOfTop = useCallback((key: string): string[] => {
-    const top = visibleItems.find((i) => i.key === key)
-    if (!top) return []
-    if (Array.isArray(top.children) && top.children.length > 0)
-      return top.children.map((c) => c.key)
-    return [top.key]
-  }, [visibleItems])
+  const childKeysOfTop = useCallback(
+    (key: string): string[] => {
+      const top = visibleItems.find((i) => i.key === key)
+      if (!top) return []
+      if (Array.isArray(top.children) && top.children.length > 0)
+        return top.children.map((c) => c.key)
+      return [top.key]
+    },
+    [visibleItems]
+  )
   const routeTopKey = getTopKeyFromPath(location.pathname)
   const [selectedModuleKey, setSelectedModuleKey] = useState<string>(routeTopKey)
   const activeTop = visibleItems.some((item) => item.key === selectedModuleKey)
@@ -696,32 +699,33 @@ function Dashboard() {
     activeKey: ''
   })
   const KIOSKA_KEY = '/dashboard/registration/kioska'
-  const resolveNavigationForMenuKey = useCallback((
-    key: string
-  ): { tab: DashboardTabItem; navigateTo: string } => {
-    const selectedPoli = poliKeyMeta[key]
+  const resolveNavigationForMenuKey = useCallback(
+    (key: string): { tab: DashboardTabItem; navigateTo: string } => {
+      const selectedPoli = poliKeyMeta[key]
 
-    if (selectedPoli && needsWorkspacePicker(session?.hakAksesId)) {
-      const params = new URLSearchParams({ selectPoli: selectedPoli.code })
+      if (selectedPoli && needsWorkspacePicker(session?.hakAksesId)) {
+        const params = new URLSearchParams({ selectPoli: selectedPoli.code })
+        return {
+          tab: {
+            key,
+            href: `/dashboard/poli?${params.toString()}`,
+            label: findLabelByPath(key)
+          },
+          navigateTo: `/dashboard/poli?${params.toString()}`
+        }
+      }
+
       return {
         tab: {
           key,
-          href: `/dashboard/poli?${params.toString()}`,
+          href: key,
           label: findLabelByPath(key)
         },
-        navigateTo: `/dashboard/poli?${params.toString()}`
+        navigateTo: key
       }
-    }
-
-    return {
-      tab: {
-        key,
-        href: key,
-        label: findLabelByPath(key)
-      },
-      navigateTo: key
-    }
-  }, [findLabelByPath, poliKeyMeta, session?.hakAksesId])
+    },
+    [findLabelByPath, poliKeyMeta, session?.hakAksesId]
+  )
   const activeSide = (() => {
     const childKeys = childKeysOfTop(activeTop)
 
@@ -750,7 +754,7 @@ function Dashboard() {
 
     setSelectedModuleKey(getTopKeyFromPath(key))
     const navigation = resolveNavigationForMenuKey(key)
-    setTabState((current) => ensureDashboardTab(current.tabs, navigation.tab))
+    setTabState((current) => ensureDashboardTab(current.tabs, navigation.tab, current.activeKey))
     navigate(navigation.navigateTo)
   }
   const activateModule = (key: string) => {
@@ -861,7 +865,14 @@ function Dashboard() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [activeTop, childKeysOfTop, navigate, resolveNavigationForMenuKey, tabState.activeKey, tabState.tabs])
+  }, [
+    activeTop,
+    childKeysOfTop,
+    navigate,
+    resolveNavigationForMenuKey,
+    tabState.activeKey,
+    tabState.tabs
+  ])
 
   if (isWorkspaceRoute) {
     return (
@@ -870,7 +881,8 @@ function Dashboard() {
       </div>
     )
   }
-  const currentModuleLabel = visibleItems.find((item) => item.key === activeTop)?.label ?? 'Dashboard'
+  const currentModuleLabel =
+    visibleItems.find((item) => item.key === activeTop)?.label ?? 'Dashboard'
   const sidebarNavItems: DesktopPageListGroup[] = [
     {
       key: `${activeTop}-pages`,
@@ -928,27 +940,41 @@ function Dashboard() {
       }
       sidebarItems={sidebarNavItems}
       statusBar={
-        <>
-          <span className="font-semibold text-ds-muted">Server online</span>
-          <span>{currentModuleLabel}</span>
-          <span>{dayjs().format('DD MMM YYYY')}</span>
-          <span className="ml-auto">Lokasi kerja aktif: {lokasiKerjaName}</span>
-        </>
+        <DesktopStatusBar
+          leftItems={[
+            {
+              key: 'server-online',
+              content: (
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-ds-muted">Server online</span>
+                  <span>{currentModuleLabel}</span>
+                  <span>{dayjs().format('DD MMM YYYY')}</span>
+                </div>
+              )
+            }
+          ]}
+          rightItems={[
+            {
+              key: 'lokasi-kerja',
+              content: <span className="ml-auto">Lokasi kerja aktif: {lokasiKerjaName}</span>
+            }
+          ]}
+        />
       }
       subtitle={findLabelByPath(location.pathname)}
       tabs={shellTabs}
       title={currentModuleLabel}
     >
       <div className="min-h-full bg-ds-background">
-          {isRegisteredPath(location.pathname) ? (
-            <Outlet />
-          ) : (
-            <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
-              <div className="text-base font-medium text-ds-text md:text-lg">
-                {findLabelByPath(location.pathname)}
-              </div>
+        {isRegisteredPath(location.pathname) ? (
+          <Outlet />
+        ) : (
+          <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+            <div className="text-base font-medium text-ds-text md:text-lg">
+              {findLabelByPath(location.pathname)}
             </div>
-          )}
+          </div>
+        )}
       </div>
     </DesktopMenuShell>
   )

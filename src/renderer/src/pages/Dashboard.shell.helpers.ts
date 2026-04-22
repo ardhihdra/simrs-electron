@@ -30,7 +30,14 @@ export type DashboardShortcutKeyEvent = {
   shiftKey: boolean
 }
 
-export function ensureDashboardTab(tabs: DashboardTabItem[], nextTab: DashboardTabItem) {
+const DEFAULT_MAX_DASHBOARD_TABS = 5
+
+function appendDashboardTab(
+  tabs: DashboardTabItem[],
+  nextTab: DashboardTabItem,
+  currentActiveKey?: string,
+  maxTabs = DEFAULT_MAX_DASHBOARD_TABS
+) {
   const existingTab = tabs.find((tab) => tab.key === nextTab.key)
 
   if (existingTab) {
@@ -40,10 +47,28 @@ export function ensureDashboardTab(tabs: DashboardTabItem[], nextTab: DashboardT
     }
   }
 
+  if (tabs.length < maxTabs) {
+    return {
+      tabs: [...tabs, nextTab],
+      activeKey: nextTab.key
+    }
+  }
+
+  const replaceIndex = tabs.findIndex((tab) => tab.key !== currentActiveKey)
+  const nextTabs = tabs.filter((_, index) => index !== (replaceIndex >= 0 ? replaceIndex : 0))
+
   return {
-    tabs: [...tabs, nextTab],
+    tabs: [...nextTabs, nextTab],
     activeKey: nextTab.key
   }
+}
+
+export function ensureDashboardTab(
+  tabs: DashboardTabItem[],
+  nextTab: DashboardTabItem,
+  currentActiveKey?: string
+) {
+  return appendDashboardTab(tabs, nextTab, currentActiveKey)
 }
 
 export function resolveInitialDashboardTabs({
@@ -115,10 +140,7 @@ export function syncDashboardTabsWithLocation(
     }
   }
 
-  return {
-    tabs: [...currentState.tabs, locationTab],
-    activeKey: locationTab.key
-  }
+  return appendDashboardTab(currentState.tabs, locationTab, currentState.activeKey)
 }
 
 export function isCloseActiveTabShortcut(event: DashboardShortcutKeyEvent) {

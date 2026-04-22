@@ -63,9 +63,9 @@ export function DesktopPageList({
                 return (
                   <button
                     key={item.key}
-                    className={`flex h-ds-menu-item w-full items-center gap-ds-space-xs rounded-ds-md px-ds-space-md text-left text-ds-body transition-colors ${
+                    className={`flex h-ds-menu-item w-full items-center gap-ds-space-xs rounded-ds-md border border-transparent px-ds-space-md text-left text-ds-body transition-colors ${
                       isActive
-                        ? 'border border-ds-border bg-ds-surface font-semibold text-ds-accent'
+                        ? 'bg-ds-surface font-semibold text-ds-accent'
                         : 'text-ds-muted hover:bg-ds-surface hover:text-ds-text'
                     } ${collapsed ? 'justify-center px-ds-space-sm' : ''}`}
                     disabled={item.disabled}

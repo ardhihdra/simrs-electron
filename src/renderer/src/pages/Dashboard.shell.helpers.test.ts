@@ -34,6 +34,44 @@ test('ensureDashboardTab reuses an existing tab instead of duplicating it', () =
   assert.equal(result.activeKey, patientTab.key)
 })
 
+test('ensureDashboardTab keeps at most five tabs by replacing the oldest inactive tab', () => {
+  const billingTab: DashboardTabItem = {
+    key: '/dashboard/non-medic-queue/billing',
+    label: 'Billing'
+  }
+  const cashierTab: DashboardTabItem = {
+    key: '/dashboard/non-medic-queue/cashier',
+    label: 'Kasir'
+  }
+  const pharmacyTab: DashboardTabItem = {
+    key: '/dashboard/non-medic-queue/pharmacy',
+    label: 'Farmasi'
+  }
+  const queueTab: DashboardTabItem = {
+    key: '/dashboard/queue',
+    label: 'Monitor Antrian'
+  }
+  const doctorScheduleTab: DashboardTabItem = {
+    key: '/dashboard/registration/doctor-schedule',
+    label: 'Jadwal Dokter'
+  }
+
+  const result = ensureDashboardTab(
+    [registrationTab, patientTab, billingTab, cashierTab, pharmacyTab],
+    doctorScheduleTab,
+    registrationTab.key
+  )
+
+  assert.deepEqual(result.tabs, [
+    registrationTab,
+    billingTab,
+    cashierTab,
+    pharmacyTab,
+    doctorScheduleTab
+  ])
+  assert.equal(result.activeKey, doctorScheduleTab.key)
+})
+
 test('resolveInitialDashboardTabs restores the active route into the tab list', () => {
   const result = resolveInitialDashboardTabs({
     pathname: patientTab.key,
@@ -79,6 +117,35 @@ test('syncDashboardTabsWithLocation activates an existing tab without duplicatin
   assert.notEqual(result, currentState)
   assert.deepEqual(result.tabs, [registrationTab, patientTab])
   assert.equal(result.activeKey, patientTab.key)
+})
+
+test('syncDashboardTabsWithLocation keeps at most five tabs when location changes to a new route', () => {
+  const billingTab: DashboardTabItem = {
+    key: '/dashboard/non-medic-queue/billing',
+    label: 'Billing'
+  }
+  const cashierTab: DashboardTabItem = {
+    key: '/dashboard/non-medic-queue/cashier',
+    label: 'Kasir'
+  }
+  const pharmacyTab: DashboardTabItem = {
+    key: '/dashboard/non-medic-queue/pharmacy',
+    label: 'Farmasi'
+  }
+  const queueTab: DashboardTabItem = {
+    key: '/dashboard/queue',
+    label: 'Monitor Antrian'
+  }
+
+  const currentState = {
+    tabs: [registrationTab, patientTab, billingTab, cashierTab, pharmacyTab],
+    activeKey: registrationTab.key
+  }
+
+  const result = syncDashboardTabsWithLocation(currentState, queueTab)
+
+  assert.deepEqual(result.tabs, [registrationTab, billingTab, cashierTab, pharmacyTab, queueTab])
+  assert.equal(result.activeKey, queueTab.key)
 })
 
 test('isCloseActiveTabShortcut returns true for Ctrl+W without extra modifiers', () => {
