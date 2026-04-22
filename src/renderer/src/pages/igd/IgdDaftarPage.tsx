@@ -21,6 +21,7 @@ import { DesktopTimelineList } from '../../components/design-system/molecules/De
 import { DesktopGenericTable } from '../../components/design-system/organisms/DesktopGenericTable'
 import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
 import { type IgdDashboard, type IgdDashboardPatient } from './igd.data'
+import { buildIgdTableActions } from './igd.disposition'
 
 type IgdDaftarPageProps = {
   dashboard: IgdDashboard
@@ -32,6 +33,8 @@ type IgdDaftarPageProps = {
   onOpenRegistrasi?: () => void
   onOpenTriase?: () => void
   onOpenBedMap?: () => void
+  onOpenReplacePatient?: () => void
+  onOpenDisposition?: (patient: IgdDashboardPatient) => void
 }
 
 type IgdStatusVariant = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
@@ -115,51 +118,18 @@ const getTriageRowClassName = (patient: IgdDashboardPatient, isSelected: boolean
     .filter(Boolean)
     .join(' ')
 
-const parseTimeToMinutes = (value?: string) => {
-  if (!value) return null
-
-  const [hourText, minuteText] = value.split(':')
-  const hours = Number(hourText)
-  const minutes = Number(minuteText)
-
-  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) {
-    return null
-  }
-
-  return hours * 60 + minutes
-}
-
-const formatElapsedSinceArrival = (arrivalTime?: string) => {
-  const arrivalMinutes = parseTimeToMinutes(arrivalTime)
-  if (arrivalMinutes === null) {
+const formatCurrency = (value?: number | null) => {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
     return '—'
   }
 
-  const now = new Date()
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
-  const diffMinutes = currentMinutes - arrivalMinutes
-
-  if (!Number.isFinite(diffMinutes) || diffMinutes <= 0) {
-    return '0m'
-  }
-
-  if (diffMinutes < 60) {
-    return `${diffMinutes}m`
-  }
-
-  return `${Math.floor(diffMinutes / 60)}j ${diffMinutes % 60}m`
-}
-
-const getPrimaryAction = (patient: IgdDashboardPatient) => {
-  if (patient.status === 'menunggu' || patient.status === 'triase') {
-    return { label: 'Triase', emphasis: 'toolbar' as const, className: 'igd-inline-action' }
-  }
-
-  if (patient.status === 'penanganan' || patient.status === 'observasi') {
-    return { label: 'Bed', emphasis: 'toolbar' as const, className: 'igd-inline-action' }
-  }
-
-  return null
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    maximumFractionDigits: 0
+  })
+    .format(value)
+    .replace(/\s/g, '')
 }
 
 export function IgdDaftarPage({
@@ -171,7 +141,9 @@ export function IgdDaftarPage({
   onRetry,
   onOpenRegistrasi,
   onOpenTriase,
-  onOpenBedMap
+  onOpenBedMap,
+  onOpenReplacePatient,
+  onOpenDisposition
 }: IgdDaftarPageProps) {
   const patients = dashboard.patients
   const selectedPatient =
@@ -191,66 +163,101 @@ export function IgdDaftarPage({
   const columns = useMemo<ColumnsType<IgdDashboardPatient>>(
     () => [
       {
-        title: 'Level',
-        dataIndex: 'triageLevel',
-        key: 'triageLevel',
-        width: 68,
-        render: (level: IgdDashboardPatient['triageLevel']) => (
-          <div className="flex items-center">
-            <DesktopTriageBadge tone={TRIAGE_LEVEL_META[level].badgeTone}>
-              {TRIAGE_LEVEL_META[level].label}
-            </DesktopTriageBadge>
-          </div>
-        )
+        title: 'Nomor Regis',
+        dataIndex: 'registrationNumber',
+        key: 'registrationNumber',
+        width: 132,
+        render: (value: string) => <span className="font-mono text-[12px]">{value}</span>
       },
       {
-        title: 'Pasien & Keluhan',
-        key: 'patient',
+        title: 'No. Rawat',
+        dataIndex: 'encounterCode',
+        key: 'encounterCode',
+        width: 164,
+        render: (value: string) => <span className="font-mono text-[12px]">{value}</span>
+      },
+      {
+        title: 'Waktu Masuk',
+        dataIndex: 'arrivalTime',
+        key: 'arrivalTime',
+        width: 92,
+        render: (value: string) => <span className="font-mono text-[12px]">{value}</span>
+      },
+      {
+        title: 'Dokter Dituju',
+        dataIndex: 'doctorTargetName',
+        key: 'doctorTargetName',
+        width: 148,
         render: (_, patient) => (
-          <div className="igd-patient-cell">
-            <div className="igd-patient-name-row">
-              <span className="igd-patient-name">{patient.name}</span>
-              {patient.isTemporaryPatient ? <DesktopTag tone="accent">Temp</DesktopTag> : null}
-              {patient.paymentLabel === 'BPJS' ? <DesktopTag tone="neutral">BPJS</DesktopTag> : null}
-            </div>
-            <div className="igd-patient-meta">
-              <span className="font-mono">
-                {patient.isTemporaryPatient ? patient.tempCode : patient.medicalRecordNumber}
-              </span>
-              <span>{patient.ageLabel}</span>
-              <span className="font-mono">{patient.registrationNumber}</span>
-            </div>
-            <div className="igd-patient-complaint">{patient.complaint}</div>
-          </div>
+          <span className="text-[12px] text-[var(--ds-color-text)]">
+            {patient.doctorTargetName || '—'}
+          </span>
         )
       },
       {
-        title: 'Status',
-        key: 'status',
-        width: 108,
+        title: 'Rekam Medis',
+        key: 'medicalRecord',
+        width: 132,
         render: (_, patient) => (
-          <div className="flex items-center">
-            <DesktopStatusPill tone={STATUS_META[patient.status].tone}>
-              {STATUS_META[patient.status].label}
-            </DesktopStatusPill>
+          <span className="font-mono text-[12px]">
+            {patient.isTemporaryPatient ? patient.tempCode || '—' : patient.medicalRecordNumber || '—'}
+          </span>
+        )
+      },
+      {
+        title: 'Nama Pasien',
+        key: 'name',
+        width: 176,
+        render: (_, patient) => (
+          <div className="flex items-center gap-[6px]">
+            <span className="text-[12px] font-semibold text-[var(--ds-color-text)]">{patient.name}</span>
+            {patient.isTemporaryPatient ? <DesktopTag tone="accent">Temp</DesktopTag> : null}
           </div>
         )
       },
       {
-        title: 'Bed / Elapsed',
-        key: 'bedElapsed',
+        title: 'Umur',
+        dataIndex: 'ageLabel',
+        key: 'ageLabel',
+        width: 72
+      },
+      {
+        title: 'Jenis Kelamin',
+        dataIndex: 'genderLabel',
+        key: 'genderLabel',
+        width: 108
+      },
+      {
+        title: 'Unit',
+        dataIndex: 'unitLabel',
+        key: 'unitLabel',
+        width: 72
+      },
+      {
+        title: 'Bed IGD',
+        key: 'bedCode',
         width: 88,
+        render: (_, patient) =>
+          patient.bedCode ? (
+            <DesktopTriageBadge tone="neutral" compact>
+              {patient.bedCode}
+            </DesktopTriageBadge>
+          ) : (
+            <span className="igd-bed-empty">—</span>
+          )
+      },
+      {
+        title: 'Penanggung Jawab Pasien',
+        key: 'guarantorName',
+        width: 164,
+        render: (_, patient) => <span className="text-[12px]">{patient.guarantorName || '—'}</span>
+      },
+      {
+        title: 'Biaya Sementara',
+        key: 'estimatedCost',
+        width: 124,
         render: (_, patient) => (
-          <div className="igd-bed-cell">
-            {patient.bedCode ? (
-              <DesktopTriageBadge tone="neutral" compact>
-                {patient.bedCode}
-              </DesktopTriageBadge>
-            ) : (
-              <span className="igd-bed-empty">— assign</span>
-            )}
-            <span className="igd-elapsed-text">{formatElapsedSinceArrival(patient.arrivalTime)}</span>
-          </div>
+          <span className="font-mono text-[12px]">{formatCurrency(patient.estimatedCost)}</span>
         )
       }
     ],
@@ -372,7 +379,7 @@ export function IgdDaftarPage({
               dataSource={patients}
               tableProps={{
                 className: 'igd-patient-table',
-                scroll: { x: 780 },
+                scroll: { x: 1560 },
                 rowClassName: (record) => getTriageRowClassName(record, record.id === selectedPatient?.id),
                 onRow: (record) => ({
                   onClick: () => onSelectPatient?.(record.id)
@@ -382,31 +389,26 @@ export function IgdDaftarPage({
                 title: 'Aksi',
                 width: 80,
                 align: 'left',
-                render: (record) => {
-                  const action = getPrimaryAction(record)
-                  if (!action) return null
-
-                  return (
-                    <DesktopButton
-                      emphasis={action.emphasis}
-                      size="small"
-                      className={action.className}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        onSelectPatient?.(record.id)
-
-                        if (record.status === 'menunggu' || record.status === 'triase') {
-                          onOpenTriase?.()
-                          return
-                        }
-
-                        onOpenBedMap?.()
-                      }}
-                    >
-                      {action.label}
-                    </DesktopButton>
-                  )
-                }
+                items: (record) =>
+                  buildIgdTableActions({
+                    patient: record,
+                    onOpenTriase: (patient) => {
+                      onSelectPatient?.(patient.id)
+                      onOpenTriase?.()
+                    },
+                    onOpenBedMap: (patient) => {
+                      onSelectPatient?.(patient.id)
+                      onOpenBedMap?.()
+                    },
+                    onOpenDisposition: (patient) => {
+                      onSelectPatient?.(patient.id)
+                      onOpenDisposition?.(patient)
+                    },
+                    onOpenReplacePatient: (patient) => {
+                      onSelectPatient?.(patient.id)
+                      onOpenReplacePatient?.()
+                    }
+                  })
               }}
             />
           </DesktopCard>
@@ -536,6 +538,15 @@ export function IgdDaftarPage({
                 </DesktopCard>
 
                 <div className="flex flex-col gap-[6px]">
+                  {selectedPatient.isTemporaryPatient ? (
+                    <DesktopButton
+                      emphasis="toolbar"
+                      className="!justify-center"
+                      onClick={onOpenReplacePatient}
+                    >
+                      Ubah Pasien
+                    </DesktopButton>
+                  ) : null}
                   <DesktopButton emphasis="toolbar" className="!justify-center" onClick={onOpenTriase}>
                     Form Triase
                   </DesktopButton>
@@ -550,6 +561,7 @@ export function IgdDaftarPage({
                   <DesktopButton
                     emphasis="toolbar"
                     className="!justify-center !border-[var(--ds-color-success)] !bg-[color-mix(in_srgb,var(--ds-color-success)_10%,white)] !text-[var(--ds-color-success)]"
+                    onClick={() => onOpenDisposition?.(selectedPatient)}
                   >
                     Disposisi
                   </DesktopButton>

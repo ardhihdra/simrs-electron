@@ -20,6 +20,10 @@ const IgdRegistrationInputSchema = z.object({
     })
     .optional()
 })
+const IgdPatientRebindInputSchema = z.object({
+  encounterId: z.string().min(1),
+  patientId: z.string().min(1)
+})
 
 export function normalizeIgdDashboardResponse(payload: any) {
   if (payload?.result) {
@@ -45,6 +49,10 @@ export function normalizeIgdRegistrationResponse(payload: any) {
   throw new Error('Invalid IGD registration response')
 }
 
+export function normalizeIgdPatientRebindResponse(payload: any) {
+  return normalizeIgdRegistrationResponse(payload)
+}
+
 export const igdRpc = {
   dashboard: t
     .input(IgdDashboardInputSchema)
@@ -61,5 +69,15 @@ export const igdRpc = {
       const response = await client.post('/api/module/igd/registrations', input)
       const payload = await response.json()
       return normalizeIgdRegistrationResponse(payload)
+    }),
+  rebindPatient: t
+    .input(IgdPatientRebindInputSchema)
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      const response = await client.put(`/api/module/igd/encounters/${input.encounterId}/patient`, {
+        patientId: input.patientId
+      })
+      const payload = await response.json()
+      return normalizeIgdPatientRebindResponse(payload)
     })
 }

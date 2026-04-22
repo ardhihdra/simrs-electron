@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { normalizeIgdDashboardResponse, normalizeIgdRegistrationResponse } from './igd'
+import {
+  normalizeIgdDashboardResponse,
+  normalizeIgdPatientRebindResponse,
+  normalizeIgdRegistrationResponse
+} from './igd'
 
 test('normalizeIgdDashboardResponse extracts result payload', () => {
   const result = normalizeIgdDashboardResponse({
@@ -59,4 +63,21 @@ test('normalizeIgdRegistrationResponse throws when payload is missing', () => {
     () => normalizeIgdRegistrationResponse({ success: true }),
     /Invalid IGD registration response/
   )
+})
+
+test('normalizeIgdPatientRebindResponse extracts data payload', () => {
+  const result = normalizeIgdPatientRebindResponse({
+    success: true,
+    data: {
+      patient: { id: 'patient-2', name: 'Sutrisno Hadi' },
+      encounter: { encounterId: 'encounter-1' },
+      registration: { queueId: 'queue-1' }
+    }
+  })
+
+  assert.deepEqual(result, {
+    patient: { id: 'patient-2', name: 'Sutrisno Hadi' },
+    encounter: { encounterId: 'encounter-1' },
+    registration: { queueId: 'queue-1' }
+  })
 })

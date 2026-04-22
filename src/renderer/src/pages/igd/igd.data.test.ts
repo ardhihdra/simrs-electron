@@ -33,6 +33,9 @@ test('createIgdDashboardFixture provides active patients and bed snapshot', () =
   assert.equal(fixture.summary.totalActive > 0, true)
   assert.equal(fixture.patients.length > 0, true)
   assert.equal(fixture.beds.length > 0, true)
+  assert.equal(fixture.patients[0]?.encounterCode?.startsWith('ENC-'), true)
+  assert.equal(fixture.patients[0]?.unitLabel, 'IGD')
+  assert.equal(typeof fixture.patients[0]?.genderLabel, 'string')
 })
 
 test('buildIgdRegistrationCommand maps existing patient mode to patientId payload', () => {

@@ -9,21 +9,28 @@ export type IgdDashboardBedZone = 'Resusitasi' | 'Observasi' | 'Treatment'
 
 export type IgdDashboardPatient = {
   id: string
+  encounterId: string
   registrationNumber: string
+  encounterCode: string
   medicalRecordNumber?: string
   tempCode?: string
   isTemporaryPatient: boolean
   name: string
   ageLabel: string
+  genderLabel: string
   complaint: string
   paymentLabel: IgdPaymentMethod
   arrivalSource: IgdArrivalSource
   triageLevel: 1 | 2 | 3 | 4 | 5
   status: IgdDashboardPatientStatus
+  unitLabel: string
   bedCode?: string
   arrivalTime: string
   triageTime?: string
   doctorName: string
+  doctorTargetName: string
+  guarantorName?: string | null
+  estimatedCost?: number | null
 }
 
 export type IgdDashboardBed = {
@@ -140,68 +147,96 @@ export function createIgdDashboardFixture(): IgdDashboard {
     patients: [
       {
         id: 'patient-temp-1',
+        encounterId: 'encounter-temp-1',
         registrationNumber: 'IGD-2604-001',
+        encounterCode: 'ENC-20260423-000001',
         tempCode: 'TMP-IGD-001',
         isTemporaryPatient: true,
         name: 'TIDAK DIKENAL',
         ageLabel: '~50 L',
+        genderLabel: 'Laki-laki',
         complaint: 'Trauma kepala berat',
         paymentLabel: 'Umum',
         arrivalSource: 'Polisi',
         triageLevel: 1,
         status: 'observasi',
+        unitLabel: 'IGD',
         bedCode: 'R-01',
         arrivalTime: '09:15',
         triageTime: '09:18',
-        doctorName: 'dr. IGD'
+        doctorName: 'dr. IGD',
+        doctorTargetName: 'dr. IGD',
+        guarantorName: null,
+        estimatedCost: 725000
       },
       {
         id: 'patient-2',
+        encounterId: 'encounter-2',
         registrationNumber: 'IGD-2604-002',
+        encounterCode: 'ENC-20260423-000002',
         medicalRecordNumber: 'MRN-IGD-002',
         isTemporaryPatient: false,
         name: 'Wahyu Handayani',
         ageLabel: '34 P',
+        genderLabel: 'Perempuan',
         complaint: 'Perdarahan aktif post partum',
         paymentLabel: 'BPJS',
         arrivalSource: 'Rujukan',
         triageLevel: 2,
         status: 'triase',
+        unitLabel: 'IGD',
         arrivalTime: '09:22',
         triageTime: '09:27',
-        doctorName: ''
+        doctorName: '',
+        doctorTargetName: '',
+        guarantorName: null,
+        estimatedCost: null
       },
       {
         id: 'patient-3',
+        encounterId: 'encounter-3',
         registrationNumber: 'IGD-2604-003',
+        encounterCode: 'ENC-20260423-000003',
         medicalRecordNumber: 'MRN-IGD-003',
         isTemporaryPatient: false,
         name: 'Sutrisno Hadi',
         ageLabel: '62 L',
+        genderLabel: 'Laki-laki',
         complaint: 'Nyeri dada hebat',
         paymentLabel: 'BPJS',
         arrivalSource: 'Datang sendiri',
         triageLevel: 3,
         status: 'penanganan',
+        unitLabel: 'IGD',
         bedCode: 'O-01',
         arrivalTime: '09:35',
         triageTime: '09:40',
-        doctorName: 'dr. IGD'
+        doctorName: 'dr. IGD',
+        doctorTargetName: 'dr. IGD',
+        guarantorName: null,
+        estimatedCost: 460000
       },
       {
         id: 'patient-4',
+        encounterId: 'encounter-4',
         registrationNumber: 'IGD-2604-004',
+        encounterCode: 'ENC-20260423-000004',
         medicalRecordNumber: 'MRN-IGD-004',
         isTemporaryPatient: false,
         name: 'Ahmad Saputra',
         ageLabel: '38 L',
+        genderLabel: 'Laki-laki',
         complaint: 'Vulnus scissum jari tangan kanan',
         paymentLabel: 'Umum',
         arrivalSource: 'Datang sendiri',
         triageLevel: 4,
         status: 'menunggu',
+        unitLabel: 'IGD',
         arrivalTime: '09:55',
-        doctorName: ''
+        doctorName: '',
+        doctorTargetName: '',
+        guarantorName: null,
+        estimatedCost: null
       }
     ],
     beds: [

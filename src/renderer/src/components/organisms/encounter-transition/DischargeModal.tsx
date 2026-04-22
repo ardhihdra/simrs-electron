@@ -11,6 +11,7 @@ interface DischargeModalProps {
   visible: boolean
   loading: boolean
   selectedDisposition: string
+  options?: ReadonlyArray<{ label: string; value: string }>
   onDispositionChange: (value: string) => void
   onConfirm: () => void
   onCancel: () => void
@@ -20,6 +21,7 @@ export function DischargeModal({
   visible,
   loading,
   selectedDisposition,
+  options = DISCHARGE_OPTIONS,
   onDispositionChange,
   onConfirm,
   onCancel
@@ -41,7 +43,7 @@ export function DischargeModal({
           placeholder="Pilih disposisi..."
           value={selectedDisposition || undefined}
           onChange={onDispositionChange}
-          options={[...DISCHARGE_OPTIONS]}
+          options={[...options]}
         />
       </div>
     </Modal>
