@@ -1,3 +1,5 @@
+import React from 'react'
+
 export type DesktopStatus = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
 
 const STATUS_DOT_CLASSNAME: Record<DesktopStatus, string> = {

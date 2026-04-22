@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 
 import { DesktopIcon } from '../atoms/DesktopIcon'
 import { DesktopStatusDot, type DesktopStatus } from '../atoms/DesktopStatusDot'

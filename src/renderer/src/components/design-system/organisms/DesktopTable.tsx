@@ -1,5 +1,6 @@
 import { Spin, Table } from 'antd'
 import type { TableProps } from 'antd'
+import React from 'react'
 
 export interface DesktopTableProps<T extends object> extends TableProps<T> {
   loadingOverlay?: boolean

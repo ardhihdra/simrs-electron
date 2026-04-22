@@ -1,3 +1,5 @@
+import React from 'react'
+
 import { getDesktopIconPath, type DesktopIconName } from './desktop-icon.registry'
 
 export interface DesktopIconProps {

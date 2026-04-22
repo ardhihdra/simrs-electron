@@ -1,4 +1,5 @@
 import { Input, Select } from 'antd'
+import React from 'react'
 
 export type DesktopInputOption = {
   label: string
@@ -10,21 +11,34 @@ export interface DesktopInputProps {
   placeholder?: string
   value?: string
   options?: DesktopInputOption[]
+  onChange?: (value: string) => void
+  disabled?: boolean
+  rows?: number
+  className?: string
+  allowClear?: boolean
 }
 
 export function DesktopInput({
   type = 'input',
   placeholder,
   value,
-  options = []
+  options = [],
+  onChange,
+  disabled = false,
+  rows = 3,
+  className = '',
+  allowClear = false
 }: DesktopInputProps) {
   if (type === 'textarea') {
     return (
       <Input.TextArea
         value={value}
         placeholder={placeholder}
-        autoSize={{ minRows: 3, maxRows: 5 }}
-        className="!rounded-[var(--ds-radius-md)]"
+        rows={rows}
+        disabled={disabled}
+        allowClear={allowClear}
+        onChange={(event) => onChange?.(event.target.value)}
+        className={`!rounded-[var(--ds-radius-md)] ${className}`.trim()}
       />
     )
   }
@@ -35,10 +49,22 @@ export function DesktopInput({
         value={value}
         options={options}
         placeholder={placeholder}
-        className="desktop-input-select"
+        disabled={disabled}
+        allowClear={allowClear}
+        onChange={(nextValue) => onChange?.(String(nextValue ?? ''))}
+        className={`desktop-input-select ${className}`.trim()}
       />
     )
   }
 
-  return <Input value={value} placeholder={placeholder} />
+  return (
+    <Input
+      value={value}
+      placeholder={placeholder}
+      disabled={disabled}
+      allowClear={allowClear}
+      onChange={(event) => onChange?.(event.target.value)}
+      className={className}
+    />
+  )
 }
