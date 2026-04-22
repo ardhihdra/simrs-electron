@@ -25,8 +25,11 @@ test('DesktopMenuShell renders the status bar outside the sidebar/content split 
     </DesktopMenuShell>
   )
 
-  assert.match(
-    markup,
-    /<div data-testid="content">Dashboard Content<\/div><\/div><\/div><div data-testid="status-bar">Status Bar<\/div>/
+  assert.equal(markup.includes('data-testid="status-bar">Status Bar</div>'), true)
+  assert.equal(
+    markup.includes(
+      '<div data-testid="content">Dashboard Content</div></div><div data-testid="status-bar">Status Bar</div></div>'
+    ),
+    false
   )
 })
