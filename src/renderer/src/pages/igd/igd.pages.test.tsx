@@ -8,9 +8,10 @@ import { IgdBedMapPage } from './IgdBedMapPage.tsx'
 import { IgdDaftarPage } from './IgdDaftarPage.tsx'
 import { IgdRegistrasiPage } from './IgdRegistrasiPage.tsx'
 import { IgdTriasePage } from './IgdTriasePage.tsx'
+import { createIgdDashboardFixture } from './igd.data.ts'
 
 test('IGD daftar page renders summary, patient list, and detail panel', () => {
-  const markup = renderToStaticMarkup(<IgdDaftarPage />)
+  const markup = renderToStaticMarkup(<IgdDaftarPage dashboard={createIgdDashboardFixture()} />)
 
   assert.equal(markup.includes('igd-parity-scope'), true)
   assert.equal(markup.includes('igd-daftar-grid'), true)
@@ -38,11 +39,29 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('Vital Sign'), true)
   assert.equal(markup.includes('Time Tracking'), true)
   assert.equal(markup.includes('Tiba di IGD'), true)
-  assert.equal(markup.includes('Dokter Hadir'), true)
+  assert.equal(markup.includes('Dokter'), true)
+})
+
+test('IGD daftar page renders loading and error shell for backend query states', () => {
+  const loadingMarkup = renderToStaticMarkup(
+    <IgdDaftarPage dashboard={createIgdDashboardFixture()} isLoading />
+  )
+  const errorMarkup = renderToStaticMarkup(
+    <IgdDaftarPage dashboard={createIgdDashboardFixture()} errorMessage="Gagal memuat dashboard" />
+  )
+
+  assert.equal(loadingMarkup.includes('Memuat dashboard IGD'), true)
+  assert.equal(errorMarkup.includes('Gagal memuat dashboard'), true)
 })
 
 test('IGD registrasi page renders the intake form shell', () => {
-  const markup = renderToStaticMarkup(<IgdRegistrasiPage />)
+  const markup = renderToStaticMarkup(
+    <IgdRegistrasiPage
+      dashboard={createIgdDashboardFixture()}
+      lookupSelectorSlot={<div data-testid="patient-lookup-selector-slot" />}
+      initialMode="existing"
+    />
+  )
 
   assert.equal(markup.includes('igd-parity-scope'), true)
   assert.equal(markup.includes('igd-registrasi-grid'), true)
@@ -54,6 +73,7 @@ test('IGD registrasi page renders the intake form shell', () => {
   assert.equal(markup.includes('Ketersediaan Bed IGD'), true)
   assert.equal(markup.includes('Pasien Sementara'), true)
   assert.equal(markup.includes('Simpan &amp; Langsung Triase'), true)
+  assert.equal(markup.includes('patient-lookup-selector-slot'), true)
   assert.equal(markup.includes('desktop-input-field'), true)
   assert.equal(markup.includes('desktop-card'), true)
 })

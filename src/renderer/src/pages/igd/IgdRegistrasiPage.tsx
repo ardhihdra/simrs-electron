@@ -1,7 +1,8 @@
+import type { PatientAttributes } from 'simrs-types'
+import React, { useMemo, useState } from 'react'
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
-import { DesktopTriageBadge } from '../../components/design-system/atoms/DesktopTriageBadge'
 import { DesktopCard } from '../../components/design-system/molecules/DesktopCard'
 import { DesktopFormSection } from '../../components/design-system/molecules/DesktopFormSection'
 import { DesktopInput } from '../../components/design-system/molecules/DesktopInput'
@@ -11,19 +12,27 @@ import { DesktopMetricTile } from '../../components/design-system/molecules/Desk
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
 import { DesktopSegmentedControl } from '../../components/design-system/molecules/DesktopSegmentedControl'
 import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
-import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-
-import { IGD_PAGE_PATHS } from './igd.config'
-import { useIgdStore } from './igd.state'
+import {
+  buildIgdRegistrationCommand,
+  type IgdDashboard,
+  type IgdPaymentMethod,
+  type IgdRegistrationDraft,
+  type IgdRegistrationMode
+} from './igd.data'
 
 type IgdRegistrasiPageProps = {
+  dashboard: IgdDashboard
+  selectedExistingPatient?: PatientAttributes
+  onSelectExistingPatient?: (patient?: PatientAttributes) => void
+  lookupSelectorSlot?: React.ReactNode
+  initialMode?: IgdRegistrationMode
+  submitting?: boolean
   onDone?: () => void
-  onOpenTriase?: () => void
+  onSubmitRegistration?: (input: {
+    command: ReturnType<typeof buildIgdRegistrationCommand>
+    intent: 'daftar' | 'triase'
+  }) => Promise<void> | void
 }
-
-type RegisterMode = 'baru' | 'existing' | 'temporary'
-type GenderMode = 'L' | 'P' | '?'
 
 const REGISTER_MODE_OPTIONS = [
   { label: 'Pasien Baru', value: 'baru' },
@@ -51,7 +60,8 @@ const ARRIVAL_OPTIONS = [
 const PAYMENT_OPTIONS = [
   { label: 'BPJS', value: 'BPJS' },
   { label: 'Umum', value: 'Umum' },
-  { label: 'Asuransi', value: 'Asuransi' }
+  { label: 'Asuransi', value: 'Asuransi' },
+  { label: 'Perusahaan', value: 'Perusahaan' }
 ]
 
 const RELATIONSHIP_OPTIONS = [
@@ -113,12 +123,19 @@ const QUICK_TRIAGE_OPTIONS = [
   }
 ]
 
-const getTodayDateTimeLocal = () => '2026-04-21T10:25'
+const getTodayDateTimeLocal = () => {
+  const date = new Date()
+  const pad = (value: number) => String(value).padStart(2, '0')
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`
+}
 
 const calculateAgeYears = (birthDate: string) => {
   if (!birthDate) return ''
 
-  const today = new Date('2026-04-21T00:00:00')
+  const today = new Date()
   const birth = new Date(`${birthDate}T00:00:00`)
 
   if (Number.isNaN(birth.getTime())) return ''
@@ -133,42 +150,51 @@ const calculateAgeYears = (birthDate: string) => {
   return String(age)
 }
 
-export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPageProps) {
-  const patients = useIgdStore((state) => state.patients)
-  const beds = useIgdStore((state) => state.beds)
-  const registrationDraft = useIgdStore((state) => state.registrationDraft)
-  const updateRegistrationDraft = useIgdStore((state) => state.updateRegistrationDraft)
-  const submitRegistration = useIgdStore((state) => state.submitRegistration)
-  const assignBed = useIgdStore((state) => state.assignBed)
+function createInitialDraft(): IgdRegistrationDraft {
+  return {
+    name: '',
+    nik: '',
+    birthDate: '',
+    gender: 'L',
+    phone: '',
+    estimatedAge: '~45',
+    arrivalDateTime: getTodayDateTimeLocal(),
+    arrivalSource: 'Datang sendiri',
+    paymentMethod: 'Umum',
+    complaint: '',
+    guarantorName: '',
+    guarantorRelationship: 'Suami/Istri',
+    guarantorNik: '',
+    guarantorPhone: ''
+  }
+}
 
-  const [registerMode, setRegisterMode] = useState<RegisterMode>('baru')
-  const [nik, setNik] = useState('')
-  const [birthDate, setBirthDate] = useState('')
-  const [gender, setGender] = useState<GenderMode>('L')
-  const [phone, setPhone] = useState('')
-  const [estimatedAge, setEstimatedAge] = useState('~45')
-  const [existingSearch, setExistingSearch] = useState('Sutrisno')
-  const [arrivalDateTime, setArrivalDateTime] = useState(getTodayDateTimeLocal())
+export function IgdRegistrasiPage({
+  dashboard,
+  selectedExistingPatient,
+  onSelectExistingPatient,
+  lookupSelectorSlot,
+  initialMode = 'baru',
+  submitting = false,
+  onDone,
+  onSubmitRegistration
+}: IgdRegistrasiPageProps) {
+  const [registerMode, setRegisterMode] = useState<IgdRegistrationMode>(initialMode)
+  const [draft, setDraft] = useState<IgdRegistrationDraft>(createInitialDraft)
   const [referralFacility, setReferralFacility] = useState('')
   const [selectedBedCode, setSelectedBedCode] = useState('')
-  const [guarantorName, setGuarantorName] = useState('')
-  const [relationship, setRelationship] = useState('Suami/Istri')
-  const [guarantorKtp, setGuarantorKtp] = useState('')
-  const [guarantorPhone, setGuarantorPhone] = useState('')
   const [quickCondition, setQuickCondition] = useState(QUICK_TRIAGE_OPTIONS[0].value)
-  const [quickComplaint, setQuickComplaint] = useState('')
 
-  const existingPatient = patients.find((patient) => patient.name.includes('Sutrisno')) ?? patients[1] ?? patients[0]
-  const availableBeds = beds.filter((bed) => bed.status === 'available')
-  const occupiedCount = beds.filter((bed) => bed.status === 'occupied').length
-  const cleaningCount = beds.filter((bed) => bed.status === 'cleaning').length
-  const nextRegistrationNumber = `IGD-2604-${String(patients.length + 1).padStart(3, '0')}`
-  const quickTriageMeta = QUICK_TRIAGE_OPTIONS.find((item) => item.value === quickCondition) ?? QUICK_TRIAGE_OPTIONS[0]
+  const availableBeds = dashboard.beds.filter((bed) => bed.status === 'available')
+  const occupiedCount = dashboard.beds.filter((bed) => bed.status === 'occupied').length
+  const cleaningCount = dashboard.beds.filter((bed) => bed.status === 'cleaning').length
+  const quickTriageMeta =
+    QUICK_TRIAGE_OPTIONS.find((item) => item.value === quickCondition) ?? QUICK_TRIAGE_OPTIONS[0]
 
   const zoneStats = useMemo(
     () =>
       ['Resusitasi', 'Observasi', 'Treatment'].map((zone) => {
-        const zoneBeds = beds.filter((bed) => bed.zone === zone)
+        const zoneBeds = dashboard.beds.filter((bed) => bed.zone === zone)
         const available = zoneBeds.filter((bed) => bed.status === 'available').length
 
         return {
@@ -178,7 +204,7 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
           occupiedRatio: zoneBeds.length === 0 ? 0 : ((zoneBeds.length - available) / zoneBeds.length) * 100
         }
       }),
-    [beds]
+    [dashboard.beds]
   )
 
   const bedOptions = availableBeds.map((bed) => ({
@@ -186,75 +212,51 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
     value: bed.code
   }))
 
-  const applyExistingPatient = () => {
-    updateRegistrationDraft({
-      hasMedicalRecord: true,
-      medicalRecordNumber: existingPatient.medicalRecordNumber ?? '',
-      name: existingPatient.name,
-      paymentLabel: existingPatient.paymentLabel,
-      arrivalSource: existingPatient.arrivalSource
-    })
-    setQuickComplaint(existingPatient.complaint)
-    setGender(existingPatient.ageLabel.includes('P') ? 'P' : 'L')
+  const derivedAgeLabel =
+    registerMode === 'temporary'
+      ? `${draft.estimatedAge || '~45'} ${draft.gender}`
+      : `${calculateAgeYears(draft.birthDate) || '0'} ${draft.gender}`
+
+  const canSubmit =
+    draft.complaint.trim().length > 0 &&
+    (registerMode === 'temporary'
+      ? draft.estimatedAge.trim().length > 0
+      : registerMode === 'existing'
+        ? !!selectedExistingPatient?.id
+        : draft.name.trim().length > 0)
+
+  const updateDraft = (patch: Partial<IgdRegistrationDraft>) => {
+    setDraft((current) => ({
+      ...current,
+      ...patch
+    }))
   }
 
   const handleRegisterModeChange = (nextMode: string) => {
-    const mode = nextMode as RegisterMode
+    const mode = nextMode as IgdRegistrationMode
     setRegisterMode(mode)
 
-    if (mode === 'existing') {
-      applyExistingPatient()
-      return
+    if (mode !== 'existing') {
+      onSelectExistingPatient?.(undefined)
     }
 
-    updateRegistrationDraft({
-      hasMedicalRecord: mode !== 'temporary',
-      medicalRecordNumber: '',
-      name: '',
-      paymentLabel: mode === 'temporary' ? 'Umum' : registrationDraft.paymentLabel,
-      arrivalSource: registrationDraft.arrivalSource
-    })
-
-    if (mode === 'temporary') {
-      setEstimatedAge('~45')
-      setGender('?')
-    } else {
-      setGender('L')
-    }
+    setDraft((current) => ({
+      ...current,
+      gender: mode === 'temporary' ? '?' : 'L'
+    }))
   }
 
-  const derivedAgeLabel =
-    registerMode === 'temporary'
-      ? `${estimatedAge || '~45'} ${gender}`
-      : `${calculateAgeYears(birthDate) || '0'} ${gender}`
+  const handleSubmit = async (intent: 'daftar' | 'triase') => {
+    if (!canSubmit || !onSubmitRegistration) return
 
-  const canSubmit =
-    quickComplaint.trim().length > 0 &&
-    (registerMode === 'temporary' ? estimatedAge.trim().length > 0 : registrationDraft.name.trim().length > 0)
-
-  const handleSubmit = (openTriaseAfterSave: boolean) => {
-    if (!canSubmit) return
-
-    const createdPatientId = submitRegistration({
-      hasMedicalRecord: registerMode !== 'temporary',
-      medicalRecordNumber: registerMode === 'existing' ? registrationDraft.medicalRecordNumber : undefined,
-      name: registerMode === 'temporary' ? registrationDraft.name.trim() || 'TIDAK DIKENAL' : registrationDraft.name,
-      ageLabel: derivedAgeLabel,
-      complaint: quickComplaint,
-      paymentLabel: registrationDraft.paymentLabel,
-      arrivalSource: registrationDraft.arrivalSource
+    await onSubmitRegistration({
+      command: buildIgdRegistrationCommand({
+        mode: registerMode,
+        draft,
+        selectedPatient: selectedExistingPatient
+      }),
+      intent
     })
-
-    if (selectedBedCode) {
-      assignBed({ patientId: createdPatientId, bedCode: selectedBedCode })
-    }
-
-    if (openTriaseAfterSave) {
-      onOpenTriase?.()
-      return
-    }
-
-    onDone?.()
   }
 
   return (
@@ -262,9 +264,9 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
       <DesktopPageHeader
         eyebrow="Modul IGD"
         title="Registrasi Pasien IGD"
-        subtitle="Form intake awal dengan struktur registrasi, triase cepat, dan snapshot ketersediaan bed seperti pada mock operasional IGD."
-        status="Draft lokal"
-        metadata={<DesktopBadge tone="accent">Tanpa API backend</DesktopBadge>}
+        subtitle="Form intake awal terhubung ke backend registrasi IGD, dengan lookup pasien existing dan snapshot bed operasional."
+        status="Terhubung backend"
+        metadata={<DesktopBadge tone="accent">Submit langsung buat encounter IGD</DesktopBadge>}
         actions={
           <DesktopButton emphasis="toolbar" onClick={onDone}>
             Kembali ke Daftar
@@ -278,7 +280,7 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
           extra={
             <div className="flex items-center gap-[8px]">
               <DesktopTag tone="danger">IGD</DesktopTag>
-              <DesktopTag tone="neutral">RM AUTO</DesktopTag>
+              <DesktopTag tone="neutral">Encounter langsung</DesktopTag>
             </div>
           }
         >
@@ -293,17 +295,7 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
 
             {registerMode === 'existing' ? (
               <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] px-[14px] py-[12px]">
-                <DesktopInputGroupField
-                  label="Cari Pasien"
-                  required
-                  addon="Cari"
-                  placeholder="Nama, NIK, atau No. RM…"
-                  value={existingSearch}
-                  onChange={(value) => {
-                    setExistingSearch(value)
-                    applyExistingPatient()
-                  }}
-                />
+                {lookupSelectorSlot ?? null}
               </div>
             ) : null}
 
@@ -311,61 +303,73 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
               <DesktopNoticePanel
                 tone="violet"
                 title="Pasien Tidak Dikenal"
-                description="ID sementara otomatis (cth: IGD-2026-0001). Dapat di-merge ke pasien asli setelah teridentifikasi."
+                description="Kode temporary akan di-generate backend saat submit dan langsung dipakai untuk encounter IGD."
               />
             ) : null}
 
             <DesktopFormSection title="A. Identitas Pasien">
               <div className="igd-form-grid-3">
-                {registerMode !== 'temporary' ? (
-                  <DesktopInputGroupField
-                    label="NIK"
-                    addon="NIK"
-                    placeholder="16 digit"
-                    value={nik}
-                    onChange={setNik}
-                    mono
-                  />
-                ) : null}
-
-                <div className="md:col-span-2">
-                  <DesktopInputField
-                    label={`Nama${registerMode === 'temporary' ? ' (opsional)' : ''}`}
-                    required={registerMode !== 'temporary'}
-                    placeholder={
-                      registerMode === 'temporary' ? 'Kosongkan jika tidak diketahui' : 'Nama lengkap sesuai KTP'
-                    }
-                    value={registrationDraft.name}
-                    onChange={(value) => updateRegistrationDraft({ name: value })}
-                  />
-                </div>
-
-                {registerMode !== 'temporary' ? (
+                {registerMode === 'baru' ? (
                   <>
+                    <DesktopInputGroupField
+                      label="NIK"
+                      addon="NIK"
+                      placeholder="16 digit"
+                      value={draft.nik}
+                      onChange={(value) => updateDraft({ nik: value })}
+                      mono
+                    />
+
+                    <div className="md:col-span-2">
+                      <DesktopInputField
+                        label="Nama"
+                        required
+                        placeholder="Nama lengkap sesuai identitas"
+                        value={draft.name}
+                        onChange={(value) => updateDraft({ name: value })}
+                      />
+                    </div>
+
                     <DesktopInputField
                       label="Tgl. Lahir"
                       required
-                      type="input"
-                      value={birthDate}
-                      onChange={setBirthDate}
+                      value={draft.birthDate}
+                      onChange={(value) => updateDraft({ birthDate: value })}
                     />
+
                     <div className="desktop-input-field flex flex-col gap-[var(--ds-space-xs)]">
                       <div className="text-[length:var(--ds-font-size-label)] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-subtle)]">
                         Jenis Kelamin <span className="ml-[2px] text-[var(--ds-color-danger)]">*</span>
                       </div>
-                      <DesktopSegmentedControl value={gender} options={GENDER_OPTIONS} onChange={(value) => setGender(value as GenderMode)} />
+                      <DesktopSegmentedControl
+                        value={draft.gender}
+                        options={GENDER_OPTIONS}
+                        onChange={(value) => updateDraft({ gender: value as IgdRegistrationDraft['gender'] })}
+                      />
                     </div>
+
                     <DesktopInputGroupField
                       label="No. Telepon"
                       addon="+62"
                       placeholder="812 xxxx xxxx"
-                      value={phone}
-                      onChange={setPhone}
+                      value={draft.phone}
+                      onChange={(value) => updateDraft({ phone: value })}
                       mono
                     />
                   </>
-                ) : (
+                ) : null}
+
+                {registerMode === 'temporary' ? (
                   <>
+                    <div className="md:col-span-2">
+                      <DesktopInputField
+                        label="Nama (opsional)"
+                        placeholder="Kosongkan jika tidak diketahui"
+                        value={draft.name}
+                        onChange={(value) => updateDraft({ name: value })}
+                      />
+                    </div>
+
                     <div className="desktop-input-field flex flex-col gap-[var(--ds-space-xs)]">
                       <div className="text-[length:var(--ds-font-size-label)] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-subtle)]">
                         Estimasi Umur
@@ -374,25 +378,53 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                         <div className="flex-1">
                           <DesktopInput
                             placeholder="~45"
-                            value={estimatedAge}
-                            onChange={setEstimatedAge}
+                            value={draft.estimatedAge}
+                            onChange={(value) => updateDraft({ estimatedAge: value })}
                           />
                         </div>
                         <span className="text-[12px] text-[var(--ds-color-text-subtle)]">tahun</span>
                       </div>
                     </div>
+
                     <div className="desktop-input-field flex flex-col gap-[var(--ds-space-xs)]">
                       <div className="text-[length:var(--ds-font-size-label)] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-subtle)]">
                         Jenis Kelamin
                       </div>
                       <DesktopSegmentedControl
-                        value={gender}
+                        value={draft.gender}
                         options={TEMP_GENDER_OPTIONS}
-                        onChange={(value) => setGender(value as GenderMode)}
+                        onChange={(value) => updateDraft({ gender: value as IgdRegistrationDraft['gender'] })}
+                      />
+                    </div>
+
+                    <DesktopInputGroupField
+                      label="No. Telepon"
+                      addon="+62"
+                      placeholder="Opsional"
+                      value={draft.phone}
+                      onChange={(value) => updateDraft({ phone: value })}
+                      mono
+                    />
+                  </>
+                ) : null}
+
+                {registerMode === 'existing' && selectedExistingPatient ? (
+                  <>
+                    <DesktopInputField
+                      label="No. RM"
+                      value={selectedExistingPatient.medicalRecordNumber || '-'}
+                      disabled
+                      className="font-mono"
+                    />
+                    <div className="md:col-span-2">
+                      <DesktopInputField
+                        label="Pasien Terpilih"
+                        value={selectedExistingPatient.name || '-'}
+                        disabled
                       />
                     </div>
                   </>
-                )}
+                ) : null}
               </div>
             </DesktopFormSection>
 
@@ -401,16 +433,16 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                 <DesktopInputField
                   label="No. Rawat"
                   required
-                  value={nextRegistrationNumber}
+                  value="Auto saat submit"
                   disabled
-                  hint="Otomatis dihasilkan"
+                  hint="Backend akan menghasilkan nomor registrasi IGD"
                   className="font-mono"
                 />
                 <DesktopInputField
                   label="Waktu Datang"
                   required
-                  value={arrivalDateTime}
-                  onChange={setArrivalDateTime}
+                  value={draft.arrivalDateTime}
+                  onChange={(value) => updateDraft({ arrivalDateTime: value })}
                 />
                 <DesktopInputField label="Jenis Kunjungan" value="IGD" disabled />
 
@@ -420,14 +452,16 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                   </div>
                   <div className="igd-inline-segment-tight">
                     <DesktopSegmentedControl
-                      value={registrationDraft.arrivalSource}
+                      value={draft.arrivalSource}
                       options={ARRIVAL_OPTIONS}
-                      onChange={(value) => updateRegistrationDraft({ arrivalSource: value })}
+                      onChange={(value) =>
+                        updateDraft({ arrivalSource: value as IgdRegistrationDraft['arrivalSource'] })
+                      }
                     />
                   </div>
                 </div>
 
-                {registrationDraft.arrivalSource === 'Rujukan' ? (
+                {draft.arrivalSource === 'Rujukan' ? (
                   <div className="md:col-span-3">
                     <DesktopInputField
                       label="Asal Faskes Rujukan"
@@ -441,11 +475,11 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                 <DesktopInputField
                   label="Bed IGD"
                   type="select"
-                  placeholder="— Pilih bed —"
+                  placeholder="Informasional"
                   value={selectedBedCode}
                   options={bedOptions}
                   onChange={setSelectedBedCode}
-                  hint={`${availableBeds.length} bed tersedia`}
+                  hint="Snapshot bed ini tidak mengikat assignment backend pada fase registrasi."
                 />
 
                 <div className="desktop-input-field flex flex-col gap-[var(--ds-space-xs)]">
@@ -453,40 +487,47 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                     Penjamin Biaya
                   </div>
                   <DesktopSegmentedControl
-                    value={registrationDraft.paymentLabel}
+                    value={draft.paymentMethod}
                     options={PAYMENT_OPTIONS}
-                    onChange={(value) => updateRegistrationDraft({ paymentLabel: value })}
+                    onChange={(value) => updateDraft({ paymentMethod: value as IgdPaymentMethod })}
+                  />
+                </div>
+
+                <div className="md:col-span-3">
+                  <DesktopInputField
+                    label="Keluhan Singkat"
+                    type="textarea"
+                    rows={3}
+                    placeholder="Deskripsikan keluhan utama…"
+                    value={draft.complaint}
+                    onChange={(value) => updateDraft({ complaint: value })}
                   />
                 </div>
               </div>
             </DesktopFormSection>
 
-            <DesktopFormSection
-              title="C. Penanggung Jawab"
-              subtitle="(opsional — dapat diisi nanti)"
-              divided
-            >
+            <DesktopFormSection title="C. Penanggung Jawab" subtitle="(opsional — dapat diisi nanti)" divided>
               <div className="igd-form-grid-3">
                 <div className="md:col-span-2">
                   <DesktopInputField
                     label="Nama Penanggung Jawab"
                     placeholder="Nama lengkap…"
-                    value={guarantorName}
-                    onChange={setGuarantorName}
+                    value={draft.guarantorName}
+                    onChange={(value) => updateDraft({ guarantorName: value })}
                   />
                 </div>
                 <DesktopInputField
                   label="Hubungan"
                   type="select"
-                  value={relationship}
+                  value={draft.guarantorRelationship}
                   options={RELATIONSHIP_OPTIONS}
-                  onChange={setRelationship}
+                  onChange={(value) => updateDraft({ guarantorRelationship: value })}
                 />
                 <DesktopInputField
                   label="No. KTP PJ"
                   placeholder="16 digit NIK"
-                  value={guarantorKtp}
-                  onChange={setGuarantorKtp}
+                  value={draft.guarantorNik}
+                  onChange={(value) => updateDraft({ guarantorNik: value })}
                   className="font-mono"
                 />
                 <div className="md:col-span-2">
@@ -494,8 +535,8 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                     label="No. Telepon PJ"
                     addon="+62"
                     placeholder="812 xxxx xxxx"
-                    value={guarantorPhone}
-                    onChange={setGuarantorPhone}
+                    value={draft.guarantorPhone}
+                    onChange={(value) => updateDraft({ guarantorPhone: value })}
                     mono
                   />
                 </div>
@@ -506,10 +547,18 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
               <DesktopButton emphasis="ghost" onClick={onDone}>
                 Batal
               </DesktopButton>
-              <DesktopButton emphasis="toolbar" onClick={() => handleSubmit(false)} disabled={!canSubmit}>
+              <DesktopButton
+                emphasis="toolbar"
+                onClick={() => void handleSubmit('daftar')}
+                disabled={!canSubmit || submitting}
+              >
                 Simpan - Triase Nanti
               </DesktopButton>
-              <DesktopButton emphasis="primary" onClick={() => handleSubmit(true)} disabled={!canSubmit}>
+              <DesktopButton
+                emphasis="primary"
+                onClick={() => void handleSubmit('triase')}
+                disabled={!canSubmit || submitting}
+              >
                 Simpan & Langsung Triase
               </DesktopButton>
             </div>
@@ -526,14 +575,6 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                 value={quickCondition}
                 options={QUICK_TRIAGE_OPTIONS.map((item) => ({ label: item.label, value: item.value }))}
                 onChange={setQuickCondition}
-              />
-              <DesktopInputField
-                label="Keluhan Singkat"
-                type="textarea"
-                rows={3}
-                placeholder="Deskripsikan keluhan utama…"
-                value={quickComplaint}
-                onChange={setQuickComplaint}
               />
               <DesktopNoticePanel
                 tone={quickTriageMeta.tone === 'neutral' ? 'success' : quickTriageMeta.tone}
@@ -556,6 +597,10 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
                     {`L${quickTriageMeta.level}`}
                   </div>
                 }
+              />
+              <DesktopNoticePanel
+                title="Level triase final tetap dicatat di workflow triase"
+                description="Pada fase ini data quick triage hanya membantu intake dan belum dikirim sebagai write-flow triase."
               />
             </div>
           </DesktopCard>
@@ -587,19 +632,21 @@ export function IgdRegistrasiPage({ onDone, onOpenTriase }: IgdRegistrasiPagePro
               ))}
             </div>
           </DesktopCard>
+
+          <DesktopCard title="Ringkasan Submit" subtitle="Data yang akan dikirim ke backend IGD">
+            <DesktopNoticePanel
+              title={
+                registerMode === 'existing'
+                  ? `Pasien existing${selectedExistingPatient?.name ? ` · ${selectedExistingPatient.name}` : ''}`
+                  : registerMode === 'temporary'
+                    ? `Pasien temporary · ${derivedAgeLabel}`
+                    : `Pasien baru · ${draft.name || 'Belum diisi'}`
+              }
+              description={`Keluhan: ${draft.complaint || 'Belum diisi'} · Pembayaran: ${draft.paymentMethod}`}
+            />
+          </DesktopCard>
         </div>
       </div>
     </div>
-  )
-}
-
-export default function IgdRegistrasiRoute() {
-  const navigate = useNavigate()
-
-  return (
-    <IgdRegistrasiPage
-      onDone={() => navigate(IGD_PAGE_PATHS.daftar)}
-      onOpenTriase={() => navigate(IGD_PAGE_PATHS.triase)}
-    />
   )
 }
