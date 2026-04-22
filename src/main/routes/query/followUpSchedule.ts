@@ -38,7 +38,7 @@ export const schemas = {
         })
     },
     remove: {
-        args: z.object({ id: z.string() }),
+        args: z.object({ id: z.union([z.string(), z.number()]) }),
         result: z.object({
             success: z.boolean(),
             message: z.string().optional(),
@@ -93,7 +93,7 @@ export const list = async (ctx: IpcContext, args: z.infer<typeof schemas.list.ar
 export const remove = async (ctx: IpcContext, args: z.infer<typeof schemas.remove.args>) => {
     try {
         const client = getClient(ctx)
-        const res = await client.delete(`/api/followupschedule/${args.id}`)
+        const res = await client.delete(`/api/followupschedule/${String(args.id)}`)
         const raw = await res.json().catch(() => ({ success: false, message: 'Invalid JSON response' }))
 
         const parsed = schemas.remove.result.safeParse(raw)

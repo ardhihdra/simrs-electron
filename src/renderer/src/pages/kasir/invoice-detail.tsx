@@ -1,24 +1,36 @@
 import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
+  EditOutlined,
   LockOutlined,
   PlusOutlined,
   PrinterOutlined,
   RollbackOutlined
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
-import { Button, Divider, Popconfirm, Spin, Table, Tag, Typography, message } from 'antd'
+import {
+  Button,
+  Divider,
+  Dropdown,
+  Popconfirm,
+  Select,
+  Spin,
+  Table,
+  Tag,
+  Typography,
+  message
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PaymentHistory } from './payment-history'
 import { PaymentModal } from './payment-modal'
 import { printInvoice, printReceipt } from '@renderer/utils/print-service'
 import type { Invoice, PersistedInvoice, InvoiceLineItem } from '@renderer/utils/print-service'
-import { Dropdown } from 'antd'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import logoUrl from '@renderer/assets/logo.png'
+import { SignaturePadModal } from '@renderer/components/molecules/SignaturePadModal'
 
 const { Title, Text } = Typography
 
@@ -75,6 +87,35 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   issued: { label: 'Terkonfirmasi', color: 'blue' },
   balanced: { label: 'Lunas', color: 'green' },
   draft: { label: 'Draft', color: 'default' }
+}
+
+const SIGNATURE_SOURCE_OPTIONS = [
+  { label: 'Input Manual', value: 'manual' },
+  { label: 'Ambil dari Kepegawaian', value: 'kepegawaian' }
+]
+
+function toFileUrl(path?: string | null): string | undefined {
+  if (!path || typeof path !== 'string') return undefined
+  const trimmed = path.trim()
+  if (!trimmed) return undefined
+
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:')
+  ) {
+    return trimmed
+  }
+
+  const normalizedPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '')
+  const base = String(window.env?.API_URL || '').replace(/\/+$/, '')
+
+  if (normalizedPath.startsWith('api/files/')) {
+    const relative = normalizedPath.replace(/^api\/files\//, '')
+    return `${base}/public/${relative}`
+  }
+
+  return `${base}/public/${normalizedPath}`
 }
 
 function InvoiceSection({
@@ -379,6 +420,10 @@ export default function InvoiceDetailPage() {
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [signatureSource, setSignatureSource] = useState<'manual' | 'kepegawaian'>('manual')
+  const [manualCashierSignature, setManualCashierSignature] = useState<string>('')
+  const [selectedCashierTtdUrl, setSelectedCashierTtdUrl] = useState<string | null>(null)
+  const [signatureModalVisible, setSignatureModalVisible] = useState(false)
 
   const { Title, Text } = Typography
 
@@ -387,7 +432,6 @@ export default function InvoiceDetailPage() {
     encounterId: encounterId!,
     patientId
   })
-  console.log('invoice data', data)
 
   // Persisted invoice (null if not yet confirmed)
   const {
@@ -399,7 +443,6 @@ export default function InvoiceDetailPage() {
     queryFn: () => rpc.kasir.getInvoiceDetail({ encounterId: encounterId! }),
     enabled: !!encounterId
   })
-  console.log('detailData', detailData)
 
   const invoice = (data as { result: Invoice } | undefined)?.result
   const persistedInvoice = (detailData as { result: PersistedInvoice } | undefined)?.result ?? null
@@ -410,20 +453,58 @@ export default function InvoiceDetailPage() {
     queryFn: () => (window.api?.query as any).kepegawaian?.list()
   })
 
-  // Resolve cashier name
-  const cashierName = (() => {
-    if (!profile || !requesterData?.result) return profile?.username || ''
+  const cashierEmployee = useMemo(() => {
+    if (!profile || !requesterData?.result) return null
     const employees = requesterData.result as any[]
     const sessionId = Number(profile.id)
     const sessionUsername = String(profile.username || '').trim()
-    const foundEmployee = employees.find(
-      (e) =>
-        e.id === sessionId ||
-        (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
-        (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+    return (
+      employees.find(
+        (e) =>
+          e.id === sessionId ||
+          (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
+          (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+      ) || null
     )
-    return foundEmployee?.namaLengkap || profile.username || ''
-  })()
+  }, [profile, requesterData?.result])
+
+  useEffect(() => {
+    if (!cashierEmployee) {
+      setSelectedCashierTtdUrl(null)
+      return
+    }
+
+    const ttdUrl = cashierEmployee.ttdUrl || cashierEmployee.ttd_url || null
+    setSelectedCashierTtdUrl(typeof ttdUrl === 'string' && ttdUrl.trim() ? ttdUrl : null)
+  }, [cashierEmployee])
+
+  const cashierName = useMemo(() => {
+    if (!profile) return ''
+    if (!cashierEmployee) return profile.username || ''
+    return cashierEmployee.namaLengkap || profile.username || ''
+  }, [cashierEmployee, profile])
+
+  const cashierSignatureUrl = useMemo(() => {
+    if (signatureSource === 'manual') {
+      return manualCashierSignature || undefined
+    }
+
+    return toFileUrl(selectedCashierTtdUrl)
+  }, [manualCashierSignature, selectedCashierTtdUrl, signatureSource])
+
+  const hasKepegawaianSignature = Boolean(toFileUrl(selectedCashierTtdUrl))
+
+  const openSignatureModal = () => {
+    setSignatureModalVisible(true)
+  }
+
+  const saveManualSignature = (dataUrl: string) => {
+    setManualCashierSignature(dataUrl)
+  }
+
+  const resetManualSignature = () => {
+    setManualCashierSignature('')
+  }
 
   const reopenEncounterMutation = client.encounter.reopen.useMutation()
 
@@ -496,7 +577,11 @@ export default function InvoiceDetailPage() {
                 label: 'Atas Nama Pasien',
                 onClick: () =>
                   invoice &&
-                  printInvoice(invoice, persistedInvoice, { printForKind: 'patient', cashierName })
+                  printInvoice(invoice, persistedInvoice, {
+                    printForKind: 'patient',
+                    cashierName,
+                    cashierSignatureUrl
+                  })
               },
               {
                 key: 'guarantor',
@@ -505,7 +590,8 @@ export default function InvoiceDetailPage() {
                   invoice &&
                   printInvoice(invoice, persistedInvoice, {
                     printForKind: 'guarantor',
-                    cashierName
+                    cashierName,
+                    cashierSignatureUrl
                   })
               }
             ]
@@ -534,7 +620,11 @@ export default function InvoiceDetailPage() {
                         kode: persistedInvoice.kode,
                         date: new Date()
                       },
-                      { printForKind: 'patient', cashierName }
+                      {
+                        printForKind: 'patient',
+                        cashierName,
+                        cashierSignatureUrl
+                      }
                     )
                   }
                 }
@@ -553,7 +643,11 @@ export default function InvoiceDetailPage() {
                         kode: persistedInvoice.kode,
                         date: new Date()
                       },
-                      { printForKind: 'guarantor', cashierName }
+                      {
+                        printForKind: 'guarantor',
+                        cashierName,
+                        cashierSignatureUrl
+                      }
                     )
                   }
                 }
@@ -615,6 +709,35 @@ export default function InvoiceDetailPage() {
         {persistedInvoice && (
           <span className="text-gray-500 text-sm">No. {persistedInvoice.kode}</span>
         )}
+
+        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-gray-500">Sumber TTD Kasir</span>
+          <Select
+            value={signatureSource}
+            options={SIGNATURE_SOURCE_OPTIONS}
+            style={{ width: 220 }}
+            onChange={(value) => setSignatureSource(value)}
+          />
+
+          {signatureSource === 'manual' ? (
+            <>
+              <Button icon={<EditOutlined />} onClick={openSignatureModal}>
+                Input Tanda Tangan
+              </Button>
+              {manualCashierSignature ? (
+                <Button size="small" onClick={resetManualSignature}>
+                  Hapus TTD Manual
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <Tag color={hasKepegawaianSignature ? 'green' : 'default'} className="m-0">
+              {hasKepegawaianSignature
+                ? 'Diambil dari Kepegawaian'
+                : 'Profil Pegawai Tidak Punya TTD'}
+            </Tag>
+          )}
+        </div>
       </div>
 
       {(isLoading || isLoadingDetail) && (
@@ -759,6 +882,7 @@ export default function InvoiceDetailPage() {
             invoice={invoice}
             persistedInvoice={persistedInvoice}
             cashierName={cashierName}
+            cashierSignatureUrl={cashierSignatureUrl}
           />
         </div>
       )}
@@ -773,6 +897,13 @@ export default function InvoiceDetailPage() {
           onSuccess={handlePaymentSuccess}
         />
       )}
+
+      <SignaturePadModal
+        title="Tanda Tangan Petugas Kasir"
+        visible={signatureModalVisible}
+        onClose={() => setSignatureModalVisible(false)}
+        onSave={saveManualSignature}
+      />
     </div>
   )
 }

@@ -225,6 +225,7 @@ export interface SaveCompoundFormulationResponse {
 export interface PatientWithMedicalRecord extends PatientQueue {
   paymentMethod?: string
   kelasTarif?: string
+  pregnancyStatus?: 'Hamil' | 'Tidak Hamil' | '-'
   encounter?: {
     kelasId?: string
   }

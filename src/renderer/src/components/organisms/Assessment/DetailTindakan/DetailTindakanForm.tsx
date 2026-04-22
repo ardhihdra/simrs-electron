@@ -1,3 +1,10 @@
+/**
+ * Purpose: Form detail tindakan pasien (paket/non-paket/BHP) untuk input, edit, validasi, dan sinkron petugas.
+ * Main callers: halaman assessment/doctor workspace yang memuat tindakan per encounter.
+ * Key dependencies: hook master tindakan/paket, detail tindakan encounter, selector tarif fallback payer, antd form/table, modal selector tindakan.
+ * Main/public functions: DetailTindakanForm.
+ * Side effects: create/update/void detail tindakan pasien dan fetch data master/stock terkait.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
@@ -34,7 +41,7 @@ import {
   type CategoryBpjs
 } from '@renderer/hooks/query/use-master-tindakan'
 import {
-  useMasterPaketTindakanList,
+  useMasterPaketTindakanListPaged,
   type PaketDetailItem,
   type PaketBhpItem
 } from '@renderer/hooks/query/use-master-paket-tindakan'
@@ -61,12 +68,17 @@ import { ProcedureSelectorModal } from '@renderer/components/organisms/Procedure
 import {
   DEFAULT_TARIF_KELAS_CODE,
   DEFAULT_KELAS_TARIF_OPTIONS,
-  buildKelasTarifPriority,
   ensureUmumOption,
   normalizeKelasTarifValue,
   sortKelasTarifOptions
 } from '@renderer/utils/tarif-kelas'
 import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
+import type { TarifPayerCategory } from '@renderer/utils/ok-tarif-selector'
+import {
+  mapDetailTindakanPaymentMethodToPayerCategory,
+  pickDetailTindakanTarifWithFallback,
+  resolveDetailTindakanPaketCyto
+} from './detail-tindakan-tarif-flow'
 
 interface DetailTindakanFormProps {
   encounterId: string
@@ -94,7 +106,11 @@ interface MasterTarifKomponenRef {
 }
 
 interface MasterTarifTindakanRef {
+  id?: number | string | null
+  aktif?: boolean | null
   kelas?: string | null
+  payerCategory?: string | null
+  isCyto?: boolean | null
   effectiveFrom?: string | null
   effectiveTo?: string | null
   komponenList?: MasterTarifKomponenRef[] | null
@@ -122,16 +138,72 @@ interface PaketTarifRincianRef {
 }
 
 interface PaketTarifHeaderRef {
+  id?: number | string | null
+  aktif?: boolean | null
   kelas?: string | null
+  payerCategory?: string | null
+  isCyto?: boolean | null
   effectiveFrom?: string | null
   effectiveTo?: string | null
   rincianTarif?: PaketTarifRincianRef[] | null
 }
 
+interface TarifResolutionAuditRow {
+  key: string
+  jenis: 'Paket' | 'Non-Paket'
+  item: string
+  kelas: string
+  requestedPayerCategory: TarifPayerCategory
+  resolvedPayerCategory: TarifPayerCategory | null
+  source: 'exact' | 'fallback_umum' | 'missing'
+  isCyto: boolean
+}
+
+const MASTER_PAKET_KATEGORI_BASE_OPTIONS = [
+  'Pemeriksaan Fisik',
+  'Tindakan Bedah',
+  'Rawat Luka',
+  'Injeksi & Infus',
+  'Kateter & Drainase',
+  'Kebidanan',
+  'Endoskopi',
+  'Anestesi',
+  'Fisioterapi',
+  'Gawat Darurat',
+  'Dialisis',
+  'Konsultasi'
+]
+
+const MASTER_PAKET_KATEGORI_BPJS_BASE_OPTIONS = [
+  'Prosedur Non Bedah',
+  'Prosedur Bedah',
+  'Tenaga Ahli',
+  'Keperawatan',
+  'Radiologi',
+  'Laboratorium',
+  'Rehabilitasi',
+  'Kamar / Akomodasi',
+  'Obat',
+  'Alkes',
+  'BMHP',
+  'Pelayanan Darah',
+  'Rawat Intensif',
+  'Konsultasi',
+  'Penunjang',
+  'Sewa Alat'
+]
+
 type InputTabKey = 'paket' | 'non-paket' | 'paket-bhp' | 'bhp-non-paket'
+type ProcedureSelectorState = {
+  open: boolean
+  mode?: 'select' | 'readonly'
+  title?: string
+  procedures?: MasterTindakanItem[]
+  onSelect?: (item: MasterTindakanItem) => void
+}
 
 export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanFormProps) => {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const { token } = theme.useToken()
   const [modalForm] = Form.useForm()
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -139,6 +211,18 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const [searchTindakan, setSearchTindakan] = useState('')
   const [searchPaket, setSearchPaket] = useState('')
   const [searchPaketBhp, setSearchPaketBhp] = useState('')
+  const [paketQuery, setPaketQuery] = useState<{
+    page: number
+    items: number
+    q?: string
+    kategoriPaket?: string
+    kategoriBpjs?: string
+    status?: string
+  }>({
+    page: 1,
+    items: 10,
+    status: 'active'
+  })
   const [procedureQuery, setProcedureQuery] = useState<{
     page: number
     items: number
@@ -156,10 +240,10 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     onSelect?: (item: ItemOption) => void
   }>({ open: false })
 
-  const [procedureSelectorState, setProcedureSelectorState] = useState<{
-    open: boolean
-    onSelect?: (item: MasterTindakanItem) => void
-  }>({ open: false })
+  const [procedureSelectorState, setProcedureSelectorState] = useState<ProcedureSelectorState>({
+    open: false,
+    mode: 'select'
+  })
   const [masterTindakanCache, setMasterTindakanCache] = useState<
     Record<number, MasterTindakanItem>
   >({})
@@ -197,6 +281,11 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
   const encounterType = patientData?.encounter?.encounterType || ''
   const isRawatJalan = encounterType === 'AMB' || encounterType === 'ambulatory'
   const defaultKelas = isRawatJalan ? 'umum' : undefined
+  const selectedPayerCategory = useMemo<TarifPayerCategory>(() => {
+    const paymentMethod =
+      patientData?.encounter?.queueTicket?.paymentMethod || patientData?.queueTicket?.paymentMethod
+    return mapDetailTindakanPaymentMethodToPayerCategory(paymentMethod)
+  }, [patientData?.encounter?.queueTicket?.paymentMethod, patientData?.queueTicket?.paymentMethod])
 
   const { data: performers = [], isLoading: isLoadingPerformers } = usePerformers([
     'doctor',
@@ -214,7 +303,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       status: 'active'
     },
     {
-      enabled: procedureSelectorState.open
+      enabled:
+        procedureSelectorState.open && (procedureSelectorState.mode ?? 'select') === 'select'
     }
   )
   const masterTindakanList = masterTindakanResponse?.rows ?? []
@@ -222,8 +312,9 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   useEffect(() => {
     if (!procedureSelectorState.open) return
+    if ((procedureSelectorState.mode ?? 'select') !== 'select') return
     setProcedureQuery((prev) => ({ ...prev, page: 1 }))
-  }, [procedureSelectorState.open])
+  }, [procedureSelectorState.mode, procedureSelectorState.open])
 
   useEffect(() => {
     if (!Array.isArray(masterTindakanList) || masterTindakanList.length === 0) return
@@ -283,6 +374,63 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     })
   }, [])
 
+  const handlePaketSearchChange = useCallback((value: string) => {
+    setSearchPaket(value)
+    setPaketQuery((prev) => {
+      const normalized = value.trim()
+      if ((prev.q || '') === normalized && prev.page === 1) return prev
+      return {
+        ...prev,
+        q: normalized || undefined,
+        page: 1
+      }
+    })
+  }, [])
+
+  const handlePaketPageChange = useCallback((page: number, pageSize: number) => {
+    setPaketQuery((prev) => {
+      if (prev.page === page && prev.items === pageSize) return prev
+      return {
+        ...prev,
+        page,
+        items: pageSize
+      }
+    })
+  }, [])
+
+  const handlePaketKategoriChange = useCallback((value?: string) => {
+    setPaketQuery((prev) => {
+      if ((prev.kategoriPaket || undefined) === (value || undefined) && prev.page === 1) return prev
+      return {
+        ...prev,
+        kategoriPaket: value || undefined,
+        page: 1
+      }
+    })
+  }, [])
+
+  const handlePaketKategoriBpjsChange = useCallback((value?: string) => {
+    setPaketQuery((prev) => {
+      if ((prev.kategoriBpjs || undefined) === (value || undefined) && prev.page === 1) return prev
+      return {
+        ...prev,
+        kategoriBpjs: value || undefined,
+        page: 1
+      }
+    })
+  }, [])
+
+  const handlePaketStatusChange = useCallback((value?: string) => {
+    setPaketQuery((prev) => {
+      if ((prev.status || undefined) === (value || undefined) && prev.page === 1) return prev
+      return {
+        ...prev,
+        status: value || undefined,
+        page: 1
+      }
+    })
+  }, [])
+
   const procedureCategoryOptions = useMemo(() => {
     const categories = new Set<string>()
     Object.values(masterTindakanCache).forEach((item) => {
@@ -313,12 +461,48 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     return Array.from(map.values())
   }, [masterTindakanCache, masterTindakanList])
 
-  const { data: paketList = [], isLoading: isLoadingPaket } = useMasterPaketTindakanList({
-    q: searchPaket || undefined,
+  const { data: paketListResult, isLoading: isLoadingPaket } = useMasterPaketTindakanListPaged({
+    page: paketQuery.page,
+    items: paketQuery.items,
+    q: paketQuery.q,
+    kategoriPaket: paketQuery.kategoriPaket,
+    kategoriBpjs: paketQuery.kategoriBpjs,
+    status: paketQuery.status,
     isPaketOk: false,
-    items: 10,
     depth: 1
   })
+  const paketList = paketListResult?.rows ?? []
+  const paketPagination = paketListResult?.pagination
+
+  const paketKategoriOptions = useMemo(() => {
+    const set = new Set<string>(MASTER_PAKET_KATEGORI_BASE_OPTIONS)
+    paketList.forEach((paket) => {
+      const kategori = String((paket as any)?.kategoriPaket || '').trim()
+      if (kategori) set.add(kategori)
+    })
+    Object.values(paketCache).forEach((paket: any) => {
+      const kategori = String(paket?.kategoriPaket || '').trim()
+      if (kategori) set.add(kategori)
+    })
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ label: value, value }))
+  }, [paketCache, paketList])
+
+  const paketKategoriBpjsOptions = useMemo(() => {
+    const set = new Set<string>(MASTER_PAKET_KATEGORI_BPJS_BASE_OPTIONS)
+    paketList.forEach((paket) => {
+      const kategori = String((paket as any)?.kategoriBpjs || '').trim()
+      if (kategori) set.add(kategori)
+    })
+    Object.values(paketCache).forEach((paket: any) => {
+      const kategori = String(paket?.kategoriBpjs || '').trim()
+      if (kategori) set.add(kategori)
+    })
+    return Array.from(set)
+      .sort((a, b) => a.localeCompare(b))
+      .map((value) => ({ label: value, value }))
+  }, [paketCache, paketList])
 
   useEffect(() => {
     if (!Array.isArray(paketList) || paketList.length === 0) return
@@ -807,44 +991,144 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     [listJenisKomponen]
   )
 
-  const normalizeKelas = useCallback((value: unknown) => normalizeKelasTarifValue(value), [])
-
-  const isDateWithinPeriod = useCallback(
-    (tanggal: string, from?: string | null, to?: string | null) => {
-      const start = String(from || '')
-      const end = to ? String(to) : null
-      if (!start) return false
-      if (start > tanggal) return false
-      if (end && end < tanggal) return false
-      return true
-    },
-    []
-  )
-
   const pickTarifForKelasAndDate = useCallback(
-    (tarifList: MasterTarifTindakanRef[], kelas: string, tanggal: string) => {
-      const kelasPriority = buildKelasTarifPriority(kelas)
-
-      const candidates = (tarifList || [])
-        .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
-        .sort((a, b) => {
-          const kelasA = normalizeKelas(a?.kelas)
-          const kelasB = normalizeKelas(b?.kelas)
-          const rankA = kelasPriority.indexOf(kelasA)
-          const rankB = kelasPriority.indexOf(kelasB)
-          const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
-          const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
-          if (safeRankA !== safeRankB) return safeRankA - safeRankB
-
-          const fromA = String(a?.effectiveFrom ?? '')
-          const fromB = String(b?.effectiveFrom ?? '')
-          return fromB.localeCompare(fromA)
-        })
-
-      return candidates[0]
+    (
+      tarifList: MasterTarifTindakanRef[],
+      params: {
+        kelas: string
+        tanggal: string
+        isCyto: boolean
+      }
+    ) => {
+      return pickDetailTindakanTarifWithFallback(tarifList, {
+        kelas: params.kelas,
+        payerCategory: selectedPayerCategory,
+        isCyto: params.isCyto,
+        tanggal: params.tanggal
+      })?.tarifRow
     },
-    [isDateWithinPeriod, normalizeKelas]
+    [selectedPayerCategory]
   )
+
+  const pickPaketTarifForKelasAndDate = useCallback(
+    (
+      tarifList: PaketTarifHeaderRef[],
+      params: {
+        kelas: string
+        tanggal: string
+        isCyto: boolean
+      }
+    ) => {
+      return pickDetailTindakanTarifWithFallback(tarifList, {
+        kelas: params.kelas,
+        payerCategory: selectedPayerCategory,
+        isCyto: params.isCyto,
+        tanggal: params.tanggal
+      })?.tarifRow
+    },
+    [selectedPayerCategory]
+  )
+
+  const tarifResolutionAudit = useMemo(() => {
+    const tanggal = assessmentDateWatcher
+      ? dayjs(assessmentDateWatcher).format('YYYY-MM-DD')
+      : dayjs().format('YYYY-MM-DD')
+
+    const rows: TarifResolutionAuditRow[] = []
+
+    ;(Array.isArray(currentTindakanList) ? currentTindakanList : [])
+      .filter((item: any) => Number(item?.masterTindakanId) > 0 && String(item?.kelas || '').trim())
+      .forEach((item: any, index: number) => {
+        const tindakanId = Number(item.masterTindakanId)
+        const detail = masterTindakanDetailCache[tindakanId]
+        const kelas = String(item?.kelas || '').trim()
+        const isCyto = Boolean(item?.cyto ?? false)
+
+        const selection = Array.isArray(detail?.tarifList)
+          ? pickDetailTindakanTarifWithFallback(detail.tarifList, {
+              kelas,
+              payerCategory: selectedPayerCategory,
+              isCyto,
+              tanggal
+            })
+          : null
+
+        const source = selection?.source ?? 'missing'
+        const tindakan = masterTindakanCache[tindakanId]
+        const tindakanLabel = tindakan?.namaTindakan
+          ? `[${tindakan.kodeTindakan}] ${tindakan.namaTindakan}`
+          : `Tindakan ID ${tindakanId}`
+
+        rows.push({
+          key: `non-paket-${index}-${tindakanId}`,
+          jenis: 'Non-Paket',
+          item: tindakanLabel,
+          kelas,
+          requestedPayerCategory: selectedPayerCategory,
+          resolvedPayerCategory: selection?.resolvedPayerCategory ?? null,
+          source,
+          isCyto
+        })
+      })
+
+    ;(Array.isArray(paketEntriesWatcher) ? paketEntriesWatcher : [])
+      .filter((entry: any) => Number(entry?.paketId) > 0 && String(entry?.kelas || '').trim())
+      .forEach((entry: any, index: number) => {
+        const paketId = Number(entry.paketId)
+        const kelas = String(entry?.kelas || '').trim()
+        const isCyto = resolveDetailTindakanPaketCyto(entry)
+        const selectedPaket = paketCache[paketId] ?? paketList.find((p) => Number(p?.id) === paketId)
+        const tarifList = Array.isArray(selectedPaket?.tarifList)
+          ? (selectedPaket.tarifList as PaketTarifHeaderRef[])
+          : []
+        const selection =
+          tarifList.length > 0
+            ? pickDetailTindakanTarifWithFallback(tarifList, {
+                kelas,
+                payerCategory: selectedPayerCategory,
+                isCyto,
+                tanggal
+              })
+            : null
+
+        const source = selection?.source ?? 'missing'
+        const paketLabel = selectedPaket?.namaPaket
+          ? `[${selectedPaket.kodePaket}] ${selectedPaket.namaPaket}`
+          : `Paket ID ${paketId}`
+
+        rows.push({
+          key: `paket-${index}-${paketId}`,
+          jenis: 'Paket',
+          item: paketLabel,
+          kelas,
+          requestedPayerCategory: selectedPayerCategory,
+          resolvedPayerCategory: selection?.resolvedPayerCategory ?? null,
+          source,
+          isCyto
+        })
+      })
+
+    const exactCount = rows.filter((row) => row.source === 'exact').length
+    const fallbackCount = rows.filter((row) => row.source === 'fallback_umum').length
+    const missingCount = rows.filter((row) => row.source === 'missing').length
+    const highlightedRows = rows.filter((row) => row.source !== 'exact')
+
+    return {
+      exactCount,
+      fallbackCount,
+      missingCount,
+      highlightedRows
+    }
+  }, [
+    assessmentDateWatcher,
+    currentTindakanList,
+    masterTindakanCache,
+    masterTindakanDetailCache,
+    paketCache,
+    paketEntriesWatcher,
+    paketList,
+    selectedPayerCategory
+  ])
 
   const resolveRolesFromTindakanItems = useCallback(
     (items: any[], kelas?: string | null, tanggal?: string) => {
@@ -859,7 +1143,11 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           const detail = masterTindakanDetailCache[tindakanId]
           if (!detail || !Array.isArray(detail?.tarifList)) return
 
-          const pickedTarif = pickTarifForKelasAndDate(detail.tarifList, kelas, tanggal)
+          const pickedTarif = pickTarifForKelasAndDate(detail.tarifList, {
+            kelas,
+            tanggal,
+            isCyto: Boolean(item?.cyto ?? false)
+          })
           const komponenList = Array.isArray(pickedTarif?.komponenList)
             ? pickedTarif.komponenList
             : []
@@ -886,6 +1174,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
       const paketId = Number(entry.paketId)
       if (!Number.isFinite(paketId) || paketId <= 0) return []
+      const entryItems = Array.isArray(entry?.tindakanList) ? entry.tindakanList : []
+      const isPaketCyto = resolveDetailTindakanPaketCyto(entry)
 
       const selectedPaket = paketCache[paketId] ?? paketList.find((p) => Number(p?.id) === paketId)
       const tarifList = Array.isArray(selectedPaket?.tarifList)
@@ -893,28 +1183,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         : []
       if (tarifList.length === 0) return []
 
-      const kelasPriority = buildKelasTarifPriority(entry?.kelas)
-      const pickedTarif = [...tarifList]
-        .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
-        .sort((a, b) => {
-          const kelasA = normalizeKelas(a?.kelas)
-          const kelasB = normalizeKelas(b?.kelas)
-          const rankA = kelasPriority.indexOf(kelasA)
-          const rankB = kelasPriority.indexOf(kelasB)
-          const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
-          const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
-          if (safeRankA !== safeRankB) return safeRankA - safeRankB
-
-          const fromA = String(a?.effectiveFrom ?? '')
-          const fromB = String(b?.effectiveFrom ?? '')
-          return fromB.localeCompare(fromA)
-        })[0]
+      const pickedTarif = pickPaketTarifForKelasAndDate(tarifList, {
+        kelas: String(entry?.kelas || ''),
+        tanggal,
+        isCyto: isPaketCyto
+      })
 
       if (!pickedTarif) return []
 
       const entryDetailIds = new Set<number>(
-        (Array.isArray(entry?.tindakanList) ? entry.tindakanList : [])
-          .map((item: any) => Number(item?.paketDetailId))
+        entryItems.map((item: any) => Number(item?.paketDetailId))
           .filter((id: number) => Number.isFinite(id) && id > 0)
       )
 
@@ -944,7 +1222,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
       return Array.from(roleSet)
     },
-    [paketCache, paketList, roleByKomponenId]
+    [paketCache, paketList, pickPaketTarifForKelasAndDate, roleByKomponenId]
   )
 
   useEffect(() => {
@@ -1532,6 +1810,26 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
         return
       }
 
+      if (tarifResolutionAudit.missingCount > 0) {
+        message.warning(
+          `${tarifResolutionAudit.missingCount} item belum memiliki varian tarif aktif dan berpotensi gagal saat simpan.`
+        )
+      }
+
+      if (tarifResolutionAudit.fallbackCount > 0) {
+        const shouldProceed = await new Promise<boolean>((resolve) => {
+          modal.confirm({
+            title: 'Konfirmasi Fallback Tarif',
+            content: `${tarifResolutionAudit.fallbackCount} item tidak punya tarif ${selectedPayerCategory.toUpperCase()} dan akan memakai tarif UMUM. Lanjutkan simpan?`,
+            okText: 'Ya, Simpan',
+            cancelText: 'Batal',
+            onOk: () => resolve(true),
+            onCancel: () => resolve(false)
+          })
+        })
+        if (!shouldProceed) return
+      }
+
       if (editingId) {
         await updateMutation.mutateAsync({ ...sessionPayload, id: editingId } as any)
       } else {
@@ -2065,8 +2363,19 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                   <PaketTindakanTab
                     modalForm={modalForm}
                     token={token}
-                    setSearchPaket={setSearchPaket}
+                    setSearchPaket={handlePaketSearchChange}
+                    searchPaket={searchPaket}
                     isLoadingPaket={isLoadingPaket}
+                    paketPagination={paketPagination}
+                    onPaketPageChange={handlePaketPageChange}
+                    paketKategoriOptions={paketKategoriOptions}
+                    selectedPaketKategori={paketQuery.kategoriPaket}
+                    onPaketKategoriChange={handlePaketKategoriChange}
+                    paketKategoriBpjsOptions={paketKategoriBpjsOptions}
+                    selectedPaketKategoriBpjs={paketQuery.kategoriBpjs}
+                    onPaketKategoriBpjsChange={handlePaketKategoriBpjsChange}
+                    selectedPaketStatus={paketQuery.status}
+                    onPaketStatusChange={handlePaketStatusChange}
                     paketOptions={filteredPaketOptions}
                     handlePaketEntryChange={handlePaketEntryChange}
                     kelasOptions={resolvedKelasOptions}
@@ -2078,7 +2387,6 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
                     performers={performers}
                     roleLabelByCode={roleLabelByCode}
                     setItemSelectorState={setItemSelectorState}
-                    setProcedureSelectorState={setProcedureSelectorState}
                     masterTindakanList={masterTindakanDisplayList}
                   />
                 )
@@ -2155,23 +2463,53 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
       <ProcedureSelectorModal
         open={procedureSelectorState.open}
-        onCancel={() => setProcedureSelectorState({ open: false })}
+        mode={procedureSelectorState.mode}
+        title={procedureSelectorState.title}
+        onCancel={() =>
+          setProcedureSelectorState({
+            open: false,
+            mode: 'select'
+          })
+        }
         onSelect={(proc) => {
           setMasterTindakanCache((prev) => ({
             ...prev,
             [proc.id]: proc
           }))
           if (procedureSelectorState.onSelect) procedureSelectorState.onSelect(proc)
-          setProcedureSelectorState({ open: false })
+          setProcedureSelectorState({
+            open: false,
+            mode: 'select'
+          })
         }}
-        procedures={masterTindakanList}
-        loading={isLoadingMaster}
-        pagination={masterTindakanPagination}
+        procedures={
+          (procedureSelectorState.mode ?? 'select') === 'readonly'
+            ? procedureSelectorState.procedures || []
+            : masterTindakanList
+        }
+        loading={(procedureSelectorState.mode ?? 'select') === 'readonly' ? false : isLoadingMaster}
+        pagination={
+          (procedureSelectorState.mode ?? 'select') === 'readonly'
+            ? undefined
+            : masterTindakanPagination
+        }
         pageSize={procedureQuery.items}
         searchValue={procedureQuery.q || ''}
-        selectedCategory={procedureQuery.kategori}
-        selectedBpjsCategory={procedureQuery.categoryBpjs}
-        categoryOptions={procedureCategoryOptions}
+        selectedCategory={
+          (procedureSelectorState.mode ?? 'select') === 'readonly'
+            ? undefined
+            : procedureQuery.kategori
+        }
+        selectedBpjsCategory={
+          (procedureSelectorState.mode ?? 'select') === 'readonly'
+            ? undefined
+            : procedureQuery.categoryBpjs
+        }
+        categoryOptions={
+          (procedureSelectorState.mode ?? 'select') === 'readonly'
+            ? undefined
+            : procedureCategoryOptions
+        }
         onSearchChange={handleProcedureSearchChange}
         onCategoryChange={handleProcedureCategoryChange}
         onBpjsCategoryChange={handleProcedureBpjsCategoryChange}

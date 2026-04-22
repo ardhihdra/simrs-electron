@@ -1,3 +1,10 @@
+/**
+ * Purpose: Modal pemilihan/peninjauan tindakan medis untuk form tindakan.
+ * Main callers: DetailTindakanForm (tab tindakan non-paket dan paket tindakan).
+ * Key dependencies: antd Modal/Table/Input/Select, hooks query master tindakan.
+ * Main/public functions: ProcedureSelectorModal.
+ * Side effects: trigger callback `onSelect`, trigger callback filter/pagination saat mode select.
+ */
 import { Modal, Table, Input, Button, Space, Tag, Select } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import { useEffect, useMemo, useState } from 'react'
@@ -12,6 +19,8 @@ import {
 
 interface ProcedureSelectorModalProps {
   open: boolean
+  mode?: 'select' | 'readonly'
+  title?: string
   onCancel: () => void
   onSelect: (item: MasterTindakanItem) => void
   procedures: MasterTindakanItem[]
@@ -30,6 +39,8 @@ interface ProcedureSelectorModalProps {
 
 export const ProcedureSelectorModal = ({
   open,
+  mode = 'select',
+  title,
   onCancel,
   onSelect,
   procedures,
@@ -45,6 +56,7 @@ export const ProcedureSelectorModal = ({
   onBpjsCategoryChange,
   onPageChange
 }: ProcedureSelectorModalProps) => {
+  const isReadonly = mode === 'readonly'
   const [searchText, setSearchText] = useState(searchValue || '')
   const debouncedSearchText = useDebounce(searchText, 300)
 
@@ -67,8 +79,9 @@ export const ProcedureSelectorModal = ({
 
   useEffect(() => {
     if (!open) return
+    if (isReadonly) return
     onSearchChange(debouncedSearchText.trim())
-  }, [debouncedSearchText, onSearchChange, open])
+  }, [debouncedSearchText, onSearchChange, open, isReadonly])
 
   const columns: ColumnsType<MasterTindakanItem> = [
     {
@@ -106,8 +119,10 @@ export const ProcedureSelectorModal = ({
       key: 'satuan',
       width: 100,
       render: (v: string) => <Tag color="blue">{v || '-'}</Tag>
-    },
-    {
+    }
+  ]
+  if (!isReadonly) {
+    columns.push({
       title: 'Aksi',
       key: 'action',
       width: 80,
@@ -116,12 +131,24 @@ export const ProcedureSelectorModal = ({
           Pilih
         </Button>
       )
-    }
-  ]
+    })
+  }
+
+  const readonlyFilteredProcedures = useMemo(() => {
+    if (!isReadonly) return procedures
+    const q = searchText.trim().toLowerCase()
+    if (!q) return procedures
+    return procedures.filter((item) => {
+      const nama = String(item?.namaTindakan || '').toLowerCase()
+      const kode = String(item?.kodeTindakan || '').toLowerCase()
+      const kategori = String(item?.kategoriTindakan || '').toLowerCase()
+      return nama.includes(q) || kode.includes(q) || kategori.includes(q)
+    })
+  }, [isReadonly, procedures, searchText])
 
   return (
     <Modal
-      title="Pilih Tindakan / Prosedur Medis"
+      title={title || (isReadonly ? 'Daftar Tindakan Paket' : 'Pilih Tindakan / Prosedur Medis')}
       open={open}
       onCancel={onCancel}
       width={1000}
@@ -129,54 +156,75 @@ export const ProcedureSelectorModal = ({
       destroyOnClose
     >
       <Space direction="vertical" style={{ width: '100%' }} size="middle">
-        <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
-          <Select
-            placeholder="Kategori Umum"
-            allowClear
-            style={{ width: 180 }}
-            options={categories}
-            value={selectedCategory}
-            onChange={(value) => onCategoryChange(value)}
-          />
-          <Select
-            placeholder="Kategori BPJS"
-            allowClear
-            style={{ width: 180 }}
-            options={CATEGORY_BPJS_VALUES.map((v) => ({ label: v, value: v }))}
-            value={selectedBpjsCategory}
-            onChange={(value) => onBpjsCategoryChange(value as CategoryBpjs | undefined)}
-          />
-          <Input
-            placeholder="Cari Nama or Kode Tindakan..."
-            prefix={<SearchOutlined />}
-            style={{ flex: 1, minWidth: '250px' }}
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            allowClear
-            autoFocus
-          />
-        </div>
+        {isReadonly ? (
+          <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
+            <Input
+              placeholder="Cari Nama atau Kode Tindakan Paket..."
+              prefix={<SearchOutlined />}
+              style={{ flex: 1, minWidth: '250px' }}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              autoFocus
+            />
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 bg-gray-50 p-3 rounded-lg border border-gray-100">
+            <Select
+              placeholder="Kategori Umum"
+              allowClear
+              style={{ width: 180 }}
+              options={categories}
+              value={selectedCategory}
+              onChange={(value) => onCategoryChange(value)}
+            />
+            <Select
+              placeholder="Kategori BPJS"
+              allowClear
+              style={{ width: 180 }}
+              options={CATEGORY_BPJS_VALUES.map((v) => ({ label: v, value: v }))}
+              value={selectedBpjsCategory}
+              onChange={(value) => onBpjsCategoryChange(value as CategoryBpjs | undefined)}
+            />
+            <Input
+              placeholder="Cari Nama or Kode Tindakan..."
+              prefix={<SearchOutlined />}
+              style={{ flex: 1, minWidth: '250px' }}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              autoFocus
+            />
+          </div>
+        )}
         <Table
-          dataSource={procedures}
+          dataSource={isReadonly ? readonlyFilteredProcedures : procedures}
           columns={columns}
           rowKey="id"
           loading={loading}
-          pagination={{
-            current: pagination?.page ?? 1,
-            pageSize: pagination?.limit ?? pageSize,
-            total: pagination?.count ?? 0,
-            showSizeChanger: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} dari ${total}`
-          }}
+          pagination={
+            isReadonly
+              ? false
+              : {
+                  current: pagination?.page ?? 1,
+                  pageSize: pagination?.limit ?? pageSize,
+                  total: pagination?.count ?? 0,
+                  showSizeChanger: true,
+                  showTotal: (total, range) => `${range[0]}-${range[1]} dari ${total}`
+                }
+          }
           onChange={(tablePagination) => {
+            if (isReadonly) return
             onPageChange(
               tablePagination.current ?? 1,
               tablePagination.pageSize ?? pageSize
             )
           }}
           onRow={(record) => ({
-            onDoubleClick: () => onSelect(record),
-            style: { cursor: 'pointer' }
+            onDoubleClick: () => {
+              if (!isReadonly) onSelect(record)
+            },
+            style: { cursor: isReadonly ? 'default' : 'pointer' }
           })}
           size="small"
           bordered

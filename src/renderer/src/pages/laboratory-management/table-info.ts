@@ -6,6 +6,9 @@ export interface PatientInfoSource {
   mrn?: string
   medicalRecordNumber?: string
   nik?: string
+  heightCm?: number | string | null
+  weightKg?: number | string | null
+  pregnancyStatus?: 'Hamil' | 'Tidak Hamil' | '-' | string | null
   birthDate?: string
   address?: string
   gender?: string
@@ -33,6 +36,9 @@ export interface AncillaryQueuePatientInfoSource {
     mrn?: string
     medicalRecordNumber?: string
     nik?: string
+    heightCm?: number | string | null
+    weightKg?: number | string | null
+    pregnancyStatus?: 'Hamil' | 'Tidak Hamil' | '-' | string | null
     birthDate?: string
     address?: string
     gender?: string
@@ -87,6 +93,17 @@ export interface SummaryRow {
 
 function toDisplayValue(value?: string | null): string {
   return String(value || '').trim()
+}
+
+function toPositiveNumber(value?: number | string | null): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const num = typeof value === 'number' ? value : Number(value)
+  return Number.isFinite(num) && num > 0 ? num : null
+}
+
+function toPregnancyStatus(value?: string | null): 'Hamil' | 'Tidak Hamil' | '-' {
+  if (value === 'Hamil' || value === 'Tidak Hamil') return value
+  return '-'
 }
 
 function resolvePractitionerName(practitioner?: PractitionerNameSource | null): string {
@@ -166,7 +183,10 @@ export function buildPatientInfoCardData(
       age: getAgeValue(patient?.birthDate, referenceDate),
       identityNumber: toDisplayValue(patient?.nik) || '-',
       address: toDisplayValue(patient?.address) || '-',
-      religion: toDisplayValue(patient?.religion) || '-'
+      religion: toDisplayValue(patient?.religion) || '-',
+      heightCm: toPositiveNumber(patient?.heightCm),
+      weightKg: toPositiveNumber(patient?.weightKg),
+      pregnancyStatus: toPregnancyStatus(patient?.pregnancyStatus)
     },
     poli: {
       name: toDisplayValue(patient?.poliName) || '-'
@@ -192,6 +212,9 @@ export function buildAncillaryQueuePatientInfoCardData(
       medicalRecordNumber:
         encounter?.patient?.medicalRecordNumber || encounter?.patientMrNo || encounter?.patient?.mrn,
       nik: encounter?.patient?.nik,
+      heightCm: encounter?.patient?.heightCm,
+      weightKg: encounter?.patient?.weightKg,
+      pregnancyStatus: encounter?.patient?.pregnancyStatus,
       gender: encounter?.patient?.gender,
       birthDate: encounter?.patient?.birthDate,
       address: encounter?.patient?.address,

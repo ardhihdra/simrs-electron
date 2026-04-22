@@ -1,3 +1,10 @@
+/**
+ * Purpose: Halaman detail verifikasi pengajuan OK, termasuk tim paket, checklist perioperatif, sinkron tindakan, dan billing.
+ * Main callers: Route OK verifikasi detail (`/dashboard/ok/verifikasi/:id`).
+ * Key dependencies: hook OK request/detail tindakan/master paket, selector fallback tarif OK, komponen form checklist.
+ * Main/public functions: DetailVerifikasiPage (React page component).
+ * Side effects: mutasi status OK request, simpan checklist, sinkron/create-update detail tindakan pasien.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import dayjs from 'dayjs'
@@ -65,10 +72,13 @@ import {
 import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
 import {
   DEFAULT_KELAS_TARIF_OPTIONS,
-  buildKelasTarifPriority,
   getKelasTarifLabel,
   normalizeKelasTarifValue
 } from '@renderer/utils/tarif-kelas'
+import {
+  selectTarifWithFallback,
+  type TarifPayerCategory
+} from '@renderer/utils/ok-tarif-selector'
 import type { OkRequestStatus } from 'simrs-types'
 
 const { Text } = Typography
@@ -125,6 +135,17 @@ interface PaketRow {
   tarifSnapshot: number | null
 }
 
+interface FallbackVariantRow {
+  key: string
+  paketId: number
+  paketLabel: string
+  kelas: string
+  requestedPayerCategory: TarifPayerCategory
+  resolvedPayerCategory: TarifPayerCategory
+  isCyto: boolean
+  tanggal: string
+}
+
 interface PaketTeamState {
   kelas: string
   roleList: string[]
@@ -149,7 +170,10 @@ interface PaketTarifRincianRef {
 }
 
 interface PaketTarifHeaderRef {
+  id?: number | string | null
   kelas?: string | null
+  payerCategory?: string | null
+  isCyto?: boolean | null
   effectiveFrom?: string | null
   effectiveTo?: string | null
   tarifTotal?: number | string | null
@@ -262,6 +286,27 @@ const isCytoFromPriority = (priority: unknown): boolean => {
   }
 
   return false
+}
+
+const mapPaymentMethodToPayerCategory = (paymentMethod: unknown): TarifPayerCategory => {
+  const normalized = String(paymentMethod || '')
+    .trim()
+    .toLowerCase()
+
+  switch (normalized) {
+    case 'cash':
+    case 'general':
+    case 'umum':
+      return 'umum'
+    case 'bpjs':
+      return 'bpjs'
+    case 'company':
+      return 'perusahaan'
+    case 'asuransi':
+      return 'asuransi'
+    default:
+      return 'umum'
+  }
 }
 
 const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
@@ -387,39 +432,21 @@ const parseNumber = (value: unknown): number | null => {
   return Number.isFinite(num) ? num : null
 }
 
-const isDateWithinPeriod = (tanggal: string, from?: string | null, to?: string | null) => {
-  const start = String(from || '')
-  const end = to ? String(to) : null
-  if (!start) return false
-  if (start > tanggal) return false
-  if (end && end < tanggal) return false
-  return true
-}
-
 const pickTarifForKelasAndDate = (
   tarifList: PaketTarifHeaderRef[],
-  kelas: string,
-  tanggal: string
+  params: {
+    kelas: string
+    payerCategory: TarifPayerCategory
+    isCyto: boolean
+    tanggal: string
+  }
 ) => {
-  const kelasPriority = buildKelasTarifPriority(kelas)
-
-  const candidates = (tarifList || [])
-    .filter((tarif) => isDateWithinPeriod(tanggal, tarif?.effectiveFrom, tarif?.effectiveTo))
-    .sort((a, b) => {
-      const kelasA = normalizeKelas(a?.kelas)
-      const kelasB = normalizeKelas(b?.kelas)
-      const rankA = kelasPriority.indexOf(kelasA)
-      const rankB = kelasPriority.indexOf(kelasB)
-      const safeRankA = rankA === -1 ? Number.MAX_SAFE_INTEGER : rankA
-      const safeRankB = rankB === -1 ? Number.MAX_SAFE_INTEGER : rankB
-      if (safeRankA !== safeRankB) return safeRankA - safeRankB
-
-      const fromA = String(a?.effectiveFrom ?? '')
-      const fromB = String(b?.effectiveFrom ?? '')
-      return fromB.localeCompare(fromA)
-    })
-
-  return candidates[0]
+  return selectTarifWithFallback(tarifList, {
+    kelas: params.kelas,
+    requestedPayerCategory: params.payerCategory,
+    isCyto: params.isCyto,
+    tanggal: params.tanggal
+  })
 }
 
 const normalizeTeamAssignments = (
@@ -685,6 +712,14 @@ const DetailVerifikasiPage = () => {
     const paymentMethod = encounterDetail?.queueTicket?.paymentMethod
     return normalizeKelas(mapPaymentMethodToTarifKelas(paymentMethod)) || 'UMUM'
   }, [encounterDetail?.queueTicket?.paymentMethod])
+  const selectedPayerCategory = useMemo<TarifPayerCategory>(() => {
+    const paymentMethod = encounterDetail?.queueTicket?.paymentMethod
+    return mapPaymentMethodToPayerCategory(paymentMethod)
+  }, [encounterDetail?.queueTicket?.paymentMethod])
+  const isSelectedRequestCyto = useMemo(
+    () => isCytoFromPriority(selectedRequest?.priority),
+    [selectedRequest?.priority]
+  )
 
   const kelasOptions = useMemo(() => {
     const optionMap = new Map<string, string>()
@@ -722,14 +757,20 @@ const DetailVerifikasiPage = () => {
   }, [scheduleDraft.rencanaMulai, selectedRequest?.requestedAt, selectedRequest?.scheduledAt])
 
   const resolveRolesFromPaketByClass = useCallback(
-    (paketId: number, kelas: string): string[] => {
+    (paketId: number, kelas: string, isCyto: boolean): string[] => {
       const selectedPaket = paketById.get(paketId)
       const tarifList = Array.isArray(selectedPaket?.tarifList)
         ? (selectedPaket.tarifList as PaketTarifHeaderRef[])
         : []
       if (!selectedPaket || tarifList.length === 0) return []
 
-      const pickedTarif = pickTarifForKelasAndDate(tarifList, kelas, roleResolutionDate)
+      const pickedTarifSelection = pickTarifForKelasAndDate(tarifList, {
+        kelas,
+        payerCategory: selectedPayerCategory,
+        isCyto,
+        tanggal: roleResolutionDate
+      })
+      const pickedTarif = pickedTarifSelection?.tarifRow
       if (!pickedTarif) return []
 
       const detailItems = Array.isArray(selectedPaket?.listTindakan)
@@ -770,7 +811,7 @@ const DetailVerifikasiPage = () => {
 
       return Array.from(roleSet)
     },
-    [paketById, roleByKomponenId, roleResolutionDate]
+    [paketById, roleByKomponenId, roleResolutionDate, selectedPayerCategory]
   )
 
   const buildPaketTeamState = useCallback(
@@ -781,7 +822,7 @@ const DetailVerifikasiPage = () => {
       fallbackDpjpId?: number | null
     ): PaketTeamState => {
       const normalizedClass = normalizeKelas(kelas) || 'UMUM'
-      const roleList = resolveRolesFromPaketByClass(paketId, normalizedClass)
+      const roleList = resolveRolesFromPaketByClass(paketId, normalizedClass, isSelectedRequestCyto)
       const teamMembers = roleList.map((roleTenaga, idx) => {
         const fromInitial = initialAssignees?.get(roleTenaga)
         const fromDpjp = idx === 0 && fallbackDpjpId ? Number(fallbackDpjpId) : undefined
@@ -801,7 +842,7 @@ const DetailVerifikasiPage = () => {
         teamMembers
       }
     },
-    [resolveRolesFromPaketByClass]
+    [isSelectedRequestCyto, resolveRolesFromPaketByClass]
   )
 
   const statusMeta = STATUS_META[selectedRequest?.status || 'draft'] || {
@@ -845,10 +886,10 @@ const DetailVerifikasiPage = () => {
 
     const endAt = normalizeOperationEndDateTime(startAt, rawEndAt)
     const diffMinutes = endAt.diff(startAt, 'minute')
-    if (!Number.isFinite(diffMinutes) || diffMinutes < 0) {
+    if (!Number.isFinite(diffMinutes) || diffMinutes <= 0) {
       return {
         isReady: false as const,
-        message: 'Estimasi selesai harus sama atau setelah rencana mulai.'
+        message: 'Estimasi selesai harus setelah rencana mulai (minimal 1 menit).'
       }
     }
 
@@ -910,10 +951,9 @@ const DetailVerifikasiPage = () => {
     () => selectedPaketRows.map((row) => row.paketId).filter((id) => Number.isFinite(id) && id > 0),
     [selectedPaketRows]
   )
-  const isSelectedRequestCyto = useMemo(
-    () => isCytoFromPriority(selectedRequest?.priority),
-    [selectedRequest?.priority]
-  )
+  const selectedPaketRowById = useMemo(() => {
+    return new Map(selectedPaketRows.map((row) => [row.paketId, row] as const))
+  }, [selectedPaketRows])
 
   const getPaketTindakanItems = useCallback((paket: MasterPaketExtended | undefined): PaketMasterDetailItemRef[] => {
     if (Array.isArray(paket?.listTindakan)) return paket.listTindakan as PaketMasterDetailItemRef[]
@@ -975,7 +1015,7 @@ const DetailVerifikasiPage = () => {
           item: String(itemName || '-'),
           qty: Number(detail?.qty || 1),
           satuan: String(detail?.satuan || '-'),
-          cyto: false,
+          cyto: isSelectedRequestCyto,
           catatanTambahan: '-'
         }
       })
@@ -998,7 +1038,7 @@ const DetailVerifikasiPage = () => {
     })
 
     return detailMap
-  }, [getPaketBhpItems, getPaketTindakanItems, paketById, selectedPaketRows])
+  }, [getPaketBhpItems, getPaketTindakanItems, isSelectedRequestCyto, paketById, selectedPaketRows])
 
   const billingComputation = useMemo<{
     computedData: BillingComputedData | null
@@ -1021,7 +1061,13 @@ const DetailVerifikasiPage = () => {
       const tarifList = Array.isArray(paket?.tarifList)
         ? (paket.tarifList as PaketTarifHeaderRef[])
         : []
-      const pickedTarif = pickTarifForKelasAndDate(tarifList, resolvedKelas, roleResolutionDate)
+      const pickedTarifSelection = pickTarifForKelasAndDate(tarifList, {
+        kelas: resolvedKelas,
+        payerCategory: selectedPayerCategory,
+        isCyto: isSelectedRequestCyto,
+        tanggal: roleResolutionDate
+      })
+      const pickedTarif = pickedTarifSelection?.tarifRow
 
       const snapshotTarif = parseNumber(row.tarifSnapshot)
       const masterTarif = parseNumber(pickedTarif?.tarifTotal)
@@ -1029,11 +1075,11 @@ const DetailVerifikasiPage = () => {
 
       if (!pickedTarif) {
         warningSet.add(
-          `Tarif aktif tidak ditemukan untuk [${row.kode}] ${row.nama} pada kelas ${getKelasLabel(resolvedKelas)}.`
+          `Tarif aktif tidak ditemukan untuk [${row.kode}] ${row.nama} pada kelas ${getKelasLabel(resolvedKelas)} / penjamin ${selectedPayerCategory} / ${isSelectedRequestCyto ? 'CYTO' : 'NON-CYTO'}.`
         )
-      } else if (pickedKelas && pickedKelas !== resolvedKelas) {
+      } else if (pickedTarifSelection?.source === 'fallback_umum') {
         warningSet.add(
-          `[${row.kode}] ${row.nama}: kelas ${getKelasLabel(resolvedKelas)} tidak tersedia, fallback ke ${getKelasLabel(pickedKelas)}.`
+          `[${row.kode}] ${row.nama}: tarif fallback ke UMUM karena tarif ${selectedPayerCategory.toUpperCase()} tidak tersedia.`
         )
       }
 
@@ -1172,6 +1218,8 @@ const DetailVerifikasiPage = () => {
     paketById,
     paketTeamMap,
     roleResolutionDate,
+    isSelectedRequestCyto,
+    selectedPayerCategory,
     selectedPaketRows,
     selectedTarifKelas
   ])
@@ -1389,6 +1437,8 @@ const DetailVerifikasiPage = () => {
     }> = []
     const missingPaketIds: number[] = []
     const missingDetailPaketIds: number[] = []
+    const missingVariantCombos: string[] = []
+    const fallbackVariantRows: FallbackVariantRow[] = []
 
     rows.forEach((item) => {
       const paketId = Number(item?.paketId)
@@ -1411,6 +1461,42 @@ const DetailVerifikasiPage = () => {
         return
       }
 
+      const kelasPaket = normalizeKelas(
+        paketTeamMap[paketId]?.kelas || item?.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
+      )
+      const tarifList = Array.isArray(paket?.tarifList)
+        ? (paket.tarifList as PaketTarifHeaderRef[])
+        : []
+      const matchedTarifSelection = pickTarifForKelasAndDate(tarifList, {
+        kelas: kelasPaket,
+        payerCategory: selectedPayerCategory,
+        isCyto: isSelectedRequestCyto,
+        tanggal: roleResolutionDate
+      })
+      const matchedTarif = matchedTarifSelection?.tarifRow
+      if (!matchedTarif) {
+        missingVariantCombos.push(
+          `paketId=${paketId}, kelas=${kelasPaket}, payerCategory=${selectedPayerCategory}, isCyto=${isSelectedRequestCyto}, tanggal=${roleResolutionDate}`
+        )
+        return
+      }
+      if (matchedTarifSelection?.source === 'fallback_umum') {
+        const paketRow = selectedPaketRowById.get(paketId)
+        const paketLabel = paketRow
+          ? `[${paketRow.kode}] ${paketRow.nama}`
+          : `Paket ID ${paketId}`
+        fallbackVariantRows.push({
+          key: `${paketId}-${kelasPaket}-${selectedPayerCategory}-${isSelectedRequestCyto ? 'cyto' : 'non-cyto'}-${roleResolutionDate}`,
+          paketId,
+          paketLabel,
+          kelas: kelasPaket,
+          requestedPayerCategory: selectedPayerCategory,
+          resolvedPayerCategory: 'umum',
+          isCyto: isSelectedRequestCyto,
+          tanggal: roleResolutionDate
+        })
+      }
+
       detailItems.forEach((detail: PaketMasterDetailItemRef) => {
         const paketDetailId = Number(detail?.id)
         const masterTindakanId = Number(detail?.masterTindakanId)
@@ -1419,9 +1505,6 @@ const DetailVerifikasiPage = () => {
 
         const jumlahRaw = Number(detail?.qty)
         const jumlah = Number.isFinite(jumlahRaw) && jumlahRaw > 0 ? jumlahRaw : 1
-        const kelasPaket = normalizeKelas(
-          paketTeamMap[paketId]?.kelas || item?.kelasTarifSnapshot || selectedTarifKelas || 'UMUM'
-        )
 
         mapped.push({
           masterTindakanId,
@@ -1444,13 +1527,20 @@ const DetailVerifikasiPage = () => {
     return {
       rows: Array.from(unique.values()),
       missingPaketIds: Array.from(new Set(missingPaketIds)),
-      missingDetailPaketIds: Array.from(new Set(missingDetailPaketIds))
+      missingDetailPaketIds: Array.from(new Set(missingDetailPaketIds)),
+      missingVariantCombos: Array.from(new Set(missingVariantCombos)),
+      fallbackVariantRows: Array.from(
+        new Map(fallbackVariantRows.map((item) => [item.key, item])).values()
+      )
     }
   }, [
+    isSelectedRequestCyto,
     okRequestSyncMarker,
     paketById,
     paketTeamMap,
-    isSelectedRequestCyto,
+    roleResolutionDate,
+    selectedPayerCategory,
+    selectedPaketRowById,
     selectedRequest?.paketTindakanList,
     selectedTarifKelas
   ])
@@ -1492,8 +1582,9 @@ const DetailVerifikasiPage = () => {
   }, [paketTeamMap, selectedPaketRows, selectedTarifKelas])
 
   const invalidTeamRows = useMemo(() => {
+    if (!canTakeDecision) return []
     return selectedPaketRows.filter((row) => !paketTeamStatusMap[row.paketId]?.complete)
-  }, [paketTeamStatusMap, selectedPaketRows])
+  }, [canTakeDecision, paketTeamStatusMap, selectedPaketRows])
 
   const isLoadingPage = isLoadingOkRequest || isFetchingOkRequest || isLoadingEncounter
   const errorMessage =
@@ -1595,7 +1686,7 @@ const DetailVerifikasiPage = () => {
     sourceAssignments?: TeamMemberAssignment[] | TeamMemberFormItem[]
   ) => {
     const kelas = normalizeKelas(kelasRaw) || 'UMUM'
-    const roleList = resolveRolesFromPaketByClass(paketId, kelas)
+    const roleList = resolveRolesFromPaketByClass(paketId, kelas, isSelectedRequestCyto)
     const assigneeMap = buildRoleAssigneeMap(
       normalizeTeamAssignments(
         sourceAssignments || (paketTeamForm.getFieldValue('teamMembers') ?? [])
@@ -1642,7 +1733,11 @@ const DetailVerifikasiPage = () => {
     try {
       const values = await paketTeamForm.validateFields()
       const kelas = normalizeKelas(values?.kelas || selectedTarifKelas || 'UMUM')
-      const roleList = resolveRolesFromPaketByClass(activePaketForTeam.paketId, kelas)
+      const roleList = resolveRolesFromPaketByClass(
+        activePaketForTeam.paketId,
+        kelas,
+        isSelectedRequestCyto
+      )
       if (roleList.length === 0) {
         message.error('Role tenaga medis belum tersedia untuk paket dan kelas yang dipilih')
         return
@@ -1701,6 +1796,13 @@ const DetailVerifikasiPage = () => {
     if (!patientId) {
       message.error(
         'Patient ID dari encounter tidak ditemukan, tidak dapat membuat detail tindakan'
+      )
+      return false
+    }
+
+    if (tindakanPaketPayload.missingVariantCombos.length > 0) {
+      message.error(
+        `Varian tarif paket tidak ditemukan: ${tindakanPaketPayload.missingVariantCombos.join(' | ')}`
       )
       return false
     }
@@ -1810,7 +1912,7 @@ const DetailVerifikasiPage = () => {
     return {
       scheduledAt: selectedRequest?.scheduledAt ? dayjs(selectedRequest.scheduledAt).toISOString() : null,
       estimatedDurationMinutes:
-        Number.isInteger(estimatedDurationValue) && estimatedDurationValue >= 0
+        Number.isInteger(estimatedDurationValue) && estimatedDurationValue > 0
           ? estimatedDurationValue
           : undefined,
       operatingRoomId: selectedRequest?.operatingRoomId ?? null
@@ -1861,28 +1963,43 @@ const DetailVerifikasiPage = () => {
       return
     }
 
-    try {
+    const proceedApprove = async () => {
       const schedulePayload = resolveSchedulePayloadForMutation(OK_REQUEST_STATUS.VERIFIED)
       if (!schedulePayload) return
 
       const syncSuccess = await savePaketTeamsToDetailTindakan()
       if (!syncSuccess) return
 
-      await verifyOkRequest.mutateAsync({
-        id: Number(selectedRequest.id),
-        status: OK_REQUEST_STATUS.VERIFIED,
-        scheduledAt: schedulePayload.scheduledAt,
-        estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
-        operatingRoomId: schedulePayload.operatingRoomId,
-        notes: selectedRequest.notes || 'Disetujui melalui verifikasi OK'
-      })
+      try {
+        await verifyOkRequest.mutateAsync({
+          id: Number(selectedRequest.id),
+          status: OK_REQUEST_STATUS.VERIFIED,
+          scheduledAt: schedulePayload.scheduledAt,
+          estimatedDurationMinutes: schedulePayload.estimatedDurationMinutes,
+          operatingRoomId: schedulePayload.operatingRoomId,
+          notes: selectedRequest.notes || 'Disetujui melalui verifikasi OK'
+        })
 
-      message.success('Pengajuan OK berhasil disetujui')
-      void refetchOkRequest()
-    } catch (error) {
-      const text = error instanceof Error ? error.message : String(error)
-      message.error(`Gagal menyetujui pengajuan OK: ${text}`)
+        message.success('Pengajuan OK berhasil disetujui')
+        void refetchOkRequest()
+      } catch (error) {
+        const text = error instanceof Error ? error.message : String(error)
+        message.error(`Gagal menyetujui pengajuan OK: ${text}`)
+      }
     }
+
+    if (tindakanPaketPayload.fallbackVariantRows.length > 0) {
+      modal.confirm({
+        title: 'Konfirmasi Fallback Tarif',
+        content: `${tindakanPaketPayload.fallbackVariantRows.length} paket tidak punya tarif ${selectedPayerCategory.toUpperCase()} dan akan memakai tarif UMUM. Lanjutkan persetujuan?`,
+        okText: 'Ya, Setujui',
+        cancelText: 'Batal',
+        onOk: proceedApprove
+      })
+      return
+    }
+
+    await proceedApprove()
   }
 
   const handleRejectVerification = () => {
@@ -2168,7 +2285,7 @@ const DetailVerifikasiPage = () => {
                 <Alert className="!mb-3" type="info" showIcon message={restoreWarning} />
               )}
 
-              {invalidTeamRows.length > 0 && (
+              {canTakeDecision && invalidTeamRows.length > 0 && (
                 <Alert
                   className="!mb-3"
                   type="warning"
@@ -2235,6 +2352,11 @@ const DetailVerifikasiPage = () => {
                     key: 'teamStatus',
                     width: 240,
                     render: (_, row) => {
+                      if (!canTakeDecision) {
+                        if (isOperationCompleted) return <Tag color="green">Sudah dilakukan</Tag>
+                        if (isOperationCancelled) return <Tag>Operasi dibatalkan</Tag>
+                        return <Tag color="blue">Sudah diverifikasi</Tag>
+                      }
                       const status = paketTeamStatusMap[row.paketId]
                       if (!status?.hasRole) {
                         return (
@@ -2280,19 +2402,26 @@ const DetailVerifikasiPage = () => {
                     title: 'Aksi',
                     key: 'aksi',
                     width: 120,
-                    render: (_, row) => (
-                      <Space wrap>
-                        <Button
-                          size="small"
-                          icon={<EditOutlined />}
-                          onClick={() => {
-                            openPaketTeamModal(row)
-                          }}
-                        >
-                          Isi Tim
-                        </Button>
-                      </Space>
-                    )
+                    render: (_, row) => {
+                      if (!canTakeDecision) {
+                        if (isOperationCompleted) return <Text type="secondary">Selesai</Text>
+                        if (isOperationCancelled) return <Text type="secondary">Dibatalkan</Text>
+                        return <Text type="secondary">Terkunci</Text>
+                      }
+                      return (
+                        <Space wrap>
+                          <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => {
+                              openPaketTeamModal(row)
+                            }}
+                          >
+                            Isi Tim
+                          </Button>
+                        </Space>
+                      )
+                    }
                   }
                 ]}
               />
@@ -2314,6 +2443,16 @@ const DetailVerifikasiPage = () => {
                   message={`Detail tindakan paket belum tersedia untuk paket ID: ${tindakanPaketPayload.missingDetailPaketIds.join(', ')}`}
                 />
               )}
+
+              {tindakanPaketPayload.missingVariantCombos.length > 0 && (
+                <Alert
+                  className="mt-3"
+                  type="error"
+                  showIcon
+                  message={`Varian tarif paket tidak ditemukan: ${tindakanPaketPayload.missingVariantCombos.join(' | ')}`}
+                />
+              )}
+
             </Card>
           </div>
 

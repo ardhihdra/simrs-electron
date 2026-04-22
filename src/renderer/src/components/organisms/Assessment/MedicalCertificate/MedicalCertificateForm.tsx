@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Form,
   Input,
@@ -13,7 +13,8 @@ import {
   DatePicker,
   InputNumber,
   Divider,
-  Typography
+  Typography,
+  Tag
 } from 'antd'
 import {
   PrinterOutlined,
@@ -55,12 +56,19 @@ const CERTIFICATE_TYPE_OPTIONS: { label: string; value: CertificateType; color: 
   { label: 'Surat Keterangan Lainnya', value: 'lainnya', color: 'blue' }
 ]
 
+const SIGNATURE_SOURCE_OPTIONS = [
+  { label: 'Input Manual', value: 'manual' },
+  { label: 'Ambil dari Kepegawaian', value: 'kepegawaian' }
+]
+
 export const MedicalCertificateForm = ({
   encounterId: _encounterId,
   patientData
 }: MedicalCertificateFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
+  const selectedSignatureSource = Form.useWatch('signatureSource', form)
+  const selectedPerformerId = Form.useWatch('performerId', form)
 
   const { data: performers, isLoading: isLoadingPerformers } = usePerformers(['doctor'])
 
@@ -74,6 +82,7 @@ export const MedicalCertificateForm = ({
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
 
   const [signatures, setSignatures] = useState<Record<string, string>>({})
+  const [selectedDoctorProfileTtdUrl, setSelectedDoctorProfileTtdUrl] = useState<string | null>(null)
   const [sigModal, setSigModal] = useState<{ visible: boolean; type: string; title: string }>({
     visible: false,
     type: '',
@@ -89,6 +98,72 @@ export const MedicalCertificateForm = ({
   const [selectedType, setSelectedType] = useState<CertificateType>('sakit')
   const needsRestPeriod = selectedType === 'sakit' || selectedType === 'istirahat'
 
+  const toFileUrl = (path?: string | null) => {
+    if (!path || typeof path !== 'string') return undefined
+    const trimmed = path.trim()
+    if (!trimmed) return undefined
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+      return trimmed
+    }
+
+    const normalizedPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '')
+    if (normalizedPath.startsWith('api/files/')) {
+      const base = String(window.env?.API_URL || '').replace(/\/+$/, '')
+      const relative = normalizedPath.replace(/^api\/files\//, '')
+      return `${base}/public/${relative}`
+    }
+
+    const base = String(window.env?.API_URL || '').replace(/\/+$/, '')
+    return `${base}/public/${normalizedPath}`
+  }
+
+  const selectedPerformer = useMemo(() => {
+    const list = (performers as any[] | undefined) || []
+    return list.find((p) => String(p.id) === String(selectedPerformerId)) || null
+  }, [performers, selectedPerformerId])
+
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadDoctorProfile = async () => {
+      const id = Number(selectedPerformerId)
+      if (!selectedPerformerId || !Number.isFinite(id) || id <= 0) {
+        setSelectedDoctorProfileTtdUrl(null)
+        return
+      }
+
+      const getById = window.api?.query?.kepegawaian?.getById
+      if (!getById) {
+        setSelectedDoctorProfileTtdUrl(null)
+        return
+      }
+
+      try {
+        const response = await getById({ id })
+        const doctor = (response as any)?.result
+        const ttdUrl = doctor?.ttdUrl || doctor?.ttd_url || null
+        if (!isCancelled) {
+          setSelectedDoctorProfileTtdUrl(typeof ttdUrl === 'string' && ttdUrl.trim() ? ttdUrl : null)
+        }
+      } catch {
+        if (!isCancelled) {
+          setSelectedDoctorProfileTtdUrl(null)
+        }
+      }
+    }
+
+    loadDoctorProfile()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [selectedPerformerId])
+
+  const autoDoctorSignatureUrl = useMemo(
+    () => toFileUrl(selectedDoctorProfileTtdUrl || selectedPerformer?.ttdUrl),
+    [selectedDoctorProfileTtdUrl, selectedPerformer?.ttdUrl]
+  )
+
   const openSigModal = (type: string, title: string) => {
     setSigModal({ visible: true, type, title })
   }
@@ -97,34 +172,47 @@ export const MedicalCertificateForm = ({
     setSignatures((prev) => ({ ...prev, [sigModal.type]: dataUrl }))
   }
 
-  const signatureBox = (type: string, label: string) => (
+  const signatureBox = (
+    type: string,
+    label: string,
+    mode: 'manual' | 'kepegawaian' = 'manual',
+    autoSignatureUrl?: string
+  ) => (
     <div className="flex flex-col items-center p-4 border border-black/10 bg-white/10">
       <Text strong className="mb-3 uppercase text-[10px] tracking-widest text-gray-400">
         {label}
       </Text>
       <div className="border border-white/10 w-full h-32 flex items-center justify-center mb-4 bg-white/10 rounded-lg overflow-hidden relative group">
-        {signatures[type] ? (
+        {(mode === 'kepegawaian' ? autoSignatureUrl : signatures[type]) ? (
           <img
-            src={signatures[type]}
+            src={mode === 'kepegawaian' ? autoSignatureUrl : signatures[type]}
             alt="Signature"
             className="max-h-full transition-transform group-hover:scale-105"
           />
         ) : (
           <div className="flex flex-col items-center gap-2 text-gray-300">
             <EditOutlined className="text-2xl opacity-20" />
-            <Text className="text-[10px] italic">Belum Ada TTD</Text>
+            <Text className="text-[10px] italic">
+              {mode === 'kepegawaian' ? 'TTD Kepegawaian Belum Ada' : 'Belum Ada TTD'}
+            </Text>
           </div>
         )}
       </div>
-      <Button
-        icon={<EditOutlined />}
-        size="small"
-        block
-        className="rounded-lg text-xs"
-        onClick={() => openSigModal(type, label)}
-      >
-        Tanda Tangan
-      </Button>
+      {mode === 'kepegawaian' ? (
+        <Tag color={autoSignatureUrl ? 'green' : 'default'} className="m-0">
+          {autoSignatureUrl ? 'Diambil dari Kepegawaian' : 'Profil Pegawai Tidak Punya TTD'}
+        </Tag>
+      ) : (
+        <Button
+          icon={<EditOutlined />}
+          size="small"
+          block
+          className="rounded-lg text-xs"
+          onClick={() => openSigModal(type, label)}
+        >
+          Tanda Tangan
+        </Button>
+      )}
     </div>
   )
 
@@ -164,7 +252,10 @@ export const MedicalCertificateForm = ({
         issuedAt: values.assessment_date?.toISOString() || new Date().toISOString(),
         doctorName: performer?.name || 'dr. _______________',
         doctorSip: performer?.sip || undefined,
-        signatureUrl: signatures['doctor']
+        signatureUrl:
+          values.signatureSource === 'kepegawaian'
+            ? toFileUrl(selectedDoctorProfileTtdUrl || performer?.ttdUrl)
+            : signatures['doctor']
       }
 
       setPreviewData(newCert)
@@ -172,7 +263,11 @@ export const MedicalCertificateForm = ({
 
       message.success('Surat keterangan berhasil dibuat')
       form.resetFields(['diagnosis', 'purpose', 'notes', 'validFrom', 'validUntil', 'restDays'])
-      form.setFieldsValue({ certificateType: selectedType, assessment_date: dayjs() })
+      form.setFieldsValue({
+        certificateType: selectedType,
+        assessment_date: dayjs(),
+        signatureSource: 'manual'
+      })
       setIsFormModalOpen(false)
     } catch (error) {
       console.error(error)
@@ -301,7 +396,16 @@ export const MedicalCertificateForm = ({
                 issuedAt: record.createdAt,
                 doctorName:
                   record.doctor?.namaLengkap || fallbackDoctor?.name || 'dr. _______________',
-                doctorSip: fallbackDoctor?.sip || undefined
+                doctorSip: fallbackDoctor?.sip || undefined,
+                signatureUrl:
+                  selectedSignatureSource === 'kepegawaian'
+                    ? toFileUrl(
+                        record?.doctor?.ttdUrl ||
+                          fallbackDoctor?.ttdUrl ||
+                          selectedDoctorProfileTtdUrl ||
+                          selectedPerformer?.ttdUrl
+                      )
+                    : signatures.doctor
               })
               setIsPreviewOpen(true)
             }}
@@ -357,7 +461,8 @@ export const MedicalCertificateForm = ({
           className="mt-4 [&_.ant-form-item]:mb-3! [&_.ant-divider]:my-2!"
           initialValues={{
             certificateType: 'sakit',
-            assessment_date: dayjs()
+            assessment_date: dayjs(),
+            signatureSource: 'manual'
           }}
         >
           <AssessmentHeader performers={performers || []} loading={isLoadingPerformers} />
@@ -438,7 +543,25 @@ export const MedicalCertificateForm = ({
             Tanda Tangan Digital (Opsional)
           </Divider>
           <Row gutter={16}>
-            <Col span={8}>{signatureBox('doctor', 'Dokter Pemeriksa')}</Col>
+            <Col span={12}>
+              <Form.Item
+                name="signatureSource"
+                label="Sumber Tanda Tangan Dokter"
+                rules={[{ required: true, message: 'Pilih sumber tanda tangan' }]}
+              >
+                <Select options={SIGNATURE_SOURCE_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
+          <Row gutter={16}>
+            <Col span={8}>
+              {signatureBox(
+                'doctor',
+                'Dokter Pemeriksa',
+                selectedSignatureSource === 'kepegawaian' ? 'kepegawaian' : 'manual',
+                autoDoctorSignatureUrl
+              )}
+            </Col>
           </Row>
 
           <Form.Item className="mb-0! mt-4!">
