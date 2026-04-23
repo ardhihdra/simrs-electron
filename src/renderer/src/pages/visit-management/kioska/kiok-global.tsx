@@ -3,6 +3,7 @@ import { Button, theme, Typography } from 'antd'
 import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 
+import { KioskaWizardStepIndicator } from './global/components/kioska-wizard-step-indicator'
 import { KioskaGlobalFlowProvider, useKioskaGlobalFlow } from './global/kioska-global-context'
 import { formatKioskaGlobalSummary } from './global/kioska-global-flow'
 import { resolveInitialKioskaRegistrationPaymentMethodFromPath } from './global/kioska-queue-submission'
@@ -20,11 +21,29 @@ import {
 } from './global/steps'
 
 function useCurrentTimeLabel() {
-  const [timeLabel, setTimeLabel] = useState(() => new Date().toLocaleTimeString())
+  const now = () => new Date()
+  const [timeLabel, setTimeLabel] = useState(() => now().toLocaleTimeString())
+  const [dateLabel, setDateLabel] = useState(() =>
+    now().toLocaleDateString('id-ID', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+  )
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      setTimeLabel(new Date().toLocaleTimeString())
+      const d = new Date()
+      setTimeLabel(d.toLocaleTimeString())
+      setDateLabel(
+        d.toLocaleDateString('id-ID', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric'
+        })
+      )
     }, 1000)
 
     return () => {
@@ -32,13 +51,27 @@ function useCurrentTimeLabel() {
     }
   }, [])
 
-  return timeLabel
+  return { timeLabel, dateLabel }
 }
+
+const navbarList = [
+  { label: '① Beranda', target: 'antrian_type', steps: ['antrian_type', 'penunjang_type'] },
+  {
+    label: '② Rawat Jalan › Penjamin',
+    target: 'payment_method',
+    steps: ['payment_method', 'has_mrn', 'scan_mrn']
+  },
+  { label: '③ Rawat Jalan › Poli', target: 'poli', steps: ['poli'] },
+  { label: '④ Rawat Jalan › Dokter', target: 'dokter', steps: ['dokter'] },
+  { label: '⑤ Tiket Antrian (RJ)', target: 'ambil_antrian', steps: ['ambil_antrian'] },
+  { label: '⑥ Check-in Online', target: 'input_kode_antrian', steps: ['input_kode_antrian'] },
+  { label: '⑦ Tiket Antrian (Langsung)', target: 'non_medic_kiosk', steps: ['non_medic_kiosk'] }
+] as const
 
 function KioskaGlobalContent() {
   const { token } = theme.useToken()
-  const { goBack, state } = useKioskaGlobalFlow()
-  const timeLabel = useCurrentTimeLabel()
+  const { goBack, goTo, state } = useKioskaGlobalFlow()
+  const { timeLabel, dateLabel } = useCurrentTimeLabel()
   const location = useLocation()
   const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(
     location.pathname
@@ -49,7 +82,7 @@ function KioskaGlobalContent() {
       : (state.publicQueue.paymentMethod ?? null)
   const isInsuranceRegistration = currentPaymentMethod === 'ASURANSI'
 
-  const kioskGradient = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
+  // const kioskGradient = `colorFillSecondary`
   const summary = formatKioskaGlobalSummary(state)
   const canGoBack = state.history.length > 0
   const isNonMedicKioskStep = state.step === 'non_medic_kiosk'
@@ -82,188 +115,93 @@ function KioskaGlobalContent() {
   }
 
   return (
-    <div
-      className="h-screen overflow-hidden px-4 py-4 md:px-6 md:py-6"
-      style={{ background: kioskGradient }}
-    >
-      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-[1500px] flex-col gap-4">
-        <header className="rounded-[28px] border border-white/70 bg-white/95 px-6 py-4 shadow-sm backdrop-blur">
-          <div className="flex items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-[20px] bg-blue-500 text-lg font-bold text-white">
-                RS
-              </div>
-              <div>
-                <Typography.Text className="block text-sm text-slate-500">
-                  Sistem Antrian
-                </Typography.Text>
-                <Typography.Title level={4} className="!mb-0">
-                  {isInsuranceRegistration ? 'Pendaftaran Asuransi' : 'Rumah Sakit Rahayu'}
-                </Typography.Title>
-              </div>
+    <div className="h-screen overflow-hidden px-4 py-4 md:px-6 md:py-6 bg-[oklch(0.975 0.004 240)]">
+      <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-[1500px] flex-col gap-4 ">
+        <header className="rounded-lg border border-white/70 bg-white/95 p-2 shadow-sm backdrop-blur flex items-center gap-3 self-center my-6">
+          {canGoBack && (
+            <div onClick={goBack} className="cursor-pointer shrink-0">
+              <ArrowLeftOutlined />
             </div>
-
-            <div className="text-center">
-              <Typography.Title level={2} className="!mb-1">
-                {isInsuranceRegistration ? 'Ambil Nomor Antrian Asuransi' : 'Ambil Nomor Antrian'}
-              </Typography.Title>
-              <Typography.Text className="text-sm text-slate-500">
-                {isInsuranceRegistration
-                  ? 'Pilih layanan asuransi dan ikuti langkah berikutnya'
-                  : 'Pilih layanan dan ikuti langkah berikutnya'}
-              </Typography.Text>
-            </div>
-
-            <div className="text-right">
-              <Typography.Text className="block text-xs text-slate-400">Waktu</Typography.Text>
-              <Typography.Text className="block text-lg font-semibold text-slate-800">
-                {timeLabel}
-              </Typography.Text>
-              <Typography.Text className="block text-xs font-medium text-emerald-600">
-                Sistem Aktif
-              </Typography.Text>
-            </div>
-          </div>
+          )}
+          <nav className="flex flex-wrap items-center justify-center gap-1.5 flex-1">
+            {navbarList.map(({ label, target, steps }) => {
+              const isActive = (steps as readonly string[]).includes(state.step)
+              return (
+                <button
+                  key={label}
+                  onClick={() => goTo(target)}
+                  style={{ color: token.colorTextTertiary }}
+                  className={[
+                    'whitespace-nowrap rounded-md border px-3 py-1 text-[11.5px] font-medium cursor-pointer',
+                    isActive
+                      ? 'border-blue-500 bg-blue-50 font-semibold text-blue-600'
+                      : 'border-transparent hover:bg-slate-100 hover:text-slate-600'
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </nav>
         </header>
 
         <main className="flex min-h-0 flex-1">
-          <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-white/70 bg-white shadow-xl">
-            <div className="flex min-h-20 items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 md:px-8">
-              <Button
-                size="large"
-                icon={<ArrowLeftOutlined />}
-                className={
-                  canGoBack ? '!rounded-2xl' : '!pointer-events-none !rounded-2xl !opacity-0'
-                }
-                onClick={goBack}
-              >
-                Kembali
-              </Button>
+          {/* main card */}
+          <div className="relative mx-auto flex w-[1080px] h-[720px] scale-105 mt-8 flex-shrink-0 flex-col overflow-hidden rounded-[16px] border-2 border-[var(--ds-color-border-strong)] bg-[var(--ds-color-surface)] [zoom:var(--kiosk-zoom,1)] [box-shadow:var(--ds-shadow-md),0_20px_60px_-10px_rgba(15,23,42,0.18)]">
+            {/* header */}
+            <div className="flex h-16 flex-shrink-0 items-center gap-4 px-7 border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-[9px] bg-[var(--ds-color-accent)] text-[15px] font-extrabold text-white">
+                  RS
+                </div>
+                <div className="flex flex-col leading-[1.15]">
+                  <span className="text-sm font-bold text-slate-800">SIMRS Sentosa</span>
+                  <span className="text-[10.5px] tracking-wide text-slate-400">
+                    Jl. Sentosa No. 1, Jakarta
+                  </span>
+                </div>
+              </div>
 
-              <div className="min-w-0 flex-1 text-right">
-                {summary ? (
-                  <Typography.Text className="block truncate text-sm font-medium text-slate-500">
-                    {summary}
-                  </Typography.Text>
-                ) : (
-                  <span className="block h-5" />
-                )}
+              <div className="flex flex-1 flex-col items-center gap-0.5">
+                <Typography.Text className="block text-[13px] font-semibold text-slate-600">
+                  Selamat datang --{' '}
+                  {summary ||
+                    (isInsuranceRegistration ? 'Pendaftaran Asuransi' : 'Ambil Nomor Antrian')}
+                </Typography.Text>
+              </div>
+
+              <div className="text-right">
+                <div
+                  className="text-lg font-semibold text-slate-800"
+                  style={{
+                    fontFamily: 'var(--ds-font-mono)',
+                    letterSpacing: '-0.2px',
+                    fontFeatureSettings: '"cv11", "ss01"'
+                  }}
+                >
+                  {timeLabel}
+                </div>
+                <div className="text-[10.5px] text-slate-400">{dateLabel}</div>
               </div>
             </div>
+            <KioskaWizardStepIndicator step={state.step} />
 
-            <div className="min-h-0 flex-1 px-6 py-6 md:px-8 md:py-8">
+            <div className="min-h-0 flex-1 py-4 px-6">
               <div className={isNonMedicKioskStep ? 'h-full overflow-auto' : 'h-[34rem]'}>
                 {renderStep()}
               </div>
             </div>
+
+            {/* card footer */}
+            <div className="flex h-8 flex-shrink-0 items-center justify-center gap-4 border-t border-[var(--ds-color-border)] bg-[var(--ds-color-surface-2)] text-[10.5px] text-slate-400">
+              <span>Sentuh layar untuk mulai</span>
+              <div className="h-1 w-1 rounded-full bg-[var(--ds-color-border-strong)]" />
+              <span>Butuh bantuan? Hubungi petugas di loket</span>
+              <div className="h-1 w-1 rounded-full bg-[var(--ds-color-border-strong)]" />
+              <span>ID Mesin: KSK-01</span>
+            </div>
           </div>
         </main>
-
-        <footer className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-sm">
-          {/* 3-column info strip */}
-          <div className="grid grid-cols-3 divide-x divide-slate-100">
-            {/* Left — guidance */}
-            <div className="flex items-center gap-3 px-5 py-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-500">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-8 w-8"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="8" x2="12" y2="12" />
-                  <line x1="12" y1="16" x2="12.01" y2="16" />
-                </svg>
-              </span>
-              <div>
-                <Typography.Text className="block text-xs font-semibold text-slate-800">
-                  Ikuti instruksi di layar
-                </Typography.Text>
-                <Typography.Text className="block text-[11px] text-slate-400">
-                  Periksa kembali data sebelum melanjutkan
-                </Typography.Text>
-              </div>
-            </div>
-
-            {/* Center — help */}
-            <div className="flex items-center justify-center gap-3 px-5 py-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-8 w-8"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.35 2 2 0 0 1 3.6 1.18h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.87a16 16 0 0 0 5.45 5.45l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21 15.92z" />
-                </svg>
-              </span>
-              <div>
-                <Typography.Text className="block text-[11px] text-slate-400">
-                  Butuh bantuan?
-                </Typography.Text>
-                <Typography.Text className="block text-xs font-semibold text-slate-800">
-                  Hubungi petugas loket
-                </Typography.Text>
-              </div>
-            </div>
-
-            {/* Right — status */}
-            <div className="flex items-center justify-end gap-3 px-5 py-3">
-              <div className="text-right">
-                <Typography.Text className="block text-[11px] text-slate-400">
-                  Status sistem
-                </Typography.Text>
-                <span className="mt-0.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
-                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
-                  Online
-                </span>
-              </div>
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-500">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-8 w-8"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                </svg>
-              </span>
-            </div>
-          </div>
-
-          {/* Bottom notice */}
-          <div className="flex items-center justify-center gap-1.5 border-t border-slate-100 bg-slate-50/70 px-6 py-2">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-3 w-3 shrink-0 text-slate-400"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <polyline points="12 6 12 12 16 14" />
-            </svg>
-            <Typography.Text className="text-[11px] text-slate-400">
-              Sistem akan kembali ke halaman awal jika tidak ada aktivitas.
-            </Typography.Text>
-          </div>
-        </footer>
       </div>
     </div>
   )
