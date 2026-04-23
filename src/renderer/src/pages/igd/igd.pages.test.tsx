@@ -57,8 +57,10 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('Keluhan Utama'), true)
   assert.equal(markup.includes('Vital Sign'), true)
   assert.equal(markup.includes('Time Tracking'), true)
-  assert.equal(markup.includes('Tiba di IGD'), true)
-  assert.equal(markup.includes('Dokter'), true)
+  assert.equal(markup.includes('Tiba'), true)
+  assert.equal(markup.includes('Triase awal'), true)
+  assert.equal(markup.includes('Dokter datang / assign'), true)
+  assert.equal(markup.includes('Bed release'), true)
 })
 
 test('IGD daftar page keeps replace-patient flow outside inline detail layout', () => {

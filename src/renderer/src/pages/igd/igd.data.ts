@@ -9,6 +9,17 @@ export type IgdDashboardPatientStatus = 'menunggu' | 'triase' | 'penanganan' | '
 export type IgdDashboardBedStatus = 'available' | 'occupied' | 'cleaning'
 export type IgdDashboardBedZone = 'Resusitasi' | 'Observasi' | 'Treatment'
 
+export type IgdDashboardPatientTimeTracking = {
+  arrivalTime: string
+  quickTriageTime?: string
+  triageTime?: string
+  doctorAssignedTime?: string
+  bedAssignedTime?: string
+  bedReleasedTime?: string
+  referredTime?: string
+  closedTime?: string
+}
+
 export type IgdDashboardPatient = {
   id: string
   encounterId: string
@@ -31,6 +42,7 @@ export type IgdDashboardPatient = {
   triageTime?: string
   doctorName: string
   doctorTargetName: string
+  timeTracking: IgdDashboardPatientTimeTracking
   guarantorName?: string | null
   estimatedCost?: number | null
 }
@@ -177,9 +189,17 @@ export function createIgdDashboardFixture(): IgdDashboard {
         unitLabel: 'IGD',
         bedCode: 'R-01',
         arrivalTime: '09:15',
-        triageTime: '09:18',
+        triageTime: '09:25',
         doctorName: 'dr. IGD',
         doctorTargetName: 'dr. IGD',
+        timeTracking: {
+          arrivalTime: '09:15',
+          quickTriageTime: '09:18',
+          triageTime: '09:25',
+          doctorAssignedTime: '09:23',
+          bedAssignedTime: '09:55',
+          bedReleasedTime: '09:50'
+        },
         guarantorName: null,
         estimatedCost: 725000
       },
@@ -203,6 +223,10 @@ export function createIgdDashboardFixture(): IgdDashboard {
         triageTime: '09:27',
         doctorName: '',
         doctorTargetName: '',
+        timeTracking: {
+          arrivalTime: '09:22',
+          quickTriageTime: '09:27'
+        },
         guarantorName: null,
         estimatedCost: null
       },
@@ -224,9 +248,17 @@ export function createIgdDashboardFixture(): IgdDashboard {
         unitLabel: 'IGD',
         bedCode: 'O-01',
         arrivalTime: '09:35',
-        triageTime: '09:40',
+        triageTime: '09:42',
         doctorName: 'dr. IGD',
         doctorTargetName: 'dr. IGD',
+        timeTracking: {
+          arrivalTime: '09:35',
+          quickTriageTime: '09:40',
+          triageTime: '09:42',
+          doctorAssignedTime: '09:45',
+          bedAssignedTime: '09:47',
+          referredTime: '11:20'
+        },
         guarantorName: null,
         estimatedCost: 460000
       },
@@ -249,6 +281,9 @@ export function createIgdDashboardFixture(): IgdDashboard {
         arrivalTime: '09:55',
         doctorName: '',
         doctorTargetName: '',
+        timeTracking: {
+          arrivalTime: '09:55'
+        },
         guarantorName: null,
         estimatedCost: null
       }

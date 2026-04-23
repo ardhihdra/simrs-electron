@@ -486,8 +486,8 @@ export function IgdDaftarPage({
                       </div>
                     </div>
 
-                    <DesktopPropertyGrid
-                      items={[
+                <DesktopPropertyGrid
+                  items={[
                         { label: 'Sumber', value: selectedPatient.arrivalSource },
                         {
                           label: 'Dokter',
@@ -506,7 +506,11 @@ export function IgdDaftarPage({
                   </div>
                 </div>
 
-                <DesktopCard title="Vital Sign" subtitle={`Triase ${selectedPatient.triageTime ?? '—'}`} compact>
+                <DesktopCard
+                  title="Vital Sign"
+                  subtitle={`Triase ${selectedPatient.timeTracking.triageTime ?? selectedPatient.triageTime ?? '—'}`}
+                  compact
+                >
                   <DesktopNoticePanel
                     title="Vital sign belum tersedia"
                     description="Integrasi backend tahap ini baru mencakup registrasi dan dashboard operasional IGD."
@@ -516,23 +520,46 @@ export function IgdDaftarPage({
                 <DesktopCard title="Time Tracking" subtitle="Data backend IGD" compact>
                   <DesktopTimelineList
                     items={[
-                      { label: 'Tiba di IGD', time: selectedPatient.arrivalTime, done: true },
                       {
-                        label: 'Triase Awal',
-                        time: selectedPatient.triageTime ?? 'Belum',
-                        done: !!selectedPatient.triageTime
+                        label: 'Tiba',
+                        time: selectedPatient.timeTracking.arrivalTime ?? selectedPatient.arrivalTime,
+                        done: true
                       },
                       {
-                        label: 'Dokter',
-                        time: selectedPatient.doctorName || 'Belum assign',
-                        done: !!selectedPatient.doctorName
+                        label: 'Triase awal',
+                        time: selectedPatient.timeTracking.quickTriageTime ?? 'Belum',
+                        done: !!selectedPatient.timeTracking.quickTriageTime
                       },
                       {
-                        label: 'Bed',
-                        time: selectedPatient.bedCode ?? 'Belum assign',
-                        done: !!selectedPatient.bedCode
+                        label: 'Triase',
+                        time: selectedPatient.timeTracking.triageTime ?? 'Belum',
+                        done: !!selectedPatient.timeTracking.triageTime
                       },
-                      { label: 'Keluar IGD', time: 'Belum', done: false }
+                      {
+                        label: 'Dokter datang / assign',
+                        time: selectedPatient.timeTracking.doctorAssignedTime ?? 'Belum',
+                        done: !!selectedPatient.timeTracking.doctorAssignedTime
+                      },
+                      {
+                        label: 'Bed assign',
+                        time: selectedPatient.timeTracking.bedAssignedTime ?? 'Belum',
+                        done: !!selectedPatient.timeTracking.bedAssignedTime
+                      },
+                      {
+                        label: 'Bed release',
+                        time: selectedPatient.timeTracking.bedReleasedTime ?? 'Belum',
+                        done: !!selectedPatient.timeTracking.bedReleasedTime
+                      },
+                      {
+                        label: 'Rujuk',
+                        time: selectedPatient.timeTracking.referredTime ?? 'Belum',
+                        done: !!selectedPatient.timeTracking.referredTime
+                      },
+                      {
+                        label: 'Keluar / cancel',
+                        time: selectedPatient.timeTracking.closedTime ?? 'Belum',
+                        done: !!selectedPatient.timeTracking.closedTime
+                      }
                     ]}
                   />
                 </DesktopCard>
