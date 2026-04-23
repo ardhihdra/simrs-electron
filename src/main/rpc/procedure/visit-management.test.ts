@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildPatientListParams } from './visit-management'
+import {
+  buildPatientListParams,
+  VisitManagementDischargeEncounterInputSchema
+} from './visit-management'
 
 test('visit management patient list params include birthDate and age', () => {
   const params = buildPatientListParams({
@@ -25,4 +28,16 @@ test('visit management patient list params omit empty birthDate and undefined ag
   assert.equal(params.has('name'), false)
   assert.equal(params.has('birthDate'), false)
   assert.equal(params.has('age'), false)
+})
+
+test('visit management discharge schema accepts disposition and note fields', () => {
+  const result = VisitManagementDischargeEncounterInputSchema.parse({
+    encounterId: 'encounter-1',
+    dischargeDisposition: 'REFERRED',
+    dischargeNote: 'Internal'
+  })
+
+  assert.equal(result.encounterId, 'encounter-1')
+  assert.equal(result.dischargeDisposition, 'REFERRED')
+  assert.equal(result.dischargeNote, 'Internal')
 })

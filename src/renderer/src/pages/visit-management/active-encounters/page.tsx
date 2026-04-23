@@ -180,7 +180,7 @@ export default function ActiveEncountersPage() {
     try {
         setIsSubmitting(true)
         const input = { encounterId: selectedEncounter.encounter.id, dischargeDisposition: selectedDisposition }
-        await rpc.visitManagement.dischargeEncounter(input as any)
+        await rpc.visitManagement.dischargeEncounter(input)
         message.success('Pasien dipulangkan')
         setDischargeModalVisible(false)
         setSelectedDisposition('')
@@ -226,7 +226,7 @@ export default function ActiveEncountersPage() {
             dischargeNote: referralType
         }
 
-        await rpc.visitManagement.dischargeEncounter(input as any)
+        await rpc.visitManagement.dischargeEncounter(input)
         console.log('Rujukan confirmed:', referralType)
         message.success(`Pasien berhasil dirujuk (${referralType})`)
         setRujukanModalVisible(false)

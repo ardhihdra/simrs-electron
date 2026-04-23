@@ -6,6 +6,7 @@ interface RujukanModalProps {
   visible: boolean
   loading?: boolean
   encounterId?: string // Added encounterId
+  showReferralRequestButton?: boolean
   onConfirm: (referralType: string) => void
   onCancel: () => void
 }
@@ -14,6 +15,7 @@ export function RujukanModal({
   visible,
   loading,
   encounterId,
+  showReferralRequestButton = true,
   onConfirm,
   onCancel
 }: RujukanModalProps) {
@@ -50,21 +52,23 @@ export function RujukanModal({
           <div className="mt-4">
             <div className="flex justify-between items-center mb-2">
               <label className="block font-medium">Pilih Tujuan</label>
-              <Button
-                type="primary"
-                size="small"
-                onClick={() => {
-                  if (encounterId) {
-                    const url = `/dashboard/encounter/referral-request/${encounterId}`
-                    console.log('Navigating to:', url)
-                    onCancel() // Close modal
-                    window.location.hash = `#${url}` // Force navigation if useNavigate fails in modal context, or pass navigate prop
-                    // Ideally use useNavigate from parent or context
-                  }
-                }}
-              >
-                Buat Surat Rujukan
-              </Button>
+              {showReferralRequestButton ? (
+                <Button
+                  type="primary"
+                  size="small"
+                  onClick={() => {
+                    if (encounterId) {
+                      const url = `/dashboard/encounter/referral-request/${encounterId}`
+                      console.log('Navigating to:', url)
+                      onCancel() // Close modal
+                      window.location.hash = `#${url}` // Force navigation if useNavigate fails in modal context, or pass navigate prop
+                      // Ideally use useNavigate from parent or context
+                    }
+                  }}
+                >
+                  Buat Surat Rujukan
+                </Button>
+              ) : null}
             </div>
             <Select
               options={[

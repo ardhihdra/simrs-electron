@@ -9,7 +9,7 @@ import {
 } from 'antd'
 import type { MenuProps, TableProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import type { ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 
 import { DesktopTable } from './DesktopTable'
 
@@ -74,6 +74,12 @@ export function DesktopGenericTable<T extends object>({
   tableProps,
   loading = false
 }: DesktopGenericTableProps<T>) {
+  const { className: tablePropsClassName, ...restTableProps } = tableProps ?? {}
+
+  const tableWrapperClassName = ['desktop-generic-table', tablePropsClassName]
+    .filter(Boolean)
+    .join(' ')
+
   const mergedColumns = action
     ? [
         ...columns,
@@ -191,14 +197,14 @@ export function DesktopGenericTable<T extends object>({
 
   return (
     <DesktopTable<T>
-      className="desktop-generic-table"
+      className={tableWrapperClassName}
       columns={mergedColumns as ColumnsType<T>}
       dataSource={dataSource}
       rowKey={rowKey as keyof T}
       pagination={false}
       size="small"
       loading={loading}
-      {...tableProps}
+      {...restTableProps}
     />
   )
 }

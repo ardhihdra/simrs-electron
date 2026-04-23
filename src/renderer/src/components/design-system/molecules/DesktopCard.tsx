@@ -1,5 +1,5 @@
 import { Card } from 'antd'
-import type * as React from 'react'
+import React from 'react'
 
 type AntdCardProps = React.ComponentProps<typeof Card>
 
@@ -10,6 +10,7 @@ export interface DesktopCardProps {
   children: AntdCardProps['children']
   compact?: boolean
   tone?: 'default' | 'muted'
+  noPadding?: boolean
 }
 
 export function DesktopCard({
@@ -18,11 +19,12 @@ export function DesktopCard({
   extra,
   children,
   compact = false,
-  tone = 'default'
+  tone = 'default',
+  noPadding=false
 }: DesktopCardProps) {
   return (
     <Card
-      bordered={false}
+      variant="borderless"
       className={`desktop-card !rounded-[var(--ds-radius-lg)] !border !border-[var(--ds-color-border)] !shadow-[var(--ds-shadow-xs)] ${
         tone === 'muted'
           ? '!bg-[var(--ds-color-surface-muted)]'
@@ -30,7 +32,7 @@ export function DesktopCard({
       }`}
       styles={{
         body: {
-          padding: compact ? 'var(--ds-card-padding-compact)' : 'var(--ds-card-padding)'
+          padding: noPadding ? '0px' : compact ? 'var(--ds-card-padding-compact)' : 'var(--ds-card-padding)'
         }
       }}
     >
