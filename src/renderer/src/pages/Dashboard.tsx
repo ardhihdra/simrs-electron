@@ -17,21 +17,32 @@ import {
   WalletOutlined
 } from '@ant-design/icons'
 import logoUrl from '@renderer/assets/logo.png'
+import {
+  DesktopMenuShell,
+  type DesktopMenuShellNavItem,
+  type DesktopMenuShellTabItem
+} from '@renderer/components/design-system/organisms/DesktopMenuShell'
+import type { DesktopPageListGroup } from '@renderer/components/design-system/organisms/DesktopPageList'
+import { DesktopStatusBar } from '@renderer/components/design-system/organisms/DesktopStatusBar'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
-import { useMyProfile } from '@renderer/hooks/useProfile'
-import { getModuleScopeState } from '@renderer/services/ModuleScope/module-scope'
+import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
-import type { MenuProps } from 'antd'
-import { Menu, theme, Badge } from 'antd'
 import dayjs from 'dayjs'
-import { ItemType } from 'antd/es/menu/interface'
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { Modules } from 'simrs-types'
+import {
+  closeDashboardTab,
+  ensureDashboardTab,
+  isCloseActiveTabShortcut,
+  resolveInitialDashboardTabs,
+  syncDashboardTabsWithLocation,
+  type DashboardTabItem
+} from './Dashboard.shell.helpers'
 // const SendNotificationButton = () => {
 //   const { message } = AntdApp.useApp()
 //   return (
@@ -65,6 +76,7 @@ type DashboardMenuChild = {
   label: string
   key: string
   icon: ReactNode
+  badge?: ReactNode
 }
 
 type DashboardMenuItem = DashboardMenuChild & {
@@ -88,23 +100,8 @@ const items: DashboardMenuItem[] = [
     module: 'BILLING_KASIR',
     children: [
       {
-        label: 'KIOSK Billing',
-        key: '/dashboard/non-medic-queue/kiosk/billing',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Kasir',
-        key: '/dashboard/non-medic-queue/kiosk/cashier',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Farmasi',
-        key: '/dashboard/non-medic-queue/kiosk/pharmacy',
-        icon: <BarcodeOutlined />
-      },
-      {
-        label: 'KIOSK Pendaftaran',
-        key: '/dashboard/non-medic-queue/kiosk/registration',
+        label: 'Buka Kiosk',
+        key: '/kioska/global',
         icon: <BarcodeOutlined />
       },
       {
@@ -145,6 +142,11 @@ const items: DashboardMenuItem[] = [
     icon: <CalendarOutlined />,
     module: 'REGISTRASI',
     children: [
+      {
+        label: 'Buka Kioska',
+        key: '/kioska/global',
+        icon: <BarcodeOutlined />
+      },
       { label: 'Pasien', key: '/dashboard/patient', icon: <UserOutlined /> },
       {
         label: 'Pendaftaran',
@@ -171,11 +173,7 @@ const items: DashboardMenuItem[] = [
         key: '/dashboard/registration/non-medic-queue',
         icon: <UnorderedListOutlined />
       },
-      {
-        label: 'Kioska',
-        key: '/kioska/global',
-        icon: <BarcodeOutlined />
-      },
+
       // {
       //   label: 'Daftar Kunjungan',
       //   key: '/dashboard/registration/active-encounters',
@@ -457,10 +455,10 @@ const filterItemsBySession = (
 }
 
 function Dashboard() {
-  const { token } = theme.useToken()
   const location = useLocation()
+  const navigate = useNavigate()
   const session = useModuleScopeStore((state) => state.session)
-  const visibleModuleState = getModuleScopeState(session)
+  const { lokasiKerjaName } = useActiveLokasiKerjaName()
 
   const { data: poliData } = client.visitManagement.poli.useQuery({})
   const isAdministrator = session?.hakAksesId === 'administrator'
@@ -553,8 +551,10 @@ function Dashboard() {
         }
       }
       if (item.key === '/dashboard/non-medic-queue') {
-        const waitingBilling = (billingBoard.data?.result as any)?.waitingTotal ?? 0
-        const waitingCashier = (cashierBoard.data?.result as any)?.waitingTotal ?? 0
+        const waitingBilling =
+          (billingBoard.data?.result as { waitingTotal?: number } | undefined)?.waitingTotal ?? 0
+        const waitingCashier =
+          (cashierBoard.data?.result as { waitingTotal?: number } | undefined)?.waitingTotal ?? 0
 
         return {
           ...item,
@@ -562,33 +562,19 @@ function Dashboard() {
             if (child.key === '/dashboard/non-medic-queue/billing') {
               return {
                 ...child,
-                label: (
-                  <div className="flex items-center justify-between w-full pr-4">
-                    <span>{child.label}</span>
-                    <Badge
-                      count={waitingBilling}
-                      size="small"
-                      offset={[10, 0]}
-                      overflowCount={99}
-                    />
-                  </div>
-                )
+                badge:
+                  waitingBilling > 0 ? (
+                    <span className="text-xs font-semibold">{waitingBilling}</span>
+                  ) : undefined
               }
             }
             if (child.key === '/dashboard/non-medic-queue/cashier') {
               return {
                 ...child,
-                label: (
-                  <div className="flex items-center justify-between w-full pr-4">
-                    <span>{child.label}</span>
-                    <Badge
-                      count={waitingCashier}
-                      size="small"
-                      offset={[10, 0]}
-                      overflowCount={99}
-                    />
-                  </div>
-                )
+                badge:
+                  waitingCashier > 0 ? (
+                    <span className="text-xs font-semibold">{waitingCashier}</span>
+                  ) : undefined
               }
             }
             return child
@@ -612,14 +598,13 @@ function Dashboard() {
     return map
   }, [pageAccessData])
 
-  const { profile } = useMyProfile()
-  console.log('session', session)
-  console.log('profile', profile)
-
   if (!Object.keys(pageAccessMap).length) {
     console.error('PageAccess map not found!')
   }
-  const visibleItems = filterItemsBySession(dynamicItems, pageAccessMap, session)
+  const visibleItems = useMemo(
+    () => filterItemsBySession(dynamicItems, pageAccessMap, session),
+    [dynamicItems, pageAccessMap, session]
+  )
   const registeredPrefixes = [
     '/dashboard/expense',
     '/dashboard/patient',
@@ -657,15 +642,17 @@ function Dashboard() {
     if (path === DASHBOARD_ROOT_KEY) return true
     return registeredPrefixes.some((prefix) => path.startsWith(prefix))
   }
-  const findLabelByPath = (path: string): string => {
-    const top = visibleItems.find((i) => path.startsWith(i.key))
-    if (top && path === top.key) return top.label
-    for (const i of visibleItems) {
-      const child = (i.children || []).find((c) => path.startsWith(c.key))
-      if (child) return child.label
-    }
-    return top ? top.label : path
-  }
+  const findLabelByPath = useCallback(
+    (path: string): string => {
+      const candidates = visibleItems.flatMap((item) => [item, ...(item.children ?? [])])
+      const match = candidates
+        .filter((item) => path.startsWith(item.key))
+        .sort((a, b) => b.key.length - a.key.length)[0]
+
+      return match?.label ?? path
+    },
+    [visibleItems]
+  )
   const getTopKeyFromPath = (path: string): string => {
     if (
       path.startsWith('/dashboard/doctor') &&
@@ -682,202 +669,314 @@ function Dashboard() {
     const found = sorted.find((item) => path.startsWith(item.key))
     return found?.key || visibleItems[0]?.key || DASHBOARD_ROOT_KEY
   }
-  const initialTop = getTopKeyFromPath(location.pathname)
-  const [activeTop, setActiveTop] = useState<string>(initialTop)
-  const childrenOfTop = (key: string) => {
-    const top = visibleItems.find((i) => i.key === key)
-    if (!top) return [] as ItemType[]
-    if (Array.isArray(top.children) && top.children.length > 0) {
-      return top.children.map((c) => ({
-        label: c.label,
-        key: c.key,
-        icon: c.icon
-      })) as ItemType[]
-    }
-    return [{ label: top.label, key: top.key, icon: top.icon } as ItemType]
-  }
-  const childKeysOfTop = (key: string): string[] => {
+  const childrenOfTop = (key: string): DashboardMenuChild[] => {
     const top = visibleItems.find((i) => i.key === key)
     if (!top) return []
-    if (Array.isArray(top.children) && top.children.length > 0)
-      return top.children.map((c) => c.key)
-    return [top.key]
+    if (Array.isArray(top.children) && top.children.length > 0) {
+      return top.children
+    }
+    return [{ label: top.label, key: top.key, icon: top.icon, badge: top.badge }]
   }
-  const [sideItems, setSideItems] = useState<ItemType[]>(childrenOfTop(initialTop))
-  const initialSide = location.pathname.startsWith(initialTop)
-    ? location.pathname
-    : (sideItems[0]?.key as string)
-  const [activeSide, setActiveSide] = useState<string>(initialSide)
+  const childKeysOfTop = useCallback(
+    (key: string): string[] => {
+      const top = visibleItems.find((i) => i.key === key)
+      if (!top) return []
+      if (Array.isArray(top.children) && top.children.length > 0)
+        return top.children.map((c) => c.key)
+      return [top.key]
+    },
+    [visibleItems]
+  )
+  const routeTopKey = getTopKeyFromPath(location.pathname)
+  const [selectedModuleKey, setSelectedModuleKey] = useState<string>(routeTopKey)
+  const activeTop = visibleItems.some((item) => item.key === selectedModuleKey)
+    ? selectedModuleKey
+    : routeTopKey
+  const sideItems = childrenOfTop(activeTop)
   const [collapsed, setCollapsed] = useState(false)
-
-  const navigate = useNavigate()
+  const [tabState, setTabState] = useState<{ tabs: DashboardTabItem[]; activeKey: string }>({
+    tabs: [],
+    activeKey: ''
+  })
   const KIOSKA_KEY = '/dashboard/registration/kioska'
-  const onSideClick: MenuProps['onClick'] = (e) => {
-    const key = String(e.key)
+  const resolveNavigationForMenuKey = useCallback(
+    (key: string): { tab: DashboardTabItem; navigateTo: string } => {
+      const selectedPoli = poliKeyMeta[key]
+
+      if (selectedPoli && needsWorkspacePicker(session?.hakAksesId)) {
+        const params = new URLSearchParams({ selectPoli: selectedPoli.code })
+        return {
+          tab: {
+            key,
+            href: `/dashboard/poli?${params.toString()}`,
+            label: findLabelByPath(key)
+          },
+          navigateTo: `/dashboard/poli?${params.toString()}`
+        }
+      }
+
+      return {
+        tab: {
+          key,
+          href: key,
+          label: findLabelByPath(key)
+        },
+        navigateTo: key
+      }
+    },
+    [findLabelByPath, poliKeyMeta, session?.hakAksesId]
+  )
+  const activeSide = (() => {
+    const childKeys = childKeysOfTop(activeTop)
+
+    if (location.pathname.startsWith('/dashboard/doctor')) {
+      const searchParams = new URLSearchParams(location.search)
+      const poliCode = searchParams.get('poliCode')
+
+      if (poliCode) {
+        const poliKey = `/dashboard/poli/${poliCode.trim().toLowerCase()}`
+        if (childKeys.includes(poliKey)) return poliKey
+      }
+    }
+
+    return (
+      childKeys
+        .filter((key) => location.pathname.startsWith(key))
+        .sort((a, b) => b.length - a.length)[0] || sideItems[0]?.key
+    )
+  })()
+  const openSidebarKey = (key: string) => {
     if (key === KIOSKA_KEY) {
       const base = window.location.href.split('#')[0]
       window.open(`${base}#${key}`, '_blank')
       return
     }
-    const selectedPoli = poliKeyMeta[key]
-    if (selectedPoli && needsWorkspacePicker(session?.hakAksesId)) {
-      const params = new URLSearchParams({ selectPoli: selectedPoli.code })
-      navigate(`/dashboard/poli?${params.toString()}`)
-      setActiveSide(key)
-      return
-    }
-    navigate(key)
-    setActiveSide(key)
+
+    setSelectedModuleKey(getTopKeyFromPath(key))
+    const navigation = resolveNavigationForMenuKey(key)
+    setTabState((current) => ensureDashboardTab(current.tabs, navigation.tab, current.activeKey))
+    navigate(navigation.navigateTo)
   }
-  const topItems = visibleItems.map((i) => ({
-    label: i.label,
-    key: i.key,
-    icon: i.icon
-  })) as ItemType[]
-  const onTopClick: MenuProps['onClick'] = (e) => {
-    const key = String(e.key)
-    setActiveTop(key)
-    const children = childrenOfTop(key)
-    setSideItems(children)
-    const nextSide = (children[0]?.key as string) || key
-    setActiveSide(nextSide)
-    navigate(key)
+  const activateModule = (key: string) => {
+    setSelectedModuleKey(key)
   }
 
-  useEffect(() => {
-    const newTop = getTopKeyFromPath(location.pathname)
-    setActiveTop(newTop)
-    const children = childrenOfTop(newTop)
-    setSideItems(children)
-    const childKeys = childKeysOfTop(newTop)
+  const isWorkspaceRoute =
+    location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+  const locationTab = useMemo(() => {
+    if (isWorkspaceRoute) return null
+    const currentLocationHref = location.search
+      ? `${location.pathname}${location.search}`
+      : location.pathname
 
-    if (location.pathname.startsWith('/dashboard/doctor')) {
+    if (location.pathname === '/dashboard/poli') {
       const searchParams = new URLSearchParams(location.search)
-      const poliCode = searchParams.get('poliCode')
-      if (poliCode) {
-        const poliKey = `/dashboard/poli/${poliCode.trim().toLowerCase()}`
-        if (childKeys.includes(poliKey)) {
-          setActiveSide(poliKey)
-          return
+      const selectedPoli = searchParams.get('selectPoli')
+
+      if (selectedPoli) {
+        const menuKey = `/dashboard/poli/${selectedPoli.trim().toLowerCase()}`
+
+        return {
+          key: menuKey,
+          href: currentLocationHref,
+          label: findLabelByPath(menuKey)
         }
       }
     }
 
-    const match = childKeys
-      .filter((key) => location.pathname.startsWith(key))
-      .sort((a, b) => b.length - a.length)[0]
+    return {
+      key: currentLocationHref,
+      href: currentLocationHref,
+      label: findLabelByPath(location.pathname)
+    }
+  }, [findLabelByPath, isWorkspaceRoute, location.pathname, location.search])
 
-    setActiveSide(match || (children[0]?.key as string))
-  }, [location.pathname, location.search, session, visibleModuleState.visibleModules.join('|')])
+  useEffect(() => {
+    setSelectedModuleKey(routeTopKey)
+  }, [routeTopKey])
 
-  const isWorkspaceRoute =
-    location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+  useEffect(() => {
+    if (!locationTab) return
+
+    setTabState((current) => {
+      if (!current.tabs.length) {
+        return resolveInitialDashboardTabs({
+          pathname: locationTab.key,
+          fallbackTab: locationTab,
+          findTab: (key) => (key === locationTab.key ? locationTab : undefined)
+        })
+      }
+
+      return syncDashboardTabsWithLocation(current, locationTab)
+    })
+  }, [locationTab])
+
+  const onTabSelect = (key: string) => {
+    const tab = tabState.tabs.find((item) => item.key === key)
+    if (!tab) return
+
+    setSelectedModuleKey(getTopKeyFromPath((tab.href ?? tab.key).split('?')[0]))
+    setTabState((current) => ({ ...current, activeKey: key }))
+    navigate(tab.href ?? tab.key)
+  }
+  const onTabClose = (key: string) => {
+    const fallbackKey = childKeysOfTop(activeTop)[0] ?? activeTop
+    const fallbackNavigation = resolveNavigationForMenuKey(fallbackKey)
+    const nextState = closeDashboardTab({
+      tabs: tabState.tabs,
+      activeKey: tabState.activeKey,
+      closingKey: key,
+      fallbackTab: fallbackNavigation.tab
+    })
+
+    setTabState(nextState)
+
+    if (tabState.activeKey !== key) return
+
+    const nextTab = nextState.tabs.find((tab) => tab.key === nextState.activeKey)
+    navigate(nextTab?.href ?? nextTab?.key ?? fallbackNavigation.navigateTo)
+  }
+
+  useEffect(() => {
+    const activeKey = tabState.activeKey
+    if (!activeKey) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!isCloseActiveTabShortcut(event)) return
+
+      event.preventDefault()
+      const fallbackKey = childKeysOfTop(activeTop)[0] ?? activeTop
+      const fallbackNavigation = resolveNavigationForMenuKey(fallbackKey)
+      const nextState = closeDashboardTab({
+        tabs: tabState.tabs,
+        activeKey: tabState.activeKey,
+        closingKey: activeKey,
+        fallbackTab: fallbackNavigation.tab
+      })
+
+      setTabState(nextState)
+
+      const nextTab = nextState.tabs.find((tab) => tab.key === nextState.activeKey)
+      navigate(nextTab?.href ?? nextTab?.key ?? fallbackNavigation.navigateTo)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [
+    activeTop,
+    childKeysOfTop,
+    navigate,
+    resolveNavigationForMenuKey,
+    tabState.activeKey,
+    tabState.tabs
+  ])
 
   if (isWorkspaceRoute) {
     return (
-      <div
-        className="h-screen w-screen overflow-hidden"
-        style={{ backgroundColor: token.colorBgLayout }}
-      >
+      <div className="h-screen w-screen overflow-hidden bg-ds-background">
         <Outlet />
       </div>
     )
   }
+  const currentModuleLabel =
+    visibleItems.find((item) => item.key === activeTop)?.label ?? 'Dashboard'
+  const sidebarNavItems: DesktopPageListGroup[] = [
+    {
+      key: `${activeTop}-pages`,
+      label: currentModuleLabel,
+      items: sideItems.map((item) => ({
+        key: item.key,
+        label: item.label,
+        icon: item.icon,
+        badge: item.badge
+      }))
+    }
+  ]
+  const moduleNavItems: DesktopMenuShellNavItem[] = visibleItems.map((item) => ({
+    key: item.key,
+    label: item.label,
+    icon: item.icon
+  }))
+  const shellTabs: DesktopMenuShellTabItem[] = tabState.tabs.map((tab) => ({
+    key: tab.key,
+    label: tab.label,
+    closable: true
+  }))
 
   return (
-    <div className="h-screen flex overflow-hidden">
-      <aside
-        style={{
-          backgroundColor: token.colorBgContainer,
-          borderRight: `1px solid ${token.colorBorderSecondary}`
-        }}
-        className={`${collapsed ? 'w-20' : 'w-64'} flex flex-col transition-all duration-300`}
-      >
-        <div
-          style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
-          className="h-14 px-4 flex items-center justify-center"
-        >
-          <div className="flex items-center justify-center gap-2">
-            <img src={logoUrl} alt="Logo" className="w-8 h-8" />
-            <span
-              style={{ color: token.colorText }}
-              className={`${collapsed ? 'hidden' : 'font-semibold text-lg'}`}
-            >
-              SIMRS
-            </span>
-          </div>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <Menu
-            onClick={onSideClick}
-            selectedKeys={[activeSide]}
-            mode="inline"
-            inlineCollapsed={collapsed}
-            items={sideItems}
-            style={{ borderInlineEnd: 0, backgroundColor: 'transparent' }}
-          />
-        </div>
-        <div className="mt-auto px-4 py-3 flex justify-center">
+    <DesktopMenuShell
+      activeModuleKey={activeTop}
+      activeSidebarKey={activeSide}
+      activeTabKey={tabState.activeKey}
+      brandMark={<img src={logoUrl} alt="Logo" className="h-full w-full object-contain" />}
+      brandSubtitle={session?.hakAksesId ? String(session.hakAksesId).toUpperCase() : 'Operasional'}
+      brandTitle="SIMRS"
+      headerActions={
+        <>
+          <NotificationBell />
+          <ProfileMenu />
+        </>
+      }
+      moduleItems={moduleNavItems}
+      onModuleSelect={activateModule}
+      onSidebarSelect={openSidebarKey}
+      onTabClose={onTabClose}
+      onTabSelect={onTabSelect}
+      sidebarCollapsed={collapsed}
+      sidebarFooter={
+        <div className="flex justify-center">
           <button
             aria-label="Toggle sidebar"
-            className="p-2 rounded-full transition-colors flex items-center justify-center border-none cursor-pointer"
-            style={{
-              backgroundColor: token.colorBgLayout,
-              color: token.colorPrimary,
-              width: 36,
-              height: 36
-            }}
-            onClick={() => setCollapsed((p) => !p)}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-ds-border bg-ds-surface text-ds-accent transition-colors hover:bg-ds-surface-muted"
+            onClick={() => setCollapsed((current) => !current)}
+            type="button"
           >
             {collapsed ? <RightCircleFilled /> : <LeftCircleFilled />}
           </button>
         </div>
-      </aside>
-      <div
-        className={`flex-1 transition-all duration-300 flex flex-col overflow-y-auto h-full ${collapsed ? 'max-w-[calc(100vw-5rem)]' : 'max-w-[calc(100vw-16rem)]'}`}
-      >
-        <header
-          className="sticky top-0 z-50 px-4 flex items-center justify-between gap-4 transition-colors"
-          style={{
-            height: 56,
-            minHeight: 56,
-            maxHeight: 56,
-            backgroundColor: token.colorBgContainer,
-            borderBottom: `1px solid ${token.colorBorderSecondary}`
-          }}
-        >
-          <Menu
-            mode="horizontal"
-            onClick={onTopClick}
-            selectedKeys={[activeTop]}
-            items={topItems}
-            style={{
-              minWidth: 0,
-              flex: 'auto',
-              height: 55,
-              lineHeight: '55px',
-              overflow: 'hidden',
-              backgroundColor: 'transparent',
-              borderBottom: 'none'
-            }}
-          />
-          {/* <SendNotificationButton /> */}
-          <NotificationBell />
-          <ProfileMenu />
-        </header>
-        <div className="p-4 flex-1" style={{ backgroundColor: token.colorBgLayout }}>
-          {isRegisteredPath(location.pathname) ? (
-            <Outlet />
-          ) : (
-            <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center">
-              <div className="text-base md:text-lg font-medium" style={{ color: token.colorText }}>
-                {findLabelByPath(location.pathname)}
-              </div>
+      }
+      sidebarItems={sidebarNavItems}
+      statusBar={
+        <DesktopStatusBar
+          leftItems={[
+            {
+              key: 'server-online',
+              content: (
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-ds-muted">Server online</span>
+                  <span>{currentModuleLabel}</span>
+                  <span>{dayjs().format('DD MMM YYYY')}</span>
+                </div>
+              )
+            }
+          ]}
+          rightItems={[
+            {
+              key: 'lokasi-kerja',
+              content: <span className="ml-auto">Lokasi kerja aktif: {lokasiKerjaName}</span>
+            }
+          ]}
+        />
+      }
+      subtitle={findLabelByPath(location.pathname)}
+      tabs={shellTabs}
+      title={currentModuleLabel}
+    >
+      <div className="min-h-full bg-ds-background">
+        {isRegisteredPath(location.pathname) ? (
+          <Outlet />
+        ) : (
+          <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+            <div className="text-base font-medium text-ds-text md:text-lg">
+              {findLabelByPath(location.pathname)}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
-    </div>
+    </DesktopMenuShell>
   )
 }
 

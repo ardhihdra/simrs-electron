@@ -2,10 +2,29 @@ import { PlusOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
 import CreatePatientModal from '@renderer/components/organisms/visit-management/CreatePatientModal'
 import { useDebounce } from '@renderer/hooks/useDebounce'
 import { client } from '@renderer/utils/client'
-import { PatientAttributes } from 'simrs-types'
-import { App, Button, Card, Col, Empty, Input, Row, Space, Table, Tag, Typography } from 'antd'
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Empty,
+  Input,
+  InputNumber,
+  Row,
+  Space,
+  Table,
+  Tag,
+  Typography
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
+import { PatientAttributes } from 'simrs-types'
+import {
+  createPatientLookupQueryInput,
+  INITIAL_PATIENT_LOOKUP_SEARCH_PARAMS
+} from './patient-lookup-search'
 
 type PatientLookupSelectorProps = {
   value?: PatientAttributes
@@ -31,12 +50,7 @@ export default function PatientLookupSelector({
   createButtonLabel = 'Buat Pasien Baru'
 }: PatientLookupSelectorProps) {
   const { message } = App.useApp()
-  const [searchParams, setSearchParams] = useState({
-    name: '',
-    medicalRecordNumber: '',
-    address: '',
-    nik: ''
-  })
+  const [searchParams, setSearchParams] = useState(INITIAL_PATIENT_LOOKUP_SEARCH_PARAMS)
   const [createPatientOpen, setCreatePatientOpen] = useState(false)
 
   const debouncedName = useDebounce(searchParams.name, 400)
@@ -44,25 +58,28 @@ export default function PatientLookupSelector({
   const debouncedAddress = useDebounce(searchParams.address, 400)
   const debouncedNik = useDebounce(searchParams.nik, 400)
 
-  const patientQuery = client.visitManagement.getPatientList.useQuery(
-    {
-      name: debouncedName,
-      medicalRecordNumber: debouncedMedicalRecordNumber,
-      address: debouncedAddress,
-      nik: debouncedNik
-    },
-    {
-      queryKey: [
-        'patientLookupSelector',
-        {
-          name: debouncedName,
-          medicalRecordNumber: debouncedMedicalRecordNumber,
-          address: debouncedAddress,
-          nik: debouncedNik
-        }
-      ]
-    }
+  const patientQueryInput = useMemo(
+    () =>
+      createPatientLookupQueryInput({
+        ...searchParams,
+        name: debouncedName,
+        medicalRecordNumber: debouncedMedicalRecordNumber,
+        address: debouncedAddress,
+        nik: debouncedNik
+      }),
+    [
+      debouncedAddress,
+      debouncedMedicalRecordNumber,
+      debouncedName,
+      debouncedNik,
+      searchParams.age,
+      searchParams.birthDate
+    ]
   )
+
+  const patientQuery = client.visitManagement.getPatientList.useQuery(patientQueryInput, {
+    queryKey: ['patientLookupSelector', patientQueryInput]
+  })
 
   const rows: PatientLookupRow[] = useMemo(() => {
     return ((patientQuery.data?.result as PatientAttributes[] | undefined) ?? []).map((item) => ({
@@ -134,7 +151,9 @@ export default function PatientLookupSelector({
       name: createdPatient.name || '',
       medicalRecordNumber: createdPatient.medicalRecordNumber || '',
       address: createdPatient.address || '',
-      nik: createdPatient.nik || ''
+      nik: createdPatient.nik || '',
+      birthDate: createdPatient.birthDate || '',
+      age: null
     })
     void patientQuery.refetch()
     message.success(`Pasien ${createdPatient.name} siap dipakai untuk pendaftaran.`)
@@ -239,6 +258,38 @@ export default function PatientLookupSelector({
             disabled={disabled}
             onChange={(event) =>
               setSearchParams((current) => ({ ...current, address: event.target.value }))
+            }
+          />
+        </Col>
+        <Col xs={24} md={12}>
+          <DatePicker
+            allowClear
+            className="w-full"
+            value={searchParams.birthDate ? dayjs(searchParams.birthDate) : null}
+            placeholder="Cari tanggal lahir"
+            disabled={disabled}
+            format="YYYY-MM-DD"
+            onChange={(value) =>
+              setSearchParams((current) => ({
+                ...current,
+                birthDate: value ? value.format('YYYY-MM-DD') : ''
+              }))
+            }
+          />
+        </Col>
+        <Col xs={24} md={12}>
+          <InputNumber
+            className="w-full!"
+            min={0}
+            precision={0}
+            value={searchParams.age}
+            placeholder="Cari umur"
+            disabled={disabled}
+            onChange={(value) =>
+              setSearchParams((current) => ({
+                ...current,
+                age: typeof value === 'number' ? value : null
+              }))
             }
           />
         </Col>

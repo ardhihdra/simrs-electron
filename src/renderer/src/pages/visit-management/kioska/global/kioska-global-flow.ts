@@ -14,6 +14,10 @@ export function createInitialKioskaGlobalFlowState(): KioskaGlobalFlowState {
       poli: null,
       selectedDoctor: null
     },
+    publicQueue: {
+      target: null,
+      paymentMethod: null
+    },
     checkin: {
       queueNumber: ''
     }
@@ -34,7 +38,19 @@ function resetRawatJalanState(state: KioskaGlobalFlowState): KioskaGlobalFlowSta
 }
 
 export function getNextStepAfterAntrianType(antrianType: KioskaGlobalFlowState['antrianType']) {
-  return antrianType === 'rawat_jalan' ? 'payment_method' : 'input_kode_antrian'
+  if (antrianType === 'rawat_jalan' || antrianType === 'rawat_inap') {
+    return 'payment_method'
+  }
+
+  if (antrianType === 'penunjang') {
+    return 'penunjang_type'
+  }
+
+  if (antrianType === 'billing' || antrianType === 'cashier' || antrianType === 'pharmacy') {
+    return 'non_medic_kiosk'
+  }
+
+  return 'input_kode_antrian'
 }
 
 export function getNextStepAfterMrnAnswer(hasMrn: boolean) {
@@ -140,6 +156,24 @@ export function kioskaGlobalFlowReducer(
         rawatJalan: {
           ...state.rawatJalan,
           selectedDoctor: action.doctor
+        }
+      }
+
+    case 'SET_PUBLIC_QUEUE_TARGET':
+      return {
+        ...state,
+        publicQueue: {
+          ...state.publicQueue,
+          target: action.target
+        }
+      }
+
+    case 'SET_PUBLIC_QUEUE_PAYMENT_METHOD':
+      return {
+        ...state,
+        publicQueue: {
+          ...state.publicQueue,
+          paymentMethod: action.paymentMethod
         }
       }
 

@@ -122,7 +122,9 @@ export const nonMedicQueueRpc = {
       }
 
       const response = await client.get(`${BASE_URL}/service-points?${params.toString()}`)
-      return await response.json()
+      const res = await response.json()
+      console.log('[RES] : ', res)
+      return res
     }),
 
   createTicket: t

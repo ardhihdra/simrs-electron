@@ -40,7 +40,7 @@ if (!foundFile) {
 
 const api = buildApiFromTree(tree)
 const env = {
-    NODE_ENV: process.env.PROD !== 'true' ? 'development' : 'production',
+    NODE_ENV: process.env.NODE_ENV || 'development',
     API_URL: process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
   }
 

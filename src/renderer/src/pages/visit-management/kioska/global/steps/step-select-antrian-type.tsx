@@ -16,12 +16,27 @@ const antrianTypeData: { label: string; value: AntrianType; description: string 
   {
     label: 'Rawat Inap',
     value: 'rawat_inap',
-    description: 'Belum tersedia pada kioska global.'
+    description: 'Ambil nomor antrian untuk layanan rawat inap.'
   },
   {
     label: 'Pemeriksaan Penunjang',
     value: 'penunjang',
-    description: 'Belum tersedia pada kioska global.'
+    description: 'Pilih laboratory atau radiology untuk mengambil nomor antrian.'
+  },
+  {
+    label: 'Billing',
+    value: 'billing',
+    description: 'Ambil nomor antrian untuk layanan billing.'
+  },
+  {
+    label: 'Kasir',
+    value: 'cashier',
+    description: 'Ambil nomor antrian untuk layanan kasir.'
+  },
+  {
+    label: 'Farmasi',
+    value: 'pharmacy',
+    description: 'Ambil nomor antrian untuk layanan farmasi.'
   },
   {
     label: 'Check-in',
@@ -32,16 +47,46 @@ const antrianTypeData: { label: string; value: AntrianType; description: string 
 
 export function StepSelectAntrianType() {
   const { message } = App.useApp()
-  const { goTo, selectAntrianType, setPaymentMethod } = useKioskaGlobalFlow()
+  const {
+    goTo,
+    selectAntrianType,
+    setPaymentMethod,
+    setPublicQueuePaymentMethod,
+    setPublicQueueTarget
+  } = useKioskaGlobalFlow()
   const [loadingType, setLoadingType] = useState<AntrianType | null>(null)
   const location = useLocation()
-  const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(location.pathname)
+  const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(
+    location.pathname
+  )
 
   const handleSelect = async (type: AntrianType) => {
     if (type === 'rawat_jalan') {
       setLoadingType(type)
       selectAntrianType(type)
+      setPublicQueueTarget(null)
+      setPublicQueuePaymentMethod(null)
       setPaymentMethod(initialPaymentMethod)
+      goTo(getNextStepAfterAntrianType(type))
+      setLoadingType(null)
+      return
+    }
+
+    if (type === 'rawat_inap') {
+      setLoadingType(type)
+      selectAntrianType(type)
+      setPublicQueueTarget('rawat_inap')
+      setPublicQueuePaymentMethod(null)
+      goTo(getNextStepAfterAntrianType(type))
+      setLoadingType(null)
+      return
+    }
+
+    if (type === 'penunjang') {
+      setLoadingType(type)
+      selectAntrianType(type)
+      setPublicQueueTarget(null)
+      setPublicQueuePaymentMethod(null)
       goTo(getNextStepAfterAntrianType(type))
       setLoadingType(null)
       return
@@ -50,6 +95,16 @@ export function StepSelectAntrianType() {
     if (type === 'checkin') {
       selectAntrianType(type)
       goTo(getNextStepAfterAntrianType(type))
+      return
+    }
+
+    if (type === 'billing' || type === 'cashier' || type === 'pharmacy') {
+      setLoadingType(type)
+      selectAntrianType(type)
+      setPublicQueueTarget(type)
+      setPublicQueuePaymentMethod(null)
+      goTo(getNextStepAfterAntrianType(type))
+      setLoadingType(null)
       return
     }
 
@@ -67,7 +122,7 @@ export function StepSelectAntrianType() {
         </Typography.Text>
       </div>
 
-      <div className="grid flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid flex-1 grid-cols-3 gap-4">
         {antrianTypeData.map((item) => (
           <Card
             key={item.value}

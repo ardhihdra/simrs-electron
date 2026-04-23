@@ -2,13 +2,273 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme inline {
+  --color-ds-accent: var(--theme-color-ds-accent);
+  --color-ds-accent-soft: var(--theme-color-ds-accent-soft);
+  --color-ds-accent-text: var(--theme-color-ds-accent-text);
+  --color-ds-surface: var(--theme-color-ds-surface);
+  --color-ds-surface-muted: var(--theme-color-ds-surface-muted);
+  --color-ds-surface-raised: var(--theme-color-ds-surface-raised);
+  --color-ds-background: var(--theme-color-ds-background);
+  --color-ds-border: var(--theme-color-ds-border);
+  --color-ds-border-strong: var(--theme-color-ds-border-strong);
+  --color-ds-text: var(--theme-color-ds-text);
+  --color-ds-muted: var(--theme-color-ds-muted);
+  --color-ds-subtle: var(--theme-color-ds-subtle);
+  --color-ds-danger: var(--theme-color-ds-danger);
+  --color-ds-danger-text: var(--theme-color-ds-danger-text);
+  --color-ds-success: var(--theme-color-ds-success);
+  --color-ds-warning: var(--theme-color-ds-warning);
+  --color-ds-info: var(--theme-color-ds-info);
+  --radius-ds-sm: var(--theme-radius-ds-sm);
+  --radius-ds-md: var(--theme-radius-ds-md);
+  --radius-ds-lg: var(--theme-radius-ds-lg);
+  --radius-ds-pill: var(--theme-radius-ds-pill);
+  --shadow-ds-xs: var(--theme-shadow-ds-xs);
+  --shadow-ds-sm: var(--theme-shadow-ds-sm);
+  --shadow-ds-md: var(--theme-shadow-ds-md);
+  --spacing-ds-space-xxs: var(--theme-spacing-ds-space-xxs);
+  --spacing-ds-space-xs: var(--theme-spacing-ds-space-xs);
+  --spacing-ds-space-sm: var(--theme-spacing-ds-space-sm);
+  --spacing-ds-space-md: var(--theme-spacing-ds-space-md);
+  --spacing-ds-space-lg: var(--theme-spacing-ds-space-lg);
+  --spacing-ds-space-xl: var(--theme-spacing-ds-space-xl);
+  --spacing-ds-space-xxl: var(--theme-spacing-ds-space-xxl);
+  --spacing-ds-page-padding: var(--theme-spacing-ds-page-padding);
+  --spacing-ds-modulebar: var(--theme-spacing-ds-modulebar);
+  --spacing-ds-pagelist: var(--theme-spacing-ds-pagelist);
+  --spacing-ds-doc-tab: var(--theme-spacing-ds-doc-tab);
+  --spacing-ds-statusbar: var(--theme-spacing-ds-statusbar);
+  --spacing-ds-shell-min: var(--theme-spacing-ds-shell-min);
+  --spacing-ds-module-brand: var(--theme-spacing-ds-module-brand);
+  --spacing-ds-module-nav: var(--theme-spacing-ds-module-nav);
+  --spacing-ds-doc-tab-button: var(--theme-spacing-ds-doc-tab-button);
+  --spacing-ds-doc-tab-max: var(--theme-spacing-ds-doc-tab-max);
+  --spacing-ds-doc-tab-offset: var(--theme-spacing-ds-doc-tab-offset);
+  --spacing-ds-doc-tab-gap: var(--theme-spacing-ds-doc-tab-gap);
+  --spacing-ds-button: var(--theme-spacing-ds-button);
+  --spacing-ds-button-sm: var(--theme-spacing-ds-button-sm);
+  --spacing-ds-button-lg: var(--theme-spacing-ds-button-lg);
+  --spacing-ds-input: var(--theme-spacing-ds-input);
+  --spacing-ds-input-sm: var(--theme-spacing-ds-input-sm);
+  --spacing-ds-input-lg: var(--theme-spacing-ds-input-lg);
+  --spacing-ds-card-padding: var(--theme-spacing-ds-card-padding);
+  --spacing-ds-card-padding-compact: var(--theme-spacing-ds-card-padding-compact);
+  --spacing-ds-menu-item: var(--theme-spacing-ds-menu-item);
+  --spacing-ds-table-header: var(--theme-spacing-ds-table-header);
+  --spacing-ds-table-row: var(--theme-spacing-ds-table-row);
+  --text-ds-body: var(--theme-text-ds-body);
+  --text-ds-label: var(--theme-text-ds-label);
+  --text-ds-caption: var(--theme-text-ds-caption);
+  --text-ds-title: var(--theme-text-ds-title);
+  --text-ds-hero: var(--theme-text-ds-hero);
+
+  /* Premium Chart Colors from SIMRS-hybrid, generated dari Rizal */
+  --color-accent: oklch(0.55 0.11 200);
+  --color-accent-soft: oklch(0.95 0.03 200);
+  --color-accent-hover: oklch(0.48 0.12 200);
+  --color-accent-fg: oklch(0.99 0.005 200);
+
+  --color-ok: oklch(0.62 0.14 155);
+  --color-ok-soft: oklch(0.95 0.04 155);
+  --color-warn: oklch(0.74 0.15 75);
+  --color-warn-soft: oklch(0.96 0.05 75);
+  --color-danger: oklch(0.6 0.2 20);
+  --color-danger-soft: oklch(0.95 0.04 20);
+  --color-info: oklch(0.58 0.14 260);
+  --color-info-soft: oklch(0.95 0.04 260);
+  --color-violet: oklch(0.55 0.14 300);
+  --color-violet-soft: oklch(0.95 0.04 300);
+
+  --color-surface-2: oklch(0.975 0.004 240);
+  --color-surface-3: oklch(0.955 0.005 240);
+  --color-border-premium: oklch(0.91 0.005 240);
+  --color-text-2: oklch(0.45 0.01 240);
+  --color-text-3: oklch(0.62 0.008 240);
+
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+
 @layer base {
+  // generated dari Om
+  :root {
+    /* Maintain raw variables for components that use var() */
+    --accent: var(--color-accent);
+    --accent-soft: var(--color-accent-soft);
+    --ok: var(--color-ok);
+    --warn: var(--color-warn);
+    --danger: var(--color-danger);
+    --info: var(--color-info);
+    --violet: var(--color-violet);
+    --text-2: var(--color-text-2);
+    --text-3: var(--color-text-3);
+    --surface-2: var(--color-surface-2);
+    --surface-3: var(--color-surface-3);
+    --r: 6px;
+  }
+
+  .dark {
+    --color-surface-2: oklch(0.235 0.012 240);
+    --color-surface-3: oklch(0.27 0.012 240);
+    --color-accent: oklch(0.7 0.12 200);
+    --color-accent-soft: oklch(0.3 0.05 200);
+    --color-ok-soft: oklch(0.28 0.05 155);
+    --color-warn-soft: oklch(0.3 0.05 75);
+    --color-danger-soft: oklch(0.3 0.05 20);
+    --color-info-soft: oklch(0.3 0.05 260);
+    --color-violet-soft: oklch(0.3 0.05 300);
+  }
+
+  @font-face {
+    font-family: 'Inter';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src:
+      local('Inter'),
+      url('./fonts/inter/InterVariable.woff2') format('woff2');
+  }
+
+  @font-face {
+    font-family: 'Inter';
+    font-style: italic;
+    font-weight: 100 900;
+    font-display: swap;
+    src:
+      local('Inter Italic'),
+      url('./fonts/inter/InterVariable-Italic.woff2') format('woff2');
+  }
+
   body {
-    @apply bg-white text-gray-900 dark:bg-[#141414] dark:text-gray-100;
+    @apply bg-ds-background text-ds-text;
+  }
+
+  .desktop-theme-scope {
+    font-feature-settings:
+      'liga' 1,
+      'calt' 1;
   }
 }
 
 @layer components {
+  .desktop-input-field .ant-input,
+  .desktop-input-field .ant-input-affix-wrapper,
+  .desktop-input-field .ant-select-selector {
+    height: var(--ds-input-h) !important;
+    border-radius: var(--ds-radius-md) !important;
+    border-color: var(--ds-color-border-strong) !important;
+    background: var(--ds-color-surface) !important;
+    box-shadow: none !important;
+    padding-inline: var(--ds-space-md) !important;
+    font-size: var(--ds-font-size-body) !important;
+    color: var(--ds-color-text) !important;
+  }
+
+  .desktop-input-field .ant-input,
+  .desktop-input-field .ant-input-affix-wrapper input,
+  .desktop-input-field .ant-select-selection-item,
+  .desktop-input-field .ant-select-selection-placeholder,
+  .desktop-input-field .ant-input::placeholder {
+    font-size: var(--ds-font-size-body) !important;
+  }
+
+  .desktop-input-field .ant-select-selector {
+    align-items: center !important;
+  }
+
+  .desktop-input-field .ant-input:focus,
+  .desktop-input-field .ant-input-affix-wrapper-focused,
+  .desktop-input-field .ant-select-focused .ant-select-selector,
+  .desktop-input-field .ant-input:focus-within {
+    border-color: var(--ds-color-accent) !important;
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
+  }
+
+  .desktop-input-field textarea.ant-input {
+    min-height: calc(var(--ds-input-h-lg) * 2.4) !important;
+    padding-block: var(--ds-space-sm) !important;
+  }
+
+  .desktop-generic-table .ant-table {
+    background: transparent !important;
+    color: var(--ds-color-text) !important;
+    font-size: var(--ds-font-size-body) !important;
+  }
+
+  .desktop-table .ant-table {
+    background: transparent !important;
+    color: var(--ds-color-text) !important;
+    font-size: var(--ds-font-size-body) !important;
+  }
+
+  .desktop-generic-table .ant-table-container,
+  .desktop-table .ant-table-container {
+    border-inline-start: none !important;
+    border-top: none !important;
+  }
+
+  .desktop-generic-table .ant-table-thead > tr > th,
+  .desktop-table .ant-table-thead > tr > th {
+    height: var(--ds-table-header-h) !important;
+    background: var(--ds-color-surface-muted) !important;
+    border-bottom: 1px solid var(--ds-color-border) !important;
+    color: var(--ds-color-text-subtle) !important;
+    font-size: var(--ds-font-size-caption) !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+  }
+
+  .desktop-generic-table .ant-table-tbody > tr > td,
+  .desktop-table .ant-table-tbody > tr > td {
+    height: var(--ds-table-row-h) !important;
+    border-bottom: 1px solid var(--ds-color-border) !important;
+    background: var(--ds-color-surface) !important;
+    color: var(--ds-color-text) !important;
+    padding-block: var(--ds-space-xs) !important;
+    padding-inline: var(--ds-space-md) !important;
+  }
+
+  .desktop-generic-table .ant-table-tbody > tr.ant-table-row:hover > td,
+  .desktop-table .ant-table-tbody > tr.ant-table-row:hover > td {
+    background: var(--ds-color-surface-muted) !important;
+  }
+
+  .desktop-generic-table .ant-dropdown-menu {
+    border-radius: var(--ds-radius-md) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-nav::before {
+    border-bottom-color: var(--ds-color-border) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-tab {
+    border-radius: var(--ds-radius-md) var(--ds-radius-md) 0 0 !important;
+    border-color: var(--ds-color-border) !important;
+    background: var(--ds-color-surface-raised) !important;
+    color: var(--ds-color-text-muted) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-tab.ant-tabs-tab-active {
+    background: var(--ds-color-surface) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn,
+  .desktop-content-tabs .ant-tabs-tab:hover .ant-tabs-tab-btn {
+    color: var(--ds-color-text) !important;
+  }
+
+  .desktop-content-tabs .ant-tabs-ink-bar {
+    background: var(--ds-color-accent) !important;
+  }
+
+  .desktop-segmented-control .ant-segmented-item-selected {
+    background: var(--ds-color-surface) !important;
+    color: var(--ds-color-text) !important;
+    box-shadow: var(--ds-shadow-xs) !important;
+  }
+
   .dark .notification-popover .ant-popover-inner {
     background: #1f1f1f !important;
     border: 1px solid rgb(31 41 55) !important;

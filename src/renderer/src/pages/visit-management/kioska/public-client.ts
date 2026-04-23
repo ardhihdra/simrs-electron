@@ -17,6 +17,13 @@ export type KioskaWorkLocation = {
   name: string
 }
 
+export type KioskaNonMedicServiceType =
+  | 'BILLING'
+  | 'CASHIER'
+  | 'PHARMACY'
+  | 'REGISTRASI'
+  | 'REGISTRASI_ASURANSI'
+
 export type KioskaRegistrationServiceType = 'REGISTRASI' | 'REGISTRASI_ASURANSI'
 export type KioskaRegistrationPaymentMethod = 'CASH' | 'ASURANSI'
 
@@ -66,6 +73,13 @@ export async function fetchKioskaRegistrationLocation(input?: {
   lokasiKerjaCode?: string
 }) {
   return (await rpc.kioskaPublic.registrationLocation(input ?? {})) as KioskaWorkLocation
+}
+
+export async function fetchKioskaNonMedicLocation(input: {
+  serviceTypeCode: KioskaNonMedicServiceType
+  lokasiKerjaCode?: string
+}) {
+  return (await rpc.kioskaPublic.nonMedicLocation(input)) as KioskaWorkLocation
 }
 
 export async function fetchKioskaDoctors(input: { date: string; poliId: number }) {

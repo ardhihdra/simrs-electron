@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { resolveActiveServiceRequestCategory } from './CreateServiceRequestForm.helpers'
+import {
+  mapCitoToServiceRequestPriority,
+  resolveActiveServiceRequestCategory
+} from './CreateServiceRequestForm.helpers'
 
 test('resolveActiveServiceRequestCategory keeps current category when still available', () => {
   assert.equal(
@@ -15,4 +18,9 @@ test('resolveActiveServiceRequestCategory falls back to first available category
     'hematology'
   )
   assert.equal(resolveActiveServiceRequestCategory([], 'chemistry'), undefined)
+})
+
+test('mapCitoToServiceRequestPriority maps false to routine and true to stat', () => {
+  assert.equal(mapCitoToServiceRequestPriority(false), 'routine')
+  assert.equal(mapCitoToServiceRequestPriority(true), 'stat')
 })
