@@ -12,10 +12,19 @@ export function StepScanMrn() {
   const inputRef = useRef<InputRef>(null)
   const [shouldAdvanceAfterLookup, setShouldAdvanceAfterLookup] = useState(false)
 
+  // make sure autofocus
   useEffect(() => {
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 0)
+    const focusInput = () => inputRef.current?.focus()
+    const timer = window.setTimeout(focusInput, 0)
 
-    return () => window.clearTimeout(timer)
+    window.addEventListener('focus', focusInput)
+    document.addEventListener('visibilitychange', focusInput)
+
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', focusInput)
+      document.removeEventListener('visibilitychange', focusInput)
+    }
   }, [])
 
   useEffect(() => {
