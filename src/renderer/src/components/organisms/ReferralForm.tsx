@@ -198,10 +198,7 @@ export const ReferralForm = ({
   }, [availableBedsQuery.data])
 
   const roomOptions = useMemo(() => {
-    const rooms = new Map<
-      string,
-      { value: string; label: string; organizationId?: string }
-    >()
+    const rooms = new Map<string, { value: string; label: string }>()
 
     availableBeds.forEach((item) => {
       if (!item.room?.id) return
@@ -212,8 +209,7 @@ export const ReferralForm = ({
 
       rooms.set(item.room.id, {
         value: item.room.id,
-        label: roomLabelParts || item.room.id,
-        organizationId: item.room.organizationId
+        label: roomLabelParts || item.room.id
       })
     })
 
@@ -316,7 +312,6 @@ export const ReferralForm = ({
           ...commonPayload,
           referralType: 'internal' as const,
           internalTargetType: 'INPATIENT' as const,
-          targetOrganizationId: selectedBed.room?.organizationId || undefined,
           targetOrganizationName: `Rawat Inap - ${roomCode} / Bed ${bedCode}`
         })
 
