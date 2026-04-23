@@ -1,5 +1,5 @@
+import React, { useEffect, useMemo, useState } from 'react'
 import type { PatientAttributes } from 'simrs-types'
-import React, { useMemo, useState } from 'react'
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
@@ -19,6 +19,12 @@ import {
   type IgdRegistrationDraft,
   type IgdRegistrationMode
 } from './igd.data'
+import { filterAvailableBedsForTriage, getAllowedBedZonesForTriage } from './igd.bed-zoning'
+import {
+  DEFAULT_IGD_QUICK_TRIAGE_CONDITION,
+  getQuickTriageMeta,
+  IGD_QUICK_TRIAGE_OPTIONS
+} from './igd.quick-triage'
 
 type IgdRegistrasiPageProps = {
   dashboard: IgdDashboard
@@ -70,57 +76,6 @@ const RELATIONSHIP_OPTIONS = [
   { label: 'Anak', value: 'Anak' },
   { label: 'Saudara', value: 'Saudara' },
   { label: 'Lainnya', value: 'Lainnya' }
-]
-
-const QUICK_TRIAGE_OPTIONS = [
-  {
-    label: 'Tidak sadarkan diri / Henti jantung → L1',
-    value: 'l1-critical',
-    level: 1 as const,
-    title: 'Level 1 — Resusitasi',
-    description: 'Warna Merah · Masuk langsung, tanpa antrian',
-    tone: 'danger' as const
-  },
-  {
-    label: 'Gawat, napas / sirkulasi terancam → L1',
-    value: 'l1-airway',
-    level: 1 as const,
-    title: 'Level 1 — Resusitasi',
-    description: 'Warna Merah · Prioritas pertama',
-    tone: 'danger' as const
-  },
-  {
-    label: 'Perdarahan aktif / Syok → L2',
-    value: 'l2-shock',
-    level: 2 as const,
-    title: 'Level 2 — Emergensi',
-    description: 'Warna Merah · Perlu tindakan segera',
-    tone: 'warning' as const
-  },
-  {
-    label: 'Nyeri hebat (VAS ≥ 7) → L3',
-    value: 'l3-pain',
-    level: 3 as const,
-    title: 'Level 3 — Urgen',
-    description: 'Warna Kuning · Butuh evaluasi cepat',
-    tone: 'warning' as const
-  },
-  {
-    label: 'Nyeri sedang (VAS 4–6) → L4',
-    value: 'l4-moderate',
-    level: 4 as const,
-    title: 'Level 4 — Semi-Urgen',
-    description: 'Warna Hijau · Dapat menunggu singkat',
-    tone: 'success' as const
-  },
-  {
-    label: 'Keluhan ringan / Stabil → L5',
-    value: 'l5-stable',
-    level: 5 as const,
-    title: 'Level 5 — Tidak Urgen',
-    description: 'Warna Hijau · Kondisi stabil',
-    tone: 'neutral' as const
-  }
 ]
 
 const getTodayDateTimeLocal = () => {
@@ -183,13 +138,21 @@ export function IgdRegistrasiPage({
   const [draft, setDraft] = useState<IgdRegistrationDraft>(createInitialDraft)
   const [referralFacility, setReferralFacility] = useState('')
   const [selectedBedCode, setSelectedBedCode] = useState('')
-  const [quickCondition, setQuickCondition] = useState(QUICK_TRIAGE_OPTIONS[0].value)
+  const [quickCondition, setQuickCondition] = useState(DEFAULT_IGD_QUICK_TRIAGE_CONDITION)
 
-  const availableBeds = dashboard.beds.filter((bed) => bed.status === 'available')
+  const allAvailableBeds = dashboard.beds.filter((bed) => bed.status === 'available')
   const occupiedCount = dashboard.beds.filter((bed) => bed.status === 'occupied').length
   const cleaningCount = dashboard.beds.filter((bed) => bed.status === 'cleaning').length
-  const quickTriageMeta =
-    QUICK_TRIAGE_OPTIONS.find((item) => item.value === quickCondition) ?? QUICK_TRIAGE_OPTIONS[0]
+  const quickTriageMeta = getQuickTriageMeta(quickCondition)
+  const activeTriageLevel = quickTriageMeta.level
+  const allowedZones = useMemo(
+    () => getAllowedBedZonesForTriage(activeTriageLevel),
+    [activeTriageLevel]
+  )
+  const availableBeds = useMemo(
+    () => filterAvailableBedsForTriage(dashboard.beds, activeTriageLevel),
+    [dashboard.beds, activeTriageLevel]
+  )
 
   const zoneStats = useMemo(
     () =>
@@ -201,16 +164,28 @@ export function IgdRegistrasiPage({
           zone,
           total: zoneBeds.length,
           available,
-          occupiedRatio: zoneBeds.length === 0 ? 0 : ((zoneBeds.length - available) / zoneBeds.length) * 100
+          occupiedRatio:
+            zoneBeds.length === 0 ? 0 : ((zoneBeds.length - available) / zoneBeds.length) * 100
         }
       }),
     [dashboard.beds]
   )
 
-  const bedOptions = availableBeds.map((bed) => ({
-    label: `${bed.code} (${bed.zone} — kosong)`,
-    value: bed.code
-  }))
+  const bedOptions = useMemo(
+    () =>
+      availableBeds.map((bed) => ({
+        label: `${bed.code} (${bed.zone} — kosong)`,
+        value: bed.code
+      })),
+    [availableBeds]
+  )
+
+  const isBedSelectionLocked = allowedZones.length === 0
+  const bedFieldHint = isBedSelectionLocked
+    ? 'Pilih level triase terlebih dahulu untuk melihat bed yang sesuai.'
+    : bedOptions.length === 0
+      ? 'Tidak ada bed kosong yang sesuai dengan level triase ini.'
+      : `Bed yang tersedia: ${allowedZones.join(', ')}. Snapshot bed ini tidak mengikat assignment backend pada fase registrasi.`
 
   const derivedAgeLabel =
     registerMode === 'temporary'
@@ -231,6 +206,18 @@ export function IgdRegistrasiPage({
       ...patch
     }))
   }
+
+  useEffect(() => {
+    if (!selectedBedCode) {
+      return
+    }
+
+    const isSelectedBedStillAllowed = bedOptions.some((option) => option.value === selectedBedCode)
+
+    if (!isSelectedBedStillAllowed) {
+      setSelectedBedCode('')
+    }
+  }, [bedOptions, selectedBedCode])
 
   const handleRegisterModeChange = (nextMode: string) => {
     const mode = nextMode as IgdRegistrationMode
@@ -253,14 +240,16 @@ export function IgdRegistrasiPage({
       command: buildIgdRegistrationCommand({
         mode: registerMode,
         draft,
-        selectedPatient: selectedExistingPatient
+        selectedPatient: selectedExistingPatient,
+        intent,
+        quickCondition
       }),
       intent
     })
   }
 
   return (
-    <div className="igd-parity-scope flex flex-col gap-[16px]">
+    <div className="igd-parity-scope flex flex-col gap-4">
       <DesktopPageHeader
         eyebrow="Modul IGD"
         title="Registrasi Pasien IGD"
@@ -339,12 +328,15 @@ export function IgdRegistrasiPage({
 
                     <div className="desktop-input-field flex flex-col gap-[var(--ds-space-xs)]">
                       <div className="text-[length:var(--ds-font-size-label)] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-subtle)]">
-                        Jenis Kelamin <span className="ml-[2px] text-[var(--ds-color-danger)]">*</span>
+                        Jenis Kelamin{' '}
+                        <span className="ml-[2px] text-[var(--ds-color-danger)]">*</span>
                       </div>
                       <DesktopSegmentedControl
                         value={draft.gender}
                         options={GENDER_OPTIONS}
-                        onChange={(value) => updateDraft({ gender: value as IgdRegistrationDraft['gender'] })}
+                        onChange={(value) =>
+                          updateDraft({ gender: value as IgdRegistrationDraft['gender'] })
+                        }
                       />
                     </div>
 
@@ -382,7 +374,9 @@ export function IgdRegistrasiPage({
                             onChange={(value) => updateDraft({ estimatedAge: value })}
                           />
                         </div>
-                        <span className="text-[12px] text-[var(--ds-color-text-subtle)]">tahun</span>
+                        <span className="text-[12px] text-[var(--ds-color-text-subtle)]">
+                          tahun
+                        </span>
                       </div>
                     </div>
 
@@ -393,7 +387,9 @@ export function IgdRegistrasiPage({
                       <DesktopSegmentedControl
                         value={draft.gender}
                         options={TEMP_GENDER_OPTIONS}
-                        onChange={(value) => updateDraft({ gender: value as IgdRegistrationDraft['gender'] })}
+                        onChange={(value) =>
+                          updateDraft({ gender: value as IgdRegistrationDraft['gender'] })
+                        }
                       />
                     </div>
 
@@ -455,7 +451,9 @@ export function IgdRegistrasiPage({
                       value={draft.arrivalSource}
                       options={ARRIVAL_OPTIONS}
                       onChange={(value) =>
-                        updateDraft({ arrivalSource: value as IgdRegistrationDraft['arrivalSource'] })
+                        updateDraft({
+                          arrivalSource: value as IgdRegistrationDraft['arrivalSource']
+                        })
                       }
                     />
                   </div>
@@ -475,11 +473,18 @@ export function IgdRegistrasiPage({
                 <DesktopInputField
                   label="Bed IGD"
                   type="select"
-                  placeholder="Informasional"
+                  placeholder={
+                    isBedSelectionLocked
+                      ? 'Pilih level triase dulu'
+                      : bedOptions.length === 0
+                        ? 'Tidak ada bed sesuai triase'
+                        : 'Pilih bed sesuai triase'
+                  }
                   value={selectedBedCode}
                   options={bedOptions}
                   onChange={setSelectedBedCode}
-                  hint="Snapshot bed ini tidak mengikat assignment backend pada fase registrasi."
+                  disabled={isBedSelectionLocked}
+                  hint={bedFieldHint}
                 />
 
                 <div className="desktop-input-field flex flex-col gap-[var(--ds-space-xs)]">
@@ -506,7 +511,11 @@ export function IgdRegistrasiPage({
               </div>
             </DesktopFormSection>
 
-            <DesktopFormSection title="C. Penanggung Jawab" subtitle="(opsional — dapat diisi nanti)" divided>
+            <DesktopFormSection
+              title="C. Penanggung Jawab"
+              subtitle="(opsional — dapat diisi nanti)"
+              divided
+            >
               <div className="igd-form-grid-3">
                 <div className="md:col-span-2">
                   <DesktopInputField
@@ -573,7 +582,10 @@ export function IgdRegistrasiPage({
                 required
                 type="select"
                 value={quickCondition}
-                options={QUICK_TRIAGE_OPTIONS.map((item) => ({ label: item.label, value: item.value }))}
+                options={IGD_QUICK_TRIAGE_OPTIONS.map((item) => ({
+                  label: item.label,
+                  value: item.value
+                }))}
                 onChange={setQuickCondition}
               />
               <DesktopNoticePanel
@@ -599,8 +611,8 @@ export function IgdRegistrasiPage({
                 }
               />
               <DesktopNoticePanel
-                title="Level triase final tetap dicatat di workflow triase"
-                description="Pada fase ini data quick triage hanya membantu intake dan belum dikirim sebagai write-flow triase."
+                title="Quick triage awal ikut dikirim saat registrasi triase"
+                description="Level triase final tetap bisa diperbarui lagi di workflow triase lengkap setelah pasien masuk IGD."
               />
             </div>
           </DesktopCard>
@@ -608,7 +620,11 @@ export function IgdRegistrasiPage({
           <DesktopCard title="Ketersediaan Bed IGD">
             <div>
               <div className="igd-bed-availability-grid">
-                <DesktopMetricTile label="Tersedia" value={String(availableBeds.length)} tone="success" />
+              <DesktopMetricTile
+                  label="Tersedia"
+                  value={String(allAvailableBeds.length)}
+                  tone="success"
+                />
                 <DesktopMetricTile label="Terisi" value={String(occupiedCount)} tone="danger" />
                 <DesktopMetricTile label="Cleaning" value={String(cleaningCount)} tone="warning" />
               </div>

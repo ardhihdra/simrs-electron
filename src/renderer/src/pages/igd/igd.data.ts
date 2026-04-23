@@ -1,5 +1,7 @@
 import type { PatientAttributes } from 'simrs-types'
 
+import { getQuickTriageLevel } from './igd.quick-triage'
+
 export type IgdArrivalSource = 'Datang sendiri' | 'Rujukan' | 'Polisi'
 export type IgdPaymentMethod = 'Umum' | 'BPJS' | 'Asuransi' | 'Perusahaan'
 export type IgdRegistrationMode = 'baru' | 'existing' | 'temporary'
@@ -113,12 +115,19 @@ export type IgdRegistrationCommand = {
     nik?: string
     phone?: string
   }
+  quickTriage?: {
+    level: 1 | 2 | 3 | 4 | 5
+    conditionKey: string
+    effectiveDateTime: string
+  }
 }
 
 export type SubmitIgdRegistrationInput = {
   mode: IgdRegistrationMode
   draft: IgdRegistrationDraft
   selectedPatient?: PatientAttributes
+  intent: 'daftar' | 'triase'
+  quickCondition: string
 }
 
 export const EMPTY_IGD_DASHBOARD: IgdDashboard = {
@@ -263,12 +272,10 @@ function mapGender(gender: IgdRegistrationDraft['gender']): 'male' | 'female' | 
 }
 
 function buildGuarantor(draft: IgdRegistrationDraft) {
-  if (
-    !draft.guarantorName.trim() &&
-    !draft.guarantorRelationship.trim() &&
-    !draft.guarantorNik.trim() &&
-    !draft.guarantorPhone.trim()
-  ) {
+  const hasMeaningfulGuarantorData =
+    !!draft.guarantorName.trim() || !!draft.guarantorNik.trim() || !!draft.guarantorPhone.trim()
+
+  if (!hasMeaningfulGuarantorData) {
     return undefined
   }
 
@@ -280,17 +287,52 @@ function buildGuarantor(draft: IgdRegistrationDraft) {
   }
 }
 
+function buildRelatedPersons(draft: IgdRegistrationDraft) {
+  const guarantor = buildGuarantor(draft)
+
+  if (!guarantor) {
+    return []
+  }
+
+  return [
+    {
+      name: guarantor.name || guarantor.nik || 'Penanggung Jawab',
+      phone: guarantor.phone || '',
+      relationship: guarantor.relationship || 'Penanggung Jawab'
+    }
+  ]
+}
+
+function buildQuickTriage({
+  intent,
+  draft,
+  quickCondition
+}: Pick<SubmitIgdRegistrationInput, 'intent' | 'draft' | 'quickCondition'>) {
+  if (intent !== 'triase') {
+    return undefined
+  }
+
+  return {
+    level: getQuickTriageLevel(quickCondition),
+    conditionKey: quickCondition,
+    effectiveDateTime: draft.arrivalDateTime
+  }
+}
+
 export function buildIgdRegistrationCommand({
   mode,
   draft,
-  selectedPatient
+  selectedPatient,
+  intent,
+  quickCondition
 }: SubmitIgdRegistrationInput): IgdRegistrationCommand {
   const baseCommand = {
     complaint: draft.complaint.trim(),
     arrivalSource: draft.arrivalSource,
     paymentMethod: draft.paymentMethod,
     arrivalDateTime: draft.arrivalDateTime,
-    guarantor: buildGuarantor(draft)
+    guarantor: buildGuarantor(draft),
+    quickTriage: buildQuickTriage({ intent, draft, quickCondition })
   } satisfies Omit<IgdRegistrationCommand, 'patientType'>
 
   if (mode === 'existing') {
@@ -313,7 +355,8 @@ export function buildIgdRegistrationCommand({
         name: draft.name.trim(),
         gender: draft.gender,
         estimatedAge: draft.estimatedAge.trim() || undefined,
-        phone: draft.phone.trim() || undefined
+        phone: draft.phone.trim() || undefined,
+        relatedPerson: buildRelatedPersons(draft)
       }
     }
   }
@@ -339,7 +382,7 @@ export function buildIgdRegistrationCommand({
       village: '',
       rt: '',
       rw: '',
-      relatedPerson: [],
+      relatedPerson: buildRelatedPersons(draft),
       active: true,
       familyEmployee: null,
       kepegawaianId: null,

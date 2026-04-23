@@ -48,7 +48,9 @@ test('buildIgdRegistrationCommand maps existing patient mode to patientId payloa
   const payload = buildIgdRegistrationCommand({
     mode: 'existing',
     draft: createDraft(),
-    selectedPatient
+    selectedPatient,
+    intent: 'daftar',
+    quickCondition: 'l1-critical'
   })
 
   assert.equal(payload.patientType, 'existing')
@@ -59,7 +61,9 @@ test('buildIgdRegistrationCommand maps existing patient mode to patientId payloa
 test('buildIgdRegistrationCommand maps new patient mode to create-patient payload', () => {
   const payload = buildIgdRegistrationCommand({
     mode: 'baru',
-    draft: createDraft()
+    draft: createDraft(),
+    intent: 'daftar',
+    quickCondition: 'l1-critical'
   })
 
   assert.equal(payload.patientType, 'new')
@@ -68,6 +72,7 @@ test('buildIgdRegistrationCommand maps new patient mode to create-patient payloa
   assert.equal(payload.patientData?.birthDate, '1988-04-21')
   assert.equal(payload.patientData?.needEmr, true)
   assert.equal(payload.guarantor?.name, 'Sri Wahyuni')
+  assert.equal(payload.quickTriage, undefined)
 })
 
 test('buildIgdRegistrationCommand maps temporary patient mode to minimal payload', () => {
@@ -78,7 +83,9 @@ test('buildIgdRegistrationCommand maps temporary patient mode to minimal payload
       name: '',
       gender: '?',
       estimatedAge: '~45'
-    }
+    },
+    intent: 'daftar',
+    quickCondition: 'l1-critical'
   })
 
   assert.equal(payload.patientType, 'temporary')
@@ -93,8 +100,36 @@ test('buildIgdRegistrationCommand rejects existing mode without selected patient
     () =>
       buildIgdRegistrationCommand({
         mode: 'existing' as IgdRegistrationMode,
-        draft: createDraft()
+        draft: createDraft(),
+        intent: 'daftar',
+        quickCondition: 'l1-critical'
       }),
     /Pilih pasien terlebih dahulu/
   )
+})
+
+test('buildIgdRegistrationCommand includes quick triage when intent is triase', () => {
+  const payload = buildIgdRegistrationCommand({
+    mode: 'baru',
+    draft: createDraft(),
+    intent: 'triase',
+    quickCondition: 'l2-shock'
+  })
+
+  assert.deepEqual(payload.quickTriage, {
+    level: 2,
+    conditionKey: 'l2-shock',
+    effectiveDateTime: '2026-04-22T10:25'
+  })
+})
+
+test('buildIgdRegistrationCommand omits quick triage when intent is daftar', () => {
+  const payload = buildIgdRegistrationCommand({
+    mode: 'baru',
+    draft: createDraft(),
+    intent: 'daftar',
+    quickCondition: 'l1-critical'
+  })
+
+  assert.equal(payload.quickTriage, undefined)
 })

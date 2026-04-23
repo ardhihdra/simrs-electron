@@ -104,6 +104,8 @@ test('IGD registrasi page renders the intake form shell', () => {
   assert.equal(markup.includes('patient-lookup-selector-slot'), true)
   assert.equal(markup.includes('desktop-input-field'), true)
   assert.equal(markup.includes('desktop-card'), true)
+  assert.equal(markup.includes('Level 3 — Urgen'), true)
+  assert.equal(markup.includes('Warna Kuning · Butuh evaluasi cepat'), true)
 })
 
 test('IGD triase page renders triage sections and save action', () => {
