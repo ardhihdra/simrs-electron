@@ -1,3 +1,10 @@
+/**
+ * purpose: Halaman workspace dokter IGD untuk menampilkan menu asesmen, order, dan administrasi per encounter.
+ * main callers: Route doctor EMR emergency workspace.
+ * key dependencies: Komponen form asesmen, timeline, patient card, dan form triase IGD.
+ * main/public functions: `DoctorEmergencyWorkspace`.
+ * side effects: Render berbagai form yang melakukan query/mutasi data klinis sesuai tab yang dipilih.
+ */
 import {
   AlertOutlined,
   ExperimentOutlined,
