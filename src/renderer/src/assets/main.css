@@ -470,6 +470,130 @@
     border-top: 1px solid var(--border);
   }
 
+  .igd-bed-zone-panel {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .igd-bed-zone-panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .igd-bed-zone-panel-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .igd-bed-zone-panel-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .igd-bed-zone-panel-count {
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .igd-bed-zone-panel-description {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+
+  .igd-bed-zone-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(196px, 196px));
+    justify-content: start;
+    gap: 12px;
+    padding: 16px 18px;
+  }
+
+  .igd-bed-card {
+    display: flex;
+    width: 196px;
+    min-height: 148px;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--border-strong);
+    padding: 14px 14px 12px;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .igd-bed-card--occupied {
+    border-color: color-mix(in srgb, var(--accent) 42%, white);
+    background: color-mix(in srgb, var(--accent-soft) 42%, white);
+  }
+
+  .igd-bed-card--available {
+    border-color: color-mix(in srgb, var(--ok) 64%, white);
+    background: color-mix(in srgb, var(--ok-soft) 82%, white);
+  }
+
+  .igd-bed-card--cleaning {
+    border-color: color-mix(in srgb, var(--warn) 64%, white);
+    background: color-mix(in srgb, var(--warn-soft) 84%, white);
+  }
+
+  .igd-bed-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .igd-bed-card-code {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .igd-bed-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .igd-bed-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+
+  .igd-bed-card-meta {
+    font-size: 12px;
+    color: var(--text-2);
+  }
+
+  .igd-bed-card-detail {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+
+  .igd-bed-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .igd-bed-card-actions .desktop-button {
+    flex: 1;
+  }
+
   .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-thead > tr > th {
     height: auto !important;
     padding: 7px 16px !important;
@@ -629,6 +753,14 @@
 
     .igd-bed-availability-grid {
       grid-template-columns: 1fr;
+    }
+
+    .igd-bed-zone-panel-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .igd-bed-card {
+      width: 100%;
     }
   }
 

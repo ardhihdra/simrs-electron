@@ -1,202 +1,492 @@
-import { DesktopBadge, type DesktopBadgeTone } from '../../components/design-system/atoms/DesktopBadge'
-import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
-import {
-  DesktopStatusDot,
-  type DesktopStatus
-} from '../../components/design-system/atoms/DesktopStatusDot'
-import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
-import { DesktopCard } from '../../components/design-system/molecules/DesktopCard'
-import { DesktopInputField } from '../../components/design-system/molecules/DesktopInputField'
-import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
-import React, { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Modal } from 'antd'
+import React, { useEffect, useMemo, useState } from 'react'
 
-import { IGD_PAGE_PATHS } from './igd.config'
-import { type IgdBed, type IgdBedStatus, type IgdBedZone, type IgdPatient, useIgdStore } from './igd.state'
+import {
+  DesktopBadge,
+  type DesktopBadgeTone
+} from '../../components/design-system/atoms/DesktopBadge'
+import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
+import { DesktopCard } from '../../components/design-system/molecules/DesktopCard'
+import { DesktopCompactStatStrip } from '../../components/design-system/molecules/DesktopCompactStatStrip'
+import { DesktopInputField } from '../../components/design-system/molecules/DesktopInputField'
+import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
+import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
+
+import {
+  IGD_BED_ZONE_DESCRIPTIONS,
+  IGD_BED_ZONE_ORDER,
+  getZoneTriageRangeLabel
+} from './igd.bed-zoning'
+import {
+  type IgdDashboard,
+  type IgdDashboardBed,
+  type IgdDashboardBedZone,
+  type IgdDashboardPatient
+} from './igd.data'
+
+type SelectOption = {
+  label: string
+  value: string
+}
 
 type IgdBedMapPageProps = {
+  dashboard: IgdDashboard
+  availableBedOptions?: SelectOption[]
+  createBedRoomOptions?: SelectOption[]
+  isLoading?: boolean
+  errorMessage?: string
+  actionLoading?: {
+    assign?: boolean
+    transfer?: boolean
+    release?: boolean
+    createBed?: boolean
+  }
+  onRetry?: () => void
   onBack?: () => void
+  onAssignBed?: (input: { patientId: string; bedCode: string }) => Promise<void> | void
+  onTransferBed?: (input: { sourceBedCode: string; targetBedCode: string }) => Promise<void> | void
+  onReleaseBed?: (input: { bedCode: string }) => Promise<void> | void
+  onCreateBed?: (input: { bedCodeId: string; roomId: string }) => Promise<void> | void
 }
 
-const ZONE_ORDER: IgdBedZone[] = ['Resusitasi', 'Observasi', 'Treatment']
-
-const ZONE_DESCRIPTIONS: Record<IgdBedZone, string> = {
-  Resusitasi: 'Zona untuk pasien kritis dan tindakan segera.',
-  Observasi: 'Zona monitoring pasien yang perlu observasi lanjutan.',
-  Treatment: 'Zona tindakan singkat dan stabilisasi non-resusitasi.'
-}
-
-const getBedTone = (status: IgdBedStatus): DesktopBadgeTone => {
-  if (status === 'occupied') return 'info'
-  if (status === 'cleaning') return 'warning'
-  return 'success'
-}
-
-const getBedStatusDot = (status: IgdBedStatus): DesktopStatus => {
-  if (status === 'occupied') return 'info'
-  if (status === 'cleaning') return 'warning'
-  return 'success'
-}
-
-const getTriageTone = (level: IgdPatient['triageLevel']): DesktopBadgeTone => {
+const getTriageTone = (level: IgdDashboardPatient['triageLevel']): DesktopBadgeTone => {
   if (level === 1) return 'danger'
   if (level === 2) return 'warning'
   if (level === 3) return 'info'
   return 'success'
 }
 
+const getZoneRangeTone = (zone: IgdDashboardBedZone): DesktopBadgeTone => {
+  if (zone === 'Resusitasi') return 'danger'
+  if (zone === 'Observasi') return 'warning'
+  return 'success'
+}
+
 function BedCard({
   bed,
   patient,
-  assigningPatientId,
-  onAssign
+  canAssign,
+  onAssign,
+  onInspect,
+  onMove
 }: {
-  bed: IgdBed
-  patient?: IgdPatient
-  assigningPatientId?: number
+  bed: IgdDashboardBed
+  patient?: IgdDashboardPatient
+  canAssign: boolean
   onAssign: () => void
+  onInspect: () => void
+  onMove: () => void
 }) {
-  const canAssign =
-    !!assigningPatientId &&
-    bed.status !== 'cleaning' &&
-    (bed.status === 'available' || bed.patientId === assigningPatientId)
+  const cardVariantClassName =
+    bed.status === 'occupied'
+      ? 'igd-bed-card--occupied'
+      : bed.status === 'cleaning'
+        ? 'igd-bed-card--cleaning'
+        : 'igd-bed-card--available'
 
   return (
-    <DesktopCard
-      title={bed.code}
-      subtitle={patient ? patient.registrationNumber : 'Siap untuk assign pasien'}
-      compact
-      extra={<DesktopBadge tone={getBedTone(bed.status)}>{bed.status}</DesktopBadge>}
-    >
-      <div className="grid gap-[var(--ds-space-sm)]">
-        <div className="flex flex-wrap items-center gap-[var(--ds-space-sm)]">
-          <DesktopStatusDot status={getBedStatusDot(bed.status)} label={bed.status} />
-          {patient ? <DesktopBadge tone={getTriageTone(patient.triageLevel)}>L{patient.triageLevel}</DesktopBadge> : null}
-        </div>
-        <div className="text-[length:var(--ds-font-size-body)] font-semibold text-[var(--ds-color-text)]">
-          {patient?.name ?? 'Belum terisi'}
-        </div>
-        <div className="text-[length:var(--ds-font-size-body)] text-[var(--ds-color-text-muted)]">
-          {patient?.complaint ?? 'Bed siap dipakai untuk pasien berikutnya.'}
-        </div>
-        <DesktopButton emphasis="primary" onClick={onAssign} disabled={!canAssign}>
-          {bed.status === 'occupied' && bed.patientId !== assigningPatientId
-            ? 'Bed sedang terpakai'
-            : 'Assign ke bed ini'}
-        </DesktopButton>
+    <article className={`igd-bed-card ${cardVariantClassName}`}>
+      <div className="igd-bed-card-header">
+        <div className="igd-bed-card-code">{bed.code}</div>
+        {patient ? (
+          <DesktopBadge tone={getTriageTone(patient.triageLevel)}>
+            L{patient.triageLevel}
+          </DesktopBadge>
+        ) : null}
       </div>
-    </DesktopCard>
+      <div className="igd-bed-card-body">
+        <div className="igd-bed-card-name">
+          {patient?.name ?? (bed.status === 'cleaning' ? 'Cleaning' : 'Kosong')}
+        </div>
+        <div className="igd-bed-card-meta">
+          {patient
+            ? patient.medicalRecordNumber || patient.registrationNumber
+            : bed.status === 'cleaning'
+              ? 'Proses pembersihan...'
+              : 'Siap dipakai untuk pasien berikutnya'}
+        </div>
+        <div className="igd-bed-card-detail">
+          {patient
+            ? `Masuk: ${patient.arrivalTime}`
+            : bed.status === 'cleaning'
+              ? 'Sementara tidak bisa dipakai'
+              : 'Bed tersedia'}
+        </div>
+        {bed.status === 'occupied' ? (
+          <div className="igd-bed-card-actions">
+            <DesktopButton emphasis="toolbar" size="small" onClick={onInspect}>
+              Periksa
+            </DesktopButton>
+            <DesktopButton emphasis="toolbar" size="small" onClick={onMove}>
+              Pindah
+            </DesktopButton>
+          </div>
+        ) : bed.status === 'available' ? (
+          <div className="igd-bed-card-actions">
+            <DesktopButton emphasis="primary" size="small" onClick={onAssign} disabled={!canAssign}>
+              Assign Pasien
+            </DesktopButton>
+          </div>
+        ) : null}
+      </div>
+    </article>
   )
 }
 
-export function IgdBedMapPage({ onBack }: IgdBedMapPageProps) {
-  const beds = useIgdStore((state) => state.beds)
-  const patients = useIgdStore((state) => state.patients)
-  const selectedPatientId = useIgdStore((state) => state.selectedPatientId)
-  const setSelectedPatient = useIgdStore((state) => state.setSelectedPatient)
-  const assignBed = useIgdStore((state) => state.assignBed)
-  const [assigningPatientId, setAssigningPatientId] = useState<string>(String(selectedPatientId))
+export function IgdBedMapPage({
+  dashboard,
+  availableBedOptions = [],
+  createBedRoomOptions = [],
+  isLoading = false,
+  errorMessage,
+  actionLoading,
+  onRetry,
+  onBack,
+  onAssignBed,
+  onTransferBed,
+  onReleaseBed,
+  onCreateBed
+}: IgdBedMapPageProps) {
+  const beds = dashboard.beds
+  const patients = dashboard.patients
+  const [assignModalBedCode, setAssignModalBedCode] = useState<string | null>(null)
+  const [assignModalPatientId, setAssignModalPatientId] = useState('')
+  const [moveModalBedCode, setMoveModalBedCode] = useState<string | null>(null)
+  const [moveModalTargetBedCode, setMoveModalTargetBedCode] = useState('')
+  const [inspectModalBedCode, setInspectModalBedCode] = useState<string | null>(null)
+  const [createBedVisible, setCreateBedVisible] = useState(false)
+  const [newBedCode, setNewBedCode] = useState('')
+  const [newBedRoomId, setNewBedRoomId] = useState('')
 
-  const patientOptions = useMemo(
+  const assignablePatientOptions = useMemo(
     () =>
-      patients.map((patient) => ({
-        label: `${patient.name} (${patient.registrationNumber})`,
-        value: String(patient.id)
-      })),
+      patients
+        .filter((patient) => !patient.bedCode)
+        .map((patient) => ({
+          label: `${patient.name} (${patient.registrationNumber})`,
+          value: patient.id
+        })),
     [patients]
   )
 
-  const activePatient = patients.find((patient) => String(patient.id) === assigningPatientId)
+  useEffect(() => {
+    if (!newBedRoomId && createBedRoomOptions[0]?.value) {
+      setNewBedRoomId(createBedRoomOptions[0].value)
+    }
+  }, [createBedRoomOptions, newBedRoomId])
+
+  const occupiedCount = beds.filter((bed) => bed.status === 'occupied').length
+  const cleaningCount = beds.filter((bed) => bed.status === 'cleaning').length
+  const availableCount = beds.filter((bed) => bed.status === 'available').length
+  const moveModalOptions = availableBedOptions.filter((option) => option.value !== moveModalBedCode)
+  const moveModalBed = beds.find((bed) => bed.code === moveModalBedCode)
+  const moveModalPatient = patients.find((patient) => patient.id === moveModalBed?.patientId)
+  const inspectModalBed = beds.find((bed) => bed.code === inspectModalBedCode)
+
+  const handleAssignConfirm = async () => {
+    if (!assignModalBedCode || !assignModalPatientId || !onAssignBed) return
+    await onAssignBed({ patientId: assignModalPatientId, bedCode: assignModalBedCode })
+    setAssignModalBedCode(null)
+    setAssignModalPatientId('')
+  }
+
+  const handleTransferConfirm = async () => {
+    if (!moveModalBedCode || !moveModalTargetBedCode || !onTransferBed) return
+    await onTransferBed({
+      sourceBedCode: moveModalBedCode,
+      targetBedCode: moveModalTargetBedCode
+    })
+    setMoveModalBedCode(null)
+    setMoveModalTargetBedCode('')
+  }
+
+  const handleReleaseFromMove = async () => {
+    if (!moveModalBedCode || !onReleaseBed) return
+    await onReleaseBed({ bedCode: moveModalBedCode })
+    setMoveModalBedCode(null)
+    setMoveModalTargetBedCode('')
+  }
+
+  const handleCreateBedConfirm = async () => {
+    if (!onCreateBed || !newBedCode.trim() || !newBedRoomId) return
+    await onCreateBed({ bedCodeId: newBedCode.trim(), roomId: newBedRoomId })
+    setCreateBedVisible(false)
+    setNewBedCode('')
+  }
 
   return (
-    <div className="flex flex-col gap-[var(--ds-layout-section-gap)]">
+    <div className="igd-parity-scope flex flex-col gap-[var(--ds-layout-section-gap)]">
       <DesktopPageHeader
         eyebrow="Modul IGD"
         title="Peta Bed IGD"
-        subtitle="Zona Resusitasi, Observasi, dan Treatment mengikuti kode bed seed IGD."
-        status="Mock aktif"
+        subtitle="Snapshot bed IGD mengikuti dashboard backend dan level triase pasien aktif."
+        status={isLoading ? 'Memuat data' : 'Terhubung backend'}
         metadata={
           <div className="flex flex-wrap items-center gap-[var(--ds-space-sm)]">
-            <DesktopBadge tone="success">
-              {beds.filter((bed) => bed.status === 'available').length} bed tersedia
-            </DesktopBadge>
-            <DesktopTag tone="accent">{activePatient?.name ?? 'Pilih pasien untuk assign'}</DesktopTag>
+            <DesktopBadge tone="success">{availableCount} bed tersedia</DesktopBadge>
           </div>
         }
-        actions={<DesktopButton emphasis="toolbar" onClick={onBack}>Kembali ke Daftar</DesktopButton>}
+        actions={
+          <>
+            <DesktopButton emphasis="primary" onClick={() => setCreateBedVisible(true)}>
+              Tambah Bed
+            </DesktopButton>
+            <DesktopButton emphasis="toolbar" onClick={onBack}>
+              Kembali ke Daftar
+            </DesktopButton>
+          </>
+        }
       />
 
-      <DesktopCard
-        title="Assign Bed"
-        subtitle="Pilih pasien aktif lebih dulu, lalu klik salah satu bed yang tersedia pada peta di bawah."
-      >
-        <div className="grid gap-[var(--ds-space-md)] md:grid-cols-[minmax(0,420px)_1fr] md:items-end">
-          <DesktopInputField
-            label="Pasien untuk assign"
-            type="select"
-            placeholder="Pilih pasien"
-            value={assigningPatientId}
-            options={patientOptions}
-            onChange={(value) => {
-              setAssigningPatientId(value)
-              if (value) setSelectedPatient(Number(value))
-            }}
+      <DesktopCompactStatStrip
+        bedSummary={{
+          totalBeds: String(beds.length),
+          occupiedBeds: String(occupiedCount),
+          availableBeds: String(availableCount),
+          cleaningBeds: String(cleaningCount)
+        }}
+      />
+
+      {isLoading ? (
+        <DesktopCard title="Memuat peta bed IGD" subtitle="Mengambil snapshot bed dari backend.">
+          <DesktopNoticePanel
+            title="Memuat peta bed IGD"
+            description="Data bed dan pasien aktif sedang disinkronkan."
           />
-          <div className="flex flex-wrap gap-[var(--ds-space-sm)]">
-            {activePatient ? (
-              <>
-                <DesktopBadge tone={getTriageTone(activePatient.triageLevel)}>
-                  Level {activePatient.triageLevel}
-                </DesktopBadge>
-                <DesktopTag tone="neutral">{activePatient.registrationNumber}</DesktopTag>
-                <DesktopTag tone="neutral">{activePatient.bedCode ?? 'Belum ada bed'}</DesktopTag>
-              </>
-            ) : null}
-          </div>
-        </div>
-      </DesktopCard>
+        </DesktopCard>
+      ) : null}
 
-      <div className="grid gap-[var(--ds-space-md)]">
-        {ZONE_ORDER.map((zone) => (
-          <DesktopCard
-            key={zone}
-            title={`Zona ${zone}`}
-            subtitle={ZONE_DESCRIPTIONS[zone]}
-            extra={
-              <DesktopBadge tone="accent">
-                {beds.filter((bed) => bed.zone === zone && bed.status === 'available').length} tersedia
-              </DesktopBadge>
-            }
-          >
-            <div className="grid gap-[var(--ds-space-md)] md:grid-cols-2 xl:grid-cols-3">
-              {beds
-                .filter((bed) => bed.zone === zone)
-                .map((bed) => {
-                  const patient = patients.find((item) => item.id === bed.patientId)
-
-                  return (
-                    <BedCard
-                      key={bed.code}
-                      bed={bed}
-                      patient={patient}
-                      assigningPatientId={assigningPatientId ? Number(assigningPatientId) : undefined}
-                      onAssign={() => {
-                        if (!assigningPatientId) return
-                        assignBed({ patientId: Number(assigningPatientId), bedCode: bed.code })
-                      }}
-                    />
-                  )
-                })}
+      {!isLoading && errorMessage ? (
+        <DesktopCard title="Gagal memuat peta bed" subtitle="Coba ulangi sinkronisasi bed IGD.">
+          <div className="grid gap-[12px]">
+            <DesktopNoticePanel
+              title="Gagal memuat peta bed"
+              description={errorMessage}
+              tone="danger"
+            />
+            <div>
+              <DesktopButton emphasis="primary" onClick={onRetry}>
+                Muat Ulang
+              </DesktopButton>
             </div>
-          </DesktopCard>
-        ))}
-      </div>
+          </div>
+        </DesktopCard>
+      ) : null}
+
+      {!isLoading && !errorMessage ? (
+        <>
+          <div className="grid gap-[var(--ds-space-md)]">
+            {IGD_BED_ZONE_ORDER.map((zone) => {
+              const zoneBeds = beds.filter((bed) => bed.zone === zone)
+              const zoneAvailableCount = zoneBeds.filter((bed) => bed.status === 'available').length
+
+              return (
+                <section key={zone} className="igd-bed-zone-panel">
+                  <div className="igd-bed-zone-panel-header">
+                    <div className="igd-bed-zone-panel-title-row">
+                      <h3 className="igd-bed-zone-panel-title">{`Zona ${zone}`}</h3>
+                      <span className="igd-bed-zone-panel-count">{`${zoneAvailableCount} kosong dari ${zoneBeds.length}`}</span>
+                      <DesktopBadge tone={getZoneRangeTone(zone)}>
+                        {getZoneTriageRangeLabel(zone)}
+                      </DesktopBadge>
+                    </div>
+                    <p className="igd-bed-zone-panel-description">
+                      {IGD_BED_ZONE_DESCRIPTIONS[zone]}
+                    </p>
+                  </div>
+
+                  <div className="igd-bed-zone-panel-grid">
+                    {zoneBeds.map((bed) => {
+                      const patient = patients.find((item) => item.id === bed.patientId)
+
+                      return (
+                        <BedCard
+                          key={bed.code}
+                          bed={bed}
+                          patient={patient}
+                          canAssign={!!onAssignBed && assignablePatientOptions.length > 0}
+                          onAssign={() => {
+                            setAssignModalBedCode(bed.code)
+                            setAssignModalPatientId(assignablePatientOptions[0]?.value ?? '')
+                          }}
+                          onInspect={() => {
+                            setInspectModalBedCode(bed.code)
+                          }}
+                          onMove={() => {
+                            setMoveModalBedCode(bed.code)
+                            setMoveModalTargetBedCode(moveModalOptions[0]?.value ?? '')
+                          }}
+                        />
+                      )
+                    })}
+                  </div>
+                </section>
+              )
+            })}
+          </div>
+        </>
+      ) : null}
+
+      <Modal
+        title={assignModalBedCode ? `Assign Pasien ke ${assignModalBedCode}` : 'Assign Pasien'}
+        open={!!assignModalBedCode}
+        getContainer={false}
+        onCancel={() => {
+          setAssignModalBedCode(null)
+          setAssignModalPatientId('')
+        }}
+        onOk={() => void handleAssignConfirm()}
+        okText="Assign"
+        okButtonProps={{
+          disabled: !assignModalPatientId || !onAssignBed || assignablePatientOptions.length === 0,
+          loading: !!actionLoading?.assign
+        }}
+      >
+        {assignablePatientOptions.length === 0 ? (
+          <DesktopNoticePanel
+            title="Tidak ada pasien tanpa bed"
+            description="Semua pasien aktif saat ini sudah memiliki bed atau belum ada pasien aktif yang dapat di-assign."
+          />
+        ) : (
+          <div className="grid gap-[12px]">
+            <DesktopNoticePanel
+              title="Pilih pasien untuk di-assign"
+              description={`Bed tujuan: ${assignModalBedCode ?? '-'}`}
+            />
+            <DesktopInputField
+              label="Pasien"
+              type="select"
+              value={assignModalPatientId}
+              options={assignablePatientOptions}
+              placeholder="Pilih pasien"
+              onChange={setAssignModalPatientId}
+            />
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        title={moveModalBedCode ? `Pindah Pasien dari ${moveModalBedCode}` : 'Pindah Bed'}
+        open={!!moveModalBedCode}
+        getContainer={false}
+        onCancel={() => {
+          setMoveModalBedCode(null)
+          setMoveModalTargetBedCode('')
+        }}
+        footer={[
+          <DesktopButton
+            key="close"
+            emphasis="toolbar"
+            onClick={() => {
+              setMoveModalBedCode(null)
+              setMoveModalTargetBedCode('')
+            }}
+          >
+            Tutup
+          </DesktopButton>,
+          <DesktopButton
+            key="release"
+            emphasis="danger"
+            disabled={!moveModalBedCode || !onReleaseBed}
+            loading={!!actionLoading?.release}
+            onClick={() => void handleReleaseFromMove()}
+          >
+            Release
+          </DesktopButton>,
+          <DesktopButton
+            key="transfer"
+            emphasis="primary"
+            disabled={!moveModalTargetBedCode || !onTransferBed || moveModalOptions.length === 0}
+            loading={!!actionLoading?.transfer}
+            onClick={() => void handleTransferConfirm()}
+          >
+            Pindah
+          </DesktopButton>
+        ]}
+      >
+        {moveModalOptions.length === 0 ? (
+          <DesktopNoticePanel
+            title="Tidak ada bed tujuan yang tersedia"
+            description="Semua bed kosong sedang tidak tersedia untuk dijadikan tujuan pindah."
+          />
+        ) : (
+          <div className="grid gap-[12px]">
+            <DesktopNoticePanel
+              title={
+                moveModalPatient
+                  ? `Pindah atau release ${moveModalPatient.name}`
+                  : 'Pilih aksi untuk pasien di bed ini'
+              }
+              description={`Pasien saat ini berada di ${moveModalBedCode ?? '-'}. Anda bisa memilih bed tujuan atau release pasien dari bed aktif.`}
+            />
+            <DesktopInputField
+              label="Bed tujuan"
+              type="select"
+              value={moveModalTargetBedCode}
+              options={moveModalOptions}
+              placeholder="Pilih bed tujuan"
+              onChange={setMoveModalTargetBedCode}
+            />
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        title={inspectModalBed ? `Periksa ${inspectModalBed.code}` : 'Periksa Bed'}
+        open={!!inspectModalBedCode}
+        getContainer={false}
+        onCancel={() => setInspectModalBedCode(null)}
+        footer={[
+          <DesktopButton
+            key="close"
+            emphasis="toolbar"
+            onClick={() => setInspectModalBedCode(null)}
+          >
+            Tutup
+          </DesktopButton>
+        ]}
+      >
+        <DesktopNoticePanel
+          title="Pindah ke halaman pemeriksaan"
+          description="Placeholder sementara untuk alur buka halaman pemeriksaan dari peta bed IGD."
+        />
+      </Modal>
+
+      <Modal
+        title="Tambah Bed Baru"
+        open={createBedVisible}
+        getContainer={false}
+        onCancel={() => setCreateBedVisible(false)}
+        onOk={() => void handleCreateBedConfirm()}
+        okText="Simpan Bed"
+        okButtonProps={{
+          disabled: !newBedCode.trim() || !newBedRoomId || !onCreateBed,
+          loading: !!actionLoading?.createBed
+        }}
+      >
+        <div className="grid gap-[12px]">
+          {!onCreateBed ? (
+            <DesktopNoticePanel
+              title="Form siap, submit backend belum tersedia"
+              description="Modal pembuatan bed baru sudah tersedia, tetapi submit ke backend room master belum diaktifkan pada route ini."
+            />
+          ) : null}
+          <DesktopInputField
+            label="Kode Bed"
+            value={newBedCode}
+            placeholder="Contoh: O-07"
+            onChange={(value) => setNewBedCode(value.toUpperCase())}
+          />
+          <DesktopInputField
+            label="Ruangan"
+            type="select"
+            value={newBedRoomId}
+            options={createBedRoomOptions}
+            placeholder="Pilih ruangan IGD"
+            onChange={setNewBedRoomId}
+          />
+        </div>
+      </Modal>
     </div>
   )
-}
-
-export default function IgdBedMapRoute() {
-  const navigate = useNavigate()
-
-  return <IgdBedMapPage onBack={() => navigate(IGD_PAGE_PATHS.daftar)} />
 }

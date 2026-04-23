@@ -119,13 +119,26 @@ test('IGD triase page renders triage sections and save action', () => {
 })
 
 test('IGD bed map page renders zones and bed cards', () => {
-  const markup = renderToStaticMarkup(<IgdBedMapPage />)
+  const markup = renderToStaticMarkup(<IgdBedMapPage dashboard={createIgdDashboardFixture()} />)
 
   assert.equal(markup.includes('Peta Bed IGD'), true)
+  assert.equal(markup.includes('TOTAL BED IGD'), true)
+  assert.equal(markup.includes('12'), true)
+  assert.equal(markup.includes('Terisi'), true)
+  assert.equal(markup.includes('Kosong'), true)
+  assert.equal(markup.includes('Cleaning'), true)
   assert.equal(markup.includes('Zona Resusitasi'), true)
+  assert.equal(markup.includes('3 kosong dari 4'), true)
+  assert.equal(markup.includes('L1-L2'), true)
   assert.equal(markup.includes('R-01'), true)
-  assert.equal(markup.includes('desktop-input-field'), true)
-  assert.equal(markup.includes('desktop-card'), true)
+  assert.equal(markup.includes('Periksa'), true)
+  assert.equal(markup.includes('Pindah'), true)
+  assert.equal(markup.includes('Cleaning'), true)
+  assert.equal(markup.includes('Assign Pasien'), true)
+  assert.equal(markup.includes('Tambah Bed'), true)
+  assert.equal(markup.includes('igd-bed-card--occupied'), true)
+  assert.equal(markup.includes('igd-bed-card--level-1'), false)
+  assert.equal(markup.includes('igd-bed-zone-panel'), true)
 })
 
 test('IGD referral disposition maps patient data for ReferralForm', () => {

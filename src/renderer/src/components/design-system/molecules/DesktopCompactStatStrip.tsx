@@ -1,24 +1,31 @@
-import React from 'react'
+import React, { type ReactNode } from 'react'
 
 import { DesktopTriageBadge, type DesktopTriageBadgeTone } from '../atoms/DesktopTriageBadge'
 
 export type DesktopCompactStatTone = 'accent' | 'success'
 
 export interface DesktopCompactStatStripProps {
-  totalActive: string
-  triageLevels: Array<{
+  totalActive?: string
+  triageLevels?: Array<{
     label: string
     value: string
     tone: DesktopTriageBadgeTone
   }>
-  bedAvailable: string
-  bedTotal: string
-  averageResponse: string
-  totalToday: string
+  bedAvailable?: string
+  bedTotal?: string
+  averageResponse?: string
+  totalToday?: string
   statusBadges?: Array<{
     label: string
     tone: DesktopCompactStatTone
   }>
+  bedSummary?: {
+    totalBeds: string
+    occupiedBeds: string
+    availableBeds: string
+    cleaningBeds: string
+    actionSlot?: ReactNode
+  }
 }
 
 const STATUS_BADGE_CLASSNAME: Record<DesktopCompactStatTone, string> = {
@@ -30,13 +37,74 @@ const STATUS_BADGE_CLASSNAME: Record<DesktopCompactStatTone, string> = {
 
 export function DesktopCompactStatStrip({
   totalActive,
-  triageLevels,
+  triageLevels = [],
   bedAvailable,
   bedTotal,
   averageResponse,
   totalToday,
-  statusBadges = []
+  statusBadges = [],
+  bedSummary
 }: DesktopCompactStatStripProps) {
+  if (bedSummary) {
+    return (
+      <div className="desktop-compact-stat-strip flex flex-wrap items-center gap-[18px] rounded-[var(--ds-radius-lg)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[16px] py-[11px] shadow-[var(--ds-shadow-xs)]">
+        <div>
+          <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
+            TOTAL BED IGD
+          </span>
+          <b className="block font-mono text-[26px] leading-none text-[var(--ds-color-text)]">
+            {bedSummary.totalBeds}
+          </b>
+        </div>
+
+        <div className="h-[40px] w-px bg-[var(--ds-color-border)]" />
+
+        <div>
+          <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
+            Terisi
+          </span>
+          <b className="block font-mono text-[18px] leading-none text-[var(--ds-color-info)]">
+            {bedSummary.occupiedBeds}
+          </b>
+        </div>
+
+        <div>
+          <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
+            Kosong
+          </span>
+          <b className="block font-mono text-[18px] leading-none text-[var(--ds-color-success)]">
+            {bedSummary.availableBeds}
+          </b>
+        </div>
+
+        <div>
+          <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
+            Cleaning
+          </span>
+          <b className="block font-mono text-[18px] leading-none text-[var(--ds-color-warning)]">
+            {bedSummary.cleaningBeds}
+          </b>
+        </div>
+
+        <div className="ml-auto flex flex-wrap items-center gap-[14px]">
+          <span className="inline-flex items-center gap-[6px] text-[12px] text-[var(--ds-color-text-muted)]">
+            <span className="h-[10px] w-[10px] rounded-[3px] border border-[var(--ds-color-info)] bg-[color-mix(in_srgb,var(--ds-color-info)_12%,white)]" />
+            <span>Terisi</span>
+          </span>
+          <span className="inline-flex items-center gap-[6px] text-[12px] text-[var(--ds-color-text-muted)]">
+            <span className="h-[10px] w-[10px] rounded-[3px] border border-[var(--ds-color-success)] bg-[color-mix(in_srgb,var(--ds-color-success)_12%,white)]" />
+            <span>Kosong</span>
+          </span>
+          <span className="inline-flex items-center gap-[6px] text-[12px] text-[var(--ds-color-text-muted)]">
+            <span className="h-[10px] w-[10px] rounded-[3px] border border-[var(--ds-color-warning)] bg-[color-mix(in_srgb,var(--ds-color-warning)_14%,white)]" />
+            <span>Cleaning</span>
+          </span>
+          {bedSummary.actionSlot}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="desktop-compact-stat-strip flex flex-wrap items-center gap-[18px] rounded-[var(--ds-radius-lg)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[16px] py-[11px] shadow-[var(--ds-shadow-xs)]">
       <div>
