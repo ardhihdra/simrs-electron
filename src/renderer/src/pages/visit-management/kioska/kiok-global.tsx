@@ -9,11 +9,13 @@ import { resolveInitialKioskaRegistrationPaymentMethodFromPath } from './global/
 import {
   StepCheckin,
   StepHasMrn,
+  StepPublicQueueKiosk,
   StepQueueSummary,
   StepScanMrn,
   StepSelectAntrianType,
   StepSelectDoctor,
   StepSelectPaymentMethod,
+  StepSelectPenunjangType,
   StepSelectPoli
 } from './global/steps'
 
@@ -41,17 +43,23 @@ function KioskaGlobalContent() {
   const initialPaymentMethod = resolveInitialKioskaRegistrationPaymentMethodFromPath(
     location.pathname
   )
-  const currentPaymentMethod = state.rawatJalan.paymentMethod ?? initialPaymentMethod
+  const currentPaymentMethod =
+    state.antrianType === 'rawat_jalan'
+      ? (state.rawatJalan.paymentMethod ?? initialPaymentMethod)
+      : (state.publicQueue.paymentMethod ?? null)
   const isInsuranceRegistration = currentPaymentMethod === 'ASURANSI'
 
   const kioskGradient = `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
   const summary = formatKioskaGlobalSummary(state)
   const canGoBack = state.history.length > 0
+  const isNonMedicKioskStep = state.step === 'non_medic_kiosk'
 
   const renderStep = () => {
     switch (state.step) {
       case 'antrian_type':
         return <StepSelectAntrianType />
+      case 'penunjang_type':
+        return <StepSelectPenunjangType />
       case 'payment_method':
         return <StepSelectPaymentMethod />
       case 'has_mrn':
@@ -64,6 +72,8 @@ function KioskaGlobalContent() {
         return <StepSelectDoctor />
       case 'ambil_antrian':
         return <StepQueueSummary />
+      case 'non_medic_kiosk':
+        return <StepPublicQueueKiosk />
       case 'input_kode_antrian':
         return <StepCheckin />
       default:
@@ -117,7 +127,7 @@ function KioskaGlobalContent() {
         </header>
 
         <main className="flex min-h-0 flex-1">
-          <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-[32px] border border-white/70 bg-white shadow-xl">
+          <div className="mx-auto flex h-full w-full max-w-7xl flex-col overflow-hidden rounded-[32px] border border-white/70 bg-white shadow-xl">
             <div className="flex min-h-20 items-center justify-between gap-4 border-b border-slate-100 px-6 py-4 md:px-8">
               <Button
                 size="large"
@@ -142,7 +152,9 @@ function KioskaGlobalContent() {
             </div>
 
             <div className="min-h-0 flex-1 px-6 py-6 md:px-8 md:py-8">
-              <div className="h-[34rem]">{renderStep()}</div>
+              <div className={isNonMedicKioskStep ? 'h-full overflow-auto' : 'h-[34rem]'}>
+                {renderStep()}
+              </div>
             </div>
           </div>
         </main>

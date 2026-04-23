@@ -9,11 +9,6 @@ import {
 import VisitQueueForm from '@renderer/components/organisms/visit-management/VisitQueueForm'
 import { client } from '@renderer/utils/client'
 import {
-  buildRegistrationServeSummary,
-  type RegistrationServeContext,
-  isRegistrationQueueServiceType
-} from './registration-workflow'
-import {
   Alert,
   App,
   Button,
@@ -33,9 +28,14 @@ import {
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
-import { useMemo, useState } from 'react'
-import { useActiveLokasiKerjaName } from './useActiveLokasiKerjaName'
+import { useState } from 'react'
 import { PatientAttributes } from 'simrs-types'
+import {
+  buildRegistrationServeSummary,
+  isRegistrationQueueServiceType,
+  type RegistrationServeContext
+} from './registration-workflow'
+import { useActiveLokasiKerjaName } from './useActiveLokasiKerjaName'
 
 type TicketDto = {
   ticketId: string
@@ -534,16 +534,18 @@ function NonMedicQueuePage({ title, description, serviceTypeCode }: NonMedicQueu
         )}
       </Card>
 
-      <Card title="Antrian Menunggu">
-        <Table<TicketDto>
-          rowKey="ticketId"
-          dataSource={board?.waitingTickets ?? []}
-          columns={waitingColumns}
-          pagination={false}
-          locale={{ emptyText: 'Tidak ada tiket yang menunggu.' }}
-          loading={boardQuery.isLoading}
-        />
-      </Card>
+      <div className="mt-4">
+        <Card title="Antrian Menunggu">
+          <Table<TicketDto>
+            rowKey="ticketId"
+            dataSource={board?.waitingTickets ?? []}
+            columns={waitingColumns}
+            pagination={false}
+            locale={{ emptyText: 'Tidak ada tiket yang menunggu.' }}
+            loading={boardQuery.isLoading}
+          />
+        </Card>
+      </div>
 
       <Modal
         title={registrationServeSummary?.title || 'Buat Antrian Poli'}

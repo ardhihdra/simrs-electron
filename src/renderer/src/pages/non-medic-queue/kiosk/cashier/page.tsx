@@ -9,6 +9,9 @@ function NonMedicQueueCashierKioskPage() {
       serviceTypeCode="CASHIER"
       serviceLabel="Kasir"
       icon={<CreditCardOutlined className="text-2xl" />}
+      payload={{
+        LokasiKerjaCode: 'KASIR'
+      }}
     />
   )
 }

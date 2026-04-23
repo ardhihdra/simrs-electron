@@ -10,8 +10,8 @@ import { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { PatientAttributes } from 'simrs-types'
 import RegistrationSheet from './components/RegistrationSheet'
+import { PatientAttributes } from 'simrs-types'
 
 type PatientTableRow = PatientAttributes & {
   no: number
@@ -30,7 +30,14 @@ const PatientTable = () => {
     refetch,
     isRefetching
   } = useQuery({
-    queryKey: ['patient', 'list', filter.nik, filter.name, filter.medicalRecordNumber, filter.address],
+    queryKey: [
+      'patient',
+      'list',
+      filter.nik,
+      filter.name,
+      filter.medicalRecordNumber,
+      filter.address
+    ],
     queryFn: async () => {
       const fn = rpc.visitManagement.getPatientList
       if (!fn) {
@@ -70,7 +77,7 @@ const PatientTable = () => {
     },
     { title: 'Alamat', dataIndex: 'address', key: 'address' },
     {
-      title: 'Tipe',
+      title: 'Perlu Rekam Medis',
       dataIndex: 'needEmr',
       key: 'needEmr',
       render: (value: boolean) => (
@@ -79,7 +86,7 @@ const PatientTable = () => {
             value ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700'
           }`}
         >
-          {value ? 'Rekam Medis' : 'Luar (Farmasi)'}
+          {value ? 'Ya' : 'Tidak, Pasien Farmasi'}
         </span>
       )
     }
@@ -119,7 +126,7 @@ const PatientTable = () => {
         loading={isLoading || isRefetching}
         action={
           <ExportButton
-            data={dataSource}
+            data={dataSource as any}
             fileName="daftar-pasien"
             columns={[
               { key: 'medicalRecordNumber', label: 'RM' },

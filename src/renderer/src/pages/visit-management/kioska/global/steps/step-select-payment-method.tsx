@@ -15,7 +15,7 @@ const paymentMethodOptions: {
 }[] = [
   {
     value: 'CASH',
-    label: 'CASH',
+    label: 'UMUM',
     description: 'Untuk pasien umum atau pembayaran tunai.'
   },
   {
@@ -27,11 +27,18 @@ const paymentMethodOptions: {
 
 export function StepSelectPaymentMethod() {
   const { message } = App.useApp()
-  const { goTo, setPaymentMethod, setRawatJalanLocation, state } = useKioskaGlobalFlow()
+  const { goTo, setPaymentMethod, setPublicQueuePaymentMethod, setRawatJalanLocation, state } =
+    useKioskaGlobalFlow()
   const [loadingPaymentMethod, setLoadingPaymentMethod] =
     useState<KioskaRegistrationPaymentMethod | null>(null)
 
   const handleSelect = async (paymentMethod: KioskaRegistrationPaymentMethod) => {
+    if (state.antrianType === 'rawat_inap' || state.antrianType === 'penunjang') {
+      setPublicQueuePaymentMethod(paymentMethod)
+      goTo('non_medic_kiosk')
+      return
+    }
+
     try {
       setLoadingPaymentMethod(paymentMethod)
       const serviceTypeCode = resolveKioskaRegistrationServiceTypeFromPaymentMethod(paymentMethod)
@@ -61,7 +68,7 @@ export function StepSelectPaymentMethod() {
           Pilih Metode Pembayaran
         </Typography.Title>
         <Typography.Text className="text-base text-slate-500">
-          Pilih CASH atau ASURANSI sebelum melanjutkan ke proses pendaftaran kioska.
+          Pilih UMUM atau ASURANSI sebelum melanjutkan ke proses pendaftaran kioska.
         </Typography.Text>
       </div>
 

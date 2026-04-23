@@ -4,13 +4,20 @@ import { t } from '../'
 import { serializeKioskaPublicError } from '../../../shared/kioska-public-error'
 
 const KIOSKA_PUBLIC_RPC_ERROR_CODE = 'KIOSKA_PUBLIC_ERROR'
+const NonMedicKioskaServiceTypeSchema = z.enum([
+  'BILLING',
+  'CASHIER',
+  'PHARMACY',
+  'REGISTRASI',
+  'REGISTRASI_ASURANSI'
+])
 
 function getPublicBaseUrl() {
   const base = process.env.API_URL || process.env.BACKEND_SERVER || 'http://localhost:8810'
   return base.endsWith('/') ? base.slice(0, -1) : base
 }
 
-async function fetchPublic<T>(
+export async function fetchPublic<T>(
   path: string,
   init?: RequestInit,
   options?: { serializeError?: boolean }
@@ -79,6 +86,89 @@ export const kioskaPublicRpc = {
       return await fetchPublic(`/public/kioska/registration-location${suffix}`)
     }),
 
+  nonMedicLocation: t
+    .input(
+      z.object({
+        serviceTypeCode: NonMedicKioskaServiceTypeSchema,
+        lokasiKerjaCode: z.string().optional()
+      })
+    )
+    .output(z.any())
+    .query(async (_ctx, input) => {
+      const params = new URLSearchParams({
+        serviceTypeCode: input.serviceTypeCode
+      })
+
+      if (input.lokasiKerjaCode) {
+        params.set('lokasiKerjaCode', input.lokasiKerjaCode)
+      }
+
+      return await fetchPublic(`/public/kioska/non-medic-location?${params.toString()}`)
+    }),
+
+  nonMedicConfigs: t
+    .input(
+      z.object({
+        lokasiKerjaId: z.coerce.number().int().positive(),
+        serviceTypeCode: NonMedicKioskaServiceTypeSchema,
+        isActive: z.boolean().optional()
+      })
+    )
+    .output(z.any())
+    .query(async (_ctx, input) => {
+      const params = new URLSearchParams({
+        lokasiKerjaId: String(input.lokasiKerjaId),
+        serviceTypeCode: input.serviceTypeCode
+      })
+
+      if (typeof input.isActive === 'boolean') {
+        params.set('isActive', String(input.isActive))
+      }
+
+      return await fetchPublic(`/public/kioska/non-medic-configs?${params.toString()}`)
+    }),
+
+  nonMedicServicePoints: t
+    .input(
+      z.object({
+        lokasiKerjaId: z.coerce.number().int().positive(),
+        serviceTypeCode: NonMedicKioskaServiceTypeSchema,
+        isActive: z.boolean().optional()
+      })
+    )
+    .output(z.any())
+    .query(async (_ctx, input) => {
+      const params = new URLSearchParams({
+        lokasiKerjaId: String(input.lokasiKerjaId),
+        serviceTypeCode: input.serviceTypeCode
+      })
+
+      if (typeof input.isActive === 'boolean') {
+        params.set('isActive', String(input.isActive))
+      }
+
+      return await fetchPublic(`/public/kioska/non-medic-service-points?${params.toString()}`)
+    }),
+
+  nonMedicBoard: t
+    .input(
+      z.object({
+        lokasiKerjaId: z.coerce.number().int().positive(),
+        serviceTypeCode: NonMedicKioskaServiceTypeSchema,
+        queueDate: z.string().min(1)
+      })
+    )
+    .output(z.any())
+    .query(async (_ctx, input) => {
+      const params = new URLSearchParams({
+        lokasiKerjaId: String(input.lokasiKerjaId),
+        serviceTypeCode: input.serviceTypeCode,
+        queueDate: input.queueDate
+      })
+
+      return await fetchPublic(`/public/kioska/non-medic-board?${params.toString()}`)
+    }),
+
   availableDoctors: t
     .input(
       z.object({
@@ -145,6 +235,23 @@ export const kioskaPublicRpc = {
     .output(z.any())
     .mutation(async (_ctx, input) => {
       return await fetchPublic('/public/kioska/registration-ticket', {
+        method: 'POST',
+        body: JSON.stringify(input)
+      })
+    }),
+
+  nonMedicTicket: t
+    .input(
+      z.object({
+        lokasiKerjaId: z.coerce.number().int().positive(),
+        serviceTypeCode: NonMedicKioskaServiceTypeSchema,
+        queueDate: z.string().min(1),
+        sourceChannel: z.literal('KIOSK')
+      })
+    )
+    .output(z.any())
+    .mutation(async (_ctx, input) => {
+      return await fetchPublic('/public/kioska/non-medic-ticket', {
         method: 'POST',
         body: JSON.stringify(input)
       })

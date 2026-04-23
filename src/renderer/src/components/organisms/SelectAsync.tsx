@@ -66,6 +66,7 @@ export const SelectAsync = ({
       showSearch
       onSearch={setSearch}
       filterOption={false}
+      allowClear
     />
   )
 }

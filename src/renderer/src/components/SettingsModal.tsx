@@ -12,7 +12,9 @@ export default function SettingsModal({ open, onCancel }: SettingsModalProps) {
   const { themeMode, setThemeMode } = useTheme()
   const { token } = theme.useToken()
 
-  const orderedThemes = THEME_ORDER.map((key) => THEME_REGISTRY[key]).filter(Boolean)
+  const orderedThemes = THEME_ORDER.map((key) => THEME_REGISTRY[key]).filter(
+    (themeOption) => Boolean(themeOption) && themeOption.key !== 'desktop'
+  )
 
   return (
     <Modal title="Pengaturan Tampilan" open={open} onCancel={onCancel} footer={null} width={480}>

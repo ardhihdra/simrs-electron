@@ -1,10 +1,10 @@
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
-import { rpc } from '@renderer/utils/client'
 import slide1Url from '@renderer/assets/image/Slide1.jpeg'
 import slide2Url from '@renderer/assets/image/Slide2.jpeg'
 import slide3Url from '@renderer/assets/image/Slide3.jpeg'
 import logoUrl from '@renderer/assets/logo.png'
 import { useProfileStore } from '@renderer/store/profileStore'
+import { rpc } from '@renderer/utils/client'
 import type { FormProps } from 'antd'
 import { App, Button, Carousel, Checkbox, Form, Input } from 'antd'
 import React from 'react'
@@ -64,7 +64,6 @@ const dummyUsers = [
 
 const LoginForm: React.FC = () => {
   const IS_DEVELOPMENT = window.env.NODE_ENV !== 'production'
-  console.log('is dev', IS_DEVELOPMENT)
   const { message } = App.useApp()
   const navigate = useNavigate()
   const setProfile = useProfileStore((state) => state.setProfile)
@@ -197,6 +196,15 @@ const LoginForm: React.FC = () => {
                 }
               >
                 Kioska
+              </Button>
+              <Button
+                size="large"
+                className="w-full"
+                onClick={() =>
+                  rpc.window.create({ route: '/design-system', title: 'Design System' })
+                }
+              >
+                Design System
               </Button>
             </div>
           </div>

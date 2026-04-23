@@ -1,6 +1,28 @@
 import z from 'zod'
 import { t } from '..'
 
+type PatientListInput = {
+  nik?: string
+  name?: string
+  address?: string
+  medicalRecordNumber?: string
+  birthDate?: string
+  age?: number
+}
+
+export function buildPatientListParams(input: PatientListInput) {
+  const params = new URLSearchParams()
+
+  if (input.nik) params.append('nik', input.nik)
+  if (input.name) params.append('name', input.name)
+  if (input.address) params.append('address', input.address)
+  if (input.medicalRecordNumber) params.append('medicalRecordNumber', input.medicalRecordNumber)
+  if (input.birthDate) params.append('birthDate', input.birthDate)
+  if (typeof input.age === 'number') params.append('age', String(input.age))
+
+  return params
+}
+
 export const visitManagementRpc = {
   poli: t
     .input(z.any())
@@ -16,16 +38,14 @@ export const visitManagementRpc = {
         nik: z.string().optional(),
         name: z.string().optional(),
         address: z.string().optional(),
-        medicalRecordNumber: z.string().optional()
+        medicalRecordNumber: z.string().optional(),
+        birthDate: z.string().optional(),
+        age: z.number().int().nonnegative().optional()
       })
     )
     .output(z.any())
     .query(async ({ client }, input) => {
-      const params = new URLSearchParams()
-      if (input.nik) params.append('nik', input.nik)
-      if (input.name) params.append('name', input.name)
-      if (input.address) params.append('address', input.address)
-      if (input.medicalRecordNumber) params.append('medicalRecordNumber', input.medicalRecordNumber)
+      const params = buildPatientListParams(input)
 
       try {
         const data = await client.get(`/api/module/visit-management/patients?${params.toString()}`)

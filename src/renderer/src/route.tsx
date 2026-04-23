@@ -4,10 +4,12 @@ import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router
 import { ModuleScopeGuard } from './services/ModuleScope/guard'
 import type { PageAccessEntry } from './services/ModuleScope/type'
 import { client } from './utils/client'
+import { getDefaultHomePath } from './app-shell'
 
 import { Typography } from 'antd'
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
+import DesignSystemPage from './pages/design-system'
 import IframeView from './pages/IframeView'
 import LaboratoryPage from './pages/Laboratory'
 import CollectSpecimenPage from './pages/Laboratory/CollectSpecimenPage'
@@ -134,8 +136,7 @@ const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode
 
 function MainRoute() {
   const location = useLocation()
-
-  const { data: pageAccessData } = client.pageAccess.list.useQuery({})
+  const { data: pageAccessData } = client.pageAccess.list.useQuery({}, { queryKey: ['pageAccess', {}] })
   const pageAccessMap = useMemo(() => {
     const map: Record<string, PageAccessEntry> = {}
     for (const item of pageAccessData?.result ?? []) {
@@ -152,6 +153,7 @@ function MainRoute() {
 
   return (
     <Routes location={location} key={location.pathname.split('/')[1]}>
+      <Route path="/design-system" element={<DesignSystemPage />} />
       <Route path="/iframe-view" element={<IframeView />} />
       <Route path="/monitor/doctor/:practitionerId" element={<DoctorQueueMonitor />} />
       <Route path="/kioska/setup" element={<KioskaSetupPage />} />
@@ -159,7 +161,7 @@ function MainRoute() {
       <Route path="/kioska/global/registration-insurance" element={<KioskaGlobalPage />} />
       <Route path="/kioska" element={<KioskaPage />} />
       <Route element={<AppLayout />}>
-        <Route path="/" element={<HomePage />} />
+        <Route path={getDefaultHomePath()} element={<HomePage />} />
         <Route path="/module-selection" element={<ModuleSelection />} />
         <Route path="/dashboard/*" element={<Dashboard />}>
           <Route index element={<DashboardHome />} />
