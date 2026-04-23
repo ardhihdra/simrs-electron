@@ -1,8 +1,9 @@
 import type { ThemeConfig } from 'antd'
-import { lightToken } from './light'
-import { darkToken } from './dark'
-import { greenToken } from './green'
-import { retroToken } from './retro'
+import { lightToken } from './light.ts'
+import { darkToken } from './dark.ts'
+import { greenToken } from './green.ts'
+import { retroToken } from './retro.ts'
+import { desktopToken } from './desktop.ts'
 
 /**
  * ─── Theme Registry ────────────────────────────────────────────────────────
@@ -59,11 +60,19 @@ export const THEME_REGISTRY: Record<string, ThemeDefinition> = {
         previewGradient: 'linear-gradient(135deg, #b45309 0%, #92400e 100%)',
         algorithm: 'default',
         token: retroToken
+    },
+    desktop: {
+        key: 'desktop',
+        label: 'Desktop',
+        desc: 'Tema desktop hybrid dengan tone biru operasional dan density tinggi',
+        previewGradient: 'linear-gradient(135deg, #4f6ef7 0%, #8ca2ff 100%)',
+        algorithm: 'default',
+        token: desktopToken
     }
 }
 
 /** Urutan tampilan tema di SettingsModal */
-export const THEME_ORDER: string[] = ['light', 'dark', 'green', 'retro']
+export const THEME_ORDER: string[] = ['light', 'dark', 'green', 'retro', 'desktop']
 
 /** Type union otomatis dari semua key di THEME_REGISTRY */
 export type ThemeMode = keyof typeof THEME_REGISTRY
