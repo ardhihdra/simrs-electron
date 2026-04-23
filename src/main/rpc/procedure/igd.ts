@@ -3,6 +3,11 @@ import z from 'zod'
 import { t } from '..'
 
 const IgdDashboardInputSchema = z.object({}).default({})
+const IgdDailyReportInputSchema = z
+  .object({
+    date: z.string().optional()
+  })
+  .default({})
 const IgdRegistrationInputSchema = z.object({
   patientType: z.enum(['existing', 'new', 'temporary']),
   patientId: z.string().optional(),
@@ -40,6 +45,14 @@ export function normalizeIgdDashboardResponse(payload: any) {
   throw new Error('Invalid IGD dashboard response')
 }
 
+export function normalizeIgdDailyReportResponse(payload: any) {
+  if (payload?.result) {
+    return payload.result
+  }
+
+  throw new Error('Invalid IGD daily report response')
+}
+
 export function normalizeIgdRegistrationResponse(payload: any) {
   if (payload?.success === false) {
     throw new Error(payload?.error || payload?.message || 'IGD registration request failed')
@@ -68,6 +81,21 @@ export const igdRpc = {
       const response = await client.get('/api/module/igd/dashboard')
       const payload = await response.json()
       return normalizeIgdDashboardResponse(payload)
+    }),
+  dailyReport: t
+    .input(IgdDailyReportInputSchema)
+    .output(z.any())
+    .query(async ({ client }, input) => {
+      const params = new URLSearchParams()
+      if (input.date) {
+        params.append('date', input.date)
+      }
+      const queryString = params.toString()
+      const response = await client.get(
+        `/api/module/igd/reports/daily${queryString ? `?${queryString}` : ''}`
+      )
+      const payload = await response.json()
+      return normalizeIgdDailyReportResponse(payload)
     }),
   register: t
     .input(IgdRegistrationInputSchema)

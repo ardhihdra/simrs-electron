@@ -72,6 +72,29 @@ export type IgdDashboard = {
   beds: IgdDashboardBed[]
 }
 
+export type IgdDailyShiftReportItem = {
+  key: 'morning' | 'afternoon' | 'night'
+  label: string
+  startTime: string
+  endTime: string
+  totalPatients: number
+}
+
+export type IgdDailyCaseTypeReportItem = {
+  key: 'trauma' | 'non-trauma'
+  label: string
+  value: string
+  note?: string
+}
+
+export type IgdDailyReport = {
+  date: string
+  generatedAt: string
+  totalPatients: number
+  shiftTotals: IgdDailyShiftReportItem[]
+  caseTypeSummary: IgdDailyCaseTypeReportItem[]
+}
+
 export type IgdRegistrationDraft = {
   name: string
   nik: string

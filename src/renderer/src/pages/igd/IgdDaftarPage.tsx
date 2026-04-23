@@ -20,8 +20,10 @@ import { DesktopPropertyGrid } from '../../components/design-system/molecules/De
 import { DesktopTimelineList } from '../../components/design-system/molecules/DesktopTimelineList'
 import { DesktopGenericTable } from '../../components/design-system/organisms/DesktopGenericTable'
 import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
+import { ExportButton } from '../../components/molecules/ExportButton'
 import { type IgdDashboard, type IgdDashboardPatient } from './igd.data'
 import { buildIgdTableActions } from './igd.disposition'
+import { type IgdDailyReportExportShiftGroup } from './igd.report'
 
 type IgdDaftarPageProps = {
   dashboard: IgdDashboard
@@ -35,6 +37,10 @@ type IgdDaftarPageProps = {
   onOpenBedMap?: () => void
   onOpenReplacePatient?: () => void
   onOpenDisposition?: (patient: IgdDashboardPatient) => void
+  reportExportGroups?: IgdDailyReportExportShiftGroup[]
+  reportExportTitle?: string
+  reportExportFileName?: string
+  isReportLoading?: boolean
 }
 
 type IgdStatusVariant = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
@@ -143,7 +149,11 @@ export function IgdDaftarPage({
   onOpenTriase,
   onOpenBedMap,
   onOpenReplacePatient,
-  onOpenDisposition
+  onOpenDisposition,
+  reportExportGroups = [],
+  reportExportTitle = 'Laporan Harian IGD',
+  reportExportFileName = 'laporan-igd',
+  isReportLoading = false
 }: IgdDaftarPageProps) {
   const patients = dashboard.patients
   const selectedPatient =
@@ -282,6 +292,28 @@ export function IgdDaftarPage({
         }
         actions={
           <>
+            <ExportButton
+              data={reportExportGroups}
+              fileName={reportExportFileName}
+              title={reportExportTitle}
+              buttonLabel="Laporan"
+              formats={['csv', 'pdf']}
+              loading={isReportLoading}
+              disabled={isReportLoading || reportExportGroups.length === 0}
+              columns={[
+                { key: 'shift', label: 'Shift' },
+                { key: 'timeRange', label: 'Jam' },
+                { key: 'totalPatients', label: 'Total Pasien' }
+              ]}
+              nestedTable={{
+                getChildren: (group) => group.details,
+                columns: [
+                  { key: 'metric', label: 'Rincian' },
+                  { key: 'value', label: 'Nilai' },
+                  { key: 'note', label: 'Catatan' }
+                ]
+              }}
+            />
             <DesktopButton emphasis="toolbar" onClick={onOpenBedMap}>
               Peta Bed
             </DesktopButton>
