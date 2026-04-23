@@ -89,6 +89,16 @@ export type IgdRegistrationDraft = {
   guarantorPhone: string
 }
 
+export type IgdGuarantorRelatedPerson = {
+  name: string
+  phone: string
+  relationship: string
+  email?: string
+  isGuarantor?: boolean
+}
+
+export type IgdGuarantorSource = 'new' | `existing:${number}`
+
 export type IgdRegistrationCommand = {
   patientType: 'existing' | 'new' | 'temporary'
   patientId?: string
@@ -116,6 +126,7 @@ export type IgdRegistrationCommand = {
       phone: string
       relationship: string
       email?: string
+      isGuarantor?: boolean
     }>
     active?: boolean
     familyEmployee?: number | null
@@ -143,6 +154,7 @@ export type SubmitIgdRegistrationInput = {
   mode: IgdRegistrationMode
   draft: IgdRegistrationDraft
   selectedPatient?: PatientAttributes
+  guarantorSource?: IgdGuarantorSource
   intent: 'daftar' | 'triase'
   quickCondition: string
 }
@@ -200,7 +212,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
           bedAssignedTime: '09:55',
           bedReleasedTime: '09:50'
         },
-        guarantorName: null,
+        guarantorName: 'Siti Aminah',
         estimatedCost: 725000
       },
       {
@@ -227,7 +239,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
           arrivalTime: '09:22',
           quickTriageTime: '09:27'
         },
-        guarantorName: null,
+        guarantorName: 'Sri Wahyuni',
         estimatedCost: null
       },
       {
@@ -437,6 +449,47 @@ function buildGuarantor(draft: IgdRegistrationDraft) {
   }
 }
 
+export function getExistingPatientRelatedPersons(
+  selectedPatient?: PatientAttributes
+): IgdGuarantorRelatedPerson[] {
+  const raw = Array.isArray((selectedPatient as any)?.relatedPerson)
+    ? ((selectedPatient as any).relatedPerson as any[])
+    : []
+
+  return raw
+    .map((person) => ({
+      name: String(person?.name ?? '').trim(),
+      phone: String(person?.phone ?? '').trim(),
+      relationship: String(person?.relationship ?? '').trim(),
+      email: person?.email ? String(person.email).trim() : undefined,
+      isGuarantor: person?.isGuarantor === true || undefined
+    }))
+    .filter((person) => person.name || person.phone || person.relationship || person.email)
+}
+
+export function getDefaultGuarantorSource(selectedPatient?: PatientAttributes): IgdGuarantorSource {
+  const relatedPersons = getExistingPatientRelatedPersons(selectedPatient)
+  const guarantorIndex = relatedPersons.findIndex((person) => person.isGuarantor)
+
+  return guarantorIndex >= 0 ? (`existing:${guarantorIndex}` as IgdGuarantorSource) : 'new'
+}
+
+export function getSelectedExistingGuarantor(
+  selectedPatient: PatientAttributes | undefined,
+  guarantorSource: IgdGuarantorSource | undefined
+): IgdGuarantorRelatedPerson | undefined {
+  if (!guarantorSource || guarantorSource === 'new') {
+    return undefined
+  }
+
+  const index = Number(guarantorSource.replace('existing:', ''))
+  if (!Number.isInteger(index) || index < 0) {
+    return undefined
+  }
+
+  return getExistingPatientRelatedPersons(selectedPatient)[index]
+}
+
 function buildRelatedPersons(draft: IgdRegistrationDraft) {
   const guarantor = buildGuarantor(draft)
 
@@ -448,7 +501,8 @@ function buildRelatedPersons(draft: IgdRegistrationDraft) {
     {
       name: guarantor.name || guarantor.nik || 'Penanggung Jawab',
       phone: guarantor.phone || '',
-      relationship: guarantor.relationship || 'Penanggung Jawab'
+      relationship: guarantor.relationship || 'Penanggung Jawab',
+      isGuarantor: true
     }
   ]
 }
@@ -473,15 +527,23 @@ export function buildIgdRegistrationCommand({
   mode,
   draft,
   selectedPatient,
+  guarantorSource = 'new',
   intent,
   quickCondition
 }: SubmitIgdRegistrationInput): IgdRegistrationCommand {
+  const selectedExistingGuarantor = getSelectedExistingGuarantor(selectedPatient, guarantorSource)
   const baseCommand = {
     complaint: draft.complaint.trim(),
     arrivalSource: draft.arrivalSource,
     paymentMethod: draft.paymentMethod,
     arrivalDateTime: draft.arrivalDateTime,
-    guarantor: buildGuarantor(draft),
+    guarantor: selectedExistingGuarantor
+      ? {
+          name: selectedExistingGuarantor.name || undefined,
+          relationship: selectedExistingGuarantor.relationship || undefined,
+          phone: selectedExistingGuarantor.phone || undefined
+        }
+      : buildGuarantor(draft),
     quickTriage: buildQuickTriage({ intent, draft, quickCondition })
   } satisfies Omit<IgdRegistrationCommand, 'patientType'>
 

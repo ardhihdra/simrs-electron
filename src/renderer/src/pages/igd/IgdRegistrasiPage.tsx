@@ -14,7 +14,11 @@ import { DesktopSegmentedControl } from '../../components/design-system/molecule
 import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
 import {
   buildIgdRegistrationCommand,
+  getDefaultGuarantorSource,
+  getExistingPatientRelatedPersons,
+  getSelectedExistingGuarantor,
   type IgdDashboard,
+  type IgdGuarantorSource,
   type IgdPaymentMethod,
   type IgdRegistrationDraft,
   type IgdRegistrationMode
@@ -139,6 +143,7 @@ export function IgdRegistrasiPage({
   const [referralFacility, setReferralFacility] = useState('')
   const [selectedBedCode, setSelectedBedCode] = useState('')
   const [quickCondition, setQuickCondition] = useState(DEFAULT_IGD_QUICK_TRIAGE_CONDITION)
+  const [guarantorSource, setGuarantorSource] = useState<IgdGuarantorSource>('new')
 
   const allAvailableBeds = dashboard.beds.filter((bed) => bed.status === 'available')
   const occupiedCount = dashboard.beds.filter((bed) => bed.status === 'occupied').length
@@ -152,6 +157,38 @@ export function IgdRegistrasiPage({
   const availableBeds = useMemo(
     () => filterAvailableBedsForTriage(dashboard.beds, activeTriageLevel),
     [dashboard.beds, activeTriageLevel]
+  )
+  const existingRelatedPersons = useMemo(
+    () => getExistingPatientRelatedPersons(selectedExistingPatient),
+    [selectedExistingPatient]
+  )
+  const selectedExistingGuarantor = useMemo(
+    () => getSelectedExistingGuarantor(selectedExistingPatient, guarantorSource),
+    [selectedExistingPatient, guarantorSource]
+  )
+  const guarantorFieldValues = selectedExistingGuarantor
+    ? {
+        name: selectedExistingGuarantor.name,
+        relationship: selectedExistingGuarantor.relationship,
+        nik: '',
+        phone: selectedExistingGuarantor.phone
+      }
+    : {
+        name: draft.guarantorName,
+        relationship: draft.guarantorRelationship,
+        nik: draft.guarantorNik,
+        phone: draft.guarantorPhone
+      }
+  const isUsingExistingGuarantor = !!selectedExistingGuarantor
+  const guarantorSourceOptions = useMemo(
+    () => [
+      ...existingRelatedPersons.map((person, index) => ({
+        label: `${person.name || 'Tanpa Nama'}${person.relationship ? ` · ${person.relationship}` : ''}`,
+        value: `existing:${index}`
+      })),
+      { label: 'Buat Baru', value: 'new' }
+    ],
+    [existingRelatedPersons]
   )
 
   const zoneStats = useMemo(
@@ -219,6 +256,15 @@ export function IgdRegistrasiPage({
     }
   }, [bedOptions, selectedBedCode])
 
+  useEffect(() => {
+    if (registerMode !== 'existing') {
+      setGuarantorSource('new')
+      return
+    }
+
+    setGuarantorSource(getDefaultGuarantorSource(selectedExistingPatient))
+  }, [registerMode, selectedExistingPatient])
+
   const handleRegisterModeChange = (nextMode: string) => {
     const mode = nextMode as IgdRegistrationMode
     setRegisterMode(mode)
@@ -241,6 +287,7 @@ export function IgdRegistrasiPage({
         mode: registerMode,
         draft,
         selectedPatient: selectedExistingPatient,
+        guarantorSource,
         intent,
         quickCondition
       }),
@@ -517,36 +564,53 @@ export function IgdRegistrasiPage({
               divided
             >
               <div className="igd-form-grid-3">
+                {registerMode === 'existing' && selectedExistingPatient && existingRelatedPersons.length > 0 ? (
+                  <div className="md:col-span-3">
+                    <DesktopInputField
+                      label="Sumber Penanggung Jawab"
+                      type="select"
+                      value={guarantorSource}
+                      options={guarantorSourceOptions}
+                      onChange={(value) => setGuarantorSource(value as IgdGuarantorSource)}
+                      hint="Pilih related person pasien yang akan dijadikan penanggung jawab, atau buat data baru."
+                    />
+                  </div>
+                ) : null}
                 <div className="md:col-span-2">
                   <DesktopInputField
                     label="Nama Penanggung Jawab"
                     placeholder="Nama lengkap…"
-                    value={draft.guarantorName}
+                    value={guarantorFieldValues.name}
                     onChange={(value) => updateDraft({ guarantorName: value })}
+                    disabled={isUsingExistingGuarantor}
                   />
                 </div>
                 <DesktopInputField
                   label="Hubungan"
                   type="select"
-                  value={draft.guarantorRelationship}
+                  value={guarantorFieldValues.relationship}
                   options={RELATIONSHIP_OPTIONS}
                   onChange={(value) => updateDraft({ guarantorRelationship: value })}
+                  disabled={isUsingExistingGuarantor}
                 />
                 <DesktopInputField
                   label="No. KTP PJ"
                   placeholder="16 digit NIK"
-                  value={draft.guarantorNik}
+                  value={guarantorFieldValues.nik}
                   onChange={(value) => updateDraft({ guarantorNik: value })}
                   className="font-mono"
+                  disabled={isUsingExistingGuarantor}
+                  hint={isUsingExistingGuarantor ? 'Data existing belum menyimpan NIK penanggung jawab.' : undefined}
                 />
                 <div className="md:col-span-2">
                   <DesktopInputGroupField
                     label="No. Telepon PJ"
                     addon="+62"
                     placeholder="812 xxxx xxxx"
-                    value={draft.guarantorPhone}
+                    value={guarantorFieldValues.phone}
                     onChange={(value) => updateDraft({ guarantorPhone: value })}
                     mono
+                    disabled={isUsingExistingGuarantor}
                   />
                 </div>
               </div>

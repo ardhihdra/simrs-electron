@@ -42,13 +42,27 @@ test('buildIgdRegistrationCommand maps existing patient mode to patientId payloa
   const selectedPatient = {
     id: 'patient-existing-1',
     medicalRecordNumber: 'MRN-001',
-    name: 'Sutrisno Hadi'
-  } as PatientAttributes
+    name: 'Sutrisno Hadi',
+    relatedPerson: [
+      {
+        name: 'Budi',
+        phone: '082222222222',
+        relationship: 'Anak'
+      },
+      {
+        name: 'Sri Wahyuni',
+        phone: '081200000999',
+        relationship: 'Suami/Istri',
+        isGuarantor: true
+      }
+    ]
+  } as unknown as PatientAttributes
 
   const payload = buildIgdRegistrationCommand({
     mode: 'existing',
     draft: createDraft(),
     selectedPatient,
+    guarantorSource: 'existing:1',
     intent: 'daftar',
     quickCondition: 'l1-critical'
   })
@@ -56,6 +70,11 @@ test('buildIgdRegistrationCommand maps existing patient mode to patientId payloa
   assert.equal(payload.patientType, 'existing')
   assert.equal(payload.patientId, 'patient-existing-1')
   assert.equal(payload.patientData, undefined)
+  assert.deepEqual(payload.guarantor, {
+    name: 'Sri Wahyuni',
+    phone: '081200000999',
+    relationship: 'Suami/Istri'
+  })
 })
 
 test('buildIgdRegistrationCommand maps new patient mode to create-patient payload', () => {
@@ -72,6 +91,14 @@ test('buildIgdRegistrationCommand maps new patient mode to create-patient payloa
   assert.equal(payload.patientData?.birthDate, '1988-04-21')
   assert.equal(payload.patientData?.needEmr, true)
   assert.equal(payload.guarantor?.name, 'Sri Wahyuni')
+  assert.deepEqual(payload.patientData?.relatedPerson, [
+    {
+      name: 'Sri Wahyuni',
+      phone: '081200000999',
+      relationship: 'Suami/Istri',
+      isGuarantor: true
+    }
+  ])
   assert.equal(payload.quickTriage, undefined)
 })
 
@@ -106,6 +133,43 @@ test('buildIgdRegistrationCommand rejects existing mode without selected patient
       }),
     /Pilih pasien terlebih dahulu/
   )
+})
+
+test('buildIgdRegistrationCommand keeps manual guarantor input when existing patient chooses create new', () => {
+  const selectedPatient = {
+    id: 'patient-existing-2',
+    medicalRecordNumber: 'MRN-002',
+    name: 'Wahyu Handayani',
+    relatedPerson: [
+      {
+        name: 'Ibu Wahyu',
+        phone: '081299999999',
+        relationship: 'Orang Tua',
+        isGuarantor: true
+      }
+    ]
+  } as unknown as PatientAttributes
+
+  const payload = buildIgdRegistrationCommand({
+    mode: 'existing',
+    draft: {
+      ...createDraft(),
+      guarantorName: 'Penanggung Jawab Baru',
+      guarantorRelationship: 'Saudara',
+      guarantorPhone: '081211111111'
+    },
+    selectedPatient,
+    guarantorSource: 'new',
+    intent: 'daftar',
+    quickCondition: 'l1-critical'
+  })
+
+  assert.deepEqual(payload.guarantor, {
+    name: 'Penanggung Jawab Baru',
+    relationship: 'Saudara',
+    nik: '3201010101010099',
+    phone: '081211111111'
+  })
 })
 
 test('buildIgdRegistrationCommand includes quick triage when intent is triase', () => {

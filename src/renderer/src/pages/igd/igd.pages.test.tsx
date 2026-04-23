@@ -44,6 +44,7 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('Unit'), true)
   assert.equal(markup.includes('Bed IGD'), true)
   assert.equal(markup.includes('Penanggung Jawab Pasien'), true)
+  assert.equal(markup.includes('Siti Aminah'), true)
   assert.equal(markup.includes('Biaya Sementara'), true)
   assert.equal(markup.includes('Pasien &amp; Keluhan'), false)
   assert.equal(markup.includes('Bed / Elapsed'), false)
@@ -85,11 +86,26 @@ test('IGD daftar page renders loading and error shell for backend query states',
 })
 
 test('IGD registrasi page renders the intake form shell', () => {
+  const existingPatient = {
+    id: 'patient-existing-1',
+    medicalRecordNumber: 'MRN-001',
+    name: 'Sutrisno Hadi',
+    relatedPerson: [
+      {
+        name: 'Sri Wahyuni',
+        phone: '081200000999',
+        relationship: 'Suami/Istri',
+        isGuarantor: true
+      }
+    ]
+  } as any
+
   const markup = renderToStaticMarkup(
     <IgdRegistrasiPage
       dashboard={createIgdDashboardFixture()}
       lookupSelectorSlot={<div data-testid="patient-lookup-selector-slot" />}
       initialMode="existing"
+      selectedExistingPatient={existingPatient}
     />
   )
 
@@ -99,6 +115,8 @@ test('IGD registrasi page renders the intake form shell', () => {
   assert.equal(markup.includes('A. Identitas Pasien'), true)
   assert.equal(markup.includes('B. Data Kunjungan IGD'), true)
   assert.equal(markup.includes('C. Penanggung Jawab'), true)
+  assert.equal(markup.includes('Sumber Penanggung Jawab'), true)
+  assert.equal(markup.includes('Buat Baru'), true)
   assert.equal(markup.includes('Triase Cepat'), true)
   assert.equal(markup.includes('Ketersediaan Bed IGD'), true)
   assert.equal(markup.includes('Pasien Sementara'), true)
