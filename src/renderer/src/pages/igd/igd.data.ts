@@ -40,6 +40,11 @@ export type IgdDashboardBed = {
   zone: IgdDashboardBedZone
   status: IgdDashboardBedStatus
   patientId: string | null
+  bedId?: string
+  roomId?: string
+  roomCodeId?: string
+  roomClassCodeId?: string
+  currentAssignmentId?: string
 }
 
 export type IgdDashboard = {
@@ -249,18 +254,128 @@ export function createIgdDashboardFixture(): IgdDashboard {
       }
     ],
     beds: [
-      { code: 'R-01', zone: 'Resusitasi', status: 'occupied', patientId: 'patient-temp-1' },
-      { code: 'R-02', zone: 'Resusitasi', status: 'available', patientId: null },
-      { code: 'R-03', zone: 'Resusitasi', status: 'available', patientId: null },
-      { code: 'R-04', zone: 'Resusitasi', status: 'available', patientId: null },
-      { code: 'O-01', zone: 'Observasi', status: 'occupied', patientId: 'patient-3' },
-      { code: 'O-02', zone: 'Observasi', status: 'available', patientId: null },
-      { code: 'O-03', zone: 'Observasi', status: 'available', patientId: null },
-      { code: 'O-04', zone: 'Observasi', status: 'cleaning', patientId: null },
-      { code: 'O-05', zone: 'Observasi', status: 'available', patientId: null },
-      { code: 'O-06', zone: 'Observasi', status: 'available', patientId: null },
-      { code: 'T-01', zone: 'Treatment', status: 'available', patientId: null },
-      { code: 'T-02', zone: 'Treatment', status: 'available', patientId: null }
+      {
+        code: 'R-01',
+        zone: 'Resusitasi',
+        status: 'occupied',
+        patientId: 'patient-temp-1',
+        bedId: 'bed-r-01',
+        roomId: 'room-resus',
+        roomCodeId: 'IGD-RESUS',
+        roomClassCodeId: 'RESUS',
+        currentAssignmentId: 'assign-r-01'
+      },
+      {
+        code: 'R-02',
+        zone: 'Resusitasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-r-02',
+        roomId: 'room-resus',
+        roomCodeId: 'IGD-RESUS',
+        roomClassCodeId: 'RESUS'
+      },
+      {
+        code: 'R-03',
+        zone: 'Resusitasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-r-03',
+        roomId: 'room-resus',
+        roomCodeId: 'IGD-RESUS',
+        roomClassCodeId: 'RESUS'
+      },
+      {
+        code: 'R-04',
+        zone: 'Resusitasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-r-04',
+        roomId: 'room-resus',
+        roomCodeId: 'IGD-RESUS',
+        roomClassCodeId: 'RESUS'
+      },
+      {
+        code: 'O-01',
+        zone: 'Observasi',
+        status: 'occupied',
+        patientId: 'patient-3',
+        bedId: 'bed-o-01',
+        roomId: 'room-obs',
+        roomCodeId: 'IGD-OBS',
+        roomClassCodeId: 'OBS',
+        currentAssignmentId: 'assign-o-01'
+      },
+      {
+        code: 'O-02',
+        zone: 'Observasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-o-02',
+        roomId: 'room-obs',
+        roomCodeId: 'IGD-OBS',
+        roomClassCodeId: 'OBS'
+      },
+      {
+        code: 'O-03',
+        zone: 'Observasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-o-03',
+        roomId: 'room-obs',
+        roomCodeId: 'IGD-OBS',
+        roomClassCodeId: 'OBS'
+      },
+      {
+        code: 'O-04',
+        zone: 'Observasi',
+        status: 'cleaning',
+        patientId: null,
+        bedId: 'bed-o-04',
+        roomId: 'room-obs',
+        roomCodeId: 'IGD-OBS',
+        roomClassCodeId: 'OBS'
+      },
+      {
+        code: 'O-05',
+        zone: 'Observasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-o-05',
+        roomId: 'room-obs',
+        roomCodeId: 'IGD-OBS',
+        roomClassCodeId: 'OBS'
+      },
+      {
+        code: 'O-06',
+        zone: 'Observasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-o-06',
+        roomId: 'room-obs',
+        roomCodeId: 'IGD-OBS',
+        roomClassCodeId: 'OBS'
+      },
+      {
+        code: 'T-01',
+        zone: 'Treatment',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-t-01',
+        roomId: 'room-treat',
+        roomCodeId: 'IGD-TREAT',
+        roomClassCodeId: 'TREAT'
+      },
+      {
+        code: 'T-02',
+        zone: 'Treatment',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-t-02',
+        roomId: 'room-treat',
+        roomCodeId: 'IGD-TREAT',
+        roomClassCodeId: 'TREAT'
+      }
     ]
   }
 }
