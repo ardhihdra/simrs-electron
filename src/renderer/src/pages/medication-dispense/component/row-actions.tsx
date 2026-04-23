@@ -101,6 +101,7 @@ export function RowActions({ record, patient, employees, employeeNameById, paren
                     instruksi: record.instruksi,
                     expiryDate: (record as any).expiryDate,
                     batch: (record as any).batch,
+                    caraPenyimpanan: record.caraPenyimpanan,
                 },
             ],
         })

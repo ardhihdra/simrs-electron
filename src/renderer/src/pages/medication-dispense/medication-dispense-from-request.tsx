@@ -19,6 +19,8 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import dayjs from 'dayjs'
 import { TelaahAdministrasiForm, TelaahResults } from './component/telaah-administrasi-form'
+import { PatientInfoCard, PatientInfoCardData } from '@renderer/components/molecules/PatientInfoCard'
+import { useEncounterDetail } from '@renderer/hooks/query/use-encounter'
 
 type PatientNameEntry = {
   text?: string
@@ -324,6 +326,40 @@ export default function MedicationDispenseFromRequest() {
   })
 
   const baseDetail: MedicationRequestDetail | undefined = data?.data
+
+  const { data: encounterResponse, isLoading: isEncounterLoading } = useEncounterDetail(
+    baseDetail?.encounterId || undefined
+  )
+
+  const patientCardData = useMemo<PatientInfoCardData | null>(() => {
+    if (!baseDetail) return null
+    const enc = encounterResponse?.result as any
+
+    const birthDate = enc?.patient?.birthDate || (baseDetail.patient as any)?.birthDate
+    const age = birthDate ? dayjs().diff(dayjs(birthDate), 'year') : 0
+
+    return {
+      patient: {
+        medicalRecordNumber: enc?.patient?.medicalRecordNumber || baseDetail.patient?.mrNo || '',
+        name: enc?.patient?.name || getPatientDisplayName(baseDetail.patient).split(' (')[0] || '',
+        nik: enc?.patient?.nik || (baseDetail.patient as any)?.nik || '',
+        gender: enc?.patient?.gender || (baseDetail.patient as any)?.gender || '',
+        age: age,
+        address: enc?.patient?.address || (baseDetail.patient as any)?.address || '',
+        religion: enc?.patient?.religion || (baseDetail.patient as any)?.religion || ''
+      },
+      poli: {
+        name: enc?.queueTicket?.poli?.name || enc?.serviceUnitCodeId || '-'
+      },
+      doctor: {
+        name: enc?.queueTicket?.practitioner?.namaLengkap || '-'
+      },
+      visitDate: enc?.visitDate || enc?.startTime || baseDetail.authoredOn,
+      paymentMethod: enc?.queueTicket?.assuranceCodeId || enc?.queueTicket?.assuranceType || 'Umum',
+      status: undefined, // Sembunyikan status tag karena di farmasi status antrian poli kurang relevan
+      allergies: enc?.patient?.allergies || (baseDetail.patient as any)?.allergies || '-'
+    }
+  }, [baseDetail, encounterResponse?.result])
   const detail: MedicationRequestDetail | undefined = baseDetail
 
   const { data: groupListData } = useQuery({
@@ -1088,15 +1124,23 @@ export default function MedicationDispenseFromRequest() {
   return (
     <div className="p-4 space-y-4">
       <h2 className="text-3xl font-bold mb-2">Proses Dispense dari Resep</h2>
-      <Card loading={isLoading}>
-        <Descriptions column={1} size="small" bordered>
-          <Descriptions.Item label="Pasien">{patientLabel}</Descriptions.Item>
-          <Descriptions.Item label="Status Resep">
-            {detail ? getRequestStatusTag(detail.status) : '-'}
-          </Descriptions.Item>
-          <Descriptions.Item label="Tanggal Resep">{authoredOnText}</Descriptions.Item>
-        </Descriptions>
-      </Card>
+      
+      {patientCardData ? (
+        <PatientInfoCard 
+          patientData={patientCardData} 
+          sections={{ showIdentityNumber: false }} 
+        />
+      ) : (
+        <Card loading={isLoading || isEncounterLoading}>
+          <Descriptions column={1} size="small" bordered>
+            <Descriptions.Item label="Pasien">{patientLabel}</Descriptions.Item>
+            <Descriptions.Item label="Status Resep">
+              {detail ? getRequestStatusTag(detail.status) : '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tanggal Resep">{authoredOnText}</Descriptions.Item>
+          </Descriptions>
+        </Card>
+      )}
       {isOutOfStockForCurrentQuantity && (
         <Alert
           type="error"

@@ -445,7 +445,7 @@ export function printReceipt(
                 </div>
                 <div class="row">
                     <div class="label">Banyaknya Uang</div>
-                    <div class="value">: <span style="font-style: italic;">${terbilangText}</span></div>
+                    <div class="value">: <span style="font-weight: bold;">${formatRupiah(amount)}</span> <span style="font-style: italic;">(${terbilangText})</span></div>
                 </div>
                 <div class="row">
                     <div class="label">Untuk Pembayaran</div>
