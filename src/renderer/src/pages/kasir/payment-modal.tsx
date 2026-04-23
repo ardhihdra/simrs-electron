@@ -17,6 +17,7 @@ interface PaymentModalProps {
     open: boolean
     invoiceId: number
     remaining: number
+    total?: number
     onCancel: () => void
     onSuccess: () => void
 }
@@ -28,15 +29,15 @@ interface MasterBank {
     accountHolder: string
 }
 
-export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }: PaymentModalProps) {
+export function PaymentModal({ open, invoiceId, remaining, total, onCancel, onSuccess }: PaymentModalProps) {
     const [form] = Form.useForm()
     const [loading, setLoading] = useState(false)
     const [fileList, setFileList] = useState<UploadFile[]>([])
-    
+
     // Watch fields for real-time calculations
     const paymentMethod = Form.useWatch('paymentMethod', form)
     const amount = Form.useWatch('amount', form) || 0
-    const change = Math.max(0, amount - remaining)
+    const change = total === 0 ? 0 : Math.max(0, amount - remaining)
 
     const { data: banksData } = useQuery({
         queryKey: ['kasir-banks'],
@@ -64,7 +65,7 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
         try {
             const values = await form.validateFields()
             setLoading(true)
-            
+
             let file: ArrayBuffer | undefined
             let filename: string | undefined
             let mimetype: string | undefined
@@ -98,7 +99,7 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                 message.error(res.message ?? 'Gagal mencatat pembayaran')
             }
         } catch (err: unknown) {
-            if (err && typeof err === 'object' && 'errorFields' in err) return 
+            if (err && typeof err === 'object' && 'errorFields' in err) return
             const errorMsg = err instanceof Error ? err.message : 'Terjadi kesalahan'
             message.error(errorMsg)
         } finally {
@@ -116,11 +117,11 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                 <Button key="back" onClick={handleCancel} size="large">
                     Batal
                 </Button>,
-                <Button 
-                    key="submit" 
-                    type="primary" 
-                    loading={loading} 
-                    onClick={handleOk} 
+                <Button
+                    key="submit"
+                    type="primary"
+                    loading={loading}
+                    onClick={handleOk}
                     size="large"
                 >
                     Simpan Pembayaran
@@ -130,10 +131,10 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
             centered
         >
             {/* Header: Sisa Tagihan */}
-            <div style={{ 
-                background: '#f1f5f9', 
-                padding: '12px', 
-                borderRadius: '8px', 
+            <div style={{
+                background: '#f1f5f9',
+                padding: '12px',
+                borderRadius: '8px',
                 marginBottom: '20px',
                 textAlign: 'center'
             }}>
@@ -200,9 +201,9 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                     />
                 </Form.Item>
 
-                {paymentMethod === 'CASH' && amount > remaining && (
+                {paymentMethod === 'CASH' && amount > remaining && total !== 0 && (
                     <div style={{ marginBottom: '20px', marginTop: '-12px' }}>
-                        <Alert 
+                        <Alert
                             message={
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <span>Kembalian</span>

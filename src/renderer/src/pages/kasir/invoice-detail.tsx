@@ -74,6 +74,7 @@ function formatPrintableDate(date: Date | string | null | undefined): string {
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   issued: { label: 'Terkonfirmasi', color: 'blue' },
   balanced: { label: 'Lunas', color: 'green' },
+  dp: { label: 'Down Payment (DP)', color: 'orange' },
   draft: { label: 'Draft', color: 'default' }
 }
 
@@ -479,6 +480,7 @@ export default function InvoiceDetailPage() {
     : null
   const isConfirmed = !!persistedInvoice && persistedInvoice.status !== 'draft'
   const isPaid = persistedInvoice?.status === 'balanced'
+  const isDP = persistedInvoice?.status === 'dp'
   const totalPaid = persistedInvoice ? persistedInvoice.total - persistedInvoice.remaining : 0
 
   return (
@@ -596,7 +598,7 @@ export default function InvoiceDetailPage() {
           </Button>
         )}
 
-        {isConfirmed && !isPaid && (
+        {isConfirmed && (!isPaid || isDP || persistedInvoice.total === 0) && (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setPaymentModalOpen(true)}>
             Tambah Pembayaran
           </Button>
@@ -769,6 +771,7 @@ export default function InvoiceDetailPage() {
           open={paymentModalOpen}
           invoiceId={persistedInvoice.id}
           remaining={persistedInvoice.remaining}
+          total={persistedInvoice.total}
           onCancel={() => setPaymentModalOpen(false)}
           onSuccess={handlePaymentSuccess}
         />
