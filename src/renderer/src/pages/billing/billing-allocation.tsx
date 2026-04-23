@@ -88,9 +88,23 @@ export default function BillingAllocationPage() {
   })
   console.log('getInvoiceWithAllocations', data)
 
-  useEffect(() => {
+      useEffect(() => {
     if (data?.success && data.result) {
       const invoice = data.result
+      
+      // Automatic Payor Detection
+      if (invoice.penjaminId) setGlobalMitraId(invoice.penjaminId)
+      
+      const payorMap: Record<string, string> = {
+        cash: 'hospital',
+        asuransi: 'insurance',
+        company: 'company',
+        bpjs: 'bpjs'
+      }
+      if (invoice.paymentMethod) {
+        setGlobalPayorType(payorMap[invoice.paymentMethod] || 'insurance')
+      }
+
       const items: AllocationRow[] = (invoice.details || []).map((item: any) => {
         const asuransiAlloc = item.allocations?.find((a: any) =>
           ['bpjs', 'insurance', 'company'].includes(a.payorType)
@@ -581,35 +595,6 @@ export default function BillingAllocationPage() {
         </div>
 
         <div className="flex items-center flex-wrap gap-2">
-          <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-lg border border-slate-100">
-            <Select
-              value={globalPayorType}
-              onChange={(v) => {
-                setGlobalPayorType(v)
-                setGlobalMitraId(null)
-              }}
-              variant="borderless"
-              style={{ width: 130 }}
-              options={[
-                { label: 'Asuransi', value: 'insurance' },
-                { label: 'BPJS', value: 'bpjs' },
-                { label: 'Perusahaan', value: 'company' },
-                { label: 'Umum', value: 'hospital' }
-              ]}
-              className="font-medium"
-            />
-            <div className="h-6 w-[1px] bg-slate-200"></div>
-            <RPCSelectAsync
-              entity="mitra"
-              listAll
-              placeHolder="Pilih Penjamin Utama"
-              value={globalMitraId}
-              onChange={setGlobalMitraId}
-              variant="borderless"
-              className="w-56 font-medium"
-            />
-          </div>
-
           <Button
             icon={<SyncOutlined />}
             onClick={openAllocationModal}
@@ -694,6 +679,20 @@ export default function BillingAllocationPage() {
                     minute: '2-digit'
                   })
                 : '-'}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-4">
+          <div className="bg-white/20 p-3 rounded-xl backdrop-blur-sm">
+            <CheckCircleOutlined style={{ fontSize: 24 }} />
+          </div>
+          <div>
+            <div className="text-white/70 text-xs font-medium uppercase tracking-tight mb-1">
+              Penjamin Pasien
+            </div>
+            <div className="text-sm font-bold uppercase tracking-wide">
+              {invoice?.penjaminName || '-'}
             </div>
           </div>
         </div>
