@@ -1,13 +1,19 @@
-import { FileTextOutlined, ReloadOutlined } from '@ant-design/icons'
-import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
-import GenericTable from '@renderer/components/organisms/GenericTable'
-import { Button, DatePicker, Input, Select, Tooltip, Tag, Divider } from 'antd'
-import type { ColumnsType } from 'antd/es/table'
+import {
+  FileTextOutlined,
+  ReloadOutlined,
+  DownloadOutlined,
+  PrinterOutlined,
+  LogoutOutlined,
+  FilterOutlined,
+  PlusOutlined,
+  TeamOutlined
+} from '@ant-design/icons'
+import { Button, Spin } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useOutletContext } from 'react-router'
 import { useEncounterList } from '@renderer/hooks/query/use-encounter'
-import KioskCallingWorkspace from './KioskCallingWorkspace'
+import KasirStatsStrip from './kasir-stats-strip'
 
 interface EncounterRow {
   id: string
@@ -17,112 +23,82 @@ interface EncounterRow {
   visitDate?: string | Date
   startTime?: string | Date | null
   arrivalType?: string | null
-  patient?: { name?: string; id?: string }
+  patient?: { name?: string; id?: string; mrn?: string }
   serviceUnit?: { id?: string; name?: string; type?: string } | null
   serviceType?: string
   reason?: string
   status?: string
   invoiceStatus?: string | null
+  total?: number
+  paid?: number
+  remaining?: number
+}
+
+// ── Status config — matches Kasir.jsx design mockup exactly ─────────────────
+// DB status mapping:
+//   issued   → Siap Bayar    → orange  (--warn)
+//   dp       → Bayar Sebagian → violet  (--violet)
+//   balanced → Lunas          → green   (--ok)
+//   draft    → Dalam Proses   → gray    (--text-3)
+const ST: Record<string, { textClass: string; bgClass: string; dotClass: string; label: string; borderColor: string }> = {
+  draft: { textClass: 'text-gray-500', bgClass: 'bg-gray-100', dotClass: 'bg-gray-400', label: 'Dalam Proses', borderColor: '#9ca3af' },
+  issued: { textClass: 'text-orange-600', bgClass: 'bg-orange-50', dotClass: 'bg-orange-500', label: 'Siap Bayar', borderColor: '#f97316' },
+  dp: { textClass: 'text-violet-600', bgClass: 'bg-violet-50', dotClass: 'bg-violet-500', label: 'Bayar Sebagian', borderColor: '#7c3aed' },
+  balanced: { textClass: 'text-green-700', bgClass: 'bg-green-50', dotClass: 'bg-green-500', label: 'Lunas', borderColor: '#16a34a' },
+}
+
+const getST = (s?: string | null) =>
+  ST[s ?? ''] ?? { textClass: 'text-gray-400', bgClass: 'bg-gray-50', dotClass: 'bg-gray-300', label: 'Belum Ada', borderColor: '#e5e7eb' }
+
+const StBadge = ({ status }: { status?: string | null }) => {
+  const st = getST(status)
+  return (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold ${st.bgClass} ${st.textClass}`}>
+      <span className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${st.dotClass}`} />
+      {st.label}
+    </span>
+  )
 }
 
 const formatEnum = (val?: string) => {
   if (!val) return '-'
+  const lower = val.toLowerCase()
+  if (lower === 'outpatient' || lower === 'amb') return 'Rawat Jalan'
+  if (lower === 'inpatient' || lower === 'imp') return 'Rawat Inap'
+  if (lower === 'emergency' || lower === 'emer') return 'IGD'
+  if (lower === 'lab') return 'Laboratorium'
+  if (lower === 'div') return 'Rawat Jalan' // Asumsi div adalah poli/ambulatory
+  
   return val
     .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(' ')
 }
 
-const columns: ColumnsType<EncounterRow> = [
-  { title: 'No.', dataIndex: 'no', key: 'no', width: 55 },
-  {
-    title: 'No. Kunjungan',
-    dataIndex: 'encounterCode',
-    key: 'encounterCode',
-    render: (v, record) => v ?? record.id ?? '-'
-  },
-  {
-    title: 'No. Kunjungan',
-    dataIndex: 'encounterCode',
-    key: 'encounterCode',
-    render: (v, record) => v ?? record.id ?? '-'
-  },
-  {
-    title: 'Kode Pemeriksaan',
-    dataIndex: 'queueTicket',
-    key: 'queueTicket',
-    render: (v: EncounterRow['queueTicket']) =>
-      v?.formattedQueueNumber ?? (v?.queueNumber != null ? String(v.queueNumber) : '-')
-  },
-  {
-    title: 'Tanggal Kunjungan',
-    dataIndex: 'visitDate',
-    key: 'visitDate',
-    render: (v) => (v ? dayjs(v).format('DD MMM YYYY HH:mm') : '-')
-  },
-  {
-    title: 'Jam Mulai',
-    dataIndex: 'startTime',
-    key: 'startTime',
-    render: (v) => (v ? dayjs(v).format('HH:mm') : '-')
-  },
-  {
-    title: 'Jenis Kedatangan',
-    dataIndex: 'arrivalType',
-    key: 'arrivalType',
-    render: (v) => formatEnum(v)
-  },
-  { title: 'Pasien', dataIndex: ['patient', 'name'], key: 'patient' },
-  {
-    title: 'Unit Layanan',
-    dataIndex: ['serviceUnit', 'name'],
-    key: 'serviceUnit',
-    render: (v) => v ?? '-'
-  },
-  {
-    title: 'Selesai Pemeriksaan',
-    dataIndex: 'status',
-    key: 'status',
-    render: (v) => formatEnum(v)
-  },
-  {
-    title: 'Status Tagihan',
-    key: 'invoiceStatus',
-    width: 140,
-    render: (_: unknown, record: EncounterRow) => {
-      const s = record.invoiceStatus
-      if (!s) return <Tag color="default">Belum Ada</Tag>
-      if (s === 'balanced') return <Tag color="green">Lunas</Tag>
-      if (s === 'issued') return <Tag color="blue">Terkonfirmasi</Tag>
-      if (s === 'draft') return <Tag color="orange">Draft</Tag>
-      return <Tag>{formatEnum(s)}</Tag>
-    }
-  }
-]
-
 export default function KasirEncounterTable() {
   const navigate = useNavigate()
+  const { handleTriggerClose } = useOutletContext<{ handleTriggerClose: () => void }>()
 
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all')
   const [searchPatient, setSearchPatient] = useState('')
   const [searchMrn, setSearchMrn] = useState('')
   const [searchQueueNumber, setSearchQueueNumber] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [debouncedMrn, setDebouncedMrn] = useState('')
   const [debouncedQueueNumber, setDebouncedQueueNumber] = useState('')
-  const [status, setStatus] = useState<string | undefined>(undefined)
   const [visitDate, setVisitDate] = useState<string | null>(null)
   const [serviceUnitId, setServiceUnitId] = useState<string | undefined>(undefined)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const t = setTimeout(() => {
       setDebouncedSearch(searchPatient)
       setDebouncedMrn(searchMrn)
       setDebouncedQueueNumber(searchQueueNumber)
     }, 400)
-    return () => clearTimeout(timer)
+    return () => clearTimeout(t)
   }, [searchPatient, searchMrn, searchQueueNumber])
 
-  // --- Encounter Query ---
   const {
     data: encounterData,
     isLoading: isEncounterLoading,
@@ -132,113 +108,325 @@ export default function KasirEncounterTable() {
     q: debouncedSearch || undefined,
     mrn: debouncedMrn || undefined,
     queueNumber: debouncedQueueNumber || undefined,
-    status: status || undefined,
     startDate: visitDate ? dayjs(visitDate).startOf('day').toISOString() : undefined,
     endDate: visitDate ? dayjs(visitDate).endOf('day').toISOString() : undefined,
     serviceUnitId
   })
 
-  const encounterRows = useMemo<EncounterRow[]>(() => {
-    const source: EncounterRow[] = Array.isArray((encounterData as any)?.result)
-      ? ((encounterData as any).result as EncounterRow[])
-      : []
-    return source.map((r, idx) => ({ ...r, no: idx + 1 }))
+  const allEncounters = useMemo<EncounterRow[]>(() => {
+    const raw = (encounterData as any)?.result || (encounterData as any)?.data || []
+    const rows = Array.isArray(raw) ? (raw as EncounterRow[]) : []
+    console.log('[Kasir] allEncounters sample:', rows[0])
+    return rows
   }, [encounterData])
 
+  const encounterRows = useMemo<EncounterRow[]>(() => {
+    const filtered =
+      invoiceStatusFilter === 'all'
+        ? allEncounters
+        : allEncounters.filter((r) => r.invoiceStatus === invoiceStatusFilter)
+    return filtered.map((r, idx) => ({ ...r, no: idx + 1 }))
+  }, [allEncounters, invoiceStatusFilter])
+
+  const siapBayarCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'issued').length, [allEncounters])
+  const dalamProsesCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'draft').length, [allEncounters])
+  const partialCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'dp').length, [allEncounters])
+  const lunasCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'balanced').length, [allEncounters])
+  const totalCount = useMemo(() => allEncounters.length, [allEncounters])
+
+  const totalTagihan = useMemo(() => allEncounters.reduce((acc, r) => acc + (r.total ?? 0), 0), [allEncounters])
+  const totalPaid = useMemo(() => allEncounters.reduce((acc, r) => acc + (r.paid ?? 0), 0), [allEncounters])
+  const totalRemaining = useMemo(() => allEncounters.reduce((acc, r) => acc + (r.remaining ?? 0), 0), [allEncounters])
+
+  const todayFormatted = useMemo(() => dayjs().format('DD MMM YYYY'), [])
+
+  const selectedEncounter = useMemo(
+    () => encounterRows.find((r) => String(r.id) === selectedId) ?? null,
+    [encounterRows, selectedId]
+  )
+
+  // Auto-select first row
+  useEffect(() => {
+    if (!selectedId && encounterRows.length > 0) {
+      setSelectedId(String(encounterRows[0].id))
+    }
+  }, [encounterRows, selectedId])
+
+  const fmt = (val: number) =>
+    new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(val)
+
   return (
-    <div className="space-y-6">
-      <h2 className="text-3xl font-bold mb-6">Kasir</h2>
-
-      {/* Kiosk Calling Section at the top */}
-      <KioskCallingWorkspace allowedTypes={['CASHIER']} />
-
-      <Divider />
-
-      {/* Encounter List Section at the bottom */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold">Daftar Tagihan Pasien</h3>
-          <Button
-            icon={<ReloadOutlined />}
-            onClick={() => refetchEncounter()}
-            loading={isEncounterRefetching}
-          >
+    <div className="space-y-4">
+      {/* ── Header ─────────────────────────────────────────────── */}
+      <div className="flex items-end gap-4 mb-2 flex-wrap">
+        <div>
+          <h1 className="text-[22px] font-bold tracking-[-0.015em] m-0 text-ds-text">
+            Kasir — Billing &amp; Pembayaran
+          </h1>
+          <div className="text-[12.5px] text-ds-muted mt-0.5">
+            {siapBayarCount} siap bayar · {dalamProsesCount} dalam proses · {todayFormatted} · Shift Pagi
+          </div>
+        </div>
+        <div className="ml-auto flex gap-2 items-center">
+          <button className="inline-flex items-center gap-1.5 h-8 px-3 rounded-ds-md border border-transparent bg-transparent text-ds-text text-[12.5px] font-medium cursor-pointer hover:bg-ds-surface-muted">
+            <DownloadOutlined style={{ fontSize: 14 }} /> Ekspor
+          </button>
+          <button className="inline-flex items-center gap-1.5 h-8 px-3 rounded-ds-md border border-transparent bg-transparent text-ds-text text-[12.5px] font-medium cursor-pointer hover:bg-ds-surface-muted">
+            <PrinterOutlined style={{ fontSize: 14 }} /> Laporan Harian
+          </button>
+          {/* <Button icon={<ReloadOutlined />} onClick={() => refetchEncounter()} loading={isEncounterRefetching} style={{ height: 32, borderRadius: 6 }}>
             Refresh
+          </Button> */}
+          <Button danger icon={<LogoutOutlined />} onClick={handleTriggerClose} style={{ height: 32, borderRadius: 6 }}>
+            Tutup Kasir
           </Button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
-          <Input
-            placeholder="Nama Pasien"
-            value={searchPatient}
-            onChange={(e) => setSearchPatient(e.target.value)}
-            allowClear
-          />
-          <Input
-            placeholder="No. Rekam Medis"
-            value={searchMrn}
-            onChange={(e) => setSearchMrn(e.target.value)}
-            allowClear
-          />
-          <Input
-            placeholder="No. Antrian"
-            value={searchQueueNumber}
-            onChange={(e) => setSearchQueueNumber(e.target.value)}
-            allowClear
-          />
-          <Select
-            allowClear
-            placeholder="Semua Status"
-            value={status}
-            onChange={(v) => setStatus(v)}
-            options={[
-              { label: 'Planned', value: 'planned' },
-              { label: 'Arrived', value: 'arrived' },
-              { label: 'In Progress', value: 'in_progress' },
-              { label: 'Finished', value: 'finished' },
-              { label: 'Cancelled', value: 'cancelled' }
-            ]}
-          />
-          <DatePicker
-            placeholder="Tanggal Kunjungan"
-            value={visitDate ? dayjs(visitDate) : null}
-            onChange={(d) => setVisitDate(d ? d.toISOString() : null)}
-            className="w-full"
-          />
-          <SelectAsync
-            entity="organization"
-            placeHolder="Semua Unit Layanan"
-            value={serviceUnitId}
-            onChange={(v) => setServiceUnitId(v)}
-            className="w-full"
-          />
+      {/* ── Stats Strip ─────────────────────────────────────────── */}
+      <KasirStatsStrip
+        siapBayarCount={siapBayarCount}
+        partialCount={partialCount}
+        dalamProsesCount={dalamProsesCount}
+        lunasCount={lunasCount}
+        totalTagihan={totalTagihan}
+        totalPaid={totalPaid}
+        totalRemaining={totalRemaining}
+      />
+
+      {/* ── Main Grid ───────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-4 items-start">
+
+        {/* LEFT: List */}
+        <div className="bg-ds-surface border border-ds-border rounded-ds-lg overflow-hidden shadow-sm flex flex-col">
+          {/* Card header */}
+          <div className="px-4 py-2 border-b border-ds-border flex items-center justify-between bg-white">
+            <div className="flex items-baseline gap-2">
+              <h3 className="text-[14px] font-bold m-0 text-ds-text">Daftar Tagihan</h3>
+              <span className="text-[11px] text-ds-muted">Semua encounter aktif</span>
+            </div>
+            <button className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-ds-md border border-ds-border bg-white text-ds-text text-[11.5px] font-medium cursor-pointer hover:bg-ds-surface-muted">
+              <FilterOutlined style={{ fontSize: 12 }} /> Filter
+            </button>
+          </div>
+
+          {/* Status filter tabs */}
+          <div className="px-3 py-1.5 border-b border-ds-border flex gap-1 flex-wrap bg-white">
+            {([
+              ['all', 'Semua', totalCount],
+              ['issued', 'Siap Bayar', siapBayarCount],
+              ['dp', 'Sebagian', partialCount],
+              ['draft', 'Proses', dalamProsesCount],
+              ['balanced', 'Lunas', lunasCount],
+            ] as [string, string, number][]).map(([k, l, c]) => {
+              const active = invoiceStatusFilter === k
+              return (
+                <button
+                  key={k}
+                  onClick={() => setInvoiceStatusFilter(k)}
+                  className={`px-2.5 py-1 rounded border-none cursor-pointer text-[11.5px] transition-all flex items-center gap-1 ${active
+                      ? 'bg-ds-accent-soft text-ds-accent font-semibold'
+                      : 'bg-transparent text-ds-muted hover:bg-ds-surface-muted'
+                    }`}
+                >
+                  {l}
+                  <span className={`px-1.5 rounded-full text-[10px] font-mono ${active ? 'bg-ds-accent text-white' : 'bg-ds-surface-muted text-ds-muted'}`}>
+                    {c}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Column headers */}
+          <div className="grid grid-cols-[1fr_90px_110px_90px] px-4 py-[7px] border-b border-ds-border" style={{ background: 'var(--surface-2)' }}>
+            {['Pasien & Tagihan', 'Jenis', 'Total', 'Status'].map((h, i) => (
+              <div key={i} className={`text-[10.5px] font-semibold uppercase tracking-[0.07em] text-ds-muted ${i >= 2 ? 'text-right' : ''}`}>
+                {h}
+              </div>
+            ))}
+          </div>
+
+          {/* Rows */}
+          <div className="overflow-auto">
+            {isEncounterLoading || isEncounterRefetching ? (
+              <div className="p-12 flex justify-center"><Spin size="large" /></div>
+            ) : encounterRows.length === 0 ? (
+              <div className="p-12 text-center text-ds-muted text-[12px]">Tidak ada data tagihan</div>
+            ) : (
+              encounterRows.map((record, i) => {
+                const isSel = selectedId === String(record.id)
+                const st = getST(record.invoiceStatus)
+
+                return (
+                  <div
+                    key={record.id}
+                    onClick={() => setSelectedId(String(record.id))}
+                    style={{ borderLeftColor: isSel ? '#2563eb' : st.borderColor }}
+                    className={`grid grid-cols-[1fr_90px_110px_90px] px-4 py-[10px] cursor-pointer transition-colors border-l-[3px] ${i < encounterRows.length - 1 ? 'border-b border-ds-border' : ''
+                      } ${isSel ? 'bg-ds-accent-soft' : 'bg-white hover:bg-ds-surface-muted/30'}`}
+                  >
+                    {/* Pasien */}
+                    <div className="flex flex-col gap-[2px] min-w-0">
+                      <div className={`text-[12.5px] font-bold truncate ${isSel ? 'text-ds-accent' : 'text-ds-text'}`}>
+                        {record.patient?.name || 'Pasien Tanpa Nama'}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-ds-muted font-mono">
+                        <span>{(record.patient as any)?.medicalRecordNumber || '-'}</span>
+                        <span>·</span>
+                        <span>{(record as any).payer?.name || 'Umum'}</span>
+                      </div>
+                      <div className="text-[10.5px] text-ds-muted/80 truncate">
+                        {record.encounterCode || record.id} · {dayjs(record.visitDate).format('DD MMM YYYY')}
+                      </div>
+                    </div>
+
+                    {/* Jenis */}
+                    <div className="flex items-center text-[11px] text-ds-muted">
+                      {formatEnum((record as any).encounterType || record.serviceUnit?.type || record.serviceType)}
+                    </div>
+
+                    {/* Total */}
+                    <div className="flex flex-col items-end justify-center gap-[2px]">
+                      <div className="text-[12px] font-bold font-mono text-ds-text">{fmt(record.total ?? 0)}</div>
+                      {(record.paid ?? 0) > 0 && (record.paid ?? 0) < (record.total ?? 0) && (
+                        <div style={{ fontSize: 10.5, color: 'var(--ok)', fontFamily: 'var(--font-mono)' }}>
+                          +{fmt(record.paid ?? 0)}
+                        </div>
+                      )}
+                      {record.invoiceStatus === 'balanced' && (
+                        <div style={{ fontSize: 10.5, color: 'var(--ok)' }}>Lunas ✓</div>
+                      )}
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="flex items-center justify-end">
+                      <StBadge status={record.invoiceStatus} />
+                    </div>
+                  </div>
+                )
+              })
+            )}
+          </div>
         </div>
 
-        <GenericTable<EncounterRow>
-          loading={isEncounterLoading || isEncounterRefetching}
-          columns={columns}
-          dataSource={encounterRows}
-          rowKey={(r) => String(r.id)}
-          action={{
-            title: 'Aksi',
-            width: 80,
-            align: 'center',
-            fixedRight: true,
-            render: (record) => (
-              <Tooltip title="Lihat Invoice">
-                <Button
-                  icon={<FileTextOutlined />}
-                  size="small"
-                  type="primary"
-                  onClick={() => {
-                    const patientId = record.patient?.id ?? ''
-                    navigate(`/dashboard/kasir/invoice/${record.id}?patientId=${patientId}`)
-                  }}
-                />
-              </Tooltip>
-            )
-          }}
-        />
+        {/* RIGHT: Detail Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {selectedEncounter ? (
+            <div className="bg-white border border-ds-border rounded-ds-lg overflow-hidden shadow-sm">
+              {/* Card Header */}
+              {/* Card Header */}
+              <div className="px-4 py-4 border-b border-ds-border flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[17px] font-bold text-gray-900">
+                    {selectedEncounter.patient?.name || 'Pasien Tanpa Nama'}
+                  </div>
+                  <div className="text-[11.5px] text-gray-500 mt-1 flex gap-2 items-center">
+                    <span className="font-mono">{(selectedEncounter.patient as any)?.medicalRecordNumber || '-'}</span>
+                    <span className="opacity-40">·</span>
+                    <span>{formatEnum((selectedEncounter as any).encounterType || selectedEncounter.serviceUnit?.type || selectedEncounter.serviceType)}</span>
+                  </div>
+                </div>
+                <StBadge status={selectedEncounter.invoiceStatus} />
+              </div>
+
+              {/* Card Body */}
+              <div className="p-4">
+                {/* Meta grid */}
+                <div className="grid grid-cols-2 gap-x-2 gap-y-3.5 mb-4">
+                  {([
+                    ['NO. INVOICE', selectedEncounter.encounterCode || selectedEncounter.id, true],
+                    ['TANGGAL', dayjs(selectedEncounter.visitDate).format('DD MMM YYYY'), false],
+                    ['DPJP', (selectedEncounter as any).doctor?.name || '-', false],
+                    ['PENJAMIN', (selectedEncounter as any).payer?.name || 'Umum', false],
+                  ] as [string, string, boolean][]).map(([l, v, mono], i) => (
+                    <div key={i}>
+                      <div className="text-[10px] font-bold tracking-[0.05em] uppercase text-gray-400 mb-0.5">
+                        {l}
+                      </div>
+                      <div className={`text-[13px] font-semibold text-gray-900 ${mono ? 'font-mono' : ''}`}>
+                        {v}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Financial summary */}
+                <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex flex-col gap-2.5">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[12.5px] text-gray-500 font-medium">Total Tagihan</span>
+                    <span className="font-mono text-[14px] font-bold text-gray-900">
+                      {fmt(selectedEncounter.total ?? 0)}
+                    </span>
+                  </div>
+                  {(selectedEncounter.paid ?? 0) > 0 && (
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-[12.5px] text-gray-500 font-medium">Sudah Dibayar</span>
+                      <span className="font-mono text-[14px] font-bold text-green-600">
+                        {fmt(selectedEncounter.paid ?? 0)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="border-t border-dashed border-slate-300 my-0.5" />
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[13.5px] font-extrabold text-gray-900">Sisa Tagihan</span>
+                    <span className="font-mono text-[19px] font-extrabold text-red-600">
+                      {fmt(selectedEncounter.remaining ?? 0)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {/* Quick action buttons */}
+          {selectedEncounter && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <button
+                className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-ds-border bg-white text-ds-text text-[12.5px] font-semibold cursor-pointer hover:bg-ds-surface-muted"
+                onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}`)}
+              >
+                <FileTextOutlined style={{ fontSize: 14 }} /> Lihat Detail Invoice
+              </button>
+
+              {(selectedEncounter.invoiceStatus === 'issued' || selectedEncounter.invoiceStatus === 'dp') && (
+                <button
+                  className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border-none bg-ds-accent text-white text-[13px] font-bold cursor-pointer hover:opacity-90 shadow-sm"
+                  onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}&action=pay`)}
+                >
+                  <PlusOutlined style={{ fontSize: 15 }} /> Input Pembayaran
+                </button>
+              )}
+
+              <button className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-ds-border bg-white text-ds-text text-[12.5px] font-semibold cursor-pointer hover:bg-ds-surface-muted">
+                <PrinterOutlined style={{ fontSize: 14 }} /> Cetak Invoice / Kwitansi
+              </button>
+
+              <button
+                className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-ds-border bg-white text-ds-text text-[12.5px] font-semibold cursor-pointer hover:bg-ds-surface-muted"
+                onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}&tab=billing`)}
+              >
+                <TeamOutlined style={{ fontSize: 14 }} /> Alokasi Billing
+              </button>
+            </div>
+          )}
+
+          {!selectedEncounter && (
+            <div className="h-64 border-2 border-dashed border-ds-border rounded-ds-lg flex flex-col items-center justify-center p-6 text-center">
+              <div className="w-12 h-12 rounded-full bg-ds-surface-muted flex items-center justify-center mb-3">
+                <FileTextOutlined className="text-ds-muted text-xl" />
+              </div>
+              <div className="text-ds-text font-bold text-[14px]">Pilih Pasien</div>
+              <p className="text-ds-muted text-[12px] mt-1 max-w-[200px]">
+                Silakan pilih salah satu data di daftar untuk melihat detail tagihan
+              </p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

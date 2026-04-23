@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, Spin, Result, message } from 'antd'
 import KasirShiftModal from './kasir-shift-modal'
 import { useState } from 'react'
-import { LogoutOutlined } from '@ant-design/icons'
 
 export default function KasirPage() {
   const queryClient = useQueryClient()
@@ -113,17 +112,7 @@ export default function KasirPage() {
 
   return (
     <div className="relative">
-      <div className="flex justify-end mb-4">
-        <Button 
-          danger 
-          icon={<LogoutOutlined />} 
-          onClick={handleTriggerClose}
-        >
-          Tutup Kasir Sekarang
-        </Button>
-      </div>
-      
-      <Outlet />
+      <Outlet context={{ handleTriggerClose }} />
 
       <KasirShiftModal
         visible={isModalVisible}
@@ -136,4 +125,3 @@ export default function KasirPage() {
     </div>
   )
 }
-

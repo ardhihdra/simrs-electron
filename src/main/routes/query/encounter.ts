@@ -142,7 +142,10 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
     .nullable()
     .optional(),
   satuSehatSyncStatus: SatuSehatSyncStatusSchema,
-  invoiceStatus: z.string().nullable().optional()
+  invoiceStatus: z.string().nullable().optional(),
+  total: z.number().nullable().optional(),
+  remaining: z.number().nullable().optional(),
+  paid: z.number().nullable().optional()
 })
 
 export const EncounterSchemaPayload = EncounterSchemaWithId.partial().extend({
