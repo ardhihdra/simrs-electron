@@ -119,7 +119,7 @@ export function StepScanMrn() {
       </Card>
 
       <div className="mt-auto flex justify-end">
-        <Button type="primary" className="!h-14 !rounded-2xl !px-8 !text-lg" onClick={handleSubmit}>
+        <Button type="primary" size="large" className="scale-125 m-8" onClick={handleSubmit}>
           Lanjut Pilih Poli
         </Button>
       </div>

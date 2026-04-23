@@ -32,6 +32,7 @@ export interface DesktopThemeTokens {
     surfaceMuted: string
     surfaceRaised: string
     background: string
+    backgroundElevated: string
     border: string
     borderStrong: string
     text: string
@@ -102,11 +103,12 @@ export const desktopThemeTokens: DesktopThemeTokens = {
     surfaceMuted: '#f4f6fb',
     surfaceRaised: '#eef2fb',
     background: '#edf1f8',
+    backgroundElevated: '#f8fafc',
     border: '#d7deec',
     borderStrong: '#c1cce0',
     text: '#172033',
     textMuted: '#4e5d7a',
-    textSubtle: '#7c89a2',
+    textSubtle: 'oklch(0.45 0.01 240)',
     dangerText: '#f8faff',
     scrim: 'rgba(237, 241, 248, 0.75)',
     success: '#248a67',
@@ -117,7 +119,7 @@ export const desktopThemeTokens: DesktopThemeTokens = {
   typography: {
     fontFamilySans: 'Inter',
     fontFamilyFallback: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
-    fontFamilyMono: "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
+    fontFamilyMono: "'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
     baseFontSize: 13,
     labelFontSize: 11,
     captionFontSize: 10,
@@ -229,7 +231,7 @@ export const desktopAntdToken: ThemeConfig['token'] = {
   colorBgBase: desktopThemeTokens.colors.surface,
   colorBgLayout: desktopThemeTokens.colors.background,
   colorBgContainer: desktopThemeTokens.colors.surface,
-  colorBgElevated: desktopThemeTokens.colors.surface,
+  colorBgElevated: desktopThemeTokens.colors.backgroundElevated,
   colorBorder: desktopThemeTokens.colors.border,
   colorBorderSecondary: desktopThemeTokens.colors.borderStrong,
   colorTextBase: desktopThemeTokens.colors.text,
@@ -253,7 +255,7 @@ export const desktopAntdToken: ThemeConfig['token'] = {
   fontSizeLG: 14,
   fontSizeHeading1: desktopThemeTokens.typography.heroFontSize,
   fontSizeHeading2: 28,
-  fontSizeHeading3: 24,
+  fontSizeHeading3: 22,
   fontSizeHeading4: 18,
   fontSizeHeading5: 15,
   controlHeight: desktopThemeTokens.components.input.controlHeight,
@@ -295,6 +297,7 @@ export function buildDesktopCssVariables(tokens: DesktopThemeTokens): Record<str
     '--ds-color-surface-muted': tokens.colors.surfaceMuted,
     '--ds-color-surface-raised': tokens.colors.surfaceRaised,
     '--ds-color-background': tokens.colors.background,
+    '--ds-color-background-elevated': tokens.colors.backgroundElevated,
     '--ds-color-border': tokens.colors.border,
     '--ds-color-border-strong': tokens.colors.borderStrong,
     '--ds-color-text': tokens.colors.text,
