@@ -6,17 +6,17 @@ import {
   SyncOutlined,
   UserOutlined
 } from '@ant-design/icons'
-import GenericTable from '@renderer/components/organisms/GenericTable'
+import { DesktopGenericTable } from '@renderer/components/design-system/organisms/DesktopGenericTable'
+import CreateQueueModal from '@renderer/components/organisms/visit-management/CreateQueueModal'
 import { TableHeader } from '@renderer/components/TableHeader'
 import { TableHeaderStats } from '@renderer/components/TableHeaderStats'
 import { useDebounce } from '@renderer/hooks/useDebounce'
 import { client, rpc } from '@renderer/utils/client'
-import { PatientAttributes } from 'simrs-types'
 import { App, Button, Form, Input } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
-import CreateQueueModal from '@renderer/components/organisms/visit-management/CreateQueueModal'
+import { PatientAttributes } from 'simrs-types'
 
 type RegistrationPatientRow = PatientAttributes & {
   no: number
@@ -155,7 +155,7 @@ export default function RegistrationPage() {
       </TableHeader>
 
       <div className="mt-4">
-        <GenericTable
+        <DesktopGenericTable
           columns={columns}
           dataSource={dataSource as any}
           rowKey="id"
