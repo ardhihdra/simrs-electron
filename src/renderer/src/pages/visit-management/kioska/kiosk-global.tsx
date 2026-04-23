@@ -186,7 +186,7 @@ function KioskaGlobalContent() {
             </div>
             <KioskaWizardStepIndicator step={state.step} />
 
-            <div className="min-h-0 flex-1 py-4 px-6">
+            <div className="min-h-0 flex-1 py-4 px-6 bg-[var(--ds-color-background-elevated)]">
               <div className={isNonMedicKioskStep ? 'h-full overflow-auto' : 'h-[34rem]'}>
                 {renderStep()}
               </div>

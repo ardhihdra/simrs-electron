@@ -360,14 +360,12 @@ const KioskMainCard: React.FC = () => {
           <Title level={5}>Pindai QR Code</Title>
           <Card
             style={{
-              width: 200,
-              height: 200,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}
           >
-            <QrcodeOutlined style={{ fontSize: 56 }} />
+            <QrcodeOutlined />
           </Card>
         </Col>
       </Row>

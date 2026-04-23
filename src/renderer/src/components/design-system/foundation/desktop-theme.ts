@@ -32,6 +32,7 @@ export interface DesktopThemeTokens {
     surfaceMuted: string
     surfaceRaised: string
     background: string
+    backgroundElevated: string
     border: string
     borderStrong: string
     text: string
@@ -102,6 +103,7 @@ export const desktopThemeTokens: DesktopThemeTokens = {
     surfaceMuted: '#f4f6fb',
     surfaceRaised: '#eef2fb',
     background: '#edf1f8',
+    backgroundElevated: '#f8fafc',
     border: '#d7deec',
     borderStrong: '#c1cce0',
     text: '#172033',
@@ -229,7 +231,7 @@ export const desktopAntdToken: ThemeConfig['token'] = {
   colorBgBase: desktopThemeTokens.colors.surface,
   colorBgLayout: desktopThemeTokens.colors.background,
   colorBgContainer: desktopThemeTokens.colors.surface,
-  colorBgElevated: desktopThemeTokens.colors.surface,
+  colorBgElevated: desktopThemeTokens.colors.backgroundElevated,
   colorBorder: desktopThemeTokens.colors.border,
   colorBorderSecondary: desktopThemeTokens.colors.borderStrong,
   colorTextBase: desktopThemeTokens.colors.text,
@@ -295,6 +297,7 @@ export function buildDesktopCssVariables(tokens: DesktopThemeTokens): Record<str
     '--ds-color-surface-muted': tokens.colors.surfaceMuted,
     '--ds-color-surface-raised': tokens.colors.surfaceRaised,
     '--ds-color-background': tokens.colors.background,
+    '--ds-color-background-elevated': tokens.colors.backgroundElevated,
     '--ds-color-border': tokens.colors.border,
     '--ds-color-border-strong': tokens.colors.borderStrong,
     '--ds-color-text': tokens.colors.text,
