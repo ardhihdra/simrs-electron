@@ -119,7 +119,7 @@ import BillingPage from './pages/billing/BillingPage'
 import BillingAllocationPage from './pages/billing/billing-allocation'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
-import KioskaGlobalPage from './pages/visit-management/kioska/kiok-global'
+import KioskaGlobalPage from './pages/visit-management/kioska/kiosk-global'
 import KioskaSetupPage from './pages/visit-management/kioska/setup'
 import RegistrationPage from './pages/visit-management/registration'
 import RegistrationGlobalQueue from './pages/visit-management/registration-global-queue'
@@ -136,7 +136,10 @@ const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode
 
 function MainRoute() {
   const location = useLocation()
-  const { data: pageAccessData } = client.pageAccess.list.useQuery({}, { queryKey: ['pageAccess', {}] })
+  const { data: pageAccessData } = client.pageAccess.list.useQuery(
+    {},
+    { queryKey: ['pageAccess', {}] }
+  )
   const pageAccessMap = useMemo(() => {
     const map: Record<string, PageAccessEntry> = {}
     for (const item of pageAccessData?.result ?? []) {
