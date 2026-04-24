@@ -20,6 +20,7 @@ const createDraft = (): IgdRegistrationDraft => ({
   arrivalDateTime: '2026-04-22T10:25',
   arrivalSource: 'Datang sendiri',
   paymentMethod: 'BPJS',
+  mitraId: '77',
   complaint: 'Nyeri dada hebat',
   guarantorName: 'Sri Wahyuni',
   guarantorRelationship: 'Suami/Istri',
@@ -70,6 +71,7 @@ test('buildIgdRegistrationCommand maps existing patient mode to patientId payloa
   assert.equal(payload.patientType, 'existing')
   assert.equal(payload.patientId, 'patient-existing-1')
   assert.equal(payload.patientData, undefined)
+  assert.equal(payload.mitraId, 77)
   assert.deepEqual(payload.guarantor, {
     name: 'Sri Wahyuni',
     phone: '081200000999',
@@ -90,6 +92,7 @@ test('buildIgdRegistrationCommand maps new patient mode to create-patient payloa
   assert.equal(payload.patientData?.gender, 'male')
   assert.equal(payload.patientData?.birthDate, '1988-04-21')
   assert.equal(payload.patientData?.needEmr, true)
+  assert.equal(payload.mitraId, 77)
   assert.equal(payload.guarantor?.name, 'Sri Wahyuni')
   assert.deepEqual(payload.patientData?.relatedPerson, [
     {
@@ -120,6 +123,7 @@ test('buildIgdRegistrationCommand maps temporary patient mode to minimal payload
   assert.equal(payload.patientData?.gender, '?')
   assert.equal(payload.patientData?.estimatedAge, '~45')
   assert.equal(payload.patientData?.birthDate, undefined)
+  assert.equal(payload.mitraId, 77)
 })
 
 test('buildIgdRegistrationCommand rejects existing mode without selected patient', () => {
@@ -196,4 +200,19 @@ test('buildIgdRegistrationCommand omits quick triage when intent is daftar', () 
   })
 
   assert.equal(payload.quickTriage, undefined)
+})
+
+test('buildIgdRegistrationCommand omits mitraId for Umum payment even when stale draft value exists', () => {
+  const payload = buildIgdRegistrationCommand({
+    mode: 'baru',
+    draft: {
+      ...createDraft(),
+      paymentMethod: 'Umum',
+      mitraId: '77'
+    },
+    intent: 'daftar',
+    quickCondition: 'l1-critical'
+  })
+
+  assert.equal('mitraId' in payload, false)
 })

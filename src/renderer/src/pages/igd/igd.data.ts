@@ -105,6 +105,7 @@ export type IgdRegistrationDraft = {
   arrivalDateTime: string
   arrivalSource: IgdArrivalSource
   paymentMethod: IgdPaymentMethod
+  mitraId?: string
   complaint: string
   guarantorName: string
   guarantorRelationship: string
@@ -159,6 +160,7 @@ export type IgdRegistrationCommand = {
   complaint: string
   arrivalSource: IgdArrivalSource
   paymentMethod: IgdPaymentMethod
+  mitraId?: number
   arrivalDateTime?: string
   guarantor?: {
     name?: string
@@ -546,6 +548,15 @@ function buildQuickTriage({
   }
 }
 
+function resolveMitraId(draft: IgdRegistrationDraft): number | undefined {
+  if (draft.paymentMethod === 'Umum') {
+    return undefined
+  }
+
+  const numericMitraId = Number(draft.mitraId)
+  return Number.isFinite(numericMitraId) && numericMitraId > 0 ? numericMitraId : undefined
+}
+
 export function buildIgdRegistrationCommand({
   mode,
   draft,
@@ -559,6 +570,7 @@ export function buildIgdRegistrationCommand({
     complaint: draft.complaint.trim(),
     arrivalSource: draft.arrivalSource,
     paymentMethod: draft.paymentMethod,
+    ...(resolveMitraId(draft) !== undefined ? { mitraId: resolveMitraId(draft) } : {}),
     arrivalDateTime: draft.arrivalDateTime,
     guarantor: selectedExistingGuarantor
       ? {
