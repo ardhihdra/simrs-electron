@@ -6,14 +6,17 @@ import {
   LogoutOutlined,
   FilterOutlined,
   PlusOutlined,
-  TeamOutlined
+  TeamOutlined,
+  CheckOutlined
 } from '@ant-design/icons'
-import { Button, Spin } from 'antd'
+import { Button, Spin, message } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router'
 import { useEncounterList } from '@renderer/hooks/query/use-encounter'
 import KasirStatsStrip from './kasir-stats-strip'
+import { rpc, client } from '@renderer/utils/client'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface EncounterRow {
   id: string
@@ -48,7 +51,7 @@ const ST: Record<string, { textClass: string; bgClass: string; dotClass: string;
 }
 
 const getST = (s?: string | null) =>
-  ST[s ?? ''] ?? { textClass: 'text-gray-400', bgClass: 'bg-gray-50', dotClass: 'bg-gray-300', label: 'Belum Ada', borderColor: '#e5e7eb' }
+  ST[s || 'draft'] ?? { textClass: 'text-gray-400', bgClass: 'bg-gray-50', dotClass: 'bg-gray-300', label: 'Belum Ada', borderColor: '#e5e7eb' }
 
 const StBadge = ({ status }: { status?: string | null }) => {
   const st = getST(status)
@@ -58,6 +61,21 @@ const StBadge = ({ status }: { status?: string | null }) => {
       {st.label}
     </span>
   )
+}
+
+const TotalAmountCell = ({ record, fmt }: { record: EncounterRow; fmt: (v: number) => string }) => {
+  const { data } = client.kasir.getInvoice.useQuery(
+    {
+      encounterId: record.id,
+      patientId: record.patient?.id ?? ''
+    },
+    {
+      enabled: (record.total ?? 0) === 0 && !!record.patient?.id
+    }
+  )
+
+  const val = (data as any)?.result?.total ?? record.total ?? 0
+  return <div className="text-[12px] font-bold font-mono text-ds-text">{fmt(val)}</div>
 }
 
 const formatEnum = (val?: string) => {
@@ -77,6 +95,7 @@ const formatEnum = (val?: string) => {
 
 export default function KasirEncounterTable() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { handleTriggerClose } = useOutletContext<{ handleTriggerClose: () => void }>()
 
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all')
@@ -89,6 +108,7 @@ export default function KasirEncounterTable() {
   const [visitDate, setVisitDate] = useState<string | null>(null)
   const [serviceUnitId, setServiceUnitId] = useState<string | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -145,6 +165,17 @@ export default function KasirEncounterTable() {
     [encounterRows, selectedId]
   )
 
+  const { data: selectedInvoiceData, isLoading: isLoadingInvoice } = client.kasir.getInvoice.useQuery({
+    encounterId: selectedId!,
+    patientId: selectedEncounter?.patient?.id ?? ''
+  }, {
+    enabled: !!selectedId && !!selectedEncounter?.patient?.id
+  })
+
+  const selectedInvoice = (selectedInvoiceData as any)?.result
+  const realTotal = selectedInvoice?.total ?? selectedEncounter?.total ?? 0
+  const realRemaining = selectedInvoice ? (selectedInvoice.total - (selectedEncounter?.paid ?? 0)) : (selectedEncounter?.remaining ?? 0)
+
   // Auto-select first row
   useEffect(() => {
     if (!selectedId && encounterRows.length > 0) {
@@ -158,6 +189,35 @@ export default function KasirEncounterTable() {
       currency: 'IDR',
       minimumFractionDigits: 0
     }).format(val)
+
+  const handleConfirm = async () => {
+    if (!selectedEncounter) return
+    const encounterId = selectedEncounter.id
+    const patientId = selectedEncounter.patient?.id
+    if (!encounterId || !patientId) {
+      message.error('Data encounter atau pasien tidak lengkap')
+      return
+    }
+
+    setConfirming(true)
+    try {
+      const res = (await rpc.kasir.confirmInvoice({ encounterId, patientId })) as {
+        success: boolean
+        message?: string
+      }
+      if (res.success) {
+        message.success('Invoice berhasil dikonfirmasi')
+        queryClient.invalidateQueries({ queryKey: ['encounter', 'list'] })
+      } else {
+        message.error(res.message ?? 'Gagal mengkonfirmasi invoice')
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan'
+      message.error(msg)
+    } finally {
+      setConfirming(false)
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -292,7 +352,7 @@ export default function KasirEncounterTable() {
 
                     {/* Total */}
                     <div className="flex flex-col items-end justify-center gap-[2px]">
-                      <div className="text-[12px] font-bold font-mono text-ds-text">{fmt(record.total ?? 0)}</div>
+                      <TotalAmountCell record={record} fmt={fmt} />
                       {(record.paid ?? 0) > 0 && (record.paid ?? 0) < (record.total ?? 0) && (
                         <div style={{ fontSize: 10.5, color: 'var(--ok)', fontFamily: 'var(--font-mono)' }}>
                           +{fmt(record.paid ?? 0)}
@@ -341,7 +401,7 @@ export default function KasirEncounterTable() {
                   {([
                     ['NO. INVOICE', selectedEncounter.encounterCode || selectedEncounter.id, true],
                     ['TANGGAL', dayjs(selectedEncounter.visitDate).format('DD MMM YYYY'), false],
-                    ['DPJP', (selectedEncounter as any).doctor?.name || '-', false],
+                    ['DPJP', selectedInvoice?.dokterPemeriksa || (selectedEncounter as any).doctor?.name || '-', false],
                     ['PENJAMIN', (selectedEncounter as any).payer?.name || 'Umum', false],
                   ] as [string, string, boolean][]).map(([l, v, mono], i) => (
                     <div key={i}>
@@ -360,7 +420,7 @@ export default function KasirEncounterTable() {
                   <div className="flex justify-between items-baseline">
                     <span className="text-[12.5px] text-gray-500 font-medium">Total Tagihan</span>
                     <span className="font-mono text-[14px] font-bold text-gray-900">
-                      {fmt(selectedEncounter.total ?? 0)}
+                      {isLoadingInvoice ? <Spin size="small" /> : fmt(realTotal)}
                     </span>
                   </div>
                   {(selectedEncounter.paid ?? 0) > 0 && (
@@ -375,7 +435,7 @@ export default function KasirEncounterTable() {
                   <div className="flex justify-between items-baseline">
                     <span className="text-[13.5px] font-extrabold text-gray-900">Sisa Tagihan</span>
                     <span className="font-mono text-[19px] font-extrabold text-red-600">
-                      {fmt(selectedEncounter.remaining ?? 0)}
+                      {isLoadingInvoice ? <Spin size="small" /> : fmt(realRemaining)}
                     </span>
                   </div>
                 </div>
@@ -392,6 +452,16 @@ export default function KasirEncounterTable() {
               >
                 <FileTextOutlined style={{ fontSize: 14 }} /> Lihat Detail Invoice
               </button>
+
+              {(!selectedEncounter.invoiceStatus || selectedEncounter.invoiceStatus === 'draft') && (
+                <button
+                  className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-[#f97316] bg-[#fff7ed] text-[#f97316] text-[12.5px] font-bold cursor-pointer hover:opacity-90 shadow-sm"
+                  onClick={handleConfirm}
+                  disabled={confirming}
+                >
+                  <CheckOutlined style={{ fontSize: 14 }} /> {confirming ? 'Memproses...' : 'Konfirmasi & Kunci Invoice'}
+                </button>
+              )}
 
               {(selectedEncounter.invoiceStatus === 'issued' || selectedEncounter.invoiceStatus === 'dp') && (
                 <button
