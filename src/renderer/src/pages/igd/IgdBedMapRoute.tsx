@@ -10,10 +10,10 @@ import { IgdBedMapPage } from './IgdBedMapPage'
 import { IGD_PAGE_PATHS } from './igd.config'
 import { EMPTY_IGD_DASHBOARD } from './igd.data'
 import {
-  buildIgdDailyReportExportFileName,
-  buildIgdDailyReportExportGroups,
-  buildIgdDailyReportExportTitle
-} from './igd.report'
+  buildIgdBedReportExportFileName,
+  buildIgdBedReportExportGroups,
+  buildIgdBedReportExportTitle
+} from './igd.bed-report'
 
 const isIgdRoomCode = (roomCodeId?: string | null) => {
   const code = String(roomCodeId || '').toUpperCase()
@@ -24,9 +24,9 @@ export default function IgdBedMapRoute() {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const dashboardQuery = client.igd.dashboard.useQuery({})
-  const dailyReportQuery = client.igd.dailyReport.useQuery({ date: dayjs().format('YYYY-MM-DD') })
   const availableBedsQuery = client.room.available.useQuery({ paginated: false })
   const roomsQuery = client.room.rooms.useQuery({})
+  const reportDate = dayjs().format('YYYY-MM-DD')
 
   const invalidateBedQueries = async () => {
     await queryClient.invalidateQueries({
@@ -90,15 +90,14 @@ export default function IgdBedMapRoute() {
     [roomsQuery.data?.result]
   )
   const reportExportGroups = useMemo(
-    () => (dailyReportQuery.data ? buildIgdDailyReportExportGroups(dailyReportQuery.data) : []),
-    [dailyReportQuery.data]
+    () =>
+      dashboardQuery.data ? buildIgdBedReportExportGroups(dashboardQuery.data) : [],
+    [dashboardQuery.data]
   )
-  const reportExportTitle = dailyReportQuery.data
-    ? buildIgdDailyReportExportTitle(dailyReportQuery.data)
-    : 'Laporan Harian IGD'
-  const reportExportFileName = dailyReportQuery.data
-    ? buildIgdDailyReportExportFileName(dailyReportQuery.data)
-    : 'laporan-igd'
+  const reportExportTitle = dashboardQuery.data
+    ? buildIgdBedReportExportTitle(dashboardQuery.data, reportDate)
+    : 'Laporan Bed IGD'
+  const reportExportFileName = buildIgdBedReportExportFileName(reportDate)
 
   return (
     <IgdBedMapPage
@@ -110,7 +109,7 @@ export default function IgdBedMapRoute() {
       reportExportGroups={reportExportGroups}
       reportExportTitle={reportExportTitle}
       reportExportFileName={reportExportFileName}
-      isReportLoading={dailyReportQuery.isLoading || dailyReportQuery.isFetching}
+      isReportLoading={dashboardQuery.isLoading || dashboardQuery.isFetching}
       actionLoading={{
         assign: assignMutation.isPending,
         transfer: transferMutation.isPending,
@@ -119,7 +118,6 @@ export default function IgdBedMapRoute() {
       }}
       onRetry={() => {
         void dashboardQuery.refetch()
-        void dailyReportQuery.refetch()
         void availableBedsQuery.refetch()
         void roomsQuery.refetch()
       }}

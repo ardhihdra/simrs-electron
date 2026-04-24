@@ -20,13 +20,13 @@ import {
   IGD_BED_ZONE_ORDER,
   getZoneTriageRangeLabel
 } from './igd.bed-zoning'
+import { type IgdBedReportExportZoneGroup } from './igd.bed-report'
 import {
   type IgdDashboard,
   type IgdDashboardBed,
   type IgdDashboardBedZone,
   type IgdDashboardPatient
 } from './igd.data'
-import { type IgdDailyReportExportShiftGroup } from './igd.report'
 
 type SelectOption = {
   label: string
@@ -39,7 +39,7 @@ type IgdBedMapPageProps = {
   createBedRoomOptions?: SelectOption[]
   isLoading?: boolean
   errorMessage?: string
-  reportExportGroups?: IgdDailyReportExportShiftGroup[]
+  reportExportGroups?: IgdBedReportExportZoneGroup[]
   reportExportTitle?: string
   reportExportFileName?: string
   isReportLoading?: boolean
@@ -148,8 +148,8 @@ export function IgdBedMapPage({
   isLoading = false,
   errorMessage,
   reportExportGroups = [],
-  reportExportTitle = 'Laporan Harian IGD',
-  reportExportFileName = 'laporan-igd',
+  reportExportTitle = 'Laporan Bed IGD',
+  reportExportFileName = 'laporan-bed-igd',
   isReportLoading = false,
   actionLoading,
   onRetry,
@@ -249,16 +249,20 @@ export function IgdBedMapPage({
               loading={isReportLoading}
               disabled={isReportLoading || reportExportGroups.length === 0}
               columns={[
-                { key: 'shift', label: 'Shift' },
-                { key: 'timeRange', label: 'Jam' },
-                { key: 'totalPatients', label: 'Total Pasien' }
+                { key: 'zone', label: 'Zona' },
+                { key: 'totalBeds', label: 'Total Bed' },
+                { key: 'occupiedBeds', label: 'Terisi' },
+                { key: 'availableBeds', label: 'Kosong' },
+                { key: 'cleaningBeds', label: 'Pembersihan' }
               ]}
               nestedTable={{
                 getChildren: (group) => group.details,
                 columns: [
-                  { key: 'metric', label: 'Rincian' },
-                  { key: 'value', label: 'Nilai' },
-                  { key: 'note', label: 'Catatan' }
+                  { key: 'bedCode', label: 'Kode Bed' },
+                  { key: 'status', label: 'Status' },
+                  { key: 'patientName', label: 'Pasien' },
+                  { key: 'registrationNumber', label: 'Nomor Registrasi' },
+                  { key: 'triageLevel', label: 'Triase' }
                 ]
               }}
             />

@@ -157,10 +157,20 @@ test('IGD bed map page renders zones and bed cards', () => {
       dashboard={createIgdDashboardFixture()}
       reportExportGroups={[
         {
-          shift: 'Pagi',
-          timeRange: '07:00-14:00',
-          totalPatients: '4',
-          details: [{ metric: 'Total Pasien Datang', value: '4' }]
+          zone: 'Resusitasi',
+          totalBeds: '4',
+          occupiedBeds: '1',
+          availableBeds: '3',
+          cleaningBeds: '0',
+          details: [
+            {
+              bedCode: 'R-01',
+              status: 'Terisi',
+              patientName: 'TIDAK DIKENAL',
+              registrationNumber: 'IGD-2604-001',
+              triageLevel: 'L1'
+            }
+          ]
         }
       ]}
     />
