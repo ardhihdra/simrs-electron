@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { App } from 'antd'
+import dayjs from 'dayjs'
 
 import { client } from '../../utils/client'
 import { queryClient } from '../../query-client'
@@ -8,6 +9,11 @@ import { queryClient } from '../../query-client'
 import { IgdBedMapPage } from './IgdBedMapPage'
 import { IGD_PAGE_PATHS } from './igd.config'
 import { EMPTY_IGD_DASHBOARD } from './igd.data'
+import {
+  buildIgdDailyReportExportFileName,
+  buildIgdDailyReportExportGroups,
+  buildIgdDailyReportExportTitle
+} from './igd.report'
 
 const isIgdRoomCode = (roomCodeId?: string | null) => {
   const code = String(roomCodeId || '').toUpperCase()
@@ -18,6 +24,7 @@ export default function IgdBedMapRoute() {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const dashboardQuery = client.igd.dashboard.useQuery({})
+  const dailyReportQuery = client.igd.dailyReport.useQuery({ date: dayjs().format('YYYY-MM-DD') })
   const availableBedsQuery = client.room.available.useQuery({ paginated: false })
   const roomsQuery = client.room.rooms.useQuery({})
 
@@ -82,6 +89,16 @@ export default function IgdBedMapRoute() {
         })),
     [roomsQuery.data?.result]
   )
+  const reportExportGroups = useMemo(
+    () => (dailyReportQuery.data ? buildIgdDailyReportExportGroups(dailyReportQuery.data) : []),
+    [dailyReportQuery.data]
+  )
+  const reportExportTitle = dailyReportQuery.data
+    ? buildIgdDailyReportExportTitle(dailyReportQuery.data)
+    : 'Laporan Harian IGD'
+  const reportExportFileName = dailyReportQuery.data
+    ? buildIgdDailyReportExportFileName(dailyReportQuery.data)
+    : 'laporan-igd'
 
   return (
     <IgdBedMapPage
@@ -90,6 +107,10 @@ export default function IgdBedMapRoute() {
       createBedRoomOptions={createBedRoomOptions}
       isLoading={dashboardQuery.isLoading}
       errorMessage={dashboardQuery.error?.message}
+      reportExportGroups={reportExportGroups}
+      reportExportTitle={reportExportTitle}
+      reportExportFileName={reportExportFileName}
+      isReportLoading={dailyReportQuery.isLoading || dailyReportQuery.isFetching}
       actionLoading={{
         assign: assignMutation.isPending,
         transfer: transferMutation.isPending,
@@ -98,6 +119,7 @@ export default function IgdBedMapRoute() {
       }}
       onRetry={() => {
         void dashboardQuery.refetch()
+        void dailyReportQuery.refetch()
         void availableBedsQuery.refetch()
         void roomsQuery.refetch()
       }}
@@ -106,7 +128,7 @@ export default function IgdBedMapRoute() {
         const bedRow = availableIgdBedRows.find((row) => row.bed?.bedCodeId === bedCode)
 
         if (!patient?.encounterId || !bedRow?.bed?.id || !bedRow.room?.id || !bedRow.room?.roomClassCodeId) {
-          message.error('Data pasien atau bed untuk assign belum lengkap')
+          message.error('Data pasien atau bed belum lengkap untuk menempatkan pasien')
           return
         }
 
@@ -117,7 +139,7 @@ export default function IgdBedMapRoute() {
           classOfCareCodeId: bedRow.room.roomClassCodeId,
           reason: 'ADMISSION'
         })
-        message.success(`Pasien ${patient.name} berhasil di-assign ke bed ${bedCode}`)
+        message.success(`Pasien ${patient.name} berhasil ditempatkan di bed ${bedCode}`)
       }}
       onTransferBed={async ({ sourceBedCode, targetBedCode }) => {
         const sourceBed = (dashboardQuery.data?.beds ?? []).find((item) => item.code === sourceBedCode)
@@ -127,7 +149,7 @@ export default function IgdBedMapRoute() {
         const targetBed = availableIgdBedRows.find((row) => row.bed?.bedCodeId === targetBedCode)
 
         if (!sourceBed?.currentAssignmentId || !targetBed?.bed?.id || !targetBed.room?.id || !targetBed.room?.roomClassCodeId) {
-          message.error('Data bed untuk pindah belum lengkap')
+          message.error('Data bed tujuan belum lengkap')
           return
         }
 
@@ -139,24 +161,24 @@ export default function IgdBedMapRoute() {
           newClassOfCareCodeId: targetBed.room.roomClassCodeId,
           transferReason: 'TRANSFER'
         })
-        message.success(`Pasien berhasil dipindah dari ${sourceBedCode} ke ${targetBedCode}`)
+        message.success(`Pasien berhasil dipindahkan dari ${sourceBedCode} ke ${targetBedCode}`)
       }}
       onReleaseBed={async ({ bedCode }) => {
         const bed = (dashboardQuery.data?.beds ?? []).find((item) => item.code === bedCode)
 
         if (!bed?.currentAssignmentId) {
-          message.error('Assignment aktif untuk bed ini tidak ditemukan')
+          message.error('Data penggunaan bed ini tidak ditemukan')
           return
         }
 
         await releaseMutation.mutateAsync({
           accommodationAssignmentId: bed.currentAssignmentId
         })
-        message.success(`Bed ${bedCode} berhasil di-release`)
+        message.success(`Bed ${bedCode} sudah dikosongkan`)
       }}
       onCreateBed={async ({ bedCodeId, roomId }) => {
         await createBedMutation.mutateAsync({ bedCodeId, roomId })
-        message.success(`Bed ${bedCodeId} berhasil dibuat`)
+        message.success(`Bed ${bedCodeId} berhasil ditambahkan`)
       }}
       onBack={() => navigate(IGD_PAGE_PATHS.daftar)}
     />

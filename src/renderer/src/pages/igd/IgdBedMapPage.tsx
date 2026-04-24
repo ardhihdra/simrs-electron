@@ -1,5 +1,7 @@
 import { Modal } from 'antd'
-import React, { useEffect, useMemo, useState } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import React from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   DesktopBadge,
@@ -11,6 +13,7 @@ import { DesktopCompactStatStrip } from '../../components/design-system/molecule
 import { DesktopInputField } from '../../components/design-system/molecules/DesktopInputField'
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
 import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
+import { ExportButton } from '../../components/molecules/ExportButton'
 
 import {
   IGD_BED_ZONE_DESCRIPTIONS,
@@ -23,6 +26,7 @@ import {
   type IgdDashboardBedZone,
   type IgdDashboardPatient
 } from './igd.data'
+import { type IgdDailyReportExportShiftGroup } from './igd.report'
 
 type SelectOption = {
   label: string
@@ -35,6 +39,10 @@ type IgdBedMapPageProps = {
   createBedRoomOptions?: SelectOption[]
   isLoading?: boolean
   errorMessage?: string
+  reportExportGroups?: IgdDailyReportExportShiftGroup[]
+  reportExportTitle?: string
+  reportExportFileName?: string
+  isReportLoading?: boolean
   actionLoading?: {
     assign?: boolean
     transfer?: boolean
@@ -96,13 +104,13 @@ function BedCard({
       </div>
       <div className="igd-bed-card-body">
         <div className="igd-bed-card-name">
-          {patient?.name ?? (bed.status === 'cleaning' ? 'Cleaning' : 'Kosong')}
+          {patient?.name ?? (bed.status === 'cleaning' ? 'Pembersihan' : 'Kosong')}
         </div>
         <div className="igd-bed-card-meta">
           {patient
             ? patient.medicalRecordNumber || patient.registrationNumber
             : bed.status === 'cleaning'
-              ? 'Proses pembersihan...'
+              ? 'Bed sedang dibersihkan'
               : 'Siap dipakai untuk pasien berikutnya'}
         </div>
         <div className="igd-bed-card-detail">
@@ -113,18 +121,18 @@ function BedCard({
               : 'Bed tersedia'}
         </div>
         {bed.status === 'occupied' ? (
-          <div className="igd-bed-card-actions">
+          <div className="igd-bed-card-actions igd-bed-card-actions--double">
             <DesktopButton emphasis="toolbar" size="small" onClick={onInspect}>
-              Periksa
+              Detail
             </DesktopButton>
             <DesktopButton emphasis="toolbar" size="small" onClick={onMove}>
               Pindah
             </DesktopButton>
           </div>
         ) : bed.status === 'available' ? (
-          <div className="igd-bed-card-actions">
+          <div className="igd-bed-card-actions igd-bed-card-actions--single">
             <DesktopButton emphasis="primary" size="small" onClick={onAssign} disabled={!canAssign}>
-              Assign Pasien
+              Tempatkan
             </DesktopButton>
           </div>
         ) : null}
@@ -139,6 +147,10 @@ export function IgdBedMapPage({
   createBedRoomOptions = [],
   isLoading = false,
   errorMessage,
+  reportExportGroups = [],
+  reportExportTitle = 'Laporan Harian IGD',
+  reportExportFileName = 'laporan-igd',
+  isReportLoading = false,
   actionLoading,
   onRetry,
   onBack,
@@ -219,8 +231,8 @@ export function IgdBedMapPage({
       <DesktopPageHeader
         eyebrow="Modul IGD"
         title="Peta Bed IGD"
-        subtitle="Snapshot bed IGD mengikuti dashboard backend dan level triase pasien aktif."
-        status={isLoading ? 'Memuat data' : 'Terhubung backend'}
+        subtitle="Lihat kondisi bed IGD dan pasien yang sedang menempati bed."
+        status={isLoading ? 'Memuat data' : 'Data tersambung'}
         metadata={
           <div className="flex flex-wrap items-center gap-[var(--ds-space-sm)]">
             <DesktopBadge tone="success">{availableCount} bed tersedia</DesktopBadge>
@@ -228,6 +240,28 @@ export function IgdBedMapPage({
         }
         actions={
           <>
+            <ExportButton
+              data={reportExportGroups}
+              fileName={reportExportFileName}
+              title={reportExportTitle}
+              buttonLabel="Laporan"
+              formats={['csv', 'pdf']}
+              loading={isReportLoading}
+              disabled={isReportLoading || reportExportGroups.length === 0}
+              columns={[
+                { key: 'shift', label: 'Shift' },
+                { key: 'timeRange', label: 'Jam' },
+                { key: 'totalPatients', label: 'Total Pasien' }
+              ]}
+              nestedTable={{
+                getChildren: (group) => group.details,
+                columns: [
+                  { key: 'metric', label: 'Rincian' },
+                  { key: 'value', label: 'Nilai' },
+                  { key: 'note', label: 'Catatan' }
+                ]
+              }}
+            />
             <DesktopButton emphasis="primary" onClick={() => setCreateBedVisible(true)}>
               Tambah Bed
             </DesktopButton>
@@ -248,19 +282,19 @@ export function IgdBedMapPage({
       />
 
       {isLoading ? (
-        <DesktopCard title="Memuat peta bed IGD" subtitle="Mengambil snapshot bed dari backend.">
+        <DesktopCard title="Memuat data bed IGD" subtitle="Menyiapkan peta bed dan daftar pasien.">
           <DesktopNoticePanel
-            title="Memuat peta bed IGD"
-            description="Data bed dan pasien aktif sedang disinkronkan."
+            title="Memuat data bed IGD"
+            description="Data bed dan pasien aktif sedang diperbarui."
           />
         </DesktopCard>
       ) : null}
 
       {!isLoading && errorMessage ? (
-        <DesktopCard title="Gagal memuat peta bed" subtitle="Coba ulangi sinkronisasi bed IGD.">
+        <DesktopCard title="Data bed belum dapat dimuat" subtitle="Silakan coba lagi dalam beberapa saat.">
           <div className="grid gap-[12px]">
             <DesktopNoticePanel
-              title="Gagal memuat peta bed"
+              title="Data bed belum dapat dimuat"
               description={errorMessage}
               tone="danger"
             />
@@ -328,7 +362,7 @@ export function IgdBedMapPage({
       ) : null}
 
       <Modal
-        title={assignModalBedCode ? `Assign Pasien ke ${assignModalBedCode}` : 'Assign Pasien'}
+        title={assignModalBedCode ? `Tempatkan Pasien ke ${assignModalBedCode}` : 'Tempatkan Pasien'}
         open={!!assignModalBedCode}
         getContainer={false}
         onCancel={() => {
@@ -336,7 +370,7 @@ export function IgdBedMapPage({
           setAssignModalPatientId('')
         }}
         onOk={() => void handleAssignConfirm()}
-        okText="Assign"
+        okText="Tempatkan"
         okButtonProps={{
           disabled: !assignModalPatientId || !onAssignBed || assignablePatientOptions.length === 0,
           loading: !!actionLoading?.assign
@@ -344,13 +378,13 @@ export function IgdBedMapPage({
       >
         {assignablePatientOptions.length === 0 ? (
           <DesktopNoticePanel
-            title="Tidak ada pasien tanpa bed"
-            description="Semua pasien aktif saat ini sudah memiliki bed atau belum ada pasien aktif yang dapat di-assign."
+            title="Tidak ada pasien yang menunggu bed"
+            description="Semua pasien aktif saat ini sudah menempati bed atau belum ada pasien yang bisa ditempatkan."
           />
         ) : (
           <div className="grid gap-[12px]">
             <DesktopNoticePanel
-              title="Pilih pasien untuk di-assign"
+              title="Pilih pasien yang akan ditempatkan"
               description={`Bed tujuan: ${assignModalBedCode ?? '-'}`}
             />
             <DesktopInputField
@@ -366,7 +400,7 @@ export function IgdBedMapPage({
       </Modal>
 
       <Modal
-        title={moveModalBedCode ? `Pindah Pasien dari ${moveModalBedCode}` : 'Pindah Bed'}
+        title={moveModalBedCode ? `Pindahkan Pasien dari ${moveModalBedCode}` : 'Pindahkan Pasien'}
         open={!!moveModalBedCode}
         getContainer={false}
         onCancel={() => {
@@ -391,7 +425,7 @@ export function IgdBedMapPage({
             loading={!!actionLoading?.release}
             onClick={() => void handleReleaseFromMove()}
           >
-            Release
+            Kosongkan Bed
           </DesktopButton>,
           <DesktopButton
             key="transfer"
@@ -406,18 +440,18 @@ export function IgdBedMapPage({
       >
         {moveModalOptions.length === 0 ? (
           <DesktopNoticePanel
-            title="Tidak ada bed tujuan yang tersedia"
-            description="Semua bed kosong sedang tidak tersedia untuk dijadikan tujuan pindah."
+            title="Tidak ada bed kosong yang tersedia"
+            description="Semua bed kosong saat ini belum bisa dipakai sebagai tujuan pindah."
           />
         ) : (
           <div className="grid gap-[12px]">
             <DesktopNoticePanel
               title={
                 moveModalPatient
-                  ? `Pindah atau release ${moveModalPatient.name}`
-                  : 'Pilih aksi untuk pasien di bed ini'
+                  ? `Pindahkan atau kosongkan bed untuk ${moveModalPatient.name}`
+                  : 'Pilih tindakan untuk pasien di bed ini'
               }
-              description={`Pasien saat ini berada di ${moveModalBedCode ?? '-'}. Anda bisa memilih bed tujuan atau release pasien dari bed aktif.`}
+              description={`Pasien saat ini berada di ${moveModalBedCode ?? '-'}. Anda bisa memilih bed tujuan atau mengosongkan bed ini.`}
             />
             <DesktopInputField
               label="Bed tujuan"
@@ -432,7 +466,7 @@ export function IgdBedMapPage({
       </Modal>
 
       <Modal
-        title={inspectModalBed ? `Periksa ${inspectModalBed.code}` : 'Periksa Bed'}
+        title={inspectModalBed ? `Lihat Pasien di ${inspectModalBed.code}` : 'Lihat Pasien'}
         open={!!inspectModalBedCode}
         getContainer={false}
         onCancel={() => setInspectModalBedCode(null)}
@@ -447,8 +481,8 @@ export function IgdBedMapPage({
         ]}
       >
         <DesktopNoticePanel
-          title="Pindah ke halaman pemeriksaan"
-          description="Placeholder sementara untuk alur buka halaman pemeriksaan dari peta bed IGD."
+          title="Halaman pemeriksaan akan tersedia di sini"
+          description="Anda dapat membuka detail pemeriksaan pasien dari peta bed melalui halaman ini."
         />
       </Modal>
 
@@ -467,8 +501,8 @@ export function IgdBedMapPage({
         <div className="grid gap-[12px]">
           {!onCreateBed ? (
             <DesktopNoticePanel
-              title="Form siap, submit backend belum tersedia"
-              description="Modal pembuatan bed baru sudah tersedia, tetapi submit ke backend room master belum diaktifkan pada route ini."
+              title="Bed baru belum dapat disimpan"
+              description="Penyimpanan bed baru belum tersedia dari halaman ini."
             />
           ) : null}
           <DesktopInputField

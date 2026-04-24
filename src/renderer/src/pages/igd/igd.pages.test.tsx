@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
+import type { PatientAttributes } from 'simrs-types'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
@@ -20,12 +22,16 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('igd-detail-stack'), true)
   assert.equal(markup.includes('desktop-compact-stat-strip'), true)
   assert.equal(markup.includes('Daftar Pasien IGD'), true)
+  assert.equal(markup.includes('Data tersambung'), true)
+  assert.equal(markup.includes('Laporan'), true)
+  assert.equal(markup.includes('Lihat Peta Bed'), true)
   assert.equal(markup.includes('Pasien Aktif'), true)
   assert.equal(markup.includes('AVG. Response'), true)
   assert.equal(markup.includes('Total Hari Ini'), true)
   assert.equal(markup.includes('SATUSEHAT'), true)
-  assert.equal(markup.includes('EMR Aktif'), true)
+  assert.equal(markup.includes('Rekam medis aktif'), true)
   assert.equal(markup.includes('Detail Pasien'), true)
+  assert.equal(markup.includes('Ringkasan pasien yang sedang dipilih.'), true)
   assert.equal(markup.includes('desktop-generic-table'), true)
   assert.equal(markup.includes('igd-patient-table'), true)
   assert.equal(markup.includes('igd-row-priority-1'), true)
@@ -56,18 +62,25 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('Rp725.000'), true)
   assert.equal(markup.includes('RESUSITASI'), true)
   assert.equal(markup.includes('Keluhan Utama'), true)
-  assert.equal(markup.includes('Vital Sign'), true)
-  assert.equal(markup.includes('Time Tracking'), true)
+  assert.equal(markup.includes('Tanda Vital'), true)
+  assert.equal(markup.includes('Riwayat Waktu'), true)
   assert.equal(markup.includes('Tiba'), true)
   assert.equal(markup.includes('Triase awal'), true)
-  assert.equal(markup.includes('Dokter datang / assign'), true)
-  assert.equal(markup.includes('Bed release'), true)
+  assert.equal(markup.includes('Dokter menangani'), true)
+  assert.equal(markup.includes('Keluar dari bed'), true)
+  assert.equal(markup.includes('Terhubung backend'), false)
+  assert.equal(markup.includes('real-time'), false)
+  assert.equal(markup.includes('Vital Sign'), false)
+  assert.equal(markup.includes('Time Tracking'), false)
+  assert.equal(markup.includes('Dokter datang / assign'), false)
+  assert.equal(markup.includes('Bed release'), false)
+  assert.equal(markup.includes('Temp'), false)
 })
 
 test('IGD daftar page keeps replace-patient flow outside inline detail layout', () => {
   const markup = renderToStaticMarkup(<IgdDaftarPage dashboard={createIgdDashboardFixture()} />)
 
-  assert.equal(markup.includes('Ubah Pasien'), true)
+  assert.equal(markup.includes('Ganti Identitas'), true)
   assert.equal(markup.includes('replace-patient-selector-slot'), false)
   assert.equal(markup.includes('Gunakan Pasien Ini'), false)
   assert.equal(markup.includes('Ganti Identitas Pasien'), false)
@@ -81,8 +94,8 @@ test('IGD daftar page renders loading and error shell for backend query states',
     <IgdDaftarPage dashboard={createIgdDashboardFixture()} errorMessage="Gagal memuat dashboard" />
   )
 
-  assert.equal(loadingMarkup.includes('Memuat dashboard IGD'), true)
-  assert.equal(errorMarkup.includes('Gagal memuat dashboard'), true)
+  assert.equal(loadingMarkup.includes('Memuat data IGD'), true)
+  assert.equal(errorMarkup.includes('Data IGD belum dapat dimuat'), true)
 })
 
 test('IGD registrasi page renders the intake form shell', () => {
@@ -98,7 +111,7 @@ test('IGD registrasi page renders the intake form shell', () => {
         isGuarantor: true
       }
     ]
-  } as any
+  } as unknown as PatientAttributes
 
   const markup = renderToStaticMarkup(
     <IgdRegistrasiPage
@@ -139,26 +152,43 @@ test('IGD triase page renders triage sections and save action', () => {
 })
 
 test('IGD bed map page renders zones and bed cards', () => {
-  const markup = renderToStaticMarkup(<IgdBedMapPage dashboard={createIgdDashboardFixture()} />)
+  const markup = renderToStaticMarkup(
+    <IgdBedMapPage
+      dashboard={createIgdDashboardFixture()}
+      reportExportGroups={[
+        {
+          shift: 'Pagi',
+          timeRange: '07:00-14:00',
+          totalPatients: '4',
+          details: [{ metric: 'Total Pasien Datang', value: '4' }]
+        }
+      ]}
+    />
+  )
 
   assert.equal(markup.includes('Peta Bed IGD'), true)
+  assert.equal(markup.includes('Data tersambung'), true)
+  assert.equal(markup.includes('Laporan'), true)
   assert.equal(markup.includes('TOTAL BED IGD'), true)
   assert.equal(markup.includes('12'), true)
   assert.equal(markup.includes('Terisi'), true)
   assert.equal(markup.includes('Kosong'), true)
-  assert.equal(markup.includes('Cleaning'), true)
+  assert.equal(markup.includes('Pembersihan'), true)
   assert.equal(markup.includes('Zona Resusitasi'), true)
   assert.equal(markup.includes('3 kosong dari 4'), true)
   assert.equal(markup.includes('L1-L2'), true)
   assert.equal(markup.includes('R-01'), true)
-  assert.equal(markup.includes('Periksa'), true)
+  assert.equal(markup.includes('Detail'), true)
   assert.equal(markup.includes('Pindah'), true)
-  assert.equal(markup.includes('Cleaning'), true)
-  assert.equal(markup.includes('Assign Pasien'), true)
+  assert.equal(markup.includes('Tempatkan'), true)
   assert.equal(markup.includes('Tambah Bed'), true)
   assert.equal(markup.includes('igd-bed-card--occupied'), true)
   assert.equal(markup.includes('igd-bed-card--level-1'), false)
   assert.equal(markup.includes('igd-bed-zone-panel'), true)
+  assert.equal(markup.includes('igd-bed-card-actions--double'), true)
+  assert.equal(markup.includes('Terhubung backend'), false)
+  assert.equal(markup.includes('Cleaning'), false)
+  assert.equal(markup.includes('Assign Pasien'), false)
 })
 
 test('IGD referral disposition maps patient data for ReferralForm', () => {
@@ -205,7 +235,7 @@ test('IGD table actions include disposition and patient-specific actions', () =>
 
   assert.deepEqual(
     temporaryActions.map((action) => action.label),
-    ['Bed', 'Disposisi', 'Ubah Pasien']
+    ['Atur Bed', 'Disposisi', 'Ganti Identitas']
   )
   assert.deepEqual(
     triaseActions.map((action) => action.label),

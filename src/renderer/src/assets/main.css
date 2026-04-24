@@ -585,13 +585,24 @@
   }
 
   .igd-bed-card-actions {
-    display: flex;
+    display: grid;
     gap: 8px;
     margin-top: auto;
   }
 
+  .igd-bed-card-actions--double {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .igd-bed-card-actions--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .igd-bed-card-actions .desktop-button {
-    flex: 1;
+    min-width: 0;
+    padding-inline: 10px !important;
+    white-space: normal !important;
+    text-align: center;
   }
 
   .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-thead > tr > th {
