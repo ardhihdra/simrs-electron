@@ -1,4 +1,5 @@
 import {
+  AlertOutlined,
   BarcodeOutlined,
   CalendarOutlined,
   CameraOutlined,
@@ -26,6 +27,7 @@ import type { DesktopPageListGroup } from '@renderer/components/design-system/or
 import { DesktopStatusBar } from '@renderer/components/design-system/organisms/DesktopStatusBar'
 import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
+import { IGD_DASHBOARD_ITEM, IGD_ROOT_PATH } from '@renderer/pages/igd/igd.config'
 import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
@@ -238,6 +240,13 @@ const items: DashboardMenuItem[] = [
         icon: <CalendarOutlined />
       }
     ]
+  },
+  {
+    label: IGD_DASHBOARD_ITEM.label,
+    key: IGD_DASHBOARD_ITEM.key,
+    icon: IGD_DASHBOARD_ITEM.icon ?? <AlertOutlined />,
+    module: IGD_DASHBOARD_ITEM.module,
+    children: IGD_DASHBOARD_ITEM.children
   },
   {
     label: 'Kamar Operasi (OK)',
@@ -632,6 +641,7 @@ function Dashboard() {
     '/dashboard/doctor',
     '/dashboard/nurse-calling',
     '/dashboard/rawat-inap',
+    IGD_ROOT_PATH,
     '/dashboard/poli',
     '/dashboard/kasir',
     '/dashboard/billing',

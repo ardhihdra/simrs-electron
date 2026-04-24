@@ -1,4 +1,5 @@
 import { Segmented } from 'antd'
+import React from 'react'
 
 export type DesktopSegmentedOption = {
   label: string

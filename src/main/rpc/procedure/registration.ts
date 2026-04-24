@@ -28,6 +28,14 @@ import { t } from '../'
 
 const BASE_URL = '/api/module/registration-v2'
 
+const ReferPatientRpcInputSchema = ReferPatientInputSchema.extend({
+  internalTargetType: z.enum(['POLI', 'LABORATORY', 'RADIOLOGY', 'INPATIENT']).optional(),
+  targetLocationId: z.coerce.number().int().positive().optional(),
+  transportationMode: z.string().optional(),
+  examinationSummary: z.string().optional(),
+  treatmentSummary: z.string().optional()
+})
+
 const UpdateQueueStatusRpcInputSchema = z.object({
   queueId: z.union([z.string(), z.number()]),
   action: z.enum([
@@ -339,7 +347,7 @@ export const registrationRpc = {
     }),
 
   referPatient: t
-    .input(ReferPatientInputSchema)
+    .input(ReferPatientRpcInputSchema)
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, { encounterId, ...input }) => {
       const response = await client.post(`${BASE_URL}/encounters/${encounterId}/refer`, input)
