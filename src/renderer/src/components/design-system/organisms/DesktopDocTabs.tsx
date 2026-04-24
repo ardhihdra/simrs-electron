@@ -1,10 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { DesktopIcon } from '../atoms/DesktopIcon'
-import {
-  getActiveDesktopKey,
-  type DesktopDocTabItem
-} from './desktop-shell.helpers'
+import { getActiveDesktopKey, type DesktopDocTabItem } from './desktop-shell.helpers'
 
 export type { DesktopDocTabItem } from './desktop-shell.helpers'
 
@@ -26,17 +23,17 @@ export function DesktopDocTabs({
   const resolvedActiveKey = getActiveDesktopKey(tabs, activeKey)
 
   return (
-    <div className="flex h-ds-doc-tab items-end gap-ds-doc-tab-gap overflow-x-auto border-b border-ds-border bg-ds-surface-muted px-ds-space-sm">
+    <div className="flex h-ds-doc-tab items-end gap-ds-doc-tab-gap overflow-x-auto border-b border-ds-border bg-ds-background-elevated px-ds-space-sm">
       {tabs.map((tab) => {
         const isActive = tab.key === resolvedActiveKey
 
         return (
           <button
             key={tab.key}
-            className={`mt-ds-doc-tab-offset flex h-ds-doc-tab-button max-w-ds-doc-tab-max shrink-0 items-center gap-ds-space-xs rounded-t-ds-md border border-ds-border px-ds-space-md text-ds-label transition-colors ${
+            className={`mt-ds-doc-tab-offset flex h-ds-doc-tab-button max-w-ds-doc-tab-max shrink-0 items-center gap-ds-space-xs rounded-t-ds-md border border-ds-border pl-ds-space-md pr-ds-space-xxs text-ds-label transition-colors ${
               isActive
-                ? 'border-b-transparent bg-ds-surface font-semibold text-ds-text'
-                : 'bg-ds-surface-raised text-ds-muted hover:bg-ds-surface hover:text-ds-text'
+                ? 'border-b-transparent bg-ds-surface font-semibold text-ds-text border-t-ds-accent border-t-2'
+                : 'border-b-transparent bg-ds-surface-muted-raised text-ds-muted hover:bg-ds-surface hover:text-ds-text'
             }`}
             onClick={() => onTabSelect?.(tab.key)}
             type="button"

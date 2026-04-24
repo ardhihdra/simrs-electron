@@ -1,5 +1,6 @@
 import { authRpc } from './auth'
 import { encounterRpc } from './encounter'
+import { igdRpc } from './igd'
 import { applicationConfigRpc } from './application-config'
 import { kasirRpc } from './kasir'
 import { outpatientReportingRpc } from './outpatient-reporting'
@@ -24,6 +25,7 @@ import { windowRpc } from './window'
 export const rpcRouter = {
   auth: authRpc,
   applicationConfig: applicationConfigRpc,
+  igd: igdRpc,
   kioskaPublic: kioskaPublicRpc,
   patient: patientRpc,
   encounter: encounterRpc,

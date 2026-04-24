@@ -8,8 +8,10 @@
   --color-ds-accent-text: var(--theme-color-ds-accent-text);
   --color-ds-surface: var(--theme-color-ds-surface);
   --color-ds-surface-muted: var(--theme-color-ds-surface-muted);
+  --color-ds-surface-muted-raised: var(--theme-color-ds-surface-muted-raised);
   --color-ds-surface-raised: var(--theme-color-ds-surface-raised);
   --color-ds-background: var(--theme-color-ds-background);
+  --color-ds-background-elevated: var(--theme-color-ds-background-elevated);
   --color-ds-border: var(--theme-color-ds-border);
   --color-ds-border-strong: var(--theme-color-ds-border-strong);
   --color-ds-text: var(--theme-color-ds-text);
@@ -153,6 +155,7 @@
 @layer components {
   .desktop-input-field .ant-input,
   .desktop-input-field .ant-input-affix-wrapper,
+  .desktop-input-group-field .ant-input,
   .desktop-input-field .ant-select-selector {
     height: var(--ds-input-h) !important;
     border-radius: var(--ds-radius-md) !important;
@@ -176,10 +179,47 @@
     align-items: center !important;
   }
 
+  .desktop-input-group-field.ant-input-group-wrapper {
+    width: 100%;
+  }
+
+  .desktop-input-group-field {
+    width: 100%;
+  }
+
+  .desktop-input-group-field .desktop-input-addon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--ds-input-h);
+    padding-inline: var(--ds-space-md) !important;
+    border: 1px solid var(--ds-color-border-strong);
+    border-right: none;
+    border-radius: var(--ds-radius-md) 0 0 var(--ds-radius-md);
+    background: var(--ds-color-surface);
+    color: var(--ds-color-text-muted) !important;
+    font-size: var(--ds-font-size-body) !important;
+    font-weight: 600 !important;
+    white-space: nowrap;
+  }
+
+  .desktop-input-group-field .ant-input {
+    box-shadow: none !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+  }
+
+  .desktop-input-group-field:focus-within .desktop-input-addon {
+    border-color: var(--ds-color-accent) !important;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
+  }
+
   .desktop-input-field .ant-input:focus,
   .desktop-input-field .ant-input-affix-wrapper-focused,
   .desktop-input-field .ant-select-focused .ant-select-selector,
-  .desktop-input-field .ant-input:focus-within {
+  .desktop-input-field .ant-input:focus-within,
+  .desktop-input-group-field .ant-input:focus,
+  .desktop-input-group-field .ant-input:focus-within {
     border-color: var(--ds-color-accent) !important;
     box-shadow: 0 0 0 3px
       color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
@@ -233,6 +273,552 @@
   .desktop-generic-table .ant-table-tbody > tr.ant-table-row:hover > td,
   .desktop-table .ant-table-tbody > tr.ant-table-row:hover > td {
     background: var(--ds-color-surface-muted) !important;
+  }
+
+  .desktop-generic-table .ant-table-tbody > tr.ant-table-measure-row,
+  .desktop-table .ant-table-tbody > tr.ant-table-measure-row {
+    visibility: collapse !important;
+  }
+
+  .desktop-generic-table .ant-table-tbody > tr.ant-table-measure-row > td,
+  .desktop-table .ant-table-tbody > tr.ant-table-measure-row > td {
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    line-height: 0 !important;
+  }
+
+  .desktop-generic-table.igd-patient-table .ant-table-tbody > tr > td {
+    height: auto !important;
+    vertical-align: top !important;
+    padding-block: var(--ds-space-sm) !important;
+  }
+
+  .igd-parity-scope {
+    --accent-h: 200;
+    --accent: oklch(0.55 0.11 var(--accent-h));
+    --accent-soft: oklch(0.95 0.03 var(--accent-h));
+    --accent-hover: oklch(0.48 0.12 var(--accent-h));
+    --accent-fg: oklch(0.99 0.005 var(--accent-h));
+
+    --bg: oklch(0.985 0.003 240);
+    --surface: oklch(1 0 0);
+    --surface-2: oklch(0.975 0.004 240);
+    --surface-3: oklch(0.955 0.005 240);
+    --border: oklch(0.91 0.005 240);
+    --border-strong: oklch(0.85 0.008 240);
+    --text: oklch(0.22 0.01 240);
+    --text-2: oklch(0.45 0.01 240);
+    --text-3: oklch(0.62 0.008 240);
+
+    --ok: oklch(0.62 0.14 155);
+    --ok-soft: oklch(0.95 0.04 155);
+    --warn: oklch(0.74 0.15 75);
+    --warn-soft: oklch(0.96 0.05 75);
+    --danger: oklch(0.6 0.2 20);
+    --danger-soft: oklch(0.95 0.04 20);
+    --info: oklch(0.58 0.14 260);
+    --info-soft: oklch(0.95 0.04 260);
+    --violet: oklch(0.55 0.14 300);
+    --violet-soft: oklch(0.95 0.04 300);
+
+    --r-sm: 4px;
+    --r: 6px;
+    --r-md: 8px;
+    --r-lg: 12px;
+
+    --shadow-xs: 0 1px 1px rgb(15 23 42 / 0.04);
+    --shadow-sm:
+      0 1px 2px rgb(15 23 42 / 0.06),
+      0 1px 1px rgb(15 23 42 / 0.04);
+    --shadow:
+      0 4px 12px -2px rgb(15 23 42 / 0.08),
+      0 2px 4px -1px rgb(15 23 42 / 0.05);
+
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+    --ds-color-accent: var(--accent);
+    --ds-color-accent-soft: var(--accent-soft);
+    --ds-color-accent-text: var(--accent-fg);
+    --ds-color-surface: var(--surface);
+    --ds-color-surface-muted: var(--surface-2);
+    --ds-color-surface-raised: var(--surface-3);
+    --ds-color-background: var(--bg);
+    --ds-color-border: var(--border);
+    --ds-color-border-strong: var(--border-strong);
+    --ds-color-text: var(--text);
+    --ds-color-text-muted: var(--text-2);
+    --ds-color-text-subtle: var(--text-3);
+    --ds-color-danger: var(--danger);
+    --ds-color-success: var(--ok);
+    --ds-color-warning: var(--warn);
+    --ds-color-info: var(--info);
+    --ds-color-violet: var(--violet);
+    --ds-color-violet-soft: var(--violet-soft);
+    --ds-radius-sm: var(--r-sm);
+    --ds-radius-md: var(--r);
+    --ds-radius-lg: var(--r-lg);
+    --ds-radius-pill: 999px;
+    --ds-shadow-xs: var(--shadow-xs);
+    --ds-shadow-sm: var(--shadow-sm);
+    --ds-shadow-md: var(--shadow);
+    --ds-space-xxs: 2px;
+    --ds-space-xs: 6px;
+    --ds-space-sm: 8px;
+    --ds-space-md: 12px;
+    --ds-space-lg: 16px;
+    --ds-space-xl: 20px;
+    --ds-space-xxl: 24px;
+    --ds-card-padding: 16px;
+    --ds-card-padding-compact: 12px;
+    --ds-button-h-sm: 24px;
+    --ds-button-h: 32px;
+    --ds-button-h-lg: 36px;
+    --ds-input-h-sm: 24px;
+    --ds-input-h: 32px;
+    --ds-input-h-lg: 40px;
+    --ds-table-header-h: 38px;
+    --ds-table-row-h: 56px;
+    --ds-font-size-body: 13px;
+    --ds-font-size-label: 11px;
+    --ds-font-size-caption: 10.5px;
+    --ds-font-size-title: 16px;
+    --ds-font-size-hero: 20px;
+    --ds-layout-section-gap: 16px;
+    font-family: var(--font-sans);
+    color: var(--text);
+  }
+
+  .igd-parity-scope .desktop-card {
+    border-radius: var(--r-lg) !important;
+    box-shadow: var(--shadow-xs) !important;
+  }
+
+  .igd-parity-scope .desktop-card h3 {
+    font-size: 12.5px;
+  }
+
+  .igd-parity-scope .desktop-card p {
+    font-size: 10.5px;
+  }
+
+  .igd-daftar-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .igd-detail-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .igd-detail-panel {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .igd-detail-panel-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .igd-detail-level-text {
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .igd-detail-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .igd-registry-strip {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface-2);
+  }
+
+  .igd-registrasi-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .igd-registrasi-side {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .igd-form-grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .igd-inline-segment {
+    max-width: 440px;
+  }
+
+  .igd-inline-segment-tight {
+    max-width: 360px;
+  }
+
+  .igd-bed-availability-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .igd-bed-zone-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 7px;
+  }
+
+  .igd-bed-zone-label {
+    min-width: 90px;
+    font-size: 11.5px;
+    color: var(--text-2);
+  }
+
+  .igd-bed-zone-bar {
+    flex: 1;
+    height: 6px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: var(--surface-3);
+  }
+
+  .igd-bed-zone-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+
+  .igd-registrasi-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .igd-bed-zone-panel {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .igd-bed-zone-panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .igd-bed-zone-panel-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .igd-bed-zone-panel-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .igd-bed-zone-panel-count {
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .igd-bed-zone-panel-description {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-3);
+  }
+
+  .igd-bed-zone-panel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(196px, 196px));
+    justify-content: start;
+    gap: 12px;
+    padding: 16px 18px;
+  }
+
+  .igd-bed-card {
+    display: flex;
+    width: 196px;
+    min-height: 148px;
+    flex-direction: column;
+    gap: 10px;
+    border-radius: var(--r-lg);
+    border: 1px solid var(--border-strong);
+    padding: 14px 14px 12px;
+    box-shadow: var(--shadow-xs);
+  }
+
+  .igd-bed-card--occupied {
+    border-color: color-mix(in srgb, var(--accent) 42%, white);
+    background: color-mix(in srgb, var(--accent-soft) 42%, white);
+  }
+
+  .igd-bed-card--available {
+    border-color: color-mix(in srgb, var(--ok) 64%, white);
+    background: color-mix(in srgb, var(--ok-soft) 82%, white);
+  }
+
+  .igd-bed-card--cleaning {
+    border-color: color-mix(in srgb, var(--warn) 64%, white);
+    background: color-mix(in srgb, var(--warn-soft) 84%, white);
+  }
+
+  .igd-bed-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .igd-bed-card-code {
+    font-family: var(--font-mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  .igd-bed-card-body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .igd-bed-card-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+  }
+
+  .igd-bed-card-meta {
+    font-size: 12px;
+    color: var(--text-2);
+  }
+
+  .igd-bed-card-detail {
+    font-size: 12px;
+    color: var(--text-3);
+  }
+
+  .igd-bed-card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+  }
+
+  .igd-bed-card-actions .desktop-button {
+    flex: 1;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-thead > tr > th {
+    height: auto !important;
+    padding: 7px 16px !important;
+    background: var(--surface-2) !important;
+    border-bottom: 1px solid var(--border) !important;
+    color: var(--text-3) !important;
+    font-size: 10.5px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.07em !important;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr > td {
+    background: var(--surface) !important;
+    border-bottom: 1px solid var(--border) !important;
+    padding: 9px 16px !important;
+    vertical-align: top !important;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr:last-child > td {
+    border-bottom: none !important;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-priority-1:not(.igd-row-active-default) > td {
+    background: var(--danger-soft) !important;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-priority-2:not(.igd-row-active-default) > td {
+    background: oklch(0.96 0.06 50) !important;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-1 > td:first-child {
+    box-shadow: inset 3px 0 0 var(--danger);
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-2 > td:first-child {
+    box-shadow: inset 3px 0 0 oklch(0.52 0.18 35);
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-3 > td:first-child {
+    box-shadow: inset 3px 0 0 var(--warn);
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-4 > td:first-child {
+    box-shadow: inset 3px 0 0 var(--ok);
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-5 > td:first-child {
+    box-shadow: inset 3px 0 0 var(--text-3);
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-active-default > td {
+    background: var(--surface) !important;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-active-default > td:first-child {
+    box-shadow: inset 3px 0 0 var(--accent) !important;
+  }
+
+  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.ant-table-row:hover > td {
+    filter: brightness(0.99);
+  }
+
+  .igd-patient-cell {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .igd-patient-name-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .igd-patient-name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .igd-patient-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--text-2);
+  }
+
+  .igd-patient-complaint {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
+    color: var(--text-3);
+  }
+
+  .igd-bed-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    justify-content: center;
+  }
+
+  .igd-bed-empty {
+    font-size: 10.5px;
+    color: var(--text-3);
+  }
+
+  .igd-elapsed-text {
+    font-size: 10.5px;
+    color: var(--text-3);
+    font-family: var(--font-mono);
+  }
+
+  .igd-inline-action {
+    width: auto !important;
+    min-width: 0 !important;
+    padding-inline: 8px !important;
+    font-size: 10.5px !important;
+    font-weight: 500 !important;
+    height: auto !important;
+  }
+
+  .igd-inline-action--warning {
+    border-color: var(--warn) !important;
+    background: var(--warn-soft) !important;
+    color: var(--warn) !important;
+  }
+
+  .igd-inline-action--success {
+    border-color: var(--ok) !important;
+    background: var(--ok-soft) !important;
+    color: var(--ok) !important;
+  }
+
+  @media (max-width: 1279px) {
+    .igd-daftar-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .igd-registrasi-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .igd-form-grid-3 {
+      grid-template-columns: 1fr;
+    }
+
+    .igd-bed-availability-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .igd-bed-zone-panel-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .igd-bed-card {
+      width: 100%;
+    }
   }
 
   .desktop-generic-table .ant-dropdown-menu {

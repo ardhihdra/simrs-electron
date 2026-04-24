@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 
-export type SessionUser = { id: number | string; username: string; hakAksesId: string }
+export type SessionUser = { id: number | string; username: string; hakAksesId: string; hakAksesNama?: string }
 
 interface ProfileState {
   profile: SessionUser | null

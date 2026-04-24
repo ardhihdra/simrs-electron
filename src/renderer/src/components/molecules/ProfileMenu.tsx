@@ -8,6 +8,7 @@ import SettingsModal from '../SettingsModal'
 import ChangePasswordModal from './ChangePasswordModal'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import { useLogout } from '@renderer/hooks/useLogout'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 
 type ModuleSignOutResult = {
   success?: boolean
@@ -89,11 +90,14 @@ function ProfileMenu() {
     <>
       <Dropdown menu={{ items }} placement="bottomLeft" trigger={['click']}>
         <Space className="cursor-pointer select-none items-center">
-          <Avatar size={32} className="bg-[#EDF2FF] text-[#1E3A8A] font-medium">
+          <Avatar size={24} className="bg-[#EDF2FF] text-[#1E3A8A] font-medium">
             {initials}
           </Avatar>
           <div className="hidden xl:block text-sm">
-            <div className="font-medium leading-none">{profile?.username || 'User'}</div>
+            <div className="font-semibold text-xs leading-none">{profile?.username || 'User'}</div>
+            <div className="font-light opacity-50 mt-0.5 text-ds-label leading-none">
+              {profile?.hakAksesNama}
+            </div>
           </div>
         </Space>
       </Dropdown>

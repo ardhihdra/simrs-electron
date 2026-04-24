@@ -23,6 +23,13 @@ export function buildPatientListParams(input: PatientListInput) {
   return params
 }
 
+export const VisitManagementDischargeEncounterInputSchema = z.object({
+  encounterId: z.string(),
+  endTime: z.date().optional(),
+  dischargeDisposition: z.string().optional(),
+  dischargeNote: z.string().optional()
+})
+
 export const visitManagementRpc = {
   poli: t
     .input(z.any())
@@ -245,12 +252,7 @@ export const visitManagementRpc = {
     }),
 
   dischargeEncounter: t
-    .input(
-      z.object({
-        encounterId: z.string(),
-        endTime: z.date().optional()
-      })
-    )
+    .input(VisitManagementDischargeEncounterInputSchema)
     .output(z.any())
     .mutation(async ({ client }, input) => {
       const { encounterId, ...body } = input

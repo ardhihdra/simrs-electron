@@ -1,25 +1,85 @@
-import { App, Button, Card, Input, Typography } from 'antd'
+import { App, Button, Card, Input, Typography, type InputRef } from 'antd'
+import { useEffect, useRef, useState } from 'react'
 
 import { useKioskaGlobalFlow } from '../kioska-global-context'
 import { useKioskaPatientLookup } from '../use-kioska-patient-lookup'
+import { getScanMrnSubmitDecision } from './step-scan-mrn-logic'
 
 export function StepScanMrn() {
   const { message } = App.useApp()
   const { goTo, setMrn, state } = useKioskaGlobalFlow()
   const { isResolvingPatient } = useKioskaPatientLookup()
+  const inputRef = useRef<InputRef>(null)
+  const [shouldAdvanceAfterLookup, setShouldAdvanceAfterLookup] = useState(false)
 
-  const handleSubmit = () => {
-    if (!state.rawatJalan.mrn.trim()) {
+  // make sure autofocus
+  useEffect(() => {
+    const focusInput = () => inputRef.current?.focus()
+    const timer = window.setTimeout(focusInput, 0)
+
+    window.addEventListener('focus', focusInput)
+    document.addEventListener('visibilitychange', focusInput)
+
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', focusInput)
+      document.removeEventListener('visibilitychange', focusInput)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!shouldAdvanceAfterLookup) return
+
+    const decision = getScanMrnSubmitDecision({
+      mrn: state.rawatJalan.mrn,
+      matchedPatient: state.rawatJalan.matchedPatient,
+      isResolvingPatient
+    })
+
+    if (decision === 'wait') return
+
+    setShouldAdvanceAfterLookup(false)
+
+    if (decision === 'advance') {
+      goTo('poli')
+      return
+    }
+
+    if (decision === 'error_empty') {
       message.error('MRN wajib diisi')
       return
     }
 
-    if (!state.rawatJalan.matchedPatient) {
-      message.error('Pasien tidak ditemukan')
+    message.error('Pasien tidak ditemukan')
+  }, [
+    goTo,
+    isResolvingPatient,
+    message,
+    shouldAdvanceAfterLookup,
+    state.rawatJalan.matchedPatient,
+    state.rawatJalan.mrn
+  ])
+
+  const handleSubmit = () => {
+    const decision = getScanMrnSubmitDecision({
+      mrn: state.rawatJalan.mrn,
+      matchedPatient: state.rawatJalan.matchedPatient,
+      isResolvingPatient
+    })
+
+    if (decision === 'error_empty') {
+      setShouldAdvanceAfterLookup(false)
+      message.error('MRN wajib diisi')
       return
     }
 
-    goTo('poli')
+    if (decision === 'advance') {
+      setShouldAdvanceAfterLookup(false)
+      goTo('poli')
+      return
+    }
+
+    setShouldAdvanceAfterLookup(true)
   }
 
   return (
@@ -36,11 +96,14 @@ export function StepScanMrn() {
       <Card className="!rounded-[28px] !border-slate-200">
         <div className="flex flex-col gap-4">
           <Input
+            ref={inputRef}
+            autoFocus
             size="large"
             value={state.rawatJalan.mrn}
             placeholder="Contoh: 123456"
             className="!h-16 !rounded-2xl !text-xl"
             onChange={(event) => setMrn(event.target.value)}
+            onPressEnter={() => handleSubmit()}
           />
 
           {isResolvingPatient && (
@@ -65,7 +128,7 @@ export function StepScanMrn() {
       </Card>
 
       <div className="mt-auto flex justify-end">
-        <Button type="primary" className="!h-14 !rounded-2xl !px-8 !text-lg" onClick={handleSubmit}>
+        <Button type="primary" size="large" className="scale-125 m-8" onClick={handleSubmit}>
           Lanjut Pilih Poli
         </Button>
       </div>

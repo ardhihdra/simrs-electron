@@ -40,6 +40,11 @@ enum ReferralType {
   EXTERNAL = 'external'
 }
 
+enum InternalReferralTargetType {
+  POLI = 'POLI',
+  INPATIENT = 'INPATIENT'
+}
+
 type AvailableDoctorOption = {
   doctorScheduleId: number
   doctorId: number
@@ -57,6 +62,23 @@ const SIGNATURE_SOURCE_OPTIONS = [
   { label: 'Ambil dari Kepegawaian', value: 'kepegawaian' }
 ]
 
+type AvailableBedOption = {
+  bedId: string
+  roomId: string
+  status?: string
+  room?: {
+    id: string
+    roomCodeId?: string
+    roomClassCodeId?: string
+    organizationId?: string
+    floor?: string
+  }
+  bed?: {
+    id: string
+    bedCodeId?: string
+  }
+}
+
 export const ReferralForm = ({
   encounterId,
   patientId,
@@ -71,11 +93,14 @@ export const ReferralForm = ({
   const [referralType, setReferralType] = useState<ReferralType>(ReferralType.INTERNAL)
   const [targetPoliId, setTargetPoliId] = useState<number | undefined>()
   const selectedSignatureSource = Form.useWatch('signatureSource', form)
+  const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>()
 
   const [selectedReferral, setSelectedReferral] = useState<any>(null)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false)
   const [signatures, setSignatures] = useState<Record<string, string>>({})
-  const [selectedDoctorProfileTtdUrl, setSelectedDoctorProfileTtdUrl] = useState<string | null>(null)
+  const [selectedDoctorProfileTtdUrl, setSelectedDoctorProfileTtdUrl] = useState<string | null>(
+    null
+  )
   const [sigModal, setSigModal] = useState<{ visible: boolean; type: string; title: string }>({
     visible: false,
     type: '',
@@ -83,13 +108,22 @@ export const ReferralForm = ({
   })
   const referPatient = client.registration.referPatient.useMutation()
   const referralDate = Form.useWatch('referralDate', form)
-  const { data: conditionData, isLoading: isLoadingConditions } = useConditionByEncounter(encounterId)
+
+  const internalTargetType =
+    Form.useWatch('internalTargetType', form) ?? InternalReferralTargetType.POLI
+
+  const { data: conditionData, isLoading: isLoadingConditions } =
+    useConditionByEncounter(encounterId)
 
   const toFileUrl = (path?: string | null) => {
     if (!path || typeof path !== 'string') return undefined
     const trimmed = path.trim()
     if (!trimmed) return undefined
-    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+    if (
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.startsWith('data:')
+    ) {
       return trimmed
     }
 
@@ -164,7 +198,9 @@ export const ReferralForm = ({
         const doctor = (response as any)?.result
         const ttdUrl = doctor?.ttdUrl || doctor?.ttd_url || null
         if (!isCancelled) {
-          setSelectedDoctorProfileTtdUrl(typeof ttdUrl === 'string' && ttdUrl.trim() ? ttdUrl : null)
+          setSelectedDoctorProfileTtdUrl(
+            typeof ttdUrl === 'string' && ttdUrl.trim() ? ttdUrl : null
+          )
         }
       } catch {
         if (!isCancelled) {
@@ -227,7 +263,10 @@ export const ReferralForm = ({
       date: referralDateString
     },
     {
-      enabled: referralType === ReferralType.INTERNAL && !!referralDateString,
+      enabled:
+        referralType === ReferralType.INTERNAL &&
+        internalTargetType === InternalReferralTargetType.POLI &&
+        !!referralDateString,
       queryKey: ['referral-form-available-polis', { date: referralDateString }]
     }
   )
@@ -257,8 +296,15 @@ export const ReferralForm = ({
       poliId: targetPoliId
     },
     {
-      enabled: referralType === ReferralType.INTERNAL && !!referralDateString && !!targetPoliId,
-      queryKey: ['referral-form-available-doctors', { date: referralDateString, poliId: targetPoliId }]
+      enabled:
+        referralType === ReferralType.INTERNAL &&
+        internalTargetType === InternalReferralTargetType.POLI &&
+        !!referralDateString &&
+        !!targetPoliId,
+      queryKey: [
+        'referral-form-available-doctors',
+        { date: referralDateString, poliId: targetPoliId }
+      ]
     }
   )
 
@@ -281,11 +327,65 @@ export const ReferralForm = ({
     })
   }, [availableDoctorsForPoli])
 
+  const availableBedsQuery = client.room.available.useQuery(
+    { paginated: false },
+    {
+      enabled:
+        referralType === ReferralType.INTERNAL &&
+        internalTargetType === InternalReferralTargetType.INPATIENT,
+      queryKey: ['referral-form-available-beds', { paginated: false }]
+    }
+  )
+
+  const availableBeds = useMemo<AvailableBedOption[]>(() => {
+    const data = availableBedsQuery.data as any
+    return data?.result || data?.data || data || []
+  }, [availableBedsQuery.data])
+
+  const roomOptions = useMemo(() => {
+    const rooms = new Map<string, { value: string; label: string }>()
+
+    availableBeds.forEach((item) => {
+      if (!item.room?.id) return
+
+      const roomLabelParts = [item.room.roomCodeId, item.room.roomClassCodeId, item.room.floor]
+        .filter(Boolean)
+        .join(' • ')
+
+      rooms.set(item.room.id, {
+        value: item.room.id,
+        label: roomLabelParts || item.room.id
+      })
+    })
+
+    return Array.from(rooms.values())
+  }, [availableBeds])
+
+  const bedOptions = useMemo(() => {
+    return availableBeds
+      .filter((item) => item.room?.id === selectedRoomId)
+      .map((item) => {
+        const bedLabel = item.bed?.bedCodeId || item.bedId
+        const roomLabel = item.room?.roomCodeId || 'Ruangan'
+
+        return {
+          value: item.bedId,
+          label: `${bedLabel} (${roomLabel})`
+        }
+      })
+  }, [availableBeds, selectedRoomId])
+
   useEffect(() => {
     form.setFieldValue('targetPoliId', undefined)
     form.setFieldValue('doctorScheduleId', undefined)
     setTargetPoliId(undefined)
-  }, [form, referralDateString, referralType])
+  }, [form, referralDateString, referralType, internalTargetType])
+
+  useEffect(() => {
+    form.setFieldValue('targetRoomId', undefined)
+    form.setFieldValue('targetBedId', undefined)
+    setSelectedRoomId(undefined)
+  }, [form, referralType, internalTargetType])
 
   const handleSubmit = async (values: any) => {
     try {
@@ -317,7 +417,10 @@ export const ReferralForm = ({
         direction: 'outgoing' as const
       }
 
-      if (values.referralType === ReferralType.INTERNAL) {
+      if (
+        values.referralType === ReferralType.INTERNAL &&
+        values.internalTargetType === InternalReferralTargetType.POLI
+      ) {
         const selectedDoctor = availableDoctorsForPoli.find(
           (doctor) => Number(doctor.doctorScheduleId) === Number(values.doctorScheduleId)
         )
@@ -341,6 +444,33 @@ export const ReferralForm = ({
         }
 
         message.success('Rujukan internal dan antrian poli berhasil dibuat')
+      } else if (
+        values.referralType === ReferralType.INTERNAL &&
+        values.internalTargetType === InternalReferralTargetType.INPATIENT
+      ) {
+        const selectedBed = availableBeds.find(
+          (bed) => String(bed.bedId) === String(values.targetBedId)
+        )
+
+        if (!selectedBed) {
+          throw new Error('Bed rawat inap tujuan tidak ditemukan. Silakan pilih ulang.')
+        }
+
+        const roomCode = selectedBed.room?.roomCodeId || 'Ruangan'
+        const bedCode = selectedBed.bed?.bedCodeId || 'Bed'
+
+        const response = await referPatient.mutateAsync({
+          ...commonPayload,
+          referralType: 'internal' as const,
+          internalTargetType: 'INPATIENT' as const,
+          targetOrganizationName: `Rawat Inap - ${roomCode} / Bed ${bedCode}`
+        })
+
+        if ((response as any)?.success === false) {
+          throw new Error((response as any)?.message || 'Gagal membuat rujukan internal rawat inap')
+        }
+
+        message.success('Rujukan internal ke rawat inap berhasil dibuat')
       } else {
         const response = await referPatient.mutateAsync({
           ...commonPayload,
@@ -379,6 +509,7 @@ export const ReferralForm = ({
         diagnosisText: autoDiagnosisText,
         signatureSource: 'manual'
       })
+      setSelectedRoomId(undefined)
       setTargetPoliId(undefined)
       setSignatures({})
       onSuccess?.()
@@ -403,6 +534,7 @@ export const ReferralForm = ({
           onFinish={onFinish}
           initialValues={{
             referralType: ReferralType.INTERNAL,
+            internalTargetType: InternalReferralTargetType.POLI,
             transportationMode: 'mandiri',
             referralDate: dayjs(),
             diagnosisCode: autoDiagnosisCode,
@@ -418,7 +550,7 @@ export const ReferralForm = ({
                 rules={[{ required: true, message: 'Wajib dipilih' }]}
               >
                 <Radio.Group onChange={(e) => setReferralType(e.target.value)} buttonStyle="solid">
-                  <Radio.Button value={ReferralType.INTERNAL}>Internal (Antar Poli)</Radio.Button>
+                  <Radio.Button value={ReferralType.INTERNAL}>Internal</Radio.Button>
                   <Radio.Button value={ReferralType.EXTERNAL}>Eksternal (RS Lain)</Radio.Button>
                 </Radio.Group>
               </Form.Item>
@@ -430,9 +562,31 @@ export const ReferralForm = ({
             </Col>
           </Row>
 
+          {referralType === ReferralType.INTERNAL && (
+            <Row gutter={24}>
+              <Col span={24}>
+                <Form.Item
+                  name="internalTargetType"
+                  label="Tujuan Internal"
+                  rules={[{ required: true, message: 'Pilih tujuan internal' }]}
+                >
+                  <Radio.Group buttonStyle="solid">
+                    <Radio.Button value={InternalReferralTargetType.POLI}>
+                      Poli Rawat Jalan
+                    </Radio.Button>
+                    <Radio.Button value={InternalReferralTargetType.INPATIENT}>
+                      Rawat Inap
+                    </Radio.Button>
+                  </Radio.Group>
+                </Form.Item>
+              </Col>
+            </Row>
+          )}
+
           <Row gutter={24}>
             <Col span={12}>
-              {referralType === ReferralType.INTERNAL ? (
+              {referralType === ReferralType.INTERNAL &&
+              internalTargetType === InternalReferralTargetType.POLI ? (
                 <Form.Item
                   name="targetPoliId"
                   label="Poli Tujuan"
@@ -454,6 +608,26 @@ export const ReferralForm = ({
                     notFoundContent="Tidak ada poli dengan jadwal pada tanggal ini"
                   />
                 </Form.Item>
+              ) : referralType === ReferralType.INTERNAL &&
+                internalTargetType === InternalReferralTargetType.INPATIENT ? (
+                <Form.Item
+                  name="targetRoomId"
+                  label="Ruangan Tujuan"
+                  rules={[{ required: true, message: 'Pilih ruangan tujuan' }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder="Pilih ruangan rawat inap"
+                    options={roomOptions}
+                    loading={availableBedsQuery.isLoading || availableBedsQuery.isRefetching}
+                    optionFilterProp="label"
+                    onChange={(value) => {
+                      setSelectedRoomId(String(value))
+                      form.setFieldValue('targetBedId', undefined)
+                    }}
+                    notFoundContent="Tidak ada ruangan rawat inap yang tersedia"
+                  />
+                </Form.Item>
               ) : (
                 <Form.Item
                   name="targetOrganizationName"
@@ -465,7 +639,8 @@ export const ReferralForm = ({
               )}
             </Col>
             <Col span={12}>
-              {referralType === ReferralType.INTERNAL ? (
+              {referralType === ReferralType.INTERNAL &&
+              internalTargetType === InternalReferralTargetType.POLI ? (
                 <Form.Item
                   name="doctorScheduleId"
                   label="Jadwal Dokter Tujuan"
@@ -481,6 +656,23 @@ export const ReferralForm = ({
                     disabled={!referralDateString || !targetPoliId}
                     optionFilterProp="label"
                     notFoundContent="Tidak ada dokter tersedia untuk poli/tanggal ini"
+                  />
+                </Form.Item>
+              ) : referralType === ReferralType.INTERNAL &&
+                internalTargetType === InternalReferralTargetType.INPATIENT ? (
+                <Form.Item
+                  name="targetBedId"
+                  label="Bed Tujuan"
+                  rules={[{ required: true, message: 'Pilih bed tujuan' }]}
+                >
+                  <Select
+                    showSearch
+                    placeholder={selectedRoomId ? 'Pilih bed tujuan' : 'Pilih ruangan dahulu'}
+                    options={bedOptions}
+                    loading={availableBedsQuery.isLoading || availableBedsQuery.isRefetching}
+                    disabled={!selectedRoomId}
+                    optionFilterProp="label"
+                    notFoundContent="Tidak ada bed tersedia untuk ruangan ini"
                   />
                 </Form.Item>
               ) : (
@@ -564,7 +756,10 @@ export const ReferralForm = ({
             />
           </Form.Item>
 
-          <Form.Item name="treatmentSummary" label="Terapi / Tindakan yang Sudah Diberikan (opsional)">
+          <Form.Item
+            name="treatmentSummary"
+            label="Terapi / Tindakan yang Sudah Diberikan (opsional)"
+          >
             <TextArea rows={3} placeholder="Terapi atau tindakan sebelum pasien dirujuk..." />
           </Form.Item>
 
@@ -583,9 +778,11 @@ export const ReferralForm = ({
                 Dokter Pengirim
               </div>
               <div className="mt-3 mb-4 h-32 w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden relative group">
-                {(selectedSignatureSource === 'kepegawaian'
-                  ? autoDoctorSignatureUrl
-                  : signatures.doctor) ? (
+                {(
+                  selectedSignatureSource === 'kepegawaian'
+                    ? autoDoctorSignatureUrl
+                    : signatures.doctor
+                ) ? (
                   <img
                     src={
                       selectedSignatureSource === 'kepegawaian'

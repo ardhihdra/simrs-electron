@@ -52,6 +52,11 @@ import Expense from './pages/expense/Expense'
 import { default as ExpenseForm, default as IncomeForm } from './pages/expense/expense-form'
 import ExpenseTable from './pages/expense/expense-table'
 import HomePage from './pages/home'
+import IgdBedMapRoute from './pages/igd/IgdBedMapRoute'
+import IgdDaftarRoute from './pages/igd/IgdDaftarRoute'
+import { IGD_PAGE_PATHS } from './pages/igd/igd.config'
+import IgdRegistrasiRoute from './pages/igd/IgdRegistrasiRoute'
+import IgdTriaseRoute from './pages/igd/IgdTriasePage'
 import Income from './pages/income/income'
 import IncomeTable from './pages/income/income-table'
 import MedicineCategoryForm from './pages/item-category/medicine-category-form'
@@ -119,7 +124,7 @@ import BillingPage from './pages/billing/BillingPage'
 import BillingAllocationPage from './pages/billing/billing-allocation'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
-import KioskaGlobalPage from './pages/visit-management/kioska/kiok-global'
+import KioskaGlobalPage from './pages/visit-management/kioska/kiosk-global'
 import KioskaSetupPage from './pages/visit-management/kioska/setup'
 import RegistrationPage from './pages/visit-management/registration'
 import RegistrationGlobalQueue from './pages/visit-management/registration-global-queue'
@@ -136,7 +141,10 @@ const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode
 
 function MainRoute() {
   const location = useLocation()
-  const { data: pageAccessData } = client.pageAccess.list.useQuery({}, { queryKey: ['pageAccess', {}] })
+  const { data: pageAccessData } = client.pageAccess.list.useQuery(
+    {},
+    { queryKey: ['pageAccess', {}] }
+  )
   const pageAccessMap = useMemo(() => {
     const map: Record<string, PageAccessEntry> = {}
     for (const item of pageAccessData?.result ?? []) {
@@ -340,6 +348,16 @@ function MainRoute() {
           <Route path="doctor" element={g('/dashboard/doctor', <DoctorEMR />)}>
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
+          </Route>
+          <Route path="igd" element={g('/dashboard/igd', <Outlet />)}>
+            <Route index element={g('/dashboard/igd', <Navigate to="daftar" replace />)} />
+            <Route path="daftar" element={g(IGD_PAGE_PATHS.daftar, <IgdDaftarRoute />)} />
+            <Route
+              path="registrasi"
+              element={g(IGD_PAGE_PATHS.registrasi, <IgdRegistrasiRoute />)}
+            />
+            <Route path="triase" element={g(IGD_PAGE_PATHS.triase, <IgdTriaseRoute />)} />
+            <Route path="bed-map" element={g(IGD_PAGE_PATHS.bedMap, <IgdBedMapRoute />)} />
           </Route>
           <Route path="ok" element={g('/dashboard/ok', <Outlet />)}>
             <Route index element={g('/dashboard/ok', <Navigate to="dashboard" replace />)} />
