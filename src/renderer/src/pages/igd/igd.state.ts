@@ -1,8 +1,10 @@
 import { create } from 'zustand'
 
+import type { IgdBedZoneName } from './igd.bed-zoning'
+
 export type IgdPatientStatus = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
 export type IgdBedStatus = 'available' | 'occupied' | 'cleaning'
-export type IgdBedZone = 'Resusitasi' | 'Observasi' | 'Treatment'
+export type IgdBedZone = IgdBedZoneName
 export type IgdTriageSection = 'quick' | 'umum' | 'primer' | 'sekunder'
 
 export type IgdVitalSigns = {

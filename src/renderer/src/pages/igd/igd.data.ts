@@ -1,5 +1,6 @@
 import type { PatientAttributes } from 'simrs-types'
 
+import type { IgdBedZoneName } from './igd.bed-zoning'
 import { getQuickTriageLevel } from './igd.quick-triage'
 
 export type IgdArrivalSource = 'Datang sendiri' | 'Rujukan' | 'Polisi'
@@ -7,7 +8,7 @@ export type IgdPaymentMethod = 'Umum' | 'BPJS' | 'Asuransi' | 'Perusahaan'
 export type IgdRegistrationMode = 'baru' | 'existing' | 'temporary'
 export type IgdDashboardPatientStatus = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
 export type IgdDashboardBedStatus = 'available' | 'occupied' | 'cleaning'
-export type IgdDashboardBedZone = 'Resusitasi' | 'Observasi' | 'Treatment'
+export type IgdDashboardBedZone = IgdBedZoneName
 
 export type IgdDashboardPatientTimeTracking = {
   arrivalTime: string
@@ -202,8 +203,8 @@ export function createIgdDashboardFixture(): IgdDashboard {
     summary: {
       totalActive: 4,
       triageCounts: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 0 },
-      bedAvailable: 8,
-      bedTotal: 12,
+      bedAvailable: 12,
+      bedTotal: 16,
       averageResponseMinutes: 4,
       totalToday: 4
     },
@@ -436,7 +437,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
         bedId: 'bed-t-01',
         roomId: 'room-treat',
         roomCodeId: 'IGD-TREAT',
-        roomClassCodeId: 'TREAT'
+        roomClassCodeId: 'IGD_TREATMENT'
       },
       {
         code: 'T-02',
@@ -446,7 +447,47 @@ export function createIgdDashboardFixture(): IgdDashboard {
         bedId: 'bed-t-02',
         roomId: 'room-treat',
         roomCodeId: 'IGD-TREAT',
-        roomClassCodeId: 'TREAT'
+        roomClassCodeId: 'IGD_TREATMENT'
+      },
+      {
+        code: 'I-01',
+        zone: 'Isolasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-i-01',
+        roomId: 'room-isol',
+        roomCodeId: 'IGD-ISOL',
+        roomClassCodeId: 'IGD_ISOLASI'
+      },
+      {
+        code: 'I-02',
+        zone: 'Isolasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-i-02',
+        roomId: 'room-isol',
+        roomCodeId: 'IGD-ISOL',
+        roomClassCodeId: 'IGD_ISOLASI'
+      },
+      {
+        code: 'H-01',
+        zone: 'Holding',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-h-01',
+        roomId: 'room-hold',
+        roomCodeId: 'IGD-HOLD',
+        roomClassCodeId: 'IGD_HOLDING'
+      },
+      {
+        code: 'H-02',
+        zone: 'Holding',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-h-02',
+        roomId: 'room-hold',
+        roomCodeId: 'IGD-HOLD',
+        roomClassCodeId: 'IGD_HOLDING'
       }
     ]
   }

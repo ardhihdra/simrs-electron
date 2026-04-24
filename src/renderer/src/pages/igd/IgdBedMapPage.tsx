@@ -59,6 +59,7 @@ const getTriageTone = (level: IgdDashboardPatient['triageLevel']): DesktopBadgeT
 const getZoneRangeTone = (zone: IgdDashboardBedZone): DesktopBadgeTone => {
   if (zone === 'Resusitasi') return 'danger'
   if (zone === 'Observasi') return 'warning'
+  if (zone === 'Isolasi') return 'info'
   return 'success'
 }
 

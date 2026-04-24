@@ -23,7 +23,11 @@ import {
   type IgdRegistrationDraft,
   type IgdRegistrationMode
 } from './igd.data'
-import { filterAvailableBedsForTriage, getAllowedBedZonesForTriage } from './igd.bed-zoning'
+import {
+  filterAvailableBedsForTriage,
+  getAllowedBedZonesForTriage,
+  IGD_BED_ZONE_ORDER
+} from './igd.bed-zoning'
 import {
   DEFAULT_IGD_QUICK_TRIAGE_CONDITION,
   getQuickTriageMeta,
@@ -205,7 +209,7 @@ export function IgdRegistrasiPage({
 
   const zoneStats = useMemo(
     () =>
-      ['Resusitasi', 'Observasi', 'Treatment'].map((zone) => {
+      IGD_BED_ZONE_ORDER.map((zone) => {
         const zoneBeds = dashboard.beds.filter((bed) => bed.zone === zone)
         const available = zoneBeds.filter((bed) => bed.status === 'available').length
 
@@ -237,7 +241,7 @@ export function IgdRegistrasiPage({
       : `Bed yang tersedia: ${allowedZones.join(', ')}. Snapshot bed ini tidak mengikat assignment backend pada fase registrasi.`
   const selectedPaymentNeedsMitra = draft.paymentMethod !== 'Umum'
   const selectedMitraOptions = selectedPaymentNeedsMitra
-    ? mitraOptionsByPaymentMethod[draft.paymentMethod as Exclude<IgdPaymentMethod, 'Umum'>] ?? []
+    ? (mitraOptionsByPaymentMethod[draft.paymentMethod as Exclude<IgdPaymentMethod, 'Umum'>] ?? [])
     : []
   const mitraFieldHint = !selectedPaymentNeedsMitra
     ? 'Mitra tidak diperlukan untuk pembayaran umum/tunai.'
@@ -298,7 +302,9 @@ export function IgdRegistrasiPage({
       return
     }
 
-    const selectedMitraStillExists = selectedMitraOptions.some((option) => option.value === draft.mitraId)
+    const selectedMitraStillExists = selectedMitraOptions.some(
+      (option) => option.value === draft.mitraId
+    )
     if (!selectedMitraStillExists) {
       setDraft((current) => ({
         ...current,
@@ -632,7 +638,9 @@ export function IgdRegistrasiPage({
               divided
             >
               <div className="igd-form-grid-3">
-                {registerMode === 'existing' && selectedExistingPatient && existingRelatedPersons.length > 0 ? (
+                {registerMode === 'existing' &&
+                selectedExistingPatient &&
+                existingRelatedPersons.length > 0 ? (
                   <div className="md:col-span-3">
                     <DesktopInputField
                       label="Sumber Penanggung Jawab"
@@ -668,7 +676,11 @@ export function IgdRegistrasiPage({
                   onChange={(value) => updateDraft({ guarantorNik: value })}
                   className="font-mono"
                   disabled={isUsingExistingGuarantor}
-                  hint={isUsingExistingGuarantor ? 'Data existing belum menyimpan NIK penanggung jawab.' : undefined}
+                  hint={
+                    isUsingExistingGuarantor
+                      ? 'Data existing belum menyimpan NIK penanggung jawab.'
+                      : undefined
+                  }
                 />
                 <div className="md:col-span-2">
                   <DesktopInputGroupField
@@ -752,7 +764,7 @@ export function IgdRegistrasiPage({
           <DesktopCard title="Ketersediaan Bed IGD">
             <div>
               <div className="igd-bed-availability-grid">
-              <DesktopMetricTile
+                <DesktopMetricTile
                   label="Tersedia"
                   value={String(allAvailableBeds.length)}
                   tone="success"
