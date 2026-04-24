@@ -105,7 +105,7 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
     const allTrueResults: TelaahResults = { ...results }
     const criteriaKeys: (keyof TelaahResults)[] = administrasiCriteria.map((c) => c.key)
     criteriaKeys.forEach((key) => {
-      ; (allTrueResults[key] as boolean) = true
+      ;(allTrueResults[key] as boolean) = true
     })
     onChange(allTrueResults)
   }
@@ -119,7 +119,7 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
       ...edukasiCriteria.map((c) => c.key)
     ]
     criteriaKeys.forEach((key) => {
-      ; (allTrueResults[key] as boolean) = true
+      ;(allTrueResults[key] as boolean) = true
     })
     onChange(allTrueResults)
   }
@@ -159,7 +159,7 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
               size="small"
               icon={<CheckCircleFilled />}
               onClick={handleCheckAll}
-              className="bg-orange-500 border-none rounded-lg hover:bg-orange-600"
+              className="bg-orange-500 border-none rounded-lg hover:bg-orange-600 my-1"
             >
               Ceklis Semua
             </Button>

@@ -96,6 +96,7 @@ export interface DesktopMenuShellProps {
   activeModuleKey?: string
   onModuleSelect?: (key: string) => void
   sidebarItems?: DesktopPageListGroup[]
+  sidebarIcon?: ReactNode
   activeSidebarKey?: string
   onSidebarSelect?: (key: string) => void
   sidebarCollapsed?: boolean
@@ -166,6 +167,7 @@ export function DesktopMenuShell({
   activeModuleKey,
   onModuleSelect,
   sidebarItems = DEFAULT_SIDEBAR_ITEMS,
+  sidebarIcon,
   activeSidebarKey,
   onSidebarSelect,
   sidebarCollapsed = false,
@@ -185,7 +187,10 @@ export function DesktopMenuShell({
   const resolvedStatusBar = statusBar ?? (
     <DesktopStatusBar
       leftItems={[
-        { key: 'server', content: <span className="font-semibold text-ds-muted">Server online</span> },
+        {
+          key: 'server',
+          content: <span className="font-semibold text-ds-muted">Server online</span>
+        },
         { key: 'shift', content: <span>Shift pagi</span> }
       ]}
       rightItems={[{ key: 'preview', content: <span>SIMRS Desktop Preview</span> }]}
@@ -207,6 +212,7 @@ export function DesktopMenuShell({
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <DesktopPageList
           groups={sidebarItems}
+          icon={sidebarIcon}
           activeKey={resolvedActiveSidebarKey}
           title={title}
           subtitle={subtitle}
@@ -215,7 +221,7 @@ export function DesktopMenuShell({
           onSelect={onSidebarSelect}
         />
 
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden bg-ds-background-elevated">
           <DesktopDocTabs
             tabs={tabs}
             activeKey={resolvedActiveTabKey}

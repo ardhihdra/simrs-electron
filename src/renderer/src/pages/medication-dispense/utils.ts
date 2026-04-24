@@ -60,12 +60,7 @@ export function extractTelaahResults(record: any): TelaahResults | null {
     ]
 
     if (record.telaah && typeof record.telaah === 'object') {
-        const results = record.telaah
-        const missing = criteriaKeys.filter((key) => {
-            const val = results[key]
-            return val !== true && val !== 1 && val !== 'true'
-        })
-        if (missing.length === 0) return results
+        return record.telaah
     }
 
     const notes = record.note
@@ -76,12 +71,7 @@ export function extractTelaahResults(record: any): TelaahResults | null {
     try {
         const jsonStr = telaahNote.text.replace('TEALAAH:', '').trim()
         const results = JSON.parse(jsonStr)
-        const { keterangan, ...booleans } = results
-        const allMet = criteriaKeys.every((key) => {
-            const val = booleans[key]
-            return val === true || val === 1 || val === 'true'
-        })
-        return allMet ? results : null
+        return results
     } catch (e) {
         console.error('Failed to parse telaah note', e)
         return null

@@ -2,6 +2,7 @@ export type DashboardTabItem = {
   key: string
   label: string
   href?: string
+  icon?: import('react').ReactNode
 }
 
 export type ResolveInitialDashboardTabsInput = {
