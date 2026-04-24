@@ -2,10 +2,7 @@ import type { ReactNode } from 'react'
 
 import { DesktopBadge } from '../atoms/DesktopBadge'
 import { DesktopIcon } from '../atoms/DesktopIcon'
-import {
-  getActiveDesktopKey,
-  type DesktopModuleBarItem
-} from './desktop-shell.helpers'
+import { getActiveDesktopKey, type DesktopModuleBarItem } from './desktop-shell.helpers'
 
 export type { DesktopModuleBarItem } from './desktop-shell.helpers'
 
@@ -32,13 +29,13 @@ export function DesktopModuleBar({
 
   return (
     <div className="flex h-ds-modulebar items-center gap-ds-space-xs border-b border-ds-border bg-ds-surface px-ds-space-sm">
-      <div className="mr-ds-space-sm flex items-center gap-ds-space-xs border-r border-ds-border pr-ds-space-md">
-        <div className="flex h-ds-module-brand w-ds-module-brand items-center justify-center overflow-hidden rounded-ds-md bg-ds-accent text-ds-accent-text text-ds-body font-bold">
+      <div className="flex self-stretch mr-ds-space-sm items-center gap-ds-space-xs border-r border-ds-border pr-ds-space-md">
+        <div className="h-ds-module-brand w-ds-module-brand items-center justify-center overflow-hidden rounded-ds-md bg-ds-accent text-ds-accent-text text-ds-body font-bold p-0.5">
           {brandMark ?? 'S'}
         </div>
         <div className="leading-[1.15]">
           <div className="text-ds-body font-semibold text-ds-text">{brandTitle}</div>
-          <div className="text-ds-caption uppercase tracking-[0.08em] text-ds-subtle">
+          <div className="text-ds-caption uppercase tracking-[0.08em] text-ds-subtle opacity-60">
             {brandSubtitle}
           </div>
         </div>

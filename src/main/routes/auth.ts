@@ -15,6 +15,7 @@ type BackendLoginSuccess = {
     namaLengkap?: string
     username: string
     hakAksesId?: string
+    hakAkses?: { nama?: string; kode?: string }
   }
   message?: string
 }
@@ -26,6 +27,7 @@ export type Session = {
     id: number
     username: string
     hakAksesId?: string
+    hakAksesNama?: string
   }
 }
 
@@ -38,7 +40,8 @@ export const schemas = {
         .object({
           id: z.union([z.string(), z.number()]),
           username: z.string(),
-          hakAksesId: z.string().optional()
+          hakAksesId: z.string().optional(),
+          hakAksesNama: z.string().optional()
         })
         .optional()
     })
@@ -98,14 +101,16 @@ export async function login(ctx: IpcContext, data: LoginArgs) {
   
   const userId = json.result.id
   const username = json.result.username
-  store.setUser({ id: userId,  username, hakAksesId: json.result.hakAksesId });
+  const hakAksesId = json.result.hakAksesId
+  const hakAksesNama = json.result.hakAkses?.nama
+  store.setUser({ id: userId, username, hakAksesId, hakAksesNama })
   const session = store.create(String(userId))
   if (typeof ctx.senderId === 'number') {
     store.authenticateWindow(ctx.senderId, session.token)
     store.setBackendTokenForWindow(ctx.senderId, token)
     notificationService.connect(token)
   }
-  return { success: true, token: token, user: { id: userId, username, hakAksesId: json.result.hakAksesId ?? '' } }
+  return { success: true, token: token, user: { id: userId, username, hakAksesId: hakAksesId ?? '', hakAksesNama } }
 }
 
 // Logout for current window: delete its associated session token
@@ -157,7 +162,8 @@ export async function getSession(ctx: IpcContext) {
       user: {
         id: Number(s.userId),
         username: storedUser.username,
-        hakAksesId: storedUser.hakAksesId
+        hakAksesId: storedUser.hakAksesId,
+        hakAksesNama: storedUser.hakAksesNama
       }
     }
   } catch (error) {

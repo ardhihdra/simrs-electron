@@ -13,6 +13,7 @@ export interface DesktopPageListProps {
   activeKey?: string
   title?: string
   subtitle?: string
+  icon?: ReactNode
   collapsed?: boolean
   footer?: ReactNode
   onSelect?: (key: string) => void
@@ -23,6 +24,7 @@ export function DesktopPageList({
   activeKey,
   title = 'Pendaftaran Pasien',
   subtitle = 'Daftar page aktif pada modul saat ini',
+  icon,
   collapsed = false,
   footer,
   onSelect
@@ -39,13 +41,26 @@ export function DesktopPageList({
         collapsed ? 'w-20' : 'w-ds-pagelist'
       }`}
     >
-      <div className="border-b border-ds-border px-ds-card-padding py-ds-space-md">
-        <div className={`text-ds-body font-semibold text-ds-text ${collapsed ? 'hidden' : ''}`}>
-          {title}
-        </div>
-        <div className={`mt-ds-space-xxs text-ds-label text-ds-muted ${collapsed ? 'hidden' : ''}`}>
-          {subtitle}
-        </div>
+      <div
+        className={`flex items-center border-b border-ds-border bg-ds-surface ${
+          collapsed
+            ? 'justify-center p-ds-space-xs'
+            : 'gap-ds-space-xs px-[14px] pt-[10px] pb-[8px]'
+        }`}
+      >
+        {icon ? (
+          <div className="flex size-7 shrink-0 items-center justify-center rounded-ds-md bg-ds-accent-soft text-ds-accent">
+            {icon}
+          </div>
+        ) : null}
+        {!collapsed ? (
+          <div className="flex min-w-0 flex-1 flex-col leading-[1.15]">
+            <span className="text-ds-body font-semibold text-ds-text">{title}</span>
+            <span className="text-ds-caption uppercase tracking-[0.04em] text-ds-subtle opacity-50">
+              {subtitle}
+            </span>
+          </div>
+        ) : null}
       </div>
 
       <div className="flex-1 space-y-ds-space-sm overflow-y-auto p-ds-space-sm">
