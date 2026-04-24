@@ -70,7 +70,8 @@ const TotalAmountCell = ({ record, fmt }: { record: EncounterRow; fmt: (v: numbe
       patientId: record.patient?.id ?? ''
     },
     {
-      enabled: (record.total ?? 0) === 0 && !!record.patient?.id
+      enabled: (record.total ?? 0) === 0 && !!record.patient?.id,
+      queryKey: ['kasir.getInvoice', { encounterId: record.id, patientId: record.patient?.id || '' }]
     }
   )
 
@@ -169,7 +170,8 @@ export default function KasirEncounterTable() {
     encounterId: selectedId!,
     patientId: selectedEncounter?.patient?.id ?? ''
   }, {
-    enabled: !!selectedId && !!selectedEncounter?.patient?.id
+    enabled: !!selectedId && !!selectedEncounter?.patient?.id,
+    queryKey: ['kasir.getInvoice', { encounterId: selectedId || '', patientId: selectedEncounter?.patient?.id || '' }]
   })
 
   const selectedInvoice = (selectedInvoiceData as any)?.result
