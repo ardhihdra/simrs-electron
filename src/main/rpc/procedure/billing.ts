@@ -11,6 +11,7 @@ const ListInvoicesInputSchema = z.object({
   mrn: z.string().optional(),
   queueNumber: z.string().optional(),
   unitCode: z.string().optional(),
+  mitraId: z.number().optional(),
   page: z.number().optional(),
   limit: z.number().optional()
 })
@@ -65,6 +66,7 @@ export const billingRpc = {
       if (input.mrn) params.append('mrn', input.mrn)
       if (input.queueNumber) params.append('queueNumber', input.queueNumber)
       if (input.unitCode) params.append('unitCode', input.unitCode)
+      if (input.mitraId) params.append('mitraId', String(input.mitraId))
       if (input.page) params.append('page', String(input.page))
       if (input.limit) params.append('limit', String(input.limit))
       console.log('cek params', params)

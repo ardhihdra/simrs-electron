@@ -1,3 +1,5 @@
+import React from 'react'
+
 import { DesktopFormField } from './DesktopFormField'
 import { DesktopInput, type DesktopInputOption } from './DesktopInput'
 
@@ -12,6 +14,11 @@ export interface DesktopInputFieldProps {
   placeholder?: string
   value?: string
   options?: DesktopInputFieldOption[]
+  onChange?: (value: string) => void
+  disabled?: boolean
+  rows?: number
+  className?: string
+  allowClear?: boolean
 }
 
 export function DesktopInputField({
@@ -22,7 +29,12 @@ export function DesktopInputField({
   type = 'input',
   placeholder,
   value,
-  options = []
+  options = [],
+  onChange,
+  disabled = false,
+  rows,
+  className,
+  allowClear = false
 }: DesktopInputFieldProps) {
   return (
     <DesktopFormField label={label} hint={hint} error={error} required={required}>
@@ -31,6 +43,11 @@ export function DesktopInputField({
         placeholder={placeholder}
         value={value}
         options={options}
+        onChange={onChange}
+        disabled={disabled}
+        rows={rows}
+        className={className}
+        allowClear={allowClear}
       />
     </DesktopFormField>
   )
