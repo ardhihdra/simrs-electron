@@ -10,6 +10,7 @@ import {
   CheckOutlined
 } from '@ant-design/icons'
 import { Button, Spin, message } from 'antd'
+import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useOutletContext } from 'react-router'
@@ -17,6 +18,12 @@ import { useEncounterList } from '@renderer/hooks/query/use-encounter'
 import KasirStatsStrip from './kasir-stats-strip'
 import { rpc, client } from '@renderer/utils/client'
 import { useQueryClient } from '@tanstack/react-query'
+import { DesktopStatusPill, type DesktopStatusPillTone } from '@renderer/components/design-system/atoms/DesktopStatusPill'
+import { DesktopPropertyGrid, type DesktopPropertyItem } from '@renderer/components/design-system/molecules/DesktopPropertyGrid'
+import { DesktopButton } from '@renderer/components/design-system/atoms/DesktopButton'
+import { DesktopCard } from '@renderer/components/design-system/molecules/DesktopCard'
+import { DesktopIcon } from '@renderer/components/design-system/atoms/DesktopIcon'
+import { DesktopGenericTable } from '@renderer/components/design-system/organisms/DesktopGenericTable'
 
 interface EncounterRow {
   id: string
@@ -54,12 +61,22 @@ const getST = (s?: string | null) =>
   ST[s || 'draft'] ?? { textClass: 'text-gray-400', bgClass: 'bg-gray-50', dotClass: 'bg-gray-300', label: 'Belum Ada', borderColor: '#e5e7eb' }
 
 const StBadge = ({ status }: { status?: string | null }) => {
-  const st = getST(status)
+  const toneMap: Record<string, DesktopStatusPillTone> = {
+    issued: 'warning',
+    dp: 'violet',
+    balanced: 'success',
+    draft: 'neutral'
+  }
+  const labelMap: Record<string, string> = {
+    issued: 'Siap Bayar',
+    dp: 'Bayar Sebagian',
+    balanced: 'Lunas',
+    draft: 'Dalam Proses'
+  }
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold ${st.bgClass} ${st.textClass}`}>
-      <span className={`w-[5px] h-[5px] rounded-full flex-shrink-0 ${st.dotClass}`} />
-      {st.label}
-    </span>
+    <DesktopStatusPill tone={toneMap[status || 'draft']}>
+      {labelMap[status || 'draft'] || 'Belum Ada'}
+    </DesktopStatusPill>
   )
 }
 
@@ -87,7 +104,7 @@ const formatEnum = (val?: string) => {
   if (lower === 'emergency' || lower === 'emer') return 'IGD'
   if (lower === 'lab') return 'Laboratorium'
   if (lower === 'div') return 'Rawat Jalan' // Asumsi div adalah poli/ambulatory
-  
+
   return val
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -98,6 +115,85 @@ export default function KasirEncounterTable() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { handleTriggerClose } = useOutletContext<{ handleTriggerClose: () => void }>()
+
+  const columns: ColumnsType<EncounterRow> = [
+    {
+      title: 'Pasien & Tagihan',
+      key: 'patient',
+      onCell: (record) => {
+        const status = record.invoiceStatus || 'draft'
+        const colorMap: Record<string, string> = {
+          issued: '#f97316',
+          dp: '#7c3aed',
+          balanced: '#16a34a',
+          draft: '#9ca3af'
+        }
+        const isSel = selectedId === String(record.id)
+        return {
+          style: {
+            borderLeft: `4px solid ${isSel ? 'var(--ds-color-accent)' : colorMap[status]}`,
+            paddingLeft: '12px'
+          }
+        }
+      },
+      render: (_, record) => (
+        <div className="flex flex-col gap-[2px] min-w-0">
+          <div className={`text-[12.5px] font-bold truncate ${selectedId === String(record.id) ? 'text-ds-accent' : 'text-ds-text'}`}>
+            {record.patient?.name || 'Pasien Tanpa Nama'}
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-ds-muted font-mono">
+            <span>{(record.patient as any)?.medicalRecordNumber || '-'}</span>
+            <span>·</span>
+            <span>{(record as any).payer?.name || 'Umum'}</span>
+          </div>
+          <div className="text-[10.5px] text-ds-muted/80 truncate">
+            {record.encounterCode || record.id} · {dayjs(record.visitDate).format('DD MMM YYYY')}
+          </div>
+        </div>
+      )
+    },
+    {
+      title: 'Jenis',
+      key: 'type',
+      width: 100,
+      render: (_, record) => (
+        <span className="text-[11px] text-ds-muted">
+          {formatEnum((record as any).encounterType || record.serviceUnit?.type || record.serviceType)}
+        </span>
+      )
+    },
+    {
+      title: 'Total',
+      key: 'total',
+      align: 'right',
+      width: 120,
+      render: (_, record) => (
+        <div className="flex flex-col items-end justify-center leading-tight">
+          <TotalAmountCell record={record} fmt={fmt} />
+          {(record.paid ?? 0) > 0 && (record.paid ?? 0) < (record.total ?? 0) && (
+            <div className="flex flex-col items-end mt-0.5">
+              <span className="text-[10px] text-[var(--ds-color-success)] font-mono font-bold">
+                +{fmt(record.paid ?? 0)}
+              </span>
+              <span className="text-[10px] text-[var(--ds-color-success)]">bayar</span>
+            </div>
+          )}
+          {record.invoiceStatus === 'balanced' && (
+            <div className="text-[10px] text-[var(--ds-color-success)] font-bold mt-0.5">
+              Lunas ✓
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      title: 'Status',
+      key: 'status',
+      align: 'right',
+      width: 120,
+      render: (_, record) => <StBadge status={record.invoiceStatus} />
+    }
+  ]
 
   const [invoiceStatusFilter, setInvoiceStatusFilter] = useState<string>('all')
   const [searchPatient, setSearchPatient] = useState('')
@@ -223,6 +319,10 @@ export default function KasirEncounterTable() {
 
   return (
     <div className="space-y-4">
+      <style>{`
+        .kasir-table .ant-table-cell { border-radius: 0 !important; }
+        .kasir-table .ant-table-row { border-radius: 0 !important; }
+      `}</style>
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="flex items-end gap-4 mb-2 flex-wrap">
         <div>
@@ -264,7 +364,7 @@ export default function KasirEncounterTable() {
       <div className="grid grid-cols-1 xl:grid-cols-[1.5fr_1fr] gap-4 items-start">
 
         {/* LEFT: List */}
-        <div className="bg-ds-surface border border-ds-border rounded-ds-lg overflow-hidden shadow-sm flex flex-col">
+        <div className="bg-ds-surface border border-ds-border rounded-none overflow-hidden shadow-sm flex flex-col">
           {/* Card header */}
           <div className="px-4 py-2 border-b border-ds-border flex items-center justify-between bg-white">
             <div className="flex items-baseline gap-2">
@@ -291,8 +391,8 @@ export default function KasirEncounterTable() {
                   key={k}
                   onClick={() => setInvoiceStatusFilter(k)}
                   className={`px-2.5 py-1 rounded border-none cursor-pointer text-[11.5px] transition-all flex items-center gap-1 ${active
-                      ? 'bg-ds-accent-soft text-ds-accent font-semibold'
-                      : 'bg-transparent text-ds-muted hover:bg-ds-surface-muted'
+                    ? 'bg-ds-accent-soft text-ds-accent font-semibold'
+                    : 'bg-transparent text-ds-muted hover:bg-ds-surface-muted'
                     }`}
                 >
                   {l}
@@ -304,190 +404,133 @@ export default function KasirEncounterTable() {
             })}
           </div>
 
-          {/* Column headers */}
-          <div className="grid grid-cols-[1fr_90px_110px_90px] px-4 py-[7px] border-b border-ds-border" style={{ background: 'var(--surface-2)' }}>
-            {['Pasien & Tagihan', 'Jenis', 'Total', 'Status'].map((h, i) => (
-              <div key={i} className={`text-[10.5px] font-semibold uppercase tracking-[0.07em] text-ds-muted ${i >= 2 ? 'text-right' : ''}`}>
-                {h}
-              </div>
-            ))}
-          </div>
 
           {/* Rows */}
-          <div className="overflow-auto">
-            {isEncounterLoading || isEncounterRefetching ? (
-              <div className="p-12 flex justify-center"><Spin size="large" /></div>
-            ) : encounterRows.length === 0 ? (
-              <div className="p-12 text-center text-ds-muted text-[12px]">Tidak ada data tagihan</div>
-            ) : (
-              encounterRows.map((record, i) => {
-                const isSel = selectedId === String(record.id)
-                const st = getST(record.invoiceStatus)
-
-                return (
-                  <div
-                    key={record.id}
-                    onClick={() => setSelectedId(String(record.id))}
-                    style={{ borderLeftColor: isSel ? '#2563eb' : st.borderColor }}
-                    className={`grid grid-cols-[1fr_90px_110px_90px] px-4 py-[10px] cursor-pointer transition-colors border-l-[3px] ${i < encounterRows.length - 1 ? 'border-b border-ds-border' : ''
-                      } ${isSel ? 'bg-ds-accent-soft' : 'bg-white hover:bg-ds-surface-muted/30'}`}
-                  >
-                    {/* Pasien */}
-                    <div className="flex flex-col gap-[2px] min-w-0">
-                      <div className={`text-[12.5px] font-bold truncate ${isSel ? 'text-ds-accent' : 'text-ds-text'}`}>
-                        {record.patient?.name || 'Pasien Tanpa Nama'}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-[11px] text-ds-muted font-mono">
-                        <span>{(record.patient as any)?.medicalRecordNumber || '-'}</span>
-                        <span>·</span>
-                        <span>{(record as any).payer?.name || 'Umum'}</span>
-                      </div>
-                      <div className="text-[10.5px] text-ds-muted/80 truncate">
-                        {record.encounterCode || record.id} · {dayjs(record.visitDate).format('DD MMM YYYY')}
-                      </div>
-                    </div>
-
-                    {/* Jenis */}
-                    <div className="flex items-center text-[11px] text-ds-muted">
-                      {formatEnum((record as any).encounterType || record.serviceUnit?.type || record.serviceType)}
-                    </div>
-
-                    {/* Total */}
-                    <div className="flex flex-col items-end justify-center gap-[2px]">
-                      <TotalAmountCell record={record} fmt={fmt} />
-                      {(record.paid ?? 0) > 0 && (record.paid ?? 0) < (record.total ?? 0) && (
-                        <div style={{ fontSize: 10.5, color: 'var(--ok)', fontFamily: 'var(--font-mono)' }}>
-                          +{fmt(record.paid ?? 0)}
-                        </div>
-                      )}
-                      {record.invoiceStatus === 'balanced' && (
-                        <div style={{ fontSize: 10.5, color: 'var(--ok)' }}>Lunas ✓</div>
-                      )}
-                    </div>
-
-                    {/* Status Badge */}
-                    <div className="flex items-center justify-end">
-                      <StBadge status={record.invoiceStatus} />
-                    </div>
-                  </div>
-                )
-              })
-            )}
+          <div className="flex-1 overflow-hidden">
+            <DesktopGenericTable
+              columns={columns}
+              dataSource={encounterRows}
+              rowKey="id"
+              loading={isEncounterLoading || isEncounterRefetching}
+              tableProps={{
+                onRow: (record) => {
+                  const isSel = selectedId === String(record.id)
+                  return {
+                    onClick: () => setSelectedId(String(record.id)),
+                    className: `cursor-pointer transition-colors ${isSel ? 'ant-table-row-selected' : ''}`
+                  }
+                },
+                scroll: { y: 'calc(100vh - 350px)' }, // Adjusted
+                className: 'kasir-table !rounded-none'
+              }}
+            />
           </div>
         </div>
 
         {/* RIGHT: Detail Panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-4">
           {selectedEncounter ? (
-            <div className="bg-white border border-ds-border rounded-ds-lg overflow-hidden shadow-sm">
-              {/* Card Header */}
-              {/* Card Header */}
-              <div className="px-4 py-4 border-b border-ds-border flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-[17px] font-bold text-gray-900">
-                    {selectedEncounter.patient?.name || 'Pasien Tanpa Nama'}
-                  </div>
-                  <div className="text-[11.5px] text-gray-500 mt-1 flex gap-2 items-center">
-                    <span className="font-mono">{(selectedEncounter.patient as any)?.medicalRecordNumber || '-'}</span>
-                    <span className="opacity-40">·</span>
-                    <span>{formatEnum((selectedEncounter as any).encounterType || selectedEncounter.serviceUnit?.type || selectedEncounter.serviceType)}</span>
-                  </div>
-                </div>
-                <StBadge status={selectedEncounter.invoiceStatus} />
-              </div>
+            <>
+              <DesktopCard
+                title={selectedEncounter.patient?.name || 'Pasien Tanpa Nama'}
+                subtitle={`${(selectedEncounter.patient as any)?.medicalRecordNumber || '-'} · ${formatEnum((selectedEncounter as any).encounterType || selectedEncounter.serviceUnit?.type || selectedEncounter.serviceType)}`}
+                extra={<StBadge status={selectedEncounter.invoiceStatus} />}
+              >
+                <div className="space-y-4">
+                  <DesktopPropertyGrid
+                    items={[
+                      { label: 'NO. INVOICE', value: selectedEncounter.encounterCode || selectedEncounter.id, mono: true },
+                      { label: 'TANGGAL', value: dayjs(selectedEncounter.visitDate).format('DD MMM YYYY') },
+                      { 
+                        label: 'DPJP', 
+                        value: (selectedInvoice as any)?.result?.dokterPemeriksa || 
+                               selectedInvoice?.dokterPemeriksa || 
+                               (selectedEncounter as any).doctor?.name || 
+                               (selectedEncounter as any).practitioner?.name || 
+                               (selectedEncounter as any).attendingPhysician?.name || 
+                               '-' 
+                      },
+                      { label: 'PENJAMIN', value: (selectedEncounter as any).payer?.name || 'Umum' }
+                    ]}
+                    columns={2}
+                  />
 
-              {/* Card Body */}
-              <div className="p-4">
-                {/* Meta grid */}
-                <div className="grid grid-cols-2 gap-x-2 gap-y-3.5 mb-4">
-                  {([
-                    ['NO. INVOICE', selectedEncounter.encounterCode || selectedEncounter.id, true],
-                    ['TANGGAL', dayjs(selectedEncounter.visitDate).format('DD MMM YYYY'), false],
-                    ['DPJP', selectedInvoice?.dokterPemeriksa || (selectedEncounter as any).doctor?.name || '-', false],
-                    ['PENJAMIN', (selectedEncounter as any).payer?.name || 'Umum', false],
-                  ] as [string, string, boolean][]).map(([l, v, mono], i) => (
-                    <div key={i}>
-                      <div className="text-[10px] font-bold tracking-[0.05em] uppercase text-gray-400 mb-0.5">
-                        {l}
-                      </div>
-                      <div className={`text-[13px] font-semibold text-gray-900 ${mono ? 'font-mono' : ''}`}>
-                        {v}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Financial summary */}
-                <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 flex flex-col gap-2.5">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-[12.5px] text-gray-500 font-medium">Total Tagihan</span>
-                    <span className="font-mono text-[14px] font-bold text-gray-900">
-                      {isLoadingInvoice ? <Spin size="small" /> : fmt(realTotal)}
-                    </span>
-                  </div>
-                  {(selectedEncounter.paid ?? 0) > 0 && (
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-[12.5px] text-gray-500 font-medium">Sudah Dibayar</span>
-                      <span className="font-mono text-[14px] font-bold text-green-600">
-                        {fmt(selectedEncounter.paid ?? 0)}
+                  <div className="p-3.5 bg-[var(--ds-color-surface-muted)]/50 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] flex flex-col gap-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[12px] text-[var(--ds-color-text-muted)]">Total Tagihan</span>
+                      <span className="font-mono text-[13.5px] font-bold text-[var(--ds-color-text)]">
+                        {isLoadingInvoice ? <Spin size="small" /> : fmt(realTotal)}
                       </span>
                     </div>
-                  )}
-                  <div className="border-t border-dashed border-slate-300 my-0.5" />
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-[13.5px] font-extrabold text-gray-900">Sisa Tagihan</span>
-                    <span className="font-mono text-[19px] font-extrabold text-red-600">
-                      {isLoadingInvoice ? <Spin size="small" /> : fmt(realRemaining)}
-                    </span>
+
+                    {(selectedEncounter.paid ?? 0) > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-[12px] text-[var(--ds-color-text-muted)]">Sudah Dibayar</span>
+                        <span className="font-mono text-[13.5px] font-bold text-[var(--ds-color-success)]">
+                          {fmt(selectedEncounter.paid ?? 0)}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="border-t border-dashed border-[var(--ds-color-border)] opacity-40 my-0.5" />
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-[13px] font-bold text-[var(--ds-color-text)]">Sisa Tagihan</span>
+                      <span className="font-mono text-[16px] font-bold text-[var(--ds-color-danger)] tracking-tight">
+                        {isLoadingInvoice ? <Spin size="small" /> : fmt(realRemaining)}
+                      </span>
+                    </div>
                   </div>
                 </div>
+              </DesktopCard>
+
+              {/* Quick action buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <DesktopButton
+                  emphasis="secondary"
+                  onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}`)}
+                  icon={<FileTextOutlined />}
+                >
+                  Lihat Detail Invoice
+                </DesktopButton>
+
+                {(!selectedEncounter.invoiceStatus || selectedEncounter.invoiceStatus === 'draft') && (
+                  <button
+                    className="flex items-center justify-center gap-2 h-ds-button px-4 rounded-ds-md border border-[#f97316] bg-[#fff7ed] text-[#f97316] text-[12.5px] font-bold cursor-pointer hover:opacity-90 shadow-sm"
+                    onClick={handleConfirm}
+                    disabled={confirming}
+                  >
+                    <CheckOutlined style={{ fontSize: 14 }} /> {confirming ? 'Memproses...' : 'Konfirmasi & Kunci Invoice'}
+                  </button>
+                )}
+
+                {(selectedEncounter.invoiceStatus === 'issued' || selectedEncounter.invoiceStatus === 'dp') && (
+                  <DesktopButton
+                    emphasis="primary"
+                    onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}&action=pay`)}
+                    icon={<PlusOutlined />}
+                  >
+                    Input Pembayaran
+                  </DesktopButton>
+                )}
+
+                <DesktopButton
+                  emphasis="secondary"
+                  icon={<PrinterOutlined />}
+                >
+                  Cetak Invoice / Kwitansi
+                </DesktopButton>
+
+                <DesktopButton
+                  emphasis="secondary"
+                  onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}&tab=billing`)}
+                  icon={<TeamOutlined />}
+                >
+                  Alokasi Billing
+                </DesktopButton>
               </div>
-            </div>
-          ) : null}
-
-          {/* Quick action buttons */}
-          {selectedEncounter && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <button
-                className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-ds-border bg-white text-ds-text text-[12.5px] font-semibold cursor-pointer hover:bg-ds-surface-muted"
-                onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}`)}
-              >
-                <FileTextOutlined style={{ fontSize: 14 }} /> Lihat Detail Invoice
-              </button>
-
-              {(!selectedEncounter.invoiceStatus || selectedEncounter.invoiceStatus === 'draft') && (
-                <button
-                  className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-[#f97316] bg-[#fff7ed] text-[#f97316] text-[12.5px] font-bold cursor-pointer hover:opacity-90 shadow-sm"
-                  onClick={handleConfirm}
-                  disabled={confirming}
-                >
-                  <CheckOutlined style={{ fontSize: 14 }} /> {confirming ? 'Memproses...' : 'Konfirmasi & Kunci Invoice'}
-                </button>
-              )}
-
-              {(selectedEncounter.invoiceStatus === 'issued' || selectedEncounter.invoiceStatus === 'dp') && (
-                <button
-                  className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border-none bg-ds-accent text-white text-[13px] font-bold cursor-pointer hover:opacity-90 shadow-sm"
-                  onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}&action=pay`)}
-                >
-                  <PlusOutlined style={{ fontSize: 15 }} /> Input Pembayaran
-                </button>
-              )}
-
-              <button className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-ds-border bg-white text-ds-text text-[12.5px] font-semibold cursor-pointer hover:bg-ds-surface-muted">
-                <PrinterOutlined style={{ fontSize: 14 }} /> Cetak Invoice / Kwitansi
-              </button>
-
-              <button
-                className="flex items-center justify-center gap-2 h-9 px-4 rounded-ds-md border border-ds-border bg-white text-ds-text text-[12.5px] font-semibold cursor-pointer hover:bg-ds-surface-muted"
-                onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}&tab=billing`)}
-              >
-                <TeamOutlined style={{ fontSize: 14 }} /> Alokasi Billing
-              </button>
-            </div>
-          )}
-
-          {!selectedEncounter && (
+            </>
+          ) : (
             <div className="h-64 border-2 border-dashed border-ds-border rounded-ds-lg flex flex-col items-center justify-center p-6 text-center">
               <div className="w-12 h-12 rounded-full bg-ds-surface-muted flex items-center justify-center mb-3">
                 <FileTextOutlined className="text-ds-muted text-xl" />
