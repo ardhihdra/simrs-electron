@@ -15,7 +15,9 @@ function formatRupiah(value: number): string {
 
 interface PaymentModalProps {
     open: boolean
-    invoiceId: number
+    invoiceId?: number
+    encounterId?: string
+    patientId?: string
     remaining: number
     onCancel: () => void
     onSuccess: () => void
@@ -28,7 +30,7 @@ interface MasterBank {
     accountHolder: string
 }
 
-export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }: PaymentModalProps) {
+export function PaymentModal({ open, invoiceId, encounterId, patientId, remaining, onCancel, onSuccess }: PaymentModalProps) {
     const [form] = Form.useForm()
     const [loading, setLoading] = useState(false)
     const [fileList, setFileList] = useState<UploadFile[]>([])
@@ -75,11 +77,11 @@ export function PaymentModal({ open, invoiceId, remaining, onCancel, onSuccess }
                 mimetype = fileList[0].type ?? 'application/octet-stream'
             }
 
-            const recordAmount = Math.min(values.amount, remaining)
-
             const res = (await rpc.kasir.recordPayment({
                 invoiceId,
-                amount: recordAmount,
+                encounterId,
+                patientId,
+                amount: values.amount,
                 paymentMethod: values.paymentMethod,
                 bankId: values.bankId,
                 ref: values.ref ?? undefined,

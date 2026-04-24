@@ -53,23 +53,40 @@ interface EncounterRow {
 const ST: Record<string, { textClass: string; bgClass: string; dotClass: string; label: string; borderColor: string }> = {
   draft: { textClass: 'text-gray-500', bgClass: 'bg-gray-100', dotClass: 'bg-gray-400', label: 'Dalam Proses', borderColor: '#9ca3af' },
   issued: { textClass: 'text-orange-600', bgClass: 'bg-orange-50', dotClass: 'bg-orange-500', label: 'Siap Bayar', borderColor: '#f97316' },
-  dp: { textClass: 'text-violet-600', bgClass: 'bg-violet-50', dotClass: 'bg-violet-500', label: 'Bayar Sebagian', borderColor: '#7c3aed' },
+  dp: { textClass: 'text-blue-600', bgClass: 'bg-blue-50', dotClass: 'bg-blue-500', label: 'DP', borderColor: '#3b82f6' },
+  sebagian: { textClass: 'text-violet-600', bgClass: 'bg-violet-50', dotClass: 'bg-violet-500', label: 'Sebagian', borderColor: '#7c3aed' },
   balanced: { textClass: 'text-green-700', bgClass: 'bg-green-50', dotClass: 'bg-green-500', label: 'Lunas', borderColor: '#16a34a' },
 }
 
 const getST = (s?: string | null) =>
   ST[s || 'draft'] ?? { textClass: 'text-gray-400', bgClass: 'bg-gray-50', dotClass: 'bg-gray-300', label: 'Belum Ada', borderColor: '#e5e7eb' }
 
-const StBadge = ({ status }: { status?: string | null }) => {
+const StBadge = ({ record }: { record: EncounterRow }) => {
+  if (!record) return null
+  let status = record.invoiceStatus || 'draft'
+  const paid = Number(record.paid ?? 0)
+  const total = Number(record.total ?? 0)
+
+  // Logic to distinguish DP vs Sebagian
+  if (status !== 'balanced' && paid > 0) {
+    if (total === 0) {
+      status = 'dp'
+    } else {
+      status = 'sebagian'
+    }
+  }
+
   const toneMap: Record<string, DesktopStatusPillTone> = {
     issued: 'warning',
-    dp: 'violet',
+    dp: 'info',
+    sebagian: 'violet',
     balanced: 'success',
     draft: 'neutral'
   }
   const labelMap: Record<string, string> = {
     issued: 'Siap Bayar',
-    dp: 'Bayar Sebagian',
+    dp: 'DP',
+    sebagian: 'Sebagian',
     balanced: 'Lunas',
     draft: 'Dalam Proses'
   }
@@ -191,7 +208,7 @@ export default function KasirEncounterTable() {
       key: 'status',
       align: 'right',
       width: 120,
-      render: (_, record) => <StBadge status={record.invoiceStatus} />
+      render: (_, record) => <StBadge record={record} />
     }
   ]
 
@@ -241,13 +258,46 @@ export default function KasirEncounterTable() {
     const filtered =
       invoiceStatusFilter === 'all'
         ? allEncounters
-        : allEncounters.filter((r) => r.invoiceStatus === invoiceStatusFilter)
+        : allEncounters.filter((r) => {
+            const s = r.invoiceStatus || 'draft'
+            const paid = Number(r.paid ?? 0)
+            const total = Number(r.total ?? 0)
+            let derived = s
+            if (s !== 'balanced' && paid > 0) {
+              derived = total === 0 ? 'dp' : 'sebagian'
+            }
+            
+            return derived === invoiceStatusFilter
+          })
     return filtered.map((r, idx) => ({ ...r, no: idx + 1 }))
   }, [allEncounters, invoiceStatusFilter])
 
-  const siapBayarCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'issued').length, [allEncounters])
-  const dalamProsesCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'draft').length, [allEncounters])
-  const partialCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'dp').length, [allEncounters])
+  const siapBayarCount = useMemo(() => allEncounters.filter((r) => {
+    const s = r.invoiceStatus || 'draft'
+    const paid = Number(r.paid ?? 0)
+    return s === 'issued' && paid === 0
+  }).length, [allEncounters])
+
+  const dalamProsesCount = useMemo(() => allEncounters.filter((r) => {
+    const s = r.invoiceStatus || 'draft'
+    const paid = Number(r.paid ?? 0)
+    return s === 'draft' && paid === 0
+  }).length, [allEncounters])
+
+  const dpCount = useMemo(() => allEncounters.filter((r) => {
+    const s = r.invoiceStatus || 'draft'
+    const paid = Number(r.paid ?? 0)
+    const total = Number(r.total ?? 0)
+    return s !== 'balanced' && paid > 0 && total === 0
+  }).length, [allEncounters])
+
+  const partialCount = useMemo(() => allEncounters.filter((r) => {
+    const s = r.invoiceStatus || 'draft'
+    const paid = Number(r.paid ?? 0)
+    const total = Number(r.total ?? 0)
+    return s !== 'balanced' && paid > 0 && total > 0
+  }).length, [allEncounters])
+
   const lunasCount = useMemo(() => allEncounters.filter((r) => r.invoiceStatus === 'balanced').length, [allEncounters])
   const totalCount = useMemo(() => allEncounters.length, [allEncounters])
 
@@ -381,7 +431,8 @@ export default function KasirEncounterTable() {
             {([
               ['all', 'Semua', totalCount],
               ['issued', 'Siap Bayar', siapBayarCount],
-              ['dp', 'Sebagian', partialCount],
+              ['dp', 'DP', dpCount],
+              ['sebagian', 'Sebagian', partialCount],
               ['draft', 'Proses', dalamProsesCount],
               ['balanced', 'Lunas', lunasCount],
             ] as [string, string, number][]).map(([k, l, c]) => {
@@ -434,7 +485,7 @@ export default function KasirEncounterTable() {
               <DesktopCard
                 title={selectedEncounter.patient?.name || 'Pasien Tanpa Nama'}
                 subtitle={`${(selectedEncounter.patient as any)?.medicalRecordNumber || '-'} · ${formatEnum((selectedEncounter as any).encounterType || selectedEncounter.serviceUnit?.type || selectedEncounter.serviceType)}`}
-                extra={<StBadge status={selectedEncounter.invoiceStatus} />}
+                extra={<StBadge record={selectedEncounter} />}
               >
                 <div className="space-y-4">
                   <DesktopPropertyGrid
@@ -504,7 +555,7 @@ export default function KasirEncounterTable() {
                   </button>
                 )}
 
-                {(selectedEncounter.invoiceStatus === 'issued' || selectedEncounter.invoiceStatus === 'dp') && (
+                {selectedEncounter.invoiceStatus !== 'balanced' && (
                   <DesktopButton
                     emphasis="primary"
                     onClick={() => navigate(`/dashboard/kasir/invoice/${selectedEncounter.id}?patientId=${selectedEncounter.patient?.id ?? ''}&action=pay`)}

@@ -74,7 +74,9 @@ function formatPrintableDate(date: Date | string | null | undefined): string {
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   issued: { label: 'Terkonfirmasi', color: 'blue' },
   balanced: { label: 'Lunas', color: 'green' },
-  draft: { label: 'Draft', color: 'default' }
+  draft: { label: 'Draft', color: 'default' },
+  dp: { label: 'DP', color: 'blue' },
+  sebagian: { label: 'Sebagian', color: 'violet' }
 }
 
 function InvoiceSection({
@@ -474,8 +476,19 @@ export default function InvoiceDetailPage() {
     )
   }
 
+  const currentStatus = (() => {
+    const s = persistedInvoice?.status || 'issued'
+    const total = Number(persistedInvoice?.total ?? 0)
+    const paid = Number(persistedInvoice?.total ?? 0) - Number(persistedInvoice?.remaining ?? 0)
+
+    if (s !== 'balanced' && paid > 0) {
+      return total === 0 ? 'dp' : 'sebagian'
+    }
+    return s
+  })()
+
   const statusInfo = persistedInvoice
-    ? (STATUS_LABEL[persistedInvoice.status as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
+    ? (STATUS_LABEL[currentStatus as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
     : null
   const isConfirmed = !!persistedInvoice && persistedInvoice.status !== 'draft'
   const isPaid = persistedInvoice?.status === 'balanced'
@@ -596,9 +609,9 @@ export default function InvoiceDetailPage() {
           </Button>
         )}
 
-        {isConfirmed && !isPaid && (
+        {!isPaid && (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setPaymentModalOpen(true)}>
-            Tambah Pembayaran
+            {isConfirmed ? 'Tambah Pembayaran' : 'Input DP (Uang Muka)'}
           </Button>
         )}
 
@@ -763,16 +776,15 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
-      {/* Payment Modal */}
-      {isConfirmed && persistedInvoice && (
-        <PaymentModal
-          open={paymentModalOpen}
-          invoiceId={persistedInvoice.id}
-          remaining={persistedInvoice.remaining}
-          onCancel={() => setPaymentModalOpen(false)}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
+      <PaymentModal
+        open={paymentModalOpen}
+        invoiceId={persistedInvoice?.id}
+        encounterId={encounterId}
+        patientId={patientId}
+        remaining={persistedInvoice?.remaining ?? invoice?.total ?? 0}
+        onCancel={() => setPaymentModalOpen(false)}
+        onSuccess={handlePaymentSuccess}
+      />
     </div>
   )
 }
