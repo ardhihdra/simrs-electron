@@ -10,8 +10,8 @@ import { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
-import { PatientAttributes } from 'simrs-types'
 import RegistrationSheet from './components/RegistrationSheet'
+import { PatientAttributes } from 'simrs-types'
 
 type PatientTableRow = PatientAttributes & {
   no: number
@@ -30,7 +30,14 @@ const PatientTable = () => {
     refetch,
     isRefetching
   } = useQuery({
-    queryKey: ['patient', 'list', filter.nik, filter.name, filter.medicalRecordNumber, filter.address],
+    queryKey: [
+      'patient',
+      'list',
+      filter.nik,
+      filter.name,
+      filter.medicalRecordNumber,
+      filter.address
+    ],
     queryFn: async () => {
       const fn = rpc.visitManagement.getPatientList
       if (!fn) {
@@ -119,7 +126,7 @@ const PatientTable = () => {
         loading={isLoading || isRefetching}
         action={
           <ExportButton
-            data={dataSource}
+            data={dataSource as any}
             fileName="daftar-pasien"
             columns={[
               { key: 'medicalRecordNumber', label: 'RM' },

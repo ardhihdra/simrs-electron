@@ -1,4 +1,3 @@
-import { MedicineBoxOutlined } from '@ant-design/icons'
 import { Visibility } from '@renderer/components/atoms/Visibility'
 import { Alert, App, Spin } from 'antd'
 import { useEffect, useState } from 'react'
@@ -9,10 +8,40 @@ type Props = {
   onSelect: (poli: KioskaPoliOption) => void
 }
 
+function QuotaBadge({ remainingQuota }: { remainingQuota?: number | null }) {
+  if (remainingQuota === undefined || remainingQuota === null) {
+    return (
+      <span className="mt-auto rounded-full bg-slate-100 px-[7px] py-0.5 font-mono text-[10px] font-semibold text-slate-500">
+        Kuota belum dapat diketahui
+      </span>
+    )
+  }
+  if (remainingQuota === 0) {
+    return (
+      <span className="mt-auto rounded-full bg-red-100 px-[7px] py-0.5 font-mono text-[10px] font-semibold text-red-600">
+        Kuota penuh
+      </span>
+    )
+  }
+  if (remainingQuota <= 3) {
+    return (
+      <span className="mt-auto rounded-full bg-amber-100 px-[7px] py-0.5 font-mono text-[10px] font-semibold text-amber-700">
+        Sisa {remainingQuota} kuota
+      </span>
+    )
+  }
+  return (
+    <span className="mt-auto rounded-full bg-green-100 px-[7px] py-0.5 font-mono text-[10px] font-semibold text-green-700">
+      Sisa {remainingQuota} kuota
+    </span>
+  )
+}
+
 export const KioskSelectPoli = ({ onSelect }: Props) => {
   const { message } = App.useApp()
   const [isLoading, setIsLoading] = useState(false)
   const [polis, setPolis] = useState<KioskaPoliOption[]>([])
+
   useEffect(() => {
     let cancelled = false
 
@@ -20,6 +49,7 @@ export const KioskSelectPoli = ({ onSelect }: Props) => {
       try {
         setIsLoading(true)
         const result = await fetchKioskaPolis()
+        console.log('cek result', result)
         if (cancelled) return
         setPolis(result)
       } catch (error: any) {
@@ -46,16 +76,24 @@ export const KioskSelectPoli = ({ onSelect }: Props) => {
         {!polis.length ? (
           <Alert type="warning" showIcon message="Daftar poli belum tersedia." />
         ) : (
-          <div className="grid max-h-full grid-cols-2 gap-4 overflow-y-auto pr-1 md:grid-cols-4 xl:grid-cols-5">
+          <div className="grid max-h-full grid-cols-4 gap-2.5 overflow-y-auto pb-1 [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-sm [&::-webkit-scrollbar-thumb]:bg-[#c1cce0] [&::-webkit-scrollbar]:w-1">
             {polis.map((poli) => (
-              <div key={poli.id} className="flex flex-col gap-2" onClick={() => onSelect(poli)}>
-                <div className="text-base font-bold flex items-center justify-center aspect-square rounded-xl border bg-white text-center shadow border-zinc-300 hover:border-zinc-500 hover:shadow-lg transition-all duration-300 cursor-pointer active:bg-zinc-300">
-                  <div className="flex flex-col items-center justify-center gap-2">
-                    <MedicineBoxOutlined className="text-2xl" />
-                    {poli.name}
-                  </div>
-                </div>
-              </div>
+              <button
+                key={poli.id}
+                type="button"
+                onClick={() => onSelect(poli)}
+                className="flex min-h-[90px] cursor-pointer flex-col items-start gap-2 rounded-md border border-[#d7deec] bg-white p-4 text-left transition-colors duration-100 hover:border-[#c1cce0] hover:bg-[#f4f6fb] active:border-[#4f6ef7] active:bg-[#e8edff]"
+              >
+                <span className="text-[12.5px] font-bold leading-tight text-[#172033]">
+                  {poli.name}
+                </span>
+                {poli.description && (
+                  <span className="text-[11px] leading-snug text-[#4e5d7a]">
+                    {poli.description}
+                  </span>
+                )}
+                <QuotaBadge remainingQuota={poli.remainingQuota} />
+              </button>
             ))}
           </div>
         )}

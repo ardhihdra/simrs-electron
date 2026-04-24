@@ -12,7 +12,11 @@ export const patientRpc = {
       const params = new URLSearchParams()
       if (input.page) params.append('page', String(input.page))
       if (input.nik) params.append('nik', input.nik)
-      if (input.name) params.append('name', input.name)
+      if (input.name) {
+        params.append('q', input.name)
+        params.append('fields', 'name,address')
+      }
+      if (input.needEmr !== undefined) params.append('needEmr', String(input.needEmr))
 
       const data = await client.get(`/api/patient?${params.toString()}`)
       const res = await data.json()

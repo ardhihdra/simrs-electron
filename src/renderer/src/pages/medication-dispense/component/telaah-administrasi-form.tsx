@@ -153,15 +153,17 @@ export const TelaahAdministrasiForm = ({ isInternal, results, onChange }: Props)
               </Tag>
             )}
           </Space>
-          <Button
-            type="primary"
-            size="small"
-            icon={<CheckCircleFilled />}
-            onClick={handleCheckAll}
-            className="bg-blue-600 border-none rounded-lg hover:bg-blue-700"
-          >
-            Ceklis Semua
-          </Button>
+          {import.meta.env.DEV && (
+            <Button
+              type="primary"
+              size="small"
+              icon={<CheckCircleFilled />}
+              onClick={handleCheckAll}
+              className="bg-orange-500 border-none rounded-lg hover:bg-orange-600 my-1"
+            >
+              Ceklis Semua
+            </Button>
+          )}
         </div>
       }
       size="small"

@@ -5,47 +5,22 @@ import { queryClient } from '@renderer/query-client'
 import type { RowActionsProps } from '../types'
 import { getPatientDisplayName, extractTelaahResults } from '../utils'
 import { printMedicationLabels } from './print-medication-label'
-import { SerahkanObatModal, type SerahkanObatFormValues } from './serahkan-obat-modal'
 
 export function RowActions({ record, patient, employees, employeeNameById, parentServicedAt }: RowActionsProps) {
-    const { message } = AntdApp.useApp()
-    const [serahkanModalOpen, setSerahkanModalOpen] = useState(false)
-
+    const { message, modal } = AntdApp.useApp()
     const updateMutation = useMutation({
-        mutationKey: ['medicationDispense', 'update', 'complete'],
-        mutationFn: async (formValues: SerahkanObatFormValues) => {
+        mutationKey: ['medicationDispense', 'update', 'complete', record.id],
+        mutationFn: async () => {
             if (typeof record.id !== 'number') {
                 throw new Error('ID MedicationDispense tidak valid.')
             }
             const fn = window.api?.query?.medicationDispense?.update
             if (!fn) throw new Error('API MedicationDispense tidak tersedia.')
 
-            const penyiapNama = employeeNameById.get(formValues.penyiapObatId) ?? ''
-            const penyerahNama = employeeNameById.get(formValues.penyerahObatId) ?? ''
-
-            const pioAnnotation = {
-                text: `PIO: ${JSON.stringify({
-                    hubungan: formValues.hubunganPenerima,
-                    namaPenerima: formValues.namaPenerima,
-                    penyiapObatId: formValues.penyiapObatId,
-                    penyiapObatNama: penyiapNama,
-                    penyerahObatId: formValues.penyerahObatId,
-                    penyerahObatNama: penyerahNama,
-                })}`,
-            }
-
-            const receiverDisplay =
-                formValues.hubunganPenerima === 'Sendiri'
-                    ? 'Sendiri (Pasien)'
-                    : `${formValues.hubunganPenerima} - ${formValues.namaPenerima}`
-
             const payload = {
                 id: record.id,
                 status: 'completed' as const,
-                whenHandedOver: new Date().toISOString(),
-                performerId: formValues.penyerahObatId,
-                note: [pioAnnotation],
-                receiver: [{ display: receiverDisplay }],
+                whenHandedOver: new Date().toISOString()
             }
             const res = await fn(payload as never)
             if (!res.success) {
@@ -54,7 +29,6 @@ export function RowActions({ record, patient, employees, employeeNameById, paren
             return res
         },
         onSuccess: () => {
-            setSerahkanModalOpen(false)
             queryClient.invalidateQueries({ queryKey: ['medicationDispense', 'list'] })
             message.success('Obat berhasil diserahkan')
         },
@@ -127,6 +101,7 @@ export function RowActions({ record, patient, employees, employeeNameById, paren
                     instruksi: record.instruksi,
                     expiryDate: (record as any).expiryDate,
                     batch: (record as any).batch,
+                    caraPenyimpanan: record.caraPenyimpanan,
                 },
             ],
         })
@@ -143,7 +118,15 @@ export function RowActions({ record, patient, employees, employeeNameById, paren
                         size="small"
                         disabled={updateMutation.isPending || isStockInsufficient}
                         loading={updateMutation.isPending}
-                        onClick={() => setSerahkanModalOpen(true)}
+                        onClick={() => {
+                            modal.confirm({
+                                title: 'Konfirmasi Penyerahan',
+                                content: `Yakin ingin menyerahkan ${record.medicineName} kepada ${record.hubunganPenerima === 'Sendiri' ? 'Pasien' : record.namaPenerima}?`,
+                                okText: 'Ya, Serahkan',
+                                cancelText: 'Batal',
+                                onOk: () => updateMutation.mutate()
+                            })
+                        }}
                     >
                         Serahkan Obat
                     </Button>
@@ -196,13 +179,6 @@ export function RowActions({ record, patient, employees, employeeNameById, paren
                         Harap &quot;Mulai Proses&quot; (di menu titik tiga) terlebih dahulu.
                     </div>
                 )}
-            <SerahkanObatModal
-                open={serahkanModalOpen}
-                loading={updateMutation.isPending}
-                employees={employees}
-                onSubmit={(values) => updateMutation.mutate(values)}
-                onCancel={() => setSerahkanModalOpen(false)}
-            />
         </div>
     )
 }

@@ -11,6 +11,8 @@ import { queryClient } from '@renderer/query-client'
 import type { ParentRow } from '../types'
 import { extractTelaahResults } from '../utils'
 import { type TelaahResults } from './telaah-administrasi-form'
+import { DispenseReviewDetail } from './dispense-review-detail'
+import { useQuery } from '@tanstack/react-query'
 
 interface MainRowActionsProps {
   record: ParentRow
@@ -21,6 +23,30 @@ export function MainRowActions({ record }: MainRowActionsProps) {
   const [syncingSatusehat, setSyncingSatusehat] = useState(false)
   const [isTelaahModalVisible, setIsTelaahModalVisible] = useState(false)
   const [currentTelaahResults, setCurrentTelaahResults] = useState<TelaahResults>({})
+  const [reviewOpen, setReviewOpen] = useState(false)
+
+  const { data: employeeData } = useQuery({
+    queryKey: ['kepegawaian', 'list', 'for-medication-dispense'],
+    queryFn: async () => {
+      const fn = window.api?.query?.kepegawaian?.list
+      if (!fn) return { success: false, result: [] }
+      return fn()
+    }
+  })
+
+  const employeeNameById = useMemo(() => {
+    const map = new Map<number, string>()
+    const source = Array.isArray(employeeData?.result)
+      ? (employeeData.result as Array<{ id?: number; namaLengkap?: string }>)
+      : []
+    source.forEach((e) => {
+      if (typeof e.id === 'number') {
+        const name = typeof e.namaLengkap === 'string' ? e.namaLengkap : String(e.id)
+        map.set(e.id, name)
+      }
+    })
+    return map
+  }, [employeeData])
 
   const existingTelaah = useMemo(() => {
     for (const item of record.items) {
@@ -192,6 +218,13 @@ export function MainRowActions({ record }: MainRowActionsProps) {
   }
 
   menuItems.push({
+    key: 'review-detail',
+    label: 'Review Detail',
+    icon: <InfoCircleOutlined />,
+    onClick: () => setReviewOpen(true)
+  })
+
+  menuItems.push({
     key: 'sync-satusehat',
     label: syncingSatusehat ? 'Sinkronisasi Satu Sehat...' : 'Sinkronisasi Satu Sehat',
     icon: <SyncOutlined spin={syncingSatusehat} />,
@@ -203,9 +236,25 @@ export function MainRowActions({ record }: MainRowActionsProps) {
   void currentTelaahResults
   void handleOpenTelaah
 
+  const firstMainItem = record.items.find((i) => i.jenis !== 'Komposisi')
+
   return (
-    <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
-      <Button type="text" icon={<MoreOutlined />} size="small" />
-    </Dropdown>
+    <>
+      <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+        <Button type="text" icon={<MoreOutlined />} size="small" />
+      </Dropdown>
+      
+      {reviewOpen && firstMainItem && (
+        <DispenseReviewDetail
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          record={{
+            ...firstMainItem,
+            medicineName: `Resep ${record.resepturName || firstMainItem.medicineName}`
+          }}
+          employeeNameById={employeeNameById}
+        />
+      )}
+    </>
   )
 }

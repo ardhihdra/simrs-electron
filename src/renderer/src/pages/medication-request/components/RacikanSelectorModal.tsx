@@ -55,26 +55,34 @@ export const RacikanSelectorModal = ({ open, onCancel, onSelect }: RacikanSelect
       render: (text: string) => <strong className="text-blue-600">{text}</strong>
     },
     {
+      title: 'Isi Obat (Komposisi)',
+      key: 'composition',
+      width: 250,
+      render: (_, record: any) => {
+        const ingredients = Array.isArray(record.items) ? record.items : []
+        return (
+          <div className="flex flex-wrap gap-1">
+            {ingredients.map((ing: any, idx: number) => (
+              <Tag key={idx} color="default" className="text-[10px]">
+                {ing.item?.nama || ing.name || 'Obat'}
+              </Tag>
+            ))}
+            {ingredients.length === 0 && <span className="text-gray-400 text-xs">-</span>}
+          </div>
+        )
+      }
+    },
+    {
       title: 'Sediaan',
       dataIndex: 'sediaan',
       key: 'sediaan',
       render: (sediaan: any) => sediaan?.nama || '-'
     },
     {
-      title: 'Dosis Standar',
-      dataIndex: 'defaultDosage',
-      key: 'defaultDosage',
-    },
-    {
-      title: 'Batas Umur',
-      key: 'age',
-      render: (_, record: any) => `${record.minAge || 0} - ${record.maxAge || '∞'} bln`
-    },
-    {
       title: 'Aksi',
       key: 'aksi',
       align: 'center' as const,
-      width: 100,
+      width: 80,
       render: (_, record: any) => (
         <Button size="small" type="primary" onClick={() => onSelect(record)}>
           Pilih
@@ -83,9 +91,18 @@ export const RacikanSelectorModal = ({ open, onCancel, onSelect }: RacikanSelect
     }
   ]
 
-  const filteredData = data.filter((item) => 
-     item.nama?.toLowerCase().includes(searchText.toLowerCase())
-  )
+  const filteredData = data.filter((item) => {
+    const q = searchText.toLowerCase()
+    const matchName = item.nama?.toLowerCase().includes(q)
+    
+    const ingredients = Array.isArray(item.items) ? item.items : []
+    const matchIngredients = ingredients.some((ing: any) => {
+      const itemName = (ing.item?.nama || ing.name || '').toLowerCase()
+      return itemName.includes(q)
+    })
+
+    return matchName || matchIngredients
+  })
 
   return (
     <Modal
@@ -93,16 +110,17 @@ export const RacikanSelectorModal = ({ open, onCancel, onSelect }: RacikanSelect
       open={open}
       onCancel={onCancel}
       footer={null}
-      width={800}
+      width={1000}
       centered
     >
       <div className="mb-4 flex gap-2">
         <Input
-          placeholder="Cari nama racikan..."
+          placeholder="Cari nama racikan atau isi obat di dalamnya..."
           prefix={<SearchOutlined />}
           value={searchText}
           onChange={(e) => setSearchText(e.target.value)}
           allowClear
+          autoFocus
         />
       </div>
       <Table
@@ -111,8 +129,8 @@ export const RacikanSelectorModal = ({ open, onCancel, onSelect }: RacikanSelect
         rowKey="id"
         loading={loading}
         size="small"
-        pagination={{ pageSize: 5 }}
-        scroll={{ y: 300 }}
+        pagination={{ pageSize: 8 }}
+        scroll={{ y: 400 }}
       />
     </Modal>
   )

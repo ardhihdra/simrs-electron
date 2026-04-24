@@ -72,7 +72,12 @@ export const schemas = {
         })
         .optional(),
       selectedBatches: z.any().optional(),
-      telaahResults: z.any().optional()
+      telaahResults: z.any().optional(),
+      penyiapObatId: z.number().optional(),
+      pelabelObatId: z.number().optional(),
+      penyerahObatId: z.number().optional(),
+      namaPenerima: z.string().optional(),
+      hubunganPenerima: z.string().optional()
     }),
     result: z.object({
       success: z.boolean(),
@@ -313,8 +318,20 @@ const toUiDispense = (fhir: z.infer<typeof FhirMedicationDispenseSchema>) => {
     medication: rawFhir.medication ?? undefined,
     authorizingPrescription: authorizingPrescriptionObj ?? null,
     encounter: rawFhir.encounter ?? undefined,
-    telaah: rawFhir.telaah ?? null
+    telaah: rawFhir.telaah ?? null,
+    penyiapObatId: typeof rawFhir.penyiapObatId === 'number' ? rawFhir.penyiapObatId : (typeof rawFhir.penyiap_obat_id === 'number' ? rawFhir.penyiap_obat_id : null),
+    pelabelObatId: typeof rawFhir.pelabelObatId === 'number' ? rawFhir.pelabelObatId : (typeof rawFhir.pelabel_obat_id === 'number' ? rawFhir.pelabel_obat_id : null),
+    penyerahObatId: typeof rawFhir.penyerahObatId === 'number' ? rawFhir.penyerahObatId : (typeof rawFhir.penyerah_obat_id === 'number' ? rawFhir.penyerah_obat_id : null),
+    namaPenerima: typeof rawFhir.namaPenerima === 'string' ? rawFhir.namaPenerima : (typeof rawFhir.nama_penerima === 'string' ? rawFhir.nama_penerima : null),
+    hubunganPenerima: typeof rawFhir.hubunganPenerima === 'string' ? rawFhir.hubunganPenerima : (typeof rawFhir.hubungan_penerima === 'string' ? rawFhir.hubungan_penerima : null)
   }
+  console.log('[Electron:toUiDispense] Result:', {
+    id: ui.id,
+    penyiap: ui.penyiapObatId,
+    pelabel: ui.pelabelObatId,
+    penyerah: ui.penyerahObatId,
+    penerima: ui.namaPenerima
+  })
   return ui
 }
 
@@ -638,6 +655,11 @@ export const createFromRequest = async (
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
         selectedBatches: args.selectedBatches,
+        penyiapObatId: args.penyiapObatId,
+        pelabelObatId: args.pelabelObatId,
+        penyerahObatId: args.penyerahObatId,
+        namaPenerima: args.namaPenerima,
+        hubunganPenerima: args.hubunganPenerima,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
         note: (() => {
           const notes: any[] = []
@@ -712,17 +734,20 @@ export const createFromRequest = async (
         dosageInstruction: Array.isArray(request.dosageInstruction) ? request.dosageInstruction : null,
         category: Array.isArray(request.category) ? request.category : null,
         selectedBatches: args.selectedBatches,
+        penyiapObatId: args.penyiapObatId,
+        pelabelObatId: args.pelabelObatId,
+        penyerahObatId: args.penyerahObatId,
+        namaPenerima: args.namaPenerima,
+        hubunganPenerima: args.hubunganPenerima,
         // note di MR adalah string, convert ke FHIR Annotation[] agar tersimpan di MD
         note: (() => {
           const notes: any[] = []
           if (typeof request.note === 'string' && request.note.trim().length > 0) {
             notes.push({ text: request.note.trim() })
           }
-          if (args.telaahResults) {
-            notes.push({ text: `Telaah Administrasi: ${JSON.stringify(args.telaahResults)}` })
-          }
           return notes.length > 0 ? notes : null
-        })()
+        })(),
+        telaahResults: args.telaahResults ?? null
       }
 
       const createRes = await client.post(

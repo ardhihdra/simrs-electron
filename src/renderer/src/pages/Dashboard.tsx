@@ -34,6 +34,7 @@ import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleSco
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
 import { client } from '@renderer/utils/client'
 import dayjs from 'dayjs'
+import 'dayjs/locale/id'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { Modules } from 'simrs-types'
@@ -663,6 +664,17 @@ function Dashboard() {
     },
     [visibleItems]
   )
+  const findIconByPath = useCallback(
+    (path: string): ReactNode | undefined => {
+      const candidates = visibleItems.flatMap((item) => [item, ...(item.children ?? [])])
+      const match = candidates
+        .filter((item) => path.startsWith(item.key))
+        .sort((a, b) => b.key.length - a.key.length)[0]
+
+      return match?.icon
+    },
+    [visibleItems]
+  )
   const getTopKeyFromPath = (path: string): string => {
     if (
       path.startsWith('/dashboard/doctor') &&
@@ -719,7 +731,8 @@ function Dashboard() {
           tab: {
             key,
             href: `/dashboard/poli?${params.toString()}`,
-            label: findLabelByPath(key)
+            label: findLabelByPath(key),
+            icon: findIconByPath(key)
           },
           navigateTo: `/dashboard/poli?${params.toString()}`
         }
@@ -729,12 +742,13 @@ function Dashboard() {
         tab: {
           key,
           href: key,
-          label: findLabelByPath(key)
+          label: findLabelByPath(key),
+          icon: findIconByPath(key)
         },
         navigateTo: key
       }
     },
-    [findLabelByPath, poliKeyMeta, session?.hakAksesId]
+    [findIconByPath, findLabelByPath, poliKeyMeta, session?.hakAksesId]
   )
   const activeSide = (() => {
     const childKeys = childKeysOfTop(activeTop)
@@ -789,7 +803,8 @@ function Dashboard() {
         return {
           key: menuKey,
           href: currentLocationHref,
-          label: findLabelByPath(menuKey)
+          label: findLabelByPath(menuKey),
+          icon: findIconByPath(menuKey)
         }
       }
     }
@@ -797,9 +812,10 @@ function Dashboard() {
     return {
       key: currentLocationHref,
       href: currentLocationHref,
-      label: findLabelByPath(location.pathname)
+      label: findLabelByPath(location.pathname),
+      icon: findIconByPath(location.pathname)
     }
-  }, [findLabelByPath, isWorkspaceRoute, location.pathname, location.search])
+  }, [findIconByPath, findLabelByPath, isWorkspaceRoute, location.pathname, location.search])
 
   useEffect(() => {
     setSelectedModuleKey(routeTopKey)
@@ -893,6 +909,9 @@ function Dashboard() {
   }
   const currentModuleLabel =
     visibleItems.find((item) => item.key === activeTop)?.label ?? 'Dashboard'
+  const currentModuleIcon = visibleItems.find((item) => item.key === activeTop)?.icon ?? (
+    <DashboardOutlined />
+  )
   const sidebarNavItems: DesktopPageListGroup[] = [
     {
       key: `${activeTop}-pages`,
@@ -913,6 +932,7 @@ function Dashboard() {
   const shellTabs: DesktopMenuShellTabItem[] = tabState.tabs.map((tab) => ({
     key: tab.key,
     label: tab.label,
+    icon: tab.icon,
     closable: true
   }))
 
@@ -926,7 +946,19 @@ function Dashboard() {
       brandTitle="SIMRS"
       headerActions={
         <>
-          <NotificationBell />
+          <div className="border-r border-ds-border pr-2">
+            <NotificationBell />
+          </div>
+          <div className="border-r border-ds-border pr-3">
+            <div className="flex flex-col items-start leading-tight">
+              <span className="text-ds-label font-medium capitalize">
+                {dayjs().locale('id').format('dddd, D MMMM YYYY')}
+              </span>
+              <span className="text-light opacity-50 text-ds-label text-ds-muted">
+                {lokasiKerjaName}
+              </span>
+            </div>
+          </div>
           <ProfileMenu />
         </>
       }
@@ -948,26 +980,85 @@ function Dashboard() {
           </button>
         </div>
       }
+      sidebarIcon={currentModuleIcon}
       sidebarItems={sidebarNavItems}
       statusBar={
+        // TODO TBD
         <DesktopStatusBar
           leftItems={[
             {
-              key: 'server-online',
+              key: 'connection-status',
               content: (
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-ds-muted">Server online</span>
-                  <span>{currentModuleLabel}</span>
-                  <span>{dayjs().format('DD MMM YYYY')}</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
+                  <b>Terhubung</b>
                 </div>
+              )
+            },
+            { key: 'sep-1', content: <div className="h-3.5 w-px bg-ds-border" /> },
+            // TODO: BPJS bridging version — needs real data from API/config
+            {
+              key: 'bpjs-bridging',
+              content: (
+                <span>
+                  Bridging BPJS <b>v4.2</b>
+                </span>
+              )
+            },
+            { key: 'sep-2', content: <div className="h-3.5 w-px bg-ds-border" /> },
+            // TODO: DB name — needs real environment/server config data
+            {
+              key: 'db-info',
+              content: (
+                <span>
+                  DB: <b>simrs_prod</b>
+                </span>
+              )
+            },
+            { key: 'sep-3', content: <div className="h-3.5 w-px bg-ds-border" /> },
+            {
+              key: 'user-info',
+              content: (
+                <span>
+                  User: <b>{session?.label ?? '—'}</b>
+                  {session?.hakAksesId ? ` (${session.hakAksesId})` : ''}
+                </span>
               )
             }
           ]}
           rightItems={[
+            // TODO: Record count — needs real pagination/query data from the active page context
             {
-              key: 'lokasi-kerja',
-              content: <span className="ml-auto">Lokasi kerja aktif: {lokasiKerjaName}</span>
-            }
+              key: 'record-count',
+              content: (
+                <span>
+                  Record: <b className="font-mono">142/142</b>
+                </span>
+              )
+            },
+            { key: 'sep-r1', content: <div className="h-3.5 w-px bg-ds-border" /> },
+            // TODO: Last sync — needs real sync timestamp from query/data-fetching layer
+            {
+              key: 'last-sync',
+              content: (
+                <span>
+                  Last sync: <b className="font-mono">09:41:22</b>
+                </span>
+              )
+            },
+            { key: 'sep-r2', content: <div className="h-3.5 w-px bg-ds-border" /> },
+            // TODO: CPU usage — needs IPC bridge from main process (e.g. window.api.system.getCpuUsage)
+            {
+              key: 'cpu-usage',
+              content: (
+                <span>
+                  CPU <b className="font-mono">12%</b>
+                </span>
+              )
+            },
+            { key: 'sep-r3', content: <div className="h-3.5 w-px bg-ds-border" /> },
+            // TODO: App version — needs IPC call e.g. window.api.app.getVersion()
+            { key: 'app-version', content: <span>v4.12.1</span> }
           ]}
         />
       }
@@ -975,7 +1066,7 @@ function Dashboard() {
       tabs={shellTabs}
       title={currentModuleLabel}
     >
-      <div className="min-h-full bg-ds-background">
+      <div className="min-h-full bg-ds-background-elevated">
         {isRegisteredPath(location.pathname) ? (
           <Outlet />
         ) : (

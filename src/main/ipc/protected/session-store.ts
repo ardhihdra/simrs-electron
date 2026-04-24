@@ -16,8 +16,9 @@ export type Session = {
 
 export type SessionUser = {
   id: number
- username:string
+  username: string
   hakAksesId?: string
+  hakAksesNama?: string
 }
 
 export class SessionStore {

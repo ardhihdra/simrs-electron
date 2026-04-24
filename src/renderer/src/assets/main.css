@@ -8,8 +8,10 @@
   --color-ds-accent-text: var(--theme-color-ds-accent-text);
   --color-ds-surface: var(--theme-color-ds-surface);
   --color-ds-surface-muted: var(--theme-color-ds-surface-muted);
+  --color-ds-surface-muted-raised: var(--theme-color-ds-surface-muted-raised);
   --color-ds-surface-raised: var(--theme-color-ds-surface-raised);
   --color-ds-background: var(--theme-color-ds-background);
+  --color-ds-background-elevated: var(--theme-color-ds-background-elevated);
   --color-ds-border: var(--theme-color-ds-border);
   --color-ds-border-strong: var(--theme-color-ds-border-strong);
   --color-ds-text: var(--theme-color-ds-text);
@@ -62,9 +64,63 @@
   --text-ds-caption: var(--theme-text-ds-caption);
   --text-ds-title: var(--theme-text-ds-title);
   --text-ds-hero: var(--theme-text-ds-hero);
+
+  /* Premium Chart Colors from SIMRS-hybrid, generated dari Rizal */
+  --color-accent: oklch(0.55 0.11 200);
+  --color-accent-soft: oklch(0.95 0.03 200);
+  --color-accent-hover: oklch(0.48 0.12 200);
+  --color-accent-fg: oklch(0.99 0.005 200);
+
+  --color-ok: oklch(0.62 0.14 155);
+  --color-ok-soft: oklch(0.95 0.04 155);
+  --color-warn: oklch(0.74 0.15 75);
+  --color-warn-soft: oklch(0.96 0.05 75);
+  --color-danger: oklch(0.6 0.2 20);
+  --color-danger-soft: oklch(0.95 0.04 20);
+  --color-info: oklch(0.58 0.14 260);
+  --color-info-soft: oklch(0.95 0.04 260);
+  --color-violet: oklch(0.55 0.14 300);
+  --color-violet-soft: oklch(0.95 0.04 300);
+
+  --color-surface-2: oklch(0.975 0.004 240);
+  --color-surface-3: oklch(0.955 0.005 240);
+  --color-border-premium: oklch(0.91 0.005 240);
+  --color-text-2: oklch(0.45 0.01 240);
+  --color-text-3: oklch(0.62 0.008 240);
+
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 }
 
 @layer base {
+  // generated dari Om
+  :root {
+    /* Maintain raw variables for components that use var() */
+    --accent: var(--color-accent);
+    --accent-soft: var(--color-accent-soft);
+    --ok: var(--color-ok);
+    --warn: var(--color-warn);
+    --danger: var(--color-danger);
+    --info: var(--color-info);
+    --violet: var(--color-violet);
+    --text-2: var(--color-text-2);
+    --text-3: var(--color-text-3);
+    --surface-2: var(--color-surface-2);
+    --surface-3: var(--color-surface-3);
+    --r: 6px;
+  }
+
+  .dark {
+    --color-surface-2: oklch(0.235 0.012 240);
+    --color-surface-3: oklch(0.27 0.012 240);
+    --color-accent: oklch(0.7 0.12 200);
+    --color-accent-soft: oklch(0.3 0.05 200);
+    --color-ok-soft: oklch(0.28 0.05 155);
+    --color-warn-soft: oklch(0.3 0.05 75);
+    --color-danger-soft: oklch(0.3 0.05 20);
+    --color-info-soft: oklch(0.3 0.05 260);
+    --color-violet-soft: oklch(0.3 0.05 300);
+  }
+
   @font-face {
     font-family: 'Inter';
     font-style: normal;
@@ -165,7 +221,8 @@
   .desktop-input-group-field .ant-input:focus,
   .desktop-input-group-field .ant-input:focus-within {
     border-color: var(--ds-color-accent) !important;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
   }
 
   .desktop-input-field textarea.ant-input {
