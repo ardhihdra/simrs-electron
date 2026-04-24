@@ -1,9 +1,10 @@
+import PatientInsurancePickerField from '@renderer/components/organisms/visit-management/PatientInsurancePickerField'
 import PatientLookupSelector from '@renderer/components/organisms/patient/PatientLookupSelector'
 import { SelectAsync } from '@renderer/components/organisms/SelectAsync'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
 import { PatientAttributes } from 'simrs-types'
-import { App, Button, DatePicker, Form, Input, Select, Space, TimePicker } from 'antd'
+import { App, Button, DatePicker, Form, Input, Select, TimePicker } from 'antd'
 import dayjs from 'dayjs'
 import { useEffect, useMemo } from 'react'
 
@@ -138,6 +139,7 @@ export default function VisitQueueForm({
     if (needsMitra) return
 
     form.setFieldsValue({
+      patientInsuranceId: undefined,
       mitraId: undefined,
       mitraCodeNumber: undefined,
       mitraCodeExpiredDate: undefined
@@ -175,6 +177,7 @@ export default function VisitQueueForm({
         registrationType: 'OFFLINE' as const,
         patientId: patient?.id,
         paymentMethod: values.paymentMethod,
+        patientInsuranceId: needsMitra ? values.patientInsuranceId || undefined : undefined,
         mitraId: needsMitra ? Number(values.mitraId) : undefined,
         mitraCodeNumber: needsMitra ? values.mitraCodeNumber || undefined : undefined,
         mitraCodeExpiredDate: needsMitra ? mitraCodeExpiredDate : undefined,
@@ -275,6 +278,10 @@ export default function VisitQueueForm({
 
       {needsMitra ? (
         <>
+          <Form.Item name="patientInsuranceId" hidden>
+            <Input />
+          </Form.Item>
+
           <Form.Item
             name="mitraId"
             label="Mitra"
@@ -283,26 +290,28 @@ export default function VisitQueueForm({
             <Select
               options={mitraOptions}
               loading={mitraQuery.isLoading || mitraQuery.isRefetching}
+              onChange={() => form.setFieldValue('patientInsuranceId', undefined)}
               placeholder="Pilih mitra"
               showSearch
               optionFilterProp="label"
             />
           </Form.Item>
 
-          <Form.Item
-            name="mitraCodeNumber"
-            label="Nomor Kartu"
-            rules={[{ required: true, message: 'Harap isi nomor kartu' }]}
-          >
-            <Input placeholder="Nomor kartu/nomor mitra" />
-          </Form.Item>
+          <PatientInsurancePickerField
+            form={form}
+            patientId={patient?.id}
+            mitraOptions={mitraOptions}
+          />
 
           <Form.Item
             name="mitraCodeExpiredDate"
             label="Expired At"
             rules={[{ required: true, message: 'Harap pilih tanggal expired' }]}
           >
-            <DatePicker style={{ width: '100%' }} />
+            <DatePicker
+              style={{ width: '100%' }}
+              onChange={() => form.setFieldValue('patientInsuranceId', undefined)}
+            />
           </Form.Item>
         </>
       ) : null}
