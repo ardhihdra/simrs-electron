@@ -7,8 +7,11 @@ import {
 import { z } from 'zod'
 import { t } from '../'
 import {
+  InpatientPatientListQuerySchema,
   InpatientPatientListResultSchema,
+  InpatientPatientListOptionsSchema,
   normalizeInpatientPatientListResponse,
+  normalizeInpatientPatientListOptionsResponse,
 } from './encounter.schemas'
 
 export type { InpatientPatientListItem, InpatientPatientListResult } from './encounter.schemas'
@@ -115,11 +118,31 @@ export const encounterRpc = {
     }),
 
   inpatientPatients: t
-    .input(z.object({}).default({}))
+    .input(InpatientPatientListQuerySchema)
     .output(InpatientPatientListResultSchema)
-    .query(async ({ client }) => {
-      const data = await client.get('/api/module/encounter/inpatient-patients')
+    .query(async ({ client }, input) => {
+      const params = new URLSearchParams()
+      if (input.page !== 1) params.set('page', String(input.page))
+      if (input.pageSize !== 10) params.set('pageSize', String(input.pageSize))
+      if (input.search) params.set('search', input.search)
+      if (input.encounterStatus) params.set('encounterStatus', input.encounterStatus)
+      if (input.wardId) params.set('wardId', input.wardId)
+      if (input.dpjpName) params.set('dpjpName', input.dpjpName)
+      if (input.paymentType) params.set('paymentType', input.paymentType)
+      if (input.losCategory) params.set('losCategory', input.losCategory)
+      if (input.sortField) params.set('sortField', input.sortField)
+      if (input.sortOrder) params.set('sortOrder', input.sortOrder)
+      const data = await client.get(`/api/module/encounter/inpatient-patients?${params}`)
       const payload = await data.json()
       return normalizeInpatientPatientListResponse(payload)
+    }),
+
+  inpatientPatientOptions: t
+    .input(z.object({}).default({}))
+    .output(InpatientPatientListOptionsSchema)
+    .query(async ({ client }) => {
+      const data = await client.get('/api/module/encounter/inpatient-patients/options')
+      const payload = await data.json()
+      return normalizeInpatientPatientListOptionsResponse(payload)
     }),
 }
