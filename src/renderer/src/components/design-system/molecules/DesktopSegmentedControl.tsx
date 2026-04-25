@@ -22,7 +22,8 @@ export function DesktopSegmentedControl({
       value={value}
       options={options}
       onChange={(nextValue) => onChange?.(String(nextValue))}
-      className="desktop-segmented-control !rounded-[var(--ds-radius-md)] !bg-[var(--ds-color-surface-muted)]"
+      className="desktop-segmented-control !rounded-[var(--ds-radius-md)] !bg-[var(--ds-color-surface-muted)] !w-fit"
+      style={{ display: 'inline-flex' }}
     />
   )
 }

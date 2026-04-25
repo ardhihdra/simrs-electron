@@ -45,6 +45,8 @@ export interface DesktopThemeTokens {
     warning: string
     danger: string
     info: string
+    violet: string
+    violetSoft: string
   }
   typography: {
     fontFamilySans: string
@@ -116,7 +118,9 @@ export const desktopThemeTokens: DesktopThemeTokens = {
     success: '#248a67',
     warning: '#c88b22',
     danger: '#c25558',
-    info: '#5476d9'
+    info: '#5476d9',
+    violet: '#7c3aed',
+    violetSoft: '#f5f3ff'
   },
   typography: {
     fontFamilySans: 'Inter',
@@ -312,6 +316,8 @@ export function buildDesktopCssVariables(tokens: DesktopThemeTokens): Record<str
     '--ds-color-warning': tokens.colors.warning,
     '--ds-color-danger': tokens.colors.danger,
     '--ds-color-info': tokens.colors.info,
+    '--ds-color-violet': tokens.colors.violet,
+    '--ds-color-violet-soft': tokens.colors.violetSoft,
     '--ds-radius-sm': `${tokens.radius.sm}px`,
     '--ds-radius-md': `${tokens.radius.md}px`,
     '--ds-radius-lg': `${tokens.radius.lg}px`,
@@ -376,6 +382,8 @@ export function buildDesktopTailwindThemeVariables(
     '--theme-color-ds-success': tokens.colors.success,
     '--theme-color-ds-warning': tokens.colors.warning,
     '--theme-color-ds-info': tokens.colors.info,
+    '--theme-color-ds-violet': tokens.colors.violet,
+    '--theme-color-ds-violet-soft': tokens.colors.violetSoft,
     '--theme-radius-ds-sm': `${tokens.radius.sm}px`,
     '--theme-radius-ds-md': `${tokens.radius.md}px`,
     '--theme-radius-ds-lg': `${tokens.radius.lg}px`,

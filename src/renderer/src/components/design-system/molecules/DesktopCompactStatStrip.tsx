@@ -1,4 +1,6 @@
-import React, { type ReactNode } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import React from 'react'
+import { type ReactNode } from 'react'
 
 import { DesktopTriageBadge, type DesktopTriageBadgeTone } from '../atoms/DesktopTriageBadge'
 
@@ -79,7 +81,7 @@ export function DesktopCompactStatStrip({
 
         <div>
           <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
-            Cleaning
+            Pembersihan
           </span>
           <b className="block font-mono text-[18px] leading-none text-[var(--ds-color-warning)]">
             {bedSummary.cleaningBeds}
@@ -97,7 +99,7 @@ export function DesktopCompactStatStrip({
           </span>
           <span className="inline-flex items-center gap-[6px] text-[12px] text-[var(--ds-color-text-muted)]">
             <span className="h-[10px] w-[10px] rounded-[3px] border border-[var(--ds-color-warning)] bg-[color-mix(in_srgb,var(--ds-color-warning)_14%,white)]" />
-            <span>Cleaning</span>
+            <span>Pembersihan</span>
           </span>
           {bedSummary.actionSlot}
         </div>

@@ -32,7 +32,7 @@ export function buildIgdTableActions({
     })
   } else if (patient.status === 'penanganan' || patient.status === 'observasi') {
     actions.push({
-      label: 'Bed',
+      label: 'Atur Bed',
       onClick: () => onOpenBedMap?.(patient)
     })
   }
@@ -44,7 +44,7 @@ export function buildIgdTableActions({
 
   if (patient.isTemporaryPatient) {
     actions.push({
-      label: 'Ubah Pasien',
+      label: 'Ganti Identitas',
       onClick: () => onOpenReplacePatient?.(patient)
     })
   }

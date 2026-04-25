@@ -86,7 +86,9 @@ function formatPrintableDate(date: Date | string | null | undefined): string {
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   issued: { label: 'Terkonfirmasi', color: 'blue' },
   balanced: { label: 'Lunas', color: 'green' },
-  draft: { label: 'Draft', color: 'default' }
+  draft: { label: 'Draft', color: 'default' },
+  dp: { label: 'DP', color: 'blue' },
+  sebagian: { label: 'Sebagian', color: 'violet' }
 }
 
 const SIGNATURE_SOURCE_OPTIONS = [
@@ -555,8 +557,19 @@ export default function InvoiceDetailPage() {
     )
   }
 
+  const currentStatus = (() => {
+    const s = persistedInvoice?.status || 'issued'
+    const total = Number(persistedInvoice?.total ?? 0)
+    const paid = Number(persistedInvoice?.total ?? 0) - Number(persistedInvoice?.remaining ?? 0)
+
+    if (s !== 'balanced' && paid > 0) {
+      return total === 0 ? 'dp' : 'sebagian'
+    }
+    return s
+  })()
+
   const statusInfo = persistedInvoice
-    ? (STATUS_LABEL[persistedInvoice.status as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
+    ? (STATUS_LABEL[currentStatus as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
     : null
   const isConfirmed = !!persistedInvoice && persistedInvoice.status !== 'draft'
   const isPaid = persistedInvoice?.status === 'balanced'
@@ -565,152 +578,163 @@ export default function InvoiceDetailPage() {
   return (
     <div className="p-4">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-          Kembali
-        </Button>
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'patient',
-                label: 'Atas Nama Pasien',
-                onClick: () =>
-                  invoice &&
-                  printInvoice(invoice, persistedInvoice, {
-                    printForKind: 'patient',
-                    cashierName,
-                    cashierSignatureUrl
-                  })
-              },
-              {
-                key: 'guarantor',
-                label: 'Atas Nama Penjamin',
-                onClick: () =>
-                  invoice &&
-                  printInvoice(invoice, persistedInvoice, {
-                    printForKind: 'guarantor',
-                    cashierName,
-                    cashierSignatureUrl
-                  })
-              }
-            ]
-          }}
-          disabled={!invoice}
-        >
-          <Button type="primary" icon={<PrinterOutlined />}>
-            Cetak Invoice
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        {/* Left: navigation + document identity */}
+        <div className="flex items-left gap-2">
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} size="small">
+            Kembali
           </Button>
-        </Dropdown>
+          {statusInfo && (
+            <Tag
+              color={statusInfo.color}
+              icon={isPaid ? <CheckCircleOutlined /> : undefined}
+              className="text-sm px-3 py-1"
+            >
+              {statusInfo.label}
+            </Tag>
+          )}
+          {persistedInvoice && (
+            <span className="text-gray-400 text-sm font-mono">No. {persistedInvoice.kode}</span>
+          )}
+        </div>
 
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'patient',
-                label: 'Atas Nama Pasien',
-                onClick: () => {
-                  if (invoice && persistedInvoice) {
-                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining
-                    printReceipt(
-                      invoice,
-                      persistedInvoice,
-                      {
-                        amount: totalPaid,
-                        kode: persistedInvoice.kode,
-                        date: new Date()
-                      },
-                      {
-                        printForKind: 'patient',
-                        cashierName,
-                        cashierSignatureUrl
-                      }
-                    )
-                  }
+        {/* Right: actions grouped by role */}
+        <div className="flex items-left gap-2">
+          {/* Destructive workflow action */}
+          {!isPaid && (
+            <>
+              <Popconfirm
+                title="Kembalikan ke Perawat?"
+                description="Status kunjungan akan berubah kembali menjadi Pemeriksaan agar bisa diperbaiki oleh Nurse/Dokter."
+                onConfirm={handleReopenEncounter}
+                okText="Ya, Kembalikan"
+                cancelText="Batal"
+                okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
+              >
+                <Button
+                  icon={<RollbackOutlined />}
+                  danger
+                  loading={reopenEncounterMutation.isPending}
+                  size="small"
+                >
+                  Kembalikan ke Perawat
+                </Button>
+              </Popconfirm>
+              <Divider type="vertical" />
+            </>
+          )}
+
+          {/* Print actions */}
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'patient',
+                  label: 'Atas Nama Pasien',
+                  onClick: () =>
+                    invoice &&
+                    printInvoice(invoice, persistedInvoice, {
+                      printForKind: 'patient',
+                      cashierName,
+                      cashierSignatureUrl
+                    })
+                },
+                {
+                  key: 'guarantor',
+                  label: 'Atas Nama Penjamin',
+                  onClick: () =>
+                    invoice &&
+                    printInvoice(invoice, persistedInvoice, {
+                      printForKind: 'guarantor',
+                      cashierName,
+                      cashierSignatureUrl
+                    })
                 }
-              },
-              {
-                key: 'guarantor',
-                label: 'Atas Nama Penjamin',
-                onClick: () => {
-                  if (invoice && persistedInvoice) {
-                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining
-                    printReceipt(
-                      invoice,
-                      persistedInvoice,
-                      {
-                        amount: totalPaid,
-                        kode: persistedInvoice.kode,
-                        date: new Date()
-                      },
-                      {
-                        printForKind: 'guarantor',
-                        cashierName,
-                        cashierSignatureUrl
-                      }
-                    )
-                  }
-                }
-              }
-            ]
-          }}
-          disabled={
-            !invoice ||
-            !persistedInvoice ||
-            persistedInvoice.total - persistedInvoice.remaining <= 0
-          }
-        >
-          <Button icon={<PrinterOutlined />}>Cetak Kwitansi</Button>
-        </Dropdown>
-
-        {!isPaid && (
-          <Popconfirm
-            title="Kembalikan ke Perawat?"
-            description="Status kunjungan akan berubah kembali menjadi Pemeriksaan agar bisa diperbaiki oleh Nurse/Dokter."
-            onConfirm={handleReopenEncounter}
-            okText="Ya, Kembalikan"
-            cancelText="Batal"
-            okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
-          >
-            <Button icon={<RollbackOutlined />} danger loading={reopenEncounterMutation.isPending}>
-              Kembalikan ke Perawat
-            </Button>
-          </Popconfirm>
-        )}
-
-        {!isConfirmed && !isLoadingDetail && (
-          <Button
-            type="primary"
-            icon={<LockOutlined />}
-            loading={confirming}
-            onClick={handleConfirm}
+              ]
+            }}
             disabled={!invoice}
           >
-            Konfirmasi Invoice
-          </Button>
-        )}
+            <Button icon={<PrinterOutlined />} size="small">
+              Cetak Invoice
+            </Button>
+          </Dropdown>
 
-        {isConfirmed && !isPaid && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setPaymentModalOpen(true)}>
-            Tambah Pembayaran
-          </Button>
-        )}
-
-        {statusInfo && (
-          <Tag
-            color={statusInfo.color}
-            icon={isPaid ? <CheckCircleOutlined /> : undefined}
-            className="text-sm px-3 py-1"
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'patient',
+                  label: 'Atas Nama Pasien',
+                  onClick: () => {
+                    if (invoice && persistedInvoice) {
+                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                      printReceipt(
+                        invoice,
+                        persistedInvoice,
+                        { amount: totalPaid, kode: persistedInvoice.kode, date: new Date() },
+                        { printForKind: 'patient', cashierName, cashierSignatureUrl }
+                      )
+                    }
+                  }
+                },
+                {
+                  key: 'guarantor',
+                  label: 'Atas Nama Penjamin',
+                  onClick: () => {
+                    if (invoice && persistedInvoice) {
+                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                      printReceipt(
+                        invoice,
+                        persistedInvoice,
+                        { amount: totalPaid, kode: persistedInvoice.kode, date: new Date() },
+                        { printForKind: 'guarantor', cashierName, cashierSignatureUrl }
+                      )
+                    }
+                  }
+                }
+              ]
+            }}
+            disabled={
+              !invoice ||
+              !persistedInvoice ||
+              persistedInvoice.total - persistedInvoice.remaining <= 0
+            }
           >
-            {statusInfo.label}
-          </Tag>
-        )}
+            <Button icon={<PrinterOutlined />} size="small">
+              Cetak Kwitansi
+            </Button>
+          </Dropdown>
 
-        {persistedInvoice && (
-          <span className="text-gray-500 text-sm">No. {persistedInvoice.kode}</span>
-        )}
+          {/* Primary workflow action */}
+          {(!isConfirmed && !isLoadingDetail) || !isPaid ? (
+            <Divider type="vertical" className="!mx-0" />
+          ) : null}
 
-        <div className="ml-auto flex items-center gap-2 flex-wrap">
+          {!isConfirmed && !isLoadingDetail && (
+            <Button
+              type="primary"
+              icon={<LockOutlined />}
+              loading={confirming}
+              onClick={handleConfirm}
+              disabled={!invoice}
+              size="small"
+            >
+              Konfirmasi Invoice
+            </Button>
+          )}
+
+          {!isPaid && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setPaymentModalOpen(true)}
+              size="small"
+            >
+              {isConfirmed ? 'Tambah Pembayaran' : 'Input DP (Uang Muka)'}
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
           <span className="text-xs text-gray-500">Sumber TTD Kasir</span>
           <Select
             value={signatureSource}
@@ -888,15 +912,15 @@ export default function InvoiceDetailPage() {
       )}
 
       {/* Payment Modal */}
-      {isConfirmed && persistedInvoice && (
-        <PaymentModal
-          open={paymentModalOpen}
-          invoiceId={persistedInvoice.id}
-          remaining={persistedInvoice.remaining}
-          onCancel={() => setPaymentModalOpen(false)}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
+      <PaymentModal
+        open={paymentModalOpen}
+        invoiceId={persistedInvoice?.id}
+        encounterId={encounterId}
+        patientId={patientId}
+        remaining={persistedInvoice?.remaining ?? invoice?.total ?? 0}
+        onCancel={() => setPaymentModalOpen(false)}
+        onSuccess={handlePaymentSuccess}
+      />
 
       <SignaturePadModal
         title="Tanda Tangan Petugas Kasir"

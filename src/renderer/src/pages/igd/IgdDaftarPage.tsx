@@ -1,9 +1,13 @@
 import type { ColumnsType } from 'antd/es/table'
-import React, { useMemo } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import { useMemo } from 'react'
 
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
-import { DesktopStatusDot, type DesktopStatus } from '../../components/design-system/atoms/DesktopStatusDot'
+import {
+  DesktopStatusDot,
+  type DesktopStatus
+} from '../../components/design-system/atoms/DesktopStatusDot'
 import {
   DesktopStatusPill,
   type DesktopStatusPillTone
@@ -210,7 +214,9 @@ export function IgdDaftarPage({
         width: 132,
         render: (_, patient) => (
           <span className="font-mono text-[12px]">
-            {patient.isTemporaryPatient ? patient.tempCode || '—' : patient.medicalRecordNumber || '—'}
+            {patient.isTemporaryPatient
+              ? patient.tempCode || '—'
+              : patient.medicalRecordNumber || '—'}
           </span>
         )
       },
@@ -220,7 +226,9 @@ export function IgdDaftarPage({
         width: 176,
         render: (_, patient) => (
           <div className="flex items-center gap-[6px]">
-            <span className="text-[12px] font-semibold text-[var(--ds-color-text)]">{patient.name}</span>
+            <span className="text-[12px] font-semibold text-[var(--ds-color-text)]">
+              {patient.name}
+            </span>
             {patient.isTemporaryPatient ? <DesktopTag tone="accent">Temp</DesktopTag> : null}
           </div>
         )
@@ -279,13 +287,13 @@ export function IgdDaftarPage({
       <DesktopPageHeader
         eyebrow="Modul IGD"
         title="Daftar Pasien IGD"
-        subtitle="Ringkasan operasional pasien aktif, prioritas triase, dan utilisasi bed instalasi gawat darurat."
-        status={isLoading ? 'Memuat data' : 'Terhubung backend'}
+        subtitle="Ringkasan pasien aktif, prioritas triase, dan ketersediaan bed IGD."
+        status={isLoading ? 'Memuat data' : 'Data tersambung'}
         metadata={
           <div className="flex flex-wrap items-center gap-[8px]">
             <DesktopStatusDot
               status={criticalCount > 0 ? 'danger' : 'success'}
-              label={`${criticalCount} pasien kritis`}
+              label={`${criticalCount} pasien perlu prioritas`}
             />
             <DesktopBadge tone="accent">{dashboard.summary.totalActive} pasien aktif</DesktopBadge>
           </div>
@@ -315,7 +323,7 @@ export function IgdDaftarPage({
               }}
             />
             <DesktopButton emphasis="toolbar" onClick={onOpenBedMap}>
-              Peta Bed
+              Lihat Peta Bed
             </DesktopButton>
             <DesktopButton emphasis="secondary" onClick={onOpenTriase}>
               Buka Triase
@@ -328,18 +336,28 @@ export function IgdDaftarPage({
       />
 
       {isLoading ? (
-        <DesktopCard title="Memuat dashboard IGD" subtitle="Mengambil pasien aktif dan snapshot bed dari backend.">
+        <DesktopCard
+          title="Memuat dashboard IGD"
+          subtitle="Mengambil pasien aktif dan snapshot bed dari backend."
+        >
           <DesktopNoticePanel
-            title="Memuat dashboard IGD"
-            description="Data daftar pasien dan registrasi sedang disinkronkan."
+            title="Memuat data IGD"
+            description="Daftar pasien dan informasi IGD sedang diperbarui."
           />
         </DesktopCard>
       ) : null}
 
       {!isLoading && errorMessage ? (
-        <DesktopCard title="Gagal memuat dashboard" subtitle="Coba muat ulang koneksi ke backend IGD.">
+        <DesktopCard
+          title="Gagal memuat dashboard"
+          subtitle="Coba muat ulang koneksi ke backend IGD."
+        >
           <div className="grid gap-[12px]">
-            <DesktopNoticePanel title="Gagal memuat dashboard" description={errorMessage} tone="danger" />
+            <DesktopNoticePanel
+              title="Gagal memuat dashboard"
+              description={errorMessage}
+              tone="danger"
+            />
             <div>
               <DesktopButton emphasis="primary" onClick={onRetry}>
                 Muat Ulang
@@ -351,8 +369,8 @@ export function IgdDaftarPage({
 
       {!isLoading && !errorMessage && criticalCount > 0 ? (
         <DesktopCard
-          title="Perhatian Operasional"
-          subtitle="Pasien level 1-2 harus diprioritaskan untuk triase dan penempatan bed resusitasi."
+          title="Perlu Diprioritaskan"
+          subtitle="Pasien level 1-2 perlu segera ditriase dan ditempatkan di bed resusitasi."
           extra={<DesktopBadge tone="danger">{criticalCount} pasien kritis</DesktopBadge>}
           tone="muted"
           compact
@@ -384,7 +402,7 @@ export function IgdDaftarPage({
         totalToday={String(dashboard.summary.totalToday)}
         statusBadges={[
           { label: 'SATUSEHAT', tone: 'success' },
-          { label: 'EMR Aktif', tone: 'accent' }
+          { label: 'Rekam medis aktif', tone: 'accent' }
         ]}
       />
 
@@ -392,12 +410,12 @@ export function IgdDaftarPage({
         <div className="igd-daftar-grid">
           <DesktopCard
             title="Daftar Pasien IGD"
-            subtitle="Diurutkan level triase · real-time"
+            subtitle="Diurutkan berdasarkan prioritas triase"
             extra={
               <div className="flex items-center gap-[8px]">
-                <DesktopBadge tone="accent">{patients.length} baris</DesktopBadge>
+                <DesktopBadge tone="accent">{patients.length} pasien</DesktopBadge>
                 <DesktopButton emphasis="ghost" size="small">
-                  Filter
+                  Saring
                 </DesktopButton>
                 <DesktopButton emphasis="primary" size="small" onClick={onOpenRegistrasi}>
                   Pasien Baru
@@ -412,7 +430,8 @@ export function IgdDaftarPage({
               tableProps={{
                 className: 'igd-patient-table',
                 scroll: { x: 1560 },
-                rowClassName: (record) => getTriageRowClassName(record, record.id === selectedPatient?.id),
+                rowClassName: (record) =>
+                  getTriageRowClassName(record, record.id === selectedPatient?.id),
                 onRow: (record) => ({
                   onClick: () => onSelectPatient?.(record.id)
                 })
@@ -447,9 +466,11 @@ export function IgdDaftarPage({
 
           <div className="igd-detail-stack">
             <div className="px-[2px]">
-              <div className="text-[12.5px] font-semibold text-[var(--ds-color-text)]">Detail Pasien</div>
+              <div className="text-[12.5px] font-semibold text-[var(--ds-color-text)]">
+                Detail Pasien
+              </div>
               <div className="text-[10.5px] text-[var(--ds-color-text-subtle)]">
-                Snapshot operasional pasien yang sedang dipilih.
+                Ringkasan pasien yang sedang dipilih.
               </div>
             </div>
 
@@ -463,7 +484,9 @@ export function IgdDaftarPage({
                       borderBottomColor: TRIAGE_LEVEL_META[selectedPatient.triageLevel].borderColor
                     }}
                   >
-                    <DesktopTriageBadge tone={TRIAGE_LEVEL_META[selectedPatient.triageLevel].badgeTone}>
+                    <DesktopTriageBadge
+                      tone={TRIAGE_LEVEL_META[selectedPatient.triageLevel].badgeTone}
+                    >
                       {TRIAGE_LEVEL_META[selectedPatient.triageLevel].label}
                     </DesktopTriageBadge>
                     <div
@@ -503,7 +526,9 @@ export function IgdDaftarPage({
                     </div>
 
                     <div className="igd-registry-strip">
-                      <span className="text-[11px] text-[var(--ds-color-text-subtle)]">No. Reg</span>
+                      <span className="text-[11px] text-[var(--ds-color-text-subtle)]">
+                        No. Reg
+                      </span>
                       <b className="font-mono text-[11px] text-[var(--ds-color-text)]">
                         {selectedPatient.registrationNumber}
                       </b>
@@ -518,17 +543,17 @@ export function IgdDaftarPage({
                       </div>
                     </div>
 
-                <DesktopPropertyGrid
-                  items={[
+                    <DesktopPropertyGrid
+                      items={[
                         { label: 'Sumber', value: selectedPatient.arrivalSource },
                         {
                           label: 'Dokter',
-                          value: selectedPatient.doctorName || '— belum assign',
+                          value: selectedPatient.doctorName || 'Belum dipilih',
                           muted: !selectedPatient.doctorName
                         },
                         {
                           label: 'Bed',
-                          value: selectedPatient.bedCode ?? '— belum assign',
+                          value: selectedPatient.bedCode ?? 'Belum ditempatkan',
                           mono: true,
                           muted: !selectedPatient.bedCode
                         },
@@ -539,22 +564,23 @@ export function IgdDaftarPage({
                 </div>
 
                 <DesktopCard
-                  title="Vital Sign"
+                  title="Tanda Vital"
                   subtitle={`Triase ${selectedPatient.timeTracking.triageTime ?? selectedPatient.triageTime ?? '—'}`}
                   compact
                 >
                   <DesktopNoticePanel
-                    title="Vital sign belum tersedia"
-                    description="Integrasi backend tahap ini baru mencakup registrasi dan dashboard operasional IGD."
+                    title="Tanda vital belum tersedia"
+                    description="Data tanda vital belum tampil di halaman ini."
                   />
                 </DesktopCard>
 
-                <DesktopCard title="Time Tracking" subtitle="Data backend IGD" compact>
+                <DesktopCard title="Riwayat Waktu" subtitle="Urutan proses pasien di IGD" compact>
                   <DesktopTimelineList
                     items={[
                       {
                         label: 'Tiba',
-                        time: selectedPatient.timeTracking.arrivalTime ?? selectedPatient.arrivalTime,
+                        time:
+                          selectedPatient.timeTracking.arrivalTime ?? selectedPatient.arrivalTime,
                         done: true
                       },
                       {
@@ -568,17 +594,17 @@ export function IgdDaftarPage({
                         done: !!selectedPatient.timeTracking.triageTime
                       },
                       {
-                        label: 'Dokter datang / assign',
+                        label: 'Dokter menangani',
                         time: selectedPatient.timeTracking.doctorAssignedTime ?? 'Belum',
                         done: !!selectedPatient.timeTracking.doctorAssignedTime
                       },
                       {
-                        label: 'Bed assign',
+                        label: 'Masuk bed',
                         time: selectedPatient.timeTracking.bedAssignedTime ?? 'Belum',
                         done: !!selectedPatient.timeTracking.bedAssignedTime
                       },
                       {
-                        label: 'Bed release',
+                        label: 'Keluar dari bed',
                         time: selectedPatient.timeTracking.bedReleasedTime ?? 'Belum',
                         done: !!selectedPatient.timeTracking.bedReleasedTime
                       },
@@ -603,14 +629,22 @@ export function IgdDaftarPage({
                       className="!justify-center"
                       onClick={onOpenReplacePatient}
                     >
-                      Ubah Pasien
+                      Ganti Identitas
                     </DesktopButton>
                   ) : null}
-                  <DesktopButton emphasis="toolbar" className="!justify-center" onClick={onOpenTriase}>
+                  <DesktopButton
+                    emphasis="toolbar"
+                    className="!justify-center"
+                    onClick={onOpenTriase}
+                  >
                     Form Triase
                   </DesktopButton>
                   {!selectedPatient.bedCode ? (
-                    <DesktopButton emphasis="toolbar" className="!justify-center" onClick={onOpenBedMap}>
+                    <DesktopButton
+                      emphasis="toolbar"
+                      className="!justify-center"
+                      onClick={onOpenBedMap}
+                    >
                       Assign Bed IGD
                     </DesktopButton>
                   ) : null}

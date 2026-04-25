@@ -15,6 +15,7 @@ const IgdRegistrationInputSchema = z.object({
   complaint: z.string().min(1),
   arrivalSource: z.enum(['Datang sendiri', 'Rujukan', 'Polisi']),
   paymentMethod: z.enum(['Umum', 'BPJS', 'Asuransi', 'Perusahaan']),
+  mitraId: z.number().int().positive().optional(),
   arrivalDateTime: z.string().optional(),
   guarantor: z
     .object({
