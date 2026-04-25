@@ -1,6 +1,7 @@
 import {
   DeploymentUnitOutlined,
-  SwapOutlined
+  SwapOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import React from 'react'
 import type { ReactNode } from 'react'
@@ -13,7 +14,8 @@ export const RAWAT_INAP_ROOT_PATH = '/dashboard/rawat-inap'
 
 export const RAWAT_INAP_PAGE_PATHS = {
   bedMap: `${RAWAT_INAP_ROOT_PATH}/bed-map`,
-  transfer: `${RAWAT_INAP_ROOT_PATH}/transfer`
+  transfer: `${RAWAT_INAP_ROOT_PATH}/transfer`,
+  pasien: `${RAWAT_INAP_ROOT_PATH}/pasien`,
 } as const
 
 export type RawatInapDashboardChildItem = {
@@ -43,6 +45,11 @@ export const RAWAT_INAP_DASHBOARD_ITEM: RawatInapDashboardItem = {
       label: 'Transfer Antar Bangsal',
       key: RAWAT_INAP_PAGE_PATHS.transfer,
       icon: <SwapOutlined />
+    },
+    {
+      label: 'Daftar Pasien',
+      key: RAWAT_INAP_PAGE_PATHS.pasien,
+      icon: <TeamOutlined />
     }
   ]
 }
