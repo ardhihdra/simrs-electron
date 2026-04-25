@@ -65,6 +65,12 @@ export interface PaymentRecord {
   method?: string
 }
 
+interface PrintOptions {
+  printForKind: 'patient' | 'guarantor'
+  cashierName?: string
+  cashierSignatureUrl?: string
+}
+
 function formatRupiah(value: number): string {
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -118,7 +124,7 @@ function buildCategoryRows(title: string, items: InvoiceLineItem[], accentColor:
 export function printInvoice(
   invoice: Invoice,
   persistedInvoice: PersistedInvoice | null,
-  options: { printForKind: 'patient' | 'guarantor'; cashierName?: string }
+  options: PrintOptions
 ): void {
   const isPatient = options.printForKind === 'patient'
   const printName = isPatient
@@ -126,6 +132,7 @@ export function printInvoice(
     : (invoice.penjamin ?? 'Umum')
 
   const cashierName = options.cashierName || '__________________'
+  const cashierSignatureUrl = options.cashierSignatureUrl || ''
 
   const medicalRecordNumber =
     invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
@@ -243,7 +250,8 @@ export function printInvoice(
         .signatures { margin-top: 28px; display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
         .sign-item { text-align: center; }
         .sign-title { font-size: 12px; }
-        .sign-space { height: 70px; }
+        .sign-space { height: 70px; display: flex; align-items: center; justify-content: center; }
+        .sign-image { max-height: 100%; max-width: 180px; object-fit: contain; }
         .sign-name { border-top: 1px solid #374151; padding-top: 2px; font-weight: 700; }
         .footnote { margin-top: 14px; border-top: 1px solid #6b7280; padding-top: 6px; font-size: 10px; color: #4b5563; }
         .printed { margin-top: 4px; font-size: 10px; color: #6b7280; }
@@ -312,7 +320,11 @@ export function printInvoice(
         <div class="signatures">
           <div class="sign-item">
             <div class="sign-title">Petugas Kasir</div>
-            <div class="sign-space"></div>
+            <div class="sign-space">${
+              cashierSignatureUrl
+                ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-image" alt="TTD Kasir" />`
+                : ''
+            }</div>
             <div class="sign-name">( ${escapeHtml(cashierName)} )</div>
           </div>
           <div class="sign-item">
@@ -337,7 +349,7 @@ export function printReceipt(
   invoice: Invoice,
   persistedInvoice: PersistedInvoice | null,
   payment: PaymentRecord | { amount: number; kode: string; date: string | Date },
-  options: { printForKind: 'patient' | 'guarantor'; cashierName?: string }
+  options: PrintOptions
 ): void {
   const isPatient = options.printForKind === 'patient'
   const printName = isPatient
@@ -345,6 +357,7 @@ export function printReceipt(
     : (invoice.penjamin ?? 'Umum')
 
   const cashierName = options.cashierName || 'Petugas Kasir'
+  const cashierSignatureUrl = options.cashierSignatureUrl || ''
 
   const noReceipt = payment.kode ?? '-'
   const amount = payment.amount ?? 0
@@ -417,7 +430,8 @@ export function printReceipt(
         }
         .signature-box { text-align: center; width: 220px; }
         .signature-date { font-size: 13px; }
-        .signature-space { height: 70px; }
+        .signature-space { height: 70px; display: flex; align-items: center; justify-content: center; }
+        .signature-image { max-height: 100%; max-width: 170px; object-fit: contain; }
         .signature-name { border-top: 1px solid #1f2937; font-weight: 700; padding-top: 5px; }
       </style>
     </head>
@@ -463,7 +477,11 @@ export function printReceipt(
                 </div>
                 <div class="signature-box">
                     <div class="signature-date">Garut, ${date}</div>
-                    <div class="signature-space"></div>
+                    <div class="signature-space">${
+                      cashierSignatureUrl
+                        ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-image" alt="TTD Kasir" />`
+                        : ''
+                    }</div>
                     <div class="signature-name">( ${escapeHtml(cashierName)} )</div>
                 </div>
             </div>

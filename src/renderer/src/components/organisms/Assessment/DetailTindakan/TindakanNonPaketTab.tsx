@@ -1,3 +1,10 @@
+/**
+ * Purpose: Tab input tindakan non-paket pada DetailTindakanForm.
+ * Main callers: DetailTindakanForm.
+ * Key dependencies: antd Form.List, SelectKelasTarif, AutoRolePetugasListCard, ProcedureSelectorModal state.
+ * Main/public functions: TindakanNonPaketTab.
+ * Side effects: update state form antd (`tindakanList`) dan trigger dialog pemilihan tindakan.
+ */
 import { Form, Card, Select, Input, InputNumber, Switch, Button, Row, Col, Tooltip } from 'antd'
 import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { MasterTindakanItem } from '@renderer/hooks/query/use-master-tindakan'
@@ -18,6 +25,9 @@ interface TindakanNonPaketTabProps {
   roleLabelByCode: Map<string, string>
   setProcedureSelectorState: (state: {
     open: boolean
+    mode?: 'select' | 'readonly'
+    title?: string
+    procedures?: MasterTindakanItem[]
     onSelect?: (item: MasterTindakanItem) => void
   }) => void
   masterTindakanList: MasterTindakanItem[]

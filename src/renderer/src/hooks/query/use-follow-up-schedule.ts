@@ -36,8 +36,8 @@ export const useDeleteFollowUpSchedule = () => {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: async ({ id }: { id: string }) => {
-            const res = await window.api.query.followUpSchedule.remove({ id })
+        mutationFn: async ({ id }: { id: string | number }) => {
+            const res = await window.api.query.followUpSchedule.remove({ id: String(id) })
             if (!res.success) throw new Error(res.error || 'Failed to delete follow up schedule')
             return res
         },

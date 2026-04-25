@@ -20,6 +20,7 @@ export interface ConditionData {
             system?: string | null
             idDisplay?: string | null
         } | null
+        isPrimary?: boolean | null
     }> | null
     recordedDate?: string | Date | null
     onsetDateTime?: string | Date | null
@@ -106,4 +107,39 @@ export const formatAnamnesisFromConditions = (
         familyHistory: getNoteByCategory('family-history'),
         medicationHistory: getNoteByCategory('medication-history')
     }
+}
+
+const isEncounterDiagnosisCondition = (condition: ConditionData): boolean => {
+    return (
+        condition.categories?.some((category) => category.code === 'encounter-diagnosis') ?? false
+    )
+}
+
+const buildDiagnosisLine = (condition: ConditionData) => {
+    const coding = condition.codeCoding?.[0]
+    const diagnosisCode = coding?.diagnosisCode
+
+    const code = diagnosisCode?.code || coding?.code || ''
+    const display = diagnosisCode?.idDisplay || diagnosisCode?.display || coding?.display || ''
+    const text = [code, display].filter(Boolean).join(' - ').trim()
+
+    return {
+        isPrimary: Boolean(coding?.isPrimary),
+        text
+    }
+}
+
+export const formatEncounterDiagnosisSummary = (conditions: ConditionData[]): string => {
+    const diagnosisEntries = conditions
+        .filter(isEncounterDiagnosisCondition)
+        .map(buildDiagnosisLine)
+        .filter((entry) => entry.text.length > 0)
+        .sort((a, b) => {
+            if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1
+            return a.text.localeCompare(b.text)
+        })
+
+    if (diagnosisEntries.length === 0) return ''
+
+    return diagnosisEntries.map((entry, index) => `${index + 1}. ${entry.text}`).join('\n')
 }

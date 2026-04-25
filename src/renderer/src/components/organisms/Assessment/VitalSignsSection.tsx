@@ -1,4 +1,5 @@
 import { Card, Col, Form, InputNumber, Row, Select, FormInstance } from 'antd'
+import { getVitalSignRules } from './vital-signs-validation'
 
 const { Option } = Select
 
@@ -14,7 +15,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
           <Form.Item
             label="Tekanan Darah Sistolik (mmHg)"
             name={['vitalSigns', 'systolicBloodPressure']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
+            rules={getVitalSignRules('systolicBloodPressure')}
           >
             <InputNumber min={0} max={300} placeholder="100" className="w-full" addonAfter="mmHg" />
           </Form.Item>
@@ -23,7 +24,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
           <Form.Item
             label="Tekanan Darah Diastolik (mmHg)"
             name={['vitalSigns', 'diastolicBloodPressure']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
+            rules={getVitalSignRules('diastolicBloodPressure')}
           >
             <InputNumber min={0} max={200} placeholder="80" className="w-full" addonAfter="mmHg" />
           </Form.Item>
@@ -52,7 +53,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
           <Form.Item
             label="Suhu Tubuh (°C)"
             name={['vitalSigns', 'temperature']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
+            rules={getVitalSignRules('temperature')}
           >
             <InputNumber
               min={30}
@@ -78,7 +79,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
           <Form.Item
             label="Nadi (bpm)"
             name={['vitalSigns', 'pulseRate']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
+            rules={getVitalSignRules('pulseRate')}
           >
             <InputNumber min={30} max={200} placeholder="80" className="w-full" addonAfter="bpm" />
           </Form.Item>
@@ -99,7 +100,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
           <Form.Item
             label="Pernapasan (per menit)"
             name={['vitalSigns', 'respiratoryRate']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
+            rules={getVitalSignRules('respiratoryRate')}
           >
             <InputNumber min={10} max={60} placeholder="20" className="w-full" addonAfter="/min" />
           </Form.Item>
@@ -108,7 +109,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
           <Form.Item
             label="Saturasi Oksigen - SpO2 (%)"
             name={['vitalSigns', 'oxygenSaturation']}
-            rules={[{ required: true, message: 'Wajib diisi' }]}
+            rules={getVitalSignRules('oxygenSaturation')}
           >
             <InputNumber min={0} max={100} placeholder="98" className="w-full" addonAfter="%" />
           </Form.Item>
@@ -123,6 +124,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
             label="Tinggi Badan (cm)"
             name={['vitalSigns', 'height']}
             className="mb-0"
+            rules={getVitalSignRules('height')}
           >
             <InputNumber placeholder="0" className="w-full" min={0} addonAfter="cm" />
           </Form.Item>
@@ -132,6 +134,7 @@ export const VitalSignsSection: React.FC<VitalSignsSectionProps> = () => {
             label="Berat Badan (kg)"
             name={['vitalSigns', 'weight']}
             className="mb-0"
+            rules={getVitalSignRules('weight')}
           >
             <InputNumber placeholder="0" className="w-full" min={0} addonAfter="kg" />
           </Form.Item>

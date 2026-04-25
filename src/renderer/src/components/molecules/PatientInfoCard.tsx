@@ -21,6 +21,9 @@ export interface PatientInfoCardData {
     identityNumber?: string
     address?: string
     religion?: string
+    heightCm?: number | null
+    weightKg?: number | null
+    pregnancyStatus?: 'Hamil' | 'Tidak Hamil' | '-'
   }
   poli?: {
     name: string
@@ -134,6 +137,22 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
     typeof patient?.age === 'number' && Number.isFinite(patient?.age) && patient?.age >= 0
       ? `${patient?.age} th`
       : '-'
+  const normalizedHeight =
+    typeof patient?.heightCm === 'number' && Number.isFinite(patient?.heightCm) && patient?.heightCm > 0
+      ? patient.heightCm
+      : null
+  const normalizedWeight =
+    typeof patient?.weightKg === 'number' && Number.isFinite(patient?.weightKg) && patient?.weightKg > 0
+      ? patient.weightKg
+      : null
+  const bbTbLabel =
+    normalizedWeight === null && normalizedHeight === null
+      ? '-'
+      : `${normalizedWeight !== null ? `${normalizedWeight} kg` : '-'} / ${normalizedHeight !== null ? `${normalizedHeight} cm` : '-'}`
+  const pregnancyStatusLabel =
+    patient?.pregnancyStatus === 'Hamil' || patient?.pregnancyStatus === 'Tidak Hamil'
+      ? patient.pregnancyStatus
+      : '-'
 
   return (
     <Card
@@ -187,7 +206,7 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
               </span>
               <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>•</span>
               <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
-                {patient.religion}
+                {patient.religion || '-'}
               </span>
               <span style={{ color: 'rgba(255,255,255,0.60)', fontSize: 12 }}>NIK:</span>
               <span style={{ color: 'rgba(255,255,255,0.80)', fontSize: 12, fontWeight: 500 }}>
@@ -246,6 +265,14 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
             >
               {paymentMethod || 'Umum'}
             </Tag>
+          </InfoItem>
+
+          <InfoItem icon={<MedicineBoxOutlined />} label="BB / TB">
+            {bbTbLabel}
+          </InfoItem>
+
+          <InfoItem icon={<UserOutlined />} label="Status Kehamilan">
+            {pregnancyStatusLabel}
           </InfoItem>
         </div>
 

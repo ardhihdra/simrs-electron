@@ -11,13 +11,17 @@ export const usePerformers = (roles?: ('doctor' | 'nurse' | string)[]) => {
                 let filtered = res.result
 
                 if (roles && roles.length > 0) {
-                    filtered = filtered.filter((p: any) => roles.includes(p.hakAksesId))
+                    filtered = filtered.filter((p: any) =>
+                        roles.includes(p.hakAksesId ?? p.hak_akses_id ?? p.role)
+                    )
                 }
 
                 return filtered.map((p: any) => ({
                     id: p.id,
-                    name: p.namaLengkap,
-                    role: p.hakAksesId
+                    name: p.namaLengkap ?? p.nama_lengkap ?? '-',
+                    role: p.hakAksesId ?? p.hak_akses_id ?? p.role,
+                    sip: p.sip ?? p.sipNumber ?? null,
+                    ttdUrl: p.ttdUrl ?? p.ttd_url ?? null
                 }))
             }
             return []

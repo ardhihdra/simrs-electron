@@ -27,6 +27,7 @@ interface PaymentHistoryProps {
     invoice?: Invoice
     persistedInvoice?: PersistedInvoice | null
     cashierName?: string
+    cashierSignatureUrl?: string
 }
 
 const methodLabel: Record<string, string> = {
@@ -43,7 +44,15 @@ function formatRupiah(value: number): string {
     }).format(value)
 }
 
-export function PaymentHistory({ payments, totalPaid, remaining, invoice, persistedInvoice, cashierName }: PaymentHistoryProps) {
+export function PaymentHistory({
+    payments,
+    totalPaid,
+    remaining,
+    invoice,
+    persistedInvoice,
+    cashierName,
+    cashierSignatureUrl
+}: PaymentHistoryProps) {
     if (payments.length === 0) return null
 
     const columns: ColumnsType<PaymentRecord> = [
@@ -118,12 +127,24 @@ export function PaymentHistory({ payments, totalPaid, remaining, invoice, persis
                             { 
                                 key: 'patient', 
                                 label: 'Cetak (An. Pasien)', 
-                                onClick: () => invoice && printReceipt(invoice, persistedInvoice || null, r, { printForKind: 'patient', cashierName }) 
+                                onClick: () =>
+                                    invoice &&
+                                    printReceipt(invoice, persistedInvoice || null, r, {
+                                        printForKind: 'patient',
+                                        cashierName,
+                                        cashierSignatureUrl
+                                    }) 
                             },
                             { 
                                 key: 'guarantor', 
                                 label: 'Cetak (An. Penjamin)', 
-                                onClick: () => invoice && printReceipt(invoice, persistedInvoice || null, r, { printForKind: 'guarantor', cashierName }) 
+                                onClick: () =>
+                                    invoice &&
+                                    printReceipt(invoice, persistedInvoice || null, r, {
+                                        printForKind: 'guarantor',
+                                        cashierName,
+                                        cashierSignatureUrl
+                                    }) 
                             }
                         ]
                     }}

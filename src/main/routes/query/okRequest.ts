@@ -142,7 +142,7 @@ export const verify = async (ctx: IpcContext, args: z.infer<typeof schemas.verif
     const payload = {
       status: args.status === 'diajukan' ? 'verified' : args.status,
       ...(args.scheduledAt !== undefined ? { scheduledAt: args.scheduledAt } : {}),
-      ...(Number.isInteger(normalizedEstimatedDuration) && normalizedEstimatedDuration >= 0
+      ...(Number.isInteger(normalizedEstimatedDuration) && normalizedEstimatedDuration > 0
         ? { estimatedDurationMinutes: normalizedEstimatedDuration }
         : {}),
       ...(args.operatingRoomId !== undefined ? { operatingRoomId: args.operatingRoomId } : {}),

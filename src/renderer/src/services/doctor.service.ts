@@ -25,7 +25,7 @@ import {
   dummyPrescriptions
 } from './doctor-dummy-data'
 import { dummyPatientQueue, dummyMedicalRecords } from './dummy-data'
-import { normalizeKelasTarifValue } from '../utils/tarif-kelas'
+import { derivePregnancyStatus } from './pregnancy-status'
 
 const simulateDelay = (ms: number = 500): Promise<void> => {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -116,6 +116,27 @@ const mapEncounterStatus = (status?: string | null): PatientStatus => {
   }
 }
 
+const collectObservationsForPregnancyDerivation = (
+  observationList: unknown[],
+  groupedObservations: {
+    vitalSigns: unknown[]
+    anamnesis: unknown[]
+    physicalExam: unknown[]
+  } | null
+): Record<string, unknown>[] => {
+  if (observationList.length > 0) {
+    return observationList as Record<string, unknown>[]
+  }
+
+  if (!groupedObservations) return []
+
+  return [
+    ...(groupedObservations.vitalSigns || []),
+    ...(groupedObservations.anamnesis || []),
+    ...(groupedObservations.physicalExam || [])
+  ] as Record<string, unknown>[]
+}
+
 export const getPatientMedicalRecord = async (
   encounterId: string
 ): Promise<PatientWithMedicalRecord | null> => {
@@ -163,6 +184,10 @@ export const getPatientMedicalRecord = async (
             physicalExam: observationList as any[]
           }
         : null)
+    const observationsForPregnancy = collectObservationsForPregnancyDerivation(
+      observationList,
+      groupedObservations
+    )
 
     const condRes = await window.api.query.condition?.getByEncounter({ encounterId })
 
@@ -300,6 +325,10 @@ export const getPatientMedicalRecord = async (
 
     const birthDate = patient.birthDate ? new Date(patient.birthDate) : new Date()
     const age = new Date().getFullYear() - birthDate.getFullYear()
+    const pregnancyStatus = derivePregnancyStatus({
+      observations: observationsForPregnancy,
+      gender: patient.gender
+    })
 
     const patientWithRecord: PatientWithMedicalRecord = {
       id: String(patient.id),
@@ -319,6 +348,7 @@ export const getPatientMedicalRecord = async (
       },
       status: mapEncounterStatus(encounter.status),
       paymentMethod: 'Umum',
+      pregnancyStatus,
       registrationDate: encounter.period?.start
         ? String(encounter.period.start)
         : new Date().toISOString(),

@@ -14,7 +14,7 @@ import {
   Tag,
   Alert
 } from 'antd'
-import { SendOutlined, FilePdfOutlined, PrinterOutlined } from '@ant-design/icons'
+import { SendOutlined, FilePdfOutlined, PrinterOutlined, EditOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { useReactToPrint } from 'react-to-print'
 import { ReferralLetter } from './ReferralLetter'
@@ -22,6 +22,9 @@ import { useReferralByEncounter } from '../../hooks/query/use-referral'
 import { useMyProfile } from '../../hooks/useProfile'
 import { queryClient } from '../../query-client'
 import { client } from '../../utils/client'
+import { useConditionByEncounter } from '@renderer/hooks/query/use-condition'
+import { formatEncounterDiagnosisSummary } from '@renderer/utils/formatters/condition-formatter'
+import { SignaturePadModal } from '@renderer/components/molecules/SignaturePadModal'
 
 const { TextArea } = Input
 
@@ -54,6 +57,11 @@ type AvailableDoctorOption = {
   } | null
 }
 
+const SIGNATURE_SOURCE_OPTIONS = [
+  { label: 'Input Manual', value: 'manual' },
+  { label: 'Ambil dari Kepegawaian', value: 'kepegawaian' }
+]
+
 type AvailableBedOption = {
   bedId: string
   roomId: string
@@ -79,20 +87,79 @@ export const ReferralForm = ({
 }: ReferralFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
+  const diagnosisRequiredMessage =
+    'Diagnosis belum tersedia. Isi diagnosis di menu Diagnosis terlebih dahulu sebelum membuat rujukan.'
   const { profile } = useMyProfile()
   const [referralType, setReferralType] = useState<ReferralType>(ReferralType.INTERNAL)
   const [targetPoliId, setTargetPoliId] = useState<number | undefined>()
+  const selectedSignatureSource = Form.useWatch('signatureSource', form)
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>()
 
   const [selectedReferral, setSelectedReferral] = useState<any>(null)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false)
+  const [signatures, setSignatures] = useState<Record<string, string>>({})
+  const [selectedDoctorProfileTtdUrl, setSelectedDoctorProfileTtdUrl] = useState<string | null>(
+    null
+  )
+  const [sigModal, setSigModal] = useState<{ visible: boolean; type: string; title: string }>({
+    visible: false,
+    type: '',
+    title: ''
+  })
   const referPatient = client.registration.referPatient.useMutation()
   const referralDate = Form.useWatch('referralDate', form)
+
   const internalTargetType =
     Form.useWatch('internalTargetType', form) ?? InternalReferralTargetType.POLI
 
+  const { data: conditionData, isLoading: isLoadingConditions } =
+    useConditionByEncounter(encounterId)
+
+  const toFileUrl = (path?: string | null) => {
+    if (!path || typeof path !== 'string') return undefined
+    const trimmed = path.trim()
+    if (!trimmed) return undefined
+    if (
+      trimmed.startsWith('http://') ||
+      trimmed.startsWith('https://') ||
+      trimmed.startsWith('data:')
+    ) {
+      return trimmed
+    }
+
+    const normalizedPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '')
+    if (normalizedPath.startsWith('api/files/')) {
+      const base = String(window.env?.API_URL || '').replace(/\/+$/, '')
+      const relative = normalizedPath.replace(/^api\/files\//, '')
+      return `${base}/public/${relative}`
+    }
+
+    const base = String(window.env?.API_URL || '').replace(/\/+$/, '')
+    return `${base}/public/${normalizedPath}`
+  }
+
+  const autoDoctorSignatureUrl = useMemo(
+    () => toFileUrl(selectedDoctorProfileTtdUrl),
+    [selectedDoctorProfileTtdUrl]
+  )
+
+  const resolveSignatureForPreview = (referral: any) => {
+    if (selectedSignatureSource !== 'kepegawaian') {
+      return signatures.doctor
+    }
+
+    return toFileUrl(
+      referral?.referringPractitioner?.ttdUrl ||
+        referral?.referringPractitioner?.ttd_url ||
+        selectedDoctorProfileTtdUrl
+    )
+  }
+
   const handlePrint = (referral: any) => {
-    setSelectedReferral(referral)
+    setSelectedReferral({
+      ...referral,
+      signatureUrl: resolveSignatureForPreview(referral)
+    })
     setIsPreviewVisible(true)
   }
 
@@ -111,10 +178,85 @@ export const ReferralForm = ({
   const activePractitionerId = Number(profile?.id ?? patientData?.doctor?.id ?? NaN)
   const activePractitionerName = patientData?.doctor?.name || profile?.username || 'Dokter Pengirim'
 
+  useEffect(() => {
+    let isCancelled = false
+
+    const loadDoctorProfile = async () => {
+      if (!Number.isFinite(activePractitionerId)) {
+        setSelectedDoctorProfileTtdUrl(null)
+        return
+      }
+
+      const getById = window.api?.query?.kepegawaian?.getById
+      if (!getById) {
+        setSelectedDoctorProfileTtdUrl(null)
+        return
+      }
+
+      try {
+        const response = await getById({ id: Number(activePractitionerId) })
+        const doctor = (response as any)?.result
+        const ttdUrl = doctor?.ttdUrl || doctor?.ttd_url || null
+        if (!isCancelled) {
+          setSelectedDoctorProfileTtdUrl(
+            typeof ttdUrl === 'string' && ttdUrl.trim() ? ttdUrl : null
+          )
+        }
+      } catch {
+        if (!isCancelled) {
+          setSelectedDoctorProfileTtdUrl(null)
+        }
+      }
+    }
+
+    loadDoctorProfile()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [activePractitionerId])
+
   const referralDateString = useMemo(
     () => (referralDate ? dayjs(referralDate).format('YYYY-MM-DD') : undefined),
     [referralDate]
   )
+  const autoDiagnosisText = useMemo(() => {
+    const payload = conditionData as { result?: unknown; data?: unknown } | undefined
+    const conditions = Array.isArray(payload?.result)
+      ? payload.result
+      : Array.isArray(payload?.data)
+        ? payload.data
+        : []
+    return formatEncounterDiagnosisSummary(conditions)
+  }, [conditionData])
+  const autoDiagnosisCode = useMemo(() => {
+    const firstDiagnosisLine = autoDiagnosisText
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.length > 0)
+
+    if (!firstDiagnosisLine) return ''
+
+    const withoutNumbering = firstDiagnosisLine.replace(/^\d+\.\s*/, '')
+    const [code] = withoutNumbering.split(' - ')
+    return code?.trim() || ''
+  }, [autoDiagnosisText])
+  const hasAutoDiagnosis = autoDiagnosisText.trim().length > 0
+
+  const openSigModal = (type: string, title: string) => {
+    setSigModal({ visible: true, type, title })
+  }
+
+  const saveSignature = (dataUrl: string) => {
+    setSignatures((prev) => ({ ...prev, [sigModal.type]: dataUrl }))
+  }
+
+  useEffect(() => {
+    form.setFieldsValue({
+      diagnosisCode: autoDiagnosisCode,
+      diagnosisText: autoDiagnosisText
+    })
+  }, [autoDiagnosisCode, autoDiagnosisText, form])
 
   const allSchedulesQuery = client.registration.getAvailableDoctors.useQuery(
     {
@@ -159,7 +301,10 @@ export const ReferralForm = ({
         internalTargetType === InternalReferralTargetType.POLI &&
         !!referralDateString &&
         !!targetPoliId,
-      queryKey: ['referral-form-available-doctors', { date: referralDateString, poliId: targetPoliId }]
+      queryKey: [
+        'referral-form-available-doctors',
+        { date: referralDateString, poliId: targetPoliId }
+      ]
     }
   )
 
@@ -248,6 +393,10 @@ export const ReferralForm = ({
         throw new Error('Dokter/perujuk aktif tidak ditemukan. Silakan login ulang.')
       }
 
+      if (!hasAutoDiagnosis) {
+        throw new Error(diagnosisRequiredMessage)
+      }
+
       const referralDateValue = values.referralDate
         ? values.referralDate.toISOString()
         : new Date().toISOString()
@@ -299,7 +448,9 @@ export const ReferralForm = ({
         values.referralType === ReferralType.INTERNAL &&
         values.internalTargetType === InternalReferralTargetType.INPATIENT
       ) {
-        const selectedBed = availableBeds.find((bed) => String(bed.bedId) === String(values.targetBedId))
+        const selectedBed = availableBeds.find(
+          (bed) => String(bed.bedId) === String(values.targetBedId)
+        )
 
         if (!selectedBed) {
           throw new Error('Bed rawat inap tujuan tidak ditemukan. Silakan pilih ulang.')
@@ -350,8 +501,17 @@ export const ReferralForm = ({
       ])
 
       form.resetFields()
-      setTargetPoliId(undefined)
+      form.setFieldsValue({
+        referralType,
+        transportationMode: 'mandiri',
+        referralDate: dayjs(),
+        diagnosisCode: autoDiagnosisCode,
+        diagnosisText: autoDiagnosisText,
+        signatureSource: 'manual'
+      })
       setSelectedRoomId(undefined)
+      setTargetPoliId(undefined)
+      setSignatures({})
       onSuccess?.()
     } catch (error: any) {
       message.error(error.message || 'Gagal membuat rujukan')
@@ -376,7 +536,10 @@ export const ReferralForm = ({
             referralType: ReferralType.INTERNAL,
             internalTargetType: InternalReferralTargetType.POLI,
             transportationMode: 'mandiri',
-            referralDate: dayjs()
+            referralDate: dayjs(),
+            diagnosisCode: autoDiagnosisCode,
+            diagnosisText: autoDiagnosisText,
+            signatureSource: 'manual'
           }}
         >
           <Row gutter={24}>
@@ -528,10 +691,27 @@ export const ReferralForm = ({
             <TextArea rows={3} placeholder="Jelaskan indikasi medis mengapa pasien dirujuk..." />
           </Form.Item>
 
+          {!isLoadingConditions && !hasAutoDiagnosis && (
+            <Alert
+              type="warning"
+              showIcon
+              className="mb-4"
+              message="Diagnosis belum tersedia"
+              description="Isi Diagnosis di menu Diagnosis terlebih dahulu sebelum membuat rujukan."
+            />
+          )}
+
           <Row gutter={24}>
             <Col span={12}>
-              <Form.Item name="diagnosisCode" label="Kode Diagnosa (opsional)">
-                <Input placeholder="Contoh: I10" />
+              <Form.Item name="diagnosisCode" label="Kode Diagnosa (otomatis dari Diagnosis)">
+                <Input
+                  readOnly
+                  placeholder={
+                    isLoadingConditions
+                      ? 'Memuat diagnosis...'
+                      : 'Kode diagnosis otomatis dari menu Diagnosis'
+                  }
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -549,8 +729,16 @@ export const ReferralForm = ({
             </Col>
           </Row>
 
-          <Form.Item name="diagnosisText" label="Diagnosa (opsional)">
-            <TextArea rows={2} placeholder="Diagnosa pasien bila perlu dicantumkan" />
+          <Form.Item name="diagnosisText" label="Diagnosa (otomatis dari Diagnosis)">
+            <TextArea
+              rows={2}
+              readOnly
+              placeholder={
+                isLoadingConditions
+                  ? 'Memuat diagnosis...'
+                  : 'Diagnosis otomatis dari menu Diagnosis'
+              }
+            />
           </Form.Item>
 
           <Form.Item
@@ -568,9 +756,72 @@ export const ReferralForm = ({
             />
           </Form.Item>
 
-          <Form.Item name="treatmentSummary" label="Terapi / Tindakan yang Sudah Diberikan (opsional)">
+          <Form.Item
+            name="treatmentSummary"
+            label="Terapi / Tindakan yang Sudah Diberikan (opsional)"
+          >
             <TextArea rows={3} placeholder="Terapi atau tindakan sebelum pasien dirujuk..." />
           </Form.Item>
+
+          <Card title="Tanda Tangan Digital (Opsional)" className="border border-gray-100 mb-4">
+            <Form.Item
+              className="mb-4!"
+              name="signatureSource"
+              label="Sumber Tanda Tangan Dokter Pengirim"
+              rules={[{ required: true, message: 'Pilih sumber tanda tangan' }]}
+            >
+              <Select options={SIGNATURE_SOURCE_OPTIONS} />
+            </Form.Item>
+
+            <div className="rounded-lg border border-gray-200 bg-white p-4 max-w-[420px]">
+              <div className="uppercase text-[10px] tracking-widest text-gray-500 font-semibold">
+                Dokter Pengirim
+              </div>
+              <div className="mt-3 mb-4 h-32 w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden relative group">
+                {(
+                  selectedSignatureSource === 'kepegawaian'
+                    ? autoDoctorSignatureUrl
+                    : signatures.doctor
+                ) ? (
+                  <img
+                    src={
+                      selectedSignatureSource === 'kepegawaian'
+                        ? autoDoctorSignatureUrl
+                        : signatures.doctor
+                    }
+                    alt="Signature"
+                    className="max-h-full transition-transform group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-gray-400">
+                    <EditOutlined className="text-2xl opacity-40" />
+                    <span className="text-[10px] italic text-gray-500">
+                      {selectedSignatureSource === 'kepegawaian'
+                        ? 'TTD Kepegawaian Belum Ada'
+                        : 'Belum Ada TTD'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {selectedSignatureSource === 'kepegawaian' ? (
+                <Tag color={autoDoctorSignatureUrl ? 'green' : 'default'} className="m-0">
+                  {autoDoctorSignatureUrl
+                    ? 'Diambil dari Kepegawaian'
+                    : 'Profil Pegawai Tidak Punya TTD'}
+                </Tag>
+              ) : (
+                <Button
+                  icon={<EditOutlined />}
+                  size="small"
+                  className="text-xs"
+                  onClick={() => openSigModal('doctor', 'Dokter Pengirim')}
+                >
+                  Input Tanda Tangan
+                </Button>
+              )}
+            </div>
+          </Card>
 
           <Form.Item className="mb-0 text-right">
             <Button
@@ -578,6 +829,7 @@ export const ReferralForm = ({
               htmlType="submit"
               icon={<SendOutlined />}
               loading={referPatient.isPending}
+              disabled={!hasAutoDiagnosis || isLoadingConditions}
             >
               Buat Rujukan
             </Button>
@@ -685,6 +937,13 @@ export const ReferralForm = ({
           />
         </div>
       </Modal>
+
+      <SignaturePadModal
+        title={sigModal.title}
+        visible={sigModal.visible}
+        onClose={() => setSigModal({ ...sigModal, visible: false })}
+        onSave={saveSignature}
+      />
     </div>
   )
 }

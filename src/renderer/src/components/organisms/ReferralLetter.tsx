@@ -159,9 +159,14 @@ export const ReferralLetter = forwardRef<HTMLDivElement, ReferralLetterProps>(
 
         <div className="flex justify-end mt-12">
           <div className="text-center w-64">
-            <Text className="block text-lg mb-20">
+            <Text className="block text-lg mb-2">
               {dayjs(data.referralDate || data.createdAt).format('Garut, DD MMMM YYYY')}
             </Text>
+            <div className="h-20 mb-2 flex items-center justify-center">
+              {data.signatureUrl ? (
+                <img src={data.signatureUrl} alt="TTD Dokter Pengirim" className="max-h-full" />
+              ) : null}
+            </div>
             <Text className="block text-lg font-bold underline">
               ( {referringDoctorName} )
             </Text>
