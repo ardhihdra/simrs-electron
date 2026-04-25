@@ -29,6 +29,7 @@ import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 import { IGD_DASHBOARD_ITEM, IGD_ROOT_PATH } from '@renderer/pages/igd/igd.config'
 import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
+import { RAWAT_INAP_DASHBOARD_ITEM } from '@renderer/pages/rawat-inap/rawat-inap.config'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
@@ -225,22 +226,11 @@ const items: DashboardMenuItem[] = [
     ]
   },
   {
-    label: 'Rawat Inap',
-    key: '/dashboard/rawat-inap',
-    icon: <CalendarOutlined />,
-    module: 'RAWAT_INAP',
-    children: [
-      {
-        label: 'Rawat Inap 1',
-        key: '/dashboard/rawat-inap/ranap-1/class-1',
-        icon: <CalendarOutlined />
-      },
-      {
-        label: 'Rawat Inap 2',
-        key: '/dashboard/rawat-inap/ranap-2/class1',
-        icon: <CalendarOutlined />
-      }
-    ]
+    label: RAWAT_INAP_DASHBOARD_ITEM.label,
+    key: RAWAT_INAP_DASHBOARD_ITEM.key,
+    icon: RAWAT_INAP_DASHBOARD_ITEM.icon ?? <CalendarOutlined />,
+    module: RAWAT_INAP_DASHBOARD_ITEM.module,
+    children: RAWAT_INAP_DASHBOARD_ITEM.children
   },
   {
     label: IGD_DASHBOARD_ITEM.label,

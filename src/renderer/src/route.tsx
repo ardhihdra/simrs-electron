@@ -112,6 +112,9 @@ import ReportPage from './pages/pharmacy/ReportPage'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
 import PoliSelect from './pages/poli/PoliSelect'
 import QueueList from './pages/queue/queue-list'
+import RawatInapBedMapRoute from './pages/rawat-inap/RawatInapBedMapRoute'
+import RawatInapTransferRoute from './pages/rawat-inap/RawatInapTransferRoute'
+import { RAWAT_INAP_PAGE_PATHS } from './pages/rawat-inap/rawat-inap.config'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
 import ServiceRequestTable from './pages/service-request/service-request-table'
@@ -348,6 +351,20 @@ function MainRoute() {
           <Route path="doctor" element={g('/dashboard/doctor', <DoctorEMR />)}>
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
+          </Route>
+          <Route path="rawat-inap" element={g('/dashboard/rawat-inap', <Outlet />)}>
+            <Route
+              index
+              element={g('/dashboard/rawat-inap', <Navigate to="bed-map" replace />)}
+            />
+            <Route
+              path="bed-map"
+              element={g(RAWAT_INAP_PAGE_PATHS.bedMap, <RawatInapBedMapRoute />)}
+            />
+            <Route
+              path="transfer"
+              element={g(RAWAT_INAP_PAGE_PATHS.transfer, <RawatInapTransferRoute />)}
+            />
           </Route>
           <Route path="igd" element={g('/dashboard/igd', <Outlet />)}>
             <Route index element={g('/dashboard/igd', <Navigate to="daftar" replace />)} />
