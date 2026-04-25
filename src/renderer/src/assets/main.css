@@ -8,8 +8,10 @@
   --color-ds-accent-text: var(--theme-color-ds-accent-text);
   --color-ds-surface: var(--theme-color-ds-surface);
   --color-ds-surface-muted: var(--theme-color-ds-surface-muted);
+  --color-ds-surface-muted-raised: var(--theme-color-ds-surface-muted-raised);
   --color-ds-surface-raised: var(--theme-color-ds-surface-raised);
   --color-ds-background: var(--theme-color-ds-background);
+  --color-ds-background-elevated: var(--theme-color-ds-background-elevated);
   --color-ds-border: var(--theme-color-ds-border);
   --color-ds-border-strong: var(--theme-color-ds-border-strong);
   --color-ds-text: var(--theme-color-ds-text);

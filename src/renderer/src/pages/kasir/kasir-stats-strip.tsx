@@ -49,25 +49,19 @@ export default function KasirStatsStrip({
           <span className="text-[10px] text-ds-muted font-bold tracking-wider uppercase block">
             Total Tagihan
           </span>
-          <b className="text-[20px] block font-mono text-ds-text">
-            {fmt(summary.totalRevenue)}
-          </b>
+          <b className="text-[20px] block font-mono text-ds-text">{fmt(summary.totalRevenue)}</b>
         </div>
         <div>
           <span className="text-[10px] text-green-600 font-bold tracking-wider uppercase block">
             Sudah Dibayar
           </span>
-          <b className="text-[20px] block font-mono text-green-600">
-            {fmt(summary.totalPaid)}
-          </b>
+          <b className="text-[20px] block font-mono text-green-600">{fmt(summary.totalPaid)}</b>
         </div>
         <div>
           <span className="text-[10px] text-red-500 font-bold tracking-wider uppercase block">
             Belum Lunas
           </span>
-          <b className="text-[20px] block font-mono text-red-500">
-            {fmt(summary.totalRemaining)}
-          </b>
+          <b className="text-[20px] block font-mono text-red-500">{fmt(summary.totalRemaining)}</b>
         </div>
 
         <div className="w-[1px] h-10 bg-ds-border mx-1" />

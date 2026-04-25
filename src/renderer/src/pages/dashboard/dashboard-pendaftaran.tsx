@@ -55,7 +55,7 @@ export default function DashboardPendaftaran() {
     label: p.hour,
     value: p.patientCount,
     // Simulate BPJS vs Umum for the premium bar design
-    subValue: Math.floor(p.patientCount * 0.6) 
+    subValue: Math.floor(p.patientCount * 0.6)
   }))
 
   // Adapt data for PremiumDonut (Patient Type Ratio)
@@ -110,30 +110,37 @@ export default function DashboardPendaftaran() {
         <div className="mt-3 space-y-4">
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={16}>
-              <Card 
-                title={<div className="text-sm font-bold">Kedatangan Pasien per Jam</div>} 
-                size="small" 
+              <Card
+                title={<div className="text-sm font-bold">Kedatangan Pasien per Jam</div>}
+                size="small"
                 variant="outlined"
               >
                 <PremiumBarChart data={patientsPerHourData} />
                 <div className="flex justify-between mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px]">
-                  <div><span className="opacity-60">Peak </span><b>09:00–10:00</b></div>
-                  <div><span className="opacity-60">Rata-rata </span><b>14 mnt</b></div>
+                  <div>
+                    <span className="opacity-60">Peak </span>
+                    <b>09:00–10:00</b>
+                  </div>
+                  <div>
+                    <span className="opacity-60">Rata-rata </span>
+                    <b>14 mnt</b>
+                  </div>
                   <div className="flex gap-4">
                     <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[var(--accent)]"/> Umum
+                      <span className="w-2 h-2 rounded-full bg-[var(--accent)]" /> Umum
                     </span>
                     <span className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[var(--accent-soft)] border border-[var(--accent)]"/> BPJS
+                      <span className="w-2 h-2 rounded-full bg-[var(--accent-soft)] border border-[var(--accent)]" />{' '}
+                      BPJS
                     </span>
                   </div>
                 </div>
               </Card>
             </Col>
             <Col xs={24} lg={8}>
-              <Card 
-                title={<div className="text-sm font-bold">Komposisi Pasien</div>} 
-                size="small" 
+              <Card
+                title={<div className="text-sm font-bold">Komposisi Pasien</div>}
+                size="small"
                 variant="outlined"
               >
                 <div className="flex items-center justify-center py-4">
@@ -156,9 +163,9 @@ export default function DashboardPendaftaran() {
 
           <Row gutter={[16, 16]}>
             <Col xs={24} lg={12}>
-               <Card 
-                title={<div className="text-sm font-bold">Metode Pembayaran</div>} 
-                size="small" 
+              <Card
+                title={<div className="text-sm font-bold">Metode Pembayaran</div>}
+                size="small"
                 variant="outlined"
               >
                 <div className="flex items-center gap-6 py-2">
@@ -178,9 +185,9 @@ export default function DashboardPendaftaran() {
               </Card>
             </Col>
             <Col xs={24} lg={12}>
-              <Card 
-                title={<div className="text-sm font-bold">Status Antrian & Tunggu</div>} 
-                size="small" 
+              <Card
+                title={<div className="text-sm font-bold">Status Antrian & Tunggu</div>}
+                size="small"
                 variant="outlined"
                 className="h-full"
               >

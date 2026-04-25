@@ -725,6 +725,11 @@ export function MedicationDispenseTable() {
           typeof item.itemId === 'number' ? itemCaraPenyimpananById.get(item.itemId) : undefined,
         note: item.note,
         telaah: item.telaah,
+        penyiapObatId: item.penyiapObatId,
+        pelabelObatId: item.pelabelObatId,
+        penyerahObatId: item.penyerahObatId,
+        namaPenerima: item.namaPenerima,
+        hubunganPenerima: item.hubunganPenerima,
         children
       }
 

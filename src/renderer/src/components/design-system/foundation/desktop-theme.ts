@@ -30,6 +30,7 @@ export interface DesktopThemeTokens {
     accentDeep: string
     surface: string
     surfaceMuted: string
+    surfaceMutedRaised: string
     surfaceRaised: string
     background: string
     backgroundElevated: string
@@ -102,8 +103,9 @@ export const desktopThemeTokens: DesktopThemeTokens = {
     accentText: '#f8faff',
     accentDeep: '#3249b7',
     surface: '#ffffff',
-    surfaceMuted: '#f4f6fb',
-    surfaceRaised: '#eef2fb',
+    surfaceMuted: '#f4f7f9', // previously #f4f6fb
+    surfaceMutedRaised: '#edf1f3',
+    surfaceRaised: '#f8fafc', // previously #eef2fb
     background: '#edf1f8',
     backgroundElevated: '#f8fafc',
     border: '#d7deec',
@@ -124,7 +126,7 @@ export const desktopThemeTokens: DesktopThemeTokens = {
     fontFamilySans: 'Inter',
     fontFamilyFallback: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif",
     fontFamilyMono: "'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
-    baseFontSize: 13,
+    baseFontSize: 12.5,
     labelFontSize: 11,
     captionFontSize: 10,
     titleFontSize: 22,
@@ -159,7 +161,7 @@ export const desktopThemeTokens: DesktopThemeTokens = {
     docTabHeight: 32,
     statusBarHeight: 22,
     shellMinHeight: 420,
-    moduleBrandSize: 26,
+    moduleBrandSize: 24,
     moduleNavHeight: 30,
     docTabButtonHeight: 28,
     docTabMaxWidth: 220,
@@ -299,6 +301,7 @@ export function buildDesktopCssVariables(tokens: DesktopThemeTokens): Record<str
     '--ds-color-accent-deep': tokens.colors.accentDeep,
     '--ds-color-surface': tokens.colors.surface,
     '--ds-color-surface-muted': tokens.colors.surfaceMuted,
+    '--ds-color-surface-muted-raised': tokens.colors.surfaceMutedRaised,
     '--ds-color-surface-raised': tokens.colors.surfaceRaised,
     '--ds-color-background': tokens.colors.background,
     '--ds-color-background-elevated': tokens.colors.backgroundElevated,
@@ -365,8 +368,10 @@ export function buildDesktopTailwindThemeVariables(
     '--theme-color-ds-accent-text': tokens.colors.accentText,
     '--theme-color-ds-surface': tokens.colors.surface,
     '--theme-color-ds-surface-muted': tokens.colors.surfaceMuted,
+    '--theme-color-ds-surface-muted-raised': tokens.colors.surfaceMutedRaised,
     '--theme-color-ds-surface-raised': tokens.colors.surfaceRaised,
     '--theme-color-ds-background': tokens.colors.background,
+    '--theme-color-ds-background-elevated': tokens.colors.backgroundElevated,
     '--theme-color-ds-border': tokens.colors.border,
     '--theme-color-ds-border-strong': tokens.colors.borderStrong,
     '--theme-color-ds-text': tokens.colors.text,

@@ -63,6 +63,10 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
     }
 
     const handleOk = async () => {
+        if (!invoiceId) {
+            message.error('Invoice belum tersedia')
+            return
+        }
         try {
             const values = await form.validateFields()
             setLoading(true)
