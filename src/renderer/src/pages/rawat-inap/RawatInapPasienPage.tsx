@@ -67,10 +67,10 @@ export function RawatInapPasienPage({
 
   const hasActiveFilters =
     queryParams.search || queryParams.wardId || queryParams.dpjpName ||
-    queryParams.paymentType || queryParams.losCategory
+    queryParams.paymentType || queryParams.losCategory || queryParams.encounterStatus
 
   const clearFilters = () =>
-    onQueryChange({ search: undefined, wardId: undefined, dpjpName: undefined, paymentType: undefined, losCategory: undefined, page: 1 })
+    onQueryChange({ search: undefined, wardId: undefined, dpjpName: undefined, paymentType: undefined, losCategory: undefined, encounterStatus: undefined, page: 1 })
 
   const sortOrderFor = (field: SortField) =>
     queryParams.sortField === field

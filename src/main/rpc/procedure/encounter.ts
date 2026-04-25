@@ -122,8 +122,8 @@ export const encounterRpc = {
     .output(InpatientPatientListResultSchema)
     .query(async ({ client }, input) => {
       const params = new URLSearchParams()
-      if (input.page !== 1) params.set('page', String(input.page))
-      if (input.pageSize !== 10) params.set('pageSize', String(input.pageSize))
+      params.set('page', String(input.page))
+      params.set('pageSize', String(input.pageSize))
       if (input.search) params.set('search', input.search)
       if (input.encounterStatus) params.set('encounterStatus', input.encounterStatus)
       if (input.wardId) params.set('wardId', input.wardId)
