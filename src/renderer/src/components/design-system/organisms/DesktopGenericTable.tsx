@@ -49,7 +49,7 @@ export interface DesktopTableCardHeader {
 export interface DesktopTableStatusFilterItem {
   key: string
   label: string
-  count: number
+  count?: number
 }
 
 export interface DesktopTableStatusFilter {
@@ -260,11 +260,13 @@ export function DesktopGenericTable<T extends object>({
                 }`}
               >
                 {label}
-                <span
-                  className={`px-1.5 rounded-full text-[10px] font-mono ${active ? 'bg-ds-accent text-white' : 'bg-ds-surface-muted text-ds-muted'}`}
-                >
-                  {count}
-                </span>
+                {count != null && (
+                  <span
+                    className={`px-1.5 rounded-full text-[10px] font-mono ${active ? 'bg-ds-accent text-white' : 'bg-ds-surface-muted text-ds-muted'}`}
+                  >
+                    {count}
+                  </span>
+                )}
               </button>
             )
           })}

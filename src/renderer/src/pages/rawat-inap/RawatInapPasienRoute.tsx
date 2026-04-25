@@ -8,7 +8,7 @@ import { RawatInapPasienPage } from './RawatInapPasienPage'
 void React
 
 export default function RawatInapPasienRoute() {
-  const query = client.encounter.inpatientPatients.useQuery({})
+  const query = client.encounter.inpatientPatients.useQuery({ page: 1, pageSize: 10 })
 
   if (query.isLoading && !query.data) {
     return (
