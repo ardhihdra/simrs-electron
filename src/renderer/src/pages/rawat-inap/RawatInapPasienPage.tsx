@@ -2,14 +2,18 @@ import { App } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import React, { useState } from 'react'
 
-import { DesktopBadge, type DesktopBadgeTone } from '../../components/design-system/atoms/DesktopBadge'
+import {
+  DesktopBadge,
+  type DesktopBadgeTone
+} from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
 import { DesktopGenericTable } from '../../components/design-system/organisms/DesktopGenericTable'
+import { RPCSelectAsync } from '../../components/organisms/RPCSelectAsync'
+import { SelectAsync } from '../../components/organisms/SelectAsync'
 import type {
   InpatientPatientListItem,
-  InpatientPatientListOptions,
-  InpatientPatientListQuery,
+  InpatientPatientListQuery
 } from '../../../../main/rpc/procedure/encounter.schemas'
 
 void React
@@ -20,7 +24,6 @@ type RawatInapPasienPageProps = {
   loading?: boolean
   queryParams: InpatientPatientListQuery
   statusCounts?: { IN_PROGRESS: number; FINISHED: number }
-  options: InpatientPatientListOptions
   onQueryChange: (patch: Partial<InpatientPatientListQuery>) => void
 }
 
@@ -55,8 +58,7 @@ export function RawatInapPasienPage({
   loading = false,
   queryParams,
   statusCounts,
-  options,
-  onQueryChange,
+  onQueryChange
 }: RawatInapPasienPageProps) {
   const { message } = App.useApp()
   const [selectedEncounterId, setSelectedEncounterId] = useState(() => items[0]?.encounterId ?? '')
@@ -66,15 +68,29 @@ export function RawatInapPasienPage({
   const handleAction = () => void message.info('Fitur belum diimplementasikan pada scope ini')
 
   const hasActiveFilters =
-    queryParams.search || queryParams.wardId || queryParams.dpjpName ||
-    queryParams.paymentType || queryParams.losCategory || queryParams.encounterStatus
+    queryParams.search ||
+    queryParams.wardId ||
+    queryParams.dpjpName ||
+    queryParams.paymentType ||
+    queryParams.losCategory ||
+    queryParams.encounterStatus
 
   const clearFilters = () =>
-    onQueryChange({ search: undefined, wardId: undefined, dpjpName: undefined, paymentType: undefined, losCategory: undefined, encounterStatus: undefined, page: 1 })
+    onQueryChange({
+      search: undefined,
+      wardId: undefined,
+      dpjpName: undefined,
+      paymentType: undefined,
+      losCategory: undefined,
+      encounterStatus: undefined,
+      page: 1
+    })
 
   const sortOrderFor = (field: SortField) =>
     queryParams.sortField === field
-      ? queryParams.sortOrder === 'asc' ? 'ascend' as const : 'descend' as const
+      ? queryParams.sortOrder === 'asc'
+        ? ('ascend' as const)
+        : ('descend' as const)
       : null
 
   const columns: ColumnsType<InpatientPatientListItem> = [
@@ -86,12 +102,14 @@ export function RawatInapPasienPage({
       sortOrder: sortOrderFor('patientName'),
       render: (_, p) => (
         <div>
-          <div className="text-[12.5px] font-semibold text-[var(--ds-color-text)]">{p.patientName}</div>
+          <div className="text-[12.5px] font-semibold text-[var(--ds-color-text)]">
+            {p.patientName}
+          </div>
           <div className="font-mono text-[10.5px] text-[var(--ds-color-text-muted)]">
             {p.medicalRecordNumber ?? '-'} · {p.ageLabel ?? '-'}
           </div>
         </div>
-      ),
+      )
     },
     {
       title: 'Kamar',
@@ -101,10 +119,13 @@ export function RawatInapPasienPage({
       sortOrder: sortOrderFor('wardName'),
       render: (_, p) =>
         p.wardName ? (
-          <DesktopTag>{p.wardName}{p.bedName ? ` · ${p.bedName}` : ''}</DesktopTag>
+          <DesktopTag>
+            {p.wardName}
+            {p.bedName ? ` · ${p.bedName}` : ''}
+          </DesktopTag>
         ) : (
           <span className="text-[var(--ds-color-text-muted)]">-</span>
-        ),
+        )
     },
     {
       title: 'DPJP',
@@ -114,7 +135,7 @@ export function RawatInapPasienPage({
       sortOrder: sortOrderFor('dpjpName'),
       render: (val: string | null) => (
         <span className="text-[11.5px] text-[var(--ds-color-text)]">{val ?? '-'}</span>
-      ),
+      )
     },
     {
       title: 'Dx',
@@ -122,7 +143,7 @@ export function RawatInapPasienPage({
       dataIndex: 'diagnosisSummary',
       render: (val: string | null) => (
         <span className="font-mono text-[11px] text-[var(--ds-color-text)]">{val ?? '-'}</span>
-      ),
+      )
     },
     {
       title: 'Masuk',
@@ -132,7 +153,7 @@ export function RawatInapPasienPage({
       sortOrder: sortOrderFor('admissionDateTime'),
       render: (val: string | null) => (
         <span className="font-mono text-[11px] text-[var(--ds-color-text)]">{formatDate(val)}</span>
-      ),
+      )
     },
     {
       title: 'LOS',
@@ -146,15 +167,24 @@ export function RawatInapPasienPage({
           <span
             className="font-mono text-[13px] font-bold"
             style={{
-              color: losDays >= 14 ? 'var(--ds-color-danger)' : losDays >= 7 ? 'var(--ds-color-warning)' : 'var(--ds-color-text)',
+              color:
+                losDays >= 14
+                  ? 'var(--ds-color-danger)'
+                  : losDays >= 7
+                    ? 'var(--ds-color-warning)'
+                    : 'var(--ds-color-text)'
             }}
           >
             {losDays}
           </span>
-          {losDays >= 14 && <span className="ml-[3px] text-[9px] text-[var(--ds-color-danger)]">⚠</span>}
-          {losDays >= 7 && losDays < 14 && <span className="ml-[3px] text-[9px] text-[var(--ds-color-warning)]">!</span>}
+          {losDays >= 14 && (
+            <span className="ml-[3px] text-[9px] text-[var(--ds-color-danger)]">⚠</span>
+          )}
+          {losDays >= 7 && losDays < 14 && (
+            <span className="ml-[3px] text-[9px] text-[var(--ds-color-warning)]">!</span>
+          )}
         </span>
-      ),
+      )
     },
     {
       title: 'Jenis',
@@ -163,7 +193,7 @@ export function RawatInapPasienPage({
         <DesktopBadge tone={getPaymentTone(p.paymentLabel)}>
           {p.paymentLabel?.split(' - ')[0] ?? '-'}
         </DesktopBadge>
-      ),
+      )
     },
     {
       title: 'Status',
@@ -172,8 +202,8 @@ export function RawatInapPasienPage({
         <DesktopBadge tone={getStatusTone(p.encounterStatus)}>
           {getStatusLabel(p.encounterStatus)}
         </DesktopBadge>
-      ),
-    },
+      )
+    }
   ]
 
   const tableProps: TableProps<InpatientPatientListItem> = {
@@ -183,7 +213,7 @@ export function RawatInapPasienPage({
         page: pagination.current ?? 1,
         pageSize: pagination.pageSize ?? queryParams.pageSize,
         sortField: s.order ? (s.field as SortField) : undefined,
-        sortOrder: s.order === 'ascend' ? 'asc' : s.order === 'descend' ? 'desc' : undefined,
+        sortOrder: s.order === 'ascend' ? 'asc' : s.order === 'descend' ? 'desc' : undefined
       })
     },
     pagination: {
@@ -192,21 +222,21 @@ export function RawatInapPasienPage({
       total,
       showSizeChanger: true,
       pageSizeOptions: [5, 10, 25, 50],
-      showTotal: (n, range) => `${range[0]}–${range[1]} dari ${n} pasien`,
+      showTotal: (n, range) => `${range[0]}–${range[1]} dari ${n} pasien`
     },
     onRow: (record) => ({
-      onClick: () => setSelectedEncounterId(record.encounterId),
+      onClick: () => setSelectedEncounterId(record.encounterId)
     }),
     rowClassName: (record) =>
       [
         'cursor-pointer',
         record.encounterId === selectedEncounterId ? 'ant-table-row-selected' : '',
-        record.encounterStatus === 'FINISHED' ? 'opacity-60' : '',
+        record.encounterStatus === 'FINISHED' ? 'opacity-60' : ''
       ]
         .filter(Boolean)
         .join(' '),
     className: '!rounded-none !border-0 !shadow-none !bg-transparent',
-    scroll: { x: 900 },
+    scroll: { x: 900 }
   }
 
   return (
@@ -222,8 +252,12 @@ export function RawatInapPasienPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-[8px]">
-          <DesktopButton emphasis="toolbar" onClick={handleAction}>Ekspor</DesktopButton>
-          <DesktopButton emphasis="toolbar" onClick={handleAction}>Admisi Baru</DesktopButton>
+          <DesktopButton emphasis="toolbar" onClick={handleAction}>
+            Ekspor
+          </DesktopButton>
+          <DesktopButton emphasis="toolbar" onClick={handleAction}>
+            Admisi Baru
+          </DesktopButton>
         </div>
       </div>
 
@@ -235,50 +269,53 @@ export function RawatInapPasienPage({
           placeholder="Cari nama pasien atau No. RM…"
           className="min-w-[200px] flex-1 rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[10px] py-[7px] text-[12px] text-[var(--ds-color-text)] outline-none placeholder:text-[var(--ds-color-text-muted)]"
         />
-        {[
-          {
-            value: queryParams.wardId ?? '',
-            onChange: (v: string) => onQueryChange({ wardId: v || undefined, page: 1 }),
-            options: [{ value: '', label: 'Semua Bangsal' }, ...options.wards.map((w) => ({ value: w.id, label: w.name }))],
-          },
-          {
-            value: queryParams.dpjpName ?? '',
-            onChange: (v: string) => onQueryChange({ dpjpName: v || undefined, page: 1 }),
-            options: [{ value: '', label: 'Semua DPJP' }, ...options.dpjps.map((d) => ({ value: d, label: d }))],
-          },
-          {
-            value: queryParams.paymentType ?? '',
-            onChange: (v: string) => onQueryChange({ paymentType: v || undefined, page: 1 }),
-            options: [
-              { value: '', label: 'Semua Jenis Bayar' },
-              { value: 'BPJS', label: 'BPJS' },
-              { value: 'Umum', label: 'Umum' },
-              { value: 'Asuransi', label: 'Asuransi' },
-              { value: 'Perusahaan', label: 'Perusahaan' },
-            ],
-          },
-          {
-            value: queryParams.losCategory ?? '',
-            onChange: (v: string) => onQueryChange({ losCategory: (v as InpatientPatientListQuery['losCategory'] | '') || undefined, page: 1 }),
-            options: [
-              { value: '', label: 'Semua LOS' },
-              { value: 'normal', label: 'Normal (<7 hari)' },
-              { value: 'panjang', label: 'Panjang (7–13 hari)' },
-              { value: 'sangat', label: 'Sangat Panjang (≥14 hari)' },
-            ],
-          },
-        ].map((sel, idx) => (
-          <select
-            key={idx}
-            value={sel.value}
-            onChange={(e) => sel.onChange(e.target.value)}
-            className="rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[8px] py-[5px] text-[11.5px] text-[var(--ds-color-text)] outline-none"
-          >
-            {sel.options.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        ))}
+        <RPCSelectAsync
+          entity="room"
+          display="roomCodeId"
+          output="id"
+          placeHolder="Semua Bangsal"
+          value={queryParams.wardId}
+          onChange={(v) => onQueryChange({ wardId: v ?? undefined, page: 1 })}
+          allowClear
+          className="min-w-[150px]"
+        />
+        <SelectAsync
+          entity="kepegawaian"
+          display="namaLengkap"
+          output="namaLengkap"
+          placeHolder="Semua DPJP"
+          filters={{ hakAksesId: 'doctor' }}
+          value={queryParams.dpjpName}
+          onChange={(v) => onQueryChange({ dpjpName: v ?? undefined, page: 1 })}
+          className="min-w-[180px]"
+        />
+        <select
+          value={queryParams.paymentType ?? ''}
+          onChange={(e) => onQueryChange({ paymentType: e.target.value || undefined, page: 1 })}
+          className="rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[8px] py-[5px] text-[11.5px] text-[var(--ds-color-text)] outline-none"
+        >
+          <option value="">Semua Jenis Bayar</option>
+          <option value="BPJS">BPJS</option>
+          <option value="Umum">Umum</option>
+          <option value="Asuransi">Asuransi</option>
+          <option value="Perusahaan">Perusahaan</option>
+        </select>
+        <select
+          value={queryParams.losCategory ?? ''}
+          onChange={(e) =>
+            onQueryChange({
+              losCategory:
+                (e.target.value as InpatientPatientListQuery['losCategory'] | '') || undefined,
+              page: 1
+            })
+          }
+          className="rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[8px] py-[5px] text-[11.5px] text-[var(--ds-color-text)] outline-none"
+        >
+          <option value="">Semua LOS</option>
+          <option value="normal">Normal (&lt;7 hari)</option>
+          <option value="panjang">Panjang (7–13 hari)</option>
+          <option value="sangat">Sangat Panjang (≥14 hari)</option>
+        </select>
         {hasActiveFilters && (
           <button
             onClick={clearFilters}
@@ -300,16 +337,20 @@ export function RawatInapPasienPage({
             loading={loading}
             cardHeader={{
               title: 'Daftar Pasien',
-              subtitle: loading ? 'Memuat…' : `${total} hasil`,
+              subtitle: loading ? 'Memuat…' : `${total} hasil`
             }}
             statusFilter={{
               items: [
-                { key: '', label: 'Semua', count: (statusCounts?.IN_PROGRESS ?? 0) + (statusCounts?.FINISHED ?? 0) },
+                {
+                  key: '',
+                  label: 'Semua',
+                  count: (statusCounts?.IN_PROGRESS ?? 0) + (statusCounts?.FINISHED ?? 0)
+                },
                 { key: 'IN_PROGRESS', label: 'Aktif', count: statusCounts?.IN_PROGRESS },
-                { key: 'FINISHED', label: 'Discharge', count: statusCounts?.FINISHED },
+                { key: 'FINISHED', label: 'Discharge', count: statusCounts?.FINISHED }
               ],
               value: queryParams.encounterStatus ?? '',
-              onChange: (key) => onQueryChange({ encounterStatus: key || undefined, page: 1 }),
+              onChange: (key) => onQueryChange({ encounterStatus: key || undefined, page: 1 })
             }}
             action={{
               title: '',
@@ -319,7 +360,10 @@ export function RawatInapPasienPage({
                   <DesktopButton
                     emphasis="toolbar"
                     size="small"
-                    onClick={(e) => { e.stopPropagation(); handleAction() }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleAction()
+                    }}
                   >
                     CPPT
                   </DesktopButton>
@@ -327,13 +371,16 @@ export function RawatInapPasienPage({
                     <DesktopButton
                       emphasis="primary"
                       size="small"
-                      onClick={(e) => { e.stopPropagation(); handleAction() }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleAction()
+                      }}
                     >
                       Pulang
                     </DesktopButton>
                   )}
                 </div>
-              ),
+              )
             }}
             tableProps={tableProps}
           />
@@ -343,17 +390,25 @@ export function RawatInapPasienPage({
         {selected && (
           <div className="w-[300px] shrink-0 rounded-[var(--ds-radius-lg)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] shadow-[var(--ds-shadow-xs)]">
             <div className="flex items-center gap-[8px] border-b border-[var(--ds-color-border)] px-[16px] py-[12px]">
-              <span className="text-[13px] font-semibold text-[var(--ds-color-text)]">Ringkasan</span>
+              <span className="text-[13px] font-semibold text-[var(--ds-color-text)]">
+                Ringkasan
+              </span>
               <div className="flex-1" />
               {selected.wardName && <DesktopTag>{selected.wardName}</DesktopTag>}
             </div>
             <div className="flex flex-col gap-[12px] px-[16px] py-[14px]">
               <div className="flex items-center gap-[10px] border-b border-[var(--ds-color-border)] pb-[12px]">
                 <div className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--ds-color-accent)_14%,white)] text-[13px] font-bold text-[var(--ds-color-accent)]">
-                  {selected.patientName.split(' ').slice(0, 2).map((n) => n[0]).join('')}
+                  {selected.patientName
+                    .split(' ')
+                    .slice(0, 2)
+                    .map((n) => n[0])
+                    .join('')}
                 </div>
                 <div>
-                  <div className="text-[13px] font-semibold text-[var(--ds-color-text)]">{selected.patientName}</div>
+                  <div className="text-[13px] font-semibold text-[var(--ds-color-text)]">
+                    {selected.patientName}
+                  </div>
                   <div className="text-[11px] text-[var(--ds-color-text-muted)]">
                     {selected.ageLabel ?? '-'} · {selected.paymentLabel ?? '-'}
                   </div>
@@ -368,11 +423,13 @@ export function RawatInapPasienPage({
                     ['DPJP', selected.dpjpName ?? '-'],
                     ['Est. Pulang', '-'],
                     ['SEP', selected.sepNumber ?? '-'],
-                    ['Status', getStatusLabel(selected.encounterStatus)],
+                    ['Status', getStatusLabel(selected.encounterStatus)]
                   ] as [string, string][]
                 ).map(([label, value]) => (
                   <div key={label}>
-                    <div className="text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--ds-color-text-muted)]">{label}</div>
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--ds-color-text-muted)]">
+                      {label}
+                    </div>
                     <div className="font-medium text-[var(--ds-color-text)]">{value}</div>
                   </div>
                 ))}
@@ -384,19 +441,27 @@ export function RawatInapPasienPage({
                   style={{
                     background: 'color-mix(in srgb, var(--ds-color-warning) 12%, white)',
                     borderColor: 'var(--ds-color-warning)',
-                    color: 'var(--ds-color-warning)',
+                    color: 'var(--ds-color-warning)'
                   }}
                 >
-                  {selected.losDays >= 14 ? '⚠ LOS sangat panjang — perlu evaluasi.' : '! LOS panjang — monitor DPJP.'}
+                  {selected.losDays >= 14
+                    ? '⚠ LOS sangat panjang — perlu evaluasi.'
+                    : '! LOS panjang — monitor DPJP.'}
                 </div>
               )}
 
               <div className="flex flex-col gap-[6px]">
-                {(['Buka CPPT', 'Vital Signs', 'Resep / MAR', 'Transfer Kamar'] as string[]).map((label) => (
-                  <DesktopButton key={label} emphasis="toolbar" onClick={handleAction}>{label}</DesktopButton>
-                ))}
+                {(['Buka CPPT', 'Vital Signs', 'Resep / MAR', 'Transfer Kamar'] as string[]).map(
+                  (label) => (
+                    <DesktopButton key={label} emphasis="toolbar" onClick={handleAction}>
+                      {label}
+                    </DesktopButton>
+                  )
+                )}
                 {selected.encounterStatus === 'IN_PROGRESS' && (
-                  <DesktopButton emphasis="primary" onClick={handleAction}>Proses Pulang</DesktopButton>
+                  <DesktopButton emphasis="primary" onClick={handleAction}>
+                    Proses Pulang
+                  </DesktopButton>
                 )}
               </div>
             </div>

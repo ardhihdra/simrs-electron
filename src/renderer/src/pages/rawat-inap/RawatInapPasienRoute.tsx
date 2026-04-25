@@ -52,7 +52,7 @@ export default function RawatInapPasienRoute() {
       loading={query.isFetching}
       queryParams={queryParams}
       statusCounts={query.data?.statusCounts}
-      options={optionsQuery.data ?? { wards: [], dpjps: [] }}
+      // options={optionsQuery.data ?? { wards: [], dpjps: [] }}
       onQueryChange={handleQueryChange}
     />
   )
