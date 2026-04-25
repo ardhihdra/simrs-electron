@@ -64,8 +64,12 @@ export const kasirRpc = {
                 })
                 formData.append('attachment', fileBlob, filename)
             }
+            const params = new URLSearchParams()
+            if (input.encounterId) params.append('encounterId', input.encounterId)
+            if (input.patientId) params.append('patientId', input.patientId)
+
             const res = await client.createWithUpload(
-                `/api/module/kasir/invoice/${input.invoiceId}/payment`,
+                `/api/module/kasir/invoice/${input.invoiceId || '0'}/payment?${params.toString()}`,
                 formData,
             )
             return await res.json()

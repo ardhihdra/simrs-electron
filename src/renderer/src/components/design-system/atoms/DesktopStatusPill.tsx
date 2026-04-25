@@ -47,7 +47,7 @@ export function DesktopStatusPill({
 }: DesktopStatusPillProps) {
   return (
     <span
-      className={`desktop-status-pill inline-flex items-center gap-[4px] rounded-[var(--ds-radius-sm)] border px-[7px] py-[2px] text-[10.5px] font-semibold ${TONE_CLASSNAME[tone]}`}
+      className={`desktop-status-pill inline-flex items-center gap-[4px] whitespace-nowrap rounded-[var(--ds-radius-sm)] border px-[7px] py-[2px] text-[10.5px] font-semibold ${TONE_CLASSNAME[tone]}`}
     >
       <span className={`h-[5px] w-[5px] rounded-[999px] ${TONE_DOT_CLASSNAME[tone]}`} />
       <span>{children}</span>
