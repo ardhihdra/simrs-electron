@@ -6,6 +6,15 @@ import {
 } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
+import {
+  InpatientPatientListResultSchema,
+  normalizeInpatientPatientListResponse,
+} from './encounter.schemas'
+
+export type { InpatientPatientListItem, InpatientPatientListResult } from './encounter.schemas'
+export { normalizeInpatientPatientListResponse } from './encounter.schemas'
+
+// ── RPC procedures ────────────────────────────────────────────────────────────
 
 export const encounterRpc = {
   // list: GET /module/encounter?depth=1 (Active encounters usually)
@@ -81,8 +90,7 @@ export const encounterRpc = {
       return await data.json()
     }),
 
-
-    syncSatusehat: t
+  syncSatusehat: t
     .input(z.any())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
@@ -90,19 +98,28 @@ export const encounterRpc = {
       return await data.json()
     }),
 
-    syncExtracted: t
+  syncExtracted: t
     .input(z.any())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       const data = await client.post(`/api/module/encounter/${input.id}/sync-extracted`, input)
       return await data.json()
     }),
-  
+
   reopen: t
     .input(z.string())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, id) => {
       const data = await client.patch(`/api/module/encounter/${id}/reopen`, {})
       return await data.json()
-    })
+    }),
+
+  inpatientPatients: t
+    .input(z.object({}).default({}))
+    .output(InpatientPatientListResultSchema)
+    .query(async ({ client }) => {
+      const data = await client.get('/api/module/encounter/inpatient-patients')
+      const payload = await data.json()
+      return normalizeInpatientPatientListResponse(payload)
+    }),
 }
