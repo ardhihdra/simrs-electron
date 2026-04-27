@@ -19,6 +19,19 @@ test('Rawat Inap bed map page renders ward sidebar, bed grid, and detail panel',
   assert.equal(markup.includes('Detail Bed'), true)
 })
 
+test('Rawat Inap bed map fullscreen mode keeps only fullscreen action in the header', () => {
+  const markup = renderToStaticMarkup(
+    <RawatInapBedMapPage state={createRawatInapInitialState()} isFullscreenMode />
+  )
+
+  assert.equal(markup.includes('rawat-inap-bed-map-fullscreen'), true)
+  assert.equal(markup.includes('Keluar Fullscreen'), true)
+  assert.equal(markup.includes('Statistik BOR'), false)
+  assert.equal(markup.includes('Daftar Pasien'), false)
+  assert.equal(markup.includes('Admisi Baru'), false)
+  assert.equal(markup.includes('Detail Bed'), false)
+})
+
 test('Rawat Inap transfer page renders source and destination cards', () => {
   const markup = renderToStaticMarkup(<RawatInapTransferPage state={createRawatInapInitialState()} />)
 

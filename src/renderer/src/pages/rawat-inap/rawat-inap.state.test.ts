@@ -264,7 +264,7 @@ test('createRawatInapStateFromBedMapSnapshot groups all IGD rooms into one bangs
         roomId: 'room-igd-01',
         roomName: 'IGD-01',
         floor: '1',
-        classLabel: 'IGD',
+        classLabel: 'IGD_HOLDING',
         capacity: 1,
         occupancy: { occupied: 0, total: 1, percentage: 0 },
         beds: [
@@ -282,7 +282,7 @@ test('createRawatInapStateFromBedMapSnapshot groups all IGD rooms into one bangs
         roomId: 'room-ruang-igd-02',
         roomName: 'Ruang IGD 02',
         floor: '1',
-        classLabel: 'IGD',
+        classLabel: 'IGD_ISOLASI',
         capacity: 1,
         occupancy: { occupied: 0, total: 1, percentage: 0 },
         beds: [
@@ -320,6 +320,7 @@ test('createRawatInapStateFromBedMapSnapshot groups all IGD rooms into one bangs
   assert.equal(state.wards.length, 2)
   assert.equal(state.wards[0]?.id, 'bangsal-igd')
   assert.equal(state.wards[0]?.name, 'IGD')
+  assert.equal(state.wards[0]?.classLabel, 'IGD')
   assert.equal(state.wards[0]?.totalBeds, 2)
   assert.deepEqual(getWardOccupancy(state, 'bangsal-igd'), {
     occupiedBeds: 0,

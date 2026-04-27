@@ -318,13 +318,17 @@ export function createRawatInapStateFromBedMapSnapshot(snapshot: RawatInapBedMap
     sourceRoomsByBangsalId.set(bangsalId, [...existingRooms, room])
   })
 
-  const wards = Array.from(sourceRoomsByBangsalId.entries()).map<RawatInapWard>(([bangsalId, rooms]) => ({
-    id: bangsalId,
-    name: deriveBangsalLabelFromRoomName(rooms[0]?.roomName ?? '-'),
-    classLabel: formatJoinedLabels(rooms.map((room) => room.classLabel)),
-    floorLabel: formatJoinedLabels(rooms.map((room) => (room.floor ? `Lantai ${room.floor}` : null))),
-    totalBeds: rooms.reduce((total, room) => total + room.beds.length, 0)
-  }))
+  const wards = Array.from(sourceRoomsByBangsalId.entries()).map<RawatInapWard>(([bangsalId, rooms]) => {
+    const bangsalName = deriveBangsalLabelFromRoomName(rooms[0]?.roomName ?? '-')
+
+    return {
+      id: bangsalId,
+      name: bangsalName,
+      classLabel: bangsalName === 'IGD' ? 'IGD' : formatJoinedLabels(rooms.map((room) => room.classLabel)),
+      floorLabel: formatJoinedLabels(rooms.map((room) => (room.floor ? `Lantai ${room.floor}` : null))),
+      totalBeds: rooms.reduce((total, room) => total + room.beds.length, 0)
+    }
+  })
 
   const beds = snapshot.wards.flatMap<RawatInapBed>((ward) =>
     ward.beds.map((bed) => {
