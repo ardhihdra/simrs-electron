@@ -67,3 +67,14 @@ export function normalizeInpatientPatientListOptionsResponse(payload: unknown): 
   }
   throw new Error('Invalid inpatient patient list options response')
 }
+
+export const DpjpParticipantItemSchema = z.object({
+  id: z.number(),
+  staffId: z.number(),
+  staffName: z.string(),
+  role: z.enum(['dpjp_utama', 'dpjp_tambahan']),
+  startAt: z.string().nullable(),
+  notes: z.string().nullable(),
+})
+
+export type DpjpParticipantItem = z.infer<typeof DpjpParticipantItemSchema>
