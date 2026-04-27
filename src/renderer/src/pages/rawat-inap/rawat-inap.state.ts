@@ -235,6 +235,7 @@ const parseLosDays = (label: string | null | undefined) => {
 const deriveBangsalLabelFromRoomName = (roomName: string) => {
   const normalized = String(roomName || '').trim().replace(/\s+/g, ' ')
   if (!normalized) return '-'
+  if (/(^|[^a-z0-9])igd([^a-z0-9]|$)/i.test(normalized)) return 'IGD'
 
   const firstDigitIndex = normalized.search(/\d/)
   if (firstDigitIndex < 0) return normalized

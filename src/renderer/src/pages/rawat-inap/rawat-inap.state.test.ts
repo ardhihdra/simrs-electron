@@ -248,3 +248,86 @@ test('createRawatInapStateFromBedMapSnapshot groups rooms with the same prefix i
   assert.equal(state.beds.find((bed) => bed.id === 'bed-melati-302-a')?.roomId, 'room-melati-302')
   assert.equal(state.wards[1]?.id, 'bangsal-icu')
 })
+
+test('createRawatInapStateFromBedMapSnapshot groups all IGD rooms into one bangsal', () => {
+  const state = createRawatInapStateFromBedMapSnapshot({
+    generatedAt: '2026-04-27T09:00:00.000Z',
+    summary: {
+      totalRooms: 3,
+      totalBeds: 3,
+      occupiedBeds: 0,
+      availableBeds: 3,
+      cleaningBeds: 0
+    },
+    wards: [
+      {
+        roomId: 'room-igd-01',
+        roomName: 'IGD-01',
+        floor: '1',
+        classLabel: 'IGD',
+        capacity: 1,
+        occupancy: { occupied: 0, total: 1, percentage: 0 },
+        beds: [
+          {
+            bedId: 'bed-igd-01',
+            bedName: 'IGD-01-A',
+            status: 'TERSEDIA',
+            roomId: 'room-igd-01',
+            roomName: 'IGD-01',
+            patient: null
+          }
+        ]
+      },
+      {
+        roomId: 'room-ruang-igd-02',
+        roomName: 'Ruang IGD 02',
+        floor: '1',
+        classLabel: 'IGD',
+        capacity: 1,
+        occupancy: { occupied: 0, total: 1, percentage: 0 },
+        beds: [
+          {
+            bedId: 'bed-igd-02',
+            bedName: 'IGD-02-A',
+            status: 'TERSEDIA',
+            roomId: 'room-ruang-igd-02',
+            roomName: 'Ruang IGD 02',
+            patient: null
+          }
+        ]
+      },
+      {
+        roomId: 'room-melati-302',
+        roomName: 'Melati 302',
+        floor: '3',
+        classLabel: 'Kelas 1',
+        capacity: 1,
+        occupancy: { occupied: 0, total: 1, percentage: 0 },
+        beds: [
+          {
+            bedId: 'bed-melati-302-a',
+            bedName: '302-A',
+            status: 'TERSEDIA',
+            roomId: 'room-melati-302',
+            roomName: 'Melati 302',
+            patient: null
+          }
+        ]
+      }
+    ]
+  })
+
+  assert.equal(state.wards.length, 2)
+  assert.equal(state.wards[0]?.id, 'bangsal-igd')
+  assert.equal(state.wards[0]?.name, 'IGD')
+  assert.equal(state.wards[0]?.totalBeds, 2)
+  assert.deepEqual(getWardOccupancy(state, 'bangsal-igd'), {
+    occupiedBeds: 0,
+    totalBeds: 2
+  })
+  assert.deepEqual(
+    getRoomsForWard(state, 'bangsal-igd').map((room) => room.roomNo),
+    ['IGD-01', 'IGD-02']
+  )
+  assert.equal(state.beds.find((bed) => bed.id === 'bed-igd-02')?.wardId, 'bangsal-igd')
+})

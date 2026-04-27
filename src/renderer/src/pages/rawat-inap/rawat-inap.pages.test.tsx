@@ -13,6 +13,7 @@ test('Rawat Inap bed map page renders ward sidebar, bed grid, and detail panel',
   const markup = renderToStaticMarkup(<RawatInapBedMapPage state={createRawatInapInitialState()} />)
 
   assert.equal(markup.includes('Rawat Inap — Peta Bed'), true)
+  assert.equal(markup.includes('Fullscreen'), true)
   assert.equal(markup.includes('rawat-inap-bed-map-layout'), true)
   assert.equal(markup.includes('Bangsal'), true)
   assert.equal(markup.includes('Detail Bed'), true)

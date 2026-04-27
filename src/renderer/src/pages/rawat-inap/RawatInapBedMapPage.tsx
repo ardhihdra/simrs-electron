@@ -2,6 +2,8 @@ import {
   BarChartOutlined,
   CheckOutlined,
   EditOutlined,
+  FullscreenExitOutlined,
+  FullscreenOutlined,
   PlusOutlined,
   TeamOutlined
 } from '@ant-design/icons'
@@ -31,6 +33,8 @@ type RawatInapBedMapPageProps = {
   onOpenTransfer?: () => void
   onOpenCppt?: () => void
   onOpenDischarge?: () => void
+  onToggleFullscreen?: () => void
+  isFullscreenMode?: boolean
 }
 
 const getBedStatusColors = (status: RawatInapBed['status']) => {
@@ -66,7 +70,9 @@ export function RawatInapBedMapPage({
   onSelectBed,
   onOpenTransfer,
   onOpenCppt,
-  onOpenDischarge
+  onOpenDischarge,
+  onToggleFullscreen,
+  isFullscreenMode = false
 }: RawatInapBedMapPageProps) {
   const activeWard = state.wards.find((ward) => ward.id === state.activeWardId) ?? state.wards[0]
   const selectedBed = getBedById(state, state.selectedBedId)
@@ -89,6 +95,13 @@ export function RawatInapBedMapPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-[8px]">
+          <DesktopButton
+            emphasis="toolbar"
+            icon={isFullscreenMode ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+            onClick={onToggleFullscreen}
+          >
+            {isFullscreenMode ? 'Keluar Fullscreen' : 'Fullscreen'}
+          </DesktopButton>
           <DesktopButton emphasis="toolbar" icon={<BarChartOutlined />}>
             Statistik BOR
           </DesktopButton>

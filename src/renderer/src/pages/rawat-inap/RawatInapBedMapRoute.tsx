@@ -1,6 +1,6 @@
 import { App } from 'antd'
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
@@ -14,6 +14,7 @@ import {
 
 export default function RawatInapBedMapRoute() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { message } = App.useApp()
   const bedMapQuery = client.room.bedMap.useQuery({})
   const state = useRawatInapStore((store) => store.state)
@@ -55,12 +56,33 @@ export default function RawatInapBedMapRoute() {
   }
 
   const viewState = bedMapQuery.data ? syncRawatInapStateWithBedMapSnapshot(state, bedMapQuery.data) : state
+  const searchParams = new URLSearchParams(location.search)
+  const fullscreenParam = searchParams.get('contentFullscreen')
+  const isFullscreenMode = fullscreenParam === '1' || fullscreenParam?.toLowerCase() === 'true'
+
+  const toggleFullscreen = () => {
+    const nextSearchParams = new URLSearchParams(location.search)
+
+    if (isFullscreenMode) {
+      nextSearchParams.delete('contentFullscreen')
+    } else {
+      nextSearchParams.set('contentFullscreen', '1')
+    }
+
+    const nextSearch = nextSearchParams.toString()
+    navigate({
+      pathname: location.pathname,
+      search: nextSearch ? `?${nextSearch}` : ''
+    })
+  }
 
   return (
     <RawatInapBedMapPage
       state={viewState}
+      isFullscreenMode={isFullscreenMode}
       onSelectWard={(wardId) => selectWard({ wardId })}
       onSelectBed={(bedId) => selectBed({ bedId })}
+      onToggleFullscreen={toggleFullscreen}
       onOpenTransfer={() => {
         if (!viewState.selectedBedId) {
           message.warning('Pilih bed pasien terlebih dahulu')
