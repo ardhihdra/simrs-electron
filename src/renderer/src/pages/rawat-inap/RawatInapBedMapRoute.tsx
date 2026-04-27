@@ -83,6 +83,7 @@ export default function RawatInapBedMapRoute() {
       onSelectWard={(wardId) => selectWard({ wardId })}
       onSelectBed={(bedId) => selectBed({ bedId })}
       onToggleFullscreen={toggleFullscreen}
+      onOpenAdmisi={() => navigate(RAWAT_INAP_PAGE_PATHS.admisi)}
       onOpenTransfer={() => {
         if (!viewState.selectedBedId) {
           message.warning('Pilih bed pasien terlebih dahulu')

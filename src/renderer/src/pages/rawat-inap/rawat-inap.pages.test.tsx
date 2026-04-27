@@ -3,11 +3,26 @@ import test from 'node:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { RawatInapAdmisiPage } from './RawatInapAdmisiPage.tsx'
 import { RawatInapBedMapPage } from './RawatInapBedMapPage.tsx'
 import { RawatInapTransferPage } from './RawatInapTransferPage.tsx'
 import { createRawatInapInitialState, createRawatInapStateFromBedMapSnapshot } from './rawat-inap.state.ts'
 
 void React
+
+test('Rawat Inap admisi page renders the mockup sections and static form values', () => {
+  const markup = renderToStaticMarkup(<RawatInapAdmisiPage />)
+
+  assert.equal(markup.includes('Admisi Baru — Rawat Inap'), true)
+  assert.equal(markup.includes('Sumber Masuk'), true)
+  assert.equal(markup.includes('Rawat Jalan'), true)
+  assert.equal(markup.includes('Data Pasien'), true)
+  assert.equal(markup.includes('02-14-88-21'), true)
+  assert.equal(markup.includes('Verifikasi BPJS &amp; SEP'), true)
+  assert.equal(markup.includes('Diagnosis &amp; Indikasi Rawat Inap'), true)
+  assert.equal(markup.includes('Penempatan Kamar'), true)
+  assert.equal(markup.includes('Simpan &amp; Proses Admisi'), true)
+})
 
 test('Rawat Inap bed map page renders ward sidebar, bed grid, and detail panel', () => {
   const markup = renderToStaticMarkup(<RawatInapBedMapPage state={createRawatInapInitialState()} />)
