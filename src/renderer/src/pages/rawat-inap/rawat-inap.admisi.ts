@@ -12,6 +12,12 @@ export type RawatInapAdmissionBedOption = {
   classOfCareCodeId: string
 }
 
+export type RawatInapAdmissionClassOption = {
+  value: string
+  label: string
+  availableBeds: number
+}
+
 export type RawatInapAdmissionMitraOption = {
   value: number
   label: string
@@ -55,6 +61,7 @@ export type RawatInapAdmissionFormState = {
   diagnosisCode: string
   diagnosisText: string
   indication: string
+  selectedClassOfCareCodeId: string
   selectedBedId: string
 }
 
@@ -86,6 +93,58 @@ export const RAWAT_INAP_ADMISSION_FALLBACK_BED_OPTIONS: RawatInapAdmissionBedOpt
 
 const todayDateOnly = () => new Date().toISOString().slice(0, 10)
 
+const RAWAT_INAP_CLASS_LABELS: Record<string, string> = {
+  VIP: 'VIP',
+  KELAS_1: 'Kelas 1',
+  KELAS_2: 'Kelas 2',
+  KELAS_3: 'Kelas 3'
+}
+
+const RAWAT_INAP_CLASS_ORDER = ['VIP', 'KELAS_1', 'KELAS_2', 'KELAS_3']
+
+export function normalizeRawatInapClassCode(value?: string | null) {
+  const normalized = String(value || 'KELAS_1')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_')
+
+  if (normalized === 'KELAS_I' || normalized === 'CLASS_1') return 'KELAS_1'
+  if (normalized === 'KELAS_II' || normalized === 'CLASS_2') return 'KELAS_2'
+  if (normalized === 'KELAS_III' || normalized === 'CLASS_3') return 'KELAS_3'
+  return normalized || 'KELAS_1'
+}
+
+export function formatRawatInapClassLabel(value?: string | null) {
+  const code = normalizeRawatInapClassCode(value)
+  return RAWAT_INAP_CLASS_LABELS[code] || value || code
+}
+
+export function createRawatInapAdmissionClassOptions(
+  bedOptions: RawatInapAdmissionBedOption[]
+): RawatInapAdmissionClassOption[] {
+  const counts = new Map<string, number>()
+
+  for (const option of bedOptions) {
+    const classCode = normalizeRawatInapClassCode(option.classOfCareCodeId)
+    counts.set(classCode, (counts.get(classCode) ?? 0) + 1)
+  }
+
+  return Array.from(counts.entries())
+    .map(([value, availableBeds]) => ({
+      value,
+      label: formatRawatInapClassLabel(value),
+      availableBeds
+    }))
+    .sort((left, right) => {
+      const leftIndex = RAWAT_INAP_CLASS_ORDER.indexOf(left.value)
+      const rightIndex = RAWAT_INAP_CLASS_ORDER.indexOf(right.value)
+      if (leftIndex === -1 && rightIndex === -1) return left.label.localeCompare(right.label)
+      if (leftIndex === -1) return 1
+      if (rightIndex === -1) return -1
+      return leftIndex - rightIndex
+    })
+}
+
 export function createDefaultRawatInapAdmissionForm(): RawatInapAdmissionFormState {
   return {
     patientId: '',
@@ -104,6 +163,7 @@ export function createDefaultRawatInapAdmissionForm(): RawatInapAdmissionFormSta
     diagnosisCode: '',
     diagnosisText: '',
     indication: '',
+    selectedClassOfCareCodeId: '',
     selectedBedId: ''
   }
 }
@@ -200,7 +260,7 @@ export function createRawatInapAdmissionBedOptions(
         bedName: bed.bedName,
         roomId: room.roomId,
         roomName: room.roomName,
-        classOfCareCodeId: room.classLabel || 'KELAS_1'
+        classOfCareCodeId: normalizeRawatInapClassCode(room.classLabel)
       }))
   )
 

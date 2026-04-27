@@ -19,7 +19,9 @@ import {
   buildRawatInapAdmissionCommand,
   createDefaultRawatInapAdmissionForm,
   createRawatInapAdmissionBedOptions,
+  createRawatInapAdmissionClassOptions,
   createRawatInapAdmissionFormPatchFromPatient,
+  normalizeRawatInapClassCode,
   type RawatInapAdmissionBedOption,
   type RawatInapAdmissionDiagnosisOption,
   type RawatInapAdmissionFormState,
@@ -183,10 +185,24 @@ export function RawatInapAdmisiPage({
     () => createRawatInapAdmissionBedOptions(bedMapSnapshot),
     [bedMapSnapshot]
   )
+  const classOptions = useMemo(
+    () => createRawatInapAdmissionClassOptions(bedOptions),
+    [bedOptions]
+  )
   const [form, setForm] = useState<RawatInapAdmissionFormState>(() => ({
     ...createDefaultRawatInapAdmissionForm(),
     ...initialForm,
-    selectedBedId: initialForm?.selectedBedId ?? bedOptions[0]?.bedId ?? ''
+    selectedClassOfCareCodeId:
+      initialForm?.selectedClassOfCareCodeId ?? bedOptions[0]?.classOfCareCodeId ?? '',
+    selectedBedId:
+      initialForm?.selectedBedId ??
+      bedOptions.find(
+        (option) =>
+          normalizeRawatInapClassCode(option.classOfCareCodeId) ===
+          normalizeRawatInapClassCode(initialForm?.selectedClassOfCareCodeId)
+      )?.bedId ??
+      bedOptions[0]?.bedId ??
+      ''
   }))
   const [submitError, setSubmitError] = useState('')
   const [isPatientLookupOpen, setIsPatientLookupOpen] = useState(false)
@@ -211,6 +227,14 @@ export function RawatInapAdmisiPage({
       })),
     [diagnosisOptions]
   )
+  const selectedClassOfCareCodeId =
+    form.selectedClassOfCareCodeId || classOptions[0]?.value || ''
+  const filteredBedOptions = selectedClassOfCareCodeId
+    ? bedOptions.filter(
+        (option) =>
+          normalizeRawatInapClassCode(option.classOfCareCodeId) === selectedClassOfCareCodeId
+      )
+    : bedOptions
 
   useEffect(() => {
     if (!selectedPatient) return
@@ -222,13 +246,33 @@ export function RawatInapAdmisiPage({
 
   useEffect(() => {
     setForm((current) => {
-      if (bedOptions.some((option) => option.bedId === current.selectedBedId)) return current
+      const currentClass = normalizeRawatInapClassCode(current.selectedClassOfCareCodeId)
+      const nextClass = classOptions.some((option) => option.value === currentClass)
+        ? currentClass
+        : classOptions[0]?.value ?? ''
+      const nextBedOptions = nextClass
+        ? bedOptions.filter(
+            (option) => normalizeRawatInapClassCode(option.classOfCareCodeId) === nextClass
+          )
+        : bedOptions
+      const nextBedId = nextBedOptions.some((option) => option.bedId === current.selectedBedId)
+        ? current.selectedBedId
+        : nextBedOptions[0]?.bedId ?? ''
+
+      if (
+        current.selectedClassOfCareCodeId === nextClass &&
+        current.selectedBedId === nextBedId
+      ) {
+        return current
+      }
+
       return {
         ...current,
-        selectedBedId: bedOptions[0]?.bedId ?? ''
+        selectedClassOfCareCodeId: nextClass,
+        selectedBedId: nextBedId
       }
     })
-  }, [bedOptions])
+  }, [bedOptions, classOptions])
 
   useEffect(() => {
     if (paymentNeedsPenjaminData) return
@@ -301,6 +345,16 @@ export function RawatInapAdmisiPage({
     updateForm({
       diagnosisCode: selectedDiagnosis?.code ?? '',
       diagnosisText: selectedDiagnosis?.display ?? ''
+    })
+  }
+
+  const handleClassOfCareChange = (value: string) => {
+    const nextBed = bedOptions.find(
+      (option) => normalizeRawatInapClassCode(option.classOfCareCodeId) === value
+    )
+    updateForm({
+      selectedClassOfCareCodeId: value,
+      selectedBedId: nextBed?.bedId ?? ''
     })
   }
 
@@ -649,14 +703,16 @@ export function RawatInapAdmisiPage({
               <div>
                 <FieldLabel>Kelas Kamar</FieldLabel>
                 <div className="inline-flex rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface-muted)] p-[2px]">
-                  {['VIP', 'Kelas 1', 'Kelas 2', 'Kelas 3'].map((label) => (
+                  {classOptions.map((option) => (
                     <button
-                      key={label}
+                      key={option.value}
                       type="button"
+                      onClick={() => handleClassOfCareChange(option.value)}
+                      disabled={isSubmitting}
+                      title={`${option.availableBeds} bed tersedia`}
                       className="h-[28px] rounded-[calc(var(--ds-radius-md)-2px)] border-none px-[12px] text-[12px] font-semibold text-[var(--ds-color-text-muted)]"
                       style={
-                        selectedBed?.classOfCareCodeId === label.toUpperCase().replace(' ', '_') ||
-                        (!selectedBed && label === 'Kelas 1')
+                        selectedClassOfCareCodeId === option.value
                           ? {
                               background: 'var(--ds-color-surface)',
                               color: 'var(--ds-color-text)',
@@ -665,7 +721,7 @@ export function RawatInapAdmisiPage({
                           : undefined
                       }
                     >
-                      {label}
+                      {option.label}
                     </button>
                   ))}
                 </div>
@@ -676,11 +732,11 @@ export function RawatInapAdmisiPage({
                   <SelectBox
                     className="min-w-0 flex-1"
                     value={form.selectedBedId}
-                    disabled={isSubmitting || bedOptions.length === 0}
+                    disabled={isSubmitting || filteredBedOptions.length === 0}
                     onChange={(value) => updateForm({ selectedBedId: value })}
                   >
-                    {bedOptions.length > 0 ? (
-                      bedOptions.map((option) => (
+                    {filteredBedOptions.length > 0 ? (
+                      filteredBedOptions.map((option) => (
                         <option key={option.bedId} value={option.bedId}>
                           {formatBedOptionLabel(option)}
                         </option>

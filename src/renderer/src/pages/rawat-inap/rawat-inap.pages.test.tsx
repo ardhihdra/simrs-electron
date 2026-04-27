@@ -38,6 +38,65 @@ test('Rawat Inap admisi page hides BPJS verification for cash guarantor', () => 
   assert.equal(markup.includes('Verifikasi BPJS &amp; SEP'), false)
 })
 
+test('Rawat Inap admisi page filters placement beds by selected room class', () => {
+  const markup = renderToStaticMarkup(
+    <RawatInapAdmisiPage
+      initialForm={{ selectedClassOfCareCodeId: 'KELAS_2' }}
+      bedMapSnapshot={{
+        generatedAt: '2026-04-27T09:00:00.000Z',
+        summary: {
+          totalRooms: 2,
+          totalBeds: 2,
+          occupiedBeds: 0,
+          availableBeds: 2,
+          cleaningBeds: 0
+        },
+        wards: [
+          {
+            roomId: 'room-vip-101',
+            roomName: 'VIP 101',
+            floor: '1',
+            classLabel: 'VIP',
+            capacity: 1,
+            occupancy: { occupied: 0, total: 1, percentage: 0 },
+            beds: [
+              {
+                bedId: 'bed-vip-101-a',
+                bedName: '101-A',
+                status: 'TERSEDIA',
+                roomId: 'room-vip-101',
+                roomName: 'VIP 101',
+                patient: null
+              }
+            ]
+          },
+          {
+            roomId: 'room-melati-201',
+            roomName: 'Melati 201',
+            floor: '2',
+            classLabel: 'Kelas 2',
+            capacity: 1,
+            occupancy: { occupied: 0, total: 1, percentage: 0 },
+            beds: [
+              {
+                bedId: 'bed-melati-201-a',
+                bedName: '201-A',
+                status: 'TERSEDIA',
+                roomId: 'room-melati-201',
+                roomName: 'Melati 201',
+                patient: null
+              }
+            ]
+          }
+        ]
+      }}
+    />
+  )
+
+  assert.equal(markup.includes('Melati 201 - 201-A'), true)
+  assert.equal(markup.includes('VIP 101 - 101-A'), false)
+})
+
 test('Rawat Inap bed map page renders ward sidebar, bed grid, and detail panel', () => {
   const markup = renderToStaticMarkup(<RawatInapBedMapPage state={createRawatInapInitialState()} />)
 
