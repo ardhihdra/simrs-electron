@@ -8,19 +8,21 @@ import {
   SafetyCertificateOutlined
 } from '@ant-design/icons'
 import type { CreateRawatInapAdmissionInput } from '@main/rpc/procedure/rawat-inap-admission'
+import { DatePicker, Form, Modal, Select } from 'antd'
 import React, { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { Modal } from 'antd'
 import type { PatientAttributes } from 'simrs-types'
 
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
+import PatientInsurancePickerField from '../../components/organisms/visit-management/PatientInsurancePickerField'
 import {
   buildRawatInapAdmissionCommand,
   createDefaultRawatInapAdmissionForm,
   createRawatInapAdmissionBedOptions,
   createRawatInapAdmissionFormPatchFromPatient,
   type RawatInapAdmissionBedOption,
-  type RawatInapAdmissionFormState
+  type RawatInapAdmissionFormState,
+  type RawatInapAdmissionMitraOption
 } from './rawat-inap.admisi'
 import type { RawatInapBedMapSnapshot } from './rawat-inap.state'
 
@@ -38,6 +40,10 @@ type RawatInapAdmisiPageProps = {
   onSubmit?: (command: CreateRawatInapAdmissionInput) => void
   bedMapSnapshot?: RawatInapBedMapSnapshot | null
   isSubmitting?: boolean
+  mitraOptionsByPaymentMethod?: Partial<
+    Record<Exclude<RawatInapAdmissionFormState['paymentMethod'], 'cash'>, RawatInapAdmissionMitraOption[]>
+  >
+  initialForm?: Partial<RawatInapAdmissionFormState>
 }
 
 const ADMISSION_SOURCES: Array<{
@@ -68,6 +74,13 @@ const ADMISSION_SOURCES: Array<{
 
 const INPUT_CLASSNAME =
   'h-[32px] rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] px-[10px] text-[12px] text-[var(--ds-color-text)] outline-none transition-colors focus:border-[var(--ds-color-accent)] focus:shadow-[0_0_0_3px_var(--ds-color-accent-soft)]'
+
+const PAYMENT_LABELS: Record<RawatInapAdmissionFormState['paymentMethod'], string> = {
+  bpjs: 'BPJS',
+  cash: 'Umum / Tunai',
+  asuransi: 'Asuransi',
+  company: 'Perusahaan'
+}
 
 function AdmissionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -149,19 +162,35 @@ export function RawatInapAdmisiPage({
   onCancel,
   onSubmit,
   bedMapSnapshot,
-  isSubmitting = false
+  isSubmitting = false,
+  mitraOptionsByPaymentMethod = {},
+  initialForm
 }: RawatInapAdmisiPageProps) {
+  const [insuranceForm] = Form.useForm()
   const bedOptions = useMemo(
     () => createRawatInapAdmissionBedOptions(bedMapSnapshot),
     [bedMapSnapshot]
   )
   const [form, setForm] = useState<RawatInapAdmissionFormState>(() => ({
     ...createDefaultRawatInapAdmissionForm(),
-    selectedBedId: bedOptions[0]?.bedId ?? ''
+    ...initialForm,
+    selectedBedId: initialForm?.selectedBedId ?? bedOptions[0]?.bedId ?? ''
   }))
   const [submitError, setSubmitError] = useState('')
   const [isPatientLookupOpen, setIsPatientLookupOpen] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>()
+
+  const watchedPatientInsuranceId = Form.useWatch('patientInsuranceId', insuranceForm)
+  const watchedMitraCodeNumber = Form.useWatch('mitraCodeNumber', insuranceForm)
+  const watchedMitraId = Form.useWatch('mitraId', insuranceForm)
+
+  const paymentNeedsPenjaminData = form.paymentMethod !== 'cash'
+  const selectedMitraOptions = paymentNeedsPenjaminData
+    ? (mitraOptionsByPaymentMethod[
+        form.paymentMethod as Exclude<RawatInapAdmissionFormState['paymentMethod'], 'cash'>
+      ] ?? [])
+    : []
+  const showBpjsVerification = form.paymentMethod === 'bpjs'
 
   useEffect(() => {
     if (!selectedPatient) return
@@ -181,6 +210,31 @@ export function RawatInapAdmisiPage({
     })
   }, [bedOptions])
 
+  useEffect(() => {
+    if (paymentNeedsPenjaminData) return
+
+    insuranceForm.resetFields()
+    setForm((current) => ({
+      ...current,
+      patientInsuranceId: '',
+      noKartu: ''
+    }))
+  }, [insuranceForm, paymentNeedsPenjaminData])
+
+  useEffect(() => {
+    setForm((current) => ({
+      ...current,
+      patientInsuranceId:
+        watchedPatientInsuranceId === undefined || watchedPatientInsuranceId === null
+          ? ''
+          : String(watchedPatientInsuranceId),
+      noKartu:
+        watchedMitraCodeNumber === undefined || watchedMitraCodeNumber === null
+          ? current.noKartu
+          : String(watchedMitraCodeNumber)
+    }))
+  }, [watchedMitraCodeNumber, watchedPatientInsuranceId])
+
   const updateForm = (patch: Partial<RawatInapAdmissionFormState>) => {
     setSubmitError('')
     setForm((current) => ({
@@ -193,6 +247,8 @@ export function RawatInapAdmisiPage({
 
   const handlePatientChange = (patient?: PatientAttributes) => {
     setSelectedPatient(patient)
+    insuranceForm.resetFields()
+
     if (patient) {
       setIsPatientLookupOpen(false)
       setSubmitError('')
@@ -205,8 +261,19 @@ export function RawatInapAdmisiPage({
       medicalRecordNumber: '',
       patientName: '',
       patientSummary: '',
+      patientInsuranceId: '',
       noKartu: ''
     }))
+  }
+
+  const handlePaymentMethodChange = (value: string) => {
+    const paymentMethod = value as RawatInapAdmissionFormState['paymentMethod']
+    insuranceForm.resetFields()
+    updateForm({
+      paymentMethod,
+      patientInsuranceId: '',
+      noKartu: paymentMethod === 'bpjs' ? form.noKartu : ''
+    })
   }
 
   const handleSubmit = () => {
@@ -235,7 +302,7 @@ export function RawatInapAdmisiPage({
             Admisi Baru — Rawat Inap
           </h1>
           <div className="mt-[3px] text-[13px] text-[var(--ds-color-text-muted)]">
-            Registrasi pasien masuk rawat inap · verifikasi BPJS & SEP · assign kamar
+            Registrasi pasien masuk rawat inap - verifikasi BPJS & SEP - assign kamar
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-[8px]">
@@ -317,7 +384,6 @@ export function RawatInapAdmisiPage({
                 <TextInput
                   defaultValue="Budi Santoso"
                   value={form.patientName}
-                  onChange={(value) => updateForm({ patientName: value })}
                   className="w-full"
                   disabled
                 />
@@ -327,7 +393,6 @@ export function RawatInapAdmisiPage({
                 <TextInput
                   defaultValue="12 Mar 1972 / 54 tahun"
                   value={form.patientSummary}
-                  onChange={(value) => updateForm({ patientSummary: value })}
                   className="w-full"
                   disabled
                 />
@@ -342,7 +407,7 @@ export function RawatInapAdmisiPage({
                     {form.patientSummary || 'Gunakan tombol Pilih Pasien untuk menghubungkan patientId'}
                   </span>
                 </div>
-                <DesktopBadge tone="info">No. BPJS: {form.noKartu || '-'}</DesktopBadge>
+                <DesktopBadge tone="info">Penjamin: {PAYMENT_LABELS[form.paymentMethod]}</DesktopBadge>
                 <DesktopButton
                   emphasis="primary"
                   size="small"
@@ -356,17 +421,21 @@ export function RawatInapAdmisiPage({
             </div>
           </AdmissionCard>
 
-          <AdmissionCard title="Verifikasi BPJS & SEP">
+          <AdmissionCard title="Penjamin">
             <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
               <div>
-                <FieldLabel>No. Rujukan / SEP Asal</FieldLabel>
-                <TextInput
-                  defaultValue="0301R0010426V000142"
-                  value={form.noRujukan}
-                  onChange={(value) => updateForm({ noRujukan: value })}
-                  className="w-full font-mono"
+                <FieldLabel>Penjamin</FieldLabel>
+                <SelectBox
+                  className="w-full"
+                  value={form.paymentMethod}
                   disabled={isSubmitting}
-                />
+                  onChange={handlePaymentMethodChange}
+                >
+                  <option value="bpjs">BPJS</option>
+                  <option value="cash">Umum / Tunai</option>
+                  <option value="asuransi">Asuransi</option>
+                  <option value="company">Perusahaan</option>
+                </SelectBox>
               </div>
               <div>
                 <FieldLabel>{form.source === 'igd' ? 'Encounter IGD Asal' : 'Unit Rawat Inap'}</FieldLabel>
@@ -395,21 +464,102 @@ export function RawatInapAdmisiPage({
                   disabled={isSubmitting}
                 />
               </div>
-              <div className="col-span-3 flex items-center gap-[8px]">
-                <DesktopButton
-                  emphasis="primary"
-                  size="small"
-                  icon={<SafetyCertificateOutlined />}
-                  disabled={isSubmitting}
-                >
-                  Bridging V-Claim — Terbitkan SEP RI
-                </DesktopButton>
-                <span className="text-[11.5px] text-[var(--ds-color-text-subtle)]">
-                  SEP rawat inap akan diterbitkan otomatis setelah verifikasi eligibilitas.
-                </span>
-              </div>
+
+              {paymentNeedsPenjaminData ? (
+                <div className="col-span-3 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] p-[12px]">
+                  <Form form={insuranceForm} layout="vertical">
+                    <Form.Item name="patientInsuranceId" hidden>
+                      <input />
+                    </Form.Item>
+                    <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 2fr 1fr' }}>
+                      <Form.Item name="mitraId" label="Mitra Penjamin" className="m-0">
+                        <Select
+                          options={selectedMitraOptions}
+                          disabled={isSubmitting || selectedMitraOptions.length === 0}
+                          placeholder={
+                            selectedMitraOptions.length === 0 ? 'Mitra tidak tersedia' : 'Pilih mitra'
+                          }
+                          showSearch
+                          optionFilterProp="label"
+                          onChange={() => insuranceForm.setFieldValue('patientInsuranceId', undefined)}
+                        />
+                      </Form.Item>
+
+                      {typeof window !== 'undefined' ? (
+                        <PatientInsurancePickerField
+                          form={insuranceForm}
+                          patientId={form.patientId}
+                          mitraOptions={selectedMitraOptions}
+                          disabled={isSubmitting || !form.patientId}
+                          required={form.paymentMethod === 'bpjs'}
+                        />
+                      ) : (
+                        <div />
+                      )}
+
+                      <Form.Item name="mitraCodeExpiredDate" label="Expired At" className="m-0">
+                        <DatePicker
+                          style={{ width: '100%' }}
+                          disabled={isSubmitting}
+                          onChange={() => insuranceForm.setFieldValue('patientInsuranceId', undefined)}
+                        />
+                      </Form.Item>
+                    </div>
+                    {!form.patientId ? (
+                      <div className="mt-[8px] text-[11.5px] text-[var(--ds-color-text-subtle)]">
+                        Pilih pasien terlebih dahulu untuk mengambil data penjamin pasien.
+                      </div>
+                    ) : null}
+                    {watchedMitraId && !watchedPatientInsuranceId ? (
+                      <div className="mt-[8px] text-[11.5px] text-[var(--ds-color-text-subtle)]">
+                        Nomor kartu bisa diisi manual atau diambil dari data asuransi pasien.
+                      </div>
+                    ) : null}
+                  </Form>
+                </div>
+              ) : null}
             </div>
           </AdmissionCard>
+
+          {showBpjsVerification ? (
+            <AdmissionCard title="Verifikasi BPJS & SEP">
+              <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <div>
+                  <FieldLabel>No. Rujukan / SEP Asal</FieldLabel>
+                  <TextInput
+                    defaultValue="0301R0010426V000142"
+                    value={form.noRujukan}
+                    onChange={(value) => updateForm({ noRujukan: value })}
+                    className="w-full font-mono"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div>
+                  <FieldLabel>No. Kartu BPJS</FieldLabel>
+                  <TextInput
+                    defaultValue="0001234567890"
+                    value={form.noKartu}
+                    onChange={(value) => updateForm({ noKartu: value })}
+                    className="w-full font-mono"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                <div className="col-span-2 flex items-center gap-[8px]">
+                  <DesktopButton
+                    emphasis="primary"
+                    size="small"
+                    icon={<SafetyCertificateOutlined />}
+                    disabled={isSubmitting}
+                  >
+                    Bridging V-Claim - Terbitkan SEP RI
+                  </DesktopButton>
+                  <span className="text-[11.5px] text-[var(--ds-color-text-subtle)]">
+                    SEP rawat inap akan diterbitkan otomatis setelah verifikasi eligibilitas.
+                  </span>
+                </div>
+              </div>
+            </AdmissionCard>
+          ) : null}
 
           <AdmissionCard title="Diagnosis & Indikasi Rawat Inap">
             <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr' }}>
@@ -502,21 +652,6 @@ export function RawatInapAdmisiPage({
                       <option value="">Tidak ada bed tersedia</option>
                     )}
                   </SelectBox>
-                  <SelectBox
-                    className="w-[120px]"
-                    value={form.paymentMethod}
-                    disabled={isSubmitting}
-                    onChange={(value) =>
-                      updateForm({
-                        paymentMethod: value as RawatInapAdmissionFormState['paymentMethod']
-                      })
-                    }
-                  >
-                    <option value="bpjs">BPJS</option>
-                    <option value="cash">Umum</option>
-                    <option value="asuransi">Asuransi</option>
-                    <option value="company">Perusahaan</option>
-                  </SelectBox>
                 </div>
               </div>
               <div className="col-span-2 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-success)] bg-[color-mix(in_srgb,var(--ds-color-success)_10%,white)] px-[12px] py-[10px] text-[11.5px]">
@@ -525,7 +660,7 @@ export function RawatInapAdmisiPage({
                 </b>
                 <span className="ml-[8px] text-[var(--ds-color-text-muted)]">
                   {selectedBed
-                    ? `${selectedBed.classOfCareCodeId} · Status: Kosong & siap`
+                    ? `${selectedBed.classOfCareCodeId} - Status: Kosong & siap`
                     : 'Tidak ada bed kosong yang bisa dipilih'}
                 </span>
               </div>

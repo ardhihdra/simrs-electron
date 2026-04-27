@@ -87,6 +87,31 @@ test('buildRawatInapAdmissionCommand requires source encounter for IGD', () => {
   )
 })
 
+test('buildRawatInapAdmissionCommand omits SEP for non-BPJS guarantor', () => {
+  const form = {
+    ...createDefaultRawatInapAdmissionForm(),
+    patientId: 'patient-1',
+    paymentMethod: 'cash' as const,
+    patientInsuranceId: '',
+    noKartu: '',
+    selectedBedId: 'bed-1'
+  }
+
+  const command = buildRawatInapAdmissionCommand(form, [
+    {
+      bedId: 'bed-1',
+      bedName: '302-A',
+      roomId: 'room-melati-302',
+      roomName: 'Melati 302',
+      classOfCareCodeId: 'KELAS_1'
+    }
+  ])
+
+  assert.equal(command.paymentMethod, 'cash')
+  assert.equal(command.patientInsuranceId, undefined)
+  assert.equal(command.sep, undefined)
+})
+
 test('createRawatInapAdmissionBedOptions excludes IGD rooms from target placement', () => {
   const options = createRawatInapAdmissionBedOptions({
     generatedAt: '2026-04-27T09:00:00.000Z',

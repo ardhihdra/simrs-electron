@@ -25,6 +25,16 @@ test('Rawat Inap admisi page renders the mockup sections and static form values'
   assert.equal(markup.includes('Simpan &amp; Proses Admisi'), true)
 })
 
+test('Rawat Inap admisi page hides BPJS verification for cash guarantor', () => {
+  const markup = renderToStaticMarkup(
+    <RawatInapAdmisiPage initialForm={{ paymentMethod: 'cash' }} />
+  )
+
+  assert.equal(markup.includes('Penjamin'), true)
+  assert.equal(markup.includes('Umum / Tunai'), true)
+  assert.equal(markup.includes('Verifikasi BPJS &amp; SEP'), false)
+})
+
 test('Rawat Inap bed map page renders ward sidebar, bed grid, and detail panel', () => {
   const markup = renderToStaticMarkup(<RawatInapBedMapPage state={createRawatInapInitialState()} />)
 

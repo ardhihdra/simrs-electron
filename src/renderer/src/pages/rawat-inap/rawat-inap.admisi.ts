@@ -12,6 +12,11 @@ export type RawatInapAdmissionBedOption = {
   classOfCareCodeId: string
 }
 
+export type RawatInapAdmissionMitraOption = {
+  value: number
+  label: string
+}
+
 export type RawatInapAdmissionPatientSnapshot = {
   id: string
   medicalRecordNumber?: string
