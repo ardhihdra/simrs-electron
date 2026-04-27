@@ -4,6 +4,8 @@ import test from 'node:test'
 import {
   createRawatInapStateFromBedMapSnapshot,
   createRawatInapInitialState,
+  getRoomsForWard,
+  getWardOccupancy,
   selectWard,
   submitWardTransfer
 } from './rawat-inap.state.ts'
@@ -95,9 +97,9 @@ const backendSnapshot = {
 
 test('selectWard updates the active ward and picks a bed in that ward', () => {
   const initialState = createRawatInapInitialState()
-  const nextState = selectWard(initialState, { wardId: 'mawar' })
+  const nextState = selectWard(initialState, { wardId: 'bangsal-mawar' })
 
-  assert.equal(nextState.activeWardId, 'mawar')
+  assert.equal(nextState.activeWardId, 'bangsal-mawar')
   assert.equal(nextState.selectedBedId?.startsWith('mawar'), true)
 })
 
@@ -105,7 +107,7 @@ test('submitWardTransfer frees the source bed and occupies the target bed', () =
   const initialState = createRawatInapInitialState()
   const nextState = submitWardTransfer(initialState, {
     sourceBedId: 'melati-302-b',
-    targetWardId: 'mawar',
+    targetWardId: 'bangsal-mawar',
     targetBedId: 'mawar-101-a',
     transferReason: 'upgrade',
     transferNote: 'Naik kelas'
@@ -118,7 +120,7 @@ test('submitWardTransfer frees the source bed and occupies the target bed', () =
 test('createRawatInapStateFromBedMapSnapshot maps backend wards, beds, and patient detail', () => {
   const state = createRawatInapStateFromBedMapSnapshot(backendSnapshot)
 
-  assert.equal(state.activeWardId, 'room-melati')
+  assert.equal(state.activeWardId, 'bangsal-melati')
   assert.equal(state.selectedBedId, 'bed-1')
   assert.equal(state.wards[0]?.name, 'Melati')
   assert.equal(state.beds[0]?.status, 'occupied')
@@ -133,4 +135,116 @@ test('createRawatInapStateFromBedMapSnapshot maps backend wards, beds, and patie
     { label: 'Suhu', value: '36.7' },
     { label: 'SpO2', value: '98' }
   ])
+})
+
+test('createRawatInapStateFromBedMapSnapshot groups rooms with the same prefix into one bangsal', () => {
+  const state = createRawatInapStateFromBedMapSnapshot({
+    generatedAt: '2026-04-27T09:00:00.000Z',
+    summary: {
+      totalRooms: 3,
+      totalBeds: 4,
+      occupiedBeds: 1,
+      availableBeds: 2,
+      cleaningBeds: 1
+    },
+    wards: [
+      {
+        roomId: 'room-melati-302',
+        roomName: 'Melati 302',
+        floor: '3',
+        classLabel: 'Kelas 1',
+        capacity: 2,
+        occupancy: { occupied: 1, total: 2, percentage: 50 },
+        beds: [
+          {
+            bedId: 'bed-melati-302-a',
+            bedName: '302-A',
+            status: 'TERISI',
+            roomId: 'room-melati-302',
+            roomName: 'Melati 302',
+            patient: {
+              encounterId: 'enc-1',
+              patientId: 'patient-1',
+              medicalRecordNumber: 'RM-001',
+              patientName: 'Hasan Basri',
+              gender: 'male',
+              ageLabel: '45 th',
+              dpjpName: 'dr. Andi, Sp.PD',
+              diagnosisSummary: 'Pneumonia komunitas',
+              admissionDateTime: '2026-04-22T08:00:00.000Z',
+              lengthOfStayLabel: '2 hari',
+              paymentLabel: 'BPJS',
+              vitalSigns: {
+                systolicBp: '118',
+                diastolicBp: '78',
+                heartRate: '82',
+                respiratoryRate: null,
+                temperature: '36.7',
+                oxygenSaturation: '98'
+              }
+            }
+          },
+          {
+            bedId: 'bed-melati-302-b',
+            bedName: '302-B',
+            status: 'TERSEDIA',
+            roomId: 'room-melati-302',
+            roomName: 'Melati 302',
+            patient: null
+          }
+        ]
+      },
+      {
+        roomId: 'room-melati-303',
+        roomName: 'Melati 303',
+        floor: '3',
+        classLabel: 'Kelas 1',
+        capacity: 1,
+        occupancy: { occupied: 0, total: 1, percentage: 0 },
+        beds: [
+          {
+            bedId: 'bed-melati-303-a',
+            bedName: '303-A',
+            status: 'TERSEDIA',
+            roomId: 'room-melati-303',
+            roomName: 'Melati 303',
+            patient: null
+          }
+        ]
+      },
+      {
+        roomId: 'room-icu-01',
+        roomName: 'ICU-01',
+        floor: '2',
+        classLabel: 'Intensive',
+        capacity: 1,
+        occupancy: { occupied: 0, total: 1, percentage: 0 },
+        beds: [
+          {
+            bedId: 'bed-icu-01',
+            bedName: 'ICU-01',
+            status: 'PEMELIHARAAN',
+            roomId: 'room-icu-01',
+            roomName: 'ICU-01',
+            patient: null
+          }
+        ]
+      }
+    ]
+  })
+
+  assert.equal(state.wards.length, 2)
+  assert.equal(state.wards[0]?.id, 'bangsal-melati')
+  assert.equal(state.wards[0]?.name, 'Melati')
+  assert.equal(state.wards[0]?.totalBeds, 3)
+  assert.deepEqual(getWardOccupancy(state, 'bangsal-melati'), {
+    occupiedBeds: 1,
+    totalBeds: 3
+  })
+  assert.deepEqual(
+    getRoomsForWard(state, 'bangsal-melati').map((room) => room.roomNo),
+    ['302', '303']
+  )
+  assert.equal(state.beds.find((bed) => bed.id === 'bed-melati-302-a')?.roomId, 'room-melati-302')
+  assert.equal(state.wards[1]?.id, 'bangsal-icu')
 })
