@@ -153,3 +153,14 @@ export function isCloseActiveTabShortcut(event: DashboardShortcutKeyEvent) {
     event.key.toLowerCase() === 'w'
   )
 }
+
+export function isDashboardContentOnlyRoute(pathname: string, search = '') {
+  const searchParams = new URLSearchParams(search)
+  const fullscreenParam = searchParams.get('contentFullscreen')
+  const isContentFullscreen =
+    fullscreenParam === '1' || fullscreenParam?.toLowerCase() === 'true'
+  const isWorkspaceRoute =
+    pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+
+  return isContentFullscreen || isWorkspaceRoute
+}
