@@ -21,8 +21,10 @@ import {
   createRawatInapAdmissionBedOptions,
   createRawatInapAdmissionFormPatchFromPatient,
   type RawatInapAdmissionBedOption,
+  type RawatInapAdmissionDiagnosisOption,
   type RawatInapAdmissionFormState,
-  type RawatInapAdmissionMitraOption
+  type RawatInapAdmissionMitraOption,
+  type RawatInapAdmissionPractitionerOption
 } from './rawat-inap.admisi'
 import type { RawatInapBedMapSnapshot } from './rawat-inap.state'
 
@@ -43,6 +45,11 @@ type RawatInapAdmisiPageProps = {
   mitraOptionsByPaymentMethod?: Partial<
     Record<Exclude<RawatInapAdmissionFormState['paymentMethod'], 'cash'>, RawatInapAdmissionMitraOption[]>
   >
+  diagnosisOptions?: RawatInapAdmissionDiagnosisOption[]
+  practitionerOptions?: RawatInapAdmissionPractitionerOption[]
+  isDiagnosisLoading?: boolean
+  isPractitionerLoading?: boolean
+  onDiagnosisSearch?: (query: string) => void
   initialForm?: Partial<RawatInapAdmissionFormState>
 }
 
@@ -164,6 +171,11 @@ export function RawatInapAdmisiPage({
   bedMapSnapshot,
   isSubmitting = false,
   mitraOptionsByPaymentMethod = {},
+  diagnosisOptions = [],
+  practitionerOptions = [],
+  isDiagnosisLoading = false,
+  isPractitionerLoading = false,
+  onDiagnosisSearch,
   initialForm
 }: RawatInapAdmisiPageProps) {
   const [insuranceForm] = Form.useForm()
@@ -191,6 +203,14 @@ export function RawatInapAdmisiPage({
       ] ?? [])
     : []
   const showBpjsVerification = form.paymentMethod === 'bpjs'
+  const diagnosisSelectOptions = useMemo(
+    () =>
+      diagnosisOptions.map((option) => ({
+        value: option.value,
+        label: option.label
+      })),
+    [diagnosisOptions]
+  )
 
   useEffect(() => {
     if (!selectedPatient) return
@@ -273,6 +293,14 @@ export function RawatInapAdmisiPage({
       paymentMethod,
       patientInsuranceId: '',
       noKartu: paymentMethod === 'bpjs' ? form.noKartu : ''
+    })
+  }
+
+  const handleDiagnosisChange = (value: string) => {
+    const selectedDiagnosis = diagnosisOptions.find((option) => option.value === value)
+    updateForm({
+      diagnosisCode: selectedDiagnosis?.code ?? '',
+      diagnosisText: selectedDiagnosis?.display ?? ''
     })
   }
 
@@ -565,34 +593,43 @@ export function RawatInapAdmisiPage({
             <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr' }}>
               <div>
                 <FieldLabel>Diagnosis Masuk (ICD-10)</FieldLabel>
-                <div className="flex gap-[8px]">
-                  <TextInput
-                    defaultValue="I10"
-                    value={form.diagnosisCode}
-                    onChange={(value) => updateForm({ diagnosisCode: value })}
-                    className="w-[80px] font-mono"
-                    disabled={isSubmitting}
-                  />
-                  <TextInput
-                    defaultValue="Essential hypertension"
-                    value={form.diagnosisText}
-                    onChange={(value) => updateForm({ diagnosisText: value })}
-                    className="min-w-0 flex-1"
-                    disabled={isSubmitting}
-                  />
-                </div>
+                <Select
+                  className="w-full"
+                  value={form.diagnosisCode || undefined}
+                  options={diagnosisSelectOptions}
+                  disabled={isSubmitting}
+                  loading={isDiagnosisLoading}
+                  showSearch
+                  filterOption={false}
+                  optionFilterProp="label"
+                  placeholder="Ketik kode ICD-10 atau nama diagnosis"
+                  notFoundContent={isDiagnosisLoading ? 'Memuat diagnosis...' : 'Diagnosis tidak ditemukan'}
+                  onSearch={onDiagnosisSearch}
+                  onChange={handleDiagnosisChange}
+                  allowClear
+                  onClear={() => updateForm({ diagnosisCode: '', diagnosisText: '' })}
+                />
+                {form.diagnosisText ? (
+                  <div className="mt-[6px] text-[11.5px] text-[var(--ds-color-text-muted)]">
+                    {form.diagnosisCode} - {form.diagnosisText}
+                  </div>
+                ) : null}
               </div>
               <div>
                 <FieldLabel>DPJP</FieldLabel>
-                <SelectBox
+                <Select
                   className="w-full"
-                  value={form.practitionerId}
+                  value={form.practitionerId || undefined}
+                  options={practitionerOptions}
                   disabled={isSubmitting}
+                  loading={isPractitionerLoading}
+                  placeholder="Pilih DPJP dari data dokter"
+                  showSearch
+                  optionFilterProp="label"
                   onChange={(value) => updateForm({ practitionerId: value })}
-                >
-                  <option value="17">dr. Andi Wijaya, Sp.PD</option>
-                  <option value="18">dr. Sari Dewi, Sp.PD</option>
-                </SelectBox>
+                  allowClear
+                  onClear={() => updateForm({ practitionerId: '' })}
+                />
               </div>
               <div className="col-span-2">
                 <FieldLabel>Indikasi Rawat Inap</FieldLabel>

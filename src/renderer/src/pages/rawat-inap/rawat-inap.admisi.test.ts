@@ -7,6 +7,15 @@ import {
   createDefaultRawatInapAdmissionForm
 } from './rawat-inap.admisi'
 
+test('createDefaultRawatInapAdmissionForm does not prefill clinical dummy values', () => {
+  const form = createDefaultRawatInapAdmissionForm()
+
+  assert.equal(form.practitionerId, '')
+  assert.equal(form.diagnosisCode, '')
+  assert.equal(form.diagnosisText, '')
+  assert.equal(form.indication, '')
+})
+
 test('buildRawatInapAdmissionCommand maps form state to backend command', () => {
   const form = {
     ...createDefaultRawatInapAdmissionForm(),
@@ -94,6 +103,9 @@ test('buildRawatInapAdmissionCommand omits SEP for non-BPJS guarantor', () => {
     paymentMethod: 'cash' as const,
     patientInsuranceId: '',
     noKartu: '',
+    diagnosisCode: 'J18.9',
+    diagnosisText: 'Pneumonia, unspecified',
+    indication: 'Perlu observasi rawat inap',
     selectedBedId: 'bed-1'
   }
 

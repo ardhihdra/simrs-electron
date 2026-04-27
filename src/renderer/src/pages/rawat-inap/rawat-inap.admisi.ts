@@ -17,6 +17,18 @@ export type RawatInapAdmissionMitraOption = {
   label: string
 }
 
+export type RawatInapAdmissionDiagnosisOption = {
+  value: string
+  code: string
+  display: string
+  label: string
+}
+
+export type RawatInapAdmissionPractitionerOption = {
+  value: string
+  label: string
+}
+
 export type RawatInapAdmissionPatientSnapshot = {
   id: string
   medicalRecordNumber?: string
@@ -83,16 +95,15 @@ export function createDefaultRawatInapAdmissionForm(): RawatInapAdmissionFormSta
     source: 'rajal',
     sourceEncounterId: '',
     serviceUnitId: RAWAT_INAP_DEFAULT_SERVICE_UNIT_ID,
-    practitionerId: '17',
+    practitionerId: '',
     paymentMethod: 'bpjs',
     patientInsuranceId: '',
     admissionDate: todayDateOnly(),
     noKartu: '0001234567890',
     noRujukan: '0301R0010426V000142',
-    diagnosisCode: 'I10',
-    diagnosisText: 'Essential hypertension',
-    indication:
-      'Hipertensi tidak terkontrol, TD 158/96 mmHg meski sudah mendapat terapi rawat jalan. Diperlukan monitoring ketat dan titrasi obat antihipertensi.',
+    diagnosisCode: '',
+    diagnosisText: '',
+    indication: '',
     selectedBedId: ''
   }
 }
