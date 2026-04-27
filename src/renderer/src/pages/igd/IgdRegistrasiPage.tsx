@@ -33,6 +33,7 @@ import {
   getQuickTriageMeta,
   IGD_QUICK_TRIAGE_OPTIONS
 } from './igd.quick-triage'
+import { getIgdTriageLevelMeta } from './igd.triage-level'
 
 type IgdMitraOption = {
   label: string
@@ -740,17 +741,12 @@ export function IgdRegistrasiPage({
                   <div
                     className="grid h-[38px] w-[38px] place-items-center rounded-[var(--ds-radius-md)] text-[15px] font-black text-white"
                     style={{
-                      background:
-                        quickTriageMeta.tone === 'warning'
-                          ? 'var(--ds-color-warning)'
-                          : quickTriageMeta.tone === 'success'
-                            ? 'var(--ds-color-success)'
-                            : quickTriageMeta.tone === 'neutral'
-                              ? 'var(--ds-color-accent)'
-                              : 'var(--ds-color-danger)'
+                      background: getIgdTriageLevelMeta(quickTriageMeta.level).badgeStyle.backgroundColor,
+                      border: `1px solid ${getIgdTriageLevelMeta(quickTriageMeta.level).badgeStyle.borderColor}`,
+                      color: getIgdTriageLevelMeta(quickTriageMeta.level).badgeStyle.color
                     }}
                   >
-                    {`L${quickTriageMeta.level}`}
+                    {getIgdTriageLevelMeta(quickTriageMeta.level).label}
                   </div>
                 }
               />

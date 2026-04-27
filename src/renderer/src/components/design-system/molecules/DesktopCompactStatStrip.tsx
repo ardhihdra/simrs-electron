@@ -1,6 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React from 'react'
-import { type ReactNode } from 'react'
+import { type CSSProperties, type ReactNode } from 'react'
 
 import { DesktopTriageBadge, type DesktopTriageBadgeTone } from '../atoms/DesktopTriageBadge'
 
@@ -12,6 +12,7 @@ export interface DesktopCompactStatStripProps {
     label: string
     value: string
     tone: DesktopTriageBadgeTone
+    badgeStyle?: CSSProperties
   }>
   bedAvailable?: string
   bedTotal?: string
@@ -120,7 +121,7 @@ export function DesktopCompactStatStrip({
 
       {triageLevels.map((level) => (
         <div key={level.label} className="flex flex-col items-center gap-[4px]">
-          <DesktopTriageBadge tone={level.tone} compact>
+          <DesktopTriageBadge tone={level.tone} compact style={level.badgeStyle}>
             {level.label}
           </DesktopTriageBadge>
           <b className="font-mono text-[16px] leading-none text-[var(--ds-color-text)]">{level.value}</b>

@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react'
+import React, { type CSSProperties, type ReactNode } from 'react'
 
 export type DesktopBadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger' | 'info'
 
@@ -13,14 +13,17 @@ const BADGE_CLASSNAME: Record<DesktopBadgeTone, string> = {
 
 export function DesktopBadge({
   children,
-  tone = 'neutral'
+  tone = 'neutral',
+  style
 }: {
   children: ReactNode
   tone?: DesktopBadgeTone
+  style?: CSSProperties
 }) {
   return (
     <span
       className={`inline-flex h-[22px] items-center rounded-ds-pill px-ds-space-sm text-ds-label font-semibold tracking-[0.04em] ${BADGE_CLASSNAME[tone]}`}
+      style={style}
     >
       {children}
     </span>

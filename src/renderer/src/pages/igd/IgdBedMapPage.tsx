@@ -27,6 +27,7 @@ import {
   type IgdDashboardBedZone,
   type IgdDashboardPatient
 } from './igd.data'
+import { getIgdTriageLevelMeta } from './igd.triage-level'
 
 type SelectOption = {
   label: string
@@ -58,10 +59,7 @@ type IgdBedMapPageProps = {
 }
 
 const getTriageTone = (level: IgdDashboardPatient['triageLevel']): DesktopBadgeTone => {
-  if (level === 1) return 'danger'
-  if (level === 2) return 'warning'
-  if (level === 3) return 'info'
-  return 'success'
+  return getIgdTriageLevelMeta(level).statTone
 }
 
 const getZoneRangeTone = (zone: IgdDashboardBedZone): DesktopBadgeTone => {
@@ -98,8 +96,11 @@ function BedCard({
       <div className="igd-bed-card-header">
         <div className="igd-bed-card-code">{bed.code}</div>
         {patient ? (
-          <DesktopBadge tone={getTriageTone(patient.triageLevel)}>
-            L{patient.triageLevel}
+          <DesktopBadge
+            tone={getTriageTone(patient.triageLevel)}
+            style={getIgdTriageLevelMeta(patient.triageLevel).badgeStyle}
+          >
+            {getIgdTriageLevelMeta(patient.triageLevel).label}
           </DesktopBadge>
         ) : null}
       </div>
