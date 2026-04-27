@@ -17,6 +17,7 @@ test('Rawat Inap admisi page renders the mockup sections and static form values'
   assert.equal(markup.includes('Sumber Masuk'), true)
   assert.equal(markup.includes('Rawat Jalan'), true)
   assert.equal(markup.includes('Data Pasien'), true)
+  assert.equal(markup.includes('Pilih Pasien'), true)
   assert.equal(markup.includes('02-14-88-21'), true)
   assert.equal(markup.includes('Verifikasi BPJS &amp; SEP'), true)
   assert.equal(markup.includes('Diagnosis &amp; Indikasi Rawat Inap'), true)

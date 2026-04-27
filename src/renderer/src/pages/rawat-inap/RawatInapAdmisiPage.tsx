@@ -8,7 +8,9 @@ import {
   SafetyCertificateOutlined
 } from '@ant-design/icons'
 import type { CreateRawatInapAdmissionInput } from '@main/rpc/procedure/rawat-inap-admission'
-import React, { useEffect, useMemo, useState, type ReactNode } from 'react'
+import React, { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Modal } from 'antd'
+import type { PatientAttributes } from 'simrs-types'
 
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
@@ -18,12 +20,15 @@ import {
   createRawatInapAdmissionBedOptions,
   createRawatInapAdmissionFormPatchFromPatient,
   type RawatInapAdmissionBedOption,
-  type RawatInapAdmissionFormState,
-  type RawatInapAdmissionPatientSnapshot
+  type RawatInapAdmissionFormState
 } from './rawat-inap.admisi'
 import type { RawatInapBedMapSnapshot } from './rawat-inap.state'
 
 void React
+
+const PatientLookupSelector = React.lazy(
+  () => import('../../components/organisms/patient/PatientLookupSelector')
+)
 
 type AdmissionSource = 'rajal' | 'igd' | 'rujukan'
 
@@ -31,11 +36,8 @@ type RawatInapAdmisiPageProps = {
   onBack?: () => void
   onCancel?: () => void
   onSubmit?: (command: CreateRawatInapAdmissionInput) => void
-  onLookupPatient?: (input: { medicalRecordNumber: string }) => void
-  patient?: RawatInapAdmissionPatientSnapshot | null
   bedMapSnapshot?: RawatInapBedMapSnapshot | null
   isSubmitting?: boolean
-  isLookingUpPatient?: boolean
 }
 
 const ADMISSION_SOURCES: Array<{
@@ -146,11 +148,8 @@ export function RawatInapAdmisiPage({
   onBack,
   onCancel,
   onSubmit,
-  onLookupPatient,
-  patient,
   bedMapSnapshot,
-  isSubmitting = false,
-  isLookingUpPatient = false
+  isSubmitting = false
 }: RawatInapAdmisiPageProps) {
   const bedOptions = useMemo(
     () => createRawatInapAdmissionBedOptions(bedMapSnapshot),
@@ -161,14 +160,16 @@ export function RawatInapAdmisiPage({
     selectedBedId: bedOptions[0]?.bedId ?? ''
   }))
   const [submitError, setSubmitError] = useState('')
+  const [isPatientLookupOpen, setIsPatientLookupOpen] = useState(false)
+  const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>()
 
   useEffect(() => {
-    if (!patient) return
+    if (!selectedPatient) return
     setForm((current) => ({
       ...current,
-      ...createRawatInapAdmissionFormPatchFromPatient(patient)
+      ...createRawatInapAdmissionFormPatchFromPatient(selectedPatient)
     }))
-  }, [patient])
+  }, [selectedPatient])
 
   useEffect(() => {
     setForm((current) => {
@@ -189,6 +190,24 @@ export function RawatInapAdmisiPage({
   }
 
   const selectedBed = bedOptions.find((option) => option.bedId === form.selectedBedId)
+
+  const handlePatientChange = (patient?: PatientAttributes) => {
+    setSelectedPatient(patient)
+    if (patient) {
+      setIsPatientLookupOpen(false)
+      setSubmitError('')
+      return
+    }
+
+    setForm((current) => ({
+      ...current,
+      patientId: '',
+      medicalRecordNumber: '',
+      patientName: '',
+      patientSummary: '',
+      noKartu: ''
+    }))
+  }
 
   const handleSubmit = () => {
     try {
@@ -286,26 +305,12 @@ export function RawatInapAdmisiPage({
             <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
               <div>
                 <FieldLabel>No. RM</FieldLabel>
-                <div className="flex gap-[6px]">
-                  <TextInput
-                    defaultValue="02-14-88-21"
-                    value={form.medicalRecordNumber}
-                    onChange={(value) => updateForm({ medicalRecordNumber: value })}
-                    className="min-w-0 flex-1 font-mono"
-                    disabled={isSubmitting}
-                  />
-                  <DesktopButton
-                    emphasis="toolbar"
-                    size="small"
-                    icon={<SearchOutlined />}
-                    disabled={isLookingUpPatient || isSubmitting}
-                    onClick={() =>
-                      onLookupPatient?.({
-                        medicalRecordNumber: form.medicalRecordNumber
-                      })
-                    }
-                  />
-                </div>
+                <TextInput
+                  defaultValue="02-14-88-21"
+                  value={form.medicalRecordNumber}
+                  className="w-full font-mono"
+                  disabled
+                />
               </div>
               <div>
                 <FieldLabel>Nama Pasien</FieldLabel>
@@ -314,7 +319,7 @@ export function RawatInapAdmisiPage({
                   value={form.patientName}
                   onChange={(value) => updateForm({ patientName: value })}
                   className="w-full"
-                  disabled={isSubmitting}
+                  disabled
                 />
               </div>
               <div>
@@ -324,7 +329,7 @@ export function RawatInapAdmisiPage({
                   value={form.patientSummary}
                   onChange={(value) => updateForm({ patientSummary: value })}
                   className="w-full"
-                  disabled={isSubmitting}
+                  disabled
                 />
               </div>
               <div className="col-span-3 flex items-center gap-[16px] rounded-[var(--ds-radius-md)] border border-[var(--ds-color-success)] bg-[color-mix(in_srgb,var(--ds-color-success)_10%,white)] px-[12px] py-[10px] text-[11.5px]">
@@ -334,10 +339,19 @@ export function RawatInapAdmisiPage({
                     {form.patientId ? 'Pasien ditemukan' : 'Cari pasien berdasarkan No. RM'}
                   </b>
                   <span className="ml-[8px] text-[var(--ds-color-text-muted)]">
-                    {form.patientSummary || 'Pilih tombol pencarian untuk menghubungkan patientId'}
+                    {form.patientSummary || 'Gunakan tombol Pilih Pasien untuk menghubungkan patientId'}
                   </span>
                 </div>
                 <DesktopBadge tone="info">No. BPJS: {form.noKartu || '-'}</DesktopBadge>
+                <DesktopButton
+                  emphasis="primary"
+                  size="small"
+                  icon={<SearchOutlined />}
+                  disabled={isSubmitting}
+                  onClick={() => setIsPatientLookupOpen(true)}
+                >
+                  Pilih Pasien
+                </DesktopButton>
               </div>
             </div>
           </AdmissionCard>
@@ -519,6 +533,26 @@ export function RawatInapAdmisiPage({
           </AdmissionCard>
         </div>
       </div>
+
+      <Modal
+        open={isPatientLookupOpen}
+        onCancel={() => setIsPatientLookupOpen(false)}
+        footer={null}
+        width={980}
+        title="Pilih Pasien"
+      >
+        {isPatientLookupOpen ? (
+          <Suspense fallback={<div className="py-[16px] text-[12px]">Memuat daftar pasien...</div>}>
+            <PatientLookupSelector
+              value={selectedPatient}
+              onChange={handlePatientChange}
+              disabled={isSubmitting}
+              title="Data Pasien"
+              createButtonLabel="Buat Pasien Baru"
+            />
+          </Suspense>
+        ) : null}
+      </Modal>
     </div>
   )
 }
