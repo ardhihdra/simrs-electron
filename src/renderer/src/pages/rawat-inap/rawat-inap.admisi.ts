@@ -202,6 +202,9 @@ export function buildRawatInapAdmissionCommand(
   if (form.source === 'igd' && !form.sourceEncounterId.trim()) {
     throw new Error('Encounter asal IGD wajib diisi')
   }
+  if (form.source === 'rajal' && !form.sourceEncounterId.trim()) {
+    throw new Error('Encounter asal Rawat Jalan wajib diisi')
+  }
   if (!selectedBed) throw new Error('Pilih bed rawat inap yang tersedia')
   if (!form.serviceUnitId.trim()) throw new Error('Unit rawat inap wajib diisi')
   if (!form.diagnosisCode.trim()) throw new Error('Kode diagnosis wajib diisi')

@@ -8,16 +8,19 @@ import { useMemo, useState } from 'react'
 import { useDebounce } from '../../../hooks/useDebounce'
 import { client } from '../../../utils/client'
 import {
-  buildIgdEncounterLookupQuery,
-  normalizeIgdEncounterLookupRows,
-  type IgdEncounterLookupRow
+  buildSourceEncounterLookupQuery,
+  normalizeSourceEncounterLookupRows,
+  type SourceEncounterLookupRow,
+  type SourceEncounterLookupType
 } from './igd-encounter-lookup'
 
 type IgdEncounterLookupSelectorProps = {
-  value?: IgdEncounterLookupRow
-  onChange: (encounter?: IgdEncounterLookupRow) => void
+  value?: SourceEncounterLookupRow
+  onChange: (encounter?: SourceEncounterLookupRow) => void
   disabled?: boolean
   title?: string
+  encounterType?: SourceEncounterLookupType
+  encounterLabel?: string
   showSelectionSummary?: boolean
   showClearButton?: boolean
 }
@@ -37,6 +40,8 @@ export default function IgdEncounterLookupSelector({
   onChange,
   disabled = false,
   title = 'Pilih Encounter IGD',
+  encounterType = 'EMER',
+  encounterLabel = 'IGD',
   showSelectionSummary = true,
   showClearButton = true
 }: IgdEncounterLookupSelectorProps) {
@@ -50,18 +55,19 @@ export default function IgdEncounterLookupSelector({
 
   const queryInput = useMemo(
     () =>
-      buildIgdEncounterLookupQuery({
+      buildSourceEncounterLookupQuery({
+        encounterType,
         search: debouncedSearch,
         patient: debouncedPatient,
         practitionerId,
         dateFrom: dateRange?.[0]?.format('YYYY-MM-DD'),
         dateTo: dateRange?.[1]?.format('YYYY-MM-DD')
       }),
-    [dateRange, debouncedPatient, debouncedSearch, practitionerId]
+    [dateRange, debouncedPatient, debouncedSearch, encounterType, practitionerId]
   )
 
   const encounterQuery = useQuery({
-    queryKey: ['igdEncounterLookupSelector', queryInput],
+    queryKey: ['sourceEncounterLookupSelector', queryInput],
     queryFn: async () => {
       const fn = window.api?.query?.encounter?.list
       if (!fn) throw new Error('API encounter tidak tersedia')
@@ -75,8 +81,8 @@ export default function IgdEncounterLookupSelector({
   })
 
   const rows = useMemo(
-    () => normalizeIgdEncounterLookupRows(encounterQuery.data),
-    [encounterQuery.data]
+    () => normalizeSourceEncounterLookupRows(encounterQuery.data, encounterType),
+    [encounterQuery.data, encounterType]
   )
 
   const practitionerOptions = useMemo(
@@ -88,7 +94,7 @@ export default function IgdEncounterLookupSelector({
     [practitionerQuery.data]
   )
 
-  const columns: ColumnsType<IgdEncounterLookupRow> = [
+  const columns: ColumnsType<SourceEncounterLookupRow> = [
     {
       title: 'Encounter',
       dataIndex: 'id',
@@ -180,7 +186,7 @@ export default function IgdEncounterLookupSelector({
         <div className="mb-4">
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description="Belum ada encounter IGD dipilih."
+            description={`Belum ada encounter ${encounterLabel} dipilih.`}
           />
         </div>
       ) : null}
@@ -232,7 +238,7 @@ export default function IgdEncounterLookupSelector({
         </Col>
       </Row>
 
-      <Table<IgdEncounterLookupRow>
+      <Table<SourceEncounterLookupRow>
         className="mt-4"
         size="small"
         rowKey="id"
@@ -241,7 +247,7 @@ export default function IgdEncounterLookupSelector({
         loading={encounterQuery.isLoading || encounterQuery.isRefetching}
         pagination={{ pageSize: 5, showSizeChanger: false }}
         scroll={{ x: 900 }}
-        locale={{ emptyText: 'Encounter IGD tidak ditemukan.' }}
+        locale={{ emptyText: `Encounter ${encounterLabel} tidak ditemukan.` }}
       />
     </Card>
   )

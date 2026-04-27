@@ -1,4 +1,7 @@
-export type IgdEncounterLookupFilters = {
+export type SourceEncounterLookupType = 'EMER' | 'AMB'
+
+export type SourceEncounterLookupFilters = {
+  encounterType?: SourceEncounterLookupType
   search?: string
   patient?: string
   practitionerId?: string
@@ -6,17 +9,23 @@ export type IgdEncounterLookupFilters = {
   dateTo?: string
 }
 
-export type IgdEncounterLookupQuery = {
+export type IgdEncounterLookupFilters = Omit<SourceEncounterLookupFilters, 'encounterType'>
+
+export type SourceEncounterLookupQuery = {
   depth: number
   items: number
-  serviceType: 'EMER'
+  serviceType: SourceEncounterLookupType
   startDate?: string
   endDate?: string
   practitionerId?: string
   q?: string
 }
 
-export type IgdEncounterLookupRow = {
+export type IgdEncounterLookupQuery = SourceEncounterLookupQuery & {
+  serviceType: 'EMER'
+}
+
+export type SourceEncounterLookupRow = {
   key: string
   id: string
   encounterType: string
@@ -30,6 +39,8 @@ export type IgdEncounterLookupRow = {
   serviceUnitName: string
   raw: any
 }
+
+export type IgdEncounterLookupRow = SourceEncounterLookupRow
 
 const pickRows = (payload: unknown): any[] => {
   if (!payload || typeof payload !== 'object') return []
@@ -49,16 +60,17 @@ const getDateOnly = (value?: string) => {
   return trimmed || undefined
 }
 
-export function buildIgdEncounterLookupQuery(
-  filters: IgdEncounterLookupFilters = {}
-): IgdEncounterLookupQuery {
+export function buildSourceEncounterLookupQuery(
+  filters: SourceEncounterLookupFilters = {}
+): SourceEncounterLookupQuery {
   const q = (filters.patient || filters.search || '').trim()
   const practitionerId = String(filters.practitionerId || '').trim()
+  const encounterType = filters.encounterType ?? 'EMER'
 
   return {
     depth: 1,
     items: 50,
-    serviceType: 'EMER',
+    serviceType: encounterType,
     ...(getDateOnly(filters.dateFrom) ? { startDate: getDateOnly(filters.dateFrom) } : {}),
     ...(getDateOnly(filters.dateTo) ? { endDate: getDateOnly(filters.dateTo) } : {}),
     ...(practitionerId ? { practitionerId } : {}),
@@ -66,9 +78,21 @@ export function buildIgdEncounterLookupQuery(
   }
 }
 
-export function normalizeIgdEncounterLookupRows(payload: unknown): IgdEncounterLookupRow[] {
+export function buildIgdEncounterLookupQuery(
+  filters: IgdEncounterLookupFilters = {}
+): IgdEncounterLookupQuery {
+  return buildSourceEncounterLookupQuery({
+    ...filters,
+    encounterType: 'EMER'
+  }) as IgdEncounterLookupQuery
+}
+
+export function normalizeSourceEncounterLookupRows(
+  payload: unknown,
+  encounterType: SourceEncounterLookupType = 'EMER'
+): SourceEncounterLookupRow[] {
   return pickRows(payload)
-    .filter((item) => String(item?.encounterType || '').toUpperCase() === 'EMER')
+    .filter((item) => String(item?.encounterType || '').toUpperCase() === encounterType)
     .map((item) => {
       const queueTicket = item?.queueTicket ?? {}
       const patient = item?.patient ?? {}
@@ -93,4 +117,8 @@ export function normalizeIgdEncounterLookupRows(payload: unknown): IgdEncounterL
         raw: item
       }
     })
+}
+
+export function normalizeIgdEncounterLookupRows(payload: unknown): IgdEncounterLookupRow[] {
+  return normalizeSourceEncounterLookupRows(payload, 'EMER')
 }

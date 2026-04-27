@@ -45,6 +45,13 @@ test('Rawat Inap admisi page uses IGD encounter selector for IGD source', () => 
   assert.equal(markup.includes('Pilih Encounter'), true)
 })
 
+test('Rawat Inap admisi page uses Rawat Jalan encounter selector for Rawat Jalan source', () => {
+  const markup = renderToStaticMarkup(<RawatInapAdmisiPage initialForm={{ source: 'rajal' }} />)
+
+  assert.equal(markup.includes('Encounter Rawat Jalan Asal'), true)
+  assert.equal(markup.includes('Pilih Encounter'), true)
+})
+
 test('Rawat Inap admisi page filters placement beds by selected room class', () => {
   const markup = renderToStaticMarkup(
     <RawatInapAdmisiPage

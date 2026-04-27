@@ -96,10 +96,38 @@ test('buildRawatInapAdmissionCommand requires source encounter for IGD', () => {
   )
 })
 
+test('buildRawatInapAdmissionCommand requires source encounter for Rawat Jalan', () => {
+  const form = {
+    ...createDefaultRawatInapAdmissionForm(),
+    patientId: 'patient-1',
+    source: 'rajal' as const,
+    sourceEncounterId: '',
+    diagnosisCode: 'I10',
+    diagnosisText: 'Essential hypertension',
+    indication: 'Perlu rawat inap',
+    selectedBedId: 'bed-1'
+  }
+
+  assert.throws(
+    () =>
+      buildRawatInapAdmissionCommand(form, [
+        {
+          bedId: 'bed-1',
+          bedName: '302-A',
+          roomId: 'room-melati-302',
+          roomName: 'Melati 302',
+          classOfCareCodeId: 'KELAS_1'
+        }
+      ]),
+    /Encounter asal Rawat Jalan wajib diisi/
+  )
+})
+
 test('buildRawatInapAdmissionCommand omits SEP for non-BPJS guarantor', () => {
   const form = {
     ...createDefaultRawatInapAdmissionForm(),
     patientId: 'patient-1',
+    sourceEncounterId: 'amb-encounter-1',
     paymentMethod: 'cash' as const,
     patientInsuranceId: '',
     noKartu: '',

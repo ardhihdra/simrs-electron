@@ -15,7 +15,10 @@ import type { PatientAttributes } from 'simrs-types'
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import PatientInsurancePickerField from '../../components/organisms/visit-management/PatientInsurancePickerField'
-import type { IgdEncounterLookupRow } from '../../components/organisms/rawat-inap/igd-encounter-lookup'
+import type {
+  SourceEncounterLookupRow,
+  SourceEncounterLookupType
+} from '../../components/organisms/rawat-inap/igd-encounter-lookup'
 import {
   buildRawatInapAdmissionCommand,
   createDefaultRawatInapAdmissionForm,
@@ -42,6 +45,25 @@ const IgdEncounterLookupSelector = React.lazy(
 )
 
 type AdmissionSource = 'rajal' | 'igd' | 'rujukan'
+
+type SourceEncounterConfig = {
+  type: SourceEncounterLookupType
+  label: string
+  fieldLabel: string
+}
+
+const SOURCE_ENCOUNTER_CONFIG: Partial<Record<AdmissionSource, SourceEncounterConfig>> = {
+  igd: {
+    type: 'EMER',
+    label: 'IGD',
+    fieldLabel: 'Encounter IGD Asal'
+  },
+  rajal: {
+    type: 'AMB',
+    label: 'Rawat Jalan',
+    fieldLabel: 'Encounter Rawat Jalan Asal'
+  }
+}
 
 type RawatInapAdmisiPageProps = {
   onBack?: () => void
@@ -211,9 +233,11 @@ export function RawatInapAdmisiPage({
   }))
   const [submitError, setSubmitError] = useState('')
   const [isPatientLookupOpen, setIsPatientLookupOpen] = useState(false)
-  const [isIgdEncounterLookupOpen, setIsIgdEncounterLookupOpen] = useState(false)
+  const [isSourceEncounterLookupOpen, setIsSourceEncounterLookupOpen] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>()
-  const [selectedIgdEncounter, setSelectedIgdEncounter] = useState<IgdEncounterLookupRow | undefined>()
+  const [selectedSourceEncounter, setSelectedSourceEncounter] = useState<
+    SourceEncounterLookupRow | undefined
+  >()
 
   const watchedPatientInsuranceId = Form.useWatch('patientInsuranceId', insuranceForm)
   const watchedMitraCodeNumber = Form.useWatch('mitraCodeNumber', insuranceForm)
@@ -226,6 +250,7 @@ export function RawatInapAdmisiPage({
       ] ?? [])
     : []
   const showBpjsVerification = form.paymentMethod === 'bpjs'
+  const sourceEncounterConfig = SOURCE_ENCOUNTER_CONFIG[form.source]
   const diagnosisSelectOptions = useMemo(
     () =>
       diagnosisOptions.map((option) => ({
@@ -317,14 +342,17 @@ export function RawatInapAdmisiPage({
   const selectedBed = bedOptions.find((option) => option.bedId === form.selectedBedId)
 
   const handleSourceChange = (source: AdmissionSource) => {
+    const sourceSupportsEncounter = Boolean(SOURCE_ENCOUNTER_CONFIG[source])
+
     updateForm({
       source,
-      sourceEncounterId: source === 'igd' ? form.sourceEncounterId : ''
+      sourceEncounterId:
+        sourceSupportsEncounter && source === form.source ? form.sourceEncounterId : ''
     })
 
-    if (source !== 'igd') {
-      setSelectedIgdEncounter(undefined)
-      setIsIgdEncounterLookupOpen(false)
+    if (!sourceSupportsEncounter || source !== form.source) {
+      setSelectedSourceEncounter(undefined)
+      setIsSourceEncounterLookupOpen(false)
     }
   }
 
@@ -349,24 +377,24 @@ export function RawatInapAdmisiPage({
     }))
   }
 
-  const handleIgdEncounterChange = (encounter?: IgdEncounterLookupRow) => {
-    setSelectedIgdEncounter(encounter)
+  const handleSourceEncounterChange = (encounter?: SourceEncounterLookupRow) => {
+    setSelectedSourceEncounter(encounter)
 
     if (!encounter) {
       updateForm({ sourceEncounterId: '' })
       return
     }
 
-    setIsIgdEncounterLookupOpen(false)
+    const encounterLabel = sourceEncounterConfig?.label ?? ''
+    setIsSourceEncounterLookupOpen(false)
     setSubmitError('')
     updateForm({
-      source: 'igd',
       sourceEncounterId: encounter.id,
       patientId: encounter.patientId || form.patientId,
       medicalRecordNumber: encounter.patientMrNo !== '-' ? encounter.patientMrNo : form.medicalRecordNumber,
       patientName: encounter.patientName !== '-' ? encounter.patientName : form.patientName,
       patientSummary: [
-        encounter.status ? `IGD ${encounter.status}` : '',
+        encounter.status ? `${encounterLabel} ${encounter.status}`.trim() : '',
         encounter.startTime ? new Date(encounter.startTime).toLocaleString('id-ID') : ''
       ]
         .filter(Boolean)
@@ -564,14 +592,14 @@ export function RawatInapAdmisiPage({
                 </SelectBox>
               </div>
               <div>
-                <FieldLabel>{form.source === 'igd' ? 'Encounter IGD Asal' : 'Unit Rawat Inap'}</FieldLabel>
-                {form.source === 'igd' ? (
+                <FieldLabel>{sourceEncounterConfig?.fieldLabel ?? 'Unit Rawat Inap'}</FieldLabel>
+                {sourceEncounterConfig ? (
                   <div className="flex gap-[8px]">
                     <TextInput
                       defaultValue=""
                       value={
-                        selectedIgdEncounter
-                          ? `${selectedIgdEncounter.patientName} - ${selectedIgdEncounter.id}`
+                        selectedSourceEncounter
+                          ? `${selectedSourceEncounter.patientName} - ${selectedSourceEncounter.id}`
                           : form.sourceEncounterId
                       }
                       className="min-w-0 flex-1"
@@ -582,7 +610,7 @@ export function RawatInapAdmisiPage({
                       size="small"
                       icon={<SearchOutlined />}
                       disabled={isSubmitting}
-                      onClick={() => setIsIgdEncounterLookupOpen(true)}
+                      onClick={() => setIsSourceEncounterLookupOpen(true)}
                     >
                       Pilih Encounter
                     </DesktopButton>
@@ -845,19 +873,27 @@ export function RawatInapAdmisiPage({
       </Modal>
 
       <Modal
-        open={isIgdEncounterLookupOpen}
-        onCancel={() => setIsIgdEncounterLookupOpen(false)}
+        open={isSourceEncounterLookupOpen}
+        onCancel={() => setIsSourceEncounterLookupOpen(false)}
         footer={null}
         width={1100}
-        title="Pilih Encounter IGD"
+        title={`Pilih Encounter ${sourceEncounterConfig?.label ?? ''}`}
       >
-        {isIgdEncounterLookupOpen ? (
-          <Suspense fallback={<div className="py-[16px] text-[12px]">Memuat encounter IGD...</div>}>
+        {isSourceEncounterLookupOpen ? (
+          <Suspense
+            fallback={
+              <div className="py-[16px] text-[12px]">
+                Memuat encounter {sourceEncounterConfig?.label ?? ''}...
+              </div>
+            }
+          >
             <IgdEncounterLookupSelector
-              value={selectedIgdEncounter}
-              onChange={handleIgdEncounterChange}
+              value={selectedSourceEncounter}
+              onChange={handleSourceEncounterChange}
               disabled={isSubmitting}
-              title="Encounter IGD"
+              title={`Encounter ${sourceEncounterConfig?.label ?? ''}`}
+              encounterType={sourceEncounterConfig?.type ?? 'EMER'}
+              encounterLabel={sourceEncounterConfig?.label ?? 'IGD'}
             />
           </Suspense>
         ) : null}
