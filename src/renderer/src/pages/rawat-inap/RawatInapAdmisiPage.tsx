@@ -15,6 +15,7 @@ import type { PatientAttributes } from 'simrs-types'
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import PatientInsurancePickerField from '../../components/organisms/visit-management/PatientInsurancePickerField'
+import type { IgdEncounterLookupRow } from '../../components/organisms/rawat-inap/igd-encounter-lookup'
 import {
   buildRawatInapAdmissionCommand,
   createDefaultRawatInapAdmissionForm,
@@ -34,6 +35,10 @@ void React
 
 const PatientLookupSelector = React.lazy(
   () => import('../../components/organisms/patient/PatientLookupSelector')
+)
+
+const IgdEncounterLookupSelector = React.lazy(
+  () => import('../../components/organisms/rawat-inap/IgdEncounterLookupSelector')
 )
 
 type AdmissionSource = 'rajal' | 'igd' | 'rujukan'
@@ -206,7 +211,9 @@ export function RawatInapAdmisiPage({
   }))
   const [submitError, setSubmitError] = useState('')
   const [isPatientLookupOpen, setIsPatientLookupOpen] = useState(false)
+  const [isIgdEncounterLookupOpen, setIsIgdEncounterLookupOpen] = useState(false)
   const [selectedPatient, setSelectedPatient] = useState<PatientAttributes | undefined>()
+  const [selectedIgdEncounter, setSelectedIgdEncounter] = useState<IgdEncounterLookupRow | undefined>()
 
   const watchedPatientInsuranceId = Form.useWatch('patientInsuranceId', insuranceForm)
   const watchedMitraCodeNumber = Form.useWatch('mitraCodeNumber', insuranceForm)
@@ -309,6 +316,18 @@ export function RawatInapAdmisiPage({
 
   const selectedBed = bedOptions.find((option) => option.bedId === form.selectedBedId)
 
+  const handleSourceChange = (source: AdmissionSource) => {
+    updateForm({
+      source,
+      sourceEncounterId: source === 'igd' ? form.sourceEncounterId : ''
+    })
+
+    if (source !== 'igd') {
+      setSelectedIgdEncounter(undefined)
+      setIsIgdEncounterLookupOpen(false)
+    }
+  }
+
   const handlePatientChange = (patient?: PatientAttributes) => {
     setSelectedPatient(patient)
     insuranceForm.resetFields()
@@ -328,6 +347,31 @@ export function RawatInapAdmisiPage({
       patientInsuranceId: '',
       noKartu: ''
     }))
+  }
+
+  const handleIgdEncounterChange = (encounter?: IgdEncounterLookupRow) => {
+    setSelectedIgdEncounter(encounter)
+
+    if (!encounter) {
+      updateForm({ sourceEncounterId: '' })
+      return
+    }
+
+    setIsIgdEncounterLookupOpen(false)
+    setSubmitError('')
+    updateForm({
+      source: 'igd',
+      sourceEncounterId: encounter.id,
+      patientId: encounter.patientId || form.patientId,
+      medicalRecordNumber: encounter.patientMrNo !== '-' ? encounter.patientMrNo : form.medicalRecordNumber,
+      patientName: encounter.patientName !== '-' ? encounter.patientName : form.patientName,
+      patientSummary: [
+        encounter.status ? `IGD ${encounter.status}` : '',
+        encounter.startTime ? new Date(encounter.startTime).toLocaleString('id-ID') : ''
+      ]
+        .filter(Boolean)
+        .join(' - ')
+    })
   }
 
   const handlePaymentMethodChange = (value: string) => {
@@ -426,7 +470,7 @@ export function RawatInapAdmisiPage({
                 <button
                   key={item.key}
                   type="button"
-                  onClick={() => updateForm({ source: item.key })}
+                  onClick={() => handleSourceChange(item.key)}
                   className="flex cursor-pointer flex-col gap-[3px] rounded-[var(--ds-radius-md)] px-[12px] py-[10px] text-left transition-colors"
                   style={{
                     background: selected
@@ -521,19 +565,37 @@ export function RawatInapAdmisiPage({
               </div>
               <div>
                 <FieldLabel>{form.source === 'igd' ? 'Encounter IGD Asal' : 'Unit Rawat Inap'}</FieldLabel>
-                <TextInput
-                  defaultValue="Poli Penyakit Dalam"
-                  value={form.source === 'igd' ? form.sourceEncounterId : form.serviceUnitId}
-                  onChange={(value) =>
-                    updateForm(
-                      form.source === 'igd'
-                        ? { sourceEncounterId: value }
-                        : { serviceUnitId: value }
-                    )
-                  }
-                  className="w-full"
-                  disabled={isSubmitting}
-                />
+                {form.source === 'igd' ? (
+                  <div className="flex gap-[8px]">
+                    <TextInput
+                      defaultValue=""
+                      value={
+                        selectedIgdEncounter
+                          ? `${selectedIgdEncounter.patientName} - ${selectedIgdEncounter.id}`
+                          : form.sourceEncounterId
+                      }
+                      className="min-w-0 flex-1"
+                      disabled
+                    />
+                    <DesktopButton
+                      emphasis="primary"
+                      size="small"
+                      icon={<SearchOutlined />}
+                      disabled={isSubmitting}
+                      onClick={() => setIsIgdEncounterLookupOpen(true)}
+                    >
+                      Pilih Encounter
+                    </DesktopButton>
+                  </div>
+                ) : (
+                  <TextInput
+                    defaultValue="Poli Penyakit Dalam"
+                    value={form.serviceUnitId}
+                    onChange={(value) => updateForm({ serviceUnitId: value })}
+                    className="w-full"
+                    disabled={isSubmitting}
+                  />
+                )}
               </div>
               <div>
                 <FieldLabel>Tanggal Masuk</FieldLabel>
@@ -777,6 +839,25 @@ export function RawatInapAdmisiPage({
               disabled={isSubmitting}
               title="Data Pasien"
               createButtonLabel="Buat Pasien Baru"
+            />
+          </Suspense>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={isIgdEncounterLookupOpen}
+        onCancel={() => setIsIgdEncounterLookupOpen(false)}
+        footer={null}
+        width={1100}
+        title="Pilih Encounter IGD"
+      >
+        {isIgdEncounterLookupOpen ? (
+          <Suspense fallback={<div className="py-[16px] text-[12px]">Memuat encounter IGD...</div>}>
+            <IgdEncounterLookupSelector
+              value={selectedIgdEncounter}
+              onChange={handleIgdEncounterChange}
+              disabled={isSubmitting}
+              title="Encounter IGD"
             />
           </Suspense>
         ) : null}

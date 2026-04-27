@@ -38,6 +38,13 @@ test('Rawat Inap admisi page hides BPJS verification for cash guarantor', () => 
   assert.equal(markup.includes('Verifikasi BPJS &amp; SEP'), false)
 })
 
+test('Rawat Inap admisi page uses IGD encounter selector for IGD source', () => {
+  const markup = renderToStaticMarkup(<RawatInapAdmisiPage initialForm={{ source: 'igd' }} />)
+
+  assert.equal(markup.includes('Encounter IGD Asal'), true)
+  assert.equal(markup.includes('Pilih Encounter'), true)
+})
+
 test('Rawat Inap admisi page filters placement beds by selected room class', () => {
   const markup = renderToStaticMarkup(
     <RawatInapAdmisiPage
