@@ -134,39 +134,79 @@ export function PaymentHistory({
             key: 'action',
             width: 100,
             align: 'center' as const,
-            render: (_, r) => (
-                <Dropdown
-                    menu={{
-                        items: [
-                            { 
-                                key: 'patient', 
-                                label: 'Cetak (An. Pasien)', 
-                                onClick: () =>
-                                    invoice &&
-                                    printReceipt(invoice, persistedInvoice || null, r, {
-                                        printForKind: 'patient',
-                                        cashierName,
-                                        cashierSignatureUrl
-                                    }) 
-                            },
-                            { 
-                                key: 'guarantor', 
-                                label: 'Cetak (An. Penjamin)', 
-                                onClick: () =>
-                                    invoice &&
-                                    printReceipt(invoice, persistedInvoice || null, r, {
-                                        printForKind: 'guarantor',
-                                        cashierName,
-                                        cashierSignatureUrl
-                                    }) 
-                            }
-                        ]
-                    }}
-                    trigger={['click']}
-                >
-                    <Button size="small" type="primary" icon={<PrinterOutlined />}>Kwitansi</Button>
-                </Dropdown>
-            )
+            render: (_, r) => {
+                const isDeposit = r.category === 'INITIAL_DEPOSIT' || r.category === 'SUBSEQUENT_DEPOSIT'
+                const items = isDeposit 
+                    ? [
+                        {
+                            key: 'receipt',
+                            label: 'Cetak Kwitansi Deposit',
+                            onClick: () =>
+                                invoice &&
+                                printReceipt(invoice, persistedInvoice || null, r, {
+                                    printForKind: 'patient',
+                                    cashierName,
+                                    cashierSignatureUrl,
+                                    depositTemplate: 'receipt'
+                                })
+                        },
+                        { 
+                            key: 'patient', 
+                            label: 'Cetak (An. Pasien)', 
+                            onClick: () =>
+                                invoice &&
+                                printReceipt(invoice, persistedInvoice || null, r, {
+                                    printForKind: 'patient',
+                                    cashierName,
+                                    cashierSignatureUrl
+                                }) 
+                        },
+                        { 
+                            key: 'guarantor', 
+                            label: 'Cetak (An. Penjamin)', 
+                            onClick: () =>
+                                invoice &&
+                                printReceipt(invoice, persistedInvoice || null, r, {
+                                    printForKind: 'guarantor',
+                                    cashierName,
+                                    cashierSignatureUrl
+                                }) 
+                        }
+                    ]
+                    : [
+                        { 
+                            key: 'patient', 
+                            label: 'Cetak (An. Pasien)', 
+                            onClick: () =>
+                                invoice &&
+                                printReceipt(invoice, persistedInvoice || null, r, {
+                                    printForKind: 'patient',
+                                    cashierName,
+                                    cashierSignatureUrl
+                                }) 
+                        },
+                        { 
+                            key: 'guarantor', 
+                            label: 'Cetak (An. Penjamin)', 
+                            onClick: () =>
+                                invoice &&
+                                printReceipt(invoice, persistedInvoice || null, r, {
+                                    printForKind: 'guarantor',
+                                    cashierName,
+                                    cashierSignatureUrl
+                                }) 
+                        }
+                    ]
+
+                return (
+                    <Dropdown
+                        menu={{ items }}
+                        trigger={['click']}
+                    >
+                        <Button size="small" type="primary" icon={<PrinterOutlined />}>Kwitansi</Button>
+                    </Dropdown>
+                )
+            }
         }
     ]
 
