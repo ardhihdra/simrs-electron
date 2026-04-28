@@ -177,16 +177,16 @@ export function printInvoice(
   const paymentRows =
     persistedInvoice && persistedInvoice.payments?.length > 0
       ? persistedInvoice.payments
-          .map(
-            (p, i: number) => `
+        .map(
+          (p, i: number) => `
           <tr>
             <td class="center">${i + 1}</td>
             <td>${escapeHtml(formatPrintableDate(p.paidAt ?? p.createdAt ?? p.date))}</td>
             <td>${escapeHtml(p.method ?? p.paymentMethod ?? '-')}</td>
             <td class="right">${escapeHtml(formatRupiah(p.amount ?? 0))}</td>
           </tr>`
-          )
-          .join('')
+        )
+        .join('')
       : ''
 
   const paymentSection =
@@ -329,11 +329,10 @@ export function printInvoice(
         <div class="signatures">
           <div class="sign-item">
             <div class="sign-title">Petugas Kasir</div>
-            <div class="sign-space">${
-              cashierSignatureUrl
-                ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-image" alt="TTD Kasir" />`
-                : ''
-            }</div>
+            <div class="sign-space">${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-image" alt="TTD Kasir" />`
+      : ''
+    }</div>
             <div class="sign-name">( ${escapeHtml(cashierName)} )</div>
           </div>
           <div class="sign-item">
@@ -495,11 +494,10 @@ export function printReceipt(
                 </div>
                 <div class="signature-box">
                     <div class="signature-date">Garut, ${date}</div>
-                    <div class="signature-space">${
-                      cashierSignatureUrl
-                        ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-image" alt="TTD Kasir" />`
-                        : ''
-                    }</div>
+                    <div class="signature-space">${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-image" alt="TTD Kasir" />`
+      : ''
+    }</div>
                     <div class="signature-name">( ${escapeHtml(cashierName)} )</div>
                 </div>
             </div>
@@ -526,19 +524,19 @@ export function printDepositForm(
   const date = payment?.date || payment?.paidAt || payment?.createdAt
     ? formatPrintableDate(payment?.date || payment?.paidAt || payment?.createdAt)
     : ''
-    
+
   const terbilangText = amount ? terbilang(amount) : ''
   const amountText = amount ? `Rp. ${amount.toLocaleString('id-ID')}` : 'Rp.'
-  
+
   const patientName = invoice.namaPatient ?? invoice.patient?.name ?? '-'
   const birthDate = formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
   const RM = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
   const dpjp = invoice.dokterPemeriksa ?? '-'
   const penjamin = invoice.penjamin ?? 'Umum'
-  
+
   const ruangan = isBlank ? '' : (invoice.ruangan ?? '-')
   const tanggalMasuk = isBlank ? '' : formatPrintableDate(invoice.tanggalPendaftaran)
-  
+
   const isAwal = payment?.category === 'INITIAL_DEPOSIT'
   const isLanjutan = payment?.category === 'SUBSEQUENT_DEPOSIT'
 
@@ -664,11 +662,11 @@ export function printDepositForm(
                 </div>
                 
                 <table class="form-grid">
-                    <tr><td class="form-label">Nama</td><td>: .........................................................................................................</td></tr>
-                    <tr><td class="form-label">Tempat dan Tanggal lahir</td><td>: .........................................................................................................</td></tr>
-                    <tr><td class="form-label">Alamat</td><td>: .........................................................................................................</td></tr>
-                    <tr><td class="form-label">No Identitas diri *KTP/SIM</td><td>: .........................................................................................................</td></tr>
-                    <tr><td class="form-label">Hubungan dengan pasien</td><td>: *Suami / Istri / Anak / Menantu / ...................................................</td></tr>
+                    <tr><td class="form-label">Nama</td><td>: </td></tr>
+                    <tr><td class="form-label">Tempat dan Tanggal lahir</td><td>: </td></tr>
+                    <tr><td class="form-label">Alamat</td><td>: </td></tr>
+                    <tr><td class="form-label">No Identitas diri *KTP/SIM</td><td>: </td></tr>
+                    <tr><td class="form-label">Hubungan dengan pasien</td><td>: *Suami / Istri / Anak / Menantu / </td></tr>
                 </table>
                 
                 <div style="margin-top: 15px; margin-bottom: 10px; font-size: 11px;">
@@ -711,11 +709,10 @@ export function printDepositForm(
                 <div class="sign-box">
                     <div class="sign-title">Petugas Billing</div>
                     <div class="sign-space">
-                        ${
-                          cashierSignatureUrl
-                            ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-img" />`
-                            : ''
-                        }
+                        ${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-img" />`
+      : ''
+    }
                     </div>
                     <div class="sign-name">( ${escapeHtml(cashierName)} )</div>
                 </div>
@@ -726,7 +723,6 @@ export function printDepositForm(
                 Putih : Pasien/Keluarga Pasien | Merah : Petugas Billing
             </div>
         </div>
-        <div style="font-size: 8px; color: #aaa; text-align: right; margin-top: 5px;">Dicetak: ${new Date().toLocaleString()} | Ref: ${escapeHtml(noReceipt)}</div>
     </body>
     </html>
   `
@@ -746,7 +742,7 @@ export function printDepositReceipt(
   const amount = payment.amount ?? 0
   const datePayment = formatPrintableDate(payment.date ?? payment.paidAt ?? payment.createdAt)
   const timePayment = new Date(payment.date ?? payment.paidAt ?? payment.createdAt ?? new Date()).toLocaleTimeString('id-ID')
-  
+
   const patientName = invoice.namaPatient ?? invoice.patient?.name ?? '-'
   const RM = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
   const ruangan = invoice.ruangan ?? '-'
@@ -754,7 +750,7 @@ export function printDepositReceipt(
   const noPendaftaran = invoice.noPendaftaran ?? '-'
   const tanggalPendaftaran = formatPrintableDate(invoice.tanggalPendaftaran)
   const totalTagihanSementara = persistedInvoice?.total ?? 0
-  
+
   const paymentMethod = methodLabel[payment.paymentMethod] ?? payment.paymentMethod
   const isCash = payment.paymentMethod === 'CASH'
   const amountCash = isCash ? amount : 0
@@ -861,11 +857,10 @@ export function printDepositReceipt(
                 <div class="signature-area">
                     <div>Garut, ${datePayment}</div>
                     <div class="signature-space">
-                        ${
-                          cashierSignatureUrl
-                            ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-img" />`
-                            : ''
-                        }
+                        ${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-img" />`
+      : ''
+    }
                     </div>
                     <div class="signature-name">( ${escapeHtml(cashierName)} )</div>
                 </div>
