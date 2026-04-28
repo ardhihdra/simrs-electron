@@ -2,6 +2,8 @@ import {
   BarChartOutlined,
   CheckOutlined,
   EditOutlined,
+  FullscreenExitOutlined,
+  FullscreenOutlined,
   PlusOutlined,
   TeamOutlined
 } from '@ant-design/icons'
@@ -31,6 +33,8 @@ type RawatInapBedMapPageProps = {
   onOpenTransfer?: () => void
   onOpenCppt?: () => void
   onOpenDischarge?: () => void
+  onToggleFullscreen?: () => void
+  isFullscreenMode?: boolean
 }
 
 const getBedStatusColors = (status: RawatInapBed['status']) => {
@@ -66,7 +70,9 @@ export function RawatInapBedMapPage({
   onSelectBed,
   onOpenTransfer,
   onOpenCppt,
-  onOpenDischarge
+  onOpenDischarge,
+  onToggleFullscreen,
+  isFullscreenMode = false
 }: RawatInapBedMapPageProps) {
   const activeWard = state.wards.find((ward) => ward.id === state.activeWardId) ?? state.wards[0]
   const selectedBed = getBedById(state, state.selectedBedId)
@@ -77,8 +83,15 @@ export function RawatInapBedMapPage({
   const availableBeds = state.beds.filter((bed) => bed.status === 'available').length
   const cleaningBeds = state.beds.filter((bed) => bed.status === 'cleaning').length
 
+  const pageClassName = [
+    'flex flex-col gap-[16px]',
+    isFullscreenMode ? 'rawat-inap-bed-map-fullscreen min-h-screen p-[16px]' : ''
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <div className="flex flex-col gap-[16px]">
+    <div className={pageClassName}>
       <div className="flex flex-wrap items-start justify-between gap-[16px]">
         <div className="min-w-0 flex-1">
           <h1 className="text-[28px] font-semibold text-[var(--ds-color-text)]">
@@ -89,15 +102,26 @@ export function RawatInapBedMapPage({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-[8px]">
-          <DesktopButton emphasis="toolbar" icon={<BarChartOutlined />}>
-            Statistik BOR
+          <DesktopButton
+            emphasis="toolbar"
+            icon={isFullscreenMode ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+            onClick={onToggleFullscreen}
+          >
+            {isFullscreenMode ? 'Keluar Fullscreen' : 'Fullscreen'}
           </DesktopButton>
-          <DesktopButton emphasis="toolbar" icon={<TeamOutlined />}>
-            Daftar Pasien
-          </DesktopButton>
-          <DesktopButton emphasis="primary" icon={<PlusOutlined />}>
-            Admisi Baru
-          </DesktopButton>
+          {!isFullscreenMode ? (
+            <>
+              <DesktopButton emphasis="toolbar" icon={<BarChartOutlined />}>
+                Statistik BOR
+              </DesktopButton>
+              <DesktopButton emphasis="toolbar" icon={<TeamOutlined />}>
+                Daftar Pasien
+              </DesktopButton>
+              <DesktopButton emphasis="primary" icon={<PlusOutlined />}>
+                Admisi Baru
+              </DesktopButton>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -171,7 +195,7 @@ export function RawatInapBedMapPage({
 
       <div
         className="rawat-inap-bed-map-layout grid gap-[16px]"
-        style={{ gridTemplateColumns: '180px minmax(0, 1fr) 320px' }}
+        style={{ gridTemplateColumns: isFullscreenMode ? '180px minmax(0, 1fr)' : '180px minmax(0, 1fr) 320px' }}
       >
         <DesktopCard title="Bangsal" compact>
           <div className="flex flex-col gap-[4px]">
@@ -304,18 +328,19 @@ export function RawatInapBedMapPage({
           </div>
         </DesktopCard>
 
-        {!selectedBed ? (
-          <DesktopCard title="Detail Bed">
-            <DesktopNoticePanel
-              title="Pilih bed untuk melihat detail"
-              description="Panel ini akan menampilkan identitas pasien, ringkasan rawat, dan aksi operasional."
-            />
-          </DesktopCard>
-        ) : (
-          <DesktopCard
-            title="Detail Bed"
-            extra={<DesktopTag>{`${selectedBed.roomNo}${selectedBed.bedLabel}`}</DesktopTag>}
-          >
+        {!isFullscreenMode ? (
+          !selectedBed ? (
+            <DesktopCard title="Detail Bed">
+              <DesktopNoticePanel
+                title="Pilih bed untuk melihat detail"
+                description="Panel ini akan menampilkan identitas pasien, ringkasan rawat, dan aksi operasional."
+              />
+            </DesktopCard>
+          ) : (
+            <DesktopCard
+              title="Detail Bed"
+              extra={<DesktopTag>{`${selectedBed.roomNo}${selectedBed.bedLabel}`}</DesktopTag>}
+            >
             {selectedPatient ? (
               <div className="flex flex-col gap-[12px]">
                 <div className="flex items-center gap-[12px] border-b border-[var(--ds-color-border)] pb-[12px]">
@@ -407,8 +432,9 @@ export function RawatInapBedMapPage({
                 description="Pilih bed terisi untuk membuka detail pasien dan aksi operasional."
               />
             )}
-          </DesktopCard>
-        )}
+            </DesktopCard>
+          )
+        ) : null}
       </div>
     </div>
   )

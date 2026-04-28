@@ -4,6 +4,7 @@ import test from 'node:test'
 import {
   closeDashboardTab,
   isCloseActiveTabShortcut,
+  isDashboardContentOnlyRoute,
   ensureDashboardTab,
   resolveInitialDashboardTabs,
   syncDashboardTabsWithLocation,
@@ -182,4 +183,29 @@ test('isCloseActiveTabShortcut returns false when Ctrl is missing or extra modif
     }),
     false
   )
+})
+
+test('isDashboardContentOnlyRoute returns true for dashboard content fullscreen query', () => {
+  assert.equal(
+    isDashboardContentOnlyRoute('/dashboard/rawat-inap/bed-map', '?contentFullscreen=1'),
+    true
+  )
+  assert.equal(
+    isDashboardContentOnlyRoute('/dashboard/rawat-inap/bed-map', '?foo=bar&contentFullscreen=true'),
+    true
+  )
+})
+
+test('isDashboardContentOnlyRoute keeps doctor workspace routes content-only', () => {
+  assert.equal(isDashboardContentOnlyRoute('/dashboard/doctor/enc-1', ''), true)
+  assert.equal(
+    isDashboardContentOnlyRoute('/dashboard/nurse-calling/medical-record/enc-1', ''),
+    true
+  )
+})
+
+test('isDashboardContentOnlyRoute returns false for regular dashboard routes', () => {
+  assert.equal(isDashboardContentOnlyRoute('/dashboard/rawat-inap/bed-map', ''), false)
+  assert.equal(isDashboardContentOnlyRoute('/dashboard/rawat-inap/bed-map', '?contentFullscreen=0'), false)
+  assert.equal(isDashboardContentOnlyRoute('/dashboard/rawat-inap/bed-map', '?contentFullscreen=false'), false)
 })

@@ -43,6 +43,7 @@ import {
   closeDashboardTab,
   ensureDashboardTab,
   isCloseActiveTabShortcut,
+  isDashboardContentOnlyRoute,
   resolveInitialDashboardTabs,
   syncDashboardTabsWithLocation,
   type DashboardTabItem
@@ -775,10 +776,9 @@ function Dashboard() {
     setSelectedModuleKey(key)
   }
 
-  const isWorkspaceRoute =
-    location.pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+  const isContentOnlyRoute = isDashboardContentOnlyRoute(location.pathname, location.search)
   const locationTab = useMemo(() => {
-    if (isWorkspaceRoute) return null
+    if (isContentOnlyRoute) return null
     const currentLocationHref = location.search
       ? `${location.pathname}${location.search}`
       : location.pathname
@@ -805,7 +805,7 @@ function Dashboard() {
       label: findLabelByPath(location.pathname),
       icon: findIconByPath(location.pathname)
     }
-  }, [findIconByPath, findLabelByPath, isWorkspaceRoute, location.pathname, location.search])
+  }, [findIconByPath, findLabelByPath, isContentOnlyRoute, location.pathname, location.search])
 
   useEffect(() => {
     setSelectedModuleKey(routeTopKey)
@@ -890,9 +890,9 @@ function Dashboard() {
     tabState.tabs
   ])
 
-  if (isWorkspaceRoute) {
+  if (isContentOnlyRoute) {
     return (
-      <div className="h-screen w-screen overflow-hidden bg-ds-background">
+      <div className="h-screen w-screen overflow-auto bg-ds-background">
         <Outlet />
       </div>
     )

@@ -85,6 +85,7 @@ export type RawatInapPatient = {
 export type RawatInapBed = {
   id: string
   wardId: string
+  roomId: string
   roomNo: string
   bedLabel: string
   status: RawatInapBedStatus
@@ -123,10 +124,10 @@ type RawatInapBedMapSnapshotPatient = NonNullable<
 >
 
 const createWardFixture = (): RawatInapWard[] => [
-  { id: 'mawar', name: 'Mawar', classLabel: 'VIP', floorLabel: 'Lantai 1', totalBeds: 4 },
-  { id: 'melati', name: 'Melati', classLabel: 'Kelas 1', floorLabel: 'Lantai 3', totalBeds: 6 },
-  { id: 'anggrek', name: 'Anggrek', classLabel: 'Kelas 2', floorLabel: 'Lantai 2', totalBeds: 4 },
-  { id: 'icu', name: 'ICU', classLabel: 'Intensive', floorLabel: 'Lantai 2', totalBeds: 2 }
+  { id: 'bangsal-mawar', name: 'Mawar', classLabel: 'VIP', floorLabel: 'Lantai 1', totalBeds: 4 },
+  { id: 'bangsal-melati', name: 'Melati', classLabel: 'Kelas 1', floorLabel: 'Lantai 3', totalBeds: 6 },
+  { id: 'bangsal-anggrek', name: 'Anggrek', classLabel: 'Kelas 2', floorLabel: 'Lantai 2', totalBeds: 4 },
+  { id: 'bangsal-icu', name: 'ICU', classLabel: 'Intensive', floorLabel: 'Lantai 2', totalBeds: 2 }
 ]
 
 const createPatientFixture = (): RawatInapPatient[] => [
@@ -147,7 +148,7 @@ const createPatientFixture = (): RawatInapPatient[] => [
       { label: 'Suhu', value: '36.6' },
       { label: 'SpO2', value: '98' }
     ],
-    currentWardId: 'melati',
+    currentWardId: 'bangsal-melati',
     currentBedId: 'melati-302-b'
   },
   {
@@ -167,7 +168,7 @@ const createPatientFixture = (): RawatInapPatient[] => [
       { label: 'Suhu', value: '37.2' },
       { label: 'SpO2', value: '99' }
     ],
-    currentWardId: 'melati',
+    currentWardId: 'bangsal-melati',
     currentBedId: 'melati-302-a'
   },
   {
@@ -187,34 +188,34 @@ const createPatientFixture = (): RawatInapPatient[] => [
       { label: 'Suhu', value: '36.9' },
       { label: 'SpO2', value: '97' }
     ],
-    currentWardId: 'anggrek',
+    currentWardId: 'bangsal-anggrek',
     currentBedId: 'anggrek-201-a'
   }
 ]
 
 const createBedFixture = (): RawatInapBed[] => [
-  { id: 'mawar-101-a', wardId: 'mawar', roomNo: '101', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
-  { id: 'mawar-101-b', wardId: 'mawar', roomNo: '101', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
-  { id: 'mawar-102-a', wardId: 'mawar', roomNo: '102', bedLabel: 'A', status: 'cleaning', patientId: null, cleaningLabel: 'Cleaning', losDays: 0 },
-  { id: 'mawar-102-b', wardId: 'mawar', roomNo: '102', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
-  { id: 'melati-302-a', wardId: 'melati', roomNo: '302', bedLabel: 'A', status: 'occupied', patientId: 'patient-dina', losDays: 2 },
-  { id: 'melati-302-b', wardId: 'melati', roomNo: '302', bedLabel: 'B', status: 'occupied', patientId: 'patient-hasan', losDays: 3 },
-  { id: 'melati-303-a', wardId: 'melati', roomNo: '303', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
-  { id: 'melati-303-b', wardId: 'melati', roomNo: '303', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
-  { id: 'melati-304-a', wardId: 'melati', roomNo: '304', bedLabel: 'A', status: 'cleaning', patientId: null, cleaningLabel: 'Cleaning', losDays: 0 },
-  { id: 'melati-304-b', wardId: 'melati', roomNo: '304', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
-  { id: 'anggrek-201-a', wardId: 'anggrek', roomNo: '201', bedLabel: 'A', status: 'occupied', patientId: 'patient-nadia', losDays: 1 },
-  { id: 'anggrek-201-b', wardId: 'anggrek', roomNo: '201', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
-  { id: 'anggrek-202-a', wardId: 'anggrek', roomNo: '202', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
-  { id: 'anggrek-202-b', wardId: 'anggrek', roomNo: '202', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
-  { id: 'icu-icu-01', wardId: 'icu', roomNo: 'ICU-01', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
-  { id: 'icu-icu-02', wardId: 'icu', roomNo: 'ICU-02', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 }
+  { id: 'mawar-101-a', wardId: 'bangsal-mawar', roomId: 'room-mawar-101', roomNo: '101', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
+  { id: 'mawar-101-b', wardId: 'bangsal-mawar', roomId: 'room-mawar-101', roomNo: '101', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
+  { id: 'mawar-102-a', wardId: 'bangsal-mawar', roomId: 'room-mawar-102', roomNo: '102', bedLabel: 'A', status: 'cleaning', patientId: null, cleaningLabel: 'Cleaning', losDays: 0 },
+  { id: 'mawar-102-b', wardId: 'bangsal-mawar', roomId: 'room-mawar-102', roomNo: '102', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
+  { id: 'melati-302-a', wardId: 'bangsal-melati', roomId: 'room-melati-302', roomNo: '302', bedLabel: 'A', status: 'occupied', patientId: 'patient-dina', losDays: 2 },
+  { id: 'melati-302-b', wardId: 'bangsal-melati', roomId: 'room-melati-302', roomNo: '302', bedLabel: 'B', status: 'occupied', patientId: 'patient-hasan', losDays: 3 },
+  { id: 'melati-303-a', wardId: 'bangsal-melati', roomId: 'room-melati-303', roomNo: '303', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
+  { id: 'melati-303-b', wardId: 'bangsal-melati', roomId: 'room-melati-303', roomNo: '303', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
+  { id: 'melati-304-a', wardId: 'bangsal-melati', roomId: 'room-melati-304', roomNo: '304', bedLabel: 'A', status: 'cleaning', patientId: null, cleaningLabel: 'Cleaning', losDays: 0 },
+  { id: 'melati-304-b', wardId: 'bangsal-melati', roomId: 'room-melati-304', roomNo: '304', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
+  { id: 'anggrek-201-a', wardId: 'bangsal-anggrek', roomId: 'room-anggrek-201', roomNo: '201', bedLabel: 'A', status: 'occupied', patientId: 'patient-nadia', losDays: 1 },
+  { id: 'anggrek-201-b', wardId: 'bangsal-anggrek', roomId: 'room-anggrek-201', roomNo: '201', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
+  { id: 'anggrek-202-a', wardId: 'bangsal-anggrek', roomId: 'room-anggrek-202', roomNo: '202', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
+  { id: 'anggrek-202-b', wardId: 'bangsal-anggrek', roomId: 'room-anggrek-202', roomNo: '202', bedLabel: 'B', status: 'available', patientId: null, losDays: 0 },
+  { id: 'icu-icu-01', wardId: 'bangsal-icu', roomId: 'room-icu-01', roomNo: 'ICU-01', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 },
+  { id: 'icu-icu-02', wardId: 'bangsal-icu', roomId: 'room-icu-02', roomNo: 'ICU-02', bedLabel: 'A', status: 'available', patientId: null, losDays: 0 }
 ]
 
 const defaultTransferDraft = (): RawatInapTransferDraft => ({
   sourceBedId: 'melati-302-b',
   transferReason: 'upgrade',
-  targetWardId: 'mawar',
+  targetWardId: 'bangsal-mawar',
   targetBedId: 'mawar-101-a',
   transferNote: ''
 })
@@ -229,6 +230,33 @@ const parseLosDays = (label: string | null | undefined) => {
   if (!label) return 0
   const match = label.match(/(\d+)/)
   return match ? Number(match[1]) : 0
+}
+
+const deriveBangsalLabelFromRoomName = (roomName: string) => {
+  const normalized = String(roomName || '').trim().replace(/\s+/g, ' ')
+  if (!normalized) return '-'
+  if (/(^|[^a-z0-9])igd([^a-z0-9]|$)/i.test(normalized)) return 'IGD'
+
+  const firstDigitIndex = normalized.search(/\d/)
+  if (firstDigitIndex < 0) return normalized
+
+  const prefix = normalized.slice(0, firstDigitIndex).replace(/[-_\s]+$/g, '').trim()
+  return prefix || normalized
+}
+
+const createBangsalId = (label: string) => {
+  const slug = label
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return `bangsal-${slug || 'unknown'}`
+}
+
+const formatJoinedLabels = (labels: Array<string | null | undefined>, fallback = '-') => {
+  const uniqueLabels = Array.from(new Set(labels.map((label) => label?.trim()).filter(Boolean)))
+  return uniqueLabels.length > 0 ? uniqueLabels.join(', ') : fallback
 }
 
 const parseBedIdentity = (bedName: string, roomName: string) => {
@@ -281,25 +309,42 @@ const buildTransferDraftFromState = (state: RawatInapState): RawatInapTransferDr
 }
 
 export function createRawatInapStateFromBedMapSnapshot(snapshot: RawatInapBedMapSnapshot): RawatInapState {
-  const wards = snapshot.wards.map<RawatInapWard>((ward) => ({
-    id: ward.roomId,
-    name: ward.roomName,
-    classLabel: ward.classLabel ?? '-',
-    floorLabel: ward.floor ? `Lantai ${ward.floor}` : '-',
-    totalBeds: ward.beds.length
-  }))
+  const sourceRoomsByBangsalId = new Map<string, RawatInapBedMapSnapshot['wards']>()
+
+  snapshot.wards.forEach((room) => {
+    const bangsalName = deriveBangsalLabelFromRoomName(room.roomName)
+    const bangsalId = createBangsalId(bangsalName)
+    const existingRooms = sourceRoomsByBangsalId.get(bangsalId) ?? []
+    sourceRoomsByBangsalId.set(bangsalId, [...existingRooms, room])
+  })
+
+  const wards = Array.from(sourceRoomsByBangsalId.entries()).map<RawatInapWard>(([bangsalId, rooms]) => {
+    const bangsalName = deriveBangsalLabelFromRoomName(rooms[0]?.roomName ?? '-')
+
+    return {
+      id: bangsalId,
+      name: bangsalName,
+      classLabel: bangsalName === 'IGD' ? 'IGD' : formatJoinedLabels(rooms.map((room) => room.classLabel)),
+      floorLabel: formatJoinedLabels(rooms.map((room) => (room.floor ? `Lantai ${room.floor}` : null))),
+      totalBeds: rooms.reduce((total, room) => total + room.beds.length, 0)
+    }
+  })
 
   const beds = snapshot.wards.flatMap<RawatInapBed>((ward) =>
     ward.beds.map((bed) => {
       const identity = parseBedIdentity(bed.bedName, ward.roomName)
+      const status = mapBackendBedStatus(bed.status)
+      const wardId = createBangsalId(deriveBangsalLabelFromRoomName(ward.roomName))
+
       return {
         id: bed.bedId,
-        wardId: ward.roomId,
+        wardId,
+        roomId: ward.roomId,
         roomNo: identity.roomNo,
         bedLabel: identity.bedLabel,
-        status: mapBackendBedStatus(bed.status),
+        status,
         patientId: bed.patient?.patientId ?? null,
-        cleaningLabel: mapBackendBedStatus(bed.status) === 'cleaning' ? 'Cleaning' : undefined,
+        cleaningLabel: status === 'cleaning' ? 'Cleaning' : undefined,
         losDays: parseLosDays(bed.patient?.lengthOfStayLabel)
       }
     })
@@ -322,7 +367,7 @@ export function createRawatInapStateFromBedMapSnapshot(snapshot: RawatInapBedMap
           sepNumber: '-',
           inaCbg: '-',
           vitalSignSummary: buildVitalSignSummary(bed.patient.vitalSigns),
-          currentWardId: ward.roomId,
+          currentWardId: createBangsalId(deriveBangsalLabelFromRoomName(ward.roomName)),
           currentBedId: bed.bedId
         }
       ]
@@ -392,7 +437,7 @@ export function createRawatInapInitialState(): RawatInapState {
     wards: createWardFixture(),
     beds: createBedFixture(),
     patients: createPatientFixture(),
-    activeWardId: 'melati',
+    activeWardId: 'bangsal-melati',
     selectedBedId: 'melati-302-b',
     transferDraft: defaultTransferDraft()
   }
