@@ -1,9 +1,16 @@
+/**
+ * purpose: Store state lokal IGD untuk daftar pasien, registrasi, triase, dan bed map (legacy/local workspace helpers).
+ * main callers: Halaman IGD legacy yang masih memakai `useIgdStore` (`IgdDaftarPage`, `IgdRegistrasiPage`, `IgdTriasePage`, `IgdBedMapPage`).
+ * key dependencies: `zustand` untuk state container in-memory.
+ * main/public functions: `useIgdStore`, selector type IGD (`IgdTriageSection`, `IgdPatient`, `IgdBed`), serta helper pure state transition.
+ * side effects: Tidak ada IO eksternal; mutasi hanya pada state lokal zustand.
+ */
 import { create } from 'zustand'
 
 export type IgdPatientStatus = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
 export type IgdBedStatus = 'available' | 'occupied' | 'cleaning'
 export type IgdBedZone = 'Resusitasi' | 'Observasi' | 'Treatment'
-export type IgdTriageSection = 'quick' | 'umum' | 'primer' | 'sekunder'
+export type IgdTriageSection = 'quick' | 'umum' | 'utama' | 'matrix' | 'primer' | 'sekunder'
 
 export type IgdVitalSigns = {
   bloodPressure: string
@@ -25,7 +32,7 @@ export type IgdPatient = {
   complaint: string
   paymentLabel: string
   arrivalSource: string
-  triageLevel: 1 | 2 | 3 | 4 | 5
+  triageLevel: number
   status: IgdPatientStatus
   bedCode?: string
   arrivalTime: string
@@ -395,7 +402,7 @@ export const savePatientTriage = (state: IgdStateData, input: SaveTriageInput): 
     patient.id === input.patientId
       ? {
           ...patient,
-          status: input.section === 'quick' ? 'triase' : 'penanganan',
+          status: input.section === 'quick' || input.section === 'matrix' ? 'triase' : 'penanganan',
           triageTime: patient.triageTime ?? '10:25'
         }
       : patient

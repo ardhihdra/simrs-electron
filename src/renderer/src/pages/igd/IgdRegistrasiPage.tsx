@@ -1,3 +1,10 @@
+/**
+ * purpose: Halaman registrasi IGD untuk intake pasien baru/existing/temporary, quick triase awal, pilihan bed sesuai zonasi, dan submit command registrasi backend.
+ * main callers: `IgdRegistrasiRoute`.
+ * key dependencies: `buildIgdRegistrationCommand`, `resolveIgdTriageLevel`, `filterAvailableBedsForTriage`.
+ * main/public functions: `IgdRegistrasiPage`.
+ * side effects: Mengirim callback submit registrasi, menjaga state draft form lokal, dan menerapkan clamp level quick triase berdasarkan `activeTriageLevels` dari route.
+ */
 import React, { useEffect, useMemo, useState } from 'react'
 import type { PatientAttributes } from 'simrs-types'
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
@@ -25,6 +32,7 @@ import {
   getQuickTriageMeta,
   IGD_QUICK_TRIAGE_OPTIONS
 } from './igd.quick-triage'
+import { resolveIgdTriageLevel } from './igd-triage-level-resolver'
 
 type IgdRegistrasiPageProps = {
   dashboard: IgdDashboard
@@ -34,6 +42,7 @@ type IgdRegistrasiPageProps = {
   initialMode?: IgdRegistrationMode
   submitting?: boolean
   onDone?: () => void
+  activeTriageLevels?: number[]
   onSubmitRegistration?: (input: {
     command: ReturnType<typeof buildIgdRegistrationCommand>
     intent: 'daftar' | 'triase'
@@ -131,6 +140,7 @@ export function IgdRegistrasiPage({
   lookupSelectorSlot,
   initialMode = 'baru',
   submitting = false,
+  activeTriageLevels = [],
   onDone,
   onSubmitRegistration
 }: IgdRegistrasiPageProps) {
@@ -144,7 +154,15 @@ export function IgdRegistrasiPage({
   const occupiedCount = dashboard.beds.filter((bed) => bed.status === 'occupied').length
   const cleaningCount = dashboard.beds.filter((bed) => bed.status === 'cleaning').length
   const quickTriageMeta = getQuickTriageMeta(quickCondition)
-  const activeTriageLevel = quickTriageMeta.level
+  const resolvedQuickTriageLevel = useMemo(
+    () =>
+      resolveIgdTriageLevel({
+        quickLevel: quickTriageMeta.level,
+        activeLevels: activeTriageLevels
+      }),
+    [activeTriageLevels, quickTriageMeta.level]
+  )
+  const activeTriageLevel = resolvedQuickTriageLevel.finalLevel
   const allowedZones = useMemo(
     () => getAllowedBedZonesForTriage(activeTriageLevel),
     [activeTriageLevel]
@@ -242,7 +260,8 @@ export function IgdRegistrasiPage({
         draft,
         selectedPatient: selectedExistingPatient,
         intent,
-        quickCondition
+        quickCondition,
+        activeTriageLevels
       }),
       intent
     })
@@ -606,7 +625,7 @@ export function IgdRegistrasiPage({
                               : 'var(--ds-color-danger)'
                     }}
                   >
-                    {`L${quickTriageMeta.level}`}
+                    {`L${activeTriageLevel}`}
                   </div>
                 }
               />

@@ -1,3 +1,10 @@
+/**
+ * purpose: Form detail tindakan pasien untuk input/edit tindakan paket/non-paket dan BHP per encounter.
+ * main callers: Workspace dokter/perawat EMR melalui komponen asesmen detail tindakan.
+ * key dependencies: Hook detail tindakan encounter, master tindakan/paket/BHP, komponen tab detail tindakan.
+ * main/public functions: `DetailTindakanForm`.
+ * side effects: Query master data dan detail encounter, create/update/void detail tindakan pasien ke backend.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
@@ -195,6 +202,12 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
   const encounterType = patientData?.encounter?.encounterType || ''
+  const normalizedEncounterType = String(encounterType || '').toUpperCase()
+  const normalizedServiceType = String(
+    patientData?.serviceType || patientData?.encounter?.serviceType || ''
+  ).toLowerCase()
+  const isIgdEncounter =
+    normalizedEncounterType === 'EMER' || normalizedServiceType.includes('igd')
   const isRawatJalan = encounterType === 'AMB' || encounterType === 'ambulatory'
   const defaultKelas = isRawatJalan ? 'umum' : undefined
 
@@ -1588,14 +1601,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     setInitialPaketPetugas({})
     setActiveInputTab('paket')
     const fallbackKelas = resolveEncounterDefaultKelas()
+    const defaultCyto = isIgdEncounter
 
     modalForm.setFieldsValue({
       assessment_date: dayjs(),
+      cytoGlobal: defaultCyto,
       kelas: fallbackKelas,
       petugasList: [],
-      tindakanList: [{ jumlah: 1, cyto: false, kelas: defaultKelas }],
+      tindakanList: [{ jumlah: 1, cyto: defaultCyto, kelas: defaultKelas }],
       bhpList: [],
-      paketCytoGlobal: false,
+      paketCytoGlobal: defaultCyto,
       paketIds: [],
       paketEntries: [],
       paketBhpEntries: []

@@ -1,6 +1,14 @@
+/**
+ * purpose: SSR smoke test untuk halaman IGD (daftar, registrasi, triase, bed map, dan utilitas disposisi) agar struktur render utama tetap stabil.
+ * main callers: Runner `node:test` via `tsx --test`.
+ * key dependencies: `react-dom/server`, halaman IGD, `QueryClientProvider` untuk komponen yang memakai React Query.
+ * main/public functions: Kumpulan `test(...)` assertions untuk halaman IGD.
+ * side effects: Read-only render SSR dan pembacaan file CSS/source untuk assertion statik.
+ */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import test from 'node:test'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
@@ -8,7 +16,9 @@ import { IgdBedMapPage } from './IgdBedMapPage.tsx'
 import { IgdDaftarPage } from './IgdDaftarPage.tsx'
 import { buildIgdReferralPatientData } from './IgdReferralDispositionModal.tsx'
 import { IgdRegistrasiPage } from './IgdRegistrasiPage.tsx'
+import { IgdPatientInfoPanel } from './IgdPatientInfoPanel.tsx'
 import { IgdTriasePage } from './IgdTriasePage.tsx'
+import { IgdTriaseFormCard } from './IgdTriaseFormCard.tsx'
 import { createIgdDashboardFixture } from './igd.data.ts'
 import { buildIgdTableActions } from './igd.disposition.ts'
 
@@ -53,9 +63,21 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('Laki-laki'), true)
   assert.equal(markup.includes('IGD'), true)
   assert.equal(markup.includes('Rp725.000'), true)
-  assert.equal(markup.includes('RESUSITASI'), true)
+  assert.equal(markup.includes('KRITIS'), true)
   assert.equal(markup.includes('Keluhan Utama'), true)
   assert.equal(markup.includes('Vital Sign'), true)
+  assert.equal(markup.includes('TD'), true)
+  assert.equal(markup.includes('90/60'), true)
+  assert.equal(markup.includes('mmHg'), true)
+  assert.equal(markup.includes('112'), true)
+  assert.equal(markup.includes('/mnt'), true)
+  assert.equal(markup.includes('GCS'), true)
+  assert.equal(markup.includes('Somnolen'), true)
+  assert.equal(markup.includes('data-vital-key="pulse-rate" data-vital-tone="danger"'), true)
+  assert.equal(markup.includes('data-vital-key="oxygen-saturation" data-vital-tone="danger"'), true)
+  assert.equal(markup.includes('data-vital-key="respiratory-rate" data-vital-tone="warning"'), true)
+  assert.equal(markup.includes('data-vital-key="temperature" data-vital-tone="neutral"'), true)
+  assert.equal(markup.includes('Vital sign belum tersedia'), false)
   assert.equal(markup.includes('Time Tracking'), true)
   assert.equal(markup.includes('Tiba di IGD'), true)
   assert.equal(markup.includes('Dokter'), true)
@@ -104,18 +126,220 @@ test('IGD registrasi page renders the intake form shell', () => {
   assert.equal(markup.includes('patient-lookup-selector-slot'), true)
   assert.equal(markup.includes('desktop-input-field'), true)
   assert.equal(markup.includes('desktop-card'), true)
-  assert.equal(markup.includes('Level 3 — Urgen'), true)
-  assert.equal(markup.includes('Warna Kuning · Butuh evaluasi cepat'), true)
+  assert.equal(markup.includes('Level 3 — Semi Urgent'), true)
+  assert.equal(markup.includes('Warna Hijau · Butuh evaluasi cepat'), true)
 })
 
 test('IGD triase page renders triage sections and save action', () => {
-  const markup = renderToStaticMarkup(<IgdTriasePage />)
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false
+      }
+    }
+  })
+  queryClient.setQueryData(['master-igd-triage-level', 'list-active'], [])
+  queryClient.setQueryData(['master-igd-triage-criteria', 'list-active'], [])
+  const dashboard = createIgdDashboardFixture()
+  const preselectedPatientId = dashboard.patients[1]?.id
 
-  assert.equal(markup.includes('Triase IGD'), true)
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      <IgdTriasePage dashboard={dashboard} initialSelectedPatientId={preselectedPatientId} />
+    </QueryClientProvider>
+  )
+
+  assert.equal(markup.includes('Daftar Pasien IGD'), true)
+  assert.equal(markup.includes('Terhubung backend'), true)
+  assert.equal(markup.includes('Pasien Aktif'), true)
+  assert.equal(markup.includes('AVG. Response'), true)
+  assert.equal(markup.includes('SATUSEHAT'), true)
+  assert.equal(markup.includes('EMR Aktif'), true)
+  assert.equal(markup.includes('Detail Pasien'), true)
+  assert.equal(markup.includes('Vital Sign'), true)
+  assert.equal(markup.includes('Time Tracking'), true)
   assert.equal(markup.includes('Triase Cepat'), true)
+  assert.equal(markup.includes('Info Umum'), true)
+  assert.equal(markup.includes('Utama'), true)
+  assert.equal(markup.includes('Kondisi Umum'), true)
+  assert.equal(markup.includes('Level Triase Awal'), true)
+  assert.equal(markup.includes('Keluhan Singkat'), true)
+  assert.equal(markup.includes('Level 3 — Semi Urgent'), false)
+  assert.equal(markup.includes('Warna Hijau · Butuh evaluasi cepat'), false)
+  assert.equal(markup.includes('Pemeriksaan Cepat'), false)
+  assert.equal(markup.includes('Primer (L1–2)'), false)
+  assert.equal(markup.includes('Sekunder (L3–5)'), false)
   assert.equal(markup.includes('Simpan Triase'), true)
+  assert.equal(markup.includes('Kembali ke Daftar'), true)
+  assert.equal(markup.includes('Form Triase'), true)
   assert.equal(markup.includes('desktop-segmented-control'), true)
   assert.equal(markup.includes('desktop-input-field'), true)
+  assert.equal(markup.includes('IGD-2604-002'), true)
+})
+
+test('IGD triase page falls back to first patient when no initial selection is provided', () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false
+      }
+    }
+  })
+  queryClient.setQueryData(['master-igd-triage-level', 'list-active'], [])
+  queryClient.setQueryData(['master-igd-triage-criteria', 'list-active'], [])
+
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      <IgdTriasePage dashboard={createIgdDashboardFixture()} />
+    </QueryClientProvider>
+  )
+
+  assert.equal(markup.includes('IGD-2604-001'), true)
+})
+
+test('IGD triase umum form renders administratif fields without level override block', () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false
+      }
+    }
+  })
+  queryClient.setQueryData(['master-igd-triage-level', 'list-active'], [])
+  queryClient.setQueryData(['master-igd-triage-criteria', 'list-active'], [])
+
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      <IgdTriaseFormCard
+        activeSection="umum"
+        formValues={{}}
+        onSectionChange={() => undefined}
+        onFieldChange={() => undefined}
+        onSave={() => undefined}
+      />
+    </QueryClientProvider>
+  )
+
+  assert.equal(markup.includes('Transportasi'), true)
+  assert.equal(markup.includes('Cara Masuk'), true)
+  assert.equal(markup.includes('Macam Kasus'), true)
+  assert.equal(markup.includes('Tanggal Asesmen'), true)
+  assert.equal(markup.includes('Petugas Pemeriksa'), true)
+  assert.equal(markup.includes('Suggested Level (Otomatis)'), false)
+  assert.equal(markup.includes('Final Level Triase'), false)
+  assert.equal(markup.includes('Kesadaran (GCS)'), false)
+  assert.equal(markup.includes('Pemeriksaan Umum + Kesadaran (GCS)'), false)
+})
+
+test('IGD patient info panel honors triage level override for display', () => {
+  const patient = createIgdDashboardFixture().patients[0]
+  assert.ok(patient)
+
+  const markup = renderToStaticMarkup(
+    <IgdPatientInfoPanel patient={patient} triageLevelOverride={3} />
+  )
+
+  assert.equal(markup.includes('L3'), true)
+  assert.equal(markup.includes('SEMI URGENT'), true)
+  assert.equal(markup.includes('KRITIS'), false)
+})
+
+test('IGD triase utama form renders vital signs and matrix table', () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false
+      }
+    }
+  })
+  queryClient.setQueryData(
+    ['master-igd-triage-level', 'list-active'],
+    [
+      { id: 100, levelNo: 0, label: 'Meninggal', color: 'hitam' },
+      { id: 101, levelNo: 1, label: 'Kritis', color: 'merah' },
+      { id: 102, levelNo: 2, label: 'Urgent', color: 'kuning' },
+      { id: 103, levelNo: 3, label: 'Semi Urgent', color: 'hijau' },
+      { id: 104, levelNo: 4, label: 'Tidak Urgent', color: 'putih' }
+    ]
+  )
+  queryClient.setQueryData(
+    ['master-igd-triage-criteria', 'list-active'],
+    [
+      { id: 1, triageLevelId: 100, criteriaGroup: 'airway', criteriaText: 'Tidak ada jalan napas', sortOrder: 1 },
+      { id: 2, triageLevelId: 101, criteriaGroup: 'breathing', criteriaText: 'Gangguan berat', sortOrder: 1 },
+      { id: 3, triageLevelId: 102, criteriaGroup: 'circulation', criteriaText: 'Gangguan sedang', sortOrder: 1 },
+      { id: 4, triageLevelId: 103, criteriaGroup: 'disability_and_other_dysfunction', criteriaText: 'Gangguan ringan', sortOrder: 1 },
+      { id: 5, triageLevelId: 104, criteriaGroup: 'nyeri', criteriaText: 'Tidak nyeri', sortOrder: 1 }
+    ]
+  )
+
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      <IgdTriaseFormCard
+        activeSection="utama"
+        formValues={{}}
+        onSectionChange={() => undefined}
+        onFieldChange={() => undefined}
+        onSave={() => undefined}
+      />
+    </QueryClientProvider>
+  )
+
+  assert.equal(markup.includes('Vital Sign + Kesadaran + Kebutuhan Khusus'), true)
+  assert.equal(markup.includes('Kesadaran (GCS)'), true)
+  assert.equal(markup.includes('Kebutuhan Khusus'), true)
+  assert.equal(markup.includes('Pemeriksaan + Pengkajian'), true)
+  assert.equal(markup.includes('Shortcut Pengisian Pemeriksaan + Pengkajian'), false)
+  assert.equal(markup.includes('Level Triase Final'), true)
+  assert.equal(markup.includes('Belum ada checkbox dipilih.'), true)
+  assert.equal(markup.includes('Simpan Triase Final'), true)
+  assert.equal(markup.includes('L0'), true)
+  assert.equal(markup.includes('L1'), true)
+  assert.equal(markup.includes('L2'), true)
+  assert.equal(markup.includes('L3'), true)
+  assert.equal(markup.includes('L4'), true)
+  assert.equal(markup.includes('Airway'), true)
+  assert.equal(markup.includes('Breathing'), true)
+  assert.equal(markup.includes('Circulation'), true)
+  assert.equal(markup.includes('Disability/Disfungsi'), true)
+  assert.equal(markup.includes('Nyeri'), true)
+})
+
+test('IGD triase utama form shows L0 from final level draft even without selected checkbox', () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false
+      }
+    }
+  })
+  queryClient.setQueryData(
+    ['master-igd-triage-level', 'list-active'],
+    [
+      { id: 100, levelNo: 0, label: 'Meninggal', color: 'hitam' },
+      { id: 101, levelNo: 1, label: 'Kritis', color: 'merah' }
+    ]
+  )
+  queryClient.setQueryData(
+    ['master-igd-triage-criteria', 'list-active'],
+    [{ id: 1, triageLevelId: 100, criteriaGroup: 'airway', criteriaText: 'Tidak ada jalan napas', sortOrder: 1 }]
+  )
+
+  const markup = renderToStaticMarkup(
+    <QueryClientProvider client={queryClient}>
+      <IgdTriaseFormCard
+        activeSection="utama"
+        formValues={{ __finalLevel: '0' }}
+        onSectionChange={() => undefined}
+        onFieldChange={() => undefined}
+        onSave={() => undefined}
+      />
+    </QueryClientProvider>
+  )
+
+  assert.equal(markup.includes('Level Triase Final'), true)
+  assert.equal(markup.includes('L0'), true)
+  assert.equal(markup.includes('Belum ada checkbox dipilih.'), false)
 })
 
 test('IGD bed map page renders zones and bed cards', () => {

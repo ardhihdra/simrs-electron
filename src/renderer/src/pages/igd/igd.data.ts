@@ -1,6 +1,14 @@
+/**
+ * purpose: Sumber data, fixture dashboard, dan builder command registrasi IGD di renderer termasuk komposisi payload quick triase untuk submit backend.
+ * main callers: `IgdRegistrasiPage`, `IgdDaftarPage`, `IgdTriasePage`, dan test smoke IGD renderer.
+ * key dependencies: `getQuickTriageLevel` dan resolver level `resolveIgdTriageLevel`.
+ * main/public functions: `createIgdDashboardFixture`, `buildIgdRegistrationCommand`, tipe payload IGD renderer.
+ * side effects: Tidak ada; seluruh fungsi bersifat pure data transform.
+ */
 import type { PatientAttributes } from 'simrs-types'
 
 import { getQuickTriageLevel } from './igd.quick-triage'
+import { resolveIgdTriageLevel } from './igd-triage-level-resolver'
 
 export type IgdArrivalSource = 'Datang sendiri' | 'Rujukan' | 'Polisi'
 export type IgdPaymentMethod = 'Umum' | 'BPJS' | 'Asuransi' | 'Perusahaan'
@@ -23,12 +31,20 @@ export type IgdDashboardPatient = {
   complaint: string
   paymentLabel: IgdPaymentMethod
   arrivalSource: IgdArrivalSource
-  triageLevel: 1 | 2 | 3 | 4 | 5
+  triageLevel: number
   status: IgdDashboardPatientStatus
   unitLabel: string
   bedCode?: string
   arrivalTime: string
   triageTime?: string
+  vitalSigns?: {
+    bloodPressure?: string
+    pulseRate?: string
+    respiratoryRate?: string
+    temperature?: string
+    oxygenSaturation?: string
+    gcs?: string
+  }
   doctorName: string
   doctorTargetName: string
   guarantorName?: string | null
@@ -50,7 +66,8 @@ export type IgdDashboardBed = {
 export type IgdDashboard = {
   summary: {
     totalActive: number
-    triageCounts: Record<'1' | '2' | '3' | '4' | '5', number>
+    triageCounts: Record<string, number>
+    activeTriageLevels: number[]
     bedAvailable: number
     bedTotal: number
     averageResponseMinutes: number
@@ -121,7 +138,7 @@ export type IgdRegistrationCommand = {
     phone?: string
   }
   quickTriage?: {
-    level: 1 | 2 | 3 | 4 | 5
+    level: number
     conditionKey: string
     effectiveDateTime: string
   }
@@ -133,12 +150,14 @@ export type SubmitIgdRegistrationInput = {
   selectedPatient?: PatientAttributes
   intent: 'daftar' | 'triase'
   quickCondition: string
+  activeTriageLevels?: number[]
 }
 
 export const EMPTY_IGD_DASHBOARD: IgdDashboard = {
   summary: {
     totalActive: 0,
-    triageCounts: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+    triageCounts: { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0 },
+    activeTriageLevels: [0, 1, 2, 3, 4],
     bedAvailable: 0,
     bedTotal: 0,
     averageResponseMinutes: 0,
@@ -152,7 +171,8 @@ export function createIgdDashboardFixture(): IgdDashboard {
   return {
     summary: {
       totalActive: 4,
-      triageCounts: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 0 },
+      triageCounts: { '0': 0, '1': 1, '2': 1, '3': 1, '4': 1 },
+      activeTriageLevels: [0, 1, 2, 3, 4],
       bedAvailable: 8,
       bedTotal: 12,
       averageResponseMinutes: 4,
@@ -178,6 +198,14 @@ export function createIgdDashboardFixture(): IgdDashboard {
         bedCode: 'R-01',
         arrivalTime: '09:15',
         triageTime: '09:18',
+        vitalSigns: {
+          bloodPressure: '90/60',
+          pulseRate: '112',
+          respiratoryRate: '28',
+          oxygenSaturation: '94',
+          temperature: '37.8',
+          gcs: 'Somnolen'
+        },
         doctorName: 'dr. IGD',
         doctorTargetName: 'dr. IGD',
         guarantorName: null,
@@ -201,6 +229,13 @@ export function createIgdDashboardFixture(): IgdDashboard {
         unitLabel: 'IGD',
         arrivalTime: '09:22',
         triageTime: '09:27',
+        vitalSigns: {
+          bloodPressure: '100/68',
+          pulseRate: '104',
+          respiratoryRate: '24',
+          oxygenSaturation: '95',
+          gcs: 'Compos Mentis'
+        },
         doctorName: '',
         doctorTargetName: '',
         guarantorName: null,
@@ -225,6 +260,14 @@ export function createIgdDashboardFixture(): IgdDashboard {
         bedCode: 'O-01',
         arrivalTime: '09:35',
         triageTime: '09:40',
+        vitalSigns: {
+          bloodPressure: '126/82',
+          pulseRate: '86',
+          respiratoryRate: '20',
+          oxygenSaturation: '98',
+          temperature: '36.7',
+          gcs: 'Compos Mentis'
+        },
         doctorName: 'dr. IGD',
         doctorTargetName: 'dr. IGD',
         guarantorName: null,
@@ -421,14 +464,20 @@ function buildRelatedPersons(draft: IgdRegistrationDraft) {
 function buildQuickTriage({
   intent,
   draft,
-  quickCondition
-}: Pick<SubmitIgdRegistrationInput, 'intent' | 'draft' | 'quickCondition'>) {
+  quickCondition,
+  activeTriageLevels
+}: Pick<SubmitIgdRegistrationInput, 'intent' | 'draft' | 'quickCondition' | 'activeTriageLevels'>) {
   if (intent !== 'triase') {
     return undefined
   }
 
+  const resolvedLevel = resolveIgdTriageLevel({
+    quickLevel: getQuickTriageLevel(quickCondition),
+    activeLevels: activeTriageLevels
+  })
+
   return {
-    level: getQuickTriageLevel(quickCondition),
+    level: resolvedLevel.finalLevel,
     conditionKey: quickCondition,
     effectiveDateTime: draft.arrivalDateTime
   }
@@ -439,7 +488,8 @@ export function buildIgdRegistrationCommand({
   draft,
   selectedPatient,
   intent,
-  quickCondition
+  quickCondition,
+  activeTriageLevels
 }: SubmitIgdRegistrationInput): IgdRegistrationCommand {
   const baseCommand = {
     complaint: draft.complaint.trim(),
@@ -447,7 +497,7 @@ export function buildIgdRegistrationCommand({
     paymentMethod: draft.paymentMethod,
     arrivalDateTime: draft.arrivalDateTime,
     guarantor: buildGuarantor(draft),
-    quickTriage: buildQuickTriage({ intent, draft, quickCondition })
+    quickTriage: buildQuickTriage({ intent, draft, quickCondition, activeTriageLevels })
   } satisfies Omit<IgdRegistrationCommand, 'patientType'>
 
   if (mode === 'existing') {

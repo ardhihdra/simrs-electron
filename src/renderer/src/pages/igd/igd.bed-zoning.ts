@@ -1,6 +1,13 @@
+/**
+ * purpose: Aturan zonasi bed IGD berbasis level triase untuk filtering bed yang boleh dipilih saat registrasi/bed map.
+ * main callers: `IgdRegistrasiPage`, `IgdBedMapPage`, dan util bed IGD lain di renderer.
+ * key dependencies: Tidak ada; konstanta + fungsi pure.
+ * main/public functions: `getZoneTriageRangeLabel`, `getAllowedBedZonesForTriage`, `filterAvailableBedsForTriage`.
+ * side effects: Tidak ada; seluruh fungsi read-only/pure transform.
+ */
 export type IgdBedZoneName = 'Resusitasi' | 'Observasi' | 'Treatment'
 export type IgdBedStatusName = 'available' | 'occupied' | 'cleaning'
-export type IgdTriageLevel = 1 | 2 | 3 | 4 | 5
+export type IgdTriageLevel = number
 
 export const IGD_BED_ZONE_ORDER: IgdBedZoneName[] = ['Resusitasi', 'Observasi', 'Treatment']
 
@@ -16,7 +23,7 @@ const IGD_BED_ZONE_TRIAGE_RANGE: Record<IgdBedZoneName, string> = {
   Treatment: 'L4-L5'
 }
 
-const IGD_ALLOWED_BED_ZONES_BY_TRIAGE: Record<IgdTriageLevel, IgdBedZoneName[]> = {
+const IGD_ALLOWED_BED_ZONES_BY_TRIAGE: Partial<Record<IgdTriageLevel, IgdBedZoneName[]>> = {
   1: ['Resusitasi'],
   2: ['Resusitasi'],
   3: ['Observasi'],
@@ -33,7 +40,7 @@ export function getAllowedBedZonesForTriage(level?: IgdTriageLevel | null): IgdB
     return []
   }
 
-  return IGD_ALLOWED_BED_ZONES_BY_TRIAGE[level]
+  return IGD_ALLOWED_BED_ZONES_BY_TRIAGE[level] ?? []
 }
 
 export function filterAvailableBedsForTriage<

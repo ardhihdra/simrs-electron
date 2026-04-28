@@ -1,3 +1,10 @@
+/**
+ * purpose: Halaman peta bed IGD dengan ringkasan okupansi, listing bed per zona, dan aksi assign/transfer/release bed.
+ * main callers: `IgdBedMapRoute`.
+ * key dependencies: Komponen design-system desktop, util zonasi `igd.bed-zoning`, dan tipe dashboard IGD.
+ * main/public functions: `IgdBedMapPage`.
+ * side effects: Men-trigger callback aksi bed (assign/transfer/release/create) sesuai interaksi pengguna.
+ */
 import { Modal } from 'antd'
 import React, { useEffect, useMemo, useState } from 'react'
 
@@ -50,10 +57,11 @@ type IgdBedMapPageProps = {
 }
 
 const getTriageTone = (level: IgdDashboardPatient['triageLevel']): DesktopBadgeTone => {
-  if (level === 1) return 'danger'
+  if (level <= 1) return 'danger'
   if (level === 2) return 'warning'
-  if (level === 3) return 'info'
-  return 'success'
+  if (level === 3) return 'success'
+  if (level === 4) return 'neutral'
+  return 'accent'
 }
 
 const getZoneRangeTone = (zone: IgdDashboardBedZone): DesktopBadgeTone => {

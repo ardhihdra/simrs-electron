@@ -1,3 +1,10 @@
+/**
+ * purpose: Sidebar daftar halaman desktop (grouped page list) untuk shell design system.
+ * main callers: `DesktopMenuShell` dan showcase `design-system.tsx`.
+ * key dependencies: `desktop-shell.helpers` untuk normalisasi data dan resolusi key aktif.
+ * main/public functions: `DesktopPageList`.
+ * side effects: Merender navigasi page list dan memanggil `onSelect` saat item dipilih.
+ */
 import type { ReactNode } from 'react'
 
 import {
@@ -11,6 +18,7 @@ export type { DesktopPageListGroup, DesktopPageListItem } from './desktop-shell.
 export interface DesktopPageListProps {
   groups: DesktopPageListGroup[]
   activeKey?: string
+  moduleIcon?: ReactNode
   title?: string
   subtitle?: string
   collapsed?: boolean
@@ -21,6 +29,7 @@ export interface DesktopPageListProps {
 export function DesktopPageList({
   groups,
   activeKey,
+  moduleIcon,
   title = 'Pendaftaran Pasien',
   subtitle = 'Daftar page aktif pada modul saat ini',
   collapsed = false,
@@ -35,16 +44,21 @@ export function DesktopPageList({
 
   return (
     <aside
-      className={`flex shrink-0 flex-col border-r border-ds-border bg-ds-surface-muted transition-[width] duration-200 ${
+      className={`flex shrink-0 flex-col border-r border-ds-border bg-ds-surface transition-[width] duration-200 ${
         collapsed ? 'w-20' : 'w-ds-pagelist'
       }`}
     >
       <div className="border-b border-ds-border px-ds-card-padding py-ds-space-md">
-        <div className={`text-ds-body font-semibold text-ds-text ${collapsed ? 'hidden' : ''}`}>
-          {title}
-        </div>
-        <div className={`mt-ds-space-xxs text-ds-label text-ds-muted ${collapsed ? 'hidden' : ''}`}>
-          {subtitle}
+        <div className={`flex items-center gap-ds-space-sm ${collapsed ? 'justify-center' : ''}`}>
+          {moduleIcon ? (
+            <div className="grid h-[28px] w-[28px] shrink-0 place-items-center rounded-[6px] bg-ds-accent-soft text-ds-accent">
+              {moduleIcon}
+            </div>
+          ) : null}
+          <div className={collapsed ? 'hidden' : ''}>
+            <div className="text-ds-body font-semibold text-ds-text">{title}</div>
+            <div className="text-ds-label text-ds-muted">MODUL</div>
+          </div>
         </div>
       </div>
 

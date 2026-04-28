@@ -1,3 +1,10 @@
+/**
+ * purpose: Tab input paket tindakan (termasuk daftar tindakan paket, BHP, dan petugas).
+ * main callers: `DetailTindakanForm` pada modal detail tindakan.
+ * key dependencies: Antd Form/List, selector paket/tindakan/BHP, dan selector kelas tarif.
+ * main/public functions: `PaketTindakanTab`.
+ * side effects: Menulis nilai field `paketEntries` pada form induk saat tambah paket dan ubah cyto.
+ */
 import { Form, Card, Button, Select, Spin, Switch, InputNumber, Input, Row, Col } from 'antd'
 import AutoRolePetugasListCard from './AutoRolePetugasListCard'
 import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
@@ -88,10 +95,11 @@ export default function PaketTindakanTab({
           onClick={() => {
             const currentEntries = modalForm.getFieldValue('paketEntries') || []
             const defaultKelas = modalForm.getFieldValue('kelas') || 'UMUM'
+            const defaultCyto = Boolean(modalForm.getFieldValue('cytoGlobal'))
             modalForm.setFieldValue('paketEntries', [
               ...currentEntries,
               {
-                paketCytoGlobal: false,
+                paketCytoGlobal: defaultCyto,
                 kelas: defaultKelas,
                 tindakanList: [],
                 bhpList: [],

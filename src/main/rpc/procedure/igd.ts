@@ -1,3 +1,10 @@
+/**
+ * purpose: Prosedur RPC renderer untuk modul IGD (dashboard, registrasi, rebind) dengan validasi payload input.
+ * main callers: Hook/query client renderer (`client.igd.*`).
+ * key dependencies: Router helper RPC `t` dan validator `zod`.
+ * main/public functions: `igdRpc`, `normalizeIgdDashboardResponse`, `normalizeIgdRegistrationResponse`.
+ * side effects: HTTP call ke endpoint backend IGD via RPC client.
+ */
 import z from 'zod'
 
 import { t } from '..'
@@ -21,7 +28,7 @@ const IgdRegistrationInputSchema = z.object({
     .optional(),
   quickTriage: z
     .object({
-      level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+      level: z.number().int().min(0),
       conditionKey: z.string().min(1),
       effectiveDateTime: z.string().min(1)
     })

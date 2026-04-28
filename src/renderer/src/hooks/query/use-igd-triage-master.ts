@@ -11,11 +11,11 @@ import {
   type MasterIgdTriageCriteriaItem,
   type TriageCriteriaGroup,
   useMasterIgdTriageCriteriaActive
-} from '@renderer/hooks/query/use-master-igd-triage-criteria'
+} from './use-master-igd-triage-criteria'
 import {
   type MasterIgdTriageLevelItem,
   useMasterIgdTriageLevelActive
-} from '@renderer/hooks/query/use-master-igd-triage-level'
+} from './use-master-igd-triage-level'
 
 export interface TriageCriteriaGroupedByGroup {
   airway: MasterIgdTriageCriteriaItem[]

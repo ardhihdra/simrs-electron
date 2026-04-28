@@ -160,7 +160,9 @@ const DoctorWorkspace = () => {
           .join(', ')
       : '-'
   const closeReminderStatusLabel =
-    currentStatus === EncounterStatus.IN_PROGRESS ? 'Sedang Diperiksa' : String(currentStatus || '-')
+    currentStatus === EncounterStatus.IN_PROGRESS
+      ? 'Sedang Diperiksa'
+      : String(currentStatus || '-')
 
   const patientInfoCardData = {
     patient: {
@@ -243,7 +245,10 @@ const DoctorWorkspace = () => {
             <div className="grid grid-cols-1 gap-2">
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Kembali
@@ -254,7 +259,10 @@ const DoctorWorkspace = () => {
               </div>
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Tutup Halaman
@@ -265,7 +273,10 @@ const DoctorWorkspace = () => {
               </div>
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Selesaikan Pemeriksaan
@@ -297,41 +308,16 @@ const DoctorWorkspace = () => {
             </div>
           </div>
         )}
-
-        {encounterDetail?.result?.encounterType === EncounterType.IMP ? (
-          <DoctorInpatientWorkspace
-            encounterId={encounterId || ''}
-            patientData={patientData}
-            patientInfoCardData={patientInfoCardData}
-            action={
-              currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <SelesaikanPemeriksaanButton />
-              ) : undefined
-            }
-          />
-        ) : encounterDetail?.result?.encounterType === EncounterType.EMER ? (
-          <DoctorEmergencyWorkspace
-            encounterId={encounterId || ''}
-            patientData={patientData}
-            patientInfoCardData={patientInfoCardData}
-            action={
-              currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <SelesaikanPemeriksaanButton />
-              ) : undefined
-            }
-          />
-        ) : (
-          <DoctorOutpatientWorkspace
-            encounterId={encounterId || ''}
-            patientData={patientData}
-            patientInfoCardData={patientInfoCardData}
-            action={
-              currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <SelesaikanPemeriksaanButton />
-              ) : undefined
-            }
-          />
-        )}
+        <DoctorEmergencyWorkspace
+          encounterId={encounterId || ''}
+          patientData={patientData}
+          patientInfoCardData={patientInfoCardData}
+          action={
+            currentStatus === EncounterStatus.IN_PROGRESS ? (
+              <SelesaikanPemeriksaanButton />
+            ) : undefined
+          }
+        />
       </div>
 
       <DischargeModal

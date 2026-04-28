@@ -1,3 +1,10 @@
+/**
+ * purpose: Unit test fixture IGD dan builder command registrasi agar payload intake + quick triase renderer tetap konsisten.
+ * main callers: Runner `node:test` via `tsx --test`.
+ * key dependencies: `buildIgdRegistrationCommand`, `createIgdDashboardFixture`, `node:assert`.
+ * main/public functions: Kumpulan `test(...)` verifikasi mapping command registrasi IGD.
+ * side effects: Tidak ada; assertion pure transform.
+ */
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
@@ -36,6 +43,7 @@ test('createIgdDashboardFixture provides active patients and bed snapshot', () =
   assert.equal(fixture.patients[0]?.encounterCode?.startsWith('ENC-'), true)
   assert.equal(fixture.patients[0]?.unitLabel, 'IGD')
   assert.equal(typeof fixture.patients[0]?.genderLabel, 'string')
+  assert.deepEqual(fixture.summary.activeTriageLevels, [0, 1, 2, 3, 4])
 })
 
 test('buildIgdRegistrationCommand maps existing patient mode to patientId payload', () => {
@@ -132,4 +140,16 @@ test('buildIgdRegistrationCommand omits quick triage when intent is daftar', () 
   })
 
   assert.equal(payload.quickTriage, undefined)
+})
+
+test('buildIgdRegistrationCommand clamps quick triage level to active triage levels', () => {
+  const payload = buildIgdRegistrationCommand({
+    mode: 'baru',
+    draft: createDraft(),
+    intent: 'triase',
+    quickCondition: 'l5-stable',
+    activeTriageLevels: [0, 2, 3]
+  })
+
+  assert.equal(payload.quickTriage?.level, 3)
 })
