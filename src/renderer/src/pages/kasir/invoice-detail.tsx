@@ -673,7 +673,7 @@ export default function InvoiceDetailPage() {
               }
             }}
           >
-            Formulir Kosong
+            Formulir Deposit
           </Button>
 
           <Dropdown
