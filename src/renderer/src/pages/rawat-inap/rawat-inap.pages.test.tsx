@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
@@ -6,7 +7,10 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { RawatInapAdmisiPage } from './RawatInapAdmisiPage.tsx'
 import { RawatInapBedMapPage } from './RawatInapBedMapPage.tsx'
 import { RawatInapTransferPage } from './RawatInapTransferPage.tsx'
-import { createRawatInapInitialState, createRawatInapStateFromBedMapSnapshot } from './rawat-inap.state.ts'
+import {
+  createRawatInapInitialState,
+  createRawatInapStateFromBedMapSnapshot
+} from './rawat-inap.state.ts'
 
 void React
 
@@ -143,11 +147,30 @@ test('Rawat Inap bed map fullscreen mode keeps only fullscreen action in the hea
 })
 
 test('Rawat Inap transfer page renders source and destination cards', () => {
-  const markup = renderToStaticMarkup(<RawatInapTransferPage state={createRawatInapInitialState()} />)
+  const markup = renderToStaticMarkup(
+    <RawatInapTransferPage state={createRawatInapInitialState()} />
+  )
 
   assert.equal(markup.includes('Transfer Antar Bangsal / Kamar'), true)
   assert.equal(markup.includes('Dari (Kamar Saat Ini)'), true)
   assert.equal(markup.includes('Ke (Tujuan Transfer)'), true)
+})
+
+test('Rawat Inap patient list uses disposition action for active inpatient encounters', () => {
+  const source = readFileSync(new URL('./RawatInapPasienPage.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes('DesktopDispositionWorkflow'), true)
+  assert.equal(source.includes('var(--warn-soft)'), false)
+  assert.equal(source.includes('var(--ok-soft)'), false)
+  assert.equal(source.includes('Disposisi'), true)
+  assert.equal(source.includes('Proses Disposisi'), true)
+  assert.equal(source.includes('Proses Pulang'), false)
+  assert.equal(
+    source.includes(
+      'yang dikirim dari disposisi umum baru dischargeDisposition dan dischargeNote.'
+    ),
+    true
+  )
 })
 
 test('Rawat Inap bed map page renders backend-mapped patient detail', () => {

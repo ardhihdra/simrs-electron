@@ -16,8 +16,90 @@ import { Gender } from '../../types/nurse.types'
 import { DoctorInpatientWorkspace } from './doctor-inpatient-workspace'
 import { DoctorOutpatientWorkspace } from './doctor-outpatient-workspace'
 import { DoctorEmergencyWorkspace } from './doctor-emergency-workspace'
-import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
 import { showApiError } from '@renderer/utils/form-feedback'
+import { client } from '@renderer/utils/client'
+import {
+  DesktopDispositionWorkflow,
+  type DesktopDispositionConfirmPayload,
+  type DesktopDispositionOption
+} from '../../components/design-system/organisms/DesktopDispositionWorkflow'
+
+const DOCTOR_DISPOSITION_OPTIONS: DesktopDispositionOption[] = [
+  {
+    key: 'pulang',
+    label: 'Pulang',
+    subtitle: 'Pulang ke rumah',
+    dischargeDisposition: 'home',
+    color: 'var(--ds-color-success)',
+    softColor: 'color-mix(in srgb, var(--ds-color-success) 10%, white)',
+    tone: 'success'
+  },
+  {
+    key: 'rujuk-e',
+    label: 'Rujuk',
+    subtitle: 'Ke fasilitas kesehatan lain',
+    dischargeDisposition: 'other-hcf',
+    color: 'var(--ds-color-violet)',
+    softColor: 'var(--ds-color-violet-soft)',
+    tone: 'violet'
+  },
+  {
+    key: 'meninggal',
+    label: 'Meninggal',
+    subtitle: 'Pasien dinyatakan meninggal',
+    dischargeDisposition: 'exp',
+    color: 'var(--ds-color-text-subtle)',
+    softColor: 'var(--ds-color-surface-muted)',
+    tone: 'neutral'
+  },
+  {
+    key: 'paksa',
+    label: 'Pulang Paksa',
+    subtitle: 'Atas permintaan sendiri (APS)',
+    dischargeDisposition: 'aadvice',
+    color: 'var(--ds-color-warning)',
+    softColor: 'color-mix(in srgb, var(--ds-color-warning) 12%, white)',
+    tone: 'warning'
+  }
+]
+
+const DOCTOR_DISPOSITION_BANNER_META = {
+  label: 'DR',
+  name: 'Dokter',
+  colorName: 'EMR',
+  badgeTone: 'accent' as const,
+  background: 'var(--ds-color-accent-soft)',
+  borderColor: 'var(--ds-color-accent)',
+  color: 'var(--ds-color-accent)'
+}
+
+type DoctorWorkspaceVisitInfo = {
+  poliName: string
+  doctorName: string
+  visitDate: string
+  paymentMethod: string
+}
+
+type DoctorDischargeDisposition = 'home' | 'other-hcf' | 'exp' | 'aadvice'
+
+type DoctorWorkspaceExtraFields = PatientWithMedicalRecord & {
+  serviceType?: string
+  doctorName?: string
+  visitDate?: string | Date
+}
+
+const getDoctorWorkspaceVisitInfo = (data: PatientWithMedicalRecord): DoctorWorkspaceVisitInfo => {
+  const extra = data as DoctorWorkspaceExtraFields
+
+  return {
+    poliName: extra.serviceType || 'Poli Umum',
+    doctorName: extra.doctorName || 'Dr. Dokter',
+    visitDate: extra.visitDate
+      ? dayjs(extra.visitDate).format('DD MMM YYYY, HH:mm')
+      : dayjs().format('DD MMM YYYY, HH:mm'),
+    paymentMethod: data.paymentMethod || 'Umum'
+  }
+}
 
 const DoctorWorkspace = () => {
   const { encounterId } = useParams<{ encounterId: string }>()
@@ -27,12 +109,13 @@ const DoctorWorkspace = () => {
 
   const [loading, setLoading] = useState(false)
   const [patientData, setPatientData] = useState<PatientWithMedicalRecord | null>(null)
-  const [dischargeModalOpen, setDischargeModalOpen] = useState(false)
+  const [dispositionWorkflowOpen, setDispositionWorkflowOpen] = useState(false)
   const [closeReminderOpen, setCloseReminderOpen] = useState(false)
   const [closeAfterFinish, setCloseAfterFinish] = useState(false)
   const closeConfirmOpenRef = useRef(false)
 
   const { data: encounterDetail } = useEncounterDetail(encounterId)
+  const dischargeEncounterMutation = client.registration.dischargeEncounter.useMutation()
 
   const { data: allergyData } = useAllergyByEncounter(encounterId || '')
   const currentStatus = encounterDetail?.result?.status || EncounterStatus.IN_PROGRESS
@@ -80,11 +163,15 @@ const DoctorWorkspace = () => {
     allowCloseWindow()
   }, [allowCloseWindow, closeCloseReminder])
 
+  const openDispositionWorkflow = useCallback((shouldCloseAfterFinish = false) => {
+    setCloseAfterFinish(shouldCloseAfterFinish)
+    setDispositionWorkflowOpen(true)
+  }, [])
+
   const finishEncounterFromCloseReminder = useCallback(() => {
     closeCloseReminder()
-    setCloseAfterFinish(true)
-    setDischargeModalOpen(true)
-  }, [closeCloseReminder])
+    openDispositionWorkflow(true)
+  }, [closeCloseReminder, openDispositionWorkflow])
 
   useEffect(() => {
     const removeListener = window.electron.ipcRenderer.on(EXAM_WINDOW_CLOSE_REQUEST_CHANNEL, () => {
@@ -108,18 +195,102 @@ const DoctorWorkspace = () => {
     }
   }, [allowCloseWindow, currentStatus])
 
-  const handleDischargeClose = useCallback(() => {
-    setDischargeModalOpen(false)
+  const handleDispositionBack = useCallback(() => {
+    setDispositionWorkflowOpen(false)
     setCloseAfterFinish(false)
   }, [])
 
-  const handleDischargeSuccess = useCallback(async () => {
-    await loadData()
-    if (closeAfterFinish) {
-      setCloseAfterFinish(false)
-      allowCloseWindow()
-    }
-  }, [allowCloseWindow, closeAfterFinish, loadData])
+  const handleDispositionConfirm = useCallback(
+    async (payload: DesktopDispositionConfirmPayload) => {
+      if (!encounterId) return
+
+      try {
+        await dischargeEncounterMutation.mutateAsync({
+          id: encounterId,
+          dischargeDisposition: payload.dischargeDisposition as DoctorDischargeDisposition,
+          dischargeNote: payload.note || undefined
+        })
+
+        message.success('Pemeriksaan berhasil diselesaikan')
+        setDispositionWorkflowOpen(false)
+        await loadData()
+
+        if (closeAfterFinish) {
+          setCloseAfterFinish(false)
+          allowCloseWindow()
+        }
+      } catch (error) {
+        showApiError(message, error, 'Gagal menyelesaikan pemeriksaan')
+      }
+    },
+    [allowCloseWindow, closeAfterFinish, dischargeEncounterMutation, encounterId, loadData, message]
+  )
+
+  const getEncounterTypeLabel = () => {
+    if (encounterDetail?.result?.encounterType === EncounterType.IMP) return 'Rawat Inap'
+    if (encounterDetail?.result?.encounterType === EncounterType.EMER) return 'IGD'
+    return 'Rawat Jalan'
+  }
+
+  const getPatientGenderLabel = () => {
+    if (patientData?.patient.gender === Gender.MALE) return 'Laki-laki'
+    if (patientData?.patient.gender === Gender.FEMALE) return 'Perempuan'
+    return '-'
+  }
+
+  const handleFinishEncounter = () => {
+    openDispositionWorkflow(false)
+  }
+
+  const allergies =
+    allergyData?.result && Array.isArray(allergyData.result) && allergyData.result.length > 0
+      ? allergyData.result
+          .map((a: { note?: string | null }) => a.note)
+          .filter(Boolean)
+          .join(', ')
+      : '-'
+
+  if (patientData && dispositionWorkflowOpen) {
+    const patient = patientData.patient
+    const age = patient.birthDate ? dayjs().diff(dayjs(patient.birthDate), 'year') : 0
+    const encounterTypeLabel = getEncounterTypeLabel()
+    const { poliName, doctorName, visitDate, paymentMethod } =
+      getDoctorWorkspaceVisitInfo(patientData)
+
+    return (
+      <div className="h-screen overflow-auto px-4 py-4">
+        <DesktopDispositionWorkflow
+          patient={{
+            name: patient.name || 'Unknown',
+            registrationNumber: encounterId || '-',
+            ageLabel: age ? `${age} th` : '-',
+            paymentLabel: paymentMethod,
+            statusLabel: `Encounter ${encounterTypeLabel}`
+          }}
+          bannerMeta={DOCTOR_DISPOSITION_BANNER_META}
+          summaryItems={[
+            { label: 'Encounter', value: encounterId || '-', mono: true },
+            { label: 'No. RM', value: patient.medicalRecordNumber || '-', mono: true },
+            { label: 'Umur', value: age ? `${age} tahun` : '-' },
+            { label: 'Jenis Kelamin', value: getPatientGenderLabel() },
+            { label: 'Unit', value: poliName },
+            { label: 'Dokter', value: doctorName },
+            { label: 'Tanggal Kunjungan', value: visitDate, mono: true },
+            { label: 'Penjamin', value: paymentMethod },
+            { label: 'Alergi', value: allergies }
+          ]}
+          options={DOCTOR_DISPOSITION_OPTIONS}
+          breadcrumbItems={['Dokter', 'EMR']}
+          title="Disposisi Pemeriksaan"
+          resumeDocumentLabel="Resume Medis"
+          backendNote="Detail field mockup seperti instruksi DPJP, obat pulang, penyebab kematian, dan data klinis tambahan sebagian besar masih UI; yang dikirim dari disposisi umum baru dischargeDisposition dan dischargeNote."
+          isSubmitting={dischargeEncounterMutation.isPending}
+          onBack={handleDispositionBack}
+          onConfirm={handleDispositionConfirm}
+        />
+      </div>
+    )
+  }
 
   if (loading) {
     return (
@@ -137,30 +308,16 @@ const DoctorWorkspace = () => {
     navigate('/dashboard/doctor')
   }
 
-  const handleFinishEncounter = () => {
-    setCloseAfterFinish(false)
-    setDischargeModalOpen(true)
-  }
-
   const patient = patientData.patient
   const age = patient.birthDate ? dayjs().diff(dayjs(patient.birthDate), 'year') : 0
 
-  const poliName = (patientData as any).serviceType || 'Poli Umum'
-  const doctorName = (patientData as any).doctorName || 'Dr. Dokter'
-  const visitDate = (patientData as any).visitDate
-    ? dayjs((patientData as any).visitDate).format('DD MMM YYYY, HH:mm')
-    : dayjs().format('DD MMM YYYY, HH:mm')
-  const paymentMethod = patientData.paymentMethod || 'Umum'
+  const { poliName, doctorName, visitDate, paymentMethod } =
+    getDoctorWorkspaceVisitInfo(patientData)
 
-  const allergies =
-    allergyData?.result && Array.isArray(allergyData.result) && allergyData.result.length > 0
-      ? allergyData.result
-          .map((a: any) => a.note)
-          .filter(Boolean)
-          .join(', ')
-      : '-'
   const closeReminderStatusLabel =
-    currentStatus === EncounterStatus.IN_PROGRESS ? 'Sedang Diperiksa' : String(currentStatus || '-')
+    currentStatus === EncounterStatus.IN_PROGRESS
+      ? 'Sedang Diperiksa'
+      : String(currentStatus || '-')
   const normalizeAnthropometry = (value?: number | null): number | null =>
     typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
   const heightCm = normalizeAnthropometry(patientData.nurseRecord?.vitalSigns?.height)
@@ -251,7 +408,10 @@ const DoctorWorkspace = () => {
             <div className="grid grid-cols-1 gap-2">
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Kembali
@@ -262,7 +422,10 @@ const DoctorWorkspace = () => {
               </div>
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Tutup Halaman
@@ -273,13 +436,16 @@ const DoctorWorkspace = () => {
               </div>
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Selesaikan Pemeriksaan
                 </div>
                 <div className="text-xs" style={{ color: token.colorTextSecondary }}>
-                  Buka form pemulangan, lalu tutup halaman otomatis setelah selesai.
+                  Buka form disposisi, lalu tutup halaman otomatis setelah selesai.
                 </div>
               </div>
             </div>
@@ -341,13 +507,6 @@ const DoctorWorkspace = () => {
           />
         )}
       </div>
-
-      <DischargeModal
-        open={dischargeModalOpen}
-        record={{ patientName: patientData?.patient?.name, encounterId }}
-        onClose={handleDischargeClose}
-        onSuccess={handleDischargeSuccess}
-      />
     </div>
   )
 }

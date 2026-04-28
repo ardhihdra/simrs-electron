@@ -6,13 +6,15 @@ import type { PatientAttributes } from 'simrs-types'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { DesktopDispositionWorkflow } from '../../components/design-system/organisms/DesktopDispositionWorkflow.tsx'
 import { IgdBedMapPage } from './IgdBedMapPage.tsx'
+import { IgdDisposisiPage } from './IgdDisposisiPage.tsx'
 import { IgdDaftarPage } from './IgdDaftarPage.tsx'
-import { buildIgdReferralPatientData } from './IgdReferralDispositionModal.tsx'
 import { IgdRegistrasiPage } from './IgdRegistrasiPage.tsx'
 import { IgdTriasePage } from './IgdTriasePage.tsx'
 import { createIgdDashboardFixture } from './igd.data.ts'
 import { buildIgdTableActions } from './igd.disposition.ts'
+import { buildIgdReferralPatientData } from './igd.referral.ts'
 
 test('IGD daftar page renders summary, patient list, and detail panel', () => {
   const markup = renderToStaticMarkup(<IgdDaftarPage dashboard={createIgdDashboardFixture()} />)
@@ -74,7 +76,7 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('Time Tracking'), false)
   assert.equal(markup.includes('Dokter datang / assign'), false)
   assert.equal(markup.includes('Bed release'), false)
-  assert.equal(markup.includes('Temp'), false)
+  assert.equal(markup.includes('Temp'), true)
 })
 
 test('IGD daftar page keeps replace-patient flow outside inline detail layout', () => {
@@ -86,6 +88,21 @@ test('IGD daftar page keeps replace-patient flow outside inline detail layout', 
   assert.equal(markup.includes('Ganti Identitas Pasien'), false)
 })
 
+test('IGD daftar page renders neutral detail when selected patient has no triage level', () => {
+  const dashboard = createIgdDashboardFixture()
+  dashboard.patients = [
+    {
+      ...dashboard.patients[0]!,
+      triageLevel: undefined as unknown as 1 | 2 | 3 | 4 | 5
+    }
+  ]
+
+  const markup = renderToStaticMarkup(<IgdDaftarPage dashboard={dashboard} />)
+
+  assert.equal(markup.includes('BELUM TRIASE'), true)
+  assert.equal(markup.includes('Menunggu penilaian'), true)
+})
+
 test('IGD daftar page renders loading and error shell for backend query states', () => {
   const loadingMarkup = renderToStaticMarkup(
     <IgdDaftarPage dashboard={createIgdDashboardFixture()} isLoading />
@@ -95,7 +112,7 @@ test('IGD daftar page renders loading and error shell for backend query states',
   )
 
   assert.equal(loadingMarkup.includes('Memuat data IGD'), true)
-  assert.equal(errorMarkup.includes('Data IGD belum dapat dimuat'), true)
+  assert.equal(errorMarkup.includes('Gagal memuat dashboard'), true)
 })
 
 test('IGD registrasi page renders the intake form shell', () => {
@@ -214,6 +231,66 @@ test('IGD referral disposition maps patient data for ReferralForm', () => {
   })
 })
 
+test('IGD disposisi page renders mockup-style inline disposition workflow', () => {
+  const patient = createIgdDashboardFixture().patients[0]!
+  const markup = renderToStaticMarkup(
+    <IgdDisposisiPage patient={patient} onBack={() => undefined} onConfirm={() => undefined} />
+  )
+
+  assert.equal(markup.includes('igd-disposisi-grid'), true)
+  assert.equal(markup.includes('Disposisi Pasien'), true)
+  assert.equal(markup.includes('Jenis Disposisi'), true)
+  assert.equal(markup.includes('Pulang'), true)
+  assert.equal(markup.includes('Rawat Inap'), true)
+  assert.equal(markup.includes('Rujuk Internal'), true)
+  assert.equal(markup.includes('Rujuk Eksternal'), true)
+  assert.equal(markup.includes('Meninggal'), true)
+  assert.equal(markup.includes('Pulang Paksa'), true)
+  assert.equal(markup.includes('Ringkasan Pasien'), true)
+  assert.equal(markup.includes('Dokumen'), true)
+  assert.equal(markup.includes('Konfirmasi Disposisi'), true)
+})
+
+test('desktop design system exposes reusable disposition workflow', () => {
+  const markup = renderToStaticMarkup(
+    <DesktopDispositionWorkflow
+      patient={{
+        name: 'Sutrisno Hadi',
+        registrationNumber: 'IGD-2604-002',
+        ageLabel: '62 L',
+        paymentLabel: 'BPJS',
+        statusLabel: 'Encounter'
+      }}
+      bannerMeta={{
+        label: 'L1',
+        name: 'Resusitasi',
+        colorName: 'MERAH',
+        badgeTone: 'danger',
+        background: 'var(--danger-soft)',
+        borderColor: 'var(--danger)',
+        color: 'var(--danger)'
+      }}
+      summaryItems={[{ label: 'No. Reg', value: 'IGD-2604-002', mono: true }]}
+      options={[
+        {
+          key: 'pulang',
+          label: 'Pulang',
+          subtitle: 'Pasien diizinkan pulang',
+          dischargeDisposition: 'CURED',
+          color: 'var(--ok)',
+          softColor: 'var(--ok-soft)',
+          tone: 'success'
+        }
+      ]}
+      onBack={() => undefined}
+      onConfirm={() => undefined}
+    />
+  )
+
+  assert.equal(markup.includes('igd-disposisi-grid'), true)
+  assert.equal(markup.includes('Jenis Disposisi'), true)
+})
+
 test('IGD patient table hides internal ant measure rows to avoid header gap', () => {
   const css = fs.readFileSync(new URL('../../assets/main.css', import.meta.url), 'utf8')
 
@@ -221,9 +298,26 @@ test('IGD patient table hides internal ant measure rows to avoid header gap', ()
 })
 
 test('IGD referral disposition modal avoids CommonJS require in renderer runtime', () => {
-  const source = fs.readFileSync(new URL('./IgdReferralDispositionModal.tsx', import.meta.url), 'utf8')
+  const source = fs.readFileSync(
+    new URL('./IgdReferralDispositionModal.tsx', import.meta.url),
+    'utf8'
+  )
 
   assert.equal(source.includes('require('), false)
+})
+
+test('IGD daftar route uses destroyOnHidden for AntD modal cleanup', () => {
+  const source = fs.readFileSync(new URL('./IgdDaftarRoute.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes('destroyOnClose'), false)
+  assert.equal(source.includes('destroyOnHidden'), true)
+})
+
+test('IGD daftar route renders disposition as inline page instead of discharge modal', () => {
+  const source = fs.readFileSync(new URL('./IgdDaftarRoute.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes('DischargeModal'), false)
+  assert.equal(source.includes('IgdDisposisiPage'), true)
 })
 
 test('IGD table actions include disposition and patient-specific actions', () => {

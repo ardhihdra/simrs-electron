@@ -8,6 +8,11 @@ import {
 } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
+import {
+  DesktopDispositionWorkflow,
+  type DesktopDispositionConfirmPayload,
+  type DesktopDispositionOption
+} from '../../components/design-system/organisms/DesktopDispositionWorkflow'
 import { DesktopGenericTable } from '../../components/design-system/organisms/DesktopGenericTable'
 import { RPCSelectAsync } from '../../components/organisms/RPCSelectAsync'
 import { SelectAsync } from '../../components/organisms/SelectAsync'
@@ -25,6 +30,11 @@ type RawatInapPasienPageProps = {
   queryParams: InpatientPatientListQuery
   statusCounts?: { IN_PROGRESS: number; FINISHED: number }
   onQueryChange: (patch: Partial<InpatientPatientListQuery>) => void
+  onDispositionConfirm?: (
+    patient: InpatientPatientListItem,
+    payload: DesktopDispositionConfirmPayload
+  ) => void | Promise<void>
+  isDispositionSubmitting?: boolean
 }
 
 function getStatusTone(status: string): DesktopBadgeTone {
@@ -52,20 +62,120 @@ function formatDate(dt: string | null): string {
 
 type SortField = NonNullable<InpatientPatientListQuery['sortField']>
 
+const RAWAT_INAP_DISPOSITION_OPTIONS: DesktopDispositionOption[] = [
+  {
+    key: 'pulang',
+    label: 'Pulang',
+    subtitle: 'Pasien rawat inap diizinkan pulang',
+    dischargeDisposition: 'CURED',
+    color: 'var(--ds-color-success)',
+    softColor: 'color-mix(in srgb, var(--ds-color-success) 10%, white)',
+    tone: 'success'
+  },
+  {
+    key: 'rujuk-e',
+    label: 'Rujuk Eksternal',
+    subtitle: 'Ke RS / faskes lain',
+    dischargeDisposition: 'REFERRED',
+    color: 'var(--ds-color-violet)',
+    softColor: 'var(--ds-color-violet-soft)',
+    tone: 'violet'
+  },
+  {
+    key: 'meninggal',
+    label: 'Meninggal',
+    subtitle: 'Dinyatakan meninggal dunia',
+    dischargeDisposition: 'DECEASED',
+    color: 'var(--ds-color-text-subtle)',
+    softColor: 'var(--ds-color-surface-muted)',
+    tone: 'neutral'
+  },
+  {
+    key: 'paksa',
+    label: 'Pulang Paksa',
+    subtitle: 'Atas permintaan sendiri (APS)',
+    dischargeDisposition: 'AGAINST_ADVICE',
+    color: 'var(--ds-color-warning)',
+    softColor: 'color-mix(in srgb, var(--ds-color-warning) 12%, white)',
+    tone: 'warning'
+  }
+]
+
+const RAWAT_INAP_BANNER_META = {
+  label: 'RI',
+  name: 'Rawat Inap',
+  colorName: 'BANGSAL',
+  badgeTone: 'neutral' as const,
+  background: 'var(--ds-color-surface-muted)',
+  borderColor: 'var(--ds-color-border-strong)',
+  color: 'var(--ds-color-text-muted)'
+}
+
 export function RawatInapPasienPage({
   items,
   total,
   loading = false,
   queryParams,
   statusCounts,
-  onQueryChange
+  onQueryChange,
+  onDispositionConfirm,
+  isDispositionSubmitting = false
 }: RawatInapPasienPageProps) {
   const { message } = App.useApp()
   const [selectedEncounterId, setSelectedEncounterId] = useState(() => items[0]?.encounterId ?? '')
+  const [dispositionPatient, setDispositionPatient] = useState<InpatientPatientListItem | null>(
+    null
+  )
 
   const selected = items.find((p) => p.encounterId === selectedEncounterId) ?? items[0] ?? null
 
   const handleAction = () => void message.info('Fitur belum diimplementasikan pada scope ini')
+
+  if (dispositionPatient) {
+    return (
+      <DesktopDispositionWorkflow
+        patient={{
+          name: dispositionPatient.patientName,
+          registrationNumber: dispositionPatient.encounterId,
+          ageLabel: dispositionPatient.ageLabel ?? '-',
+          paymentLabel: dispositionPatient.paymentLabel ?? '-',
+          statusLabel: 'Encounter Rawat Inap'
+        }}
+        bannerMeta={RAWAT_INAP_BANNER_META}
+        summaryItems={[
+          { label: 'Encounter', value: dispositionPatient.encounterId, mono: true },
+          {
+            label: 'No. RM',
+            value: dispositionPatient.medicalRecordNumber ?? '-',
+            mono: true
+          },
+          { label: 'Umur', value: dispositionPatient.ageLabel ?? '-' },
+          { label: 'Kamar', value: dispositionPatient.wardName ?? '-' },
+          { label: 'Bed', value: dispositionPatient.bedName ?? '-' },
+          { label: 'DPJP', value: dispositionPatient.dpjpName ?? '-' },
+          { label: 'Diagnosis', value: dispositionPatient.diagnosisSummary ?? '-' },
+          { label: 'LOS', value: `${dispositionPatient.losDays} hari` },
+          { label: 'Penjamin', value: dispositionPatient.paymentLabel ?? '-' }
+        ]}
+        options={RAWAT_INAP_DISPOSITION_OPTIONS}
+        breadcrumbItems={['Rawat Inap', 'Daftar Pasien']}
+        title="Disposisi Pasien Rawat Inap"
+        resumeDocumentLabel="Resume Medis Rawat Inap"
+        backendNote="Detail field mockup seperti instruksi DPJP, obat pulang, penyebab kematian, dan data klinis tambahan sebagian besar masih UI; yang dikirim dari disposisi umum baru dischargeDisposition dan dischargeNote."
+        isSubmitting={isDispositionSubmitting}
+        onBack={() => setDispositionPatient(null)}
+        onConfirm={async (payload) => {
+          if (!onDispositionConfirm) {
+            handleAction()
+            return
+          }
+
+          await onDispositionConfirm(dispositionPatient, payload)
+          setDispositionPatient(null)
+        }}
+      />
+    )
+  }
 
   const hasActiveFilters =
     queryParams.search ||
@@ -373,10 +483,11 @@ export function RawatInapPasienPage({
                       size="small"
                       onClick={(e) => {
                         e.stopPropagation()
-                        handleAction()
+                        setSelectedEncounterId(p.encounterId)
+                        setDispositionPatient(p)
                       }}
                     >
-                      Pulang
+                      Disposisi
                     </DesktopButton>
                   )}
                 </div>
@@ -459,8 +570,14 @@ export function RawatInapPasienPage({
                   )
                 )}
                 {selected.encounterStatus === 'IN_PROGRESS' && (
-                  <DesktopButton emphasis="primary" onClick={handleAction}>
-                    Proses Pulang
+                  <DesktopButton
+                    emphasis="primary"
+                    onClick={() => {
+                      setSelectedEncounterId(selected.encounterId)
+                      setDispositionPatient(selected)
+                    }}
+                  >
+                    Proses Disposisi
                   </DesktopButton>
                 )}
               </div>

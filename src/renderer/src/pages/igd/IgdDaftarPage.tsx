@@ -1,6 +1,6 @@
 import type { ColumnsType } from 'antd/es/table'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { useMemo } from 'react'
+import React, { useMemo } from 'react'
 
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
@@ -48,6 +48,15 @@ type IgdDaftarPageProps = {
 }
 
 type IgdStatusVariant = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
+type TriageLevelMeta = {
+  label: string
+  name: string
+  colorName: string
+  badgeTone: DesktopTriageBadgeTone
+  background: string
+  borderColor: string
+  color: string
+}
 
 const TRIAGE_LEVEL_META = {
   1: {
@@ -95,18 +104,17 @@ const TRIAGE_LEVEL_META = {
     borderColor: 'var(--border-strong)',
     color: 'var(--text-3)'
   }
-} satisfies Record<
-  IgdDashboardPatient['triageLevel'],
-  {
-    label: string
-    name: string
-    colorName: string
-    badgeTone: DesktopTriageBadgeTone
-    background: string
-    borderColor: string
-    color: string
-  }
->
+} satisfies Record<IgdDashboardPatient['triageLevel'], TriageLevelMeta>
+
+const TRIAGE_LEVEL_FALLBACK_META: TriageLevelMeta = {
+  label: 'L-',
+  name: 'Belum triase',
+  colorName: 'Menunggu penilaian',
+  badgeTone: 'neutral',
+  background: 'var(--surface-2)',
+  borderColor: 'var(--border-strong)',
+  color: 'var(--text-3)'
+}
 
 const STATUS_META: Record<
   IgdStatusVariant,
@@ -117,6 +125,34 @@ const STATUS_META: Record<
   penanganan: { label: 'Penanganan', tone: 'accent', dotStatus: 'accent' },
   observasi: { label: 'Observasi', tone: 'violet', dotStatus: 'info' },
   disposisi: { label: 'Disposisi', tone: 'success', dotStatus: 'success' }
+}
+
+const DEFAULT_STATUS_META = {
+  label: 'Menunggu',
+  tone: 'neutral',
+  dotStatus: 'neutral'
+} satisfies { label: string; tone: DesktopStatusPillTone; dotStatus: DesktopStatus }
+
+const getTriageLevelMeta = (level: unknown): TriageLevelMeta => {
+  if (level === 1 || level === 2 || level === 3 || level === 4 || level === 5) {
+    return TRIAGE_LEVEL_META[level]
+  }
+
+  return TRIAGE_LEVEL_FALLBACK_META
+}
+
+const getStatusMeta = (status: unknown) => {
+  if (
+    status === 'menunggu' ||
+    status === 'triase' ||
+    status === 'penanganan' ||
+    status === 'observasi' ||
+    status === 'disposisi'
+  ) {
+    return STATUS_META[status]
+  }
+
+  return DEFAULT_STATUS_META
 }
 
 const getTriageRowClassName = (patient: IgdDashboardPatient, isSelected: boolean) =>
@@ -162,6 +198,8 @@ export function IgdDaftarPage({
   const patients = dashboard.patients
   const selectedPatient =
     patients.find((patient) => patient.id === selectedPatientId) ?? patients[0] ?? null
+  const selectedPatientTriageMeta = getTriageLevelMeta(selectedPatient?.triageLevel)
+  const selectedPatientStatusMeta = getStatusMeta(selectedPatient?.status)
   const criticalCount = patients.filter((patient) => patient.triageLevel <= 2).length
   const triageCounts = useMemo(
     () => [
@@ -480,25 +518,23 @@ export function IgdDaftarPage({
                   <div
                     className="igd-detail-panel-header"
                     style={{
-                      background: TRIAGE_LEVEL_META[selectedPatient.triageLevel].background,
-                      borderBottomColor: TRIAGE_LEVEL_META[selectedPatient.triageLevel].borderColor
+                      background: selectedPatientTriageMeta.background,
+                      borderBottomColor: selectedPatientTriageMeta.borderColor
                     }}
                   >
-                    <DesktopTriageBadge
-                      tone={TRIAGE_LEVEL_META[selectedPatient.triageLevel].badgeTone}
-                    >
-                      {TRIAGE_LEVEL_META[selectedPatient.triageLevel].label}
+                    <DesktopTriageBadge tone={selectedPatientTriageMeta.badgeTone}>
+                      {selectedPatientTriageMeta.label}
                     </DesktopTriageBadge>
                     <div
                       className="igd-detail-level-text"
-                      style={{ color: TRIAGE_LEVEL_META[selectedPatient.triageLevel].color }}
+                      style={{ color: selectedPatientTriageMeta.color }}
                     >
-                      {TRIAGE_LEVEL_META[selectedPatient.triageLevel].name.toUpperCase()} ·{' '}
-                      {TRIAGE_LEVEL_META[selectedPatient.triageLevel].colorName}
+                      {selectedPatientTriageMeta.name.toUpperCase()} ·{' '}
+                      {selectedPatientTriageMeta.colorName}
                     </div>
                     <div className="ml-auto">
-                      <DesktopStatusPill tone={STATUS_META[selectedPatient.status].tone}>
-                        {STATUS_META[selectedPatient.status].label}
+                      <DesktopStatusPill tone={selectedPatientStatusMeta.tone}>
+                        {selectedPatientStatusMeta.label}
                       </DesktopStatusPill>
                     </div>
                   </div>
