@@ -8,30 +8,27 @@ import {
   getZoneTriageRangeLabel
 } from './igd.bed-zoning'
 
-test('level 3 quick triage only exposes observasi beds', () => {
-  const beds = filterAvailableBedsForTriage(createIgdDashboardFixture().beds, 3)
+test('quick triage exposes every available IGD bed without level filtering', () => {
+  const beds = filterAvailableBedsForTriage(createIgdDashboardFixture().beds, 0)
 
   assert.deepEqual(
     beds.map((bed) => bed.code),
-    ['O-02', 'O-03', 'O-05', 'O-06']
+    ['R-02', 'R-03', 'R-04', 'O-02', 'O-03', 'O-05', 'O-06', 'T-01', 'T-02', 'I-01', 'I-02']
   )
 })
 
-test('level 4 quick triage exposes observasi and treatment beds', () => {
-  const beds = filterAvailableBedsForTriage(createIgdDashboardFixture().beds, 4)
-
-  assert.deepEqual(
-    beds.map((bed) => bed.code),
-    ['O-02', 'O-03', 'O-05', 'O-06', 'T-01', 'T-02']
-  )
+test('allowed bed zones are no longer constrained by triage level', () => {
+  assert.deepEqual(getAllowedBedZonesForTriage(undefined), [
+    'Resusitasi',
+    'Observasi',
+    'Tindakan',
+    'Isolasi'
+  ])
 })
 
-test('missing quick triage keeps bed field locked by returning no allowed zones', () => {
-  assert.deepEqual(getAllowedBedZonesForTriage(undefined), [])
-})
-
-test('zone header exposes the approved triage range labels', () => {
-  assert.equal(getZoneTriageRangeLabel('Resusitasi'), 'L1-L2')
-  assert.equal(getZoneTriageRangeLabel('Observasi'), 'L3-L4')
-  assert.equal(getZoneTriageRangeLabel('Treatment'), 'L4-L5')
+test('zone header exposes only the active IGD rooms', () => {
+  assert.equal(getZoneTriageRangeLabel('Resusitasi'), 'Semua level')
+  assert.equal(getZoneTriageRangeLabel('Observasi'), 'Semua level')
+  assert.equal(getZoneTriageRangeLabel('Tindakan'), 'Semua level')
+  assert.equal(getZoneTriageRangeLabel('Isolasi'), 'Semua level')
 })

@@ -7,15 +7,33 @@
  */
 import type { PatientAttributes } from 'simrs-types'
 
+import type { IgdBedZoneName } from './igd.bed-zoning'
+import type { IgdTriageLevel } from './igd.triage-level'
 import { getQuickTriageLevel } from './igd.quick-triage'
 import { resolveIgdTriageLevel } from './igd-triage-level-resolver'
 
 export type IgdArrivalSource = 'Datang sendiri' | 'Rujukan' | 'Polisi'
 export type IgdPaymentMethod = 'Umum' | 'BPJS' | 'Asuransi' | 'Perusahaan'
 export type IgdRegistrationMode = 'baru' | 'existing' | 'temporary'
-export type IgdDashboardPatientStatus = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
+export type IgdDashboardPatientStatus =
+  | 'menunggu'
+  | 'triase'
+  | 'penanganan'
+  | 'observasi'
+  | 'disposisi'
 export type IgdDashboardBedStatus = 'available' | 'occupied' | 'cleaning'
-export type IgdDashboardBedZone = 'Resusitasi' | 'Observasi' | 'Treatment'
+export type IgdDashboardBedZone = IgdBedZoneName
+
+export type IgdDashboardPatientTimeTracking = {
+  arrivalTime: string
+  quickTriageTime?: string
+  triageTime?: string
+  doctorAssignedTime?: string
+  bedAssignedTime?: string
+  bedReleasedTime?: string
+  referredTime?: string
+  closedTime?: string
+}
 
 export type IgdDashboardPatient = {
   id: string
@@ -31,7 +49,7 @@ export type IgdDashboardPatient = {
   complaint: string
   paymentLabel: IgdPaymentMethod
   arrivalSource: IgdArrivalSource
-  triageLevel: number
+  triageLevel: IgdTriageLevel
   status: IgdDashboardPatientStatus
   unitLabel: string
   bedCode?: string
@@ -47,6 +65,7 @@ export type IgdDashboardPatient = {
   }
   doctorName: string
   doctorTargetName: string
+  timeTracking: IgdDashboardPatientTimeTracking
   guarantorName?: string | null
   estimatedCost?: number | null
 }
@@ -66,8 +85,7 @@ export type IgdDashboardBed = {
 export type IgdDashboard = {
   summary: {
     totalActive: number
-    triageCounts: Record<string, number>
-    activeTriageLevels: number[]
+    triageCounts: Record<'0' | '1' | '2' | '3' | '4', number>
     bedAvailable: number
     bedTotal: number
     averageResponseMinutes: number
@@ -75,6 +93,29 @@ export type IgdDashboard = {
   }
   patients: IgdDashboardPatient[]
   beds: IgdDashboardBed[]
+}
+
+export type IgdDailyShiftReportItem = {
+  key: 'morning' | 'afternoon' | 'night'
+  label: string
+  startTime: string
+  endTime: string
+  totalPatients: number
+}
+
+export type IgdDailyCaseTypeReportItem = {
+  key: 'trauma' | 'non-trauma'
+  label: string
+  value: string
+  note?: string
+}
+
+export type IgdDailyReport = {
+  date: string
+  generatedAt: string
+  totalPatients: number
+  shiftTotals: IgdDailyShiftReportItem[]
+  caseTypeSummary: IgdDailyCaseTypeReportItem[]
 }
 
 export type IgdRegistrationDraft = {
@@ -87,12 +128,23 @@ export type IgdRegistrationDraft = {
   arrivalDateTime: string
   arrivalSource: IgdArrivalSource
   paymentMethod: IgdPaymentMethod
+  mitraId?: string
   complaint: string
   guarantorName: string
   guarantorRelationship: string
   guarantorNik: string
   guarantorPhone: string
 }
+
+export type IgdGuarantorRelatedPerson = {
+  name: string
+  phone: string
+  relationship: string
+  email?: string
+  isGuarantor?: boolean
+}
+
+export type IgdGuarantorSource = 'new' | `existing:${number}`
 
 export type IgdRegistrationCommand = {
   patientType: 'existing' | 'new' | 'temporary'
@@ -121,6 +173,7 @@ export type IgdRegistrationCommand = {
       phone: string
       relationship: string
       email?: string
+      isGuarantor?: boolean
     }>
     active?: boolean
     familyEmployee?: number | null
@@ -130,6 +183,7 @@ export type IgdRegistrationCommand = {
   complaint: string
   arrivalSource: IgdArrivalSource
   paymentMethod: IgdPaymentMethod
+  mitraId?: number
   arrivalDateTime?: string
   guarantor?: {
     name?: string
@@ -138,7 +192,7 @@ export type IgdRegistrationCommand = {
     phone?: string
   }
   quickTriage?: {
-    level: number
+    level: IgdTriageLevel
     conditionKey: string
     effectiveDateTime: string
   }
@@ -148,6 +202,7 @@ export type SubmitIgdRegistrationInput = {
   mode: IgdRegistrationMode
   draft: IgdRegistrationDraft
   selectedPatient?: PatientAttributes
+  guarantorSource?: IgdGuarantorSource
   intent: 'daftar' | 'triase'
   quickCondition: string
   activeTriageLevels?: number[]
@@ -157,7 +212,6 @@ export const EMPTY_IGD_DASHBOARD: IgdDashboard = {
   summary: {
     totalActive: 0,
     triageCounts: { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0 },
-    activeTriageLevels: [0, 1, 2, 3, 4],
     bedAvailable: 0,
     bedTotal: 0,
     averageResponseMinutes: 0,
@@ -171,10 +225,9 @@ export function createIgdDashboardFixture(): IgdDashboard {
   return {
     summary: {
       totalActive: 4,
-      triageCounts: { '0': 0, '1': 1, '2': 1, '3': 1, '4': 1 },
-      activeTriageLevels: [0, 1, 2, 3, 4],
-      bedAvailable: 8,
-      bedTotal: 12,
+      triageCounts: { '0': 1, '1': 1, '2': 1, '3': 1, '4': 0 },
+      bedAvailable: 11,
+      bedTotal: 14,
       averageResponseMinutes: 4,
       totalToday: 4
     },
@@ -192,23 +245,23 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Trauma kepala berat',
         paymentLabel: 'Umum',
         arrivalSource: 'Polisi',
-        triageLevel: 1,
+        triageLevel: 0,
         status: 'observasi',
         unitLabel: 'IGD',
         bedCode: 'R-01',
         arrivalTime: '09:15',
-        triageTime: '09:18',
-        vitalSigns: {
-          bloodPressure: '90/60',
-          pulseRate: '112',
-          respiratoryRate: '28',
-          oxygenSaturation: '94',
-          temperature: '37.8',
-          gcs: 'Somnolen'
-        },
+        triageTime: '09:25',
         doctorName: 'dr. IGD',
         doctorTargetName: 'dr. IGD',
-        guarantorName: null,
+        timeTracking: {
+          arrivalTime: '09:15',
+          quickTriageTime: '09:18',
+          triageTime: '09:25',
+          doctorAssignedTime: '09:23',
+          bedAssignedTime: '09:55',
+          bedReleasedTime: '09:50'
+        },
+        guarantorName: 'Siti Aminah',
         estimatedCost: 725000
       },
       {
@@ -224,7 +277,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Perdarahan aktif post partum',
         paymentLabel: 'BPJS',
         arrivalSource: 'Rujukan',
-        triageLevel: 2,
+        triageLevel: 1,
         status: 'triase',
         unitLabel: 'IGD',
         arrivalTime: '09:22',
@@ -238,7 +291,11 @@ export function createIgdDashboardFixture(): IgdDashboard {
         },
         doctorName: '',
         doctorTargetName: '',
-        guarantorName: null,
+        timeTracking: {
+          arrivalTime: '09:22',
+          quickTriageTime: '09:27'
+        },
+        guarantorName: 'Sri Wahyuni',
         estimatedCost: null
       },
       {
@@ -254,22 +311,22 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Nyeri dada hebat',
         paymentLabel: 'BPJS',
         arrivalSource: 'Datang sendiri',
-        triageLevel: 3,
+        triageLevel: 2,
         status: 'penanganan',
         unitLabel: 'IGD',
         bedCode: 'O-01',
         arrivalTime: '09:35',
-        triageTime: '09:40',
-        vitalSigns: {
-          bloodPressure: '126/82',
-          pulseRate: '86',
-          respiratoryRate: '20',
-          oxygenSaturation: '98',
-          temperature: '36.7',
-          gcs: 'Compos Mentis'
-        },
+        triageTime: '09:42',
         doctorName: 'dr. IGD',
         doctorTargetName: 'dr. IGD',
+        timeTracking: {
+          arrivalTime: '09:35',
+          quickTriageTime: '09:40',
+          triageTime: '09:42',
+          doctorAssignedTime: '09:45',
+          bedAssignedTime: '09:47',
+          referredTime: '11:20'
+        },
         guarantorName: null,
         estimatedCost: 460000
       },
@@ -286,12 +343,15 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Vulnus scissum jari tangan kanan',
         paymentLabel: 'Umum',
         arrivalSource: 'Datang sendiri',
-        triageLevel: 4,
+        triageLevel: 3,
         status: 'menunggu',
         unitLabel: 'IGD',
         arrivalTime: '09:55',
         doctorName: '',
         doctorTargetName: '',
+        timeTracking: {
+          arrivalTime: '09:55'
+        },
         guarantorName: null,
         estimatedCost: null
       }
@@ -401,23 +461,43 @@ export function createIgdDashboardFixture(): IgdDashboard {
       },
       {
         code: 'T-01',
-        zone: 'Treatment',
+        zone: 'Tindakan',
         status: 'available',
         patientId: null,
         bedId: 'bed-t-01',
         roomId: 'room-treat',
-        roomCodeId: 'IGD-TREAT',
-        roomClassCodeId: 'TREAT'
+        roomCodeId: 'IGD-TINDAKAN',
+        roomClassCodeId: 'IGD_TINDAKAN'
       },
       {
         code: 'T-02',
-        zone: 'Treatment',
+        zone: 'Tindakan',
         status: 'available',
         patientId: null,
         bedId: 'bed-t-02',
         roomId: 'room-treat',
-        roomCodeId: 'IGD-TREAT',
-        roomClassCodeId: 'TREAT'
+        roomCodeId: 'IGD-TINDAKAN',
+        roomClassCodeId: 'IGD_TINDAKAN'
+      },
+      {
+        code: 'I-01',
+        zone: 'Isolasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-i-01',
+        roomId: 'room-isol',
+        roomCodeId: 'IGD-ISOLASI',
+        roomClassCodeId: 'IGD_ISOLASI'
+      },
+      {
+        code: 'I-02',
+        zone: 'Isolasi',
+        status: 'available',
+        patientId: null,
+        bedId: 'bed-i-02',
+        roomId: 'room-isol',
+        roomCodeId: 'IGD-ISOLASI',
+        roomClassCodeId: 'IGD_ISOLASI'
       }
     ]
   }
@@ -445,6 +525,47 @@ function buildGuarantor(draft: IgdRegistrationDraft) {
   }
 }
 
+export function getExistingPatientRelatedPersons(
+  selectedPatient?: PatientAttributes
+): IgdGuarantorRelatedPerson[] {
+  const raw = Array.isArray((selectedPatient as any)?.relatedPerson)
+    ? ((selectedPatient as any).relatedPerson as any[])
+    : []
+
+  return raw
+    .map((person) => ({
+      name: String(person?.name ?? '').trim(),
+      phone: String(person?.phone ?? '').trim(),
+      relationship: String(person?.relationship ?? '').trim(),
+      email: person?.email ? String(person.email).trim() : undefined,
+      isGuarantor: person?.isGuarantor === true || undefined
+    }))
+    .filter((person) => person.name || person.phone || person.relationship || person.email)
+}
+
+export function getDefaultGuarantorSource(selectedPatient?: PatientAttributes): IgdGuarantorSource {
+  const relatedPersons = getExistingPatientRelatedPersons(selectedPatient)
+  const guarantorIndex = relatedPersons.findIndex((person) => person.isGuarantor)
+
+  return guarantorIndex >= 0 ? (`existing:${guarantorIndex}` as IgdGuarantorSource) : 'new'
+}
+
+export function getSelectedExistingGuarantor(
+  selectedPatient: PatientAttributes | undefined,
+  guarantorSource: IgdGuarantorSource | undefined
+): IgdGuarantorRelatedPerson | undefined {
+  if (!guarantorSource || guarantorSource === 'new') {
+    return undefined
+  }
+
+  const index = Number(guarantorSource.replace('existing:', ''))
+  if (!Number.isInteger(index) || index < 0) {
+    return undefined
+  }
+
+  return getExistingPatientRelatedPersons(selectedPatient)[index]
+}
+
 function buildRelatedPersons(draft: IgdRegistrationDraft) {
   const guarantor = buildGuarantor(draft)
 
@@ -456,7 +577,8 @@ function buildRelatedPersons(draft: IgdRegistrationDraft) {
     {
       name: guarantor.name || guarantor.nik || 'Penanggung Jawab',
       phone: guarantor.phone || '',
-      relationship: guarantor.relationship || 'Penanggung Jawab'
+      relationship: guarantor.relationship || 'Penanggung Jawab',
+      isGuarantor: true
     }
   ]
 }
@@ -483,21 +605,39 @@ function buildQuickTriage({
   }
 }
 
+function resolveMitraId(draft: IgdRegistrationDraft): number | undefined {
+  if (draft.paymentMethod === 'Umum') {
+    return undefined
+  }
+
+  const numericMitraId = Number(draft.mitraId)
+  return Number.isFinite(numericMitraId) && numericMitraId > 0 ? numericMitraId : undefined
+}
+
 export function buildIgdRegistrationCommand({
   mode,
   draft,
   selectedPatient,
+  guarantorSource = 'new',
   intent,
   quickCondition,
   activeTriageLevels
 }: SubmitIgdRegistrationInput): IgdRegistrationCommand {
+  const selectedExistingGuarantor = getSelectedExistingGuarantor(selectedPatient, guarantorSource)
   const baseCommand = {
     complaint: draft.complaint.trim(),
     arrivalSource: draft.arrivalSource,
     paymentMethod: draft.paymentMethod,
+    ...(resolveMitraId(draft) !== undefined ? { mitraId: resolveMitraId(draft) } : {}),
     arrivalDateTime: draft.arrivalDateTime,
-    guarantor: buildGuarantor(draft),
-    quickTriage: buildQuickTriage({ intent, draft, quickCondition, activeTriageLevels })
+    guarantor: selectedExistingGuarantor
+      ? {
+          name: selectedExistingGuarantor.name || undefined,
+          relationship: selectedExistingGuarantor.relationship || undefined,
+          phone: selectedExistingGuarantor.phone || undefined
+        }
+      : buildGuarantor(draft),
+    quickTriage: buildQuickTriage({ intent, draft, quickCondition })
   } satisfies Omit<IgdRegistrationCommand, 'patientType'>
 
   if (mode === 'existing') {

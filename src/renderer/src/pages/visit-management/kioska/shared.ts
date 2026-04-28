@@ -2,6 +2,8 @@ export type KioskaPoliOption = {
   id: number
   name: string
   prefix?: string
+  remainingQuota?: number | null
+  description?: string | null
 }
 
 export const KIOSKA_POLI_STORAGE_KEY = 'kioska-selected-poli'

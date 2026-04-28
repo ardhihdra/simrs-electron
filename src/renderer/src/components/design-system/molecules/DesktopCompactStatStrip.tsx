@@ -1,4 +1,6 @@
-import React, { type ReactNode } from 'react'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import React from 'react'
+import { type CSSProperties, type ReactNode } from 'react'
 
 import { DesktopTriageBadge, type DesktopTriageBadgeTone } from '../atoms/DesktopTriageBadge'
 
@@ -10,6 +12,7 @@ export interface DesktopCompactStatStripProps {
     label: string
     value: string
     tone: DesktopTriageBadgeTone
+    badgeStyle?: CSSProperties
   }>
   bedAvailable?: string
   bedTotal?: string
@@ -79,7 +82,7 @@ export function DesktopCompactStatStrip({
 
         <div>
           <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
-            Cleaning
+            Pembersihan
           </span>
           <b className="block font-mono text-[18px] leading-none text-[var(--ds-color-warning)]">
             {bedSummary.cleaningBeds}
@@ -97,7 +100,7 @@ export function DesktopCompactStatStrip({
           </span>
           <span className="inline-flex items-center gap-[6px] text-[12px] text-[var(--ds-color-text-muted)]">
             <span className="h-[10px] w-[10px] rounded-[3px] border border-[var(--ds-color-warning)] bg-[color-mix(in_srgb,var(--ds-color-warning)_14%,white)]" />
-            <span>Cleaning</span>
+            <span>Pembersihan</span>
           </span>
           {bedSummary.actionSlot}
         </div>
@@ -118,7 +121,7 @@ export function DesktopCompactStatStrip({
 
       {triageLevels.map((level) => (
         <div key={level.label} className="flex flex-col items-center gap-[4px]">
-          <DesktopTriageBadge tone={level.tone} compact>
+          <DesktopTriageBadge tone={level.tone} compact style={level.badgeStyle}>
             {level.label}
           </DesktopTriageBadge>
           <b className="font-mono text-[16px] leading-none text-[var(--ds-color-text)]">{level.value}</b>

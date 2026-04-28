@@ -27,6 +27,7 @@ const createDraft = (): IgdRegistrationDraft => ({
   arrivalDateTime: '2026-04-22T10:25',
   arrivalSource: 'Datang sendiri',
   paymentMethod: 'BPJS',
+  mitraId: '77',
   complaint: 'Nyeri dada hebat',
   guarantorName: 'Sri Wahyuni',
   guarantorRelationship: 'Suami/Istri',
@@ -50,20 +51,40 @@ test('buildIgdRegistrationCommand maps existing patient mode to patientId payloa
   const selectedPatient = {
     id: 'patient-existing-1',
     medicalRecordNumber: 'MRN-001',
-    name: 'Sutrisno Hadi'
-  } as PatientAttributes
+    name: 'Sutrisno Hadi',
+    relatedPerson: [
+      {
+        name: 'Budi',
+        phone: '082222222222',
+        relationship: 'Anak'
+      },
+      {
+        name: 'Sri Wahyuni',
+        phone: '081200000999',
+        relationship: 'Suami/Istri',
+        isGuarantor: true
+      }
+    ]
+  } as unknown as PatientAttributes
 
   const payload = buildIgdRegistrationCommand({
     mode: 'existing',
     draft: createDraft(),
     selectedPatient,
+    guarantorSource: 'existing:1',
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.patientType, 'existing')
   assert.equal(payload.patientId, 'patient-existing-1')
   assert.equal(payload.patientData, undefined)
+  assert.equal(payload.mitraId, 77)
+  assert.deepEqual(payload.guarantor, {
+    name: 'Sri Wahyuni',
+    phone: '081200000999',
+    relationship: 'Suami/Istri'
+  })
 })
 
 test('buildIgdRegistrationCommand maps new patient mode to create-patient payload', () => {
@@ -71,7 +92,7 @@ test('buildIgdRegistrationCommand maps new patient mode to create-patient payloa
     mode: 'baru',
     draft: createDraft(),
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.patientType, 'new')
@@ -79,7 +100,16 @@ test('buildIgdRegistrationCommand maps new patient mode to create-patient payloa
   assert.equal(payload.patientData?.gender, 'male')
   assert.equal(payload.patientData?.birthDate, '1988-04-21')
   assert.equal(payload.patientData?.needEmr, true)
+  assert.equal(payload.mitraId, 77)
   assert.equal(payload.guarantor?.name, 'Sri Wahyuni')
+  assert.deepEqual(payload.patientData?.relatedPerson, [
+    {
+      name: 'Sri Wahyuni',
+      phone: '081200000999',
+      relationship: 'Suami/Istri',
+      isGuarantor: true
+    }
+  ])
   assert.equal(payload.quickTriage, undefined)
 })
 
@@ -93,7 +123,7 @@ test('buildIgdRegistrationCommand maps temporary patient mode to minimal payload
       estimatedAge: '~45'
     },
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.patientType, 'temporary')
@@ -101,6 +131,7 @@ test('buildIgdRegistrationCommand maps temporary patient mode to minimal payload
   assert.equal(payload.patientData?.gender, '?')
   assert.equal(payload.patientData?.estimatedAge, '~45')
   assert.equal(payload.patientData?.birthDate, undefined)
+  assert.equal(payload.mitraId, 77)
 })
 
 test('buildIgdRegistrationCommand rejects existing mode without selected patient', () => {
@@ -110,10 +141,47 @@ test('buildIgdRegistrationCommand rejects existing mode without selected patient
         mode: 'existing' as IgdRegistrationMode,
         draft: createDraft(),
         intent: 'daftar',
-        quickCondition: 'l1-critical'
+        quickCondition: 'l0-critical'
       }),
     /Pilih pasien terlebih dahulu/
   )
+})
+
+test('buildIgdRegistrationCommand keeps manual guarantor input when existing patient chooses create new', () => {
+  const selectedPatient = {
+    id: 'patient-existing-2',
+    medicalRecordNumber: 'MRN-002',
+    name: 'Wahyu Handayani',
+    relatedPerson: [
+      {
+        name: 'Ibu Wahyu',
+        phone: '081299999999',
+        relationship: 'Orang Tua',
+        isGuarantor: true
+      }
+    ]
+  } as unknown as PatientAttributes
+
+  const payload = buildIgdRegistrationCommand({
+    mode: 'existing',
+    draft: {
+      ...createDraft(),
+      guarantorName: 'Penanggung Jawab Baru',
+      guarantorRelationship: 'Saudara',
+      guarantorPhone: '081211111111'
+    },
+    selectedPatient,
+    guarantorSource: 'new',
+    intent: 'daftar',
+    quickCondition: 'l0-critical'
+  })
+
+  assert.deepEqual(payload.guarantor, {
+    name: 'Penanggung Jawab Baru',
+    relationship: 'Saudara',
+    nik: '3201010101010099',
+    phone: '081211111111'
+  })
 })
 
 test('buildIgdRegistrationCommand includes quick triage when intent is triase', () => {
@@ -121,12 +189,12 @@ test('buildIgdRegistrationCommand includes quick triage when intent is triase', 
     mode: 'baru',
     draft: createDraft(),
     intent: 'triase',
-    quickCondition: 'l2-shock'
+    quickCondition: 'l1-shock'
   })
 
   assert.deepEqual(payload.quickTriage, {
-    level: 2,
-    conditionKey: 'l2-shock',
+    level: 1,
+    conditionKey: 'l1-shock',
     effectiveDateTime: '2026-04-22T10:25'
   })
 })
@@ -136,20 +204,23 @@ test('buildIgdRegistrationCommand omits quick triage when intent is daftar', () 
     mode: 'baru',
     draft: createDraft(),
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.quickTriage, undefined)
 })
 
-test('buildIgdRegistrationCommand clamps quick triage level to active triage levels', () => {
+test('buildIgdRegistrationCommand omits mitraId for Umum payment even when stale draft value exists', () => {
   const payload = buildIgdRegistrationCommand({
     mode: 'baru',
-    draft: createDraft(),
-    intent: 'triase',
-    quickCondition: 'l5-stable',
-    activeTriageLevels: [0, 2, 3]
+    draft: {
+      ...createDraft(),
+      paymentMethod: 'Umum',
+      mitraId: '77'
+    },
+    intent: 'daftar',
+    quickCondition: 'l0-critical'
   })
 
-  assert.equal(payload.quickTriage?.level, 3)
+  assert.equal('mitraId' in payload, false)
 })

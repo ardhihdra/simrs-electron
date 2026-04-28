@@ -33,12 +33,11 @@ export function useKioskaPatientLookup() {
     }
 
     let cancelled = false
+    setIsResolvingPatient(true)
 
     const timer = window.setTimeout(() => {
       void (async () => {
         try {
-          setIsResolvingPatient(true)
-
           const patients = await fetchKioskaPatients({
             medicalRecordNumber: state.rawatJalan.mrn.trim()
           })

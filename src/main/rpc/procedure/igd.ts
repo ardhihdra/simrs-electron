@@ -10,6 +10,11 @@ import z from 'zod'
 import { t } from '..'
 
 const IgdDashboardInputSchema = z.object({}).default({})
+const IgdDailyReportInputSchema = z
+  .object({
+    date: z.string().optional()
+  })
+  .default({})
 const IgdRegistrationInputSchema = z.object({
   patientType: z.enum(['existing', 'new', 'temporary']),
   patientId: z.string().optional(),
@@ -17,6 +22,7 @@ const IgdRegistrationInputSchema = z.object({
   complaint: z.string().min(1),
   arrivalSource: z.enum(['Datang sendiri', 'Rujukan', 'Polisi']),
   paymentMethod: z.enum(['Umum', 'BPJS', 'Asuransi', 'Perusahaan']),
+  mitraId: z.number().int().positive().optional(),
   arrivalDateTime: z.string().optional(),
   guarantor: z
     .object({
@@ -28,7 +34,7 @@ const IgdRegistrationInputSchema = z.object({
     .optional(),
   quickTriage: z
     .object({
-      level: z.number().int().min(0),
+      level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
       conditionKey: z.string().min(1),
       effectiveDateTime: z.string().min(1)
     })
@@ -45,6 +51,14 @@ export function normalizeIgdDashboardResponse(payload: any) {
   }
 
   throw new Error('Invalid IGD dashboard response')
+}
+
+export function normalizeIgdDailyReportResponse(payload: any) {
+  if (payload?.result) {
+    return payload.result
+  }
+
+  throw new Error('Invalid IGD daily report response')
 }
 
 export function normalizeIgdRegistrationResponse(payload: any) {
@@ -75,6 +89,21 @@ export const igdRpc = {
       const response = await client.get('/api/module/igd/dashboard')
       const payload = await response.json()
       return normalizeIgdDashboardResponse(payload)
+    }),
+  dailyReport: t
+    .input(IgdDailyReportInputSchema)
+    .output(z.any())
+    .query(async ({ client }, input) => {
+      const params = new URLSearchParams()
+      if (input.date) {
+        params.append('date', input.date)
+      }
+      const queryString = params.toString()
+      const response = await client.get(
+        `/api/module/igd/reports/daily${queryString ? `?${queryString}` : ''}`
+      )
+      const payload = await response.json()
+      return normalizeIgdDailyReportResponse(payload)
     }),
   register: t
     .input(IgdRegistrationInputSchema)

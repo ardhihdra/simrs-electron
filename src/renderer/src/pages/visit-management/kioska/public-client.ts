@@ -3,12 +3,36 @@ import type { KioskaCheckinError } from './global/kioska-checkin-error'
 import { createKioskaCheckinError } from './global/kioska-checkin-error'
 import type { KioskaPoliOption } from './shared'
 
+export type KioskaDoctorSession = {
+  sessionNumber: number
+  startTime: string
+  endTime: string
+  quota?: number
+}
+
+export type KioskaDoctorTimeSlot = {
+  startTime: string
+  endTime: string
+}
+
+export type KioskaDoctorQuota = {
+  isUnlimited: boolean
+  totalQuota: number | null
+  usedQuota: number
+  cancelledQuota: number
+  remainingQuota: number | null
+}
+
 export type KioskaDoctor = {
   doctorId: number
   doctorName?: string
   doctorScheduleId: number
   poliId: number
   poliName?: string
+  kategori?: string
+  timeSlot?: KioskaDoctorTimeSlot | null
+  sessions?: KioskaDoctorSession[]
+  quota?: KioskaDoctorQuota
 }
 
 export type KioskaWorkLocation = {

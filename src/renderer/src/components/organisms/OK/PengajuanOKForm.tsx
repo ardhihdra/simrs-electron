@@ -1,9 +1,9 @@
 /**
- * purpose: Form pengajuan kamar operasi untuk rajal/ranap/IGD (cyto) termasuk jadwal, paket tindakan, consent, dan dokumen pendukung.
- * main callers: OK workspace (`ok-workspace.tsx`) dan halaman pengajuan OK (`ok-submission-page.tsx`).
- * key dependencies: Hook OK request, hook master paket tindakan, hook performer/ruang OK, tarif kelas, dan komponen informed consent.
- * main/public functions: `PengajuanOKForm`.
- * side effects: Query master data, submit pengajuan OK (write), upload dokumen pendukung (HTTP/file), dan simpan questionnaire consent.
+ * Purpose: Form pengajuan OK dari unit pengirim termasuk jadwal, paket tindakan, consent, dan upload berkas.
+ * Main callers: Halaman workflow OK (rajal/ranap/igd) yang me-render PengajuanOKForm.
+ * Key dependencies: hook query OK request, master paket tarif, selector fallback tarif OK, questionnaire response, upload dokumen.
+ * Main/public functions: PengajuanOKForm (submit pengajuan OK + simpan consent terkait).
+ * Side effects: request create OK, upload file pendukung, create QuestionnaireResponse, baca data referensi master.
  */
 import React, { useState, useRef, useMemo, useEffect } from 'react'
 import {
@@ -26,7 +26,8 @@ import {
   Modal,
   Tabs,
   Spin,
-  Empty
+  Empty,
+  Space
 } from 'antd'
 import { DeleteOutlined, InboxOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface'
@@ -45,10 +46,13 @@ import { useCreateQuestionnaireResponse } from '@renderer/hooks/query/use-questi
 import { SelectKelasTarif } from '@renderer/components/molecules/SelectKelasTarif'
 import {
   DEFAULT_KELAS_TARIF_OPTIONS,
-  KELAS_ORDER,
   getKelasTarifLabel,
   normalizeKelasTarifValue
 } from '@renderer/utils/tarif-kelas'
+import {
+  type TarifPayerCategory,
+  type TarifSelectionSource
+} from '@renderer/utils/ok-tarif-selector'
 import { useTarifKelasOptions } from '@renderer/hooks/query/use-tarif-kelas-options'
 import {
   useMasterPaketTindakanList,
@@ -60,6 +64,12 @@ import {
 } from '@renderer/types/questionnaire.types'
 import type { Dayjs } from 'dayjs'
 import { OkRequestPriority, OkRequestSourceUnit, OkRequestStatus } from 'simrs-types'
+import {
+  mapPengajuanOkPaymentMethodToPayerCategory,
+  pickPengajuanOkActiveTarifByKelas,
+  type PengajuanOkActivePaketTarif,
+  type PengajuanOkTarifRow
+} from './pengajuan-ok-tarif-flow'
 
 const { Title, Text } = Typography
 const { Dragger } = Upload
@@ -105,11 +115,6 @@ interface PengajuanOKProps {
   onSuccess?: () => void
 }
 
-interface ActivePaketTarif {
-  kelas: string
-  tarif: number
-}
-
 interface BodyMapMarker {
   [key: string]: unknown
   id: number
@@ -118,10 +123,7 @@ interface BodyMapMarker {
   note: string
 }
 
-type TarifListRow = NonNullable<MasterPaketTindakanItem['tarifList']>[number] & {
-  tarifPaket?: number | string | null
-  nominal?: number | string | null
-}
+type TarifListRow = NonNullable<MasterPaketTindakanItem['tarifList']>[number] & PengajuanOkTarifRow
 
 type CreateOkRequestPayload = Parameters<
   NonNullable<Window['api']['query']['okRequest']['create']>
@@ -241,12 +243,15 @@ const mapPaymentMethodToTarifKelas = (paymentMethod: unknown): string => {
   }
 }
 
-const mapSifatOperasiToPriority = (sifatOperasi: unknown): OkRequestPriority => {
+const resolveIsCytoFromSifatOperasi = (sifatOperasi: unknown): boolean => {
   const normalized = String(sifatOperasi || '')
     .trim()
     .toLowerCase()
+  return normalized === 'cyto' || normalized === 'cito' || normalized === 'emergency'
+}
 
-  if (normalized === 'cyto' || normalized === 'cito' || normalized === 'emergency') {
+const mapSifatOperasiToPriority = (sifatOperasi: unknown): OkRequestPriority => {
+  if (resolveIsCytoFromSifatOperasi(sifatOperasi)) {
     return OkRequestPriority.EMERGENCY
   }
 
@@ -333,53 +338,14 @@ const classifySubmitErrorSource = (messageText: string): 'Validasi Form' | 'IPC'
 
 const getKelasLabel = getKelasTarifLabel
 
-const extractTarifValue = (tarifRow: TarifListRow | null | undefined): number | null => {
-  const candidates = [tarifRow?.tarifTotal, tarifRow?.tarifPaket, tarifRow?.nominal]
-  for (const value of candidates) {
-    const num = Number(value)
-    if (Number.isFinite(num) && num >= 0) return num
-  }
-  return null
-}
-
 const pickActiveTarifByKelas = (
-  tarifList: Array<TarifListRow | null | undefined>
-): ActivePaketTarif[] => {
-  const today = dayjs().startOf('day')
-  const latestByKelas = new Map<string, { effectiveFrom: Dayjs; tarif: number }>()
-
-  for (const row of Array.isArray(tarifList) ? tarifList : []) {
-    if (row?.aktif === false) continue
-
-    const kelas = normalizeKelas(row?.kelas)
-    if (!kelas) continue
-
-    const tarif = extractTarifValue(row)
-    if (tarif === null) continue
-
-    const effectiveFrom = dayjs(row?.effectiveFrom)
-    if (!effectiveFrom.isValid() || effectiveFrom.isAfter(today, 'day')) continue
-
-    const effectiveTo = row?.effectiveTo ? dayjs(row.effectiveTo) : null
-    if (effectiveTo && effectiveTo.isValid() && effectiveTo.isBefore(today, 'day')) continue
-
-    const existing = latestByKelas.get(kelas)
-    if (!existing || effectiveFrom.isAfter(existing.effectiveFrom, 'day')) {
-      latestByKelas.set(kelas, { effectiveFrom, tarif })
-    }
+  tarifList: Array<TarifListRow | null | undefined>,
+  context: {
+    payerCategory: TarifPayerCategory
+    isCyto: boolean
+    tariffDate: string
   }
-
-  return Array.from(latestByKelas.entries())
-    .map(([kelas, item]) => ({ kelas, tarif: item.tarif }))
-    .sort((a, b) => {
-      const idxA = KELAS_ORDER.indexOf(a.kelas)
-      const idxB = KELAS_ORDER.indexOf(b.kelas)
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB
-      if (idxA !== -1) return -1
-      if (idxB !== -1) return 1
-      return a.kelas.localeCompare(b.kelas)
-    })
-}
+): PengajuanOkActivePaketTarif[] => pickPengajuanOkActiveTarifByKelas(tarifList, context)
 
 export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
   type,
@@ -387,7 +353,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
   patientData,
   onSuccess
 }) => {
-  const { message: messageApi } = App.useApp()
+  const { message: messageApi, modal } = App.useApp()
   const [form] = Form.useForm()
   const config = useMemo(() => SERVICE_CONFIGS[type], [type])
   const [activeTab, setActiveTab] = useState('1')
@@ -519,18 +485,39 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
       .filter((item): item is MasterPaketTindakanItem => !!item)
   }, [paketById, selectedPaketIds])
 
+  const selectedSifatOperasi = Form.useWatch('sifatOperasi', form) as string | undefined
+  const selectedIsCyto = useMemo(
+    () => resolveIsCytoFromSifatOperasi(selectedSifatOperasi),
+    [selectedSifatOperasi]
+  )
+
+  const selectedPayerCategory = useMemo<TarifPayerCategory>(() => {
+    const paymentMethod =
+      patientData?.queueTicket?.paymentMethod || patientData?.encounter?.queueTicket?.paymentMethod
+    return mapPengajuanOkPaymentMethodToPayerCategory(paymentMethod)
+  }, [patientData])
+
+  const tariffEvaluationDate = useMemo(() => {
+    const source = selectedScheduleStart ? dayjs(selectedScheduleStart) : dayjs()
+    return source.isValid() ? source.format('YYYY-MM-DD') : dayjs().format('YYYY-MM-DD')
+  }, [selectedScheduleStart])
+
   const activeTarifByPaketId = useMemo(() => {
-    const map = new Map<number, ActivePaketTarif[]>()
+    const map = new Map<number, PengajuanOkActivePaketTarif[]>()
     ;(masterPaketList || []).forEach((paket) => {
       const paketId = Number(paket?.id)
       if (!Number.isFinite(paketId) || paketId <= 0) return
       map.set(
         paketId,
-        pickActiveTarifByKelas(Array.isArray(paket?.tarifList) ? paket.tarifList : [])
+        pickActiveTarifByKelas(Array.isArray(paket?.tarifList) ? paket.tarifList : [], {
+          payerCategory: selectedPayerCategory,
+          isCyto: selectedIsCyto,
+          tariffDate: tariffEvaluationDate
+        })
       )
     })
     return map
-  }, [masterPaketList])
+  }, [masterPaketList, selectedIsCyto, selectedPayerCategory, tariffEvaluationDate])
 
   const kelasOrderMap = useMemo(() => {
     const map = new Map<string, number>()
@@ -587,22 +574,43 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
 
   useEffect(() => {
     const current = normalizeKelas(form.getFieldValue('selectedTarifKelas'))
-    if (!current && initialTarifKelas) {
+    if ((!current || !availableKelasSet.has(current)) && initialTarifKelas) {
       form.setFieldValue('selectedTarifKelas', initialTarifKelas)
     }
-  }, [form, initialTarifKelas])
+  }, [availableKelasSet, form, initialTarifKelas])
 
   const selectedKelasTarifByPaketId = useMemo(() => {
-    const map = new Map<number, number>()
+    const map = new Map<
+      number,
+      {
+        tarif: number
+        source: TarifSelectionSource
+        resolvedPayerCategory: TarifPayerCategory
+      }
+    >()
     if (!selectedTarifKelasNormalized) return map
     activeTarifByPaketId.forEach((tarifList, paketId) => {
       const matchedTarif = tarifList.find(
         (tarif) => normalizeKelas(tarif?.kelas) === selectedTarifKelasNormalized
       )
-      if (matchedTarif) map.set(paketId, Number(matchedTarif.tarif))
+      if (matchedTarif) {
+        map.set(paketId, {
+          tarif: Number(matchedTarif.tarif),
+          source: matchedTarif.source,
+          resolvedPayerCategory: matchedTarif.resolvedPayerCategory
+        })
+      }
     })
     return map
   }, [activeTarifByPaketId, selectedTarifKelasNormalized])
+
+  const fallbackPaketIdSet = useMemo(() => {
+    const set = new Set<number>()
+    selectedKelasTarifByPaketId.forEach((value, paketId) => {
+      if (value?.source === 'fallback_umum') set.add(paketId)
+    })
+    return set
+  }, [selectedKelasTarifByPaketId])
 
   const selectablePaketIdSet = useMemo(() => {
     const set = new Set<number>()
@@ -635,6 +643,10 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
       `[PengajuanOKForm][Debug Paket] total=${paketList.length} selectable=${selectableIds.length}`
     )
     console.log('selectedTarifKelasNormalized:', selectedTarifKelasNormalized)
+    console.log('selectedPayerCategory:', selectedPayerCategory)
+    console.log('selectedIsCyto:', selectedIsCyto)
+    console.log('tariffEvaluationDate:', tariffEvaluationDate)
+    console.log('fallbackPaketIds:', Array.from(fallbackPaketIdSet.values()))
     console.log('referenceKelasOptions:', referenceKelasOptions)
     console.log('availableKelasOptions:', availableKelasOptions)
     console.log('selectablePaketIds:', selectableIds)
@@ -646,7 +658,11 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     availableKelasOptions,
     masterPaketList,
     referenceKelasOptions,
+    selectedIsCyto,
+    selectedPayerCategory,
+    fallbackPaketIdSet,
     selectablePaketIdSet,
+    tariffEvaluationDate,
     selectedTarifKelasNormalized
   ])
 
@@ -759,22 +775,25 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     })
     if (invalidPaket.length > 0) {
       notifyError(
-        `Ada paket yang tidak punya tarif aktif untuk kelas ${getKelasLabel(selectedKelas)}.`
+        `Ada paket tanpa tarif aktif untuk varian ${getKelasLabel(selectedKelas)} / ${selectedPayerCategory.toUpperCase()} / ${selectedIsCyto ? 'CYTO' : 'NON-CYTO'}.`
       )
       return
     }
+    const fallbackSelectedPaket = selectedPaketIdNumbers.filter(
+      (paketId) => selectedKelasTarifByPaketId.get(paketId)?.source === 'fallback_umum'
+    )
 
     const paketTindakanList = selectedPaketIdNumbers.map((paketId, index) => {
       const paket = paketById.get(paketId)
-      const tarifUntukKelas = selectedKelasTarifByPaketId.get(paketId)
+      const tarifMeta = selectedKelasTarifByPaketId.get(paketId)
       return {
         paketId,
         paketKodeSnapshot: String(paket?.kodePaket || ''),
         paketNamaSnapshot: String(paket?.namaPaket || ''),
         kategoriPaketSnapshot: paket?.kategoriPaket || null,
         kelasTarifSnapshot: selectedKelas || null,
-        tarifPaketSnapshot: Number.isFinite(Number(tarifUntukKelas))
-          ? Number(tarifUntukKelas)
+        tarifPaketSnapshot: Number.isFinite(Number(tarifMeta?.tarif))
+          ? Number(tarifMeta?.tarif)
           : null,
         sortOrder: index
       }
@@ -829,9 +848,11 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
         const roomLabel =
           roomOptions.find((room) => Number(room.value) === normalizedOperatingRoomId)?.label ||
           `Ruang #${normalizedOperatingRoomId}`
-        messageApi.warning(
+        setActiveTab('1')
+        notifyError(
           `Jadwal bentrok di ${roomLabel} dengan ${firstConflict.kode || `ID ${firstConflict.id}`} (${formatScheduleDateTime(firstConflict.scheduledStartAt)} - ${formatScheduleDateTime(firstConflict.scheduledEndAt)}).`
         )
+        return
       }
     }
 
@@ -855,210 +876,229 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
       dokumenPendukung: values.dokumenPendukung || null
     }
 
-    createOkRequest.mutate(payload, {
-      onSuccess: async (res) => {
-        const typedResult = res as CreateOkRequestResult
-        const okRequestId = typedResult.result?.id
+    const submitCreateOkRequest = () => {
+      createOkRequest.mutate(payload, {
+        onSuccess: async (res) => {
+          const typedResult = res as CreateOkRequestResult
+          const okRequestId = typedResult.result?.id
 
-        // Jika ada data informed consent, simpan QuestionnaireResponse
-        if (values.receiver_name && okRequestId) {
-          try {
-            const items: QuestionnaireResponseItem[] = [
-              { linkId: 'receiver-name', text: 'Nama Penerima', valueString: values.receiver_name },
-              {
-                linkId: 'receiver-birthdate',
-                text: 'Tanggal Lahir Penerima',
-                valueDateTime: values.receiver_birthdate?.toISOString()
-              },
-              {
-                linkId: 'receiver-address',
-                text: 'Alamat Penerima',
-                valueString: values.receiver_address
-              },
-              {
-                linkId: 'consent-type',
-                text: 'Jenis Persetujuan',
-                valueString: values.consent_type
-              },
-              {
-                linkId: 'diagnosis',
-                text: 'Diagnosis (WD & DD)',
-                valueString: values.info_diagnosis,
-                item: [
-                  {
-                    linkId: 'diagnosis-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_diagnosis
-                  }
-                ]
-              },
-              {
-                linkId: 'basis',
-                text: 'Dasar Diagnosis',
-                valueString: values.info_basis,
-                item: [
-                  {
-                    linkId: 'basis-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_basis
-                  }
-                ]
-              },
-              {
-                linkId: 'procedure',
-                text: 'Tindakan Kedokteran',
-                valueString: values.info_procedure,
-                item: [
-                  {
-                    linkId: 'procedure-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_procedure
-                  }
-                ]
-              },
-              {
-                linkId: 'indication',
-                text: 'Indikasi Tindakan',
-                valueString: values.info_indication,
-                item: [
-                  {
-                    linkId: 'indication-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_indication
-                  }
-                ]
-              },
-              {
-                linkId: 'method',
-                text: 'Tata Cara',
-                valueString: values.info_method,
-                item: [
-                  {
-                    linkId: 'method-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_method
-                  }
-                ]
-              },
-              {
-                linkId: 'objective',
-                text: 'Tujuan',
-                valueString: values.info_objective,
-                item: [
-                  {
-                    linkId: 'objective-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_objective
-                  }
-                ]
-              },
-              {
-                linkId: 'risk',
-                text: 'Risiko',
-                valueString: values.info_risk,
-                item: [
-                  {
-                    linkId: 'risk-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_risk
-                  }
-                ]
-              },
-              {
-                linkId: 'complication',
-                text: 'Komplikasi',
-                valueString: values.info_complication,
-                item: [
-                  {
-                    linkId: 'complication-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_complication
-                  }
-                ]
-              },
-              {
-                linkId: 'prognosis',
-                text: 'Prognosis',
-                valueString: values.info_prognosis,
-                item: [
-                  {
-                    linkId: 'prognosis-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_prognosis
-                  }
-                ]
-              },
-              {
-                linkId: 'alternative',
-                text: 'Alternatif & Risiko',
-                valueString: values.info_alternative,
-                item: [
-                  {
-                    linkId: 'alternative-check',
-                    text: 'Sudah Dijelaskan',
-                    valueBoolean: values.check_alternative
-                  }
-                ]
-              },
-              { linkId: 'witness1', text: 'Saksi 1', valueString: values.witness1_name },
-              { linkId: 'witness2', text: 'Saksi 2', valueString: values.witness2_name },
-              {
-                linkId: 'signature-doctor',
-                text: 'Tanda Tangan Dokter',
-                valueString: signatures['doctor']
-              },
-              {
-                linkId: 'signature-receiver',
-                text: 'Tanda Tangan Penerima',
-                valueString: signatures['receiver']
-              },
-              {
-                linkId: 'signature-witness1',
-                text: 'Tanda Tangan Saksi 1',
-                valueString: signatures['witness1']
-              },
-              {
-                linkId: 'signature-witness2',
-                text: 'Tanda Tangan Saksi 2',
-                valueString: signatures['witness2']
-              }
-            ]
+          // Jika ada data informed consent, simpan QuestionnaireResponse
+          if (values.receiver_name && okRequestId) {
+            try {
+              const items: QuestionnaireResponseItem[] = [
+                {
+                  linkId: 'receiver-name',
+                  text: 'Nama Penerima',
+                  valueString: values.receiver_name
+                },
+                {
+                  linkId: 'receiver-birthdate',
+                  text: 'Tanggal Lahir Penerima',
+                  valueDateTime: values.receiver_birthdate?.toISOString()
+                },
+                {
+                  linkId: 'receiver-address',
+                  text: 'Alamat Penerima',
+                  valueString: values.receiver_address
+                },
+                {
+                  linkId: 'consent-type',
+                  text: 'Jenis Persetujuan',
+                  valueString: values.consent_type
+                },
+                {
+                  linkId: 'diagnosis',
+                  text: 'Diagnosis (WD & DD)',
+                  valueString: values.info_diagnosis,
+                  item: [
+                    {
+                      linkId: 'diagnosis-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_diagnosis
+                    }
+                  ]
+                },
+                {
+                  linkId: 'basis',
+                  text: 'Dasar Diagnosis',
+                  valueString: values.info_basis,
+                  item: [
+                    {
+                      linkId: 'basis-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_basis
+                    }
+                  ]
+                },
+                {
+                  linkId: 'procedure',
+                  text: 'Tindakan Kedokteran',
+                  valueString: values.info_procedure,
+                  item: [
+                    {
+                      linkId: 'procedure-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_procedure
+                    }
+                  ]
+                },
+                {
+                  linkId: 'indication',
+                  text: 'Indikasi Tindakan',
+                  valueString: values.info_indication,
+                  item: [
+                    {
+                      linkId: 'indication-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_indication
+                    }
+                  ]
+                },
+                {
+                  linkId: 'method',
+                  text: 'Tata Cara',
+                  valueString: values.info_method,
+                  item: [
+                    {
+                      linkId: 'method-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_method
+                    }
+                  ]
+                },
+                {
+                  linkId: 'objective',
+                  text: 'Tujuan',
+                  valueString: values.info_objective,
+                  item: [
+                    {
+                      linkId: 'objective-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_objective
+                    }
+                  ]
+                },
+                {
+                  linkId: 'risk',
+                  text: 'Risiko',
+                  valueString: values.info_risk,
+                  item: [
+                    {
+                      linkId: 'risk-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_risk
+                    }
+                  ]
+                },
+                {
+                  linkId: 'complication',
+                  text: 'Komplikasi',
+                  valueString: values.info_complication,
+                  item: [
+                    {
+                      linkId: 'complication-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_complication
+                    }
+                  ]
+                },
+                {
+                  linkId: 'prognosis',
+                  text: 'Prognosis',
+                  valueString: values.info_prognosis,
+                  item: [
+                    {
+                      linkId: 'prognosis-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_prognosis
+                    }
+                  ]
+                },
+                {
+                  linkId: 'alternative',
+                  text: 'Alternatif & Risiko',
+                  valueString: values.info_alternative,
+                  item: [
+                    {
+                      linkId: 'alternative-check',
+                      text: 'Sudah Dijelaskan',
+                      valueBoolean: values.check_alternative
+                    }
+                  ]
+                },
+                { linkId: 'witness1', text: 'Saksi 1', valueString: values.witness1_name },
+                { linkId: 'witness2', text: 'Saksi 2', valueString: values.witness2_name },
+                {
+                  linkId: 'signature-doctor',
+                  text: 'Tanda Tangan Dokter',
+                  valueString: signatures['doctor']
+                },
+                {
+                  linkId: 'signature-receiver',
+                  text: 'Tanda Tangan Penerima',
+                  valueString: signatures['receiver']
+                },
+                {
+                  linkId: 'signature-witness1',
+                  text: 'Tanda Tangan Saksi 1',
+                  valueString: signatures['witness1']
+                },
+                {
+                  linkId: 'signature-witness2',
+                  text: 'Tanda Tangan Saksi 2',
+                  valueString: signatures['witness2']
+                }
+              ]
 
-            await createQuestionnaireResponse({
-              encounterId,
-              subjectId: patientData?.subjectId || patientData?.patient?.id || '',
-              status: QuestionnaireResponseStatus.COMPLETED,
-              authored: values.assessment_date?.toISOString() || new Date().toISOString(),
-              authorId: values.performerId,
-              okRequestId: okRequestId,
-              items
-            })
-          } catch (qcErr) {
-            console.error('Failed to save Informed Consent part:', qcErr)
+              await createQuestionnaireResponse({
+                encounterId,
+                subjectId: patientData?.subjectId || patientData?.patient?.id || '',
+                status: QuestionnaireResponseStatus.COMPLETED,
+                authored: values.assessment_date?.toISOString() || new Date().toISOString(),
+                authorId: values.performerId,
+                okRequestId: okRequestId,
+                items
+              })
+            } catch (qcErr) {
+              console.error('Failed to save Informed Consent part:', qcErr)
+            }
           }
-        }
 
-        notifySuccess('Pengajuan OK berhasil dikirim')
-        onSuccess?.()
-      },
-      onError: (err: unknown) => {
-        const typedError = err as { message?: unknown }
-        const rawMessage =
-          typeof typedError?.message === 'string' && typedError.message.length > 0
-            ? typedError.message
-            : 'Terjadi kesalahan saat submit pengajuan OK'
-        if (rawMessage.toLowerCase().includes('jadwal operasi bentrok')) {
-          setActiveTab('1')
+          notifySuccess('Pengajuan OK berhasil dikirim')
+          onSuccess?.()
+        },
+        onError: (err: unknown) => {
+          const typedError = err as { message?: unknown }
+          const rawMessage =
+            typeof typedError?.message === 'string' && typedError.message.length > 0
+              ? typedError.message
+              : 'Terjadi kesalahan saat submit pengajuan OK'
+          if (rawMessage.toLowerCase().includes('jadwal operasi bentrok')) {
+            setActiveTab('1')
+          }
+          const source = classifySubmitErrorSource(rawMessage)
+          console.error('[PengajuanOKForm] submit failed', {
+            source,
+            error: typedError,
+            message: rawMessage
+          })
+          notifyError(`${source}: ${rawMessage}`)
         }
-        const source = classifySubmitErrorSource(rawMessage)
-        console.error('[PengajuanOKForm] submit failed', {
-          source,
-          error: typedError,
-          message: rawMessage
-        })
-        notifyError(`${source}: ${rawMessage}`)
-      }
-    })
+      })
+    }
+
+    if (fallbackSelectedPaket.length > 0) {
+      modal.confirm({
+        title: 'Konfirmasi Fallback Tarif',
+        content: `${fallbackSelectedPaket.length} paket tidak punya tarif ${selectedPayerCategory.toUpperCase()} dan akan memakai tarif UMUM. Lanjutkan pengajuan?`,
+        okText: 'Ya, Lanjutkan',
+        cancelText: 'Batal',
+        onOk: submitCreateOkRequest
+      })
+      return
+    }
+
+    submitCreateOkRequest()
   }
 
   const handleFinishFailed = (errorInfo: FormFinishErrorInfo) => {
@@ -1419,6 +1459,16 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
           <Card size="small" className="shadow-none border-gray-200">
             <Row gutter={[16, 12]}>
               <Col xs={24} md={24}>
+                <Space size={[8, 8]} wrap>
+                  <Tag color="geekblue" className="m-0">
+                    Penjamin: {selectedPayerCategory.toUpperCase()}
+                  </Tag>
+                  <Tag color={selectedIsCyto ? 'red' : 'green'} className="m-0">
+                    Sifat Operasi: {selectedIsCyto ? 'CYTO' : 'EFEKTIF'}
+                  </Tag>
+                </Space>
+              </Col>
+              <Col xs={24} md={24}>
                 <Form.Item
                   name="selectedTarifKelas"
                   label="Kelas Tarif"
@@ -1508,14 +1558,17 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                               {!hasSelectedKelas ? (
                                 <Tag className="mt-2 m-0">Pilih kelas tarif</Tag>
                               ) : hasTarifForSelectedKelas ? (
-                                <Tag color="blue" className="mt-2 m-0">
-                                  {getKelasLabel(selectedTarifKelasNormalized)}:{' '}
-                                  {formatCurrency(Number(selectedKelasTarif))}
-                                </Tag>
+                                <Space size={[8, 8]} wrap className="mt-2">
+                                  <Tag color="blue" className="m-0">
+                                    {getKelasLabel(selectedTarifKelasNormalized)}:{' '}
+                                    {formatCurrency(Number(selectedKelasTarif?.tarif || 0))}
+                                  </Tag>
+                                </Space>
                               ) : (
                                 <Tag color="warning" className="mt-2 m-0">
-                                  Tarif kelas {getKelasLabel(selectedTarifKelasNormalized)} belum
-                                  diatur
+                                  Tarif varian {getKelasLabel(selectedTarifKelasNormalized)} /{' '}
+                                  {selectedPayerCategory.toUpperCase()} /{' '}
+                                  {selectedIsCyto ? 'CYTO' : 'NON-CYTO'} belum diatur
                                 </Tag>
                               )}
                               {!canChoose && hasSelectedKelas && (
@@ -1554,10 +1607,12 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                       </div>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {selectedTarifKelasNormalized && selectedKelasTarif !== undefined ? (
-                          <Tag color="blue" className="m-0">
-                            {getKelasLabel(selectedTarifKelasNormalized)}:{' '}
-                            {formatCurrency(Number(selectedKelasTarif))}
-                          </Tag>
+                          <>
+                            <Tag color="blue" className="m-0">
+                              {getKelasLabel(selectedTarifKelasNormalized)}:{' '}
+                              {formatCurrency(Number(selectedKelasTarif?.tarif || 0))}
+                            </Tag>
+                          </>
                         ) : (
                           <Tag color="warning" className="m-0">
                             Tarif belum diatur

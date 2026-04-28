@@ -1,24 +1,36 @@
 import {
   ArrowLeftOutlined,
   CheckCircleOutlined,
+  EditOutlined,
   LockOutlined,
   PlusOutlined,
   PrinterOutlined,
   RollbackOutlined
 } from '@ant-design/icons'
 import { rpc, client } from '@renderer/utils/client'
-import { Button, Divider, Popconfirm, Spin, Table, Tag, Typography, message } from 'antd'
+import {
+  Button,
+  Divider,
+  Dropdown,
+  Popconfirm,
+  Select,
+  Spin,
+  Table,
+  Tag,
+  Typography,
+  message
+} from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PaymentHistory } from './payment-history'
 import { PaymentModal } from './payment-modal'
 import { printInvoice, printReceipt } from '@renderer/utils/print-service'
 import type { Invoice, PersistedInvoice, InvoiceLineItem } from '@renderer/utils/print-service'
-import { Dropdown } from 'antd'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import logoUrl from '@renderer/assets/logo.png'
+import { SignaturePadModal } from '@renderer/components/molecules/SignaturePadModal'
 
 const { Title, Text } = Typography
 
@@ -74,7 +86,38 @@ function formatPrintableDate(date: Date | string | null | undefined): string {
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   issued: { label: 'Terkonfirmasi', color: 'blue' },
   balanced: { label: 'Lunas', color: 'green' },
-  draft: { label: 'Draft', color: 'default' }
+  draft: { label: 'Draft', color: 'default' },
+  dp: { label: 'DP', color: 'blue' },
+  sebagian: { label: 'Sebagian', color: 'violet' }
+}
+
+const SIGNATURE_SOURCE_OPTIONS = [
+  { label: 'Input Manual', value: 'manual' },
+  { label: 'Ambil dari Kepegawaian', value: 'kepegawaian' }
+]
+
+function toFileUrl(path?: string | null): string | undefined {
+  if (!path || typeof path !== 'string') return undefined
+  const trimmed = path.trim()
+  if (!trimmed) return undefined
+
+  if (
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:')
+  ) {
+    return trimmed
+  }
+
+  const normalizedPath = trimmed.replace(/\\/g, '/').replace(/^\/+/, '')
+  const base = String(window.env?.API_URL || '').replace(/\/+$/, '')
+
+  if (normalizedPath.startsWith('api/files/')) {
+    const relative = normalizedPath.replace(/^api\/files\//, '')
+    return `${base}/public/${relative}`
+  }
+
+  return `${base}/public/${normalizedPath}`
 }
 
 function InvoiceSection({
@@ -379,6 +422,10 @@ export default function InvoiceDetailPage() {
   const queryClient = useQueryClient()
   const [confirming, setConfirming] = useState(false)
   const [paymentModalOpen, setPaymentModalOpen] = useState(false)
+  const [signatureSource, setSignatureSource] = useState<'manual' | 'kepegawaian'>('manual')
+  const [manualCashierSignature, setManualCashierSignature] = useState<string>('')
+  const [selectedCashierTtdUrl, setSelectedCashierTtdUrl] = useState<string | null>(null)
+  const [signatureModalVisible, setSignatureModalVisible] = useState(false)
 
   const { Title, Text } = Typography
 
@@ -387,7 +434,6 @@ export default function InvoiceDetailPage() {
     encounterId: encounterId!,
     patientId
   })
-  console.log('invoice data', data)
 
   // Persisted invoice (null if not yet confirmed)
   const {
@@ -399,7 +445,6 @@ export default function InvoiceDetailPage() {
     queryFn: () => rpc.kasir.getInvoiceDetail({ encounterId: encounterId! }),
     enabled: !!encounterId
   })
-  console.log('detailData', detailData)
 
   const invoice = (data as { result: Invoice } | undefined)?.result
   const persistedInvoice = (detailData as { result: PersistedInvoice } | undefined)?.result ?? null
@@ -410,20 +455,58 @@ export default function InvoiceDetailPage() {
     queryFn: () => (window.api?.query as any).kepegawaian?.list()
   })
 
-  // Resolve cashier name
-  const cashierName = (() => {
-    if (!profile || !requesterData?.result) return profile?.username || ''
+  const cashierEmployee = useMemo(() => {
+    if (!profile || !requesterData?.result) return null
     const employees = requesterData.result as any[]
     const sessionId = Number(profile.id)
     const sessionUsername = String(profile.username || '').trim()
-    const foundEmployee = employees.find(
-      (e) =>
-        e.id === sessionId ||
-        (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
-        (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+    return (
+      employees.find(
+        (e) =>
+          e.id === sessionId ||
+          (typeof e.nik === 'string' && e.nik.trim() === sessionUsername) ||
+          (typeof e.namaLengkap === 'string' && e.namaLengkap.trim() === sessionUsername)
+      ) || null
     )
-    return foundEmployee?.namaLengkap || profile.username || ''
-  })()
+  }, [profile, requesterData?.result])
+
+  useEffect(() => {
+    if (!cashierEmployee) {
+      setSelectedCashierTtdUrl(null)
+      return
+    }
+
+    const ttdUrl = cashierEmployee.ttdUrl || cashierEmployee.ttd_url || null
+    setSelectedCashierTtdUrl(typeof ttdUrl === 'string' && ttdUrl.trim() ? ttdUrl : null)
+  }, [cashierEmployee])
+
+  const cashierName = useMemo(() => {
+    if (!profile) return ''
+    if (!cashierEmployee) return profile.username || ''
+    return cashierEmployee.namaLengkap || profile.username || ''
+  }, [cashierEmployee, profile])
+
+  const cashierSignatureUrl = useMemo(() => {
+    if (signatureSource === 'manual') {
+      return manualCashierSignature || undefined
+    }
+
+    return toFileUrl(selectedCashierTtdUrl)
+  }, [manualCashierSignature, selectedCashierTtdUrl, signatureSource])
+
+  const hasKepegawaianSignature = Boolean(toFileUrl(selectedCashierTtdUrl))
+
+  const openSignatureModal = () => {
+    setSignatureModalVisible(true)
+  }
+
+  const saveManualSignature = (dataUrl: string) => {
+    setManualCashierSignature(dataUrl)
+  }
+
+  const resetManualSignature = () => {
+    setManualCashierSignature('')
+  }
 
   const reopenEncounterMutation = client.encounter.reopen.useMutation()
 
@@ -474,8 +557,19 @@ export default function InvoiceDetailPage() {
     )
   }
 
+  const currentStatus = (() => {
+    const s = persistedInvoice?.status || 'issued'
+    const total = Number(persistedInvoice?.total ?? 0)
+    const paid = Number(persistedInvoice?.total ?? 0) - Number(persistedInvoice?.remaining ?? 0)
+
+    if (s !== 'balanced' && paid > 0) {
+      return total === 0 ? 'dp' : 'sebagian'
+    }
+    return s
+  })()
+
   const statusInfo = persistedInvoice
-    ? (STATUS_LABEL[persistedInvoice.status as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
+    ? (STATUS_LABEL[currentStatus as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
     : null
   const isConfirmed = !!persistedInvoice && persistedInvoice.status !== 'draft'
   const isPaid = persistedInvoice?.status === 'balanced'
@@ -484,137 +578,190 @@ export default function InvoiceDetailPage() {
   return (
     <div className="p-4">
       {/* Toolbar */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
-          Kembali
-        </Button>
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'patient',
-                label: 'Atas Nama Pasien',
-                onClick: () =>
-                  invoice &&
-                  printInvoice(invoice, persistedInvoice, { printForKind: 'patient', cashierName })
-              },
-              {
-                key: 'guarantor',
-                label: 'Atas Nama Penjamin',
-                onClick: () =>
-                  invoice &&
-                  printInvoice(invoice, persistedInvoice, {
-                    printForKind: 'guarantor',
-                    cashierName
-                  })
-              }
-            ]
-          }}
-          disabled={!invoice}
-        >
-          <Button type="primary" icon={<PrinterOutlined />}>
-            Cetak Invoice
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        {/* Left: navigation + document identity */}
+        <div className="flex items-left gap-2">
+          <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} size="small">
+            Kembali
           </Button>
-        </Dropdown>
+          {statusInfo && (
+            <Tag
+              color={statusInfo.color}
+              icon={isPaid ? <CheckCircleOutlined /> : undefined}
+              className="text-sm px-3 py-1"
+            >
+              {statusInfo.label}
+            </Tag>
+          )}
+          {persistedInvoice && (
+            <span className="text-gray-400 text-sm font-mono">No. {persistedInvoice.kode}</span>
+          )}
+        </div>
 
-        <Dropdown
-          menu={{
-            items: [
-              {
-                key: 'patient',
-                label: 'Atas Nama Pasien',
-                onClick: () => {
-                  if (invoice && persistedInvoice) {
-                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining
-                    printReceipt(
-                      invoice,
-                      persistedInvoice,
-                      {
-                        amount: totalPaid,
-                        kode: persistedInvoice.kode,
-                        date: new Date()
-                      },
-                      { printForKind: 'patient', cashierName }
-                    )
-                  }
+        {/* Right: actions grouped by role */}
+        <div className="flex items-left gap-2">
+          {/* Destructive workflow action */}
+          {!isPaid && (
+            <>
+              <Popconfirm
+                title="Kembalikan ke Perawat?"
+                description="Status kunjungan akan berubah kembali menjadi Pemeriksaan agar bisa diperbaiki oleh Nurse/Dokter."
+                onConfirm={handleReopenEncounter}
+                okText="Ya, Kembalikan"
+                cancelText="Batal"
+                okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
+              >
+                <Button
+                  icon={<RollbackOutlined />}
+                  danger
+                  loading={reopenEncounterMutation.isPending}
+                  size="small"
+                >
+                  Kembalikan ke Perawat
+                </Button>
+              </Popconfirm>
+              <Divider type="vertical" />
+            </>
+          )}
+
+          {/* Print actions */}
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'patient',
+                  label: 'Atas Nama Pasien',
+                  onClick: () =>
+                    invoice &&
+                    printInvoice(invoice, persistedInvoice, {
+                      printForKind: 'patient',
+                      cashierName,
+                      cashierSignatureUrl
+                    })
+                },
+                {
+                  key: 'guarantor',
+                  label: 'Atas Nama Penjamin',
+                  onClick: () =>
+                    invoice &&
+                    printInvoice(invoice, persistedInvoice, {
+                      printForKind: 'guarantor',
+                      cashierName,
+                      cashierSignatureUrl
+                    })
                 }
-              },
-              {
-                key: 'guarantor',
-                label: 'Atas Nama Penjamin',
-                onClick: () => {
-                  if (invoice && persistedInvoice) {
-                    const totalPaid = persistedInvoice.total - persistedInvoice.remaining
-                    printReceipt(
-                      invoice,
-                      persistedInvoice,
-                      {
-                        amount: totalPaid,
-                        kode: persistedInvoice.kode,
-                        date: new Date()
-                      },
-                      { printForKind: 'guarantor', cashierName }
-                    )
-                  }
-                }
-              }
-            ]
-          }}
-          disabled={
-            !invoice ||
-            !persistedInvoice ||
-            persistedInvoice.total - persistedInvoice.remaining <= 0
-          }
-        >
-          <Button icon={<PrinterOutlined />}>Cetak Kwitansi</Button>
-        </Dropdown>
-
-        {!isPaid && (
-          <Popconfirm
-            title="Kembalikan ke Perawat?"
-            description="Status kunjungan akan berubah kembali menjadi Pemeriksaan agar bisa diperbaiki oleh Nurse/Dokter."
-            onConfirm={handleReopenEncounter}
-            okText="Ya, Kembalikan"
-            cancelText="Batal"
-            okButtonProps={{ danger: true, loading: reopenEncounterMutation.isPending }}
-          >
-            <Button icon={<RollbackOutlined />} danger loading={reopenEncounterMutation.isPending}>
-              Kembalikan ke Perawat
-            </Button>
-          </Popconfirm>
-        )}
-
-        {!isConfirmed && !isLoadingDetail && (
-          <Button
-            type="primary"
-            icon={<LockOutlined />}
-            loading={confirming}
-            onClick={handleConfirm}
+              ]
+            }}
             disabled={!invoice}
           >
-            Konfirmasi Invoice
-          </Button>
-        )}
+            <Button icon={<PrinterOutlined />} size="small">
+              Cetak Invoice
+            </Button>
+          </Dropdown>
 
-        {isConfirmed && !isPaid && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setPaymentModalOpen(true)}>
-            Tambah Pembayaran
-          </Button>
-        )}
-
-        {statusInfo && (
-          <Tag
-            color={statusInfo.color}
-            icon={isPaid ? <CheckCircleOutlined /> : undefined}
-            className="text-sm px-3 py-1"
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'patient',
+                  label: 'Atas Nama Pasien',
+                  onClick: () => {
+                    if (invoice && persistedInvoice) {
+                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                      printReceipt(
+                        invoice,
+                        persistedInvoice,
+                        { amount: totalPaid, kode: persistedInvoice.kode, date: new Date() },
+                        { printForKind: 'patient', cashierName, cashierSignatureUrl }
+                      )
+                    }
+                  }
+                },
+                {
+                  key: 'guarantor',
+                  label: 'Atas Nama Penjamin',
+                  onClick: () => {
+                    if (invoice && persistedInvoice) {
+                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                      printReceipt(
+                        invoice,
+                        persistedInvoice,
+                        { amount: totalPaid, kode: persistedInvoice.kode, date: new Date() },
+                        { printForKind: 'guarantor', cashierName, cashierSignatureUrl }
+                      )
+                    }
+                  }
+                }
+              ]
+            }}
+            disabled={
+              !invoice ||
+              !persistedInvoice ||
+              persistedInvoice.total - persistedInvoice.remaining <= 0
+            }
           >
-            {statusInfo.label}
-          </Tag>
-        )}
+            <Button icon={<PrinterOutlined />} size="small">
+              Cetak Kwitansi
+            </Button>
+          </Dropdown>
 
-        {persistedInvoice && (
-          <span className="text-gray-500 text-sm">No. {persistedInvoice.kode}</span>
-        )}
+          {/* Primary workflow action */}
+          {(!isConfirmed && !isLoadingDetail) || !isPaid ? (
+            <Divider type="vertical" className="!mx-0" />
+          ) : null}
+
+          {!isConfirmed && !isLoadingDetail && (
+            <Button
+              type="primary"
+              icon={<LockOutlined />}
+              loading={confirming}
+              onClick={handleConfirm}
+              disabled={!invoice}
+              size="small"
+            >
+              Konfirmasi Invoice
+            </Button>
+          )}
+
+          {!isPaid && (
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setPaymentModalOpen(true)}
+              size="small"
+            >
+              {isConfirmed ? 'Tambah Pembayaran' : 'Input DP (Uang Muka)'}
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500">Sumber TTD Kasir</span>
+          <Select
+            value={signatureSource}
+            options={SIGNATURE_SOURCE_OPTIONS}
+            style={{ width: 220 }}
+            onChange={(value) => setSignatureSource(value)}
+          />
+
+          {signatureSource === 'manual' ? (
+            <>
+              <Button icon={<EditOutlined />} onClick={openSignatureModal}>
+                Input Tanda Tangan
+              </Button>
+              {manualCashierSignature ? (
+                <Button size="small" onClick={resetManualSignature}>
+                  Hapus TTD Manual
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <Tag color={hasKepegawaianSignature ? 'green' : 'default'} className="m-0">
+              {hasKepegawaianSignature
+                ? 'Diambil dari Kepegawaian'
+                : 'Profil Pegawai Tidak Punya TTD'}
+            </Tag>
+          )}
+        </div>
       </div>
 
       {(isLoading || isLoadingDetail) && (
@@ -759,20 +906,28 @@ export default function InvoiceDetailPage() {
             invoice={invoice}
             persistedInvoice={persistedInvoice}
             cashierName={cashierName}
+            cashierSignatureUrl={cashierSignatureUrl}
           />
         </div>
       )}
 
       {/* Payment Modal */}
-      {isConfirmed && persistedInvoice && (
-        <PaymentModal
-          open={paymentModalOpen}
-          invoiceId={persistedInvoice.id}
-          remaining={persistedInvoice.remaining}
-          onCancel={() => setPaymentModalOpen(false)}
-          onSuccess={handlePaymentSuccess}
-        />
-      )}
+      <PaymentModal
+        open={paymentModalOpen}
+        invoiceId={persistedInvoice?.id}
+        encounterId={encounterId}
+        patientId={patientId}
+        remaining={persistedInvoice?.remaining ?? invoice?.total ?? 0}
+        onCancel={() => setPaymentModalOpen(false)}
+        onSuccess={handlePaymentSuccess}
+      />
+
+      <SignaturePadModal
+        title="Tanda Tangan Petugas Kasir"
+        visible={signatureModalVisible}
+        onClose={() => setSignatureModalVisible(false)}
+        onSave={saveManualSignature}
+      />
     </div>
   )
 }

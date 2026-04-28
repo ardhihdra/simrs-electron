@@ -15,6 +15,7 @@ export const Kepegawaian = sequelize.define(
     jenisKelamin: { type: DataTypes.ENUM('L', 'P'), allowNull: false },
     alamat: { type: DataTypes.STRING, allowNull: true },
     nomorTelepon: { type: DataTypes.STRING, allowNull: true },
+    ttdUrl: { type: DataTypes.TEXT, allowNull: true },
     hakAkses: {
       type: DataTypes.ENUM(
         'administrator',
@@ -105,6 +106,7 @@ export const KepegawaianSchema = z.object({
   jenisKelamin: z.enum(['L', 'P']).optional().nullable(),
   alamat: z.string().nullable().optional(),
   nomorTelepon: z.string().nullable().optional(),
+  ttdUrl: z.string().nullable().optional(),
   hakAksesId: z.string().nullable().optional(),
   hakAkses: z.string().nullable().optional(),
   emailVerified: z.boolean().optional(),

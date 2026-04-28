@@ -6,6 +6,18 @@ import {
 } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
+import {
+  InpatientPatientListQuerySchema,
+  InpatientPatientListResultSchema,
+  InpatientPatientListOptionsSchema,
+  normalizeInpatientPatientListResponse,
+  normalizeInpatientPatientListOptionsResponse,
+} from './encounter.schemas'
+
+export type { InpatientPatientListItem, InpatientPatientListResult, DpjpParticipantItem } from './encounter.schemas'
+export { normalizeInpatientPatientListResponse } from './encounter.schemas'
+
+// ── RPC procedures ────────────────────────────────────────────────────────────
 
 export const encounterRpc = {
   // list: GET /module/encounter?depth=1 (Active encounters usually)
@@ -81,8 +93,7 @@ export const encounterRpc = {
       return await data.json()
     }),
 
-
-    syncSatusehat: t
+  syncSatusehat: t
     .input(z.any())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
@@ -90,19 +101,86 @@ export const encounterRpc = {
       return await data.json()
     }),
 
-    syncExtracted: t
+  syncExtracted: t
     .input(z.any())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, input) => {
       const data = await client.post(`/api/module/encounter/${input.id}/sync-extracted`, input)
       return await data.json()
     }),
-  
+
   reopen: t
     .input(z.string())
     .output(ApiResponseSchema(z.any()))
     .mutation(async ({ client }, id) => {
       const data = await client.patch(`/api/module/encounter/${id}/reopen`, {})
       return await data.json()
-    })
+    }),
+
+  inpatientPatients: t
+    .input(InpatientPatientListQuerySchema)
+    .output(InpatientPatientListResultSchema)
+    .query(async ({ client }, input) => {
+      const params = new URLSearchParams()
+      params.set('page', String(input.page))
+      params.set('pageSize', String(input.pageSize))
+      if (input.search) params.set('search', input.search)
+      if (input.encounterStatus) params.set('encounterStatus', input.encounterStatus)
+      if (input.wardId) params.set('wardId', input.wardId)
+      if (input.dpjpName) params.set('dpjpName', input.dpjpName)
+      if (input.paymentType) params.set('paymentType', input.paymentType)
+      if (input.losCategory) params.set('losCategory', input.losCategory)
+      if (input.sortField) params.set('sortField', input.sortField)
+      if (input.sortOrder) params.set('sortOrder', input.sortOrder)
+      const data = await client.get(`/api/module/encounter/inpatient-patients?${params}`)
+      const payload = await data.json()
+      return normalizeInpatientPatientListResponse(payload)
+    }),
+
+  inpatientPatientOptions: t
+    .input(z.object({}).default({}))
+    .output(InpatientPatientListOptionsSchema)
+    .query(async ({ client }) => {
+      const data = await client.get('/api/module/encounter/inpatient-patients/options')
+      const payload = await data.json()
+      return normalizeInpatientPatientListOptionsResponse(payload)
+    }),
+
+  listDpjp: t
+    .input(z.string())
+    .output(z.any())
+    .query(async ({ client }, encounterId) => {
+      const data = await client.get(`/api/module/encounter/${encounterId}/dpjp`)
+      return await data.json()
+    }),
+
+  assignDpjp: t
+    .input(z.object({
+      encounterId: z.string(),
+      staffId: z.number(),
+      role: z.enum(['dpjp_utama', 'dpjp_tambahan']),
+      startAt: z.string().optional(),
+      notes: z.string().optional(),
+    }))
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      const data = await client.post(`/api/module/encounter/${input.encounterId}/dpjp`, {
+        staffId: input.staffId,
+        role: input.role,
+        startAt: input.startAt,
+        notes: input.notes,
+      })
+      return await data.json()
+    }),
+
+  removeDpjp: t
+    .input(z.object({
+      encounterId: z.string(),
+      participantId: z.number(),
+    }))
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      const data = await client.delete(`/api/module/encounter/${input.encounterId}/dpjp/${input.participantId}`)
+      return await data.json()
+    }),
 }

@@ -2,6 +2,7 @@ export type DashboardTabItem = {
   key: string
   label: string
   href?: string
+  icon?: import('react').ReactNode
 }
 
 export type ResolveInitialDashboardTabsInput = {
@@ -151,4 +152,15 @@ export function isCloseActiveTabShortcut(event: DashboardShortcutKeyEvent) {
     !event.shiftKey &&
     event.key.toLowerCase() === 'w'
   )
+}
+
+export function isDashboardContentOnlyRoute(pathname: string, search = '') {
+  const searchParams = new URLSearchParams(search)
+  const fullscreenParam = searchParams.get('contentFullscreen')
+  const isContentFullscreen =
+    fullscreenParam === '1' || fullscreenParam?.toLowerCase() === 'true'
+  const isWorkspaceRoute =
+    pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+
+  return isContentFullscreen || isWorkspaceRoute
 }

@@ -21,6 +21,7 @@ export interface DesktopPageListProps {
   moduleIcon?: ReactNode
   title?: string
   subtitle?: string
+  icon?: ReactNode
   collapsed?: boolean
   footer?: ReactNode
   onSelect?: (key: string) => void
@@ -32,6 +33,7 @@ export function DesktopPageList({
   moduleIcon,
   title = 'Pendaftaran Pasien',
   subtitle = 'Daftar page aktif pada modul saat ini',
+  icon,
   collapsed = false,
   footer,
   onSelect

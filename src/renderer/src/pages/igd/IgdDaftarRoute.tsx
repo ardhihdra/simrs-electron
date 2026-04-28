@@ -6,9 +6,10 @@
  * side effects: Query/mutation HTTP via RPC, invalidasi query dashboard IGD, serta navigasi halaman IGD.
  */
 import type { PatientAttributes } from 'simrs-types'
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { App, Button, Modal } from 'antd'
+import dayjs from 'dayjs'
 
 import { DischargeModal } from '../../components/organisms/encounter-transition/DischargeModal'
 import PatientLookupSelector from '../../components/organisms/patient/PatientLookupSelector'
@@ -20,16 +21,24 @@ import { getIgdActionErrorMessage } from './igd.feedback'
 import { IGD_PAGE_PATHS } from './igd.config'
 import { EMPTY_IGD_DASHBOARD } from './igd.data'
 import { IGD_DISCHARGE_OPTIONS } from './igd.disposition'
+import {
+  buildIgdDailyReportExportFileName,
+  buildIgdDailyReportExportGroups,
+  buildIgdDailyReportExportTitle
+} from './igd.report'
 import { IgdReferralDispositionModal } from './IgdReferralDispositionModal'
 
 export default function IgdDaftarRoute() {
   const navigate = useNavigate()
   const { message } = App.useApp()
   const dashboardQuery = client.igd.dashboard.useQuery({})
+  const dailyReportQuery = client.igd.dailyReport.useQuery({ date: dayjs().format('YYYY-MM-DD') })
   const [selectedPatientId, setSelectedPatientId] = useState<string | undefined>(undefined)
   const [replacePatientModalVisible, setReplacePatientModalVisible] = useState(false)
   const [selectedDisposition, setSelectedDisposition] = useState('')
-  const [selectedDispositionEncounterId, setSelectedDispositionEncounterId] = useState<string | null>(null)
+  const [selectedDispositionEncounterId, setSelectedDispositionEncounterId] = useState<
+    string | null
+  >(null)
   const [dischargeModalVisible, setDischargeModalVisible] = useState(false)
   const [rujukanModalVisible, setRujukanModalVisible] = useState(false)
   const [selectedReplacementPatient, setSelectedReplacementPatient] = useState<
@@ -79,6 +88,16 @@ export default function IgdDaftarRoute() {
     dashboardQuery.data?.patients.find((patient) => patient.id === selectedPatientId) ??
     dashboardQuery.data?.patients[0] ??
     null
+  const reportExportGroups = useMemo(
+    () => (dailyReportQuery.data ? buildIgdDailyReportExportGroups(dailyReportQuery.data) : []),
+    [dailyReportQuery.data]
+  )
+  const reportExportTitle = dailyReportQuery.data
+    ? buildIgdDailyReportExportTitle(dailyReportQuery.data)
+    : 'Laporan Harian IGD'
+  const reportExportFileName = dailyReportQuery.data
+    ? buildIgdDailyReportExportFileName(dailyReportQuery.data)
+    : 'laporan-igd'
 
   const openDisposition = (encounterId: string, patientId?: string) => {
     if (patientId) {
@@ -114,9 +133,10 @@ export default function IgdDaftarRoute() {
         onOpenDisposition={(patient) => {
           openDisposition(patient.encounterId, patient.id)
         }}
-        onOpenExamination={(patient) => {
-          navigate(`/dashboard/doctor/${patient.encounterId}`)
-        }}
+        reportExportGroups={reportExportGroups}
+        reportExportTitle={reportExportTitle}
+        reportExportFileName={reportExportFileName}
+        isReportLoading={dailyReportQuery.isLoading || dailyReportQuery.isFetching}
       />
 
       <Modal

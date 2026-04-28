@@ -1,5 +1,8 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import React from 'react'
 import { DownloadOutlined } from '@ant-design/icons'
 import { Button, Dropdown, MenuProps } from 'antd'
+import type { ButtonProps } from 'antd'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import * as XLSX from 'xlsx'
@@ -73,6 +76,14 @@ export interface ExportButtonProps<
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   nestedTable?: NestedTableConfig<TRow, any>
+  /** Visible button label. Defaults to `"Export"`. */
+  buttonLabel?: string
+  /** Export formats to show in the menu. Defaults to all supported formats. */
+  formats?: Array<'xlsx' | 'csv' | 'pdf'>
+  /** Pass-through state for the trigger button. */
+  disabled?: boolean
+  loading?: boolean
+  buttonProps?: Omit<ButtonProps, 'icon' | 'type' | 'loading' | 'disabled'>
 }
 
 // ---------------------------------------------------------------------------
@@ -412,7 +423,12 @@ export const ExportButton = <TRow extends Record<string, unknown> = Record<strin
   fileName = 'export',
   title,
   columns,
-  nestedTable
+  nestedTable,
+  buttonLabel = 'Export',
+  formats = ['xlsx', 'csv', 'pdf'],
+  disabled = false,
+  loading = false,
+  buttonProps
 }: ExportButtonProps<TRow>) => {
   const resolvedColumns = resolveExportColumns(data, columns)
 
@@ -420,28 +436,36 @@ export const ExportButton = <TRow extends Record<string, unknown> = Record<strin
   const handleXlsxExport = () => exportToXlsx(data, fileName, resolvedColumns, title, nestedTable)
   const handlePdfExport = () => exportToPdf(data, fileName, resolvedColumns, title, nestedTable)
 
-  const menuItems: MenuProps['items'] = [
-    {
+  const allMenuItems: Record<'xlsx' | 'csv' | 'pdf', NonNullable<MenuProps['items']>[number]> = {
+    xlsx: {
       key: 'xlsx',
       label: 'Export as Excel (XLSX)',
       onClick: handleXlsxExport
     },
-    {
+    csv: {
       key: 'csv',
       label: 'Export as CSV',
       onClick: handleCsvExport
     },
-    {
+    pdf: {
       key: 'pdf',
       label: 'Export as PDF',
       onClick: handlePdfExport
     }
-  ]
+  }
+
+  const menuItems: MenuProps['items'] = formats.map((format) => allMenuItems[format]).filter(Boolean)
 
   return (
     <Dropdown menu={{ items: menuItems }} placement="bottomRight" trigger={['click']}>
-      <Button type="primary" icon={<DownloadOutlined />}>
-        Export
+      <Button
+        {...buttonProps}
+        type="primary"
+        icon={<DownloadOutlined />}
+        disabled={disabled}
+        loading={loading}
+      >
+        {buttonLabel}
       </Button>
     </Dropdown>
   )

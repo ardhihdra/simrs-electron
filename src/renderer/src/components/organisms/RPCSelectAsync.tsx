@@ -15,6 +15,7 @@ interface RPCSelectAsyncProps {
   listAll?: boolean
   allowClear?: boolean
   variant?: 'outlined' | 'borderless' | 'filled'
+  size?: 'small' | 'middle' | 'large'
 }
 
 export const RPCSelectAsync = ({
@@ -30,7 +31,8 @@ export const RPCSelectAsync = ({
   className,
   allowClear,
   listAll = false,
-  variant
+  variant,
+  size = 'small'
 }: RPCSelectAsyncProps) => {
   const { data, isLoading, isRefetching } = client.query.entity.useQuery(
     {
@@ -78,6 +80,7 @@ export const RPCSelectAsync = ({
       variant={variant}
       showSearch
       optionFilterProp="label"
+      size={size}
     />
   )
 }

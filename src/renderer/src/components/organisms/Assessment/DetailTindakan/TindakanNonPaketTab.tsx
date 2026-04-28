@@ -25,6 +25,9 @@ interface TindakanNonPaketTabProps {
   roleLabelByCode: Map<string, string>
   setProcedureSelectorState: (state: {
     open: boolean
+    mode?: 'select' | 'readonly'
+    title?: string
+    procedures?: MasterTindakanItem[]
     onSelect?: (item: MasterTindakanItem) => void
   }) => void
   masterTindakanList: MasterTindakanItem[]

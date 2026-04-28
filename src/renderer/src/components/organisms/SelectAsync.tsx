@@ -14,6 +14,7 @@ interface SelectAsyncProps {
   disabled?: boolean
   className?: string
   searchFields?: string
+  size?: 'small' | 'middle' | 'large'
 }
 
 export const SelectAsync = ({
@@ -27,7 +28,8 @@ export const SelectAsync = ({
   defaultValue,
   disabled,
   className,
-  searchFields = 'name'
+  searchFields = 'name',
+  size = 'small'
 }: SelectAsyncProps) => {
   const [search, setSearch] = useState<string>('')
 
@@ -67,6 +69,7 @@ export const SelectAsync = ({
       onSearch={setSearch}
       filterOption={false}
       allowClear
+      size={size}
     />
   )
 }

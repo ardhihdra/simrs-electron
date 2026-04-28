@@ -112,6 +112,10 @@ import ReportPage from './pages/pharmacy/ReportPage'
 import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
 import PoliSelect from './pages/poli/PoliSelect'
 import QueueList from './pages/queue/queue-list'
+import RawatInapBedMapRoute from './pages/rawat-inap/RawatInapBedMapRoute'
+import RawatInapPasienRoute from './pages/rawat-inap/RawatInapPasienRoute'
+import RawatInapTransferRoute from './pages/rawat-inap/RawatInapTransferRoute'
+import { RAWAT_INAP_PAGE_PATHS } from './pages/rawat-inap/rawat-inap.config'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
 import ServiceRequestTable from './pages/service-request/service-request-table'
@@ -124,7 +128,7 @@ import BillingPage from './pages/billing/BillingPage'
 import BillingAllocationPage from './pages/billing/billing-allocation'
 import InitialTriage from './pages/visit-management/initial-triage'
 import KioskaPage from './pages/visit-management/kioska'
-import KioskaGlobalPage from './pages/visit-management/kioska/kiok-global'
+import KioskaGlobalPage from './pages/visit-management/kioska/kiosk-global'
 import KioskaSetupPage from './pages/visit-management/kioska/setup'
 import RegistrationPage from './pages/visit-management/registration'
 import RegistrationGlobalQueue from './pages/visit-management/registration-global-queue'
@@ -141,7 +145,10 @@ const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode
 
 function MainRoute() {
   const location = useLocation()
-  const { data: pageAccessData } = client.pageAccess.list.useQuery({}, { queryKey: ['pageAccess', {}] })
+  const { data: pageAccessData } = client.pageAccess.list.useQuery(
+    {},
+    { queryKey: ['pageAccess', {}] }
+  )
   const pageAccessMap = useMemo(() => {
     const map: Record<string, PageAccessEntry> = {}
     for (const item of pageAccessData?.result ?? []) {
@@ -345,6 +352,24 @@ function MainRoute() {
           <Route path="doctor" element={g('/dashboard/doctor', <DoctorEMR />)}>
             <Route index element={<DoctorPatientList />} />
             <Route path=":encounterId" element={<DoctorWorkspace />} />
+          </Route>
+          <Route path="rawat-inap" element={g('/dashboard/rawat-inap', <Outlet />)}>
+            <Route
+              index
+              element={g('/dashboard/rawat-inap', <Navigate to="bed-map" replace />)}
+            />
+            <Route
+              path="bed-map"
+              element={g(RAWAT_INAP_PAGE_PATHS.bedMap, <RawatInapBedMapRoute />)}
+            />
+            <Route
+              path="transfer"
+              element={g(RAWAT_INAP_PAGE_PATHS.transfer, <RawatInapTransferRoute />)}
+            />
+            <Route
+              path="pasien"
+              element={g(RAWAT_INAP_PAGE_PATHS.pasien, <RawatInapPasienRoute />)}
+            />
           </Route>
           <Route path="igd" element={g('/dashboard/igd', <Outlet />)}>
             <Route index element={g('/dashboard/igd', <Navigate to="daftar" replace />)} />

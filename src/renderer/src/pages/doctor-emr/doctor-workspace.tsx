@@ -163,14 +163,22 @@ const DoctorWorkspace = () => {
     currentStatus === EncounterStatus.IN_PROGRESS
       ? 'Sedang Diperiksa'
       : String(currentStatus || '-')
+  const normalizeAnthropometry = (value?: number | null): number | null =>
+    typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
+  const heightCm = normalizeAnthropometry(patientData.nurseRecord?.vitalSigns?.height)
+  const weightKg = normalizeAnthropometry(patientData.nurseRecord?.vitalSigns?.weight)
 
   const patientInfoCardData = {
     patient: {
       medicalRecordNumber: patient.medicalRecordNumber || '-',
       name: patient.name || 'Unknown',
+      nik: patient.identityNumber || '-',
       gender: patient.gender === Gender.MALE ? 'MALE' : 'FEMALE',
       age: age,
-      identityNumber: patient.identityNumber || '-'
+      identityNumber: patient.identityNumber || '-',
+      heightCm,
+      weightKg,
+      pregnancyStatus: patientData.pregnancyStatus || '-'
     },
     poli: {
       name: poliName

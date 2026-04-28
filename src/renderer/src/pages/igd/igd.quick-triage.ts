@@ -5,60 +5,54 @@
  * main/public functions: `IGD_QUICK_TRIAGE_OPTIONS`, `getQuickTriageMeta`, `getQuickTriageLevel`.
  * side effects: Tidak ada; pure lookup.
  */
-export type IgdQuickTriageLevel = number
+import type { IgdTriageLevel } from './igd.triage-level'
+
+export type IgdQuickTriageLevel = IgdTriageLevel
 
 export const IGD_QUICK_TRIAGE_OPTIONS = [
   {
-    label: 'Tidak sadarkan diri / Henti jantung → L1',
-    value: 'l1-critical',
-    level: 1 as const,
-    title: 'Level 1 — Resusitasi',
-    description: 'Warna Merah · Masuk langsung, tanpa antrian',
+    label: 'L0 - Hitam',
+    value: 'l0-critical',
+    level: 0 as const,
+    title: 'Level 0 - Resusitasi',
+    description: 'Warna Hitam - Masuk langsung, tanpa antrian',
     tone: 'danger' as const
   },
   {
-    label: 'Gawat, napas / sirkulasi terancam → L1',
-    value: 'l1-airway',
+    label: 'L1 - Merah',
+    value: 'l1-shock',
     level: 1 as const,
-    title: 'Level 1 — Resusitasi',
-    description: 'Warna Merah · Prioritas pertama',
+    title: 'Level 1 - Emergensi',
+    description: 'Warna Merah - Perlu tindakan segera',
     tone: 'danger' as const
   },
   {
-    label: 'Perdarahan aktif / Syok → L2',
-    value: 'l2-shock',
+    label: 'L2 - Kuning',
+    value: 'l2-pain',
     level: 2 as const,
-    title: 'Level 2 — Urgent',
-    description: 'Warna Kuning · Perlu tindakan segera',
+    title: 'Level 2 - Urgen',
+    description: 'Warna Kuning - Butuh evaluasi cepat',
     tone: 'warning' as const
   },
   {
-    label: 'Nyeri hebat (VAS ≥ 7) → L3',
-    value: 'l3-pain',
+    label: 'L3 - Hijau',
+    value: 'l3-moderate',
     level: 3 as const,
-    title: 'Level 3 — Semi Urgent',
-    description: 'Warna Hijau · Butuh evaluasi cepat',
+    title: 'Level 3 - Semi-Urgen',
+    description: 'Warna Hijau - Dapat menunggu singkat',
     tone: 'success' as const
   },
   {
-    label: 'Nyeri sedang (VAS 4–6) → L4',
-    value: 'l4-moderate',
+    label: 'L4 - Putih',
+    value: 'l4-stable',
     level: 4 as const,
-    title: 'Level 4 — Tidak Urgent',
-    description: 'Warna Putih · Dapat menunggu singkat',
-    tone: 'neutral' as const
-  },
-  {
-    label: 'Keluhan ringan / Stabil → L4',
-    value: 'l5-stable',
-    level: 4 as const,
-    title: 'Level 4 — Tidak Urgent',
-    description: 'Warna Putih · Kondisi stabil',
+    title: 'Level 4 - Tidak Urgen',
+    description: 'Warna Putih - Kondisi stabil',
     tone: 'neutral' as const
   }
 ] as const
 
-export const DEFAULT_IGD_QUICK_TRIAGE_CONDITION = 'l3-pain'
+export const DEFAULT_IGD_QUICK_TRIAGE_CONDITION = 'l2-pain'
 
 export function getQuickTriageMeta(conditionKey?: string) {
   return (

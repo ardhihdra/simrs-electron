@@ -1,3 +1,10 @@
+/**
+ * Purpose: Render tabel antrian verifikasi OK dan aksi navigasi ke detail verifikasi.
+ * Main callers: AntrianVerifikasiPage.
+ * Key dependencies: antd Table/Card/Badge/Button, react-router navigate.
+ * Main/public functions: VerifikasiOKTable, tipe VerifikasiOkRow/VerifikasiOkStatus/VerifikasiOkSifat.
+ * Side effects: navigasi ke route detail verifikasi per baris.
+ */
 import {
   Alert,
   Table,
@@ -85,6 +92,10 @@ export const VerifikasiOKTable = ({
   onRetry
 }: VerifikasiOKTableProps) => {
   const navigate = useNavigate()
+  const openDetail = (id: VerifikasiOkRow['id'], intent?: 'approve' | 'reject') => {
+    const query = intent ? `?intent=${intent}` : ''
+    navigate(`/dashboard/ok/verifikasi/${id}${query}`)
+  }
 
   const columns: ColumnsType<VerifikasiOkRow> = [
     {
@@ -165,7 +176,7 @@ export const VerifikasiOKTable = ({
               size="small"
               icon={<EyeOutlined />}
               onClick={() => {
-                navigate(`/dashboard/ok/verifikasi/${row.id}`)
+                openDetail(row.id)
               }}
             >
               Detail
@@ -173,10 +184,24 @@ export const VerifikasiOKTable = ({
           </Tooltip>
           {row.status === 'menunggu' && (
             <>
-              <Button size="small" type="primary" icon={<CheckCircleOutlined />}>
+              <Button
+                size="small"
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                onClick={() => {
+                  openDetail(row.id, 'approve')
+                }}
+              >
                 Approve
               </Button>
-              <Button size="small" danger icon={<CloseCircleOutlined />}>
+              <Button
+                size="small"
+                danger
+                icon={<CloseCircleOutlined />}
+                onClick={() => {
+                  openDetail(row.id, 'reject')
+                }}
+              >
                 Tolak
               </Button>
             </>

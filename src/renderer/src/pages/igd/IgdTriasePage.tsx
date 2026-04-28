@@ -5,9 +5,7 @@
  * main/public functions: `IgdTriasePage`, `IgdTriaseRoute`.
  * side effects: Query dashboard+Observation backend (read), simpan draft triase lokal (in-memory), write Observation ke backend lewat mutation hook dengan metadata petugas/tanggal asesmen, dan refetch observation pasien aktif setelah submit sukses.
  */
-import {
-  DesktopBadge
-} from '../../components/design-system/atoms/DesktopBadge'
+import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopStatusDot } from '../../components/design-system/atoms/DesktopStatusDot'
 import type { DesktopTriageBadgeTone } from '../../components/design-system/atoms/DesktopTriageBadge'
@@ -19,37 +17,20 @@ import { App } from 'antd'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 
-import { useBulkCreateObservation, useQueryObservationByEncounter } from '../../hooks/query/use-observation'
+import {
+  useBulkCreateObservation,
+  useQueryObservationByEncounter
+} from '../../hooks/query/use-observation'
 import { useIgdTriageMaster } from '../../hooks/query/use-igd-triage-master'
 import { showApiError } from '../../utils/form-feedback'
 import { createObservationBatch } from '../../utils/builders/observation-builder'
 import { client } from '../../utils/client'
 
 import { IGD_PAGE_PATHS } from './igd.config'
-import { EMPTY_IGD_DASHBOARD, type IgdDashboard } from './igd.data'
-import {
-  buildIgdTriaseObservationDrafts,
-  type IgdTriaseFormBySection
-} from './igd-triage-observation'
-import {
-  formatIgdTriaseFormsFromObservations,
-  type IgdTriaseObservationLike
-} from './igd-triage-observation-formatter'
-import {
-  buildMatrixCriteriaMetaById,
-  deriveSelectedMatrixCriteriaIdsFromAssessment,
-  type MatrixCriteriaMeta,
-  selectedCriteriaIdsToMatrixSectionValues
-} from './igd-triage-matrix-sync'
-import { resolveIgdTriageLevel } from './igd-triage-level-resolver'
-import {
-  applyUtamaViewValuesToForms,
-  buildUtamaViewValues,
-  QUICK_TRIAGE_FIELD_NAMES
-} from './igd-triase-form-state'
-import { IgdPatientInfoPanel } from './IgdPatientInfoPanel'
-import { IgdTriaseFormCard } from './IgdTriaseFormCard'
-import { type IgdTriageSection } from './igd.state'
+import { type IgdPatient, type IgdTriageSection, useIgdStore } from './igd.state'
+import { getIgdTriageLevelMeta } from './igd.triage-level'
+import { buildIgdTriaseObservationDrafts } from './igd-triage-observation'
+import { IgdTriaseObservationLike } from './igd-triage-observation-formatter'
 
 type IgdTriasePageProps = {
   dashboard: IgdDashboard
@@ -84,8 +65,7 @@ const parseTriageLevelNumber = (rawValue: string | number | undefined): number |
 const getQuickLevelFromForms = (
   forms: IgdTriaseFormBySection | undefined,
   fallbackLevel: number | undefined
-): number | undefined =>
-  parseTriageLevelNumber(forms?.quick?.quickLevel) ?? fallbackLevel
+): number | undefined => parseTriageLevelNumber(forms?.quick?.quickLevel) ?? fallbackLevel
 
 const hasNonEmptyText = (value: string | undefined): boolean => (value ?? '').trim().length > 0
 
@@ -114,115 +94,52 @@ const hasFilledTriageForms = (forms: IgdTriaseFormBySection | undefined): boolea
   )
 }
 
-const isSectionValuesEqual = (
-  left: Record<string, string> | undefined,
-  right: Record<string, string> | undefined
-): boolean => {
-  const leftEntries = Object.entries(left ?? {}).sort(([leftKey], [rightKey]) =>
-    leftKey.localeCompare(rightKey)
+const TRIAGE_SECTION_LABELS: Record<IgdTriageSection, string> = {
+  quick: 'Triase Cepat',
+  umum: 'Info Umum',
+  primer: 'Primer',
+  sekunder: 'Sekunder'
+}
+
+const getTriageTone = (level: IgdPatient['triageLevel']): DesktopBadgeTone => {
+  return getIgdTriageLevelMeta(level).statTone
+}
+
+function PatientSelector({
+  patient,
+  active,
+  onSelect
+}: {
+  patient: IgdPatient
+  active: boolean
+  onSelect: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`w-full rounded-[var(--ds-radius-md)] border px-[var(--ds-space-md)] py-[var(--ds-space-sm)] text-left transition-colors ${
+        active
+          ? 'border-[var(--ds-color-accent)] bg-[var(--ds-color-accent-soft)]'
+          : 'border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] hover:border-[var(--ds-color-border-strong)]'
+      }`}
+    >
+      <div className="flex items-center justify-between gap-[var(--ds-space-sm)]">
+        <div className="min-w-0">
+          <div className="truncate font-semibold text-[var(--ds-color-text)]">{patient.name}</div>
+          <div className="text-[length:var(--ds-font-size-label)] text-[var(--ds-color-text-muted)]">
+            {patient.registrationNumber}
+          </div>
+        </div>
+        <DesktopBadge
+          tone={getTriageTone(patient.triageLevel)}
+          style={getIgdTriageLevelMeta(patient.triageLevel).badgeStyle}
+        >
+          {getIgdTriageLevelMeta(patient.triageLevel).label}
+        </DesktopBadge>
+      </div>
+    </button>
   )
-  const rightEntries = Object.entries(right ?? {}).sort(([leftKey], [rightKey]) =>
-    leftKey.localeCompare(rightKey)
-  )
-
-  if (leftEntries.length !== rightEntries.length) return false
-
-  for (let index = 0; index < leftEntries.length; index += 1) {
-    const [leftKey, leftValue] = leftEntries[index]
-    const [rightKey, rightValue] = rightEntries[index]
-    if (leftKey !== rightKey) return false
-    if (leftValue !== rightValue) return false
-  }
-
-  return true
-}
-
-const hydrateMatrixSectionFromAssessment = (
-  forms: IgdTriaseFormBySection,
-  criteriaMetaById: Map<number, MatrixCriteriaMeta>
-): IgdTriaseFormBySection => {
-  if (criteriaMetaById.size === 0) return forms
-  const selectedCriteriaIds = deriveSelectedMatrixCriteriaIdsFromAssessment({
-    criteriaMetaById,
-    primerValues: forms.primer,
-    sekunderValues: forms.sekunder
-  })
-  return {
-    ...forms,
-    matrix: selectedCriteriaIdsToMatrixSectionValues(selectedCriteriaIds)
-  }
-}
-
-const isFormsBySectionEqual = (
-  left: IgdTriaseFormBySection | undefined,
-  right: IgdTriaseFormBySection | undefined
-): boolean => {
-  const sections = new Set<IgdTriageSection>([
-    ...(Object.keys(left ?? {}) as IgdTriageSection[]),
-    ...(Object.keys(right ?? {}) as IgdTriageSection[])
-  ])
-
-  for (const section of sections) {
-    if (!isSectionValuesEqual(left?.[section], right?.[section])) return false
-  }
-
-  return true
-}
-
-const buildAssessmentEvidenceByLevel = (
-  forms: IgdTriaseFormBySection,
-  criteriaMetaById: Map<number, MatrixCriteriaMeta>
-): Partial<Record<number, number>> => {
-  const evidence: Partial<Record<number, number>> = {}
-
-  for (const section of ['primer', 'sekunder'] as const) {
-    const values = forms[section] ?? {}
-    for (const [fieldName, rawValue] of Object.entries(values)) {
-      if (!fieldName.startsWith(`${section}AssessmentCriteria_`)) continue
-      const criteriaId = Number.parseInt(rawValue ?? '', 10)
-      if (!Number.isInteger(criteriaId)) continue
-      const meta = criteriaMetaById.get(criteriaId)
-      if (!meta) continue
-      evidence[meta.levelNo] = (evidence[meta.levelNo] ?? 0) + 1
-    }
-  }
-
-  return evidence
-}
-
-const withResolvedTriageLevelFields = (
-  forms: IgdTriaseFormBySection,
-  input: {
-    quickLevel?: number
-    activeLevels: number[]
-    criteriaMetaById: Map<number, MatrixCriteriaMeta>
-  }
-): IgdTriaseFormBySection => {
-  const umumValues = forms.umum ?? {}
-  const manualSource = (umumValues[TRIAGE_INTERNAL_KEYS.finalLevelSource] ?? '').trim() === 'manual'
-  const manualFinalLevel = manualSource
-    ? parseTriageLevelNumber(umumValues[TRIAGE_INTERNAL_KEYS.finalLevel])
-    : undefined
-  const evidenceByLevel = buildAssessmentEvidenceByLevel(forms, input.criteriaMetaById)
-  const resolvedLevel = resolveIgdTriageLevel({
-    quickLevel: input.quickLevel,
-    assessmentEvidenceByLevel: evidenceByLevel,
-    manualFinalLevel,
-    activeLevels: input.activeLevels
-  })
-  const nextUmumValues = {
-    ...umumValues,
-    [TRIAGE_INTERNAL_KEYS.suggestedLevel]: String(resolvedLevel.suggestedLevel),
-    [TRIAGE_INTERNAL_KEYS.finalLevel]: String(resolvedLevel.finalLevel),
-    [TRIAGE_INTERNAL_KEYS.finalLevelSource]:
-      manualSource && typeof manualFinalLevel === 'number' ? 'manual' : resolvedLevel.source
-  }
-
-  if (isSectionValuesEqual(forms.umum, nextUmumValues)) return forms
-  return {
-    ...forms,
-    umum: nextUmumValues
-  }
 }
 
 export function IgdTriasePage({
@@ -321,7 +238,10 @@ export function IgdTriasePage({
       return
     }
 
-    if (initialSelectedPatientId && patients.some((patient) => patient.id === initialSelectedPatientId)) {
+    if (
+      initialSelectedPatientId &&
+      patients.some((patient) => patient.id === initialSelectedPatientId)
+    ) {
       setSelectedPatientId(initialSelectedPatientId)
       return
     }
@@ -610,13 +530,18 @@ export function IgdTriasePage({
         subtitle="Ringkasan operasional pasien aktif, prioritas triase, dan utilisasi bed instalasi gawat darurat."
         status={isLoading ? 'Memuat data' : isSaving ? 'Menyimpan triase...' : 'Terhubung backend'}
         metadata={
-          <div className="flex flex-wrap items-center gap-[8px]">
-            <DesktopStatusDot
-              status={criticalCount > 0 ? 'danger' : 'success'}
-              label={`${criticalCount} pasien kritis`}
-            />
-            <DesktopBadge tone="accent">{dashboard.summary.totalActive} pasien aktif</DesktopBadge>
-          </div>
+          selectedPatient ? (
+            <div className="flex flex-wrap items-center gap-[var(--ds-space-sm)]">
+              <DesktopBadge
+                tone={getTriageTone(selectedPatient.triageLevel)}
+                style={getIgdTriageLevelMeta(selectedPatient.triageLevel).badgeStyle}
+              >
+                {getIgdTriageLevelMeta(selectedPatient.triageLevel).label}
+              </DesktopBadge>
+              <DesktopTag tone="accent">{selectedPatient.registrationNumber}</DesktopTag>
+              <DesktopTag tone="neutral">{selectedPatient.bedCode ?? 'Tanpa bed'}</DesktopTag>
+            </div>
+          ) : null
         }
         actions={
           <DesktopButton emphasis="toolbar" onClick={onBack}>
@@ -683,7 +608,10 @@ export function IgdTriasePage({
               isSaveDisabled={isSubmitDisabled}
             />
           ) : (
-            <DesktopCard title="Belum ada pasien aktif" subtitle="Tidak ada pasien IGD aktif untuk proses triase.">
+            <DesktopCard
+              title="Belum ada pasien aktif"
+              subtitle="Tidak ada pasien IGD aktif untuk proses triase."
+            >
               <DesktopNoticePanel
                 title="Belum ada pasien aktif"
                 description="Silakan registrasi pasien IGD terlebih dahulu untuk mulai proses triase."
@@ -691,7 +619,10 @@ export function IgdTriasePage({
             </DesktopCard>
           )}
 
-          <IgdPatientInfoPanel patient={selectedPatient ?? null} triageLevelOverride={triageLevelOverride} />
+          <IgdPatientInfoPanel
+            patient={selectedPatient ?? null}
+            triageLevelOverride={triageLevelOverride}
+          />
         </div>
       ) : null}
     </div>

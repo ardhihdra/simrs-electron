@@ -94,8 +94,22 @@ const NotificationBell = () => {
       overlayClassName="notification-popover"
     >
       <div className="cursor-pointer p-2 flex items-center">
-        <Badge count={unreadCount} overflowCount={99} size="small">
-          <BellOutlined className="text-[20px] text-[#555] dark:text-gray-200" />
+        <Badge
+          count={unreadCount}
+          overflowCount={99}
+          size="small"
+          // smalls Antd too big
+          styles={{
+            indicator: {
+              fontSize: 9,
+              minWidth: 12,
+              height: 12,
+              lineHeight: '12px',
+              padding: '0 3px'
+            }
+          }}
+        >
+          <BellOutlined className="text-[14px] text-[#555] dark:text-gray-200" />
         </Badge>
       </div>
     </Popover>
