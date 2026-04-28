@@ -123,6 +123,64 @@ test('buildRawatInapAdmissionCommand requires source encounter for Rawat Jalan',
   )
 })
 
+test('buildRawatInapAdmissionCommand links Rawat Jalan admission to source encounter', () => {
+  const form = {
+    ...createDefaultRawatInapAdmissionForm(),
+    patientId: 'patient-1',
+    source: 'rajal' as const,
+    sourceEncounterId: 'amb-encounter-1',
+    serviceUnitId: 'service-ri-1',
+    paymentMethod: 'cash' as const,
+    noKartu: '',
+    diagnosisCode: 'I10',
+    diagnosisText: 'Essential hypertension',
+    indication: 'Perlu rawat inap',
+    selectedBedId: 'bed-1'
+  }
+
+  const command = buildRawatInapAdmissionCommand(form, [
+    {
+      bedId: 'bed-1',
+      bedName: '302-A',
+      roomId: 'room-melati-302',
+      roomName: 'Melati 302',
+      classOfCareCodeId: 'KELAS_1'
+    }
+  ])
+
+  assert.equal(command.source, 'rajal')
+  assert.equal(command.sourceEncounterId, 'amb-encounter-1')
+})
+
+test('buildRawatInapAdmissionCommand omits source encounter for external referral', () => {
+  const form = {
+    ...createDefaultRawatInapAdmissionForm(),
+    patientId: 'patient-1',
+    source: 'rujukan' as const,
+    sourceEncounterId: 'stale-encounter-1',
+    serviceUnitId: 'service-ri-1',
+    paymentMethod: 'cash' as const,
+    noKartu: '',
+    diagnosisCode: 'I10',
+    diagnosisText: 'Essential hypertension',
+    indication: 'Perlu rawat inap',
+    selectedBedId: 'bed-1'
+  }
+
+  const command = buildRawatInapAdmissionCommand(form, [
+    {
+      bedId: 'bed-1',
+      bedName: '302-A',
+      roomId: 'room-melati-302',
+      roomName: 'Melati 302',
+      classOfCareCodeId: 'KELAS_1'
+    }
+  ])
+
+  assert.equal(command.source, 'rujukan')
+  assert.equal(command.sourceEncounterId, undefined)
+})
+
 test('buildRawatInapAdmissionCommand omits SEP for non-BPJS guarantor', () => {
   const form = {
     ...createDefaultRawatInapAdmissionForm(),

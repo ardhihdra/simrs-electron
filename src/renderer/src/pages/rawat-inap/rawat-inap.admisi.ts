@@ -4,6 +4,8 @@ import type { RawatInapBedMapSnapshot } from './rawat-inap.state'
 export type RawatInapAdmissionSource = 'rajal' | 'igd' | 'rujukan'
 export type RawatInapAdmissionPaymentMethod = 'bpjs' | 'cash' | 'asuransi' | 'company'
 
+const SOURCES_WITH_PARENT_ENCOUNTER = new Set<RawatInapAdmissionSource>(['rajal', 'igd'])
+
 export type RawatInapAdmissionBedOption = {
   bedId: string
   bedName: string
@@ -220,7 +222,9 @@ export function buildRawatInapAdmissionCommand(
   const command: CreateRawatInapAdmissionInput = {
     patientId: form.patientId.trim(),
     source: form.source,
-    sourceEncounterId: form.sourceEncounterId.trim() || undefined,
+    sourceEncounterId: SOURCES_WITH_PARENT_ENCOUNTER.has(form.source)
+      ? form.sourceEncounterId.trim() || undefined
+      : undefined,
     serviceUnitId: form.serviceUnitId.trim(),
     practitionerId: Number.isFinite(practitionerId) ? practitionerId : undefined,
     paymentMethod: form.paymentMethod,

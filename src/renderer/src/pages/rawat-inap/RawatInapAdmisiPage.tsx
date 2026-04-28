@@ -52,6 +52,11 @@ type SourceEncounterConfig = {
   fieldLabel: string
 }
 
+const REFERRAL_ENCOUNTER_FIELD = {
+  fieldLabel: 'Encounter Rujukan Luar',
+  value: 'Tidak ada encounter asal'
+}
+
 const SOURCE_ENCOUNTER_CONFIG: Partial<Record<AdmissionSource, SourceEncounterConfig>> = {
   igd: {
     type: 'EMER',
@@ -592,7 +597,9 @@ export function RawatInapAdmisiPage({
                 </SelectBox>
               </div>
               <div>
-                <FieldLabel>{sourceEncounterConfig?.fieldLabel ?? 'Unit Rawat Inap'}</FieldLabel>
+                <FieldLabel>
+                  {sourceEncounterConfig?.fieldLabel ?? REFERRAL_ENCOUNTER_FIELD.fieldLabel}
+                </FieldLabel>
                 {sourceEncounterConfig ? (
                   <div className="flex gap-[8px]">
                     <TextInput
@@ -617,11 +624,10 @@ export function RawatInapAdmisiPage({
                   </div>
                 ) : (
                   <TextInput
-                    defaultValue="Poli Penyakit Dalam"
-                    value={form.serviceUnitId}
-                    onChange={(value) => updateForm({ serviceUnitId: value })}
+                    defaultValue=""
+                    value={REFERRAL_ENCOUNTER_FIELD.value}
                     className="w-full"
-                    disabled={isSubmitting}
+                    disabled
                   />
                 )}
               </div>

@@ -52,6 +52,14 @@ test('Rawat Inap admisi page uses Rawat Jalan encounter selector for Rawat Jalan
   assert.equal(markup.includes('Pilih Encounter'), true)
 })
 
+test('Rawat Inap admisi page disables encounter field for external referral source', () => {
+  const markup = renderToStaticMarkup(<RawatInapAdmisiPage initialForm={{ source: 'rujukan' }} />)
+
+  assert.equal(markup.includes('Encounter Rujukan Luar'), true)
+  assert.equal(markup.includes('Tidak ada encounter asal'), true)
+  assert.equal(markup.includes('Pilih Encounter'), false)
+})
+
 test('Rawat Inap admisi page filters placement beds by selected room class', () => {
   const markup = renderToStaticMarkup(
     <RawatInapAdmisiPage
