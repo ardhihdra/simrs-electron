@@ -49,6 +49,14 @@ export default function IgdRegistrasiRoute() {
     type: 'company',
     status: 'active'
   })
+  const triageLevelsQuery = useMasterIgdTriageLevelActive()
+  const activeTriageLevels = useMemo(() => {
+    const levels = (triageLevelsQuery.data ?? [])
+      .map((level) => level.levelNo)
+      .filter((levelNo) => Number.isInteger(levelNo) && levelNo >= 0)
+      .sort((left, right) => left - right)
+    return levels.length > 0 ? levels : [0, 1, 2, 3, 4]
+  }, [triageLevelsQuery.data])
   const registerMutation = client.igd.register.useMutation({
     onSuccess: async () => {
       await queryClient.invalidateQueries({
@@ -80,7 +88,19 @@ export default function IgdRegistrasiRoute() {
       submitting={registerMutation.isPending}
       onDone={() => navigate(IGD_PAGE_PATHS.daftar)}
       onSubmitRegistration={async (input) => {
-        await registerMutation.mutateAsync(input.command)
+        const commandPayload: any = { ...input.command }
+        if (commandPayload.quickTriage) {
+          const parsedLevel = Number.parseInt(String(commandPayload.quickTriage.level ?? 0), 10)
+          const clampedLevel = Number.isInteger(parsedLevel)
+            ? Math.min(4, Math.max(0, parsedLevel))
+            : 4
+          commandPayload.quickTriage = {
+            ...commandPayload.quickTriage,
+            level: clampedLevel
+          }
+        }
+
+        await registerMutation.mutateAsync(commandPayload)
 
         if (input.intent === 'triase') {
           navigate(IGD_PAGE_PATHS.triase)

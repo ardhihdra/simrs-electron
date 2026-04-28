@@ -1,3 +1,10 @@
+/**
+ * purpose: RPC procedure pasien untuk list, detail, create, dan update dari renderer.
+ * main callers: Hook/query renderer pada modul registrasi, lookup pasien, dan IGD.
+ * key dependencies: `PatientListInputSchema` dari `simrs-types`, `zod`, dan transport `client`.
+ * main/public functions: `patientRpc` (`list`, `getById`, `create`, `update`).
+ * side effects: HTTP request read/write ke endpoint patient dan visit-management.
+ */
 import { ApiResponseSchema, PatientListInputSchema } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
@@ -16,7 +23,6 @@ export const patientRpc = {
         params.append('q', input.name)
         params.append('fields', 'name,address')
       }
-      if (input.needEmr !== undefined) params.append('needEmr', String(input.needEmr))
 
       const data = await client.get(`/api/patient?${params.toString()}`)
       const res = await data.json()

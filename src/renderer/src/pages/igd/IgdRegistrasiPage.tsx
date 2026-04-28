@@ -40,6 +40,7 @@ import {
   getQuickTriageMeta,
   IGD_QUICK_TRIAGE_OPTIONS
 } from './igd.quick-triage'
+import { resolveIgdTriageLevel } from './igd-triage-level-resolver'
 import { getIgdTriageLevelMeta } from './igd.triage-level'
 
 type IgdMitraOption = {

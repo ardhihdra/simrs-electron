@@ -6,8 +6,9 @@
  * side effects: Query dashboard+Observation backend (read), simpan draft triase lokal (in-memory), write Observation ke backend lewat mutation hook dengan metadata petugas/tanggal asesmen, dan refetch observation pasien aktif setelah submit sukses.
  */
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
+import type { DesktopBadgeTone } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
-import { DesktopStatusDot } from '../../components/design-system/atoms/DesktopStatusDot'
+import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
 import type { DesktopTriageBadgeTone } from '../../components/design-system/atoms/DesktopTriageBadge'
 import { DesktopCard } from '../../components/design-system/molecules/DesktopCard'
 import { DesktopCompactStatStrip } from '../../components/design-system/molecules/DesktopCompactStatStrip'
@@ -27,10 +28,28 @@ import { createObservationBatch } from '../../utils/builders/observation-builder
 import { client } from '../../utils/client'
 
 import { IGD_PAGE_PATHS } from './igd.config'
-import { type IgdPatient, type IgdTriageSection, useIgdStore } from './igd.state'
+import { EMPTY_IGD_DASHBOARD, type IgdDashboard, type IgdDashboardPatient } from './igd.data'
+import { IgdPatientInfoPanel } from './IgdPatientInfoPanel'
+import { IgdTriaseFormCard } from './IgdTriaseFormCard'
+import { type IgdTriageSection } from './igd.state'
 import { getIgdTriageLevelMeta } from './igd.triage-level'
-import { buildIgdTriaseObservationDrafts } from './igd-triage-observation'
-import { IgdTriaseObservationLike } from './igd-triage-observation-formatter'
+import { resolveIgdTriageLevel } from './igd-triage-level-resolver'
+import {
+  buildMatrixCriteriaMetaById,
+  deriveSelectedMatrixCriteriaIdsFromAssessment,
+  selectedCriteriaIdsToMatrixSectionValues,
+  type MatrixCriteriaMeta
+} from './igd-triage-matrix-sync'
+import { buildIgdTriaseObservationDrafts, type IgdTriaseFormBySection } from './igd-triage-observation'
+import {
+  formatIgdTriaseFormsFromObservations,
+  type IgdTriaseObservationLike
+} from './igd-triage-observation-formatter'
+import {
+  applyUtamaViewValuesToForms,
+  buildUtamaViewValues,
+  QUICK_TRIAGE_FIELD_NAMES
+} from './igd-triase-form-state'
 
 type IgdTriasePageProps = {
   dashboard: IgdDashboard
@@ -94,52 +113,97 @@ const hasFilledTriageForms = (forms: IgdTriaseFormBySection | undefined): boolea
   )
 }
 
-const TRIAGE_SECTION_LABELS: Record<IgdTriageSection, string> = {
-  quick: 'Triase Cepat',
-  umum: 'Info Umum',
-  primer: 'Primer',
-  sekunder: 'Sekunder'
-}
-
-const getTriageTone = (level: IgdPatient['triageLevel']): DesktopBadgeTone => {
+const getTriageTone = (level: IgdDashboardPatient['triageLevel']): DesktopBadgeTone => {
   return getIgdTriageLevelMeta(level).statTone
 }
 
-function PatientSelector({
-  patient,
-  active,
-  onSelect
-}: {
-  patient: IgdPatient
-  active: boolean
-  onSelect: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`w-full rounded-[var(--ds-radius-md)] border px-[var(--ds-space-md)] py-[var(--ds-space-sm)] text-left transition-colors ${
-        active
-          ? 'border-[var(--ds-color-accent)] bg-[var(--ds-color-accent-soft)]'
-          : 'border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] hover:border-[var(--ds-color-border-strong)]'
-      }`}
-    >
-      <div className="flex items-center justify-between gap-[var(--ds-space-sm)]">
-        <div className="min-w-0">
-          <div className="truncate font-semibold text-[var(--ds-color-text)]">{patient.name}</div>
-          <div className="text-[length:var(--ds-font-size-label)] text-[var(--ds-color-text-muted)]">
-            {patient.registrationNumber}
-          </div>
-        </div>
-        <DesktopBadge
-          tone={getTriageTone(patient.triageLevel)}
-          style={getIgdTriageLevelMeta(patient.triageLevel).badgeStyle}
-        >
-          {getIgdTriageLevelMeta(patient.triageLevel).label}
-        </DesktopBadge>
-      </div>
-    </button>
-  )
+const isFormsBySectionEqual = (
+  leftForms: IgdTriaseFormBySection | undefined,
+  rightForms: IgdTriaseFormBySection | undefined
+): boolean => {
+  const left = leftForms ?? {}
+  const right = rightForms ?? {}
+  const sectionKeys = new Set<IgdTriageSection>([
+    ...(Object.keys(left) as IgdTriageSection[]),
+    ...(Object.keys(right) as IgdTriageSection[])
+  ])
+
+  for (const section of sectionKeys) {
+    const leftValues = left[section] ?? {}
+    const rightValues = right[section] ?? {}
+    const fieldKeys = new Set<string>([...Object.keys(leftValues), ...Object.keys(rightValues)])
+
+    for (const fieldName of fieldKeys) {
+      if ((leftValues[fieldName] ?? '') !== (rightValues[fieldName] ?? '')) {
+        return false
+      }
+    }
+  }
+
+  return true
+}
+
+const hydrateMatrixSectionFromAssessment = (
+  forms: IgdTriaseFormBySection,
+  criteriaMetaById: Map<number, MatrixCriteriaMeta>
+): IgdTriaseFormBySection => {
+  if (criteriaMetaById.size === 0) return forms
+  const selectedCriteriaIds = deriveSelectedMatrixCriteriaIdsFromAssessment({
+    criteriaMetaById,
+    primerValues: forms.primer,
+    sekunderValues: forms.sekunder
+  })
+
+  return {
+    ...forms,
+    matrix: selectedCriteriaIdsToMatrixSectionValues(selectedCriteriaIds)
+  }
+}
+
+const buildAssessmentEvidenceByLevel = (
+  forms: IgdTriaseFormBySection,
+  criteriaMetaById: Map<number, MatrixCriteriaMeta>
+): Partial<Record<number, number>> => {
+  const selectedIds = deriveSelectedMatrixCriteriaIdsFromAssessment({
+    criteriaMetaById,
+    primerValues: forms.primer,
+    sekunderValues: forms.sekunder
+  })
+  const evidence: Partial<Record<number, number>> = {}
+  for (const criteriaId of selectedIds) {
+    const meta = criteriaMetaById.get(criteriaId)
+    if (!meta) continue
+    evidence[meta.levelNo] = (evidence[meta.levelNo] ?? 0) + 1
+  }
+  return evidence
+}
+
+const withResolvedTriageLevelFields = (
+  forms: IgdTriaseFormBySection,
+  input: {
+    quickLevel?: number
+    activeLevels: number[]
+    criteriaMetaById: Map<number, MatrixCriteriaMeta>
+  }
+): IgdTriaseFormBySection => {
+  const currentUmum = forms.umum ?? {}
+  const manualFinalLevel = parseTriageLevelNumber(currentUmum[TRIAGE_INTERNAL_KEYS.finalLevel])
+  const resolved = resolveIgdTriageLevel({
+    quickLevel: input.quickLevel,
+    assessmentEvidenceByLevel: buildAssessmentEvidenceByLevel(forms, input.criteriaMetaById),
+    manualFinalLevel,
+    activeLevels: input.activeLevels
+  })
+
+  return {
+    ...forms,
+    umum: {
+      ...currentUmum,
+      [TRIAGE_INTERNAL_KEYS.suggestedLevel]: String(resolved.suggestedLevel),
+      [TRIAGE_INTERNAL_KEYS.finalLevel]: String(resolved.finalLevel),
+      [TRIAGE_INTERNAL_KEYS.finalLevelSource]: resolved.source
+    }
+  }
 }
 
 export function IgdTriasePage({

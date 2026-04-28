@@ -85,7 +85,8 @@ export type IgdDashboardBed = {
 export type IgdDashboard = {
   summary: {
     totalActive: number
-    triageCounts: Record<'0' | '1' | '2' | '3' | '4', number>
+    triageCounts: Record<string, number>
+    activeTriageLevels: number[]
     bedAvailable: number
     bedTotal: number
     averageResponseMinutes: number
@@ -212,6 +213,7 @@ export const EMPTY_IGD_DASHBOARD: IgdDashboard = {
   summary: {
     totalActive: 0,
     triageCounts: { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0 },
+    activeTriageLevels: [0, 1, 2, 3, 4],
     bedAvailable: 0,
     bedTotal: 0,
     averageResponseMinutes: 0,
@@ -226,6 +228,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
     summary: {
       totalActive: 4,
       triageCounts: { '0': 1, '1': 1, '2': 1, '3': 1, '4': 0 },
+      activeTriageLevels: [0, 1, 2, 3, 4],
       bedAvailable: 11,
       bedTotal: 14,
       averageResponseMinutes: 4,

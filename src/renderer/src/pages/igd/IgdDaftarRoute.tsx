@@ -133,6 +133,7 @@ export default function IgdDaftarRoute() {
         onOpenDisposition={(patient) => {
           openDisposition(patient.encounterId, patient.id)
         }}
+        onOpenExamination={(patient) => navigate(`/dashboard/doctor/${patient.encounterId}`)}
         reportExportGroups={reportExportGroups}
         reportExportTitle={reportExportTitle}
         reportExportFileName={reportExportFileName}

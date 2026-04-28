@@ -13,7 +13,7 @@ import type { IgdTriageLevel } from './igd.triage-level'
 export type IgdPatientStatus = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
 export type IgdBedStatus = 'available' | 'occupied' | 'cleaning'
 export type IgdBedZone = IgdBedZoneName
-export type IgdTriageSection = 'quick' | 'umum' | 'primer' | 'sekunder'
+export type IgdTriageSection = 'quick' | 'umum' | 'utama' | 'matrix' | 'primer' | 'sekunder'
 
 export type IgdVitalSigns = {
   bloodPressure: string
