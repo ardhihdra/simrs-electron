@@ -766,14 +766,14 @@ export function RawatInapAdmisiPage({
                 ) : null}
               </div>
               <div>
-                <FieldLabel>DPJP</FieldLabel>
+                <FieldLabel>DPJP Utama</FieldLabel>
                 <Select
                   className="w-full"
                   value={form.practitionerId || undefined}
                   options={practitionerOptions}
                   disabled={isSubmitting}
                   loading={isPractitionerLoading}
-                  placeholder="Pilih DPJP dari data dokter"
+                  placeholder="Pilih DPJP utama dari data dokter"
                   showSearch
                   optionFilterProp="label"
                   onChange={(value) => updateForm({ practitionerId: value })}
