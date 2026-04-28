@@ -513,11 +513,30 @@ export default function InvoiceDetailPage() {
   const handleReopenEncounter = async () => {
     if (!encounterId) return
     try {
-      await reopenEncounterMutation.mutateAsync(encounterId)
-      message.success('Kunjungan berhasil dikembalikan ke perawat.')
-      navigate('/kasir/encounter-table')
+      // 1. Try to reopen encounter (may fail if already reopened/in-progress)
+      try {
+        await reopenEncounterMutation.mutateAsync(encounterId)
+      } catch (e) {
+        console.warn('Encounter reopen failed (might be already open):', e)
+      }
+
+      // 2. Always try to unlock invoice if it exists
+      if (persistedInvoice) {
+        await rpc.kasir.updateStatus({
+          id: persistedInvoice.id,
+          status:
+            persistedInvoice.total === 0 || persistedInvoice.remaining < persistedInvoice.total
+              ? 'deposit'
+              : 'draft'
+        })
+      }
+
+      message.success('Invoice berhasil dibuka kuncinya.')
+      queryClient.invalidateQueries({ queryKey: ['kasir-invoice-detail', encounterId] })
+      // We don't navigate away anymore if we want to stay and re-confirm
+      // navigate('/kasir/encounter-table')
     } catch (error: unknown) {
-      const msg = error instanceof Error ? error.message : 'Gagal mengembalikan kunjungan.'
+      const msg = error instanceof Error ? error.message : 'Gagal memproses permintaan.'
       message.error(msg)
     }
   }
@@ -571,7 +590,8 @@ export default function InvoiceDetailPage() {
   const statusInfo = persistedInvoice
     ? (STATUS_LABEL[currentStatus as keyof typeof STATUS_LABEL] ?? STATUS_LABEL.issued)
     : null
-  const isConfirmed = !!persistedInvoice && persistedInvoice.status !== 'draft'
+  const isConfirmed =
+    !!persistedInvoice && (persistedInvoice.status === 'issued' || persistedInvoice.status === 'balanced')
   const isPaid = persistedInvoice?.status === 'balanced'
   const totalPaid = persistedInvoice ? persistedInvoice.total - persistedInvoice.remaining : 0
 
@@ -601,7 +621,7 @@ export default function InvoiceDetailPage() {
         {/* Right: actions grouped by role */}
         <div className="flex items-left gap-2">
           {/* Destructive workflow action */}
-          {!isPaid && (
+          {persistedInvoice?.status !== 'cancelled' && (
             <>
               <Popconfirm
                 title="Kembalikan ke Perawat?"
@@ -623,6 +643,8 @@ export default function InvoiceDetailPage() {
               <Divider type="vertical" />
             </>
           )}
+
+
 
           {/* Print actions */}
           <Dropdown
@@ -728,16 +750,23 @@ export default function InvoiceDetailPage() {
           ) : null}
 
           {!isConfirmed && !isLoadingDetail && (
-            <Button
-              type="primary"
-              icon={<LockOutlined />}
-              loading={confirming}
-              onClick={handleConfirm}
-              disabled={!invoice}
-              size="small"
+            <Popconfirm
+              title="Kunci & Konfirmasi Invoice?"
+              description="Rincian tagihan akan dibekukan dan tidak akan berubah otomatis lagi jika klinis menginput data baru. Lanjutkan?"
+              onConfirm={handleConfirm}
+              okText="Ya, Kunci"
+              cancelText="Batal"
             >
-              Konfirmasi Invoice
-            </Button>
+              <Button
+                type="primary"
+                icon={<LockOutlined />}
+                loading={confirming}
+                disabled={!invoice}
+                size="small"
+              >
+                Konfirmasi Invoice
+              </Button>
+            </Popconfirm>
           )}
 
           {!isPaid && (
@@ -913,8 +942,8 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
-      {/* Payment section (only shown when invoice is confirmed) */}
-      {isConfirmed && persistedInvoice && (
+      {/* Payment section (shown whenever there are payments recorded) */}
+      {persistedInvoice && persistedInvoice.payments && persistedInvoice.payments.length > 0 && (
         <div className="max-w-3xl mx-auto mt-2">
           <PaymentHistory
             payments={persistedInvoice.payments}

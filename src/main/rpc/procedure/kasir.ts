@@ -96,4 +96,11 @@ export const kasirRpc = {
             const res = await client.get('/api/module/kasir/banks')
             return await res.json()
         }),
+    updateStatus: t
+        .input(z.object({ id: z.number(), status: z.string() }))
+        .output(ApiResponseSchema(z.any()))
+        .mutation(async ({ client }, input) => {
+            const res = await client.post('/api/module/kasir/invoice/update-status', input)
+            return await res.json()
+        }),
 }

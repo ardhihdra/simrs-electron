@@ -635,7 +635,8 @@ export default function KasirEncounterTable() {
                 </DesktopButton>
 
                 {(!selectedEncounter.invoiceStatus ||
-                  selectedEncounter.invoiceStatus === 'draft') && (
+                  (selectedEncounter.invoiceStatus !== 'issued' &&
+                    selectedEncounter.invoiceStatus !== 'balanced')) && (
                   <button
                     className="flex items-center justify-center gap-2 h-ds-button px-4 rounded-ds-md border border-[#f97316] bg-[#fff7ed] text-[#f97316] text-[12.5px] font-bold cursor-pointer hover:opacity-90 shadow-sm"
                     onClick={handleConfirm}
