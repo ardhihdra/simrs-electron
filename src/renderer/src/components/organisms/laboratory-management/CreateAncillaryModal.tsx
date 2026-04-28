@@ -1,10 +1,26 @@
 import { SaveOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
 import PatientLookupSelector from '@renderer/components/organisms/patient/PatientLookupSelector'
+import PatientInsurancePickerField from '@renderer/components/organisms/visit-management/PatientInsurancePickerField'
 import { client } from '@renderer/utils/client'
 import { notifyFormValidationError } from '@renderer/utils/form-feedback'
-import { App, Button, Card, Col, Empty, Form, Modal, Row, Select, Space, Tag, Typography } from 'antd'
-import type { PatientAttributes } from 'simrs-types'
+import {
+  App,
+  Button,
+  Card,
+  Col,
+  DatePicker,
+  Empty,
+  Form,
+  Modal,
+  Row,
+  Select,
+  Space,
+  Tag,
+  Typography
+} from 'antd'
+import dayjs from 'dayjs'
 import { useEffect, useMemo, useState } from 'react'
+import type { PatientAttributes } from 'simrs-types'
 
 interface ServiceRequestItem {
   id: string | number
@@ -115,6 +131,9 @@ export default function CreateAncillaryModal({
   const [requestedByDoctorSearch, setRequestedByDoctorSearch] = useState('')
   const category = Form.useWatch('category', form) as EncounterCategory | undefined
   const patientId = Form.useWatch('patientId', form) as string | undefined
+  const paymentMethod = Form.useWatch('paymentMethod', form) as string | undefined
+  const needsMitra =
+    paymentMethod === 'INSURANCE' || paymentMethod === 'COMPANY' || paymentMethod === 'BPJS'
 
   const serviceRequestParams = useMemo(() => {
     const params: Record<string, string> = {
@@ -191,6 +210,24 @@ export default function CreateAncillaryModal({
     } as any
   )
 
+  const mitraQueryInput = useMemo(
+    () => ({
+      type:
+        paymentMethod === 'COMPANY'
+          ? ('company' as const)
+          : paymentMethod === 'BPJS'
+            ? ('bpjs' as const)
+            : ('insurance' as const),
+      status: 'active'
+    }),
+    [paymentMethod]
+  )
+
+  const mitraQuery = client.visitManagement.getMitra.useQuery(mitraQueryInput, {
+    enabled: open && needsMitra,
+    queryKey: ['ancillary-mitra', mitraQueryInput]
+  })
+
   const serviceRequestOptions = useMemo(() => {
     const requests = normalizeList<ServiceRequestItem>(serviceRequestsData)
 
@@ -215,13 +252,17 @@ export default function CreateAncillaryModal({
       const speciality = item.speciality
       const doctorId = Number(doctor?.id ?? item.kepegawaianId)
       const doctorName = String(doctor?.namaLengkap || '').trim()
-      const specialityKode = String(speciality?.kode || '').trim().toUpperCase()
+      const specialityKode = String(speciality?.kode || '')
+        .trim()
+        .toUpperCase()
       const isMatchSpeciality = specialityKode === specialityCode
       const isDoctor = doctor ? isDoctorPegawai(doctor) : false
       const isMatchSearch =
         !search ||
         doctorName.toLowerCase().includes(search) ||
-        String(doctor?.nik || '').toLowerCase().includes(search)
+        String(doctor?.nik || '')
+          .toLowerCase()
+          .includes(search)
 
       if (!doctorId || !doctorName || !isDoctor || !isMatchSpeciality || !isMatchSearch) return
       if (uniqueDoctors.has(doctorId)) return
@@ -246,6 +287,16 @@ export default function CreateAncillaryModal({
       }))
   }, [doctorsData])
 
+  const mitraOptions = useMemo(() => {
+    const data = mitraQuery.data as any
+    const rows = data?.result || data?.data || []
+
+    return rows.map((item: any) => ({
+      value: item.id,
+      label: item.name || item.nama || `Mitra ${item.id}`
+    }))
+  }, [mitraQuery.data])
+
   const createLaboratoryMutation = client.registration.createLaboratoryEncounter.useMutation()
   const createRadiologyMutation = client.registration.createRadiologyEncounter.useMutation()
 
@@ -255,6 +306,9 @@ export default function CreateAncillaryModal({
       : undefined
     const requestedByPractitionerId =
       typeof requestedBy === 'number' && !Number.isNaN(requestedBy) ? requestedBy : undefined
+    const mitraCodeExpiredDate = values.mitraCodeExpiredDate
+      ? dayjs(values.mitraCodeExpiredDate).format('YYYY-MM-DD')
+      : undefined
 
     const payload = {
       patientId: String(values.patientId),
@@ -262,7 +316,12 @@ export default function CreateAncillaryModal({
       practitionerId: Number(values.practitionerId),
       requestedByPractitionerId,
       episodeOfCareId: values.episodeOfCareId ? String(values.episodeOfCareId) : undefined,
-      arrivalType: (values.arrivalType || 'WALK_IN') as ArrivalType
+      arrivalType: (values.arrivalType || 'WALK_IN') as ArrivalType,
+      paymentMethod: values.paymentMethod,
+      patientInsuranceId: needsMitra ? values.patientInsuranceId || undefined : undefined,
+      mitraId: needsMitra && values.mitraId ? Number(values.mitraId) : undefined,
+      mitraCodeNumber: needsMitra ? values.mitraCodeNumber || undefined : undefined,
+      mitraCodeExpiredDate: needsMitra ? mitraCodeExpiredDate : undefined
     }
 
     try {
@@ -293,10 +352,22 @@ export default function CreateAncillaryModal({
     if (open) {
       form.setFieldsValue({
         category: fixedCategory || 'LABORATORY',
-        arrivalType: 'WALK_IN'
+        arrivalType: 'WALK_IN',
+        paymentMethod: 'CASH'
       })
     }
   }, [fixedCategory, open, form])
+
+  useEffect(() => {
+    if (needsMitra) return
+
+    form.setFieldsValue({
+      patientInsuranceId: undefined,
+      mitraId: undefined,
+      mitraCodeNumber: undefined,
+      mitraCodeExpiredDate: undefined
+    })
+  }, [needsMitra, form])
 
   return (
     <Modal
@@ -437,6 +508,21 @@ export default function CreateAncillaryModal({
                     ]}
                   />
                 </Form.Item>
+
+                <Form.Item
+                  name="paymentMethod"
+                  label="Metode Pembayaran"
+                  rules={[{ required: true, message: 'Harap pilih metode pembayaran' }]}
+                >
+                  <Select
+                    options={[
+                      { value: 'CASH', label: 'Tunai' },
+                      { value: 'INSURANCE', label: 'Asuransi' },
+                      { value: 'BPJS', label: 'BPJS' },
+                      { value: 'COMPANY', label: 'Perusahaan' }
+                    ]}
+                  />
+                </Form.Item>
               </Card>
             </Col>
 
@@ -478,12 +564,63 @@ export default function CreateAncillaryModal({
                 </Form.Item> */}
               </Card>
 
+              {needsMitra ? (
+                <Card title="Penjamin & Mitra" size="small" className="mb-4 mt-4!">
+                  <Form.Item name="patientInsuranceId" hidden>
+                    <input type="hidden" />
+                  </Form.Item>
+
+                  <Form.Item
+                    name="mitraId"
+                    label="Mitra"
+                    rules={[{ required: true, message: 'Harap pilih mitra' }]}
+                  >
+                    <Select
+                      options={mitraOptions}
+                      loading={mitraQuery.isLoading || mitraQuery.isRefetching}
+                      onChange={() => form.setFieldValue('patientInsuranceId', undefined)}
+                      placeholder="Pilih mitra"
+                      showSearch
+                      optionFilterProp="label"
+                    />
+                  </Form.Item>
+
+                  <PatientInsurancePickerField
+                    form={form}
+                    patientId={patientId}
+                    mitraOptions={mitraOptions}
+                  />
+
+                  <Form.Item
+                    name="mitraCodeExpiredDate"
+                    label="Expired At"
+                    rules={[{ required: true, message: 'Harap pilih tanggal expired' }]}
+                  >
+                    <DatePicker
+                      style={{ width: '100%' }}
+                      onChange={() => form.setFieldValue('patientInsuranceId', undefined)}
+                    />
+                  </Form.Item>
+
+                  {!mitraQuery.isLoading &&
+                  !mitraQuery.isRefetching &&
+                  mitraOptions.length === 0 ? (
+                    <div style={{ color: '#a8071a' }}>
+                      Data mitra tidak ditemukan untuk metode pembayaran ini.
+                    </div>
+                  ) : null}
+                </Card>
+              ) : null}
+
               <div className="mt-4">
                 <Card title="Ringkasan" size="small">
                   <div className="text-sm text-gray-600 flex flex-col gap-2">
                     <div>
                       <span className="font-medium">Pasien:</span> {selectedPatient?.name || '-'} (
                       {selectedPatient?.medicalRecordNumber || '-'})
+                    </div>
+                    <div>
+                      <span className="font-medium">Metode Pembayaran:</span> {paymentMethod || '-'}
                     </div>
                     <div>
                       <span className="font-medium">Jumlah Service Request Tersedia:</span>{' '}
@@ -514,7 +651,13 @@ export default function CreateAncillaryModal({
           onChange={(patient) => {
             if (!patient) return
             setSelectedPatient(patient)
-            form.setFieldValue('patientId', patient.id)
+            form.setFieldsValue({
+              patientId: patient.id,
+              patientInsuranceId: undefined,
+              mitraId: undefined,
+              mitraCodeNumber: undefined,
+              mitraCodeExpiredDate: undefined
+            })
             setIsPatientPickerOpen(false)
           }}
           title="Cari Pasien"

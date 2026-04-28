@@ -1,5 +1,6 @@
 import { PlusOutlined, UserOutlined } from '@ant-design/icons'
 import PatientLookupSelector from '@renderer/components/organisms/patient/PatientLookupSelector'
+import PatientInsurancePickerField from '@renderer/components/organisms/visit-management/PatientInsurancePickerField'
 import { buildConfirmQueueSelectedPatient } from '@renderer/components/organisms/visit-management/confirm-queue-patient'
 import { calculateAge } from '@renderer/utils/calculateAge'
 import { client } from '@renderer/utils/client'
@@ -81,6 +82,7 @@ const ConfirmQueueModal = ({
       form.setFieldsValue({
         patientId: initialPatient?.id || queue.patientId || undefined,
         paymentMethod: queue.paymentMethod ? String(queue.paymentMethod).toUpperCase() : 'CASH',
+        patientInsuranceId: queue.patientInsuranceId || queue.patientInsurance?.id || undefined,
         mitraId: queue.mitraId || undefined,
         mitraCodeNumber: queue.mitraCodeNumber || undefined,
         mitraCodeExpiredDate: queue.mitraCodeExpiredDate
@@ -94,6 +96,7 @@ const ConfirmQueueModal = ({
     if (needsMitra) return
 
     form.setFieldsValue({
+      patientInsuranceId: undefined,
       mitraId: undefined,
       mitraCodeNumber: undefined,
       mitraCodeExpiredDate: undefined
@@ -129,6 +132,7 @@ const ConfirmQueueModal = ({
         queueId: String(queueId),
         patientId: values.patientId,
         paymentMethod: values.paymentMethod,
+        patientInsuranceId: needsMitra ? values.patientInsuranceId || undefined : undefined,
         mitraId: needsMitra ? Number(values.mitraId) : undefined,
         mitraCodeNumber: needsMitra ? values.mitraCodeNumber || undefined : undefined,
         mitraCodeExpiredDate:
@@ -330,6 +334,10 @@ const ConfirmQueueModal = ({
 
         {needsMitra && (
           <>
+            <Form.Item name="patientInsuranceId" hidden>
+              <Input />
+            </Form.Item>
+
             <Form.Item
               name="mitraId"
               label="Mitra"
@@ -338,26 +346,28 @@ const ConfirmQueueModal = ({
               <Select
                 options={mitraOptions}
                 loading={mitraQuery.isLoading || mitraQuery.isRefetching}
+                onChange={() => form.setFieldValue('patientInsuranceId', undefined)}
                 placeholder="Pilih mitra"
                 showSearch
                 optionFilterProp="label"
               />
             </Form.Item>
 
-            <Form.Item
-              name="mitraCodeNumber"
-              label="Nomor Kartu"
-              rules={[{ required: true, message: 'Harap isi nomor kartu' }]}
-            >
-              <Input placeholder="Nomor kartu/nomor mitra" />
-            </Form.Item>
+            <PatientInsurancePickerField
+              form={form}
+              patientId={selectedPatient?.id}
+              mitraOptions={mitraOptions}
+            />
 
             <Form.Item
               name="mitraCodeExpiredDate"
               label="Expired At"
               rules={[{ required: true, message: 'Harap pilih tanggal expired' }]}
             >
-              <DatePicker style={{ width: '100%' }} />
+              <DatePicker
+                style={{ width: '100%' }}
+                onChange={() => form.setFieldValue('patientInsuranceId', undefined)}
+              />
             </Form.Item>
           </>
         )}
