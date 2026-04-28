@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router'
 
 import { IGD_PAGE_PATHS } from './igd.config'
 import { type IgdPatient, type IgdTriageSection, useIgdStore } from './igd.state'
+import { getIgdTriageLevelMeta } from './igd.triage-level'
 
 type IgdTriasePageProps = {
   onBack?: () => void
@@ -46,10 +47,7 @@ const TRIAGE_SECTION_LABELS: Record<IgdTriageSection, string> = {
 }
 
 const getTriageTone = (level: IgdPatient['triageLevel']): DesktopBadgeTone => {
-  if (level === 1) return 'danger'
-  if (level === 2) return 'warning'
-  if (level === 3) return 'info'
-  return 'success'
+  return getIgdTriageLevelMeta(level).statTone
 }
 
 function PatientSelector({
@@ -78,7 +76,12 @@ function PatientSelector({
             {patient.registrationNumber}
           </div>
         </div>
-        <DesktopBadge tone={getTriageTone(patient.triageLevel)}>L{patient.triageLevel}</DesktopBadge>
+        <DesktopBadge
+          tone={getTriageTone(patient.triageLevel)}
+          style={getIgdTriageLevelMeta(patient.triageLevel).badgeStyle}
+        >
+          {getIgdTriageLevelMeta(patient.triageLevel).label}
+        </DesktopBadge>
       </div>
     </button>
   )
@@ -109,8 +112,11 @@ export function IgdTriasePage({ onBack }: IgdTriasePageProps) {
         metadata={
           selectedPatient ? (
             <div className="flex flex-wrap items-center gap-[var(--ds-space-sm)]">
-              <DesktopBadge tone={getTriageTone(selectedPatient.triageLevel)}>
-                Level {selectedPatient.triageLevel}
+              <DesktopBadge
+                tone={getTriageTone(selectedPatient.triageLevel)}
+                style={getIgdTriageLevelMeta(selectedPatient.triageLevel).badgeStyle}
+              >
+                {getIgdTriageLevelMeta(selectedPatient.triageLevel).label}
               </DesktopBadge>
               <DesktopTag tone="accent">{selectedPatient.registrationNumber}</DesktopTag>
               <DesktopTag tone="neutral">{selectedPatient.bedCode ?? 'Tanpa bed'}</DesktopTag>

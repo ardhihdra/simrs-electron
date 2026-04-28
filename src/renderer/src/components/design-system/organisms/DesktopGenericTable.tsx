@@ -9,7 +9,7 @@ import {
 } from 'antd'
 import type { MenuProps, TableProps } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
-import { type ReactNode } from 'react'
+import React, { type ReactNode } from 'react'
 
 import { DesktopTable } from './DesktopTable'
 

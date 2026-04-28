@@ -11,7 +11,7 @@ import {
 test('buildIgdBedReportExportGroups summarizes bed availability per zone', () => {
   const groups = buildIgdBedReportExportGroups(createIgdDashboardFixture())
 
-  assert.equal(groups.length, 3)
+  assert.equal(groups.length, 4)
   assert.deepEqual(groups[0], {
     zone: 'Resusitasi',
     totalBeds: '4',
@@ -24,7 +24,7 @@ test('buildIgdBedReportExportGroups summarizes bed availability per zone', () =>
         status: 'Terisi',
         patientName: 'TIDAK DIKENAL',
         registrationNumber: 'IGD-2604-001',
-        triageLevel: 'L1'
+        triageLevel: 'L0'
       },
       {
         bedCode: 'R-02',
@@ -58,7 +58,7 @@ test('buildIgdBedReportExportTitle and file name use bed wording', () => {
 
   assert.equal(
     buildIgdBedReportExportTitle(dashboard, '2026-04-24'),
-    'Laporan Bed IGD\nTanggal 24/04/2026\nTotal Bed 12'
+    'Laporan Bed IGD\nTanggal 24/04/2026\nTotal Bed 14'
   )
   assert.equal(buildIgdBedReportExportFileName('2026-04-24'), 'laporan-bed-igd-2026-04-24')
 })

@@ -65,7 +65,7 @@ test('buildIgdRegistrationCommand maps existing patient mode to patientId payloa
     selectedPatient,
     guarantorSource: 'existing:1',
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.patientType, 'existing')
@@ -84,7 +84,7 @@ test('buildIgdRegistrationCommand maps new patient mode to create-patient payloa
     mode: 'baru',
     draft: createDraft(),
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.patientType, 'new')
@@ -115,7 +115,7 @@ test('buildIgdRegistrationCommand maps temporary patient mode to minimal payload
       estimatedAge: '~45'
     },
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.patientType, 'temporary')
@@ -133,7 +133,7 @@ test('buildIgdRegistrationCommand rejects existing mode without selected patient
         mode: 'existing' as IgdRegistrationMode,
         draft: createDraft(),
         intent: 'daftar',
-        quickCondition: 'l1-critical'
+        quickCondition: 'l0-critical'
       }),
     /Pilih pasien terlebih dahulu/
   )
@@ -165,7 +165,7 @@ test('buildIgdRegistrationCommand keeps manual guarantor input when existing pat
     selectedPatient,
     guarantorSource: 'new',
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.deepEqual(payload.guarantor, {
@@ -181,12 +181,12 @@ test('buildIgdRegistrationCommand includes quick triage when intent is triase', 
     mode: 'baru',
     draft: createDraft(),
     intent: 'triase',
-    quickCondition: 'l2-shock'
+    quickCondition: 'l1-shock'
   })
 
   assert.deepEqual(payload.quickTriage, {
-    level: 2,
-    conditionKey: 'l2-shock',
+    level: 1,
+    conditionKey: 'l1-shock',
     effectiveDateTime: '2026-04-22T10:25'
   })
 })
@@ -196,7 +196,7 @@ test('buildIgdRegistrationCommand omits quick triage when intent is daftar', () 
     mode: 'baru',
     draft: createDraft(),
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal(payload.quickTriage, undefined)
@@ -211,7 +211,7 @@ test('buildIgdRegistrationCommand omits mitraId for Umum payment even when stale
       mitraId: '77'
     },
     intent: 'daftar',
-    quickCondition: 'l1-critical'
+    quickCondition: 'l0-critical'
   })
 
   assert.equal('mitraId' in payload, false)
