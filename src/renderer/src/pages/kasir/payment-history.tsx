@@ -16,6 +16,7 @@ interface PaymentRecord {
     note: string | null
     attachmentPath: string | null
     paymentStatus: string
+    category: string
 }
 
 
@@ -34,6 +35,12 @@ const methodLabel: Record<string, string> = {
     CASH: 'Tunai',
     BANK_TRANSFER: 'Transfer Bank',
     OTHER: 'Lainnya',
+}
+
+const categoryLabel: Record<string, string> = {
+    SETTLEMENT: 'Pelunasan',
+    INITIAL_DEPOSIT: 'Deposit Awal',
+    SUBSEQUENT_DEPOSIT: 'Deposit Lanjutan',
 }
 
 function formatRupiah(value: number): string {
@@ -77,6 +84,13 @@ export function PaymentHistory({
                     )}
                 </span>
             ),
+        },
+        {
+            title: 'Tipe',
+            dataIndex: 'category',
+            key: 'category',
+            width: 120,
+            render: (v) => <span className="font-semibold text-xs">{categoryLabel[v] ?? v}</span>,
         },
         {
             title: 'Referensi',

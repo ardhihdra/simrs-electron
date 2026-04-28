@@ -74,11 +74,11 @@ const ST: Record<
     label: 'Siap Bayar',
     borderColor: '#f97316'
   },
-  dp: {
+  deposit: {
     textClass: 'text-blue-600',
     bgClass: 'bg-blue-50',
     dotClass: 'bg-blue-500',
-    label: 'DP',
+    label: 'Deposit',
     borderColor: '#3b82f6'
   },
   sebagian: {
@@ -115,7 +115,7 @@ const StBadge = ({ record }: { record: EncounterRow }) => {
   // Logic to distinguish DP vs Sebagian
   if (status !== 'balanced' && paid > 0) {
     if (total === 0) {
-      status = 'dp'
+      status = 'deposit'
     } else {
       status = 'sebagian'
     }
@@ -123,14 +123,14 @@ const StBadge = ({ record }: { record: EncounterRow }) => {
 
   const toneMap: Record<string, DesktopStatusPillTone> = {
     issued: 'warning',
-    dp: 'info',
+    deposit: 'info',
     sebagian: 'violet',
     balanced: 'success',
     draft: 'neutral'
   }
   const labelMap: Record<string, string> = {
     issued: 'Siap Bayar',
-    dp: 'DP',
+    deposit: 'Deposit',
     sebagian: 'Sebagian',
     balanced: 'Lunas',
     draft: 'Dalam Proses'
@@ -189,7 +189,7 @@ export default function KasirEncounterTable() {
         const status = record.invoiceStatus || 'draft'
         const colorMap: Record<string, string> = {
           issued: '#f97316',
-          dp: '#7c3aed',
+          deposit: '#7c3aed',
           balanced: '#16a34a',
           draft: '#9ca3af'
         }
@@ -316,7 +316,7 @@ export default function KasirEncounterTable() {
             const total = Number(r.total ?? 0)
             let derived = s
             if (s !== 'balanced' && paid > 0) {
-              derived = total === 0 ? 'dp' : 'sebagian'
+              derived = total === 0 ? 'deposit' : 'sebagian'
             }
 
             return derived === invoiceStatusFilter
@@ -344,7 +344,7 @@ export default function KasirEncounterTable() {
     [allEncounters]
   )
 
-  const dpCount = useMemo(
+  const depositCount = useMemo(
     () =>
       allEncounters.filter((r) => {
         const s = r.invoiceStatus || 'draft'
@@ -523,7 +523,7 @@ export default function KasirEncounterTable() {
               items: [
                 { key: 'all', label: 'Semua', count: totalCount },
                 { key: 'issued', label: 'Siap Bayar', count: siapBayarCount },
-                { key: 'dp', label: 'DP', count: dpCount },
+                { key: 'deposit', label: 'Deposit', count: depositCount },
                 { key: 'sebagian', label: 'Sebagian', count: partialCount },
                 { key: 'draft', label: 'Proses', count: dalamProsesCount },
                 { key: 'balanced', label: 'Lunas', count: lunasCount },

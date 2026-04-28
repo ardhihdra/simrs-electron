@@ -87,7 +87,7 @@ const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   issued: { label: 'Terkonfirmasi', color: 'blue' },
   balanced: { label: 'Lunas', color: 'green' },
   draft: { label: 'Draft', color: 'default' },
-  dp: { label: 'DP', color: 'blue' },
+  deposit: { label: 'Deposit', color: 'blue' },
   sebagian: { label: 'Sebagian', color: 'violet' }
 }
 
@@ -563,7 +563,7 @@ export default function InvoiceDetailPage() {
     const paid = Number(persistedInvoice?.total ?? 0) - Number(persistedInvoice?.remaining ?? 0)
 
     if (s !== 'balanced' && paid > 0) {
-      return total === 0 ? 'dp' : 'sebagian'
+      return total === 0 ? 'deposit' : 'sebagian'
     }
     return s
   })()
@@ -730,7 +730,7 @@ export default function InvoiceDetailPage() {
               onClick={() => setPaymentModalOpen(true)}
               size="small"
             >
-              {isConfirmed ? 'Tambah Pembayaran' : 'Input DP (Uang Muka)'}
+              {isConfirmed ? 'Tambah Pembayaran' : 'Input Deposit'}
             </Button>
           )}
         </div>
@@ -918,6 +918,7 @@ export default function InvoiceDetailPage() {
         encounterId={encounterId}
         patientId={patientId}
         remaining={persistedInvoice?.remaining ?? invoice?.total ?? 0}
+        invoiceTotal={invoice?.total ?? 0}
         onCancel={() => setPaymentModalOpen(false)}
         onSuccess={handlePaymentSuccess}
       />
