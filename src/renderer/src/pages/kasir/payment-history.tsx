@@ -199,12 +199,31 @@ export function PaymentHistory({
                     ]
 
                 return (
-                    <Dropdown
-                        menu={{ items }}
-                        trigger={['click']}
-                    >
-                        <Button size="small" type="primary" icon={<PrinterOutlined />}>Kwitansi</Button>
-                    </Dropdown>
+                    <div className="flex gap-1 justify-center">
+                        <Dropdown
+                            menu={{ items }}
+                            trigger={['click']}
+                        >
+                            <Button size="small" type="primary" icon={<PrinterOutlined />}>Kwitansi</Button>
+                        </Dropdown>
+                        {isDeposit && (
+                            <Button 
+                                size="small" 
+                                icon={<PrinterOutlined />} 
+                                onClick={() =>
+                                    invoice &&
+                                    printReceipt(invoice, persistedInvoice || null, r, {
+                                        printForKind: 'patient',
+                                        cashierName,
+                                        cashierSignatureUrl,
+                                        depositTemplate: 'form'
+                                    })
+                                }
+                            >
+                                Form Deposit
+                            </Button>
+                        )}
+                    </div>
                 )
             }
         }

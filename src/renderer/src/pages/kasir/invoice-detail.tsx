@@ -681,22 +681,7 @@ export default function InvoiceDetailPage() {
             </Button>
           </Dropdown>
 
-          <Button
-            icon={<PrinterOutlined />}
-            size="small"
-            onClick={() => {
-              if (invoice) {
-                printReceipt(invoice, persistedInvoice, null as any, {
-                  printForKind: 'patient',
-                  cashierName,
-                  cashierSignatureUrl,
-                  depositTemplate: 'form'
-                })
-              }
-            }}
-          >
-            Formulir Deposit
-          </Button>
+
 
           <Dropdown
             menu={{
