@@ -1,6 +1,5 @@
 import {
     ApiResponseSchema,
-    RecordPaymentInputSchema,
 } from 'simrs-types'
 import { z } from 'zod'
 import { t } from '../'
@@ -19,6 +18,21 @@ const ConfirmInvoiceInputSchemaLocal = z.object({
 
 const GetInvoiceDetailInputSchemaLocal = z.object({
     encounterId: z.string(),
+})
+
+const RecordPaymentInputSchemaLocal = z.object({
+    invoiceId: z.union([z.number(), z.string()]).optional(),
+    encounterId: z.string().optional(),
+    patientId: z.string().optional(),
+    amount: z.number(),
+    paymentMethod: z.enum(['CASH', 'BANK_TRANSFER', 'OTHER']),
+    bankId: z.number().optional(),
+    ref: z.string().nullable().optional(),
+    note: z.string().nullable().optional(),
+    category: z.enum(['SETTLEMENT', 'INITIAL_DEPOSIT', 'SUBSEQUENT_DEPOSIT']).optional(),
+    file: z.any().optional(),
+    filename: z.string().optional(),
+    mimetype: z.string().optional(),
 })
 
 export const kasirRpc = {
@@ -52,7 +66,7 @@ export const kasirRpc = {
         }),
 
     recordPayment: t
-        .input(RecordPaymentInputSchema)
+        .input(RecordPaymentInputSchemaLocal)
         .output(ApiResponseSchema(z.any()))
         .mutation(async ({ client }, input) => {
             const formData = new FormData()
@@ -80,6 +94,13 @@ export const kasirRpc = {
         .output(ApiResponseSchema(z.any()))
         .query(async ({ client }) => {
             const res = await client.get('/api/module/kasir/banks')
+            return await res.json()
+        }),
+    updateStatus: t
+        .input(z.object({ id: z.number(), status: z.string() }))
+        .output(ApiResponseSchema(z.any()))
+        .mutation(async ({ client }, input) => {
+            const res = await client.post('/api/module/kasir/invoice/update-status', input)
             return await res.json()
         }),
 }

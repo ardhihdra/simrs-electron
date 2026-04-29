@@ -70,6 +70,7 @@ import JaminanTable from './pages/jaminan/jaminan-table'
 import KasirPage from './pages/kasir/KasirPage'
 import InvoiceDetailPage from './pages/kasir/invoice-detail'
 import KasirEncounterTable from './pages/kasir/kasir-encounter-table'
+import PaymentPage from './pages/kasir/payment-page'
 import KfaCodeForm from './pages/kfa-code/kfa-code-form'
 import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import LaboratoryQueue from './pages/laboratory-management/queue'
@@ -434,6 +435,7 @@ function MainRoute() {
           <Route path="kasir" element={g('/dashboard/kasir', <KasirPage />)}>
             <Route index element={<KasirEncounterTable />} />
             <Route path="invoice/:encounterId" element={<InvoiceDetailPage />} />
+            <Route path="invoice/:encounterId/bayar" element={<PaymentPage />} />
           </Route>
           <Route path="billing" element={g('/dashboard/billing', <Outlet />)}>
             <Route index element={<BillingPage />} />
