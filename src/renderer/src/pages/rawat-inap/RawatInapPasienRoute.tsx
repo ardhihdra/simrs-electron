@@ -69,6 +69,7 @@ export default function RawatInapPasienRoute() {
         })
         message.success('Disposisi rawat inap berhasil diproses')
       }}
+      onDpjpSaved={() => void query.refetch()}
     />
   )
 }

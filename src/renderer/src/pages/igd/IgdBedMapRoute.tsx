@@ -17,7 +17,13 @@ import {
 
 const isIgdRoomCode = (roomCodeId?: string | null) => {
   const code = String(roomCodeId || '').toUpperCase()
-  return code.includes('RESUS') || code.includes('OBS') || code.includes('TREAT')
+  return (
+    code.includes('RESUS') ||
+    code.includes('OBS') ||
+    code.includes('TINDAKAN') ||
+    code.includes('TREAT') ||
+    code.includes('ISOL')
+  )
 }
 
 export default function IgdBedMapRoute() {

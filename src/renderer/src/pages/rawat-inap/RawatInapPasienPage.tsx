@@ -16,6 +16,7 @@ import {
 import { DesktopGenericTable } from '../../components/design-system/organisms/DesktopGenericTable'
 import { RPCSelectAsync } from '../../components/organisms/RPCSelectAsync'
 import { SelectAsync } from '../../components/organisms/SelectAsync'
+import { DpjpModal } from '../../components/organisms/rawat-inap/DpjpModal'
 import type {
   InpatientPatientListItem,
   InpatientPatientListQuery
@@ -35,6 +36,7 @@ type RawatInapPasienPageProps = {
     payload: DesktopDispositionConfirmPayload
   ) => void | Promise<void>
   isDispositionSubmitting?: boolean
+  onDpjpSaved?: () => void
 }
 
 function getStatusTone(status: string): DesktopBadgeTone {
@@ -119,17 +121,25 @@ export function RawatInapPasienPage({
   statusCounts,
   onQueryChange,
   onDispositionConfirm,
-  isDispositionSubmitting = false
+  isDispositionSubmitting = false,
+  onDpjpSaved
 }: RawatInapPasienPageProps) {
   const { message } = App.useApp()
   const [selectedEncounterId, setSelectedEncounterId] = useState(() => items[0]?.encounterId ?? '')
   const [dispositionPatient, setDispositionPatient] = useState<InpatientPatientListItem | null>(
     null
   )
+  const [showDpjpModal, setShowDpjpModal] = useState(false)
 
   const selected = items.find((p) => p.encounterId === selectedEncounterId) ?? items[0] ?? null
 
   const handleAction = () => void message.info('Fitur belum diimplementasikan pada scope ini')
+  const openDpjpModal = () => setShowDpjpModal(true)
+  const closeDpjpModal = () => setShowDpjpModal(false)
+  const handleDpjpSaved = () => {
+    closeDpjpModal()
+    onDpjpSaved?.()
+  }
 
   if (dispositionPatient) {
     return (
@@ -351,6 +361,20 @@ export function RawatInapPasienPage({
 
   return (
     <div className="flex flex-col gap-[16px]" data-testid="rawat-inap-pasien-layout">
+      {selected && (
+        <DpjpModal
+          open={showDpjpModal}
+          encounterId={selected.encounterId}
+          patientInfo={{
+            name: selected.patientName,
+            medicalRecordNumber: selected.medicalRecordNumber,
+            ageLabel: selected.ageLabel,
+            wardName: selected.wardName
+          }}
+          onClose={closeDpjpModal}
+          onSaved={handleDpjpSaved}
+        />
+      )}
       {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-[16px]">
         <div className="min-w-0 flex-1">
@@ -531,7 +555,6 @@ export function RawatInapPasienPage({
                   [
                     ['Dx', selected.diagnosisSummary ?? '-'],
                     ['LOS', `${selected.losDays} hari`],
-                    ['DPJP', selected.dpjpName ?? '-'],
                     ['Est. Pulang', '-'],
                     ['SEP', selected.sepNumber ?? '-'],
                     ['Status', getStatusLabel(selected.encounterStatus)]
@@ -544,6 +567,22 @@ export function RawatInapPasienPage({
                     <div className="font-medium text-[var(--ds-color-text)]">{value}</div>
                   </div>
                 ))}
+                <div className="col-span-2">
+                  <div className="mb-[3px] text-[10px] font-semibold uppercase tracking-[0.04em] text-[var(--ds-color-text-muted)]">
+                    DPJP
+                  </div>
+                  <div className="flex items-center gap-[6px]">
+                    <span className="flex-1 font-medium text-[var(--ds-color-text)]">
+                      {selected.dpjpName ?? '-'}
+                    </span>
+                    <button
+                      onClick={openDpjpModal}
+                      className="cursor-pointer rounded-[var(--ds-radius)] border border-transparent bg-transparent px-[7px] py-[2px] text-[10.5px] font-medium text-[var(--ds-color-accent)] hover:border-[var(--ds-color-accent)] hover:bg-[color-mix(in_srgb,var(--ds-color-accent)_8%,white)]"
+                    >
+                      Ganti
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {selected.losDays >= 7 && (
@@ -569,6 +608,9 @@ export function RawatInapPasienPage({
                     </DesktopButton>
                   )
                 )}
+                <DesktopButton emphasis="toolbar" onClick={openDpjpModal}>
+                  Tetapkan / Ganti DPJP
+                </DesktopButton>
                 {selected.encounterStatus === 'IN_PROGRESS' && (
                   <DesktopButton
                     emphasis="primary"

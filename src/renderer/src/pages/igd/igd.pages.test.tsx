@@ -15,6 +15,7 @@ import { IgdTriasePage } from './IgdTriasePage.tsx'
 import { createIgdDashboardFixture } from './igd.data.ts'
 import { buildIgdTableActions } from './igd.disposition.ts'
 import { buildIgdReferralPatientData } from './igd.referral.ts'
+import { type IgdTriageLevel } from './igd.triage-level.ts'
 
 test('IGD daftar page renders summary, patient list, and detail panel', () => {
   const markup = renderToStaticMarkup(<IgdDaftarPage dashboard={createIgdDashboardFixture()} />)
@@ -37,10 +38,10 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('desktop-generic-table'), true)
   assert.equal(markup.includes('igd-patient-table'), true)
   assert.equal(markup.includes('igd-row-priority-1'), true)
-  assert.equal(markup.includes('igd-row-priority-2'), true)
+  assert.equal(markup.includes('igd-row-priority-2'), false)
   assert.equal(markup.includes('igd-row-active-default'), true)
   assert.equal(markup.includes('igd-row-priority-3'), false)
-  assert.equal(markup.includes('igd-row-priority-5'), false)
+  assert.equal(markup.includes('igd-row-priority-4'), false)
   assert.equal(markup.includes('Nomor Regis'), true)
   assert.equal(markup.includes('No. Rawat'), true)
   assert.equal(markup.includes('Waktu Masuk'), true)
@@ -93,7 +94,7 @@ test('IGD daftar page renders neutral detail when selected patient has no triage
   dashboard.patients = [
     {
       ...dashboard.patients[0]!,
-      triageLevel: undefined as unknown as 1 | 2 | 3 | 4 | 5
+      triageLevel: undefined as unknown as IgdTriageLevel
     }
   ]
 
@@ -154,8 +155,8 @@ test('IGD registrasi page renders the intake form shell', () => {
   assert.equal(markup.includes('patient-lookup-selector-slot'), true)
   assert.equal(markup.includes('desktop-input-field'), true)
   assert.equal(markup.includes('desktop-card'), true)
-  assert.equal(markup.includes('Level 3 — Urgen'), true)
-  assert.equal(markup.includes('Warna Kuning · Butuh evaluasi cepat'), true)
+  assert.equal(markup.includes('Level 2 - Urgen'), true)
+  assert.equal(markup.includes('Warna Kuning - Butuh evaluasi cepat'), true)
 })
 
 test('IGD triase page renders triage sections and save action', () => {
@@ -185,7 +186,7 @@ test('IGD bed map page renders zones and bed cards', () => {
               status: 'Terisi',
               patientName: 'TIDAK DIKENAL',
               registrationNumber: 'IGD-2604-001',
-              triageLevel: 'L1'
+              triageLevel: 'L0'
             }
           ]
         }
@@ -197,13 +198,13 @@ test('IGD bed map page renders zones and bed cards', () => {
   assert.equal(markup.includes('Data tersambung'), true)
   assert.equal(markup.includes('Laporan'), true)
   assert.equal(markup.includes('TOTAL BED IGD'), true)
-  assert.equal(markup.includes('12'), true)
+  assert.equal(markup.includes('14'), true)
   assert.equal(markup.includes('Terisi'), true)
   assert.equal(markup.includes('Kosong'), true)
   assert.equal(markup.includes('Pembersihan'), true)
   assert.equal(markup.includes('Zona Resusitasi'), true)
   assert.equal(markup.includes('3 kosong dari 4'), true)
-  assert.equal(markup.includes('L1-L2'), true)
+  assert.equal(markup.includes('Semua level'), true)
   assert.equal(markup.includes('R-01'), true)
   assert.equal(markup.includes('Detail'), true)
   assert.equal(markup.includes('Pindah'), true)

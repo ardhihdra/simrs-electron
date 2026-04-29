@@ -2,6 +2,7 @@ import dayjs from 'dayjs'
 
 import { IGD_BED_ZONE_ORDER } from './igd.bed-zoning'
 import { type IgdDashboard, type IgdDashboardBedZone } from './igd.data'
+import { formatIgdTriageLevel } from './igd.triage-level'
 
 export type IgdBedReportExportDetailRow = {
   bedCode: string
@@ -58,7 +59,7 @@ export function buildIgdBedReportExportGroups(
           patientName: patient?.name || '-',
           registrationNumber:
             patient?.registrationNumber || patient?.medicalRecordNumber || patient?.encounterId || '-',
-          triageLevel: patient?.triageLevel ? `L${patient.triageLevel}` : '-'
+          triageLevel: patient ? formatIgdTriageLevel(patient.triageLevel) : '-'
         }
       })
     }

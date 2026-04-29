@@ -6,7 +6,7 @@ import type { PageAccessEntry } from './services/ModuleScope/type'
 import { client } from './utils/client'
 import { getDefaultHomePath } from './app-shell'
 
-import { Typography } from 'antd'
+import { Button, Result } from 'antd'
 import AppLayout from './components/templates/AppLayout'
 import Dashboard from './pages/Dashboard'
 import DesignSystemPage from './pages/design-system'
@@ -138,8 +138,23 @@ import RegistrationSelect from './pages/visit-management/registration-select'
 import UpcomingQueuePage from './pages/visit-management/upcoming-queue'
 import LaporanKunjunganPage from './pages/visit-management/laporan-kunjungan'
 
+const NoAccessFallback = () => (
+  <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <Result
+      status="403"
+      title="Akses Ditolak"
+      subTitle="Anda tidak memiliki izin untuk mengakses halaman ini atau anda ada di Lokasi yang tidak sesuai. Hubungi administrator jika Anda merasa ini adalah kesalahan."
+      extra={
+        <Button type="primary" onClick={() => window.history.back()}>
+          Kembali
+        </Button>
+      }
+    />
+  </div>
+)
+
 const withModuleGuard = (access: PageAccessEntry | undefined, element: ReactNode) => (
-  <ModuleScopeGuard access={access} fallback={<Typography>No access to this page</Typography>}>
+  <ModuleScopeGuard access={access} fallback={<NoAccessFallback />}>
     {element}
   </ModuleScopeGuard>
 )

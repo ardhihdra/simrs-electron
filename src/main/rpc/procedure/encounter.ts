@@ -14,7 +14,7 @@ import {
   normalizeInpatientPatientListOptionsResponse,
 } from './encounter.schemas'
 
-export type { InpatientPatientListItem, InpatientPatientListResult } from './encounter.schemas'
+export type { InpatientPatientListItem, InpatientPatientListResult, DpjpParticipantItem } from './encounter.schemas'
 export { normalizeInpatientPatientListResponse } from './encounter.schemas'
 
 // ── RPC procedures ────────────────────────────────────────────────────────────
@@ -144,5 +144,43 @@ export const encounterRpc = {
       const data = await client.get('/api/module/encounter/inpatient-patients/options')
       const payload = await data.json()
       return normalizeInpatientPatientListOptionsResponse(payload)
+    }),
+
+  listDpjp: t
+    .input(z.string())
+    .output(z.any())
+    .query(async ({ client }, encounterId) => {
+      const data = await client.get(`/api/module/encounter/${encounterId}/dpjp`)
+      return await data.json()
+    }),
+
+  assignDpjp: t
+    .input(z.object({
+      encounterId: z.string(),
+      staffId: z.number(),
+      role: z.enum(['dpjp_utama', 'dpjp_tambahan']),
+      startAt: z.string().optional(),
+      notes: z.string().optional(),
+    }))
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      const data = await client.post(`/api/module/encounter/${input.encounterId}/dpjp`, {
+        staffId: input.staffId,
+        role: input.role,
+        startAt: input.startAt,
+        notes: input.notes,
+      })
+      return await data.json()
+    }),
+
+  removeDpjp: t
+    .input(z.object({
+      encounterId: z.string(),
+      participantId: z.number(),
+    }))
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      const data = await client.delete(`/api/module/encounter/${input.encounterId}/dpjp/${input.participantId}`)
+      return await data.json()
     }),
 }

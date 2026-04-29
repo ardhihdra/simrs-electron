@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 
 import type { IgdBedZoneName } from './igd.bed-zoning'
+import type { IgdTriageLevel } from './igd.triage-level'
 
 export type IgdPatientStatus = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
 export type IgdBedStatus = 'available' | 'occupied' | 'cleaning'
@@ -27,7 +28,7 @@ export type IgdPatient = {
   complaint: string
   paymentLabel: string
   arrivalSource: string
-  triageLevel: 1 | 2 | 3 | 4 | 5
+  triageLevel: IgdTriageLevel
   status: IgdPatientStatus
   bedCode?: string
   arrivalTime: string
@@ -95,7 +96,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'Tidak sadarkan diri, trauma kepala berat',
     paymentLabel: 'Umum',
     arrivalSource: 'Polisi',
-    triageLevel: 1,
+    triageLevel: 0,
     status: 'penanganan',
     bedCode: 'R-01',
     arrivalTime: '09:15',
@@ -122,7 +123,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'Nyeri dada hebat, sesak nafas akut, diaphoresis',
     paymentLabel: 'BPJS',
     arrivalSource: 'Datang sendiri',
-    triageLevel: 1,
+    triageLevel: 0,
     status: 'penanganan',
     bedCode: 'R-02',
     arrivalTime: '09:22',
@@ -149,7 +150,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'Perdarahan aktif post partum, G2P1A0',
     paymentLabel: 'BPJS',
     arrivalSource: 'Rujukan',
-    triageLevel: 2,
+    triageLevel: 1,
     status: 'triase',
     bedCode: 'R-03',
     arrivalTime: '09:31',
@@ -173,7 +174,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'Fraktur tibia fibula dextra, nyeri VAS 8/10',
     paymentLabel: 'Umum',
     arrivalSource: 'Datang sendiri',
-    triageLevel: 3,
+    triageLevel: 2,
     status: 'observasi',
     bedCode: 'O-01',
     arrivalTime: '09:35',
@@ -199,7 +200,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'Demam tinggi disertai kejang satu kali',
     paymentLabel: 'BPJS',
     arrivalSource: 'Datang sendiri',
-    triageLevel: 3,
+    triageLevel: 2,
     status: 'penanganan',
     bedCode: 'O-02',
     arrivalTime: '09:42',
@@ -225,7 +226,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'Vulnus scissum jari tangan kanan, perdarahan minor',
     paymentLabel: 'Umum',
     arrivalSource: 'Datang sendiri',
-    triageLevel: 4,
+    triageLevel: 3,
     status: 'triase',
     arrivalTime: '09:55',
     triageTime: '10:05',
@@ -248,7 +249,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'Nyeri abdomen kanan bawah, mual muntah tiga kali',
     paymentLabel: 'BPJS',
     arrivalSource: 'Datang sendiri',
-    triageLevel: 4,
+    triageLevel: 3,
     status: 'menunggu',
     arrivalTime: '10:02'
   },
@@ -262,7 +263,7 @@ const INITIAL_PATIENTS: IgdPatient[] = [
     complaint: 'ISPA ringan, febris, rhinitis',
     paymentLabel: 'BPJS',
     arrivalSource: 'Datang sendiri',
-    triageLevel: 5,
+    triageLevel: 4,
     status: 'menunggu',
     arrivalTime: '10:10'
   }
@@ -279,8 +280,10 @@ const INITIAL_BEDS: IgdBed[] = [
   { code: 'O-04', zone: 'Observasi', status: 'cleaning', patientId: null },
   { code: 'O-05', zone: 'Observasi', status: 'available', patientId: null },
   { code: 'O-06', zone: 'Observasi', status: 'available', patientId: null },
-  { code: 'T-01', zone: 'Treatment', status: 'available', patientId: null },
-  { code: 'T-02', zone: 'Treatment', status: 'available', patientId: null }
+  { code: 'T-01', zone: 'Tindakan', status: 'available', patientId: null },
+  { code: 'T-02', zone: 'Tindakan', status: 'available', patientId: null },
+  { code: 'I-01', zone: 'Isolasi', status: 'available', patientId: null },
+  { code: 'I-02', zone: 'Isolasi', status: 'available', patientId: null }
 ]
 
 const INITIAL_TRIAGE_FORMS: IgdStateData['triageForms'] = {
@@ -348,7 +351,7 @@ export const registerIgdPatient = (
     complaint: input.complaint,
     paymentLabel: input.paymentLabel,
     arrivalSource: input.arrivalSource,
-    triageLevel: 4,
+    triageLevel: 3,
     status: 'menunggu',
     arrivalTime: '10:25'
   }

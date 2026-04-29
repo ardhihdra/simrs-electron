@@ -8,6 +8,7 @@ import {
   type DesktopDispositionType
 } from '../../components/design-system/organisms/DesktopDispositionWorkflow'
 import { type IgdDashboardPatient } from './igd.data'
+import { getIgdTriageLevelMeta, isIgdTriageLevel } from './igd.triage-level'
 
 export type IgdDispositionType = DesktopDispositionType
 export type IgdDispositionConfirmPayload = DesktopDispositionConfirmPayload
@@ -20,54 +21,6 @@ type IgdDisposisiPageProps = {
   renderReferralForm?: (args: {
     type: Extract<IgdDispositionType, 'rujuk-i' | 'rujuk-e'>
   }) => React.ReactElement | null
-}
-
-const TRIAGE_META: Record<IgdDashboardPatient['triageLevel'], DesktopDispositionBannerMeta> = {
-  1: {
-    label: 'L1',
-    name: 'Resusitasi',
-    colorName: 'MERAH',
-    badgeTone: 'danger',
-    background: 'var(--danger-soft)',
-    borderColor: 'var(--danger)',
-    color: 'var(--danger)'
-  },
-  2: {
-    label: 'L2',
-    name: 'Emergensi',
-    colorName: 'MERAH',
-    badgeTone: 'warning',
-    background: 'oklch(0.96 0.06 50)',
-    borderColor: 'oklch(0.52 0.18 35)',
-    color: 'oklch(0.52 0.18 35)'
-  },
-  3: {
-    label: 'L3',
-    name: 'Urgen',
-    colorName: 'KUNING',
-    badgeTone: 'warning',
-    background: 'var(--warn-soft)',
-    borderColor: 'var(--warn)',
-    color: 'var(--warn)'
-  },
-  4: {
-    label: 'L4',
-    name: 'Semi-Urgen',
-    colorName: 'HIJAU',
-    badgeTone: 'success',
-    background: 'var(--ok-soft)',
-    borderColor: 'var(--ok)',
-    color: 'var(--ok)'
-  },
-  5: {
-    label: 'L5',
-    name: 'Tidak Urgen',
-    colorName: 'HIJAU',
-    badgeTone: 'neutral',
-    background: 'var(--surface-2)',
-    borderColor: 'var(--border-strong)',
-    color: 'var(--text-3)'
-  }
 }
 
 const TRIAGE_FALLBACK_META: DesktopDispositionBannerMeta = {
@@ -138,8 +91,18 @@ const DISPOSITION_OPTIONS: DesktopDispositionOption[] = [
 ]
 
 const getTriageMeta = (level: unknown) => {
-  if (level === 1 || level === 2 || level === 3 || level === 4 || level === 5) {
-    return TRIAGE_META[level]
+  if (isIgdTriageLevel(level)) {
+    const meta = getIgdTriageLevelMeta(level)
+
+    return {
+      label: meta.label,
+      name: meta.name,
+      colorName: meta.colorName,
+      badgeTone: meta.badgeTone,
+      background: meta.background,
+      borderColor: meta.borderColor,
+      color: meta.foreground
+    } satisfies DesktopDispositionBannerMeta
   }
 
   return TRIAGE_FALLBACK_META

@@ -1,6 +1,7 @@
 import type { PatientAttributes } from 'simrs-types'
 
 import type { IgdBedZoneName } from './igd.bed-zoning'
+import type { IgdTriageLevel } from './igd.triage-level'
 import { getQuickTriageLevel } from './igd.quick-triage'
 
 export type IgdArrivalSource = 'Datang sendiri' | 'Rujukan' | 'Polisi'
@@ -35,7 +36,7 @@ export type IgdDashboardPatient = {
   complaint: string
   paymentLabel: IgdPaymentMethod
   arrivalSource: IgdArrivalSource
-  triageLevel: 1 | 2 | 3 | 4 | 5
+  triageLevel: IgdTriageLevel
   status: IgdDashboardPatientStatus
   unitLabel: string
   bedCode?: string
@@ -63,7 +64,7 @@ export type IgdDashboardBed = {
 export type IgdDashboard = {
   summary: {
     totalActive: number
-    triageCounts: Record<'1' | '2' | '3' | '4' | '5', number>
+    triageCounts: Record<'0' | '1' | '2' | '3' | '4', number>
     bedAvailable: number
     bedTotal: number
     averageResponseMinutes: number
@@ -170,7 +171,7 @@ export type IgdRegistrationCommand = {
     phone?: string
   }
   quickTriage?: {
-    level: 1 | 2 | 3 | 4 | 5
+    level: IgdTriageLevel
     conditionKey: string
     effectiveDateTime: string
   }
@@ -188,7 +189,7 @@ export type SubmitIgdRegistrationInput = {
 export const EMPTY_IGD_DASHBOARD: IgdDashboard = {
   summary: {
     totalActive: 0,
-    triageCounts: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+    triageCounts: { '0': 0, '1': 0, '2': 0, '3': 0, '4': 0 },
     bedAvailable: 0,
     bedTotal: 0,
     averageResponseMinutes: 0,
@@ -202,9 +203,9 @@ export function createIgdDashboardFixture(): IgdDashboard {
   return {
     summary: {
       totalActive: 4,
-      triageCounts: { '1': 1, '2': 1, '3': 1, '4': 1, '5': 0 },
-      bedAvailable: 12,
-      bedTotal: 16,
+      triageCounts: { '0': 1, '1': 1, '2': 1, '3': 1, '4': 0 },
+      bedAvailable: 11,
+      bedTotal: 14,
       averageResponseMinutes: 4,
       totalToday: 4
     },
@@ -222,7 +223,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Trauma kepala berat',
         paymentLabel: 'Umum',
         arrivalSource: 'Polisi',
-        triageLevel: 1,
+        triageLevel: 0,
         status: 'observasi',
         unitLabel: 'IGD',
         bedCode: 'R-01',
@@ -254,7 +255,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Perdarahan aktif post partum',
         paymentLabel: 'BPJS',
         arrivalSource: 'Rujukan',
-        triageLevel: 2,
+        triageLevel: 1,
         status: 'triase',
         unitLabel: 'IGD',
         arrivalTime: '09:22',
@@ -281,7 +282,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Nyeri dada hebat',
         paymentLabel: 'BPJS',
         arrivalSource: 'Datang sendiri',
-        triageLevel: 3,
+        triageLevel: 2,
         status: 'penanganan',
         unitLabel: 'IGD',
         bedCode: 'O-01',
@@ -313,7 +314,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
         complaint: 'Vulnus scissum jari tangan kanan',
         paymentLabel: 'Umum',
         arrivalSource: 'Datang sendiri',
-        triageLevel: 4,
+        triageLevel: 3,
         status: 'menunggu',
         unitLabel: 'IGD',
         arrivalTime: '09:55',
@@ -431,23 +432,23 @@ export function createIgdDashboardFixture(): IgdDashboard {
       },
       {
         code: 'T-01',
-        zone: 'Treatment',
+        zone: 'Tindakan',
         status: 'available',
         patientId: null,
         bedId: 'bed-t-01',
         roomId: 'room-treat',
-        roomCodeId: 'IGD-TREAT',
-        roomClassCodeId: 'IGD_TREATMENT'
+        roomCodeId: 'IGD-TINDAKAN',
+        roomClassCodeId: 'IGD_TINDAKAN'
       },
       {
         code: 'T-02',
-        zone: 'Treatment',
+        zone: 'Tindakan',
         status: 'available',
         patientId: null,
         bedId: 'bed-t-02',
         roomId: 'room-treat',
-        roomCodeId: 'IGD-TREAT',
-        roomClassCodeId: 'IGD_TREATMENT'
+        roomCodeId: 'IGD-TINDAKAN',
+        roomClassCodeId: 'IGD_TINDAKAN'
       },
       {
         code: 'I-01',
@@ -456,7 +457,7 @@ export function createIgdDashboardFixture(): IgdDashboard {
         patientId: null,
         bedId: 'bed-i-01',
         roomId: 'room-isol',
-        roomCodeId: 'IGD-ISOL',
+        roomCodeId: 'IGD-ISOLASI',
         roomClassCodeId: 'IGD_ISOLASI'
       },
       {
@@ -466,29 +467,9 @@ export function createIgdDashboardFixture(): IgdDashboard {
         patientId: null,
         bedId: 'bed-i-02',
         roomId: 'room-isol',
-        roomCodeId: 'IGD-ISOL',
+        roomCodeId: 'IGD-ISOLASI',
         roomClassCodeId: 'IGD_ISOLASI'
       },
-      {
-        code: 'H-01',
-        zone: 'Holding',
-        status: 'available',
-        patientId: null,
-        bedId: 'bed-h-01',
-        roomId: 'room-hold',
-        roomCodeId: 'IGD-HOLD',
-        roomClassCodeId: 'IGD_HOLDING'
-      },
-      {
-        code: 'H-02',
-        zone: 'Holding',
-        status: 'available',
-        patientId: null,
-        bedId: 'bed-h-02',
-        roomId: 'room-hold',
-        roomCodeId: 'IGD-HOLD',
-        roomClassCodeId: 'IGD_HOLDING'
-      }
     ]
   }
 }

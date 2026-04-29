@@ -27,7 +27,7 @@ const IgdRegistrationInputSchema = z.object({
     .optional(),
   quickTriage: z
     .object({
-      level: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]),
+      level: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
       conditionKey: z.string().min(1),
       effectiveDateTime: z.string().min(1)
     })

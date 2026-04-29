@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react'
+import React, { type CSSProperties, type ReactNode } from 'react'
 
 export type DesktopTriageBadgeTone = 'neutral' | 'accent' | 'success' | 'warning' | 'danger'
 
@@ -19,18 +19,21 @@ export interface DesktopTriageBadgeProps {
   children: ReactNode
   tone?: DesktopTriageBadgeTone
   compact?: boolean
+  style?: CSSProperties
 }
 
 export function DesktopTriageBadge({
   children,
   tone = 'neutral',
-  compact = false
+  compact = false,
+  style
 }: DesktopTriageBadgeProps) {
   return (
     <span
       className={`desktop-triage-badge inline-flex items-center rounded-[var(--ds-radius-sm)] border font-mono font-bold tracking-[0.02em] ${
         compact ? 'px-[5px] py-[1px] text-[10px]' : 'px-[7px] py-[2px] text-[11px]'
       } ${TONE_CLASSNAME[tone]}`}
+      style={style}
     >
       {children}
     </span>
