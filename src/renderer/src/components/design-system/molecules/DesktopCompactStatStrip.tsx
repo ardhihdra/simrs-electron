@@ -114,7 +114,9 @@ export function DesktopCompactStatStrip({
         <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
           Pasien Aktif
         </span>
-        <b className="block font-mono text-[26px] leading-none text-[var(--ds-color-text)]">{totalActive}</b>
+        <b className="block font-mono text-[26px] leading-none text-[var(--ds-color-text)]">
+          {totalActive}
+        </b>
       </div>
 
       <div className="h-[40px] w-px bg-[var(--ds-color-border)]" />
@@ -124,7 +126,9 @@ export function DesktopCompactStatStrip({
           <DesktopTriageBadge tone={level.tone} compact style={level.badgeStyle}>
             {level.label}
           </DesktopTriageBadge>
-          <b className="font-mono text-[16px] leading-none text-[var(--ds-color-text)]">{level.value}</b>
+          <b className="font-mono text-[16px] leading-none text-[var(--ds-color-text)]">
+            {level.value}
+          </b>
         </div>
       ))}
 
@@ -135,7 +139,9 @@ export function DesktopCompactStatStrip({
           Bed Tersedia
         </span>
         <div className="flex items-end gap-[3px]">
-          <b className="font-mono text-[18px] leading-none text-[var(--ds-color-success)]">{bedAvailable}</b>
+          <b className="font-mono text-[18px] leading-none text-[var(--ds-color-success)]">
+            {bedAvailable}
+          </b>
           <span className="text-[12px] text-[var(--ds-color-text-subtle)]">/{bedTotal}</span>
         </div>
       </div>
@@ -145,7 +151,9 @@ export function DesktopCompactStatStrip({
           AVG. Response
         </span>
         <div className="flex items-end gap-[3px]">
-          <b className="font-mono text-[18px] leading-none text-[var(--ds-color-text)]">{averageResponse}</b>
+          <b className="font-mono text-[18px] leading-none text-[var(--ds-color-text)]">
+            {averageResponse}
+          </b>
           <span className="text-[11px] text-[var(--ds-color-text-subtle)]">mnt</span>
         </div>
       </div>
@@ -154,7 +162,9 @@ export function DesktopCompactStatStrip({
         <span className="block text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--ds-color-text-subtle)]">
           Total Hari Ini
         </span>
-        <b className="block font-mono text-[18px] leading-none text-[var(--ds-color-text)]">{totalToday}</b>
+        <b className="block font-mono text-[18px] leading-none text-[var(--ds-color-text)]">
+          {totalToday}
+        </b>
       </div>
 
       {statusBadges.length > 0 ? (
@@ -166,7 +176,9 @@ export function DesktopCompactStatStrip({
             >
               <span
                 className={`h-[6px] w-[6px] rounded-[999px] ${
-                  status.tone === 'success' ? 'bg-[var(--ds-color-success)]' : 'bg-[var(--ds-color-accent)]'
+                  status.tone === 'success'
+                    ? 'bg-[var(--ds-color-success)]'
+                    : 'bg-[var(--ds-color-accent)]'
                 }`}
               />
               <span>{status.label}</span>

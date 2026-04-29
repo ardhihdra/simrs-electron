@@ -570,6 +570,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
     if (availableKelasSet.has('UMUM')) return 'UMUM'
     return availableKelasOptions[0]?.value
   }, [availableKelasOptions, availableKelasSet, defaultTarifKelasFromPatientData])
+  const defaultSifatOperasi = type === 'igd' ? 'cyto' : 'efektif'
 
   useEffect(() => {
     const current = normalizeKelas(form.getFieldValue('selectedTarifKelas'))
@@ -791,7 +792,9 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
         paketNamaSnapshot: String(paket?.namaPaket || ''),
         kategoriPaketSnapshot: paket?.kategoriPaket || null,
         kelasTarifSnapshot: selectedKelas || null,
-        tarifPaketSnapshot: Number.isFinite(Number(tarifMeta?.tarif)) ? Number(tarifMeta?.tarif) : null,
+        tarifPaketSnapshot: Number.isFinite(Number(tarifMeta?.tarif))
+          ? Number(tarifMeta?.tarif)
+          : null,
         sortOrder: index
       }
     })
@@ -883,7 +886,11 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
           if (values.receiver_name && okRequestId) {
             try {
               const items: QuestionnaireResponseItem[] = [
-                { linkId: 'receiver-name', text: 'Nama Penerima', valueString: values.receiver_name },
+                {
+                  linkId: 'receiver-name',
+                  text: 'Nama Penerima',
+                  valueString: values.receiver_name
+                },
                 {
                   linkId: 'receiver-birthdate',
                   text: 'Tanggal Lahir Penerima',
@@ -1174,8 +1181,6 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
           {config.showEmergencyAlert && (
             <Alert
               type="error"
-              showIcon
-              icon={<ThunderboltOutlined />}
               message="KATEGORI CYTO: Pastikan identitas pasien, sisi operasi (body map), dan jenis tindakan darurat sudah diverifikasi."
               className="mb-2"
             />
@@ -1354,7 +1359,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
                   <div
                     className={`mb-2 bg-${config.color}-50 p-3 rounded text-${config.color}-700 text-xs font-bold border border-${config.color}-200 flex items-center gap-2`}
                   >
-                    {config.color === 'red' && <ThunderboltOutlined />}
+                    {/* {config.color === 'red' && <ThunderboltOutlined />} */}
                     KLIK PADA AREA TUBUH UNTUK MENANDAI LOKASI OPERASI
                   </div>
                   <div
@@ -1648,9 +1653,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
       children: (
         <div className="flex flex-col gap-4">
           <Card
-            title={
-              <span className={`font-bold ${config.accentColor}`}>Unggah {config.tab4Label}</span>
-            }
+            title={<span className={`font-bold `}>Unggah {config.tab4Label}</span>}
             size="small"
             className={`shadow-none border-${config.color}-100`}
             extra={
@@ -1690,7 +1693,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
             <span
               className={`text-gray-700 font-bold uppercase tracking-wider text-xs flex items-center gap-2`}
             >
-              {config.color === 'red' && <ThunderboltOutlined />}
+              {/* {config.color === 'red' && <ThunderboltOutlined />} */}
               Form Pengajuan Kamar Operasi ({config.label})
             </span>
           </div>
@@ -1707,7 +1710,7 @@ export const PengajuanOKForm: React.FC<PengajuanOKProps> = ({
         initialValues={{
           assessment_date: dayjs(),
           tanggalRencana: dayjs(),
-          sifatOperasi: 'efektif',
+          sifatOperasi: defaultSifatOperasi,
           status: config.defaultStatus,
           selectedTarifKelas: initialTarifKelas || undefined,
           selectedPaketIds: []

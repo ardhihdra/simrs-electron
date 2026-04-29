@@ -1,9 +1,9 @@
 /**
- * Purpose: Tab input tindakan non-paket pada DetailTindakanForm.
- * Main callers: DetailTindakanForm.
- * Key dependencies: antd Form.List, SelectKelasTarif, AutoRolePetugasListCard, ProcedureSelectorModal state.
- * Main/public functions: TindakanNonPaketTab.
- * Side effects: update state form antd (`tindakanList`) dan trigger dialog pemilihan tindakan.
+ * purpose: Tab input tindakan non-paket pada form detail tindakan.
+ * main callers: `DetailTindakanForm` pada modal detail tindakan.
+ * key dependencies: Antd Form, selector tindakan, komponen auto role petugas, dan selector kelas tarif.
+ * main/public functions: `TindakanNonPaketTab`.
+ * side effects: Menulis nilai field `tindakanList` pada form induk ketika tambah/pilih tindakan.
  */
 import { Form, Card, Select, Input, InputNumber, Switch, Button, Row, Col, Tooltip } from 'antd'
 import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
@@ -70,12 +70,13 @@ export default function TindakanNonPaketTab({
           onClick={() => {
             const currentList = modalForm.getFieldValue('tindakanList') || []
             const defaultKelas = modalForm.getFieldValue('kelas') || 'UMUM'
+            const defaultCyto = Boolean(modalForm.getFieldValue('cytoGlobal'))
             modalForm.setFieldValue('tindakanList', [
               ...currentList,
               {
                 kelas: defaultKelas,
                 jumlah: 1,
-                cyto: false,
+                cyto: defaultCyto,
                 petugasList: []
               }
             ])

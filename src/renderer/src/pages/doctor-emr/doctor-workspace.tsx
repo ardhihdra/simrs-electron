@@ -145,8 +145,25 @@ const DoctorWorkspace = () => {
   const patient = patientData.patient
   const age = patient.birthDate ? dayjs().diff(dayjs(patient.birthDate), 'year') : 0
 
-  const poliName = (patientData as any).serviceType || 'Poli Umum'
-  const doctorName = (patientData as any).doctorName || 'Dr. Dokter'
+  const encounterTypeRaw = String((patientData as any).encounterType || '').toUpperCase()
+  const serviceTypeRaw = String((patientData as any).serviceType || '').toUpperCase()
+  const cardCareType: 'rajal' | 'ranap' | 'igd' | 'unknown' =
+    encounterTypeRaw === EncounterType.EMER ||
+    serviceTypeRaw === 'EMER' ||
+    serviceTypeRaw === 'EMERGENCY' ||
+    serviceTypeRaw === 'IGD' ||
+    serviceTypeRaw === 'UGD' ||
+    serviceTypeRaw === 'RAWAT_DARURAT'
+      ? 'igd'
+      : encounterTypeRaw === EncounterType.IMP || serviceTypeRaw === 'IMP' || serviceTypeRaw === 'INPATIENT'
+        ? 'ranap'
+        : encounterTypeRaw === EncounterType.AMB || serviceTypeRaw === 'AMB' || serviceTypeRaw === 'AMBULATORY'
+          ? 'rajal'
+          : 'unknown'
+  const poliNameRaw = String((patientData as any).serviceType || '').trim()
+  const poliName = poliNameRaw || (cardCareType === 'igd' ? 'IGD' : '-')
+  const doctorNameRaw = String((patientData as any).doctorName || '').trim()
+  const doctorName = doctorNameRaw || '-'
   const visitDate = (patientData as any).visitDate
     ? dayjs((patientData as any).visitDate).format('DD MMM YYYY, HH:mm')
     : dayjs().format('DD MMM YYYY, HH:mm')
@@ -160,7 +177,9 @@ const DoctorWorkspace = () => {
           .join(', ')
       : '-'
   const closeReminderStatusLabel =
-    currentStatus === EncounterStatus.IN_PROGRESS ? 'Sedang Diperiksa' : String(currentStatus || '-')
+    currentStatus === EncounterStatus.IN_PROGRESS
+      ? 'Sedang Diperiksa'
+      : String(currentStatus || '-')
   const normalizeAnthropometry = (value?: number | null): number | null =>
     typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : null
   const heightCm = normalizeAnthropometry(patientData.nurseRecord?.vitalSigns?.height)
@@ -187,7 +206,8 @@ const DoctorWorkspace = () => {
     visitDate: visitDate,
     paymentMethod: paymentMethod,
     status: currentStatus,
-    allergies: allergies
+    allergies: allergies,
+    careType: cardCareType
   }
 
   const SelesaikanPemeriksaanButton = () => {
@@ -251,7 +271,10 @@ const DoctorWorkspace = () => {
             <div className="grid grid-cols-1 gap-2">
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Kembali
@@ -262,7 +285,10 @@ const DoctorWorkspace = () => {
               </div>
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Tutup Halaman
@@ -273,7 +299,10 @@ const DoctorWorkspace = () => {
               </div>
               <div
                 className="rounded-lg border px-3 py-2.5"
-                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
               >
                 <div className="text-sm font-semibold" style={{ color: token.colorText }}>
                   Selesaikan Pemeriksaan
@@ -305,41 +334,16 @@ const DoctorWorkspace = () => {
             </div>
           </div>
         )}
-
-        {encounterDetail?.result?.encounterType === EncounterType.IMP ? (
-          <DoctorInpatientWorkspace
-            encounterId={encounterId || ''}
-            patientData={patientData}
-            patientInfoCardData={patientInfoCardData}
-            action={
-              currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <SelesaikanPemeriksaanButton />
-              ) : undefined
-            }
-          />
-        ) : encounterDetail?.result?.encounterType === EncounterType.EMER ? (
-          <DoctorEmergencyWorkspace
-            encounterId={encounterId || ''}
-            patientData={patientData}
-            patientInfoCardData={patientInfoCardData}
-            action={
-              currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <SelesaikanPemeriksaanButton />
-              ) : undefined
-            }
-          />
-        ) : (
-          <DoctorOutpatientWorkspace
-            encounterId={encounterId || ''}
-            patientData={patientData}
-            patientInfoCardData={patientInfoCardData}
-            action={
-              currentStatus === EncounterStatus.IN_PROGRESS ? (
-                <SelesaikanPemeriksaanButton />
-              ) : undefined
-            }
-          />
-        )}
+        <DoctorEmergencyWorkspace
+          encounterId={encounterId || ''}
+          patientData={patientData}
+          patientInfoCardData={patientInfoCardData}
+          action={
+            currentStatus === EncounterStatus.IN_PROGRESS ? (
+              <SelesaikanPemeriksaanButton />
+            ) : undefined
+          }
+        />
       </div>
 
       <DischargeModal

@@ -83,8 +83,6 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
 
             const res = (await rpc.kasir.recordPayment({
                 invoiceId,
-                encounterId,
-                patientId,
                 amount: values.amount,
                 paymentMethod: values.paymentMethod,
                 bankId: values.bankId,

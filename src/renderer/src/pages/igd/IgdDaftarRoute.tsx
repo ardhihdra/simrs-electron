@@ -1,3 +1,10 @@
+/**
+ * purpose: Route controller daftar pasien IGD untuk memuat dashboard backend dan mengelola aksi operasional (triase, ganti pasien, disposisi, dan buka pemeriksaan dokter).
+ * main callers: Routing `IGD_PAGE_PATHS.daftar` di `route.tsx`.
+ * key dependencies: `client.igd.dashboard`, mutasi IGD/visit-management, `IgdDaftarPage`, dan modal disposisi/replace.
+ * main/public functions: `IgdDaftarRoute`.
+ * side effects: Query/mutation HTTP via RPC, invalidasi query dashboard IGD, navigasi halaman IGD, serta membuka jendela pemeriksaan dokter baru.
+ */
 import type { PatientAttributes } from 'simrs-types'
 import React, { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
@@ -29,7 +36,9 @@ export default function IgdDaftarRoute() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | undefined>(undefined)
   const [replacePatientModalVisible, setReplacePatientModalVisible] = useState(false)
   const [selectedDisposition, setSelectedDisposition] = useState('')
-  const [selectedDispositionEncounterId, setSelectedDispositionEncounterId] = useState<string | null>(null)
+  const [selectedDispositionEncounterId, setSelectedDispositionEncounterId] = useState<
+    string | null
+  >(null)
   const [dischargeModalVisible, setDischargeModalVisible] = useState(false)
   const [rujukanModalVisible, setRujukanModalVisible] = useState(false)
   const [selectedReplacementPatient, setSelectedReplacementPatient] = useState<
@@ -111,7 +120,11 @@ export default function IgdDaftarRoute() {
           void dashboardQuery.refetch()
         }}
         onOpenRegistrasi={() => navigate(IGD_PAGE_PATHS.registrasi)}
-        onOpenTriase={() => navigate(IGD_PAGE_PATHS.triase)}
+        onOpenTriase={(patientId) =>
+          navigate(IGD_PAGE_PATHS.triase, {
+            state: { selectedPatientId: patientId ?? selectedPatientId }
+          })
+        }
         onOpenBedMap={() => navigate(IGD_PAGE_PATHS.bedMap)}
         onOpenReplacePatient={() => {
           setSelectedReplacementPatient(undefined)
@@ -120,6 +133,9 @@ export default function IgdDaftarRoute() {
         onOpenDisposition={(patient) => {
           openDisposition(patient.encounterId, patient.id)
         }}
+        onOpenExamination={(patient) =>
+          window.open(`#/dashboard/doctor/${patient.encounterId}`, '_blank')
+        }
         reportExportGroups={reportExportGroups}
         reportExportTitle={reportExportTitle}
         reportExportFileName={reportExportFileName}

@@ -1,11 +1,24 @@
 /**
- * Purpose: Tab input paket tindakan pada DetailTindakanForm untuk pilih paket, tampilkan tindakan/BHP bawaan, dan isi petugas.
- * Main callers: DetailTindakanForm.
- * Key dependencies: antd Form.List/Modal/Table, SelectKelasTarif, AutoRolePetugasListCard, cache master tindakan & item.
- * Main/public functions: PaketTindakanTab.
- * Side effects: update state form antd (`paketEntries`) termasuk paketId/masterTindakanId, bhp itemId, kelas, cyto, petugas, dan trigger modal pemilihan paket.
+ * purpose: Tab input paket tindakan (termasuk daftar tindakan paket, BHP, dan petugas).
+ * main callers: `DetailTindakanForm` pada modal detail tindakan.
+ * key dependencies: Antd Form/List, selector paket/tindakan/BHP, dan selector kelas tarif.
+ * main/public functions: `PaketTindakanTab`.
+ * side effects: Menulis nilai field `paketEntries` pada form induk saat tambah paket dan ubah cyto.
  */
-import { Form, Card, Button, Select, Spin, Switch, InputNumber, Input, Row, Col, Modal, Table } from 'antd'
+import {
+  Form,
+  Card,
+  Button,
+  Select,
+  Spin,
+  Switch,
+  InputNumber,
+  Input,
+  Row,
+  Col,
+  Modal,
+  Table
+} from 'antd'
 import AutoRolePetugasListCard from './AutoRolePetugasListCard'
 import { PlusCircleOutlined, DeleteOutlined, SearchOutlined } from '@ant-design/icons'
 import { ItemOption } from '@renderer/components/organisms/ItemSelectorModal'
@@ -91,7 +104,7 @@ export default function PaketTindakanTab({
     { value: 'jahit', label: 'Jahit' }
   ]
 
-  const masterTindakanMap = new Map(masterTindakanList.map(t => [t.id, t]))
+  const masterTindakanMap = new Map(masterTindakanList.map((t) => [t.id, t]))
   const tindakanOptionLabelById = new Map<number, string>(
     (Array.isArray(tindakanOptions) ? tindakanOptions : [])
       .map((option) => [Number(option?.value), String(option?.label || '').trim()] as const)
@@ -105,7 +118,7 @@ export default function PaketTindakanTab({
 
   const handleSelectBhp = (paketName: number, bhpName: number, item: ItemOption) => {
     modalForm.setFieldValue(['paketEntries', paketName, 'bhpList', bhpName, 'itemId'], item.value)
-    
+
     const selectedItem = consumableItemMap.get(item.value)
     if (!selectedItem) return
 
@@ -165,7 +178,9 @@ export default function PaketTindakanTab({
 
   const buildSatuanOptions = (currentValue?: string | null) => {
     const baseOptions = [...SATUAN_DEFAULT_OPTIONS]
-    const normalizedCurrent = String(currentValue || '').trim().toLowerCase()
+    const normalizedCurrent = String(currentValue || '')
+      .trim()
+      .toLowerCase()
     const exists = baseOptions.some((opt) => opt.value === normalizedCurrent)
     if (normalizedCurrent && !exists) {
       baseOptions.push({
@@ -189,10 +204,11 @@ export default function PaketTindakanTab({
             onClick={() => {
               const currentEntries = modalForm.getFieldValue('paketEntries') || []
               const defaultKelas = modalForm.getFieldValue('kelas') || 'UMUM'
+              const defaultCyto = Boolean(modalForm.getFieldValue('cytoGlobal'))
               modalForm.setFieldValue('paketEntries', [
                 ...currentEntries,
                 {
-                  paketCytoGlobal: false,
+                  paketCytoGlobal: defaultCyto,
                   kelas: defaultKelas,
                   tindakanList: [],
                   bhpList: [],
@@ -228,7 +244,7 @@ export default function PaketTindakanTab({
                     ) : null
                   }
                 >
-                <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-3 md:items-end">
+                  <div className="grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-3 md:items-end">
                     <Form.Item
                       noStyle
                       shouldUpdate={(prev, curr) =>
@@ -237,7 +253,9 @@ export default function PaketTindakanTab({
                       }
                     >
                       {({ getFieldValue }) => {
-                        const paketId = Number(getFieldValue(['paketEntries', paketIndex, 'paketId']))
+                        const paketId = Number(
+                          getFieldValue(['paketEntries', paketIndex, 'paketId'])
+                        )
                         const label =
                           paketOptionLabelById.get(paketId) ||
                           (Number.isFinite(paketId) && paketId > 0 ? `Paket ID ${paketId}` : '') ||
@@ -275,297 +293,329 @@ export default function PaketTindakanTab({
                         )
                       }}
                     </Form.Item>
-                  <Form.Item
-                    {...paketField}
-                    name={[paketField.name, 'kelas']}
-                    label={<span className="font-bold">Kelas</span>}
-                    rules={[{ required: true, message: 'Pilih kelas' }]}
-                  >
-                    <SelectKelasTarif
-                      placeholder="Pilih kelas..."
-                      options={kelasOptions}
-                      onChange={(selectedKelas) => {
-                        const currentList =
-                          modalForm.getFieldValue([
-                            'paketEntries',
-                            paketField.name,
-                            'tindakanList'
-                          ]) || []
-                        modalForm.setFieldValue(
-                          ['paketEntries', paketField.name, 'tindakanList'],
-                          currentList.map((item: any) => ({
-                            ...item,
-                            kelas: selectedKelas ?? undefined
-                          }))
-                        )
-                      }}
-                    />
-                  </Form.Item>
-                  <Form.Item
-                    {...paketField}
-                    name={[paketField.name, 'paketCytoGlobal']}
-                    label={<span className="font-bold">Cyto</span>}
-                    valuePropName="checked"
-                  >
-                    <Switch
-                      checkedChildren="Cyto"
-                      unCheckedChildren="Tidak"
-                      onChange={(checked) => {
-                        const currentList =
-                          modalForm.getFieldValue([
-                            'paketEntries',
-                            paketField.name,
-                            'tindakanList'
-                          ]) || []
-                        modalForm.setFieldValue(
-                          ['paketEntries', paketField.name, 'tindakanList'],
-                          currentList.map((item: any) => ({
-                            ...item,
-                            cyto: checked
-                          }))
-                        )
-                      }}
-                    />
-                  </Form.Item>
-                </div>
+                    <Form.Item
+                      {...paketField}
+                      name={[paketField.name, 'kelas']}
+                      label={<span className="font-bold">Kelas</span>}
+                      rules={[{ required: true, message: 'Pilih kelas' }]}
+                    >
+                      <SelectKelasTarif
+                        placeholder="Pilih kelas..."
+                        options={kelasOptions}
+                        onChange={(selectedKelas) => {
+                          const currentList =
+                            modalForm.getFieldValue([
+                              'paketEntries',
+                              paketField.name,
+                              'tindakanList'
+                            ]) || []
+                          modalForm.setFieldValue(
+                            ['paketEntries', paketField.name, 'tindakanList'],
+                            currentList.map((item: any) => ({
+                              ...item,
+                              kelas: selectedKelas ?? undefined
+                            }))
+                          )
+                        }}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      {...paketField}
+                      name={[paketField.name, 'paketCytoGlobal']}
+                      label={<span className="font-bold">Cyto</span>}
+                      valuePropName="checked"
+                    >
+                      <Switch
+                        checkedChildren="Cyto"
+                        unCheckedChildren="Tidak"
+                        onChange={(checked) => {
+                          const currentList =
+                            modalForm.getFieldValue([
+                              'paketEntries',
+                              paketField.name,
+                              'tindakanList'
+                            ]) || []
+                          modalForm.setFieldValue(
+                            ['paketEntries', paketField.name, 'tindakanList'],
+                            currentList.map((item: any) => ({
+                              ...item,
+                              cyto: checked
+                            }))
+                          )
+                        }}
+                      />
+                    </Form.Item>
+                  </div>
 
-                <Card
-                  size="small"
-                  className="mt-4!"
-                  title={<span className="font-semibold">Daftar Tindakan Paket</span>}
-                >
-                  <Form.List name={[paketField.name, 'tindakanList']}>
-                    {(tindakanFields) => (
-                      <div className="flex flex-col gap-2">
-                        {tindakanFields.length === 0 && (
-                          <div className="text-xs" style={{ color: token.colorTextSecondary }}>
-                            Pilih paket untuk memuat daftar tindakan paket.
-                          </div>
-                        )}
-                        {tindakanFields.map(({ key, name, ...restField }) => (
-                          <Row key={key} gutter={8} align="middle">
-                            <Col span={12}>
-                              <Form.Item
-                                noStyle
-                                shouldUpdate={(prev, curr) => 
-                                  prev.paketEntries?.[paketIndex]?.tindakanList?.[name]?.masterTindakanId !== 
-                                  curr.paketEntries?.[paketIndex]?.tindakanList?.[name]?.masterTindakanId
-                                }
-                              >
-                                {({ getFieldValue }) => {
-                                  const rawId = getFieldValue([
-                                    'paketEntries',
-                                    paketIndex,
-                                    'tindakanList',
-                                    name,
-                                    'masterTindakanId'
-                                  ])
-                                  const tindakanId = Number(rawId)
-                                  const proc = Number.isFinite(tindakanId)
-                                    ? masterTindakanMap.get(tindakanId)
-                                    : null
-                                  const displayLabel =
-                                    tindakanOptionLabelById.get(tindakanId) ||
-                                    (proc ? `${proc.namaTindakan} (${proc.kodeTindakan})` : '') ||
-                                    'Item Tindakan...'
-                                  
-                                  return (
-                                    <>
-                                      <Form.Item
-                                        {...restField}
-                                        name={[name, 'masterTindakanId']}
-                                        rules={[{ required: true, message: 'Pilih tindakan' }]}
-                                        hidden
-                                      >
-                                        <Input />
-                                      </Form.Item>
-                                      <Form.Item
-                                        label={
-                                          name === 0 ? (
-                                            <span className="font-bold">Tindakan</span>
-                                          ) : undefined
-                                        }
-                                        style={{ marginBottom: 0 }}
-                                      >
-                                        <Input readOnly value={displayLabel} size="small" />
-                                      </Form.Item>
-                                    </>
-                                  )
-                                }}
-                              </Form.Item>
-                            </Col>
-                            <Col span={4}>
-                              <Form.Item
-                                {...restField}
-                                name={[name, 'jumlah']}
-                                label={
-                                  name === 0 ? <span className="font-bold">Jml</span> : undefined
-                                }
-                                rules={[{ required: true, message: 'Wajib' }]}
-                                style={{ marginBottom: 0 }}
-                              >
-                                <InputNumber min={0.01} step={1} className="w-full" size="small" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={6}>
-                              <Form.Item
-                                noStyle
-                                shouldUpdate={(prev, curr) =>
-                                  prev.paketEntries?.[paketIndex]?.tindakanList?.[name]?.satuan !==
-                                  curr.paketEntries?.[paketIndex]?.tindakanList?.[name]?.satuan
-                                }
-                              >
-                                {({ getFieldValue }) => {
-                                  const currentSatuan = String(
-                                    getFieldValue([
+                  <Card
+                    size="small"
+                    className="mt-4!"
+                    title={<span className="font-semibold">Daftar Tindakan Paket</span>}
+                  >
+                    <Form.List name={[paketField.name, 'tindakanList']}>
+                      {(tindakanFields) => (
+                        <div className="flex flex-col gap-2">
+                          {tindakanFields.length === 0 && (
+                            <div className="text-xs" style={{ color: token.colorTextSecondary }}>
+                              Pilih paket untuk memuat daftar tindakan paket.
+                            </div>
+                          )}
+                          {tindakanFields.map(({ key, name, ...restField }) => (
+                            <Row key={key} gutter={8} align="middle">
+                              <Col span={12}>
+                                <Form.Item
+                                  noStyle
+                                  shouldUpdate={(prev, curr) =>
+                                    prev.paketEntries?.[paketIndex]?.tindakanList?.[name]
+                                      ?.masterTindakanId !==
+                                    curr.paketEntries?.[paketIndex]?.tindakanList?.[name]
+                                      ?.masterTindakanId
+                                  }
+                                >
+                                  {({ getFieldValue }) => {
+                                    const rawId = getFieldValue([
                                       'paketEntries',
                                       paketIndex,
                                       'tindakanList',
                                       name,
-                                      'satuan'
-                                    ]) || ''
-                                  ).trim()
+                                      'masterTindakanId'
+                                    ])
+                                    const tindakanId = Number(rawId)
+                                    const proc = Number.isFinite(tindakanId)
+                                      ? masterTindakanMap.get(tindakanId)
+                                      : null
+                                    const displayLabel =
+                                      tindakanOptionLabelById.get(tindakanId) ||
+                                      (proc ? `${proc.namaTindakan} (${proc.kodeTindakan})` : '') ||
+                                      'Item Tindakan...'
 
-                                  return (
-                                    <Form.Item
-                                      {...restField}
-                                      name={[name, 'satuan']}
-                                      label={
-                                        name === 0 ? <span className="font-bold">Satuan</span> : undefined
-                                      }
-                                      style={{ marginBottom: 0 }}
-                                    >
-                                      <Select
-                                        showSearch
-                                        placeholder="Pilih satuan..."
-                                        options={buildSatuanOptions(currentSatuan)}
-                                        optionFilterProp="label"
-                                        filterOption={(input, option) =>
-                                          (option?.label ?? '')
-                                            .toLowerCase()
-                                            .includes(input.toLowerCase())
+                                    return (
+                                      <>
+                                        <Form.Item
+                                          {...restField}
+                                          name={[name, 'masterTindakanId']}
+                                          rules={[{ required: true, message: 'Pilih tindakan' }]}
+                                          hidden
+                                        >
+                                          <Input />
+                                        </Form.Item>
+                                        <Form.Item
+                                          label={
+                                            name === 0 ? (
+                                              <span className="font-bold">Tindakan</span>
+                                            ) : undefined
+                                          }
+                                          style={{ marginBottom: 0 }}
+                                        >
+                                          <Input readOnly value={displayLabel} size="small" />
+                                        </Form.Item>
+                                      </>
+                                    )
+                                  }}
+                                </Form.Item>
+                              </Col>
+                              <Col span={4}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[name, 'jumlah']}
+                                  label={
+                                    name === 0 ? <span className="font-bold">Jml</span> : undefined
+                                  }
+                                  rules={[{ required: true, message: 'Wajib' }]}
+                                  style={{ marginBottom: 0 }}
+                                >
+                                  <InputNumber
+                                    min={0.01}
+                                    step={1}
+                                    className="w-full"
+                                    size="small"
+                                  />
+                                </Form.Item>
+                              </Col>
+                              <Col span={6}>
+                                <Form.Item
+                                  noStyle
+                                  shouldUpdate={(prev, curr) =>
+                                    prev.paketEntries?.[paketIndex]?.tindakanList?.[name]
+                                      ?.satuan !==
+                                    curr.paketEntries?.[paketIndex]?.tindakanList?.[name]?.satuan
+                                  }
+                                >
+                                  {({ getFieldValue }) => {
+                                    const currentSatuan = String(
+                                      getFieldValue([
+                                        'paketEntries',
+                                        paketIndex,
+                                        'tindakanList',
+                                        name,
+                                        'satuan'
+                                      ]) || ''
+                                    ).trim()
+
+                                    return (
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'satuan']}
+                                        label={
+                                          name === 0 ? (
+                                            <span className="font-bold">Satuan</span>
+                                          ) : undefined
                                         }
-                                      />
-                                    </Form.Item>
-                                  )
-                                }}
-                              </Form.Item>
-                            </Col>
-                            <Col span={2} className="flex items-end pb-0.5 justify-center">
-                              {name === 0 && <div className="h-[22px]" />}
-                            </Col>
-                          </Row>
-                        ))}
-                      </div>
-                    )}
-                  </Form.List>
-                </Card>
-
-                <Card
-                  size="small"
-                  className="mt-4!"
-                  title={<span className="font-semibold">BHP Paket</span>}
-                >
-                  <Form.List name={[paketField.name, 'bhpList']}>
-                    {(fields) => (
-                      <div className="flex flex-col gap-2">
-                        {fields.length === 0 && (
-                          <div className="text-xs" style={{ color: token.colorTextTertiary }}>
-                            Belum ada BHP. Isi jika tindakan paket membutuhkan barang habis pakai.
-                          </div>
-                        )}
-
-                        {fields.map(({ key, name, ...restField }) => (
-                          <Row key={key} gutter={8} align="middle">
-                            <Col span={13}>
-                              <Form.Item
-                                noStyle
-                                shouldUpdate={(prev, curr) => 
-                                  prev.paketEntries?.[paketIndex]?.bhpList?.[name]?.itemId !== 
-                                  curr.paketEntries?.[paketIndex]?.bhpList?.[name]?.itemId
-                                }
-                              >
-                                {({ getFieldValue }) => {
-                                  const id = getFieldValue(['paketEntries', paketIndex, 'bhpList', name, 'itemId'])
-                                  const item = id ? consumableItemMap.get(Number(id)) : null
-                                  const displayLabel = item ? `${item.nama || item.kode}` : 'Cari Item BHP...'
-
-                                  return (
-                                    <Form.Item
-                                      {...restField}
-                                      name={[name, 'itemId']}
-                                      rules={[{ required: true, message: 'Pilih item BHP' }]}
-                                      style={{ marginBottom: 0 }}
-                                    >
-                                      <Button 
-                                        block 
-                                        size="small"
-                                        style={{ textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                                        onClick={() => openBhpSelector(paketIndex, name)}
+                                        style={{ marginBottom: 0 }}
                                       >
-                                        <span className="truncate">{displayLabel}</span>
-                                        <SearchOutlined className="text-gray-400" />
-                                      </Button>
-                                    </Form.Item>
-                                  )
-                                }}
-                              </Form.Item>
-                            </Col>
-                            <Col span={3}>
-                              <Form.Item
-                                {...restField}
-                                name={[name, 'jumlah']}
-                                rules={[
-                                  { required: true, message: 'Wajib' },
-                                  {
-                                    validator: async (_rule, value) => {
-                                      if (value === undefined || value === null) return
-                                      if (!Number.isInteger(Number(value)) || Number(value) <= 0) {
-                                        throw new Error('Harus bilangan bulat')
+                                        <Select
+                                          showSearch
+                                          placeholder="Pilih satuan..."
+                                          options={buildSatuanOptions(currentSatuan)}
+                                          optionFilterProp="label"
+                                          filterOption={(input, option) =>
+                                            (option?.label ?? '')
+                                              .toLowerCase()
+                                              .includes(input.toLowerCase())
+                                          }
+                                        />
+                                      </Form.Item>
+                                    )
+                                  }}
+                                </Form.Item>
+                              </Col>
+                              <Col span={2} className="flex items-end pb-0.5 justify-center">
+                                {name === 0 && <div className="h-[22px]" />}
+                              </Col>
+                            </Row>
+                          ))}
+                        </div>
+                      )}
+                    </Form.List>
+                  </Card>
+
+                  <Card
+                    size="small"
+                    className="mt-4!"
+                    title={<span className="font-semibold">BHP Paket</span>}
+                  >
+                    <Form.List name={[paketField.name, 'bhpList']}>
+                      {(fields) => (
+                        <div className="flex flex-col gap-2">
+                          {fields.length === 0 && (
+                            <div className="text-xs" style={{ color: token.colorTextTertiary }}>
+                              Belum ada BHP. Isi jika tindakan paket membutuhkan barang habis pakai.
+                            </div>
+                          )}
+
+                          {fields.map(({ key, name, ...restField }) => (
+                            <Row key={key} gutter={8} align="middle">
+                              <Col span={13}>
+                                <Form.Item
+                                  noStyle
+                                  shouldUpdate={(prev, curr) =>
+                                    prev.paketEntries?.[paketIndex]?.bhpList?.[name]?.itemId !==
+                                    curr.paketEntries?.[paketIndex]?.bhpList?.[name]?.itemId
+                                  }
+                                >
+                                  {({ getFieldValue }) => {
+                                    const id = getFieldValue([
+                                      'paketEntries',
+                                      paketIndex,
+                                      'bhpList',
+                                      name,
+                                      'itemId'
+                                    ])
+                                    const item = id ? consumableItemMap.get(Number(id)) : null
+                                    const displayLabel = item
+                                      ? `${item.nama || item.kode}`
+                                      : 'Cari Item BHP...'
+
+                                    return (
+                                      <Form.Item
+                                        {...restField}
+                                        name={[name, 'itemId']}
+                                        rules={[{ required: true, message: 'Pilih item BHP' }]}
+                                        style={{ marginBottom: 0 }}
+                                      >
+                                        <Button
+                                          block
+                                          size="small"
+                                          style={{
+                                            textAlign: 'left',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                          }}
+                                          onClick={() => openBhpSelector(paketIndex, name)}
+                                        >
+                                          <span className="truncate">{displayLabel}</span>
+                                          <SearchOutlined className="text-gray-400" />
+                                        </Button>
+                                      </Form.Item>
+                                    )
+                                  }}
+                                </Form.Item>
+                              </Col>
+                              <Col span={3}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[name, 'jumlah']}
+                                  rules={[
+                                    { required: true, message: 'Wajib' },
+                                    {
+                                      validator: async (_rule, value) => {
+                                        if (value === undefined || value === null) return
+                                        if (
+                                          !Number.isInteger(Number(value)) ||
+                                          Number(value) <= 0
+                                        ) {
+                                          throw new Error('Harus bilangan bulat')
+                                        }
                                       }
                                     }
-                                  }
-                                ]}
-                                style={{ marginBottom: 0 }}
-                              >
-                                <InputNumber min={1} step={1} precision={0} className="w-full" size="small" />
-                              </Form.Item>
-                            </Col>
-                            <Col span={8}>
-                              <Form.Item
-                                {...restField}
-                                name={[name, 'satuan']}
-                                style={{ marginBottom: 0 }}
-                              >
-                                <Input placeholder="Satuan" size="small" readOnly />
-                              </Form.Item>
-                            </Col>
-                          </Row>
-                        ))}
-                      </div>
-                    )}
-                  </Form.List>
-                </Card>
-                <AutoRolePetugasListCard
-                  form={modalForm}
-                  listName={[paketField.name, 'petugasList']}
-                  valuePathPrefix={['paketEntries', paketField.name, 'petugasList']}
-                  token={token}
-                  performers={performers}
-                  isLoadingPerformers={isLoadingPerformers}
-                  roleLabelByCode={roleLabelByCode}
-                  className="mt-4!"
+                                  ]}
+                                  style={{ marginBottom: 0 }}
+                                >
+                                  <InputNumber
+                                    min={1}
+                                    step={1}
+                                    precision={0}
+                                    className="w-full"
+                                    size="small"
+                                  />
+                                </Form.Item>
+                              </Col>
+                              <Col span={8}>
+                                <Form.Item
+                                  {...restField}
+                                  name={[name, 'satuan']}
+                                  style={{ marginBottom: 0 }}
+                                >
+                                  <Input placeholder="Satuan" size="small" readOnly />
+                                </Form.Item>
+                              </Col>
+                            </Row>
+                          ))}
+                        </div>
+                      )}
+                    </Form.List>
+                  </Card>
+                  <AutoRolePetugasListCard
+                    form={modalForm}
+                    listName={[paketField.name, 'petugasList']}
+                    valuePathPrefix={['paketEntries', paketField.name, 'petugasList']}
+                    token={token}
+                    performers={performers}
+                    isLoadingPerformers={isLoadingPerformers}
+                    roleLabelByCode={roleLabelByCode}
+                    className="mt-4!"
                   />
 
-                <Form.Item
-                  {...paketField}
-                  name={[paketField.name, 'catatanTambahan']}
-                  label={<span className="font-bold">Catatan</span>}
-                  className="mt-4! mb-0"
-                >
-                  <TextArea rows={3} placeholder="Catatan tambahan tindakan paket..." />
-                </Form.Item>
-              </Card>
+                  <Form.Item
+                    {...paketField}
+                    name={[paketField.name, 'catatanTambahan']}
+                    label={<span className="font-bold">Catatan</span>}
+                    className="mt-4! mb-0"
+                  >
+                    <TextArea rows={3} placeholder="Catatan tambahan tindakan paket..." />
+                  </Form.Item>
+                </Card>
               ))}
             </div>
           )}

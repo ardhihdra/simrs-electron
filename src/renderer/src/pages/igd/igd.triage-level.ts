@@ -1,11 +1,11 @@
 import type { DesktopBadgeTone } from '../../components/design-system/atoms/DesktopBadge'
 import type { DesktopTriageBadgeTone } from '../../components/design-system/atoms/DesktopTriageBadge'
 
-export type IgdTriageLevel = 0 | 1 | 2 | 3 | 4
+export type IgdTriageLevel = number
 
 export type IgdTriageLevelMeta = {
   level: IgdTriageLevel
-  label: `L${IgdTriageLevel}`
+  label: string
   name: string
   colorName: string
   badgeTone: DesktopTriageBadgeTone
@@ -115,12 +115,32 @@ export const IGD_TRIAGE_LEVEL_META = {
       color: '#111827'
     }
   }
-} satisfies Record<IgdTriageLevel, IgdTriageLevelMeta>
+} satisfies Record<0 | 1 | 2 | 3 | 4, IgdTriageLevelMeta>
 
 export function getIgdTriageLevelMeta(level: IgdTriageLevel): IgdTriageLevelMeta {
-  return IGD_TRIAGE_LEVEL_META[level]
+  const knownMeta = IGD_TRIAGE_LEVEL_META[level as 0 | 1 | 2 | 3 | 4]
+  if (knownMeta) return knownMeta
+
+  return {
+    level,
+    label: `L${level}`,
+    name: 'Level Dinamis',
+    colorName: 'NETRAL',
+    badgeTone: 'neutral',
+    statTone: 'neutral',
+    priority: level <= 2,
+    color: '#111827',
+    foreground: '#111827',
+    background: '#f3f4f6',
+    borderColor: '#9ca3af',
+    badgeStyle: {
+      backgroundColor: '#ffffff',
+      borderColor: '#9ca3af',
+      color: '#111827'
+    }
+  }
 }
 
-export function formatIgdTriageLevel(level: IgdTriageLevel): `L${IgdTriageLevel}` {
+export function formatIgdTriageLevel(level: IgdTriageLevel): string {
   return getIgdTriageLevelMeta(level).label
 }

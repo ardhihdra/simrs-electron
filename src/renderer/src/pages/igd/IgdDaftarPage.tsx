@@ -1,29 +1,28 @@
+/**
+ * purpose: Halaman daftar pasien IGD dengan ringkasan operasional, tabel pasien aktif, dan panel informasi pasien melalui komponen shared.
+ * main callers: `IgdDaftarRoute`.
+ * key dependencies: Komponen design-system desktop, `buildIgdTableActions`, `IgdPatientInfoPanel`, dan tipe `IgdDashboard`.
+ * main/public functions: `IgdDaftarPage`.
+ * side effects: Tidak ada side effect langsung; meneruskan event aksi pengguna (termasuk buka pemeriksaan dokter) lewat callback props.
+ */
 import type { ColumnsType } from 'antd/es/table'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React, { useMemo } from 'react'
 
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
-import {
-  DesktopStatusDot,
-  type DesktopStatus
-} from '../../components/design-system/atoms/DesktopStatusDot'
-import {
-  DesktopStatusPill,
-  type DesktopStatusPillTone
-} from '../../components/design-system/atoms/DesktopStatusPill'
+import { DesktopStatusDot } from '../../components/design-system/atoms/DesktopStatusDot'
 import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
 import { DesktopTriageBadge } from '../../components/design-system/atoms/DesktopTriageBadge'
 import { DesktopCard } from '../../components/design-system/molecules/DesktopCard'
 import { DesktopCompactStatStrip } from '../../components/design-system/molecules/DesktopCompactStatStrip'
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
-import { DesktopPropertyGrid } from '../../components/design-system/molecules/DesktopPropertyGrid'
-import { DesktopTimelineList } from '../../components/design-system/molecules/DesktopTimelineList'
 import { DesktopGenericTable } from '../../components/design-system/organisms/DesktopGenericTable'
 import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
 import { ExportButton } from '../../components/molecules/ExportButton'
 import { type IgdDashboard, type IgdDashboardPatient } from './igd.data'
 import { buildIgdTableActions } from './igd.disposition'
+import { IgdPatientInfoPanel } from './IgdPatientInfoPanel'
 import { type IgdDailyReportExportShiftGroup } from './igd.report'
 import { getIgdTriageLevelMeta, IGD_TRIAGE_LEVELS } from './igd.triage-level'
 
@@ -35,27 +34,15 @@ type IgdDaftarPageProps = {
   errorMessage?: string
   onRetry?: () => void
   onOpenRegistrasi?: () => void
-  onOpenTriase?: () => void
+  onOpenTriase?: (patientId?: string) => void
   onOpenBedMap?: () => void
   onOpenReplacePatient?: () => void
   onOpenDisposition?: (patient: IgdDashboardPatient) => void
+  onOpenExamination?: (patient: IgdDashboardPatient) => void
   reportExportGroups?: IgdDailyReportExportShiftGroup[]
   reportExportTitle?: string
   reportExportFileName?: string
   isReportLoading?: boolean
-}
-
-type IgdStatusVariant = 'menunggu' | 'triase' | 'penanganan' | 'observasi' | 'disposisi'
-
-const STATUS_META: Record<
-  IgdStatusVariant,
-  { label: string; tone: DesktopStatusPillTone; dotStatus: DesktopStatus }
-> = {
-  menunggu: { label: 'Menunggu', tone: 'neutral', dotStatus: 'neutral' },
-  triase: { label: 'Triase', tone: 'warning', dotStatus: 'warning' },
-  penanganan: { label: 'Penanganan', tone: 'accent', dotStatus: 'accent' },
-  observasi: { label: 'Observasi', tone: 'violet', dotStatus: 'info' },
-  disposisi: { label: 'Disposisi', tone: 'success', dotStatus: 'success' }
 }
 
 const getTriageRowClassName = (patient: IgdDashboardPatient, isSelected: boolean) =>
@@ -95,6 +82,7 @@ export function IgdDaftarPage({
   onOpenBedMap,
   onOpenReplacePatient,
   onOpenDisposition,
+  onOpenExamination,
   reportExportGroups = [],
   reportExportTitle = 'Laporan Harian IGD',
   reportExportFileName = 'laporan-igd',
@@ -268,7 +256,10 @@ export function IgdDaftarPage({
             <DesktopButton emphasis="toolbar" onClick={onOpenBedMap}>
               Lihat Peta Bed
             </DesktopButton>
-            <DesktopButton emphasis="secondary" onClick={onOpenTriase}>
+            <DesktopButton
+              emphasis="secondary"
+              onClick={() => onOpenTriase?.(selectedPatient?.id)}
+            >
               Buka Triase
             </DesktopButton>
             <DesktopButton emphasis="primary" onClick={onOpenRegistrasi}>
@@ -390,7 +381,7 @@ export function IgdDaftarPage({
                     patient: record,
                     onOpenTriase: (patient) => {
                       onSelectPatient?.(patient.id)
-                      onOpenTriase?.()
+                      onOpenTriase?.(patient.id)
                     },
                     onOpenBedMap: (patient) => {
                       onSelectPatient?.(patient.id)
@@ -409,167 +400,11 @@ export function IgdDaftarPage({
             />
           </DesktopCard>
 
-          <div className="igd-detail-stack">
-            <div className="px-[2px]">
-              <div className="text-[12.5px] font-semibold text-[var(--ds-color-text)]">
-                Detail Pasien
-              </div>
-              <div className="text-[10.5px] text-[var(--ds-color-text-subtle)]">
-                Ringkasan pasien yang sedang dipilih.
-              </div>
-            </div>
-
-            {selectedPatient ? (
-              <>
-                <div className="igd-detail-panel">
-                  <div
-                    className="igd-detail-panel-header"
-                    style={{
-                      background: getIgdTriageLevelMeta(selectedPatient.triageLevel).background,
-                      borderBottomColor: getIgdTriageLevelMeta(selectedPatient.triageLevel).borderColor,
-                      color: getIgdTriageLevelMeta(selectedPatient.triageLevel).foreground
-                    }}
-                  >
-                    <DesktopTriageBadge
-                      tone={getIgdTriageLevelMeta(selectedPatient.triageLevel).badgeTone}
-                      style={getIgdTriageLevelMeta(selectedPatient.triageLevel).badgeStyle}
-                    >
-                      {getIgdTriageLevelMeta(selectedPatient.triageLevel).label}
-                    </DesktopTriageBadge>
-                    <div
-                      className="igd-detail-level-text"
-                      style={{ color: getIgdTriageLevelMeta(selectedPatient.triageLevel).foreground }}
-                    >
-                      {getIgdTriageLevelMeta(selectedPatient.triageLevel).name.toUpperCase()} ·{' '}
-                      {getIgdTriageLevelMeta(selectedPatient.triageLevel).colorName}
-                    </div>
-                    <div className="ml-auto">
-                      <DesktopStatusPill tone={STATUS_META[selectedPatient.status].tone}>
-                        {STATUS_META[selectedPatient.status].label}
-                      </DesktopStatusPill>
-                    </div>
-                  </div>
-
-                  <div className="igd-detail-panel-body">
-                    <div>
-                      <div className="text-[16px] font-bold text-[var(--ds-color-text)]">
-                        {selectedPatient.name}
-                      </div>
-                      <div className="mt-[3px] flex flex-wrap items-center gap-[8px]">
-                        <span className="text-[11px] text-[var(--ds-color-text-subtle)]">
-                          {selectedPatient.ageLabel}
-                        </span>
-                        {selectedPatient.isTemporaryPatient ? (
-                          <DesktopStatusPill tone="violet">
-                            Pasien Sementara · {selectedPatient.tempCode}
-                          </DesktopStatusPill>
-                        ) : (
-                          <span className="font-mono text-[11px] text-[var(--ds-color-text-muted)]">
-                            {selectedPatient.medicalRecordNumber}
-                          </span>
-                        )}
-                        <DesktopTag tone="neutral">{selectedPatient.paymentLabel}</DesktopTag>
-                      </div>
-                    </div>
-
-                    <div className="igd-registry-strip">
-                      <span className="text-[11px] text-[var(--ds-color-text-subtle)]">
-                        No. Reg
-                      </span>
-                      <b className="font-mono text-[11px] text-[var(--ds-color-text)]">
-                        {selectedPatient.registrationNumber}
-                      </b>
-                    </div>
-
-                    <div className="grid gap-[3px]">
-                      <div className="text-[10.5px] font-semibold uppercase tracking-[0.07em] text-[var(--ds-color-text-subtle)]">
-                        Keluhan Utama
-                      </div>
-                      <div className="text-[13px] text-[var(--ds-color-text)]">
-                        {selectedPatient.complaint}
-                      </div>
-                    </div>
-
-                    <DesktopPropertyGrid
-                      items={[
-                        { label: 'Sumber', value: selectedPatient.arrivalSource },
-                        {
-                          label: 'Dokter',
-                          value: selectedPatient.doctorName || 'Belum dipilih',
-                          muted: !selectedPatient.doctorName
-                        },
-                        {
-                          label: 'Bed',
-                          value: selectedPatient.bedCode ?? 'Belum ditempatkan',
-                          mono: true,
-                          muted: !selectedPatient.bedCode
-                        },
-                        { label: 'Masuk', value: selectedPatient.arrivalTime, mono: true }
-                      ]}
-                    />
-                  </div>
-                </div>
-
-                <DesktopCard
-                  title="Tanda Vital"
-                  subtitle={`Triase ${selectedPatient.timeTracking.triageTime ?? selectedPatient.triageTime ?? '—'}`}
-                  compact
-                >
-                  <DesktopNoticePanel
-                    title="Tanda vital belum tersedia"
-                    description="Data tanda vital belum tampil di halaman ini."
-                  />
-                </DesktopCard>
-
-                <DesktopCard title="Riwayat Waktu" subtitle="Urutan proses pasien di IGD" compact>
-                  <DesktopTimelineList
-                    items={[
-                      {
-                        label: 'Tiba',
-                        time:
-                          selectedPatient.timeTracking.arrivalTime ?? selectedPatient.arrivalTime,
-                        done: true
-                      },
-                      {
-                        label: 'Triase awal',
-                        time: selectedPatient.timeTracking.quickTriageTime ?? 'Belum',
-                        done: !!selectedPatient.timeTracking.quickTriageTime
-                      },
-                      {
-                        label: 'Triase',
-                        time: selectedPatient.timeTracking.triageTime ?? 'Belum',
-                        done: !!selectedPatient.timeTracking.triageTime
-                      },
-                      {
-                        label: 'Dokter menangani',
-                        time: selectedPatient.timeTracking.doctorAssignedTime ?? 'Belum',
-                        done: !!selectedPatient.timeTracking.doctorAssignedTime
-                      },
-                      {
-                        label: 'Masuk bed',
-                        time: selectedPatient.timeTracking.bedAssignedTime ?? 'Belum',
-                        done: !!selectedPatient.timeTracking.bedAssignedTime
-                      },
-                      {
-                        label: 'Keluar dari bed',
-                        time: selectedPatient.timeTracking.bedReleasedTime ?? 'Belum',
-                        done: !!selectedPatient.timeTracking.bedReleasedTime
-                      },
-                      {
-                        label: 'Rujuk',
-                        time: selectedPatient.timeTracking.referredTime ?? 'Belum',
-                        done: !!selectedPatient.timeTracking.referredTime
-                      },
-                      {
-                        label: 'Keluar / cancel',
-                        time: selectedPatient.timeTracking.closedTime ?? 'Belum',
-                        done: !!selectedPatient.timeTracking.closedTime
-                      }
-                    ]}
-                  />
-                </DesktopCard>
-
-                <div className="flex flex-col gap-[6px]">
+          <IgdPatientInfoPanel
+            patient={selectedPatient}
+            actions={
+              selectedPatient ? (
+                <>
                   {selectedPatient.isTemporaryPatient ? (
                     <DesktopButton
                       emphasis="toolbar"
@@ -582,7 +417,7 @@ export function IgdDaftarPage({
                   <DesktopButton
                     emphasis="toolbar"
                     className="!justify-center"
-                    onClick={onOpenTriase}
+                    onClick={() => onOpenTriase?.(selectedPatient.id)}
                   >
                     Form Triase
                   </DesktopButton>
@@ -595,7 +430,11 @@ export function IgdDaftarPage({
                       Assign Bed IGD
                     </DesktopButton>
                   ) : null}
-                  <DesktopButton emphasis="primary" className="!justify-center">
+                  <DesktopButton
+                    emphasis="primary"
+                    className="!justify-center"
+                    onClick={() => onOpenExamination?.(selectedPatient)}
+                  >
                     Buka Pemeriksaan
                   </DesktopButton>
                   <DesktopButton
@@ -605,17 +444,10 @@ export function IgdDaftarPage({
                   >
                     Disposisi
                   </DesktopButton>
-                </div>
-              </>
-            ) : (
-              <DesktopCard title="Detail Pasien">
-                <DesktopNoticePanel
-                  title="Belum ada pasien aktif"
-                  description="Dashboard IGD belum memiliki pasien aktif untuk ditampilkan."
-                />
-              </DesktopCard>
-            )}
-          </div>
+                </>
+              ) : undefined
+            }
+          />
         </div>
       ) : null}
     </div>

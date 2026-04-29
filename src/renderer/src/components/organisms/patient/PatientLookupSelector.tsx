@@ -1,22 +1,15 @@
+/**
+ * purpose: Selector pasien reusable untuk cari, pilih, dan buat pasien baru dari berbagai alur registrasi.
+ * main callers: Halaman registrasi seperti IGD, visit-management, dan route intake yang butuh pemilihan pasien existing.
+ * key dependencies: Query `visitManagement.getPatientList`, `CreatePatientModal`, helper `patient-lookup-search`.
+ * main/public functions: `PatientLookupSelector`.
+ * side effects: Query daftar pasien, trigger refetch, emit `onChange`, dan render scroll horizontal tabel agar layout host tetap terjaga.
+ */
 import { PlusOutlined, SearchOutlined, UserOutlined } from '@ant-design/icons'
 import CreatePatientModal from '@renderer/components/organisms/visit-management/CreatePatientModal'
 import { useDebounce } from '@renderer/hooks/useDebounce'
 import { client } from '@renderer/utils/client'
-import {
-  App,
-  Button,
-  Card,
-  Col,
-  DatePicker,
-  Empty,
-  Input,
-  InputNumber,
-  Row,
-  Space,
-  Table,
-  Tag,
-  Typography
-} from 'antd'
+import { App, Button, Card, DatePicker, Empty, Input, InputNumber, Space, Table, Tag, Typography } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
@@ -161,10 +154,11 @@ export default function PatientLookupSelector({
 
   return (
     <Card
+      className="w-full min-w-0 overflow-hidden"
       size="small"
       title={title}
       extra={
-        <Space>
+        <Space wrap>
           {value && showClearButton ? (
             <Button size="small" onClick={() => onChange(undefined)} disabled={disabled}>
               Hapus Pilihan
@@ -209,8 +203,8 @@ export default function PatientLookupSelector({
         </div>
       ) : null}
 
-      <Row gutter={[12, 12]}>
-        <Col xs={24} md={12}>
+      <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2">
+        <div className="min-w-0">
           <Input
             allowClear
             value={searchParams.name}
@@ -221,8 +215,8 @@ export default function PatientLookupSelector({
               setSearchParams((current) => ({ ...current, name: event.target.value }))
             }
           />
-        </Col>
-        <Col xs={24} md={12}>
+        </div>
+        <div className="min-w-0">
           <Input
             allowClear
             value={searchParams.medicalRecordNumber}
@@ -236,8 +230,8 @@ export default function PatientLookupSelector({
               }))
             }
           />
-        </Col>
-        <Col xs={24} md={12}>
+        </div>
+        <div className="min-w-0">
           <Input
             allowClear
             value={searchParams.nik}
@@ -248,8 +242,8 @@ export default function PatientLookupSelector({
               setSearchParams((current) => ({ ...current, nik: event.target.value }))
             }
           />
-        </Col>
-        <Col xs={24} md={12}>
+        </div>
+        <div className="min-w-0">
           <Input
             allowClear
             value={searchParams.address}
@@ -260,8 +254,8 @@ export default function PatientLookupSelector({
               setSearchParams((current) => ({ ...current, address: event.target.value }))
             }
           />
-        </Col>
-        <Col xs={24} md={12}>
+        </div>
+        <div className="min-w-0">
           <DatePicker
             allowClear
             className="w-full"
@@ -276,10 +270,10 @@ export default function PatientLookupSelector({
               }))
             }
           />
-        </Col>
-        <Col xs={24} md={12}>
+        </div>
+        <div className="min-w-0">
           <InputNumber
-            className="w-full!"
+            className="w-full"
             min={0}
             precision={0}
             value={searchParams.age}
@@ -292,20 +286,22 @@ export default function PatientLookupSelector({
               }))
             }
           />
-        </Col>
-      </Row>
+        </div>
+      </div>
 
-      <Table<PatientLookupRow>
-        className="mt-4"
-        size="small"
-        rowKey="id"
-        dataSource={rows}
-        columns={columns}
-        loading={patientQuery.isLoading || patientQuery.isRefetching}
-        pagination={{ pageSize: 5, showSizeChanger: false }}
-        scroll={{ x: 900 }}
-        locale={{ emptyText: 'Pasien tidak ditemukan.' }}
-      />
+      <div className="mt-4 w-full min-w-0 overflow-x-auto">
+        <Table<PatientLookupRow>
+          className="min-w-0"
+          size="small"
+          rowKey="id"
+          dataSource={rows}
+          columns={columns}
+          loading={patientQuery.isLoading || patientQuery.isRefetching}
+          pagination={{ pageSize: 5, showSizeChanger: false }}
+          scroll={{ x: 'max-content' }}
+          locale={{ emptyText: 'Pasien tidak ditemukan.' }}
+        />
+      </div>
 
       <CreatePatientModal
         open={createPatientOpen}

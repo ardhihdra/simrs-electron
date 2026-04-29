@@ -1,9 +1,21 @@
-import type { IgdTriageLevel } from './igd.triage-level'
+/**
+ * purpose: Aturan zonasi bed IGD berbasis level triase untuk filtering bed yang boleh dipilih saat registrasi/bed map.
+ * main callers: `IgdRegistrasiPage`, `IgdBedMapPage`, dan util bed IGD lain di renderer.
+ * key dependencies: Tidak ada; konstanta + fungsi pure.
+ * main/public functions: `getZoneTriageRangeLabel`, `getAllowedBedZonesForTriage`, `filterAvailableBedsForTriage`.
+ * side effects: Tidak ada; seluruh fungsi read-only/pure transform.
+ */
 
 export type IgdBedZoneName = 'Resusitasi' | 'Observasi' | 'Tindakan' | 'Isolasi'
 export type IgdBedStatusName = 'available' | 'occupied' | 'cleaning'
+export type IgdTriageLevel = number
 
-export const IGD_BED_ZONE_ORDER: IgdBedZoneName[] = ['Resusitasi', 'Observasi', 'Tindakan', 'Isolasi']
+export const IGD_BED_ZONE_ORDER: IgdBedZoneName[] = [
+  'Resusitasi',
+  'Observasi',
+  'Tindakan',
+  'Isolasi'
+]
 
 export const IGD_BED_ZONE_DESCRIPTIONS: Record<IgdBedZoneName, string> = {
   Resusitasi: 'Zona untuk pasien kritis dan tindakan segera.',

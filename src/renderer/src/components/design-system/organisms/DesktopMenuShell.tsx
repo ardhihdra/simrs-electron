@@ -1,3 +1,10 @@
+/**
+ * purpose: Komposisi shell desktop lengkap (module bar, page list, doc tabs, content, status bar).
+ * main callers: Halaman preview design system desktop.
+ * key dependencies: Organism desktop shell (`DesktopModuleBar`, `DesktopPageList`, `DesktopDocTabs`, `DesktopStatusBar`).
+ * main/public functions: `DesktopMenuShell`.
+ * side effects: Meneruskan callback navigasi modul/sidebar/tab ke komponen anak.
+ */
 import type { ReactNode } from 'react'
 
 import { DesktopBadge } from '../atoms/DesktopBadge'
@@ -182,6 +189,8 @@ export function DesktopMenuShell({
 }: DesktopMenuShellProps) {
   const flattenedSidebarItems = sidebarItems.flatMap((group) => group.items)
   const resolvedActiveModuleKey = activeModuleKey ?? moduleItems[1]?.key ?? moduleItems[0]?.key
+  const resolvedActiveModule =
+    moduleItems.find((item) => item.key === resolvedActiveModuleKey) ?? moduleItems[0]
   const resolvedActiveSidebarKey = activeSidebarKey ?? flattenedSidebarItems[0]?.key
   const resolvedActiveTabKey = activeTabKey ?? tabs[0]?.key
   const resolvedStatusBar = statusBar ?? (
@@ -214,6 +223,7 @@ export function DesktopMenuShell({
           groups={sidebarItems}
           icon={sidebarIcon}
           activeKey={resolvedActiveSidebarKey}
+          moduleIcon={resolvedActiveModule?.icon}
           title={title}
           subtitle={subtitle}
           collapsed={sidebarCollapsed}

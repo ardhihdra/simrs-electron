@@ -1,3 +1,10 @@
+/**
+ * purpose: Halaman peta bed IGD dengan ringkasan okupansi, listing bed per zona, dan aksi assign/transfer/release bed.
+ * main callers: `IgdBedMapRoute`.
+ * key dependencies: Komponen design-system desktop, util zonasi `igd.bed-zoning`, dan tipe dashboard IGD.
+ * main/public functions: `IgdBedMapPage`.
+ * side effects: Men-trigger callback aksi bed (assign/transfer/release/create) sesuai interaksi pengguna.
+ */
 import { Modal } from 'antd'
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React from 'react'
@@ -297,7 +304,10 @@ export function IgdBedMapPage({
       ) : null}
 
       {!isLoading && errorMessage ? (
-        <DesktopCard title="Data bed belum dapat dimuat" subtitle="Silakan coba lagi dalam beberapa saat.">
+        <DesktopCard
+          title="Data bed belum dapat dimuat"
+          subtitle="Silakan coba lagi dalam beberapa saat."
+        >
           <div className="grid gap-[12px]">
             <DesktopNoticePanel
               title="Data bed belum dapat dimuat"
@@ -368,7 +378,9 @@ export function IgdBedMapPage({
       ) : null}
 
       <Modal
-        title={assignModalBedCode ? `Tempatkan Pasien ke ${assignModalBedCode}` : 'Tempatkan Pasien'}
+        title={
+          assignModalBedCode ? `Tempatkan Pasien ke ${assignModalBedCode}` : 'Tempatkan Pasien'
+        }
         open={!!assignModalBedCode}
         getContainer={false}
         onCancel={() => {

@@ -1,3 +1,10 @@
+/**
+ * purpose: Sidebar daftar halaman desktop (grouped page list) untuk shell design system.
+ * main callers: `DesktopMenuShell` dan showcase `design-system.tsx`.
+ * key dependencies: `desktop-shell.helpers` untuk normalisasi data dan resolusi key aktif.
+ * main/public functions: `DesktopPageList`.
+ * side effects: Merender navigasi page list dan memanggil `onSelect` saat item dipilih.
+ */
 import type { ReactNode } from 'react'
 
 import {
@@ -11,6 +18,7 @@ export type { DesktopPageListGroup, DesktopPageListItem } from './desktop-shell.
 export interface DesktopPageListProps {
   groups: DesktopPageListGroup[]
   activeKey?: string
+  moduleIcon?: ReactNode
   title?: string
   subtitle?: string
   icon?: ReactNode
@@ -22,6 +30,7 @@ export interface DesktopPageListProps {
 export function DesktopPageList({
   groups,
   activeKey,
+  moduleIcon,
   title = 'Pendaftaran Pasien',
   subtitle = 'Daftar page aktif pada modul saat ini',
   icon,
@@ -37,30 +46,22 @@ export function DesktopPageList({
 
   return (
     <aside
-      className={`flex shrink-0 flex-col border-r border-ds-border bg-ds-surface-muted transition-[width] duration-200 ${
+      className={`flex shrink-0 flex-col border-r border-ds-border bg-ds-surface transition-[width] duration-200 ${
         collapsed ? 'w-20' : 'w-ds-pagelist'
       }`}
     >
-      <div
-        className={`flex items-center border-b border-ds-border bg-ds-surface ${
-          collapsed
-            ? 'justify-center p-ds-space-xs'
-            : 'gap-ds-space-xs px-[14px] pt-[10px] pb-[8px]'
-        }`}
-      >
-        {icon ? (
-          <div className="flex size-7 shrink-0 items-center justify-center rounded-ds-md bg-ds-accent-soft text-ds-accent">
-            {icon}
+      <div className="border-b border-ds-border px-ds-card-padding py-ds-space-md">
+        <div className={`flex items-center gap-ds-space-sm ${collapsed ? 'justify-center' : ''}`}>
+          {moduleIcon ? (
+            <div className="grid h-[28px] w-[28px] shrink-0 place-items-center rounded-[6px] bg-ds-accent-soft text-ds-accent">
+              {moduleIcon}
+            </div>
+          ) : null}
+          <div className={collapsed ? 'hidden' : ''}>
+            <div className="text-ds-body font-semibold text-ds-text">{title}</div>
+            <div className="text-ds-label text-ds-muted">MODUL</div>
           </div>
-        ) : null}
-        {!collapsed ? (
-          <div className="flex min-w-0 flex-1 flex-col leading-[1.15]">
-            <span className="text-ds-body font-semibold text-ds-text">{title}</span>
-            <span className="text-ds-caption uppercase tracking-[0.04em] text-ds-subtle opacity-50">
-              {subtitle}
-            </span>
-          </div>
-        ) : null}
+        </div>
       </div>
 
       <div className="flex-1 space-y-ds-space-sm overflow-y-auto p-ds-space-sm">

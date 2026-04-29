@@ -1,3 +1,10 @@
+/**
+ * purpose: Halaman workspace dokter IGD untuk menampilkan menu asesmen, order, administrasi, serta ringkasan triase IGD read-only per encounter.
+ * main callers: Route doctor EMR emergency workspace.
+ * key dependencies: Komponen form asesmen, SOAP, CPPT, pengajuan OK, timeline, patient card, dan panel ringkasan triase IGD berbasis observation.
+ * main/public functions: `DoctorEmergencyWorkspace`.
+ * side effects: Render berbagai form yang melakukan query/mutasi data klinis sesuai tab yang dipilih.
+ */
 import {
   AlertOutlined,
   ExperimentOutlined,
@@ -47,6 +54,8 @@ import { EncounterTimeline } from '../../components/organisms/EncounterTimeline'
 import { GCSAssessmentForm } from '../../components/organisms/Assessment/GCSAssessment/GCSAssessmentForm'
 import { LabRadOrderForm } from '../../components/organisms/LabRadOrderForm'
 import { PrescriptionForm } from '../../components/organisms/Assessment/Prescription/PrescriptionForm'
+import { GeneralSOAPForm } from '@renderer/components/organisms/Assessment/GeneralSOAP/GeneralSOAPForm'
+import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
 import { OphthalmologyForm } from '../../components/organisms/Assessment/Ophthalmology/OphthalmologyForm'
 import { DermatologyForm } from '../../components/organisms/Assessment/Dermatology/DermatologyForm'
 import { CardiologyForm } from '../../components/organisms/Assessment/Cardiology/CardiologyForm'
@@ -55,7 +64,6 @@ import { ReferralForm } from '../../components/organisms/ReferralForm'
 import { VitalSignsMonitoringForm } from '../../components/organisms/Assessment/VitalSignsMonitoring/VitalSignsMonitoringForm'
 import { App, Empty, Input, Layout, Menu, Modal, theme } from 'antd'
 import { useMemo, useState } from 'react'
-import { TriageForm } from '@renderer/components/organisms/Assessment/Triage/TriageForm'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
 import { FunctionalAssessmentForm } from '@renderer/components/organisms/Assessment/FunctionalAssessment/FunctionalAssessmentForm'
 import { GoalForm } from '@renderer/components/organisms/Assessment/Goal/GoalForm'
@@ -73,7 +81,9 @@ import { InitialAssessmentForm } from '@renderer/components/organisms/Assessment
 import { MedicalCertificateForm } from '@renderer/components/organisms/Assessment/MedicalCertificate/MedicalCertificateForm'
 import { FollowUpForm } from '@renderer/components/organisms/Assessment/FollowUp/FollowUpForm'
 import { DetailTindakanForm } from '@renderer/components/organisms/Assessment/DetailTindakan/DetailTindakanForm'
+import { PengajuanOKForm } from '@renderer/components/organisms/OK/PengajuanOKForm'
 import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
+import { IgdTriageSummaryPanel } from './IgdTriageSummaryPanel'
 
 const { Sider, Content } = Layout
 
@@ -180,6 +190,16 @@ export const DoctorEmergencyWorkspace = ({
         label: 'Monitoring Harian'
       },
       {
+        key: 'general-soap',
+        icon: <FileTextOutlined />,
+        label: 'SOAP Umum'
+      },
+      {
+        key: 'cppt',
+        icon: <FormOutlined />,
+        label: 'Catatan Perkembangan (CPPT)'
+      },
+      {
         key: 'polyclinic-form',
         icon: <FormOutlined />,
         label: 'Form Poli',
@@ -202,6 +222,7 @@ export const DoctorEmergencyWorkspace = ({
           { key: 'diagnosis', icon: <ContainerOutlined />, label: 'Diagnosis (ICD-10)' },
           { key: 'procedures', icon: <ToolOutlined />, label: 'Tindakan Medis (ICD-9-CM)' },
           { key: 'procedure-detail', icon: <AuditOutlined />, label: 'Detail Tindakan' },
+          { key: 'ok-submission', icon: <ContainerOutlined />, label: 'Pengajuan OK' },
           { key: 'education', icon: <ReadOutlined />, label: 'Edukasi' },
           { key: 'nutrition-order', icon: <HomeOutlined />, label: 'Order Diet (Gizi)' },
           { key: 'prescription', icon: <FormOutlined />, label: 'E-Resep' }
@@ -212,7 +233,8 @@ export const DoctorEmergencyWorkspace = ({
         icon: <ExperimentOutlined />,
         label: 'Penunjang Medis',
         children: [
-          { key: 'lab-rad-order', icon: <ExperimentOutlined />, label: 'Order Lab & Rad' },
+          { key: 'lab-order', icon: <ExperimentOutlined />, label: 'Order Lab' },
+          { key: 'radiology-order', icon: <ExperimentOutlined />, label: 'Order Radiologi' },
           { key: 'results', icon: <ScheduleOutlined />, label: 'Hasil Penunjang' }
         ]
       },
@@ -286,10 +308,18 @@ export const DoctorEmergencyWorkspace = ({
       .filter(Boolean) as any[]
   }, [items, modalSearch])
 
+  const emergencyPatientInfoCardData = useMemo(
+    () => ({
+      ...(patientInfoCardData ?? {}),
+      careType: 'igd' as const
+    }),
+    [patientInfoCardData]
+  )
+
   const renderContent = () => {
     switch (selectedKey) {
       case 'info':
-        return <PatientInfoCard patientData={patientInfoCardData} action={action} />
+        return <PatientInfoCard patientData={emergencyPatientInfoCardData} action={action} />
       case 'medical-history':
         return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
@@ -304,7 +334,7 @@ export const DoctorEmergencyWorkspace = ({
           />
         )
       case 'triage':
-        return <TriageForm encounterId={encounterId} patientData={patientData} />
+        return <IgdTriageSummaryPanel encounterId={encounterId} patientData={patientData} />
       case 'gcs':
         return <GCSAssessmentForm encounterId={encounterId} patientData={patientData} />
       case 'pain-assessment':
@@ -347,6 +377,10 @@ export const DoctorEmergencyWorkspace = ({
         return <PrognosisForm encounterId={encounterId || ''} patientData={patientData} />
       case 'monitoring-ttv':
         return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
+      case 'general-soap':
+        return <GeneralSOAPForm encounterId={encounterId} patientData={patientData} />
+      case 'cppt':
+        return <CPPTForm encounterId={encounterId} patientData={patientData} />
       case 'ophthalmology':
         return <OphthalmologyForm encounterId={encounterId} patientData={patientData} />
       case 'dermatology':
@@ -361,12 +395,16 @@ export const DoctorEmergencyWorkspace = ({
         return <ProceduresForm encounterId={encounterId} patientData={patientData} />
       case 'procedure-detail':
         return <DetailTindakanForm encounterId={encounterId} patientData={patientData} />
+      case 'ok-submission':
+        return <PengajuanOKForm type="igd" encounterId={encounterId} patientData={patientData} />
       case 'education':
         return <EducationForm encounterId={encounterId} patientData={patientData} />
       case 'nutrition-order':
         return <NutritionOrderForm encounterId={encounterId} patientData={patientData} />
       case 'prescription':
         return <PrescriptionForm encounterId={encounterId} patientData={patientData} />
+      case 'lab-order':
+      case 'radiology-order':
       case 'lab-rad-order':
         return <LabRadOrderForm encounterId={encounterId} patientData={patientData} />
       case 'results':

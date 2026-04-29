@@ -1,9 +1,9 @@
 /**
- * Purpose: Form detail tindakan pasien (paket/non-paket/BHP) untuk input, edit, validasi, dan sinkron petugas.
- * Main callers: halaman assessment/doctor workspace yang memuat tindakan per encounter.
- * Key dependencies: hook master tindakan/paket, detail tindakan encounter, selector tarif fallback payer, antd form/table, modal selector tindakan.
- * Main/public functions: DetailTindakanForm.
- * Side effects: create/update/void detail tindakan pasien dan fetch data master/stock terkait.
+ * purpose: Form detail tindakan pasien untuk input/edit tindakan paket/non-paket dan BHP per encounter.
+ * main callers: Workspace dokter/perawat EMR melalui komponen asesmen detail tindakan.
+ * key dependencies: Hook detail tindakan encounter, master tindakan/paket/BHP, komponen tab detail tindakan.
+ * main/public functions: `DetailTindakanForm`.
+ * side effects: Query master data dan detail encounter, create/update/void detail tindakan pasien ke backend.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
@@ -279,6 +279,11 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
 
   const patientId = patientData?.patient?.id || patientData?.id || ''
   const encounterType = patientData?.encounter?.encounterType || ''
+  const normalizedEncounterType = String(encounterType || '').toUpperCase()
+  const normalizedServiceType = String(
+    patientData?.serviceType || patientData?.encounter?.serviceType || ''
+  ).toLowerCase()
+  const isIgdEncounter = normalizedEncounterType === 'EMER' || normalizedServiceType.includes('igd')
   const isRawatJalan = encounterType === 'AMB' || encounterType === 'ambulatory'
   const defaultKelas = isRawatJalan ? 'umum' : undefined
   const selectedPayerCategory = useMemo<TarifPayerCategory>(() => {
@@ -303,8 +308,7 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       status: 'active'
     },
     {
-      enabled:
-        procedureSelectorState.open && (procedureSelectorState.mode ?? 'select') === 'select'
+      enabled: procedureSelectorState.open && (procedureSelectorState.mode ?? 'select') === 'select'
     }
   )
   const masterTindakanList = masterTindakanResponse?.rows ?? []
@@ -1070,14 +1074,14 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
           isCyto
         })
       })
-
     ;(Array.isArray(paketEntriesWatcher) ? paketEntriesWatcher : [])
       .filter((entry: any) => Number(entry?.paketId) > 0 && String(entry?.kelas || '').trim())
       .forEach((entry: any, index: number) => {
         const paketId = Number(entry.paketId)
         const kelas = String(entry?.kelas || '').trim()
         const isCyto = resolveDetailTindakanPaketCyto(entry)
-        const selectedPaket = paketCache[paketId] ?? paketList.find((p) => Number(p?.id) === paketId)
+        const selectedPaket =
+          paketCache[paketId] ?? paketList.find((p) => Number(p?.id) === paketId)
         const tarifList = Array.isArray(selectedPaket?.tarifList)
           ? (selectedPaket.tarifList as PaketTarifHeaderRef[])
           : []
@@ -1192,7 +1196,8 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
       if (!pickedTarif) return []
 
       const entryDetailIds = new Set<number>(
-        entryItems.map((item: any) => Number(item?.paketDetailId))
+        entryItems
+          .map((item: any) => Number(item?.paketDetailId))
           .filter((id: number) => Number.isFinite(id) && id > 0)
       )
 
@@ -1886,14 +1891,16 @@ export const DetailTindakanForm = ({ encounterId, patientData }: DetailTindakanF
     setInitialPaketPetugas({})
     setActiveInputTab('paket')
     const fallbackKelas = resolveEncounterDefaultKelas()
+    const defaultCyto = isIgdEncounter
 
     modalForm.setFieldsValue({
       assessment_date: dayjs(),
+      cytoGlobal: defaultCyto,
       kelas: fallbackKelas,
       petugasList: [],
-      tindakanList: [{ jumlah: 1, cyto: false, kelas: defaultKelas }],
+      tindakanList: [{ jumlah: 1, cyto: defaultCyto, kelas: defaultKelas }],
       bhpList: [],
-      paketCytoGlobal: false,
+      paketCytoGlobal: defaultCyto,
       paketIds: [],
       paketEntries: [],
       paketBhpEntries: []

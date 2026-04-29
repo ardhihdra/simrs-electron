@@ -1,3 +1,10 @@
+/**
+ * purpose: Prosedur RPC renderer untuk modul IGD (dashboard, registrasi, rebind) dengan validasi payload input.
+ * main callers: Hook/query client renderer (`client.igd.*`).
+ * key dependencies: Router helper RPC `t` dan validator `zod`.
+ * main/public functions: `igdRpc`, `normalizeIgdDashboardResponse`, `normalizeIgdRegistrationResponse`.
+ * side effects: HTTP call ke endpoint backend IGD via RPC client.
+ */
 import z from 'zod'
 
 import { t } from '..'

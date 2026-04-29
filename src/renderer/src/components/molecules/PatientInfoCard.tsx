@@ -35,6 +35,7 @@ export interface PatientInfoCardData {
   paymentMethod?: string
   status?: string
   allergies?: string
+  careType?: 'rajal' | 'ranap' | 'igd' | 'unknown'
 }
 
 interface PatientInfoCardProps {
@@ -124,6 +125,42 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
   const { token } = theme.useToken()
   const { patient, poli, doctor, visitDate, paymentMethod, status, allergies } = patientData
   const { showIdentityNumber = true, showAllergies = true } = sections || {}
+  const careType = patientData.careType || 'unknown'
+
+  const headerTheme = (() => {
+    if (careType === 'igd') {
+      return {
+        background: 'linear-gradient(135deg, #b91c1c 0%, #ea580c 100%)',
+        badgeBackground: 'rgba(255,255,255,0.15)',
+        badgeBorder: 'rgba(255,255,255,0.20)',
+        badgeText: '#ffffff',
+        avatarBackground: 'rgba(255,255,255,0.14)',
+        avatarBorder: 'rgba(255,255,255,0.22)',
+        avatarText: '#ffffff'
+      }
+    }
+    if (careType === 'ranap') {
+      return {
+        background: 'linear-gradient(135deg, #0f766e 0%, #059669 100%)',
+        badgeBackground: 'rgba(255,255,255,0.15)',
+        badgeBorder: 'rgba(255,255,255,0.20)',
+        badgeText: '#ffffff',
+        avatarBackground: 'rgba(255,255,255,0.14)',
+        avatarBorder: 'rgba(255,255,255,0.22)',
+        avatarText: '#ffffff'
+      }
+    }
+
+    return {
+      background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`,
+      badgeBackground: 'rgba(255,255,255,0.15)',
+      badgeBorder: 'rgba(255,255,255,0.20)',
+      badgeText: 'rgba(255,255,255,0.90)',
+      avatarBackground: token.colorPrimaryBg,
+      avatarBorder: token.colorPrimaryBorder,
+      avatarText: token.colorPrimary
+    }
+  })()
 
   const hasAllergy = allergies && allergies !== '-'
   const normalizedGender = String(patient?.gender || '').toLowerCase()
@@ -162,19 +199,17 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
     >
       <div
         className="px-6 py-4 flex justify-between items-center"
-        style={{
-          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
-        }}
+        style={{ background: headerTheme.background }}
       >
         <div className="flex items-center gap-4">
           <div
             className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
             style={{
-              background: token.colorPrimaryBg,
-              border: `1px solid ${token.colorPrimaryBorder}`
+              background: headerTheme.avatarBackground,
+              border: `1px solid ${headerTheme.avatarBorder}`
             }}
           >
-            <span style={{ color: token.colorPrimary, fontSize: 20, fontWeight: 700 }}>
+            <span style={{ color: headerTheme.avatarText, fontSize: 20, fontWeight: 700 }}>
               {(patient.name || 'U').charAt(0).toUpperCase()}
             </span>
           </div>
@@ -193,9 +228,9 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
               <span
                 className="font-mono text-[10px] font-medium px-2 py-0.5 rounded"
                 style={{
-                  background: 'rgba(255,255,255,0.15)',
-                  border: '1px solid rgba(255,255,255,0.20)',
-                  color: 'rgba(255,255,255,0.90)'
+                  background: headerTheme.badgeBackground,
+                  border: `1px solid ${headerTheme.badgeBorder}`,
+                  color: headerTheme.badgeText
                 }}
               >
                 RM: {patient.medicalRecordNumber || '-'}

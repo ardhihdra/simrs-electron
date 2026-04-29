@@ -1,3 +1,10 @@
+/**
+ * purpose: RPC procedure kasir untuk invoice, detail invoice, konfirmasi, dan pencatatan pembayaran dengan upload lampiran.
+ * main callers: Renderer hooks/queries pada modul kasir.
+ * key dependencies: `simrs-types` schema RPC kasir, `zod`, dan transport `client` dari RPC context.
+ * main/public functions: `kasirRpc` (`getInvoice`, `confirmInvoice`, `getInvoiceDetail`, `recordPayment`, `listBanks`).
+ * side effects: HTTP request ke backend kasir; `recordPayment` membentuk `FormData` dan upload file.
+ */
 import {
     ApiResponseSchema,
     RecordPaymentInputSchema,
@@ -64,12 +71,8 @@ export const kasirRpc = {
                 })
                 formData.append('attachment', fileBlob, filename)
             }
-            const params = new URLSearchParams()
-            if (input.encounterId) params.append('encounterId', input.encounterId)
-            if (input.patientId) params.append('patientId', input.patientId)
-
             const res = await client.createWithUpload(
-                `/api/module/kasir/invoice/${input.invoiceId || '0'}/payment?${params.toString()}`,
+                `/api/module/kasir/invoice/${input.invoiceId || '0'}/payment`,
                 formData,
             )
             return await res.json()

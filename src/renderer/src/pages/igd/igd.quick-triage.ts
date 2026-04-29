@@ -1,3 +1,10 @@
+/**
+ * purpose: Master opsi quick triase IGD untuk registrasi cepat beserta metadata label/tone yang ditampilkan di UI dengan mapping level yang konsisten terhadap label opsi.
+ * main callers: `IgdRegistrasiPage`, `IgdTriaseFormCard`, dan builder command registrasi IGD.
+ * key dependencies: Tidak ada; konstanta lokal + helper pure.
+ * main/public functions: `IGD_QUICK_TRIAGE_OPTIONS`, `getQuickTriageMeta`, `getQuickTriageLevel`, `getQuickTriageConditionByLevel`.
+ * side effects: Tidak ada; pure lookup.
+ */
 import type { IgdTriageLevel } from './igd.triage-level'
 
 export type IgdQuickTriageLevel = IgdTriageLevel
@@ -57,4 +64,13 @@ export function getQuickTriageMeta(conditionKey?: string) {
 
 export function getQuickTriageLevel(conditionKey?: string): IgdQuickTriageLevel {
   return getQuickTriageMeta(conditionKey).level
+}
+
+export function getQuickTriageConditionByLevel(levelNo?: number): string {
+  if (!Number.isInteger(levelNo) || Number(levelNo) < 0) {
+    return getQuickTriageMeta().value
+  }
+
+  const matched = IGD_QUICK_TRIAGE_OPTIONS.find((item) => item.level === levelNo)
+  return (matched ?? getQuickTriageMeta()).value
 }
