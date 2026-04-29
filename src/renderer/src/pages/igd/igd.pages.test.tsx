@@ -238,18 +238,16 @@ test('IGD disposisi page renders mockup-style inline disposition workflow', () =
     <IgdDisposisiPage patient={patient} onBack={() => undefined} onConfirm={() => undefined} />
   )
 
-  assert.equal(markup.includes('igd-disposisi-grid'), true)
-  assert.equal(markup.includes('Disposisi Pasien'), true)
-  assert.equal(markup.includes('Jenis Disposisi'), true)
+  assert.equal(markup.includes('Proses Pemulangan (Discharge)'), true)
+  assert.equal(markup.includes('Jenis Disposisi'), false)
+  assert.equal(markup.includes('Status Keluar'), true)
+  assert.equal(markup.includes('Obat Pulang'), true)
+  assert.equal(markup.includes('Rincian Billing'), true)
+  assert.equal(markup.includes('SATUSEHAT &amp; Klaim BPJS'), true)
   assert.equal(markup.includes('Pulang'), true)
-  assert.equal(markup.includes('Rawat Inap'), true)
-  assert.equal(markup.includes('Rujuk Internal'), true)
-  assert.equal(markup.includes('Rujuk Eksternal'), true)
   assert.equal(markup.includes('Meninggal'), true)
-  assert.equal(markup.includes('Pulang Paksa'), true)
-  assert.equal(markup.includes('Ringkasan Pasien'), true)
-  assert.equal(markup.includes('Dokumen'), true)
-  assert.equal(markup.includes('Konfirmasi Disposisi'), true)
+  assert.equal(markup.includes('Surat &amp; Dokumen'), true)
+  assert.equal(markup.includes('Finalisasi &amp; Pulangkan'), true)
 })
 
 test('desktop design system exposes reusable disposition workflow', () => {
@@ -288,8 +286,9 @@ test('desktop design system exposes reusable disposition workflow', () => {
     />
   )
 
-  assert.equal(markup.includes('igd-disposisi-grid'), true)
-  assert.equal(markup.includes('Jenis Disposisi'), true)
+  assert.equal(markup.includes('Proses Pemulangan (Discharge)'), true)
+  assert.equal(markup.includes('Jenis Disposisi'), false)
+  assert.equal(markup.includes('Rincian Billing'), true)
 })
 
 test('IGD patient table hides internal ant measure rows to avoid header gap', () => {

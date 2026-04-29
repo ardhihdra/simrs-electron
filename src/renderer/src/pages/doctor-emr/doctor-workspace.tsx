@@ -23,6 +23,7 @@ import {
   type DesktopDispositionConfirmPayload,
   type DesktopDispositionOption
 } from '../../components/design-system/organisms/DesktopDispositionWorkflow'
+import { ReferralForm } from '../../components/organisms/ReferralForm'
 
 const DOCTOR_DISPOSITION_OPTIONS: DesktopDispositionOption[] = [
   {
@@ -284,6 +285,30 @@ const DoctorWorkspace = () => {
           title="Disposisi Pemeriksaan"
           resumeDocumentLabel="Resume Medis"
           backendNote="Detail field mockup seperti instruksi DPJP, obat pulang, penyebab kematian, dan data klinis tambahan sebagian besar masih UI; yang dikirim dari disposisi umum baru dischargeDisposition dan dischargeNote."
+          dischargeStatusDispositionMap={{
+            sembuh: 'home',
+            rujuk: 'other-hcf',
+            meninggal: 'exp'
+          }}
+          renderReferralForm={() => (
+            <ReferralForm
+              encounterId={encounterId || ''}
+              patientId={patient.id}
+              variant="embedded"
+              showHistory={false}
+              title="Buat Rujukan"
+              submitLabel="Buat Rujukan & Selesaikan Pemeriksaan"
+              patientData={patientData}
+              onSuccess={async () => {
+                await handleDispositionConfirm({
+                  type: 'rujuk-e',
+                  dischargeStatus: 'rujuk',
+                  dischargeDisposition: 'other-hcf',
+                  note: ''
+                })
+              }}
+            />
+          )}
           isSubmitting={dischargeEncounterMutation.isPending}
           onBack={handleDispositionBack}
           onConfirm={handleDispositionConfirm}

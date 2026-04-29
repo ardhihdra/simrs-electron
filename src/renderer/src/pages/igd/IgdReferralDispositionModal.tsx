@@ -55,6 +55,10 @@ export function IgdReferralDispositionContent({
     encounterId,
     patientId: patient.id,
     patientData: buildIgdReferralPatientData(patient),
+    variant: 'embedded' as const,
+    showHistory: false,
+    title: 'Buat Rujukan',
+    submitLabel: 'Buat Rujukan & Proses Disposition',
     onSuccess: onReferralCreated
   }
 

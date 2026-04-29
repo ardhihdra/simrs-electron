@@ -23,6 +23,7 @@ import { useMyProfile } from '../../hooks/useProfile'
 import { queryClient } from '../../query-client'
 import { client } from '../../utils/client'
 import { useConditionByEncounter } from '@renderer/hooks/query/use-condition'
+import { useDiagnosisCodeList } from '@renderer/hooks/query/use-diagnosis-code'
 import { formatEncounterDiagnosisSummary } from '@renderer/utils/formatters/condition-formatter'
 import { SignaturePadModal } from '@renderer/components/molecules/SignaturePadModal'
 
@@ -33,6 +34,11 @@ interface ReferralFormProps {
   patientId?: string
   patientData?: any
   onSuccess?: () => void
+  variant?: 'standalone' | 'embedded'
+  showHistory?: boolean
+  title?: string
+  defaultReferralType?: 'internal' | 'external'
+  submitLabel?: string
 }
 
 enum ReferralType {
@@ -86,21 +92,58 @@ type AvailableRoomOption = {
   organizationId?: string
 }
 
+type ReferralDiagnosisOption = {
+  value: string
+  code: string
+  display: string
+  label: string
+}
+
+function toReferralDiagnosisOptions(rows: unknown): ReferralDiagnosisOption[] {
+  return Array.isArray(rows)
+    ? rows
+        .map((item: any) => {
+          const code = String(item.code || '').trim()
+          const display = String(item.id_display || item.idDisplay || item.display || '').trim()
+          if (!code || !display) return null
+
+          return {
+            value: code,
+            code,
+            display,
+            label: `${code} - ${display}`
+          }
+        })
+        .filter((item): item is ReferralDiagnosisOption => item !== null)
+    : []
+}
+
 export const ReferralForm = ({
   encounterId,
   patientId,
   patientData,
-  onSuccess
+  onSuccess,
+  variant = 'standalone',
+  showHistory = true,
+  title = 'Buat Rujukan Baru',
+  defaultReferralType = 'internal',
+  submitLabel = 'Buat Rujukan'
 }: ReferralFormProps) => {
   const [form] = Form.useForm()
   const { message } = App.useApp()
   const diagnosisRequiredMessage =
     'Diagnosis belum tersedia. Isi diagnosis di menu Diagnosis terlebih dahulu sebelum membuat rujukan.'
   const { profile } = useMyProfile()
-  const [referralType, setReferralType] = useState<ReferralType>(ReferralType.INTERNAL)
+  const initialReferralType =
+    defaultReferralType === 'external' ? ReferralType.EXTERNAL : ReferralType.INTERNAL
+  const [referralType, setReferralType] = useState<ReferralType>(initialReferralType)
   const [targetPoliId, setTargetPoliId] = useState<number | undefined>()
   const selectedSignatureSource = Form.useWatch('signatureSource', form)
+  const selectedDiagnosisCode = Form.useWatch('diagnosisCode', form)
+  const selectedDiagnosisText = Form.useWatch('diagnosisText', form)
   const [selectedRoomId, setSelectedRoomId] = useState<string | undefined>()
+  const [diagnosisSearch, setDiagnosisSearch] = useState('')
+  const [diagnosisTouched, setDiagnosisTouched] = useState(false)
 
   const [selectedReferral, setSelectedReferral] = useState<any>(null)
   const [isPreviewVisible, setIsPreviewVisible] = useState(false)
@@ -121,6 +164,10 @@ export const ReferralForm = ({
 
   const { data: conditionData, isLoading: isLoadingConditions } =
     useConditionByEncounter(encounterId)
+  const diagnosisQuery = useDiagnosisCodeList({
+    q: diagnosisSearch,
+    items: 20
+  })
 
   const toFileUrl = (path?: string | null) => {
     if (!path || typeof path !== 'string') return undefined
@@ -248,7 +295,27 @@ export const ReferralForm = ({
     const [code] = withoutNumbering.split(' - ')
     return code?.trim() || ''
   }, [autoDiagnosisText])
-  const hasAutoDiagnosis = autoDiagnosisText.trim().length > 0
+  const hasDiagnosis =
+    String(selectedDiagnosisCode || autoDiagnosisCode).trim().length > 0 &&
+    String(selectedDiagnosisText || autoDiagnosisText).trim().length > 0
+  const diagnosisSelectOptions = useMemo(() => {
+    const options = toReferralDiagnosisOptions(diagnosisQuery.data)
+    const autoOption =
+      autoDiagnosisCode && autoDiagnosisText
+        ? {
+            value: autoDiagnosisCode,
+            code: autoDiagnosisCode,
+            display: autoDiagnosisText,
+            label: `${autoDiagnosisCode} - ${autoDiagnosisText}`
+          }
+        : null
+
+    if (!autoOption) return options
+    return [
+      autoOption,
+      ...options.filter((option) => option.code.toLowerCase() !== autoDiagnosisCode.toLowerCase())
+    ]
+  }, [autoDiagnosisCode, autoDiagnosisText, diagnosisQuery.data])
 
   const openSigModal = (type: string, title: string) => {
     setSigModal({ visible: true, type, title })
@@ -259,11 +326,12 @@ export const ReferralForm = ({
   }
 
   useEffect(() => {
+    if (diagnosisTouched) return
     form.setFieldsValue({
       diagnosisCode: autoDiagnosisCode,
       diagnosisText: autoDiagnosisText
     })
-  }, [autoDiagnosisCode, autoDiagnosisText, form])
+  }, [autoDiagnosisCode, autoDiagnosisText, diagnosisTouched, form])
 
   const allSchedulesQuery = client.registration.getAvailableDoctors.useQuery(
     {
@@ -420,7 +488,7 @@ export const ReferralForm = ({
         throw new Error('Dokter/perujuk aktif tidak ditemukan. Silakan login ulang.')
       }
 
-      if (!hasAutoDiagnosis) {
+      if (!hasDiagnosis) {
         throw new Error(diagnosisRequiredMessage)
       }
 
@@ -487,7 +555,9 @@ export const ReferralForm = ({
         const bedCode = selectedBed.bed?.bedCodeId || 'Bed'
         const targetOrganizationId =
           selectedBed.room?.organizationId ||
-          (selectedBed.room?.id ? roomServiceUnitById.get(String(selectedBed.room.id)) : undefined) ||
+          (selectedBed.room?.id
+            ? roomServiceUnitById.get(String(selectedBed.room.id))
+            : undefined) ||
           RAWAT_INAP_DEFAULT_SERVICE_UNIT_ID
 
         const response = await referPatient.mutateAsync({
@@ -544,6 +614,7 @@ export const ReferralForm = ({
       setSelectedRoomId(undefined)
       setTargetPoliId(undefined)
       setSignatures({})
+      setDiagnosisTouched(false)
       onSuccess?.()
     } catch (error: any) {
       message.error(error.message || 'Gagal membuat rujukan')
@@ -557,319 +628,345 @@ export const ReferralForm = ({
     handleSubmit(values)
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <Card title="Buat Rujukan Baru" className=" border-blue-50">
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={onFinish}
-          initialValues={{
-            referralType: ReferralType.INTERNAL,
-            internalTargetType: InternalReferralTargetType.POLI,
-            transportationMode: 'mandiri',
-            referralDate: dayjs(),
-            diagnosisCode: autoDiagnosisCode,
-            diagnosisText: autoDiagnosisText,
-            signatureSource: 'manual'
-          }}
-        >
-          <Row gutter={24}>
-            <Col span={12}>
-              <Form.Item
-                name="referralType"
-                label="Tipe Rujukan"
-                rules={[{ required: true, message: 'Wajib dipilih' }]}
-              >
-                <Radio.Group onChange={(e) => setReferralType(e.target.value)} buttonStyle="solid">
-                  <Radio.Button value={ReferralType.INTERNAL}>Internal</Radio.Button>
-                  <Radio.Button value={ReferralType.EXTERNAL}>Eksternal (RS Lain)</Radio.Button>
-                </Radio.Group>
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="referralDate" label="Tanggal Rujukan" rules={[{ required: true }]}>
-                <DatePicker className="w-full" format="DD MMM YYYY" />
-              </Form.Item>
-            </Col>
-          </Row>
+  const handleDiagnosisChange = (value?: string) => {
+    const selectedDiagnosis = diagnosisSelectOptions.find((option) => option.value === value)
+    setDiagnosisTouched(true)
+    form.setFieldsValue({
+      diagnosisCode: selectedDiagnosis?.code ?? '',
+      diagnosisText: selectedDiagnosis?.display ?? ''
+    })
+  }
 
-          {referralType === ReferralType.INTERNAL && (
-            <Row gutter={24}>
-              <Col span={24}>
-                <Form.Item
-                  name="internalTargetType"
-                  label="Tujuan Internal"
-                  rules={[{ required: true, message: 'Pilih tujuan internal' }]}
-                >
-                  <Radio.Group buttonStyle="solid">
-                    <Radio.Button value={InternalReferralTargetType.POLI}>
-                      Poli Rawat Jalan
-                    </Radio.Button>
-                    <Radio.Button value={InternalReferralTargetType.INPATIENT}>
-                      Rawat Inap
-                    </Radio.Button>
-                  </Radio.Group>
-                </Form.Item>
-              </Col>
-            </Row>
-          )}
-
-          <Row gutter={24}>
-            <Col span={12}>
-              {referralType === ReferralType.INTERNAL &&
-              internalTargetType === InternalReferralTargetType.POLI ? (
-                <Form.Item
-                  name="targetPoliId"
-                  label="Poli Tujuan"
-                  rules={[{ required: true, message: 'Pilih poli tujuan' }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder={
-                      referralDateString ? 'Pilih poli tujuan' : 'Pilih tanggal rujukan dahulu'
-                    }
-                    options={poliOptions}
-                    loading={allSchedulesQuery.isLoading || allSchedulesQuery.isRefetching}
-                    disabled={!referralDateString}
-                    optionFilterProp="label"
-                    onChange={(value) => {
-                      setTargetPoliId(Number(value))
-                      form.setFieldValue('doctorScheduleId', undefined)
-                    }}
-                    notFoundContent="Tidak ada poli dengan jadwal pada tanggal ini"
-                  />
-                </Form.Item>
-              ) : referralType === ReferralType.INTERNAL &&
-                internalTargetType === InternalReferralTargetType.INPATIENT ? (
-                <Form.Item
-                  name="targetRoomId"
-                  label="Ruangan Tujuan"
-                  rules={[{ required: true, message: 'Pilih ruangan tujuan' }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder="Pilih ruangan rawat inap"
-                    options={roomOptions}
-                    loading={availableBedsQuery.isLoading || availableBedsQuery.isRefetching}
-                    optionFilterProp="label"
-                    onChange={(value) => {
-                      setSelectedRoomId(String(value))
-                      form.setFieldValue('targetBedId', undefined)
-                    }}
-                    notFoundContent="Tidak ada ruangan rawat inap yang tersedia"
-                  />
-                </Form.Item>
-              ) : (
-                <Form.Item
-                  name="targetOrganizationName"
-                  label="Nama Rumah Sakit / Fasilitas Tujuan"
-                  rules={[{ required: true, message: 'Isi nama RS tujuan' }]}
-                >
-                  <Input placeholder="Contoh: RSUP Dr. Sardjito" />
-                </Form.Item>
-              )}
-            </Col>
-            <Col span={12}>
-              {referralType === ReferralType.INTERNAL &&
-              internalTargetType === InternalReferralTargetType.POLI ? (
-                <Form.Item
-                  name="doctorScheduleId"
-                  label="Jadwal Dokter Tujuan"
-                  rules={[{ required: true, message: 'Pilih dokter dan jadwal tujuan' }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder={
-                      targetPoliId ? 'Pilih dokter dan jam praktik' : 'Pilih poli tujuan dahulu'
-                    }
-                    options={doctorScheduleOptions}
-                    loading={doctorsQuery.isLoading || doctorsQuery.isRefetching}
-                    disabled={!referralDateString || !targetPoliId}
-                    optionFilterProp="label"
-                    notFoundContent="Tidak ada dokter tersedia untuk poli/tanggal ini"
-                  />
-                </Form.Item>
-              ) : referralType === ReferralType.INTERNAL &&
-                internalTargetType === InternalReferralTargetType.INPATIENT ? (
-                <Form.Item
-                  name="targetBedId"
-                  label="Bed Tujuan"
-                  rules={[{ required: true, message: 'Pilih bed tujuan' }]}
-                >
-                  <Select
-                    showSearch
-                    placeholder={selectedRoomId ? 'Pilih bed tujuan' : 'Pilih ruangan dahulu'}
-                    options={bedOptions}
-                    loading={availableBedsQuery.isLoading || availableBedsQuery.isRefetching}
-                    disabled={!selectedRoomId}
-                    optionFilterProp="label"
-                    notFoundContent="Tidak ada bed tersedia untuk ruangan ini"
-                  />
-                </Form.Item>
-              ) : (
-                <Form.Item name="targetPractitionerName" label="Dokter Tujuan (opsional)">
-                  <Input placeholder="Nama dokter tujuan bila ada" />
-                </Form.Item>
-              )}
-            </Col>
-          </Row>
-
+  const formContent = (
+    <Form
+      form={form}
+      layout="vertical"
+      onFinish={onFinish}
+      initialValues={{
+        referralType: initialReferralType,
+        internalTargetType: InternalReferralTargetType.POLI,
+        transportationMode: 'mandiri',
+        referralDate: dayjs(),
+        diagnosisCode: autoDiagnosisCode,
+        diagnosisText: autoDiagnosisText,
+        signatureSource: 'manual'
+      }}
+    >
+      <Row gutter={24}>
+        <Col span={12}>
           <Form.Item
-            name="reasonForReferral"
-            label="Alasan Rujukan"
-            rules={[{ required: true, message: 'Jelaskan alasan rujukan' }]}
+            name="referralType"
+            label="Tipe Rujukan"
+            rules={[{ required: true, message: 'Wajib dipilih' }]}
           >
-            <TextArea rows={3} placeholder="Jelaskan indikasi medis mengapa pasien dirujuk..." />
+            <Radio.Group onChange={(e) => setReferralType(e.target.value)} buttonStyle="solid">
+              <Radio.Button value={ReferralType.INTERNAL}>Internal</Radio.Button>
+              <Radio.Button value={ReferralType.EXTERNAL}>Eksternal (RS Lain)</Radio.Button>
+            </Radio.Group>
           </Form.Item>
-
-          {!isLoadingConditions && !hasAutoDiagnosis && (
-            <Alert
-              type="warning"
-              showIcon
-              className="mb-4"
-              message="Diagnosis belum tersedia"
-              description="Isi Diagnosis di menu Diagnosis terlebih dahulu sebelum membuat rujukan."
-            />
-          )}
-
-          <Row gutter={24}>
-            <Col span={12}>
-              <Form.Item name="diagnosisCode" label="Kode Diagnosa (otomatis dari Diagnosis)">
-                <Input
-                  readOnly
-                  placeholder={
-                    isLoadingConditions
-                      ? 'Memuat diagnosis...'
-                      : 'Kode diagnosis otomatis dari menu Diagnosis'
-                  }
-                />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="transportationMode" label="Transportasi">
-                <Select
-                  options={[
-                    { label: 'Mandiri / Jalan', value: 'mandiri' },
-                    { label: 'Kursi roda', value: 'wheelchair' },
-                    { label: 'Bed / Brankar', value: 'bed' },
-                    { label: 'Ambulans', value: 'ambulance' },
-                    { label: 'Kendaraan pribadi', value: 'private_vehicle' }
-                  ]}
-                />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Form.Item name="diagnosisText" label="Diagnosa (otomatis dari Diagnosis)">
-            <TextArea
-              rows={2}
-              readOnly
-              placeholder={
-                isLoadingConditions
-                  ? 'Memuat diagnosis...'
-                  : 'Diagnosis otomatis dari menu Diagnosis'
-              }
-            />
+        </Col>
+        <Col span={12}>
+          <Form.Item name="referralDate" label="Tanggal Rujukan" rules={[{ required: true }]}>
+            <DatePicker className="w-full" format="DD MMM YYYY" />
           </Form.Item>
+        </Col>
+      </Row>
 
-          <Form.Item
-            name="keadaanKirim"
-            label="Keadaan Saat Kirim"
-            rules={[{ required: true, message: 'Isi keadaan pasien saat dikirim' }]}
-          >
-            <TextArea rows={2} placeholder="Contoh: stabil, compos mentis, nyeri sedang" />
-          </Form.Item>
-
-          <Form.Item name="examinationSummary" label="Ringkasan Pemeriksaan (opsional)">
-            <TextArea
-              rows={3}
-              placeholder="Ringkasan kondisi pasien atau pemeriksaan yang sudah dilakukan..."
-            />
-          </Form.Item>
-
-          <Form.Item
-            name="treatmentSummary"
-            label="Terapi / Tindakan yang Sudah Diberikan (opsional)"
-          >
-            <TextArea rows={3} placeholder="Terapi atau tindakan sebelum pasien dirujuk..." />
-          </Form.Item>
-
-          <Card title="Tanda Tangan Digital (Opsional)" className="border border-gray-100 mb-4">
+      {referralType === ReferralType.INTERNAL && (
+        <Row gutter={24}>
+          <Col span={24}>
             <Form.Item
-              className="mb-4!"
-              name="signatureSource"
-              label="Sumber Tanda Tangan Dokter Pengirim"
-              rules={[{ required: true, message: 'Pilih sumber tanda tangan' }]}
+              name="internalTargetType"
+              label="Tujuan Internal"
+              rules={[{ required: true, message: 'Pilih tujuan internal' }]}
             >
-              <Select options={SIGNATURE_SOURCE_OPTIONS} />
+              <Radio.Group buttonStyle="solid">
+                <Radio.Button value={InternalReferralTargetType.POLI}>
+                  Poli Rawat Jalan
+                </Radio.Button>
+                <Radio.Button value={InternalReferralTargetType.INPATIENT}>Rawat Inap</Radio.Button>
+              </Radio.Group>
             </Form.Item>
+          </Col>
+        </Row>
+      )}
 
-            <div className="rounded-lg border border-gray-200 bg-white p-4 max-w-[420px]">
-              <div className="uppercase text-[10px] tracking-widest text-gray-500 font-semibold">
-                Dokter Pengirim
-              </div>
-              <div className="mt-3 mb-4 h-32 w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden relative group">
-                {(
+      <Row gutter={24}>
+        <Col span={12}>
+          {referralType === ReferralType.INTERNAL &&
+          internalTargetType === InternalReferralTargetType.POLI ? (
+            <Form.Item
+              name="targetPoliId"
+              label="Poli Tujuan"
+              rules={[{ required: true, message: 'Pilih poli tujuan' }]}
+            >
+              <Select
+                showSearch
+                placeholder={
+                  referralDateString ? 'Pilih poli tujuan' : 'Pilih tanggal rujukan dahulu'
+                }
+                options={poliOptions}
+                loading={allSchedulesQuery.isLoading || allSchedulesQuery.isRefetching}
+                disabled={!referralDateString}
+                optionFilterProp="label"
+                onChange={(value) => {
+                  setTargetPoliId(Number(value))
+                  form.setFieldValue('doctorScheduleId', undefined)
+                }}
+                notFoundContent="Tidak ada poli dengan jadwal pada tanggal ini"
+              />
+            </Form.Item>
+          ) : referralType === ReferralType.INTERNAL &&
+            internalTargetType === InternalReferralTargetType.INPATIENT ? (
+            <Form.Item
+              name="targetRoomId"
+              label="Ruangan Tujuan"
+              rules={[{ required: true, message: 'Pilih ruangan tujuan' }]}
+            >
+              <Select
+                showSearch
+                placeholder="Pilih ruangan rawat inap"
+                options={roomOptions}
+                loading={availableBedsQuery.isLoading || availableBedsQuery.isRefetching}
+                optionFilterProp="label"
+                onChange={(value) => {
+                  setSelectedRoomId(String(value))
+                  form.setFieldValue('targetBedId', undefined)
+                }}
+                notFoundContent="Tidak ada ruangan rawat inap yang tersedia"
+              />
+            </Form.Item>
+          ) : (
+            <Form.Item
+              name="targetOrganizationName"
+              label="Nama Rumah Sakit / Fasilitas Tujuan"
+              rules={[{ required: true, message: 'Isi nama RS tujuan' }]}
+            >
+              <Input placeholder="Contoh: RSUP Dr. Sardjito" />
+            </Form.Item>
+          )}
+        </Col>
+        <Col span={12}>
+          {referralType === ReferralType.INTERNAL &&
+          internalTargetType === InternalReferralTargetType.POLI ? (
+            <Form.Item
+              name="doctorScheduleId"
+              label="Jadwal Dokter Tujuan"
+              rules={[{ required: true, message: 'Pilih dokter dan jadwal tujuan' }]}
+            >
+              <Select
+                showSearch
+                placeholder={
+                  targetPoliId ? 'Pilih dokter dan jam praktik' : 'Pilih poli tujuan dahulu'
+                }
+                options={doctorScheduleOptions}
+                loading={doctorsQuery.isLoading || doctorsQuery.isRefetching}
+                disabled={!referralDateString || !targetPoliId}
+                optionFilterProp="label"
+                notFoundContent="Tidak ada dokter tersedia untuk poli/tanggal ini"
+              />
+            </Form.Item>
+          ) : referralType === ReferralType.INTERNAL &&
+            internalTargetType === InternalReferralTargetType.INPATIENT ? (
+            <Form.Item
+              name="targetBedId"
+              label="Bed Tujuan"
+              rules={[{ required: true, message: 'Pilih bed tujuan' }]}
+            >
+              <Select
+                showSearch
+                placeholder={selectedRoomId ? 'Pilih bed tujuan' : 'Pilih ruangan dahulu'}
+                options={bedOptions}
+                loading={availableBedsQuery.isLoading || availableBedsQuery.isRefetching}
+                disabled={!selectedRoomId}
+                optionFilterProp="label"
+                notFoundContent="Tidak ada bed tersedia untuk ruangan ini"
+              />
+            </Form.Item>
+          ) : (
+            <Form.Item name="targetPractitionerName" label="Dokter Tujuan (opsional)">
+              <Input placeholder="Nama dokter tujuan bila ada" />
+            </Form.Item>
+          )}
+        </Col>
+      </Row>
+
+      <Form.Item
+        name="reasonForReferral"
+        label="Alasan Rujukan"
+        rules={[{ required: true, message: 'Jelaskan alasan rujukan' }]}
+      >
+        <TextArea rows={3} placeholder="Jelaskan indikasi medis mengapa pasien dirujuk..." />
+      </Form.Item>
+
+      {!isLoadingConditions && !hasDiagnosis && (
+        <Alert
+          type="warning"
+          showIcon
+          className="mb-4"
+          message="Diagnosis belum tersedia"
+          description="Pilih diagnosis ICD-10 atau isi Diagnosis di menu Diagnosis terlebih dahulu sebelum membuat rujukan."
+        />
+      )}
+
+      <Row gutter={24}>
+        <Col span={12}>
+          <Form.Item
+            name="diagnosisCode"
+            label="Diagnosis Rujukan (ICD-10)"
+            rules={[{ required: true, message: 'Pilih diagnosis rujukan' }]}
+          >
+            <Select
+              className="w-full"
+              options={diagnosisSelectOptions.map((option) => ({
+                value: option.value,
+                label: option.label
+              }))}
+              loading={
+                diagnosisQuery.isLoading || diagnosisQuery.isRefetching || isLoadingConditions
+              }
+              showSearch
+              filterOption={false}
+              optionFilterProp="label"
+              placeholder="Ketik kode ICD-10 atau nama diagnosis"
+              notFoundContent={
+                diagnosisQuery.isLoading || diagnosisQuery.isRefetching
+                  ? 'Memuat diagnosis...'
+                  : 'Diagnosis tidak ditemukan'
+              }
+              onSearch={setDiagnosisSearch}
+              onChange={handleDiagnosisChange}
+              allowClear
+              onClear={() => handleDiagnosisChange(undefined)}
+            />
+          </Form.Item>
+          <Form.Item name="diagnosisText" hidden>
+            <Input />
+          </Form.Item>
+          {selectedDiagnosisText || autoDiagnosisText ? (
+            <div className="-mt-4 mb-4 text-[11.5px] text-[var(--ds-color-text-muted)]">
+              {selectedDiagnosisCode || autoDiagnosisCode} -{' '}
+              {selectedDiagnosisText || autoDiagnosisText}
+            </div>
+          ) : null}
+        </Col>
+        <Col span={12}>
+          <Form.Item name="transportationMode" label="Transportasi">
+            <Select
+              options={[
+                { label: 'Mandiri / Jalan', value: 'mandiri' },
+                { label: 'Kursi roda', value: 'wheelchair' },
+                { label: 'Bed / Brankar', value: 'bed' },
+                { label: 'Ambulans', value: 'ambulance' },
+                { label: 'Kendaraan pribadi', value: 'private_vehicle' }
+              ]}
+            />
+          </Form.Item>
+        </Col>
+      </Row>
+
+      <Form.Item
+        name="keadaanKirim"
+        label="Keadaan Saat Kirim"
+        rules={[{ required: true, message: 'Isi keadaan pasien saat dikirim' }]}
+      >
+        <TextArea rows={2} placeholder="Contoh: stabil, compos mentis, nyeri sedang" />
+      </Form.Item>
+
+      <Form.Item name="examinationSummary" label="Ringkasan Pemeriksaan (opsional)">
+        <TextArea
+          rows={3}
+          placeholder="Ringkasan kondisi pasien atau pemeriksaan yang sudah dilakukan..."
+        />
+      </Form.Item>
+
+      <Form.Item name="treatmentSummary" label="Terapi / Tindakan yang Sudah Diberikan (opsional)">
+        <TextArea rows={3} placeholder="Terapi atau tindakan sebelum pasien dirujuk..." />
+      </Form.Item>
+
+      <Card title="Tanda Tangan Digital (Opsional)" className="border border-gray-100 mb-4">
+        <Form.Item
+          className="mb-4!"
+          name="signatureSource"
+          label="Sumber Tanda Tangan Dokter Pengirim"
+          rules={[{ required: true, message: 'Pilih sumber tanda tangan' }]}
+        >
+          <Select options={SIGNATURE_SOURCE_OPTIONS} />
+        </Form.Item>
+
+        <div className="rounded-lg border border-gray-200 bg-white p-4 max-w-[420px]">
+          <div className="uppercase text-[10px] tracking-widest text-gray-500 font-semibold">
+            Dokter Pengirim
+          </div>
+          <div className="mt-3 mb-4 h-32 w-full rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden relative group">
+            {(
+              selectedSignatureSource === 'kepegawaian' ? autoDoctorSignatureUrl : signatures.doctor
+            ) ? (
+              <img
+                src={
                   selectedSignatureSource === 'kepegawaian'
                     ? autoDoctorSignatureUrl
                     : signatures.doctor
-                ) ? (
-                  <img
-                    src={
-                      selectedSignatureSource === 'kepegawaian'
-                        ? autoDoctorSignatureUrl
-                        : signatures.doctor
-                    }
-                    alt="Signature"
-                    className="max-h-full transition-transform group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-gray-400">
-                    <EditOutlined className="text-2xl opacity-40" />
-                    <span className="text-[10px] italic text-gray-500">
-                      {selectedSignatureSource === 'kepegawaian'
-                        ? 'TTD Kepegawaian Belum Ada'
-                        : 'Belum Ada TTD'}
-                    </span>
-                  </div>
-                )}
+                }
+                alt="Signature"
+                className="max-h-full transition-transform group-hover:scale-105"
+              />
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-gray-400">
+                <EditOutlined className="text-2xl opacity-40" />
+                <span className="text-[10px] italic text-gray-500">
+                  {selectedSignatureSource === 'kepegawaian'
+                    ? 'TTD Kepegawaian Belum Ada'
+                    : 'Belum Ada TTD'}
+                </span>
               </div>
+            )}
+          </div>
 
-              {selectedSignatureSource === 'kepegawaian' ? (
-                <Tag color={autoDoctorSignatureUrl ? 'green' : 'default'} className="m-0">
-                  {autoDoctorSignatureUrl
-                    ? 'Diambil dari Kepegawaian'
-                    : 'Profil Pegawai Tidak Punya TTD'}
-                </Tag>
-              ) : (
-                <Button
-                  icon={<EditOutlined />}
-                  size="small"
-                  className="text-xs"
-                  onClick={() => openSigModal('doctor', 'Dokter Pengirim')}
-                >
-                  Input Tanda Tangan
-                </Button>
-              )}
-            </div>
-          </Card>
-
-          <Form.Item className="mb-0 text-right">
+          {selectedSignatureSource === 'kepegawaian' ? (
+            <Tag color={autoDoctorSignatureUrl ? 'green' : 'default'} className="m-0">
+              {autoDoctorSignatureUrl
+                ? 'Diambil dari Kepegawaian'
+                : 'Profil Pegawai Tidak Punya TTD'}
+            </Tag>
+          ) : (
             <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SendOutlined />}
-              loading={referPatient.isPending}
-              disabled={!hasAutoDiagnosis || isLoadingConditions}
+              icon={<EditOutlined />}
+              size="small"
+              className="text-xs"
+              onClick={() => openSigModal('doctor', 'Dokter Pengirim')}
             >
-              Buat Rujukan
+              Input Tanda Tangan
             </Button>
-          </Form.Item>
-        </Form>
+          )}
+        </div>
       </Card>
 
-      {isError && (
+      <Form.Item className="mb-0 text-right">
+        <Button
+          type="primary"
+          htmlType="submit"
+          icon={<SendOutlined />}
+          loading={referPatient.isPending}
+          disabled={!hasDiagnosis || isLoadingConditions}
+        >
+          {submitLabel}
+        </Button>
+      </Form.Item>
+    </Form>
+  )
+
+  return (
+    <div className={variant === 'embedded' ? 'flex flex-col gap-4' : 'flex flex-col gap-6'}>
+      {variant === 'standalone' ? (
+        <Card title={title} className=" border-blue-50">
+          {formContent}
+        </Card>
+      ) : (
+        <div className="rounded-lg border border-gray-100 bg-white p-3">{formContent}</div>
+      )}
+
+      {showHistory && isError && (
         <Alert
           message="Gagal Memuat Riwayat"
           description={
@@ -885,7 +982,7 @@ export const ReferralForm = ({
         />
       )}
 
-      {Array.isArray(referralHistory) && referralHistory.length > 0 && (
+      {showHistory && Array.isArray(referralHistory) && referralHistory.length > 0 && (
         <Card title="Riwayat Rujukan" className=" border-gray-100">
           <div className="flex flex-col gap-3">
             {referralHistory.map((ref: any) => (

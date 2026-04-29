@@ -12,6 +12,11 @@ export type IgdReferralFormRenderProps = {
   encounterId: string
   patientId?: string
   patientData: IgdReferralPatientData
+  variant?: 'standalone' | 'embedded'
+  showHistory?: boolean
+  title?: string
+  defaultReferralType?: 'internal' | 'external'
+  submitLabel?: string
   onSuccess: () => void | Promise<void>
 }
 

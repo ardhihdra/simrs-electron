@@ -1,7 +1,10 @@
 import { App } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
+import { useQuery } from '@tanstack/react-query'
 import React, { useState } from 'react'
 
+import { useMedicationDispenseByEncounter } from '@renderer/hooks/query/use-medication-dispense'
+import { rpc } from '@renderer/utils/client'
 import {
   DesktopBadge,
   type DesktopBadgeTone
@@ -14,6 +17,7 @@ import {
   type DesktopDispositionOption
 } from '../../components/design-system/organisms/DesktopDispositionWorkflow'
 import { DesktopGenericTable } from '../../components/design-system/organisms/DesktopGenericTable'
+import { ReferralForm } from '../../components/organisms/ReferralForm'
 import { RPCSelectAsync } from '../../components/organisms/RPCSelectAsync'
 import { SelectAsync } from '../../components/organisms/SelectAsync'
 import { DpjpModal } from '../../components/organisms/rawat-inap/DpjpModal'
@@ -144,6 +148,23 @@ export function RawatInapPasienPage({
   const [showDpjpModal, setShowDpjpModal] = useState(false)
 
   const selected = items.find((p) => p.encounterId === selectedEncounterId) ?? items[0] ?? null
+  const dispositionEncounterId = dispositionPatient?.encounterId
+  const dispositionPatientId = dispositionPatient?.patientId
+  const dispositionMedicationQuery = useMedicationDispenseByEncounter(
+    dispositionPatientId,
+    dispositionEncounterId
+  )
+  const dispositionInvoiceQuery = useQuery({
+    queryKey: ['rawat-inap', 'disposition-invoice', dispositionEncounterId, dispositionPatientId],
+    queryFn: () =>
+      rpc.kasir.getInvoice({
+        encounterId: dispositionEncounterId!,
+        patientId: dispositionPatientId!
+      }),
+    enabled: !!dispositionEncounterId && !!dispositionPatientId
+  })
+  const dispositionInvoice =
+    (dispositionInvoiceQuery.data as { result?: unknown } | undefined)?.result ?? null
   const isCheckinMode = mode === 'checkin'
   const pageTitle =
     title ?? (isCheckinMode ? 'Daftar Pasien Siap Checkin' : 'Daftar Pasien Rawat Inap')
@@ -169,7 +190,12 @@ export function RawatInapPasienPage({
           registrationNumber: dispositionPatient.encounterId,
           ageLabel: dispositionPatient.ageLabel ?? '-',
           paymentLabel: dispositionPatient.paymentLabel ?? '-',
-          statusLabel: 'Encounter Rawat Inap'
+          statusLabel: 'Encounter Rawat Inap',
+          roomLabel: [dispositionPatient.wardName, dispositionPatient.bedName]
+            .filter(Boolean)
+            .join(' '),
+          lengthOfStayLabel: `LOS ${dispositionPatient.losDays} hari`,
+          patientTypeLabel: dispositionPatient.paymentLabel ?? '-'
         }}
         bannerMeta={RAWAT_INAP_BANNER_META}
         summaryItems={[
@@ -191,7 +217,47 @@ export function RawatInapPasienPage({
         breadcrumbItems={['Rawat Inap', 'Daftar Pasien']}
         title="Disposisi Pasien Rawat Inap"
         resumeDocumentLabel="Resume Medis Rawat Inap"
+        dischargeMedications={
+          Array.isArray(dispositionMedicationQuery.data?.data)
+            ? dispositionMedicationQuery.data.data
+            : []
+        }
+        invoice={dispositionInvoice}
         backendNote="Detail field mockup seperti instruksi DPJP, obat pulang, penyebab kematian, dan data klinis tambahan sebagian besar masih UI; yang dikirim dari disposisi umum baru dischargeDisposition dan dischargeNote."
+        renderReferralForm={() => (
+          <ReferralForm
+            encounterId={dispositionPatient.encounterId}
+            patientId={dispositionPatient.patientId}
+            variant="embedded"
+            showHistory={false}
+            title="Buat Rujukan"
+            submitLabel="Buat Rujukan & Proses Discharge"
+            patientData={{
+              patient: {
+                id: dispositionPatient.patientId,
+                name: dispositionPatient.patientName,
+                medicalRecordNumber: dispositionPatient.medicalRecordNumber ?? '-'
+              },
+              doctor: {
+                name: dispositionPatient.dpjpName ?? undefined
+              }
+            }}
+            onSuccess={async () => {
+              if (!onDispositionConfirm) {
+                handleAction()
+                return
+              }
+
+              await onDispositionConfirm(dispositionPatient, {
+                type: 'rujuk-e',
+                dischargeStatus: 'rujuk',
+                dischargeDisposition: 'REFERRED',
+                note: ''
+              })
+              setDispositionPatient(null)
+            }}
+          />
+        )}
         isSubmitting={isDispositionSubmitting}
         onBack={() => setDispositionPatient(null)}
         onConfirm={async (payload) => {
@@ -397,9 +463,7 @@ export function RawatInapPasienPage({
       {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-[16px]">
         <div className="min-w-0 flex-1">
-          <h1 className="text-[28px] font-semibold text-[var(--ds-color-text)]">
-            {pageTitle}
-          </h1>
+          <h1 className="text-[28px] font-semibold text-[var(--ds-color-text)]">{pageTitle}</h1>
           <div className="mt-[4px] text-[13px] text-[var(--ds-color-text-muted)]">
             {pageSubtitle}
           </div>
@@ -407,12 +471,12 @@ export function RawatInapPasienPage({
         <div className="flex flex-wrap items-center gap-[8px]">
           {!isCheckinMode ? (
             <>
-            <DesktopButton emphasis="toolbar" onClick={handleAction}>
-              Ekspor
-            </DesktopButton>
-            <DesktopButton emphasis="toolbar" onClick={onOpenAdmisi ?? handleAction}>
-              Admisi Baru
-            </DesktopButton>
+              <DesktopButton emphasis="toolbar" onClick={handleAction}>
+                Ekspor
+              </DesktopButton>
+              <DesktopButton emphasis="toolbar" onClick={onOpenAdmisi ?? handleAction}>
+                Admisi Baru
+              </DesktopButton>
             </>
           ) : (
             <DesktopButton emphasis="primary" onClick={onOpenAdmisi ?? handleAction}>
@@ -654,13 +718,13 @@ export function RawatInapPasienPage({
                   </DesktopButton>
                 ) : (
                   <>
-                    {(['Buka CPPT', 'Vital Signs', 'Resep / MAR', 'Transfer Kamar'] as string[]).map(
-                      (label) => (
-                        <DesktopButton key={label} emphasis="toolbar" onClick={handleAction}>
-                          {label}
-                        </DesktopButton>
-                      )
-                    )}
+                    {(
+                      ['Buka CPPT', 'Vital Signs', 'Resep / MAR', 'Transfer Kamar'] as string[]
+                    ).map((label) => (
+                      <DesktopButton key={label} emphasis="toolbar" onClick={handleAction}>
+                        {label}
+                      </DesktopButton>
+                    ))}
                     <DesktopButton emphasis="toolbar" onClick={openDpjpModal}>
                       Tetapkan / Ganti DPJP
                     </DesktopButton>

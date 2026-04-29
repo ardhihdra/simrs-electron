@@ -44,6 +44,7 @@ import {
   type DesktopDispositionConfirmPayload,
   type DesktopDispositionOption
 } from '../../components/design-system/organisms/DesktopDispositionWorkflow'
+import { ReferralForm } from '../../components/organisms/ReferralForm'
 
 const { RangePicker } = DatePicker
 
@@ -935,6 +936,39 @@ export const DoctorPatientList = () => {
           title="Disposisi Pemeriksaan"
           resumeDocumentLabel="Resume Medis"
           backendNote="Detail field mockup seperti instruksi DPJP, obat pulang, penyebab kematian, dan data klinis tambahan sebagian besar masih UI; yang dikirim dari disposisi umum baru dischargeDisposition dan dischargeNote."
+          dischargeStatusDispositionMap={{
+            sembuh: 'home',
+            rujuk: 'other-hcf',
+            meninggal: 'exp'
+          }}
+          renderReferralForm={() => (
+            <ReferralForm
+              encounterId={dispositionRecord.encounterId}
+              patientId={dispositionRecord.patient?.id}
+              variant="embedded"
+              showHistory={false}
+              title="Buat Rujukan"
+              submitLabel="Buat Rujukan & Selesaikan Pemeriksaan"
+              patientData={{
+                patient: {
+                  id: dispositionRecord.patient?.id,
+                  name: dispositionRecord.patient?.name,
+                  medicalRecordNumber: dispositionRecord.patient?.medicalRecordNumber
+                },
+                doctor: {
+                  name: dispositionRecord.queueTicket?.practitioner?.namaLengkap
+                }
+              }}
+              onSuccess={async () => {
+                await handleDispositionConfirm({
+                  type: 'rujuk-e',
+                  dischargeStatus: 'rujuk',
+                  dischargeDisposition: 'other-hcf',
+                  note: ''
+                })
+              }}
+            />
+          )}
           isSubmitting={dischargeEncounterMutation.isPending}
           onBack={handleDispositionBack}
           onConfirm={handleDispositionConfirm}
