@@ -35,6 +35,7 @@ type RawatInapPasienPageProps = {
   statusCounts?: { PLANNED?: number; IN_PROGRESS: number; FINISHED: number }
   onQueryChange: (patch: Partial<InpatientPatientListQuery>) => void
   onCheckin?: (patient: InpatientPatientListItem) => void
+  onOpenAdmisi?: () => void
   onDispositionConfirm?: (
     patient: InpatientPatientListItem,
     payload: DesktopDispositionConfirmPayload
@@ -130,6 +131,7 @@ export function RawatInapPasienPage({
   statusCounts,
   onQueryChange,
   onCheckin,
+  onOpenAdmisi,
   onDispositionConfirm,
   isDispositionSubmitting = false,
   onDpjpSaved
@@ -402,16 +404,22 @@ export function RawatInapPasienPage({
             {pageSubtitle}
           </div>
         </div>
-        {!isCheckinMode && (
-          <div className="flex flex-wrap items-center gap-[8px]">
+        <div className="flex flex-wrap items-center gap-[8px]">
+          {!isCheckinMode ? (
+            <>
             <DesktopButton emphasis="toolbar" onClick={handleAction}>
               Ekspor
             </DesktopButton>
-            <DesktopButton emphasis="toolbar" onClick={handleAction}>
+            <DesktopButton emphasis="toolbar" onClick={onOpenAdmisi ?? handleAction}>
               Admisi Baru
             </DesktopButton>
-          </div>
-        )}
+            </>
+          ) : (
+            <DesktopButton emphasis="primary" onClick={onOpenAdmisi ?? handleAction}>
+              Admisi Baru
+            </DesktopButton>
+          )}
+        </div>
       </div>
 
       {/* Filter bar (outside table card) */}

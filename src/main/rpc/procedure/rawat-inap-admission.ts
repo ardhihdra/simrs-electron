@@ -29,6 +29,7 @@ const CreateRawatInapAdmissionInputSchema = z.object({
       penanggungJawab: z.string().optional()
     })
     .optional(),
+  planningOnly: z.boolean().optional(),
   placement: z.object({
     roomCodeId: z.string().min(1),
     bedCodeId: z.string().min(1),

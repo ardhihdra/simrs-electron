@@ -141,6 +141,7 @@ export default function RawatInapCheckinRoute() {
   const queryClient = useQueryClient()
   const [queryParams, setQueryParams] = useState<InpatientPatientListQuery>(DEFAULT_QUERY)
   const [selectedPatient, setSelectedPatient] = useState<InpatientPatientListItem | null>(null)
+  const [isCreatingPlanningAdmission, setIsCreatingPlanningAdmission] = useState(false)
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
 
   const query = client.encounter.inpatientPatients.useQuery(queryParams)
@@ -168,6 +169,21 @@ export default function RawatInapCheckinRoute() {
       message.error(error instanceof Error ? error.message : 'Gagal memproses checkin rawat inap')
     }
   })
+  const createPlanningAdmissionMutation = client.rawatInapAdmission.create.useMutation({
+    onSuccess: async (result) => {
+      message.success(
+        `Admisi planning rawat inap berhasil dibuat (${result?.encounterId ?? 'encounter baru'})`
+      )
+      setIsCreatingPlanningAdmission(false)
+      await queryClient.invalidateQueries()
+      await query.refetch()
+    },
+    onError: (error) => {
+      message.error(
+        error instanceof Error ? error.message : 'Gagal membuat admisi planning rawat inap'
+      )
+    }
+  })
 
   const diagnosisOptions = useMemo(
     () => toDiagnosisOptions(diagnosisQuery.data),
@@ -180,6 +196,39 @@ export default function RawatInapCheckinRoute() {
 
   const handleQueryChange = (patch: Partial<InpatientPatientListQuery>) =>
     setQueryParams((prev) => ({ ...prev, ...patch, encounterStatus: 'PLANNED' }))
+
+  if (isCreatingPlanningAdmission) {
+    return (
+      <RawatInapAdmisiPage
+        key="new-planned-admission"
+        backLabel="Daftar Siap Checkin"
+        title="Admisi Baru — Planning Rawat Inap"
+        description="Buat encounter rawat inap planning. Pasien akan muncul di daftar siap checkin sebelum diproses masuk rawat inap."
+        submitLabel="Simpan ke Siap Checkin"
+        submittingLabel="Menyimpan Planning..."
+        onBack={() => setIsCreatingPlanningAdmission(false)}
+        onCancel={() => setIsCreatingPlanningAdmission(false)}
+        bedMapSnapshot={bedMapQuery.data}
+        mitraOptionsByPaymentMethod={{
+          bpjs: toMitraOptions(bpjsMitraQuery.data),
+          asuransi: toMitraOptions(insuranceMitraQuery.data),
+          company: toMitraOptions(companyMitraQuery.data)
+        }}
+        diagnosisOptions={diagnosisOptions}
+        practitionerOptions={practitionerOptions}
+        isDiagnosisLoading={diagnosisQuery.isLoading || diagnosisQuery.isRefetching}
+        isPractitionerLoading={practitionerQuery.isLoading || practitionerQuery.isRefetching}
+        onDiagnosisSearch={setDiagnosisSearch}
+        isSubmitting={createPlanningAdmissionMutation.isPending}
+        onSubmit={(command) =>
+          createPlanningAdmissionMutation.mutate({
+            ...command,
+            planningOnly: true
+          })
+        }
+      />
+    )
+  }
 
   if (selectedPatient) {
     const currentBedOption =
@@ -265,6 +314,7 @@ export default function RawatInapCheckinRoute() {
       statusCounts={query.data?.statusCounts}
       onQueryChange={handleQueryChange}
       onCheckin={setSelectedPatient}
+      onOpenAdmisi={() => setIsCreatingPlanningAdmission(true)}
     />
   )
 }

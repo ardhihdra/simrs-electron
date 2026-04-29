@@ -212,9 +212,13 @@ test('Rawat Inap patient list supports checkin-only mode for planned encounters'
 
   assert.equal(source.includes("mode?: 'active' | 'checkin'"), true)
   assert.equal(source.includes('Daftar Pasien Siap Checkin'), true)
+  assert.equal(source.includes('onOpenAdmisi'), true)
   assert.equal(source.includes('Checkin Pasien'), true)
   assert.equal(routeSource.includes("encounterStatus: 'PLANNED'"), true)
+  assert.equal(routeSource.includes('isCreatingPlanningAdmission'), true)
+  assert.equal(routeSource.includes('planningOnly: true'), true)
   assert.equal(routeSource.includes('client.rawatInapAdmission.checkIn.useMutation'), true)
+  assert.equal(routeSource.includes('client.rawatInapAdmission.create.useMutation'), true)
   assert.equal(routeSource.includes('createInitialFormFromPatient'), true)
   assert.equal(routeSource.includes('patient.partOfEncounterType'), true)
 })
