@@ -18,6 +18,7 @@ test('rawat inap config exposes admisi, bed map, transfer, and pasien menu items
       RAWAT_INAP_PAGE_PATHS.bedMap,
       RAWAT_INAP_PAGE_PATHS.admisi,
       RAWAT_INAP_PAGE_PATHS.transfer,
+      RAWAT_INAP_PAGE_PATHS.checkin,
       RAWAT_INAP_PAGE_PATHS.pasien
     ]
   )

@@ -10,7 +10,11 @@ import { RawatInapPasienPage } from './RawatInapPasienPage'
 
 void React
 
-const DEFAULT_QUERY: InpatientPatientListQuery = { page: 1, pageSize: 10 }
+const DEFAULT_QUERY: InpatientPatientListQuery = {
+  page: 1,
+  pageSize: 10,
+  encounterStatus: 'IN_PROGRESS'
+}
 
 export default function RawatInapPasienRoute() {
   const { message } = App.useApp()

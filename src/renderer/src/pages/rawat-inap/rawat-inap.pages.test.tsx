@@ -131,6 +131,31 @@ test('Rawat Inap admisi page does not watch nomor kartu in parent render', () =>
   assert.equal(source.includes('mergeRawatInapAdmissionInsuranceFormValues'), true)
 })
 
+test('Rawat Inap admisi page autofills diagnosis and guarantor from source encounter', () => {
+  const source = readFileSync(new URL('./RawatInapAdmisiPage.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes('autoHydratedSourceEncounterRef'), true)
+  assert.equal(source.includes('handleSourceEncounterChange(hydrationCandidate)'), true)
+  assert.equal(source.includes('window.api?.query?.encounter?.read'), true)
+  assert.equal(source.includes('window.api?.query?.condition?.getByEncounter'), true)
+  assert.equal(source.includes('window.api?.query?.patientInsurance?.listAll'), true)
+  assert.equal(
+    source.includes('buildRawatInapAdmissionFormPatchFromSourceEncounter(hydratedEncounter)'),
+    true
+  )
+  assert.equal(source.includes('insuranceForm.setFieldsValue'), true)
+  assert.equal(source.includes('mitraCodeNumber: insurancePatch.mitraCodeNumber'), true)
+  assert.equal(source.includes('mitraCodeExpiredDate: insurancePatch.mitraCodeExpiredDate'), true)
+  assert.equal(
+    source.includes('formatRawatInapSourceEncounterLabel(selectedSourceEncounter)'),
+    true
+  )
+  assert.equal(
+    source.includes('`${selectedSourceEncounter.patientName} - ${selectedSourceEncounter.id}`'),
+    false
+  )
+})
+
 test('Rawat Inap bed map page renders ward sidebar, bed grid, and detail panel', () => {
   const markup = renderToStaticMarkup(<RawatInapBedMapPage state={createRawatInapInitialState()} />)
 
@@ -179,6 +204,19 @@ test('Rawat Inap patient list uses disposition action for active inpatient encou
     ),
     true
   )
+})
+
+test('Rawat Inap patient list supports checkin-only mode for planned encounters', () => {
+  const source = readFileSync(new URL('./RawatInapPasienPage.tsx', import.meta.url), 'utf8')
+  const routeSource = readFileSync(new URL('./RawatInapCheckinRoute.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes("mode?: 'active' | 'checkin'"), true)
+  assert.equal(source.includes('Daftar Pasien Siap Checkin'), true)
+  assert.equal(source.includes('Checkin Pasien'), true)
+  assert.equal(routeSource.includes("encounterStatus: 'PLANNED'"), true)
+  assert.equal(routeSource.includes('client.rawatInapAdmission.checkIn.useMutation'), true)
+  assert.equal(routeSource.includes('createInitialFormFromPatient'), true)
+  assert.equal(routeSource.includes('patient.partOfEncounterType'), true)
 })
 
 test('Rawat Inap bed map page renders backend-mapped patient detail', () => {

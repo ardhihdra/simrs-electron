@@ -38,6 +38,12 @@ const CreateRawatInapAdmissionInputSchema = z.object({
 
 export type CreateRawatInapAdmissionInput = z.infer<typeof CreateRawatInapAdmissionInputSchema>
 
+const CheckInRawatInapAdmissionInputSchema = CreateRawatInapAdmissionInputSchema.extend({
+  encounterId: z.string().min(1)
+})
+
+export type CheckInRawatInapAdmissionInput = z.infer<typeof CheckInRawatInapAdmissionInputSchema>
+
 export function normalizeRawatInapAdmissionResponse(payload: any) {
   if (payload?.success === false) {
     throw new Error(payload?.error || payload?.message || 'Admisi rawat inap gagal diproses')
@@ -60,6 +66,18 @@ export const rawatInapAdmissionRpc = {
     .output(z.any())
     .mutation(async ({ client }, input) => {
       const response = await client.post('/api/module/rawat-inap-admission/admissions', input)
+      const payload = await response.json()
+      return normalizeRawatInapAdmissionResponse(payload)
+    }),
+  checkIn: t
+    .input(CheckInRawatInapAdmissionInputSchema)
+    .output(z.any())
+    .mutation(async ({ client }, input) => {
+      const { encounterId, ...body } = input
+      const response = await client.patch(
+        `/api/module/rawat-inap-admission/admissions/${encounterId}/checkin`,
+        body
+      )
       const payload = await response.json()
       return normalizeRawatInapAdmissionResponse(payload)
     })

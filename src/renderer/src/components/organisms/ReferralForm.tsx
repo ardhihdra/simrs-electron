@@ -62,6 +62,8 @@ const SIGNATURE_SOURCE_OPTIONS = [
   { label: 'Ambil dari Kepegawaian', value: 'kepegawaian' }
 ]
 
+const RAWAT_INAP_DEFAULT_SERVICE_UNIT_ID = '9f3c77d6-8481-443b-871d-f8ec0d268803'
+
 type AvailableBedOption = {
   bedId: string
   roomId: string
@@ -77,6 +79,11 @@ type AvailableBedOption = {
     id: string
     bedCodeId?: string
   }
+}
+
+type AvailableRoomOption = {
+  id: string
+  organizationId?: string
 }
 
 export const ReferralForm = ({
@@ -337,10 +344,30 @@ export const ReferralForm = ({
     }
   )
 
+  const roomsQuery = client.room.rooms.useQuery(
+    {},
+    {
+      enabled:
+        referralType === ReferralType.INTERNAL &&
+        internalTargetType === InternalReferralTargetType.INPATIENT,
+      queryKey: ['referral-form-rooms', {}]
+    }
+  )
+
   const availableBeds = useMemo<AvailableBedOption[]>(() => {
     const data = availableBedsQuery.data as any
     return data?.result || data?.data || data || []
   }, [availableBedsQuery.data])
+
+  const roomServiceUnitById = useMemo(() => {
+    const data = roomsQuery.data as any
+    const rooms: AvailableRoomOption[] = data?.result || data?.data || data || []
+    return new Map(
+      rooms
+        .filter((room) => room.id && room.organizationId)
+        .map((room) => [String(room.id), String(room.organizationId)])
+    )
+  }, [roomsQuery.data])
 
   const roomOptions = useMemo(() => {
     const rooms = new Map<string, { value: string; label: string }>()
@@ -458,11 +485,16 @@ export const ReferralForm = ({
 
         const roomCode = selectedBed.room?.roomCodeId || 'Ruangan'
         const bedCode = selectedBed.bed?.bedCodeId || 'Bed'
+        const targetOrganizationId =
+          selectedBed.room?.organizationId ||
+          (selectedBed.room?.id ? roomServiceUnitById.get(String(selectedBed.room.id)) : undefined) ||
+          RAWAT_INAP_DEFAULT_SERVICE_UNIT_ID
 
         const response = await referPatient.mutateAsync({
           ...commonPayload,
           referralType: 'internal' as const,
           internalTargetType: 'INPATIENT' as const,
+          targetOrganizationId,
           targetOrganizationName: `Rawat Inap - ${roomCode} / Bed ${bedCode}`
         })
 

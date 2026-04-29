@@ -2,9 +2,14 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  buildRawatInapAdmissionFormPatchFromSourceEncounter,
   buildRawatInapAdmissionCommand,
   createRawatInapAdmissionBedOptions,
   createDefaultRawatInapAdmissionForm,
+  extractRawatInapAdmissionDiagnosisFromConditions,
+  createRawatInapAdmissionPatientPatchFromSourceEncounter,
+  formatRawatInapSourceEncounterLabel,
+  pickRawatInapAdmissionPatientInsurance,
   mergeRawatInapAdmissionInsuranceFormValues
 } from './rawat-inap.admisi'
 
@@ -239,6 +244,151 @@ test('mergeRawatInapAdmissionInsuranceFormValues keeps nomor kartu when field is
   })
 
   assert.equal(nextForm.noKartu, 'initial-card-number')
+})
+
+test('buildRawatInapAdmissionFormPatchFromSourceEncounter maps diagnosis and guarantor data', () => {
+  const patch = buildRawatInapAdmissionFormPatchFromSourceEncounter({
+    diagnosisCode: 'J18.9',
+    diagnosisText: 'Pneumonia, unspecified',
+    paymentMethod: 'BPJS',
+    patientInsuranceId: '44',
+    mitraCodeNumber: '0001112223334',
+    noSep: '0301R0010426V000777'
+  })
+
+  assert.deepEqual(patch, {
+    diagnosisCode: 'J18.9',
+    diagnosisText: 'Pneumonia, unspecified',
+    paymentMethod: 'bpjs',
+    patientInsuranceId: '44',
+    noKartu: '0001112223334',
+    noRujukan: '0301R0010426V000777'
+  })
+})
+
+test('buildRawatInapAdmissionFormPatchFromSourceEncounter prefers source no rujukan over SEP number', () => {
+  const patch = buildRawatInapAdmissionFormPatchFromSourceEncounter({
+    noSep: '0301R0010426V000777',
+    noRujukan: 'RJ-777'
+  })
+
+  assert.equal(patch.noRujukan, 'RJ-777')
+})
+
+test('buildRawatInapAdmissionFormPatchFromSourceEncounter ignores empty encounter fields', () => {
+  const patch = buildRawatInapAdmissionFormPatchFromSourceEncounter({
+    diagnosisCode: '',
+    diagnosisText: undefined,
+    paymentMethod: 'UNKNOWN',
+    patientInsuranceId: null,
+    mitraCodeNumber: ''
+  })
+
+  assert.deepEqual(patch, {})
+})
+
+test('createRawatInapAdmissionPatientPatchFromSourceEncounter keeps patient summary as patient data', () => {
+  const patch = createRawatInapAdmissionPatientPatchFromSourceEncounter(
+    {
+      patientId: 'patient-1',
+      patientName: 'Budi Santoso',
+      patientMrNo: 'RM-001',
+      patientGender: 'male',
+      patientBirthDate: '1980-05-10',
+      patientInsuranceNumber: '0001234567890',
+      status: 'FINISHED',
+      startTime: '2026-04-27T08:00:00.000Z'
+    },
+    {
+      patientId: '',
+      patientName: '',
+      medicalRecordNumber: '',
+      patientSummary: ''
+    }
+  )
+
+  assert.equal(patch.patientId, 'patient-1')
+  assert.equal(patch.medicalRecordNumber, 'RM-001')
+  assert.equal(patch.patientName, 'Budi Santoso')
+  assert.equal(patch.patientSummary, 'Budi Santoso · MALE · 1980-05-10 · BPJS 0001234567890')
+  assert.equal(patch.patientSummary.includes('FINISHED'), false)
+  assert.equal(patch.patientSummary.includes('2026'), false)
+})
+
+test('formatRawatInapSourceEncounterLabel hides encounter id from user-facing field', () => {
+  const label = formatRawatInapSourceEncounterLabel({
+    patientName: 'Budi Santoso',
+    serviceUnitName: 'Poli Penyakit Dalam',
+    startTime: '2026-04-27T08:00:00.000Z',
+    practitionerName: 'dr. Sari',
+    status: 'FINISHED',
+    id: 'encounter-uuid-should-not-show'
+  } as any)
+
+  assert.equal(label.includes('Budi Santoso'), true)
+  assert.equal(label.includes('Poli Penyakit Dalam'), true)
+  assert.equal(label.includes('dr. Sari'), true)
+  assert.equal(label.includes('FINISHED'), true)
+  assert.equal(label.includes('encounter-uuid-should-not-show'), false)
+})
+
+test('extractRawatInapAdmissionDiagnosisFromConditions prefers primary encounter diagnosis', () => {
+  const diagnosis = extractRawatInapAdmissionDiagnosisFromConditions({
+    success: true,
+    result: [
+      {
+        id: 1,
+        categories: [{ code: 'problem-list-item' }],
+        codeCoding: [{ code: 'A09', display: 'Infectious gastroenteritis' }]
+      },
+      {
+        id: 2,
+        categories: [{ code: 'encounter-diagnosis' }],
+        codeCoding: [
+          {
+            isPrimary: true,
+            diagnosisCode: { code: 'I10', name: 'Essential hypertension' },
+            code: 'I10'
+          }
+        ]
+      }
+    ]
+  })
+
+  assert.deepEqual(diagnosis, {
+    diagnosisCode: 'I10',
+    diagnosisText: 'Essential hypertension'
+  })
+})
+
+test('pickRawatInapAdmissionPatientInsurance prefers matching mitra and active row', () => {
+  const insurance = pickRawatInapAdmissionPatientInsurance(
+    {
+      result: [
+        {
+          id: 11,
+          mitraId: 7,
+          mitraCodeNumber: 'CARD-OLD',
+          isActive: true
+        },
+        {
+          id: 12,
+          mitraId: 9,
+          mitraCodeNumber: 'CARD-BPJS',
+          mitraCodeExpiredDate: '2026-12-31',
+          isActive: true
+        }
+      ]
+    },
+    9
+  )
+
+  assert.deepEqual(insurance, {
+    patientInsuranceId: '12',
+    mitraId: 9,
+    mitraCodeNumber: 'CARD-BPJS',
+    mitraCodeExpiredDate: '2026-12-31'
+  })
 })
 
 test('createRawatInapAdmissionBedOptions excludes IGD rooms from target placement', () => {

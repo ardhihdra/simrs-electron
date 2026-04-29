@@ -1,21 +1,44 @@
 import { z } from 'zod'
 
+export const DpjpParticipantItemSchema = z.object({
+  id: z.number(),
+  staffId: z.number(),
+  staffName: z.string(),
+  role: z.enum(['dpjp_utama', 'dpjp_tambahan']),
+  startAt: z.string().nullable(),
+  notes: z.string().nullable(),
+})
+
 const InpatientPatientListItemSchema = z.object({
   encounterId: z.string(),
   patientId: z.string(),
+  serviceUnitId: z.string().nullable().optional(),
+  practitionerId: z.number().nullable().optional(),
+  partOfId: z.string().nullable().optional(),
+  partOfEncounterType: z.string().nullable().optional(),
+  arrivalType: z.string().nullable().optional(),
   medicalRecordNumber: z.string().nullable(),
   patientName: z.string(),
   ageLabel: z.string().nullable(),
   gender: z.string().nullable(),
   wardId: z.string().nullable(),
   wardName: z.string().nullable(),
+  bedId: z.string().nullable().optional(),
   bedName: z.string().nullable(),
   dpjpName: z.string().nullable(),
+  dpjpParticipants: z.array(DpjpParticipantItemSchema).optional().default([]),
+  diagnosisCode: z.string().nullable().optional(),
   diagnosisSummary: z.string().nullable(),
   admissionDateTime: z.string().nullable(),
+  indication: z.string().nullable().optional(),
+  classOfCareCodeId: z.string().nullable().optional(),
   losDays: z.number(),
   paymentLabel: z.string().nullable(),
+  paymentMethod: z.string().nullable().optional(),
+  patientInsuranceId: z.number().nullable().optional(),
   sepNumber: z.string().nullable(),
+  sepNoKartu: z.string().nullable().optional(),
+  sepNoRujukan: z.string().nullable().optional(),
   encounterStatus: z.string(),
 })
 
@@ -39,8 +62,9 @@ export const InpatientPatientListResultSchema = z.object({
   page: z.number(),
   pageSize: z.number(),
   statusCounts: z.object({
-    IN_PROGRESS: z.number(),
-    FINISHED: z.number(),
+    PLANNED: z.number().default(0),
+    IN_PROGRESS: z.number().default(0),
+    FINISHED: z.number().default(0),
   }),
 })
 
@@ -67,14 +91,5 @@ export function normalizeInpatientPatientListOptionsResponse(payload: unknown): 
   }
   throw new Error('Invalid inpatient patient list options response')
 }
-
-export const DpjpParticipantItemSchema = z.object({
-  id: z.number(),
-  staffId: z.number(),
-  staffName: z.string(),
-  role: z.enum(['dpjp_utama', 'dpjp_tambahan']),
-  startAt: z.string().nullable(),
-  notes: z.string().nullable(),
-})
 
 export type DpjpParticipantItem = z.infer<typeof DpjpParticipantItemSchema>

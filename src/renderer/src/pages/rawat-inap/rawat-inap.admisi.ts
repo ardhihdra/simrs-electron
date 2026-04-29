@@ -72,6 +72,35 @@ export type RawatInapAdmissionInsuranceFormValues = {
   mitraCodeNumber?: unknown
 }
 
+export type RawatInapAdmissionSourceEncounterSnapshot = {
+  patientId?: unknown
+  patientName?: unknown
+  patientMrNo?: unknown
+  patientBirthDate?: unknown
+  patientGender?: unknown
+  patientInsuranceNumber?: unknown
+  diagnosisCode?: unknown
+  diagnosisText?: unknown
+  paymentMethod?: unknown
+  patientInsuranceId?: unknown
+  mitraId?: unknown
+  mitraCodeNumber?: unknown
+  mitraCodeExpiredDate?: unknown
+  noSep?: unknown
+  noRujukan?: unknown
+  status?: unknown
+  startTime?: unknown
+  practitionerName?: unknown
+  serviceUnitName?: unknown
+}
+
+export type RawatInapAdmissionInsurancePatch = {
+  patientInsuranceId?: string
+  mitraId?: number
+  mitraCodeNumber?: string
+  mitraCodeExpiredDate?: string
+}
+
 export const RAWAT_INAP_DEFAULT_SERVICE_UNIT_ID = '9f3c77d6-8481-443b-871d-f8ec0d268803'
 
 export const RAWAT_INAP_ADMISSION_FALLBACK_BED_OPTIONS: RawatInapAdmissionBedOption[] = [
@@ -210,6 +239,145 @@ const toFormString = (value: unknown) => {
 
 const hasFilledValue = (value: unknown) => value !== null && value !== undefined
 
+const toOptionalFormString = (value: unknown) => {
+  const trimmed = String(value ?? '').trim()
+  return trimmed && trimmed !== '-' ? trimmed : undefined
+}
+
+const normalizeRawatInapAdmissionPaymentMethod = (
+  value: unknown
+): RawatInapAdmissionPaymentMethod | undefined => {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_')
+
+  if (normalized === 'bpjs') return 'bpjs'
+  if (normalized === 'cash' || normalized === 'umum' || normalized === 'tunai') return 'cash'
+  if (normalized === 'insurance' || normalized === 'asuransi') return 'asuransi'
+  if (normalized === 'company' || normalized === 'perusahaan') return 'company'
+
+  return undefined
+}
+
+const pickRows = (payload: unknown): any[] => {
+  if (!payload || typeof payload !== 'object') return []
+
+  const record = payload as any
+  const candidates = [
+    record.result,
+    record.data,
+    record.result?.data,
+    record.data?.data,
+    record.data?.result
+  ]
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate
+  }
+
+  return []
+}
+
+const toOptionalNumber = (value: unknown) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+const isEncounterDiagnosisCondition = (condition: any) => {
+  const categories = Array.isArray(condition?.categories) ? condition.categories : []
+  if (categories.some((category) => category?.code === 'encounter-diagnosis')) return true
+
+  return (
+    String(condition?.category || condition?.type || '').toLowerCase() === 'encounter-diagnosis'
+  )
+}
+
+const conditionToDiagnosisPatch = (
+  condition: any
+): Pick<RawatInapAdmissionFormState, 'diagnosisCode' | 'diagnosisText'> | undefined => {
+  const codeCoding = Array.isArray(condition?.codeCoding)
+    ? condition.codeCoding[0]
+    : condition?.codeCoding
+  const diagnosisCode = codeCoding?.diagnosisCode ?? condition?.diagnosisCode ?? {}
+  const coding = Array.isArray(condition?.code?.coding)
+    ? condition.code.coding[0]
+    : condition?.code?.coding
+  const code = toOptionalFormString(
+    diagnosisCode?.code ??
+      codeCoding?.code ??
+      condition?.codeValue ??
+      condition?.code ??
+      coding?.code
+  )
+  const text = toOptionalFormString(
+    diagnosisCode?.name ??
+      diagnosisCode?.display ??
+      codeCoding?.display ??
+      condition?.display ??
+      condition?.notes ??
+      condition?.code?.text ??
+      coding?.display
+  )
+
+  if (!code && !text) return undefined
+
+  return {
+    diagnosisCode: code ?? '',
+    diagnosisText: text ?? code ?? ''
+  }
+}
+
+export function extractRawatInapAdmissionDiagnosisFromConditions(
+  payload: unknown
+): Pick<RawatInapAdmissionFormState, 'diagnosisCode' | 'diagnosisText'> | undefined {
+  const diagnosisConditions = pickRows(payload).filter(isEncounterDiagnosisCondition)
+  const primary = diagnosisConditions.find((condition) => {
+    const codeCoding = Array.isArray(condition?.codeCoding)
+      ? condition.codeCoding[0]
+      : condition?.codeCoding
+    return condition?.isPrimary === true || codeCoding?.isPrimary === true
+  })
+
+  return conditionToDiagnosisPatch(primary ?? diagnosisConditions[0])
+}
+
+export function pickRawatInapAdmissionPatientInsurance(
+  payload: unknown,
+  preferredMitraId?: unknown
+): RawatInapAdmissionInsurancePatch | undefined {
+  const preferredMitraNumber = toOptionalNumber(preferredMitraId)
+  const rows: Array<RawatInapAdmissionInsurancePatch & { isActive: boolean }> = []
+
+  for (const row of pickRows(payload)) {
+    const id = toOptionalFormString(row?.id)
+    if (!id) continue
+
+    rows.push({
+      patientInsuranceId: id,
+      mitraId: toOptionalNumber(row?.mitraId),
+      mitraCodeNumber: toOptionalFormString(row?.mitraCodeNumber ?? row?.mitraCode),
+      mitraCodeExpiredDate: toOptionalFormString(
+        row?.mitraCodeExpiredDate ?? row?.mitraExpiredAt ?? row?.expiredAt
+      ),
+      isActive: row?.isActive !== false
+    })
+  }
+
+  const picked =
+    rows.find(
+      (row) => row.isActive && preferredMitraNumber && row.mitraId === preferredMitraNumber
+    ) ??
+    rows.find((row) => row.isActive && row.mitraCodeNumber) ??
+    rows.find((row) => row.isActive) ??
+    rows[0]
+
+  if (!picked) return undefined
+
+  const { isActive: _isActive, ...patch } = picked
+  return patch
+}
+
 export function mergeRawatInapAdmissionInsuranceFormValues(
   form: RawatInapAdmissionFormState,
   values: RawatInapAdmissionInsuranceFormValues
@@ -224,6 +392,80 @@ export function mergeRawatInapAdmissionInsuranceFormValues(
         ? toFormString(values.mitraCodeNumber)
         : form.noKartu
   }
+}
+
+export function buildRawatInapAdmissionFormPatchFromSourceEncounter(
+  encounter: RawatInapAdmissionSourceEncounterSnapshot
+): Partial<RawatInapAdmissionFormState> {
+  const paymentMethod = normalizeRawatInapAdmissionPaymentMethod(encounter.paymentMethod)
+  const diagnosisCode = toOptionalFormString(encounter.diagnosisCode)
+  const diagnosisText = toOptionalFormString(encounter.diagnosisText)
+  const patientInsuranceId = toOptionalFormString(encounter.patientInsuranceId)
+  const noKartu = toOptionalFormString(encounter.mitraCodeNumber)
+  const noRujukan =
+    toOptionalFormString(encounter.noRujukan) ?? toOptionalFormString(encounter.noSep)
+  const patch: Partial<RawatInapAdmissionFormState> = {}
+
+  if (diagnosisCode) patch.diagnosisCode = diagnosisCode
+  if (diagnosisText) patch.diagnosisText = diagnosisText
+  if (paymentMethod) patch.paymentMethod = paymentMethod
+  if (patientInsuranceId) patch.patientInsuranceId = patientInsuranceId
+  if (noKartu) patch.noKartu = noKartu
+  if (noRujukan) patch.noRujukan = noRujukan
+
+  return patch
+}
+
+export function createRawatInapAdmissionPatientPatchFromSourceEncounter(
+  encounter: RawatInapAdmissionSourceEncounterSnapshot,
+  current: Pick<
+    RawatInapAdmissionFormState,
+    'patientId' | 'medicalRecordNumber' | 'patientName' | 'patientSummary'
+  >
+): Pick<
+  RawatInapAdmissionFormState,
+  'patientId' | 'medicalRecordNumber' | 'patientName' | 'patientSummary'
+> {
+  const patientId = toOptionalFormString(encounter.patientId) ?? current.patientId
+  const medicalRecordNumber =
+    toOptionalFormString(encounter.patientMrNo) ?? current.medicalRecordNumber
+  const patientName = toOptionalFormString(encounter.patientName) ?? current.patientName
+  const patientSummary =
+    formatPatientAdmissionSummary({
+      id: patientId,
+      name: patientName,
+      gender: toOptionalFormString(encounter.patientGender),
+      birthDate: toOptionalFormString(encounter.patientBirthDate),
+      insuranceNumber: toOptionalFormString(encounter.patientInsuranceNumber)
+    }) || current.patientSummary
+
+  return {
+    patientId,
+    medicalRecordNumber,
+    patientName,
+    patientSummary
+  }
+}
+
+export function formatRawatInapSourceEncounterLabel(
+  encounter: RawatInapAdmissionSourceEncounterSnapshot
+) {
+  const startTime = toOptionalFormString(encounter.startTime)
+  const dateLabel = startTime
+    ? new Date(startTime).toLocaleString('id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      })
+    : undefined
+  const parts = [
+    toOptionalFormString(encounter.patientName),
+    toOptionalFormString(encounter.serviceUnitName),
+    dateLabel,
+    toOptionalFormString(encounter.practitionerName),
+    toOptionalFormString(encounter.status)
+  ].filter(Boolean)
+
+  return parts.join(' - ')
 }
 
 export function buildRawatInapAdmissionCommand(

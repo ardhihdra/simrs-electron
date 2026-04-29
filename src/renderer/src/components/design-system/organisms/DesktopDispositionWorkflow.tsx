@@ -435,7 +435,7 @@ export function DesktopDispositionWorkflow({
       <div className="igd-disposisi-grid">
         <div className="flex min-w-0 flex-col gap-[12px]">
           <DesktopCard title="Jenis Disposisi" subtitle="Pilih rencana pengelolaan akhir">
-            <div className="igd-disposisi-option-grid">
+            <div className="igd-disposisi-option-grid grid-cols-4!">
               {options.map((option) => {
                 const isSelected = selectedDisposition === option.key
                 return (

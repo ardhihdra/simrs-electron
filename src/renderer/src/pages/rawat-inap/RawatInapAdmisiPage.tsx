@@ -9,7 +9,8 @@ import {
 } from '@ant-design/icons'
 import type { CreateRawatInapAdmissionInput } from '@main/rpc/procedure/rawat-inap-admission'
 import { DatePicker, Form, Modal, Select } from 'antd'
-import React, { Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
+import dayjs from 'dayjs'
+import React, { Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { PatientAttributes } from 'simrs-types'
 
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
@@ -18,15 +19,21 @@ import type {
   SourceEncounterLookupRow,
   SourceEncounterLookupType
 } from '../../components/organisms/rawat-inap/igd-encounter-lookup'
+import { normalizeSourceEncounterLookupRows } from '../../components/organisms/rawat-inap/igd-encounter-lookup'
 import PatientInsurancePickerField from '../../components/organisms/visit-management/PatientInsurancePickerField'
 import {
+  buildRawatInapAdmissionFormPatchFromSourceEncounter,
   buildRawatInapAdmissionCommand,
+  createRawatInapAdmissionPatientPatchFromSourceEncounter,
   createDefaultRawatInapAdmissionForm,
   createRawatInapAdmissionBedOptions,
   createRawatInapAdmissionClassOptions,
   createRawatInapAdmissionFormPatchFromPatient,
+  extractRawatInapAdmissionDiagnosisFromConditions,
+  formatRawatInapSourceEncounterLabel,
   mergeRawatInapAdmissionInsuranceFormValues,
   normalizeRawatInapClassCode,
+  pickRawatInapAdmissionPatientInsurance,
   type RawatInapAdmissionBedOption,
   type RawatInapAdmissionDiagnosisOption,
   type RawatInapAdmissionFormState,
@@ -75,7 +82,13 @@ type RawatInapAdmisiPageProps = {
   onBack?: () => void
   onCancel?: () => void
   onSubmit?: (command: CreateRawatInapAdmissionInput) => void
+  backLabel?: string
+  title?: string
+  description?: string
+  submitLabel?: string
+  submittingLabel?: string
   bedMapSnapshot?: RawatInapBedMapSnapshot | null
+  additionalBedOptions?: RawatInapAdmissionBedOption[]
   isSubmitting?: boolean
   mitraOptionsByPaymentMethod?: Partial<
     Record<
@@ -206,7 +219,13 @@ export function RawatInapAdmisiPage({
   onBack,
   onCancel,
   onSubmit,
+  backLabel = 'Peta Bed',
+  title = 'Admisi Baru — Rawat Inap',
+  description = 'Registrasi pasien masuk rawat inap - verifikasi BPJS & SEP - assign kamar',
+  submitLabel = 'Simpan & Proses Admisi',
+  submittingLabel = 'Memproses...',
   bedMapSnapshot,
+  additionalBedOptions = [],
   isSubmitting = false,
   mitraOptionsByPaymentMethod = {},
   diagnosisOptions = [],
@@ -217,10 +236,16 @@ export function RawatInapAdmisiPage({
   initialForm
 }: RawatInapAdmisiPageProps) {
   const [insuranceForm] = Form.useForm()
-  const bedOptions = useMemo(
-    () => createRawatInapAdmissionBedOptions(bedMapSnapshot),
-    [bedMapSnapshot]
-  )
+  const bedOptions = useMemo(() => {
+    const map = new Map<string, RawatInapAdmissionBedOption>()
+    for (const option of createRawatInapAdmissionBedOptions(bedMapSnapshot)) {
+      map.set(option.bedId, option)
+    }
+    for (const option of additionalBedOptions) {
+      map.set(option.bedId, option)
+    }
+    return Array.from(map.values())
+  }, [additionalBedOptions, bedMapSnapshot])
   const classOptions = useMemo(() => createRawatInapAdmissionClassOptions(bedOptions), [bedOptions])
   const [form, setForm] = useState<RawatInapAdmissionFormState>(() => ({
     ...createDefaultRawatInapAdmissionForm(),
@@ -244,6 +269,7 @@ export function RawatInapAdmisiPage({
   const [selectedSourceEncounter, setSelectedSourceEncounter] = useState<
     SourceEncounterLookupRow | undefined
   >()
+  const autoHydratedSourceEncounterRef = useRef('')
 
   const watchedPatientInsuranceId = Form.useWatch('patientInsuranceId', insuranceForm)
   const watchedMitraId = Form.useWatch('mitraId', insuranceForm)
@@ -387,31 +413,173 @@ export function RawatInapAdmisiPage({
     }))
   }
 
-  const handleSourceEncounterChange = (encounter?: SourceEncounterLookupRow) => {
-    setSelectedSourceEncounter(encounter)
+  const hydrateSourceEncounter = async (encounter: SourceEncounterLookupRow) => {
+    let hydratedEncounter = encounter
+    let fallbackDiagnosis:
+      | Pick<RawatInapAdmissionFormState, 'diagnosisCode' | 'diagnosisText'>
+      | undefined
+    let fallbackInsurance:
+      | {
+          patientInsuranceId?: string
+          mitraId?: number
+          mitraCodeNumber?: string
+          mitraCodeExpiredDate?: string
+        }
+      | undefined
 
+    const encounterRead = window.api?.query?.encounter?.read
+    if (encounterRead && sourceEncounterConfig?.type) {
+      try {
+        const detail = await encounterRead({ id: encounter.id })
+        const detailRow = normalizeSourceEncounterLookupRows(detail, sourceEncounterConfig.type)[0]
+        if (detailRow) {
+          hydratedEncounter = {
+            ...encounter,
+            ...detailRow
+          }
+        }
+      } catch (error) {
+        console.warn('[RawatInapAdmisiPage] Gagal mengambil detail encounter asal', error)
+      }
+    }
+
+    if (!hydratedEncounter.diagnosisCode || !hydratedEncounter.diagnosisText) {
+      const getConditions = window.api?.query?.condition?.getByEncounter
+      if (getConditions) {
+        try {
+          const conditions = await getConditions({ encounterId: encounter.id })
+          fallbackDiagnosis = extractRawatInapAdmissionDiagnosisFromConditions(conditions)
+        } catch (error) {
+          console.warn('[RawatInapAdmisiPage] Gagal mengambil diagnosis encounter asal', error)
+        }
+      }
+    }
+
+    if (!hydratedEncounter.patientInsuranceId || !hydratedEncounter.mitraCodeNumber) {
+      const listPatientInsurance = window.api?.query?.patientInsurance?.listAll
+      if (listPatientInsurance && hydratedEncounter.patientId) {
+        try {
+          const insurance = await listPatientInsurance({
+            patientId: hydratedEncounter.patientId,
+            isActive: true
+          })
+          fallbackInsurance = pickRawatInapAdmissionPatientInsurance(
+            insurance,
+            hydratedEncounter.mitraId
+          )
+        } catch (error) {
+          console.warn('[RawatInapAdmisiPage] Gagal mengambil penjamin pasien', error)
+        }
+      }
+    }
+
+    return {
+      encounter: hydratedEncounter,
+      fallbackDiagnosis,
+      fallbackInsurance
+    }
+  }
+
+  const handleSourceEncounterChange = async (encounter?: SourceEncounterLookupRow) => {
     if (!encounter) {
+      setSelectedSourceEncounter(undefined)
       updateForm({ sourceEncounterId: '' })
       return
     }
 
-    const encounterLabel = sourceEncounterConfig?.label ?? ''
+    setSelectedSourceEncounter(encounter)
+    const hydrated = await hydrateSourceEncounter(encounter)
+    const hydratedEncounter = hydrated.encounter
+    const patientPatch = createRawatInapAdmissionPatientPatchFromSourceEncounter(
+      hydratedEncounter,
+      {
+        patientId: form.patientId,
+        medicalRecordNumber: form.medicalRecordNumber,
+        patientName: form.patientName,
+        patientSummary: form.patientSummary
+      }
+    )
+    const sourcePatch = buildRawatInapAdmissionFormPatchFromSourceEncounter(hydratedEncounter)
+    const diagnosisPatch =
+      sourcePatch.diagnosisCode && sourcePatch.diagnosisText
+        ? {}
+        : (hydrated.fallbackDiagnosis ?? {})
+    const insurancePatch = {
+      patientInsuranceId:
+        hydratedEncounter.patientInsuranceId ?? hydrated.fallbackInsurance?.patientInsuranceId,
+      mitraId: hydratedEncounter.mitraId ?? hydrated.fallbackInsurance?.mitraId,
+      mitraCodeNumber:
+        hydratedEncounter.mitraCodeNumber ?? hydrated.fallbackInsurance?.mitraCodeNumber,
+      mitraCodeExpiredDate:
+        hydratedEncounter.mitraCodeExpiredDate ?? hydrated.fallbackInsurance?.mitraCodeExpiredDate
+    }
+    const encounterFormPatch = {
+      ...sourcePatch,
+      ...diagnosisPatch,
+      ...(insurancePatch.patientInsuranceId
+        ? { patientInsuranceId: insurancePatch.patientInsuranceId }
+        : {}),
+      ...(insurancePatch.mitraCodeNumber ? { noKartu: insurancePatch.mitraCodeNumber } : {})
+    }
+
+    insuranceForm.setFieldsValue({
+      patientInsuranceId: insurancePatch.patientInsuranceId
+        ? Number(insurancePatch.patientInsuranceId)
+        : undefined,
+      mitraId: insurancePatch.mitraId,
+      mitraCodeNumber: insurancePatch.mitraCodeNumber,
+      mitraCodeExpiredDate: insurancePatch.mitraCodeExpiredDate
+        ? dayjs(insurancePatch.mitraCodeExpiredDate)
+        : undefined
+    })
+    setSelectedSourceEncounter(hydratedEncounter)
     setIsSourceEncounterLookupOpen(false)
     setSubmitError('')
     updateForm({
-      sourceEncounterId: encounter.id,
-      patientId: encounter.patientId || form.patientId,
-      medicalRecordNumber:
-        encounter.patientMrNo !== '-' ? encounter.patientMrNo : form.medicalRecordNumber,
-      patientName: encounter.patientName !== '-' ? encounter.patientName : form.patientName,
-      patientSummary: [
-        encounter.status ? `${encounterLabel} ${encounter.status}`.trim() : '',
-        encounter.startTime ? new Date(encounter.startTime).toLocaleString('id-ID') : ''
-      ]
-        .filter(Boolean)
-        .join(' - ')
+      sourceEncounterId: hydratedEncounter.id,
+      ...patientPatch,
+      ...encounterFormPatch
     })
   }
+
+  useEffect(() => {
+    const sourceEncounterId = form.sourceEncounterId.trim()
+    const encounterType = sourceEncounterConfig?.type
+
+    if (!sourceEncounterId || !encounterType) {
+      autoHydratedSourceEncounterRef.current = ''
+      return
+    }
+
+    const hydrationKey = `${encounterType}:${sourceEncounterId}`
+    if (autoHydratedSourceEncounterRef.current === hydrationKey) return
+
+    if (selectedSourceEncounter?.id === sourceEncounterId) {
+      autoHydratedSourceEncounterRef.current = hydrationKey
+      return
+    }
+
+    autoHydratedSourceEncounterRef.current = hydrationKey
+    const hydrationCandidate: SourceEncounterLookupRow = {
+      key: sourceEncounterId,
+      id: sourceEncounterId,
+      encounterType,
+      status: '',
+      startTime: undefined,
+      patientId: form.patientId || undefined,
+      patientName: form.patientName || '-',
+      patientMrNo: form.medicalRecordNumber || '-',
+      patientBirthDate: undefined,
+      patientGender: undefined,
+      patientInsuranceNumber: form.noKartu || undefined,
+      practitionerName: '',
+      queueNumber: '',
+      serviceUnitName: '',
+      raw: {}
+    }
+
+    void handleSourceEncounterChange(hydrationCandidate)
+  }, [form.sourceEncounterId, sourceEncounterConfig?.type])
 
   const handlePaymentMethodChange = (value: string) => {
     const paymentMethod = value as RawatInapAdmissionFormState['paymentMethod']
@@ -469,13 +637,13 @@ export function RawatInapAdmisiPage({
             onClick={onBack}
             className="mb-[6px]"
           >
-            Peta Bed
+            {backLabel}
           </DesktopButton>
           <h1 className="m-0 text-[22px] font-bold tracking-[0] text-[var(--ds-color-text)]">
-            Admisi Baru — Rawat Inap
+            {title}
           </h1>
           <div className="mt-[3px] text-[13px] text-[var(--ds-color-text-muted)]">
-            Registrasi pasien masuk rawat inap - verifikasi BPJS & SEP - assign kamar
+            {description}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-[8px]">
@@ -488,7 +656,7 @@ export function RawatInapAdmisiPage({
             onClick={handleSubmit}
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Memproses...' : 'Simpan & Proses Admisi'}
+            {isSubmitting ? submittingLabel : submitLabel}
           </DesktopButton>
         </div>
       </div>
@@ -623,8 +791,10 @@ export function RawatInapAdmisiPage({
                       defaultValue=""
                       value={
                         selectedSourceEncounter
-                          ? `${selectedSourceEncounter.patientName} - ${selectedSourceEncounter.id}`
+                          ? formatRawatInapSourceEncounterLabel(selectedSourceEncounter)
                           : form.sourceEncounterId
+                            ? 'Encounter asal sudah dipilih'
+                            : ''
                       }
                       className="min-w-0 flex-1"
                       disabled

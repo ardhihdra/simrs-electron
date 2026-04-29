@@ -114,6 +114,7 @@ import PoliSelect from './pages/poli/PoliSelect'
 import QueueList from './pages/queue/queue-list'
 import RawatInapBedMapRoute from './pages/rawat-inap/RawatInapBedMapRoute'
 import RawatInapAdmisiRoute from './pages/rawat-inap/RawatInapAdmisiRoute'
+import RawatInapCheckinRoute from './pages/rawat-inap/RawatInapCheckinRoute'
 import RawatInapPasienRoute from './pages/rawat-inap/RawatInapPasienRoute'
 import RawatInapTransferRoute from './pages/rawat-inap/RawatInapTransferRoute'
 import { RAWAT_INAP_PAGE_PATHS } from './pages/rawat-inap/rawat-inap.config'
@@ -385,6 +386,10 @@ function MainRoute() {
             <Route
               path="transfer"
               element={g(RAWAT_INAP_PAGE_PATHS.transfer, <RawatInapTransferRoute />)}
+            />
+            <Route
+              path="checkin"
+              element={g(RAWAT_INAP_PAGE_PATHS.checkin, <RawatInapCheckinRoute />)}
             />
             <Route
               path="pasien"

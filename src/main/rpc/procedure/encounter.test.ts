@@ -9,11 +9,19 @@ test('normalizeInpatientPatientListResponse extracts result payload', () => {
     result: {
       generatedAt: '2026-04-25T09:00:00.000Z',
       items: [],
+      total: 0,
+      page: 1,
+      pageSize: 10,
+      statusCounts: { PLANNED: 0, IN_PROGRESS: 0, FINISHED: 0 },
     },
   })
   assert.deepEqual(result, {
     generatedAt: '2026-04-25T09:00:00.000Z',
     items: [],
+    total: 0,
+    page: 1,
+    pageSize: 10,
+    statusCounts: { PLANNED: 0, IN_PROGRESS: 0, FINISHED: 0 },
   })
 })
 
