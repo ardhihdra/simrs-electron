@@ -9,11 +9,17 @@ import {
   RAWAT_INAP_ROOT_PATH
 } from './rawat-inap.config.tsx'
 
-test('rawat inap config exposes bed map, transfer, and pasien menu items', () => {
+test('rawat inap config exposes admisi, bed map, transfer, and pasien menu items', () => {
   assert.equal(RAWAT_INAP_DASHBOARD_ITEM.module, Modules.RAWAT_INAP)
   assert.equal(RAWAT_INAP_DASHBOARD_ITEM.key, RAWAT_INAP_ROOT_PATH)
   assert.deepEqual(
     RAWAT_INAP_DASHBOARD_ITEM.children?.map((child) => child.key),
-    [RAWAT_INAP_PAGE_PATHS.bedMap, RAWAT_INAP_PAGE_PATHS.transfer, RAWAT_INAP_PAGE_PATHS.pasien]
+    [
+      RAWAT_INAP_PAGE_PATHS.bedMap,
+      RAWAT_INAP_PAGE_PATHS.admisi,
+      RAWAT_INAP_PAGE_PATHS.transfer,
+      RAWAT_INAP_PAGE_PATHS.checkin,
+      RAWAT_INAP_PAGE_PATHS.pasien
+    ]
   )
 })

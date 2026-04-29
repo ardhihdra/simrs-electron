@@ -1,25 +1,24 @@
 import type { PatientAttributes } from 'simrs-types'
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { App, Button, Modal } from 'antd'
 import dayjs from 'dayjs'
 
-import { DischargeModal } from '../../components/organisms/encounter-transition/DischargeModal'
 import PatientLookupSelector from '../../components/organisms/patient/PatientLookupSelector'
 import { queryClient } from '../../query-client'
 import { client } from '../../utils/client'
 
 import { IgdDaftarPage } from './IgdDaftarPage'
+import { IgdDisposisiPage } from './IgdDisposisiPage'
 import { getIgdActionErrorMessage } from './igd.feedback'
 import { IGD_PAGE_PATHS } from './igd.config'
 import { EMPTY_IGD_DASHBOARD } from './igd.data'
-import { IGD_DISCHARGE_OPTIONS } from './igd.disposition'
 import {
   buildIgdDailyReportExportFileName,
   buildIgdDailyReportExportGroups,
   buildIgdDailyReportExportTitle
 } from './igd.report'
-import { IgdReferralDispositionModal } from './IgdReferralDispositionModal'
+import { IgdReferralDispositionContent } from './IgdReferralDispositionModal'
 
 export default function IgdDaftarRoute() {
   const navigate = useNavigate()
@@ -28,10 +27,9 @@ export default function IgdDaftarRoute() {
   const dailyReportQuery = client.igd.dailyReport.useQuery({ date: dayjs().format('YYYY-MM-DD') })
   const [selectedPatientId, setSelectedPatientId] = useState<string | undefined>(undefined)
   const [replacePatientModalVisible, setReplacePatientModalVisible] = useState(false)
-  const [selectedDisposition, setSelectedDisposition] = useState('')
-  const [selectedDispositionEncounterId, setSelectedDispositionEncounterId] = useState<string | null>(null)
-  const [dischargeModalVisible, setDischargeModalVisible] = useState(false)
-  const [rujukanModalVisible, setRujukanModalVisible] = useState(false)
+  const [selectedDispositionEncounterId, setSelectedDispositionEncounterId] = useState<
+    string | null
+  >(null)
   const [selectedReplacementPatient, setSelectedReplacementPatient] = useState<
     PatientAttributes | undefined
   >()
@@ -46,10 +44,7 @@ export default function IgdDaftarRoute() {
   }
 
   const resetDispositionState = () => {
-    setSelectedDisposition('')
     setSelectedDispositionEncounterId(null)
-    setDischargeModalVisible(false)
-    setRujukanModalVisible(false)
   }
 
   const rebindPatientMutation = client.igd.rebindPatient.useMutation({
@@ -95,8 +90,48 @@ export default function IgdDaftarRoute() {
       setSelectedPatientId(patientId)
     }
     setSelectedDispositionEncounterId(encounterId)
-    setSelectedDisposition('')
-    setDischargeModalVisible(true)
+  }
+
+  if (selectedDispositionEncounterId && selectedPatient) {
+    return (
+      <IgdDisposisiPage
+        patient={selectedPatient}
+        isSubmitting={dischargeEncounterMutation.isPending}
+        onBack={resetDispositionState}
+        onConfirm={async ({ dischargeDisposition, note }) => {
+          try {
+            await dischargeEncounterMutation.mutateAsync({
+              encounterId: selectedDispositionEncounterId,
+              dischargeDisposition,
+              dischargeNote: note || undefined
+            })
+            resetDispositionState()
+            message.success('Disposition IGD berhasil diproses')
+          } catch (error) {
+            message.error(getIgdActionErrorMessage(error, 'Gagal memproses disposition IGD'))
+          }
+        }}
+        renderReferralForm={() => (
+          <IgdReferralDispositionContent
+            encounterId={selectedDispositionEncounterId}
+            patient={selectedPatient}
+            onReferralCreated={async () => {
+              try {
+                await dischargeEncounterMutation.mutateAsync({
+                  encounterId: selectedDispositionEncounterId,
+                  dischargeDisposition: 'REFERRED'
+                })
+                resetDispositionState()
+                message.success('Rujukan IGD berhasil dibuat dan disposition diproses')
+              } catch (error) {
+                resetDispositionState()
+                message.error(getIgdActionErrorMessage(error, 'Gagal memproses disposition IGD'))
+              }
+            }}
+          />
+        )}
+      />
+    )
   }
 
   return (
@@ -134,7 +169,7 @@ export default function IgdDaftarRoute() {
           setReplacePatientModalVisible(false)
         }}
         width={1100}
-        destroyOnClose
+        destroyOnHidden
         footer={[
           <Button
             key="cancel"
@@ -182,59 +217,6 @@ export default function IgdDaftarRoute() {
           showSelectionSummary={false}
         />
       </Modal>
-
-      <DischargeModal
-        visible={dischargeModalVisible}
-        loading={dischargeEncounterMutation.isPending}
-        selectedDisposition={selectedDisposition}
-        options={IGD_DISCHARGE_OPTIONS}
-        onDispositionChange={setSelectedDisposition}
-        onConfirm={async () => {
-          if (!selectedDispositionEncounterId || !selectedDisposition) {
-            message.warning('Pilih disposisi pulang terlebih dahulu')
-            return
-          }
-
-          if (selectedDisposition === 'REFERRED') {
-            setDischargeModalVisible(false)
-            setRujukanModalVisible(true)
-            return
-          }
-
-          try {
-            await dischargeEncounterMutation.mutateAsync({
-              encounterId: selectedDispositionEncounterId,
-              dischargeDisposition: selectedDisposition
-            })
-            resetDispositionState()
-            message.success('Disposition IGD berhasil diproses')
-          } catch (error) {
-            message.error(getIgdActionErrorMessage(error, 'Gagal memproses disposition IGD'))
-          }
-        }}
-        onCancel={resetDispositionState}
-      />
-
-      {rujukanModalVisible && selectedDispositionEncounterId && selectedPatient ? (
-        <IgdReferralDispositionModal
-          open
-          encounterId={selectedDispositionEncounterId}
-          patient={selectedPatient}
-          onReferralCreated={async () => {
-            try {
-              await dischargeEncounterMutation.mutateAsync({
-                encounterId: selectedDispositionEncounterId,
-                dischargeDisposition: 'REFERRED'
-              })
-              resetDispositionState()
-            } catch (error) {
-              resetDispositionState()
-              message.error(getIgdActionErrorMessage(error, 'Gagal memproses disposition IGD'))
-            }
-          }}
-          onCancel={resetDispositionState}
-        />
-      ) : null}
     </>
   )
 }

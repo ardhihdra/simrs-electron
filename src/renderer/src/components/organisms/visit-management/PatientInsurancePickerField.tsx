@@ -163,31 +163,41 @@ export default function PatientInsurancePickerField({
   }
   return (
     <>
-      <Form.Item label={label} required={required}>
-        <Space.Compact style={{ width: '100%' }}>
-          <Form.Item
-            name={numberFieldName}
-            noStyle
-            rules={required ? [{ required: true, message: 'Harap isi nomor kartu' }] : undefined}
-          >
-            <Input
-              disabled={disabled}
-              onChange={handleManualNumberChange}
-              placeholder="Nomor kartu/nomor mitra"
-            />
-          </Form.Item>
-          <Button disabled={disabled || !patientId} onClick={() => setIsModalOpen(true)}>
-            Ambil Data Pasien
-          </Button>
-        </Space.Compact>
-      </Form.Item>
+      <div className="patient-insurance-picker-field min-w-0">
+        <Form.Item label={label} required={required} className="m-0">
+          <Space.Compact style={{ width: '100%' }}>
+            <Form.Item
+              name={numberFieldName}
+              noStyle
+              rules={required ? [{ required: true, message: 'Harap isi nomor kartu' }] : undefined}
+            >
+              <Input
+                disabled={disabled}
+                onChange={handleManualNumberChange}
+                placeholder="Nomor kartu/nomor mitra"
+              />
+            </Form.Item>
+            <Button
+              className="whitespace-nowrap"
+              disabled={disabled || !patientId}
+              onClick={() => setIsModalOpen(true)}
+            >
+              Ambil Data Pasien
+            </Button>
+          </Space.Compact>
+        </Form.Item>
 
-      {selectedInsurance ? (
-        <div style={{ marginBottom: 16 }}>
-          <Tag color="blue">Data pasien terpilih</Tag>
-          <Typography.Text type="secondary">{selectedInsuranceLabel}</Typography.Text>
-        </div>
-      ) : null}
+        {selectedInsurance ? (
+          <div className="mt-[8px] rounded-[var(--ds-radius-md)] border border-[var(--ds-color-accent)] bg-[var(--ds-color-accent-soft)] px-[10px] py-[8px] text-[11.5px] leading-[1.35]">
+            <Tag color="blue" className="mb-[4px]">
+              Data pasien terpilih
+            </Tag>
+            <Typography.Text type="secondary" className="block">
+              {selectedInsuranceLabel}
+            </Typography.Text>
+          </div>
+        ) : null}
+      </div>
 
       <Modal
         title="Pilih Data Asuransi Pasien"

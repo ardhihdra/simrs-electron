@@ -6,13 +6,16 @@ import type { PatientAttributes } from 'simrs-types'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 
+import { DesktopDispositionWorkflow } from '../../components/design-system/organisms/DesktopDispositionWorkflow.tsx'
 import { IgdBedMapPage } from './IgdBedMapPage.tsx'
+import { IgdDisposisiPage } from './IgdDisposisiPage.tsx'
 import { IgdDaftarPage } from './IgdDaftarPage.tsx'
-import { buildIgdReferralPatientData } from './IgdReferralDispositionModal.tsx'
 import { IgdRegistrasiPage } from './IgdRegistrasiPage.tsx'
 import { IgdTriasePage } from './IgdTriasePage.tsx'
 import { createIgdDashboardFixture } from './igd.data.ts'
 import { buildIgdTableActions } from './igd.disposition.ts'
+import { buildIgdReferralPatientData } from './igd.referral.ts'
+import { type IgdTriageLevel } from './igd.triage-level.ts'
 
 test('IGD daftar page renders summary, patient list, and detail panel', () => {
   const markup = renderToStaticMarkup(<IgdDaftarPage dashboard={createIgdDashboardFixture()} />)
@@ -84,6 +87,21 @@ test('IGD daftar page keeps replace-patient flow outside inline detail layout', 
   assert.equal(markup.includes('replace-patient-selector-slot'), false)
   assert.equal(markup.includes('Gunakan Pasien Ini'), false)
   assert.equal(markup.includes('Ganti Identitas Pasien'), false)
+})
+
+test('IGD daftar page renders neutral detail when selected patient has no triage level', () => {
+  const dashboard = createIgdDashboardFixture()
+  dashboard.patients = [
+    {
+      ...dashboard.patients[0]!,
+      triageLevel: undefined as unknown as IgdTriageLevel
+    }
+  ]
+
+  const markup = renderToStaticMarkup(<IgdDaftarPage dashboard={dashboard} />)
+
+  assert.equal(markup.includes('BELUM TRIASE'), true)
+  assert.equal(markup.includes('Menunggu penilaian'), true)
 })
 
 test('IGD daftar page renders loading and error shell for backend query states', () => {
@@ -214,6 +232,65 @@ test('IGD referral disposition maps patient data for ReferralForm', () => {
   })
 })
 
+test('IGD disposisi page renders mockup-style inline disposition workflow', () => {
+  const patient = createIgdDashboardFixture().patients[0]!
+  const markup = renderToStaticMarkup(
+    <IgdDisposisiPage patient={patient} onBack={() => undefined} onConfirm={() => undefined} />
+  )
+
+  assert.equal(markup.includes('Proses Pemulangan (Discharge)'), true)
+  assert.equal(markup.includes('Jenis Disposisi'), false)
+  assert.equal(markup.includes('Status Keluar'), true)
+  assert.equal(markup.includes('Obat Pulang'), true)
+  assert.equal(markup.includes('Rincian Billing'), true)
+  assert.equal(markup.includes('SATUSEHAT &amp; Klaim BPJS'), true)
+  assert.equal(markup.includes('Pulang'), true)
+  assert.equal(markup.includes('Meninggal'), true)
+  assert.equal(markup.includes('Surat &amp; Dokumen'), true)
+  assert.equal(markup.includes('Finalisasi &amp; Pulangkan'), true)
+})
+
+test('desktop design system exposes reusable disposition workflow', () => {
+  const markup = renderToStaticMarkup(
+    <DesktopDispositionWorkflow
+      patient={{
+        name: 'Sutrisno Hadi',
+        registrationNumber: 'IGD-2604-002',
+        ageLabel: '62 L',
+        paymentLabel: 'BPJS',
+        statusLabel: 'Encounter'
+      }}
+      bannerMeta={{
+        label: 'L1',
+        name: 'Resusitasi',
+        colorName: 'MERAH',
+        badgeTone: 'danger',
+        background: 'var(--danger-soft)',
+        borderColor: 'var(--danger)',
+        color: 'var(--danger)'
+      }}
+      summaryItems={[{ label: 'No. Reg', value: 'IGD-2604-002', mono: true }]}
+      options={[
+        {
+          key: 'pulang',
+          label: 'Pulang',
+          subtitle: 'Pasien diizinkan pulang',
+          dischargeDisposition: 'CURED',
+          color: 'var(--ok)',
+          softColor: 'var(--ok-soft)',
+          tone: 'success'
+        }
+      ]}
+      onBack={() => undefined}
+      onConfirm={() => undefined}
+    />
+  )
+
+  assert.equal(markup.includes('Proses Pemulangan (Discharge)'), true)
+  assert.equal(markup.includes('Jenis Disposisi'), false)
+  assert.equal(markup.includes('Rincian Billing'), true)
+})
+
 test('IGD patient table hides internal ant measure rows to avoid header gap', () => {
   const css = fs.readFileSync(new URL('../../assets/main.css', import.meta.url), 'utf8')
 
@@ -221,9 +298,26 @@ test('IGD patient table hides internal ant measure rows to avoid header gap', ()
 })
 
 test('IGD referral disposition modal avoids CommonJS require in renderer runtime', () => {
-  const source = fs.readFileSync(new URL('./IgdReferralDispositionModal.tsx', import.meta.url), 'utf8')
+  const source = fs.readFileSync(
+    new URL('./IgdReferralDispositionModal.tsx', import.meta.url),
+    'utf8'
+  )
 
   assert.equal(source.includes('require('), false)
+})
+
+test('IGD daftar route uses destroyOnHidden for AntD modal cleanup', () => {
+  const source = fs.readFileSync(new URL('./IgdDaftarRoute.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes('destroyOnClose'), false)
+  assert.equal(source.includes('destroyOnHidden'), true)
+})
+
+test('IGD daftar route renders disposition as inline page instead of discharge modal', () => {
+  const source = fs.readFileSync(new URL('./IgdDaftarRoute.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes('DischargeModal'), false)
+  assert.equal(source.includes('IgdDisposisiPage'), true)
 })
 
 test('IGD table actions include disposition and patient-specific actions', () => {
