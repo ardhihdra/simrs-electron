@@ -123,6 +123,14 @@ test('Rawat Inap admisi page filters placement beds by selected room class', () 
   assert.equal(markup.includes('VIP 101 - 101-A'), false)
 })
 
+test('Rawat Inap admisi page does not watch nomor kartu in parent render', () => {
+  const source = readFileSync(new URL('./RawatInapAdmisiPage.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes("Form.useWatch('mitraCodeNumber'"), false)
+  assert.equal(source.includes('watchedMitraCodeNumber'), false)
+  assert.equal(source.includes('mergeRawatInapAdmissionInsuranceFormValues'), true)
+})
+
 test('Rawat Inap bed map page renders ward sidebar, bed grid, and detail panel', () => {
   const markup = renderToStaticMarkup(<RawatInapBedMapPage state={createRawatInapInitialState()} />)
 

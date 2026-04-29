@@ -4,8 +4,8 @@ import {
   HeartOutlined,
   MedicineBoxOutlined,
   RightOutlined,
-  SearchOutlined,
-  SafetyCertificateOutlined
+  SafetyCertificateOutlined,
+  SearchOutlined
 } from '@ant-design/icons'
 import type { CreateRawatInapAdmissionInput } from '@main/rpc/procedure/rawat-inap-admission'
 import { DatePicker, Form, Modal, Select } from 'antd'
@@ -14,17 +14,18 @@ import type { PatientAttributes } from 'simrs-types'
 
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
-import PatientInsurancePickerField from '../../components/organisms/visit-management/PatientInsurancePickerField'
 import type {
   SourceEncounterLookupRow,
   SourceEncounterLookupType
 } from '../../components/organisms/rawat-inap/igd-encounter-lookup'
+import PatientInsurancePickerField from '../../components/organisms/visit-management/PatientInsurancePickerField'
 import {
   buildRawatInapAdmissionCommand,
   createDefaultRawatInapAdmissionForm,
   createRawatInapAdmissionBedOptions,
   createRawatInapAdmissionClassOptions,
   createRawatInapAdmissionFormPatchFromPatient,
+  mergeRawatInapAdmissionInsuranceFormValues,
   normalizeRawatInapClassCode,
   type RawatInapAdmissionBedOption,
   type RawatInapAdmissionDiagnosisOption,
@@ -77,7 +78,10 @@ type RawatInapAdmisiPageProps = {
   bedMapSnapshot?: RawatInapBedMapSnapshot | null
   isSubmitting?: boolean
   mitraOptionsByPaymentMethod?: Partial<
-    Record<Exclude<RawatInapAdmissionFormState['paymentMethod'], 'cash'>, RawatInapAdmissionMitraOption[]>
+    Record<
+      Exclude<RawatInapAdmissionFormState['paymentMethod'], 'cash'>,
+      RawatInapAdmissionMitraOption[]
+    >
   >
   diagnosisOptions?: RawatInapAdmissionDiagnosisOption[]
   practitionerOptions?: RawatInapAdmissionPractitionerOption[]
@@ -217,10 +221,7 @@ export function RawatInapAdmisiPage({
     () => createRawatInapAdmissionBedOptions(bedMapSnapshot),
     [bedMapSnapshot]
   )
-  const classOptions = useMemo(
-    () => createRawatInapAdmissionClassOptions(bedOptions),
-    [bedOptions]
-  )
+  const classOptions = useMemo(() => createRawatInapAdmissionClassOptions(bedOptions), [bedOptions])
   const [form, setForm] = useState<RawatInapAdmissionFormState>(() => ({
     ...createDefaultRawatInapAdmissionForm(),
     ...initialForm,
@@ -245,7 +246,6 @@ export function RawatInapAdmisiPage({
   >()
 
   const watchedPatientInsuranceId = Form.useWatch('patientInsuranceId', insuranceForm)
-  const watchedMitraCodeNumber = Form.useWatch('mitraCodeNumber', insuranceForm)
   const watchedMitraId = Form.useWatch('mitraId', insuranceForm)
 
   const paymentNeedsPenjaminData = form.paymentMethod !== 'cash'
@@ -264,8 +264,7 @@ export function RawatInapAdmisiPage({
       })),
     [diagnosisOptions]
   )
-  const selectedClassOfCareCodeId =
-    form.selectedClassOfCareCodeId || classOptions[0]?.value || ''
+  const selectedClassOfCareCodeId = form.selectedClassOfCareCodeId || classOptions[0]?.value || ''
   const filteredBedOptions = selectedClassOfCareCodeId
     ? bedOptions.filter(
         (option) =>
@@ -286,7 +285,7 @@ export function RawatInapAdmisiPage({
       const currentClass = normalizeRawatInapClassCode(current.selectedClassOfCareCodeId)
       const nextClass = classOptions.some((option) => option.value === currentClass)
         ? currentClass
-        : classOptions[0]?.value ?? ''
+        : (classOptions[0]?.value ?? '')
       const nextBedOptions = nextClass
         ? bedOptions.filter(
             (option) => normalizeRawatInapClassCode(option.classOfCareCodeId) === nextClass
@@ -294,12 +293,9 @@ export function RawatInapAdmisiPage({
         : bedOptions
       const nextBedId = nextBedOptions.some((option) => option.bedId === current.selectedBedId)
         ? current.selectedBedId
-        : nextBedOptions[0]?.bedId ?? ''
+        : (nextBedOptions[0]?.bedId ?? '')
 
-      if (
-        current.selectedClassOfCareCodeId === nextClass &&
-        current.selectedBedId === nextBedId
-      ) {
+      if (current.selectedClassOfCareCodeId === nextClass && current.selectedBedId === nextBedId) {
         return current
       }
 
@@ -323,18 +319,27 @@ export function RawatInapAdmisiPage({
   }, [insuranceForm, paymentNeedsPenjaminData])
 
   useEffect(() => {
-    setForm((current) => ({
-      ...current,
-      patientInsuranceId:
+    setForm((current) => {
+      const nextForm = mergeRawatInapAdmissionInsuranceFormValues(
+        current,
         watchedPatientInsuranceId === undefined || watchedPatientInsuranceId === null
-          ? ''
-          : String(watchedPatientInsuranceId),
-      noKartu:
-        watchedMitraCodeNumber === undefined || watchedMitraCodeNumber === null
-          ? current.noKartu
-          : String(watchedMitraCodeNumber)
-    }))
-  }, [watchedMitraCodeNumber, watchedPatientInsuranceId])
+          ? { patientInsuranceId: '' }
+          : {
+              patientInsuranceId: watchedPatientInsuranceId,
+              mitraCodeNumber: insuranceForm.getFieldValue('mitraCodeNumber')
+            }
+      )
+
+      if (
+        nextForm.patientInsuranceId === current.patientInsuranceId &&
+        nextForm.noKartu === current.noKartu
+      ) {
+        return current
+      }
+
+      return nextForm
+    })
+  }, [insuranceForm, watchedPatientInsuranceId])
 
   const updateForm = (patch: Partial<RawatInapAdmissionFormState>) => {
     setSubmitError('')
@@ -396,7 +401,8 @@ export function RawatInapAdmisiPage({
     updateForm({
       sourceEncounterId: encounter.id,
       patientId: encounter.patientId || form.patientId,
-      medicalRecordNumber: encounter.patientMrNo !== '-' ? encounter.patientMrNo : form.medicalRecordNumber,
+      medicalRecordNumber:
+        encounter.patientMrNo !== '-' ? encounter.patientMrNo : form.medicalRecordNumber,
       patientName: encounter.patientName !== '-' ? encounter.patientName : form.patientName,
       patientSummary: [
         encounter.status ? `${encounterLabel} ${encounter.status}`.trim() : '',
@@ -437,7 +443,15 @@ export function RawatInapAdmisiPage({
 
   const handleSubmit = () => {
     try {
-      const command = buildRawatInapAdmissionCommand(form, bedOptions)
+      const command = buildRawatInapAdmissionCommand(
+        paymentNeedsPenjaminData
+          ? mergeRawatInapAdmissionInsuranceFormValues(
+              form,
+              insuranceForm.getFieldsValue(['patientInsuranceId', 'mitraCodeNumber'])
+            )
+          : form,
+        bedOptions
+      )
       onSubmit?.(command)
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Form admisi belum lengkap')
@@ -563,10 +577,13 @@ export function RawatInapAdmisiPage({
                     {form.patientId ? 'Pasien ditemukan' : 'Cari pasien berdasarkan No. RM'}
                   </b>
                   <span className="ml-[8px] text-[var(--ds-color-text-muted)]">
-                    {form.patientSummary || 'Gunakan tombol Pilih Pasien untuk menghubungkan patientId'}
+                    {form.patientSummary ||
+                      'Gunakan tombol Pilih Pasien untuk menghubungkan patientId'}
                   </span>
                 </div>
-                <DesktopBadge tone="info">Penjamin: {PAYMENT_LABELS[form.paymentMethod]}</DesktopBadge>
+                <DesktopBadge tone="info">
+                  Penjamin: {PAYMENT_LABELS[form.paymentMethod]}
+                </DesktopBadge>
                 <DesktopButton
                   emphasis="primary"
                   size="small"
@@ -655,11 +672,15 @@ export function RawatInapAdmisiPage({
                           options={selectedMitraOptions}
                           disabled={isSubmitting || selectedMitraOptions.length === 0}
                           placeholder={
-                            selectedMitraOptions.length === 0 ? 'Mitra tidak tersedia' : 'Pilih mitra'
+                            selectedMitraOptions.length === 0
+                              ? 'Mitra tidak tersedia'
+                              : 'Pilih mitra'
                           }
                           showSearch
                           optionFilterProp="label"
-                          onChange={() => insuranceForm.setFieldValue('patientInsuranceId', undefined)}
+                          onChange={() =>
+                            insuranceForm.setFieldValue('patientInsuranceId', undefined)
+                          }
                         />
                       </Form.Item>
 
@@ -679,7 +700,9 @@ export function RawatInapAdmisiPage({
                         <DatePicker
                           style={{ width: '100%' }}
                           disabled={isSubmitting}
-                          onChange={() => insuranceForm.setFieldValue('patientInsuranceId', undefined)}
+                          onChange={() =>
+                            insuranceForm.setFieldValue('patientInsuranceId', undefined)
+                          }
                         />
                       </Form.Item>
                     </div>
@@ -715,9 +738,9 @@ export function RawatInapAdmisiPage({
                 <div>
                   <FieldLabel>No. Kartu BPJS</FieldLabel>
                   <TextInput
-                    defaultValue="0001234567890"
-                    value={form.noKartu}
-                    onChange={(value) => updateForm({ noKartu: value })}
+                    defaultValue={form.noKartu}
+                    onChange={(value) => insuranceForm.setFieldValue('mitraCodeNumber', value)}
+                    key={form.noKartu}
                     className="w-full font-mono"
                     disabled={isSubmitting}
                   />
@@ -741,7 +764,7 @@ export function RawatInapAdmisiPage({
 
           <AdmissionCard title="Diagnosis & Indikasi Rawat Inap">
             <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr' }}>
-              <div>
+              <div className="w-full">
                 <FieldLabel>Diagnosis Masuk (ICD-10)</FieldLabel>
                 <Select
                   className="w-full"
@@ -753,7 +776,9 @@ export function RawatInapAdmisiPage({
                   filterOption={false}
                   optionFilterProp="label"
                   placeholder="Ketik kode ICD-10 atau nama diagnosis"
-                  notFoundContent={isDiagnosisLoading ? 'Memuat diagnosis...' : 'Diagnosis tidak ditemukan'}
+                  notFoundContent={
+                    isDiagnosisLoading ? 'Memuat diagnosis...' : 'Diagnosis tidak ditemukan'
+                  }
                   onSearch={onDiagnosisSearch}
                   onChange={handleDiagnosisChange}
                   allowClear
@@ -765,7 +790,7 @@ export function RawatInapAdmisiPage({
                   </div>
                 ) : null}
               </div>
-              <div>
+              <div className="w-full">
                 <FieldLabel>DPJP Utama</FieldLabel>
                 <Select
                   className="w-full"

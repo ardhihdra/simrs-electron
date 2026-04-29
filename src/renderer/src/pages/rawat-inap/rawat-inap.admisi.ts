@@ -67,6 +67,11 @@ export type RawatInapAdmissionFormState = {
   selectedBedId: string
 }
 
+export type RawatInapAdmissionInsuranceFormValues = {
+  patientInsuranceId?: unknown
+  mitraCodeNumber?: unknown
+}
+
 export const RAWAT_INAP_DEFAULT_SERVICE_UNIT_ID = '9f3c77d6-8481-443b-871d-f8ec0d268803'
 
 export const RAWAT_INAP_ADMISSION_FALLBACK_BED_OPTIONS: RawatInapAdmissionBedOption[] = [
@@ -195,6 +200,32 @@ export function createRawatInapAdmissionFormPatchFromPatient(
   }
 }
 
+const hasOwn = (value: object, key: string) => Object.prototype.hasOwnProperty.call(value, key)
+
+const toFormString = (value: unknown) => {
+  if (value === null || value === undefined) return ''
+
+  return String(value)
+}
+
+const hasFilledValue = (value: unknown) => value !== null && value !== undefined
+
+export function mergeRawatInapAdmissionInsuranceFormValues(
+  form: RawatInapAdmissionFormState,
+  values: RawatInapAdmissionInsuranceFormValues
+): RawatInapAdmissionFormState {
+  return {
+    ...form,
+    patientInsuranceId: hasOwn(values, 'patientInsuranceId')
+      ? toFormString(values.patientInsuranceId)
+      : form.patientInsuranceId,
+    noKartu:
+      hasOwn(values, 'mitraCodeNumber') && hasFilledValue(values.mitraCodeNumber)
+        ? toFormString(values.mitraCodeNumber)
+        : form.noKartu
+  }
+}
+
 export function buildRawatInapAdmissionCommand(
   form: RawatInapAdmissionFormState,
   bedOptions: RawatInapAdmissionBedOption[]
@@ -261,14 +292,15 @@ export function createRawatInapAdmissionBedOptions(
   const options = snapshot.wards.flatMap((room) =>
     /^igd\b|^igd[-_\s]/i.test(room.roomName)
       ? []
-      : room.beds.filter((bed) => bed.status === 'TERSEDIA' && !bed.patient)
-      .map((bed) => ({
-        bedId: bed.bedId,
-        bedName: bed.bedName,
-        roomId: room.roomId,
-        roomName: room.roomName,
-        classOfCareCodeId: normalizeRawatInapClassCode(room.classLabel)
-      }))
+      : room.beds
+          .filter((bed) => bed.status === 'TERSEDIA' && !bed.patient)
+          .map((bed) => ({
+            bedId: bed.bedId,
+            bedName: bed.bedName,
+            roomId: room.roomId,
+            roomName: room.roomName,
+            classOfCareCodeId: normalizeRawatInapClassCode(room.classLabel)
+          }))
   )
 
   return options.length > 0 ? options : []

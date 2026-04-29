@@ -4,7 +4,8 @@ import test from 'node:test'
 import {
   buildRawatInapAdmissionCommand,
   createRawatInapAdmissionBedOptions,
-  createDefaultRawatInapAdmissionForm
+  createDefaultRawatInapAdmissionForm,
+  mergeRawatInapAdmissionInsuranceFormValues
 } from './rawat-inap.admisi'
 
 test('createDefaultRawatInapAdmissionForm does not prefill clinical dummy values', () => {
@@ -208,6 +209,36 @@ test('buildRawatInapAdmissionCommand omits SEP for non-BPJS guarantor', () => {
   assert.equal(command.paymentMethod, 'cash')
   assert.equal(command.patientInsuranceId, undefined)
   assert.equal(command.sep, undefined)
+})
+
+test('mergeRawatInapAdmissionInsuranceFormValues reads nomor kartu at submit time', () => {
+  const form = {
+    ...createDefaultRawatInapAdmissionForm(),
+    patientInsuranceId: '',
+    noKartu: 'stale-card-number'
+  }
+
+  const nextForm = mergeRawatInapAdmissionInsuranceFormValues(form, {
+    patientInsuranceId: 33,
+    mitraCodeNumber: '0009876543210'
+  })
+
+  assert.equal(nextForm.patientInsuranceId, '33')
+  assert.equal(nextForm.noKartu, '0009876543210')
+})
+
+test('mergeRawatInapAdmissionInsuranceFormValues keeps nomor kartu when field is uninitialized', () => {
+  const form = {
+    ...createDefaultRawatInapAdmissionForm(),
+    noKartu: 'initial-card-number'
+  }
+
+  const nextForm = mergeRawatInapAdmissionInsuranceFormValues(form, {
+    patientInsuranceId: undefined,
+    mitraCodeNumber: undefined
+  })
+
+  assert.equal(nextForm.noKartu, 'initial-card-number')
 })
 
 test('createRawatInapAdmissionBedOptions excludes IGD rooms from target placement', () => {
