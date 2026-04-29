@@ -31,6 +31,7 @@ import type { Invoice, PersistedInvoice, InvoiceLineItem } from '@renderer/utils
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import logoUrl from '@renderer/assets/logo.png'
 import { SignaturePadModal } from '@renderer/components/molecules/SignaturePadModal'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 
 const { Title, Text } = Typography
 
@@ -575,7 +576,8 @@ export default function InvoiceDetailPage() {
   const isPaid = persistedInvoice?.status === 'balanced'
   const totalPaid = persistedInvoice ? persistedInvoice.total - persistedInvoice.remaining : 0
 
-  const isCashier = profile?.allowedModules?.includes('BILLING_KASIR') || profile?.hakAksesId === 'administrator'
+  const session = useModuleScopeStore((state) => state.session)
+  const isCashier = session?.allowedModules?.includes('BILLING_KASIR') || session?.hakAksesId === 'administrator'
 
   return (
     <div className="p-4">
@@ -913,13 +915,8 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
-<<<<<<< Updated upstream
-      {/* Payment section (only shown when invoice is confirmed) */}
-      {isConfirmed && persistedInvoice && (
-=======
       {/* Payment section (shown whenever an invoice is persisted) */}
       {persistedInvoice && (
->>>>>>> Stashed changes
         <div className="max-w-3xl mx-auto mt-2">
           <PaymentHistory
             payments={persistedInvoice.payments}
