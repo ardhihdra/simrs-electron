@@ -427,8 +427,8 @@ const filterItemsBySession = (
         ...item,
         ...(item.children
           ? {
-              children: filterChildrenBySession(item.children, pageAccessMap, session)
-            }
+            children: filterChildrenBySession(item.children, pageAccessMap, session)
+          }
           : {})
       })
       return result

@@ -575,6 +575,8 @@ export default function InvoiceDetailPage() {
   const isPaid = persistedInvoice?.status === 'balanced'
   const totalPaid = persistedInvoice ? persistedInvoice.total - persistedInvoice.remaining : 0
 
+  const isCashier = profile?.allowedModules?.includes('BILLING_KASIR') || profile?.hakAksesId === 'administrator'
+
   return (
     <div className="p-4">
       {/* Toolbar */}
@@ -600,8 +602,8 @@ export default function InvoiceDetailPage() {
 
         {/* Right: actions grouped by role */}
         <div className="flex items-left gap-2">
-          {/* Destructive workflow action */}
-          {!isPaid && (
+          {/* Destructive workflow action - ONLY FOR CASHIER */}
+          {isCashier && persistedInvoice?.status !== 'cancelled' && (
             <>
               <Popconfirm
                 title="Kembalikan ke Perawat?"
@@ -705,63 +707,78 @@ export default function InvoiceDetailPage() {
             </Button>
           </Dropdown>
 
-          {/* Primary workflow action */}
-          {(!isConfirmed && !isLoadingDetail) || !isPaid ? (
-            <Divider type="vertical" className="!mx-0" />
-          ) : null}
-
-          {!isConfirmed && !isLoadingDetail && (
-            <Button
-              type="primary"
-              icon={<LockOutlined />}
-              loading={confirming}
-              onClick={handleConfirm}
-              disabled={!invoice}
-              size="small"
-            >
-              Konfirmasi Invoice
-            </Button>
-          )}
-
-          {!isPaid && (
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              onClick={() => setPaymentModalOpen(true)}
-              size="small"
-            >
-              {isConfirmed ? 'Tambah Pembayaran' : 'Input DP (Uang Muka)'}
-            </Button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500">Sumber TTD Kasir</span>
-          <Select
-            value={signatureSource}
-            options={SIGNATURE_SOURCE_OPTIONS}
-            style={{ width: 220 }}
-            onChange={(value) => setSignatureSource(value)}
-          />
-
-          {signatureSource === 'manual' ? (
+          {/* Primary workflow action - ONLY FOR CASHIER */}
+          {isCashier && (
             <>
-              <Button icon={<EditOutlined />} onClick={openSignatureModal}>
-                Input Tanda Tangan
-              </Button>
-              {manualCashierSignature ? (
-                <Button size="small" onClick={resetManualSignature}>
-                  Hapus TTD Manual
-                </Button>
+              {(!isConfirmed && !isLoadingDetail) || !isPaid ? (
+                <Divider type="vertical" className="!mx-0" />
               ) : null}
+
+              {!isConfirmed && !isLoadingDetail && (
+                <Popconfirm
+                  title="Kunci & Konfirmasi Invoice?"
+                  description="Rincian tagihan akan dibekukan dan tidak akan berubah otomatis lagi jika klinis menginput data baru. Lanjutkan?"
+                  onConfirm={handleConfirm}
+                  okText="Ya, Kunci"
+                  cancelText="Batal"
+                >
+                  <Button
+                    type="primary"
+                    icon={<LockOutlined />}
+                    loading={confirming}
+                    disabled={!invoice}
+                    size="small"
+                  >
+                    Konfirmasi Invoice
+                  </Button>
+                </Popconfirm>
+              )}
+
+              {!isPaid && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={() => setPaymentModalOpen(true)}
+                  size="small"
+                >
+                  {isConfirmed ? 'Tambah Pembayaran' : 'Input Deposit'}
+                </Button>
+              )}
             </>
-          ) : (
-            <Tag color={hasKepegawaianSignature ? 'green' : 'default'} className="m-0">
-              {hasKepegawaianSignature
-                ? 'Diambil dari Kepegawaian'
-                : 'Profil Pegawai Tidak Punya TTD'}
-            </Tag>
           )}
         </div>
+        
+        {/* Signature Source selection - ONLY FOR CASHIER */}
+        {isCashier && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Sumber TTD Kasir</span>
+            <Select
+              value={signatureSource}
+              options={SIGNATURE_SOURCE_OPTIONS}
+              style={{ width: 220 }}
+              onChange={(value) => setSignatureSource(value)}
+            />
+
+            {signatureSource === 'manual' ? (
+              <>
+                <Button icon={<EditOutlined />} onClick={openSignatureModal}>
+                  Input Tanda Tangan
+                </Button>
+                {manualCashierSignature ? (
+                  <Button size="small" onClick={resetManualSignature}>
+                    Hapus TTD Manual
+                  </Button>
+                ) : null}
+              </>
+            ) : (
+              <Tag color={hasKepegawaianSignature ? 'green' : 'default'} className="m-0">
+                {hasKepegawaianSignature
+                  ? 'Diambil dari Kepegawaian'
+                  : 'Profil Pegawai Tidak Punya TTD'}
+              </Tag>
+            )}
+          </div>
+        )}
       </div>
 
       {(isLoading || isLoadingDetail) && (
@@ -896,8 +913,13 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
+<<<<<<< Updated upstream
       {/* Payment section (only shown when invoice is confirmed) */}
       {isConfirmed && persistedInvoice && (
+=======
+      {/* Payment section (shown whenever an invoice is persisted) */}
+      {persistedInvoice && (
+>>>>>>> Stashed changes
         <div className="max-w-3xl mx-auto mt-2">
           <PaymentHistory
             payments={persistedInvoice.payments}

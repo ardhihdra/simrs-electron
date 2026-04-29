@@ -1,6 +1,9 @@
-import { App } from 'antd'
+import { FileTextOutlined } from '@ant-design/icons'
+import { App, Spin } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router'
+import { client } from '../../utils/client'
 
 import {
   DesktopBadge,
@@ -64,10 +67,35 @@ export function RawatInapPasienPage({
   onDpjpSaved
 }: RawatInapPasienPageProps) {
   const { message } = App.useApp()
-  const [selectedEncounterId, setSelectedEncounterId] = useState(() => items[0]?.encounterId ?? '')
+  const navigate = useNavigate()
   const [showDpjpModal, setShowDpjpModal] = useState(false)
+  // Use activeEncounterId to track the currently selected patient in the list
+  const [activeEncounterId, setActiveEncounterId] = useState(() => items[0]?.encounterId ?? '')
 
-  const selected = items.find((p) => p.encounterId === selectedEncounterId) ?? items[0] ?? null
+  const selected = items.find((p) => p.encounterId === activeEncounterId) ?? items[0] ?? null
+
+  const { data: invoiceData, isLoading: isLoadingInvoice } = client.kasir.getInvoice.useQuery(
+    {
+      encounterId: selected?.encounterId ?? '',
+      patientId: selected?.patientId ?? ''
+    },
+    {
+      enabled: !!selected?.encounterId && !!selected?.patientId,
+      queryKey: ['kasir.getInvoice', { encounterId: selected?.encounterId, patientId: selected?.patientId }]
+    }
+  )
+
+  const invoice = (invoiceData as any)?.result
+  const realTotal = invoice?.total ?? 0
+  const realPaid = invoice?.paid ?? 0
+  const realRemaining = realTotal - realPaid
+
+  const fmt = (val: number) =>
+    new Intl.NumberFormat('id-ID', {
+      style: 'currency',
+      currency: 'IDR',
+      minimumFractionDigits: 0
+    }).format(val)
 
   const handleAction = () => void message.info('Fitur belum diimplementasikan pada scope ini')
 
@@ -235,12 +263,12 @@ export function RawatInapPasienPage({
       showTotal: (n, range) => `${range[0]}–${range[1]} dari ${n} pasien`
     },
     onRow: (record) => ({
-      onClick: () => setSelectedEncounterId(record.encounterId)
+      onClick: () => setActiveEncounterId(record.encounterId)
     }),
     rowClassName: (record) =>
       [
         'cursor-pointer',
-        record.encounterId === selectedEncounterId ? 'ant-table-row-selected' : '',
+        record.encounterId === activeEncounterId ? 'ant-table-row-selected' : '',
         record.encounterStatus === 'FINISHED' ? 'opacity-60' : ''
       ]
         .filter(Boolean)
@@ -474,6 +502,34 @@ export function RawatInapPasienPage({
                 </div>
               </div>
 
+              {/* Invoice Summary Section */}
+              <div className="p-3.5 bg-[var(--ds-color-surface-muted)]/50 rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] flex flex-col gap-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] text-[var(--ds-color-text-muted)]">Total Tagihan</span>
+                  <span className="font-mono text-[12.5px] font-bold text-[var(--ds-color-text)]">
+                    {isLoadingInvoice ? <Spin size="small" /> : fmt(realTotal)}
+                  </span>
+                </div>
+
+                {realPaid > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-[11px] text-[var(--ds-color-text-muted)]">Terbayar</span>
+                    <span className="font-mono text-[12.5px] font-bold text-[var(--ds-color-success)]">
+                      {fmt(realPaid)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="border-t border-dashed border-[var(--ds-color-border)] opacity-40 my-0.5" />
+
+                <div className="flex justify-between items-center">
+                  <span className="text-[12px] font-bold text-[var(--ds-color-text)]">Sisa Tagihan</span>
+                  <span className="font-mono text-[14px] font-bold text-[var(--ds-color-danger)]">
+                    {isLoadingInvoice ? <Spin size="small" /> : fmt(realRemaining)}
+                  </span>
+                </div>
+              </div>
+
               {selected.losDays >= 7 && (
                 <div
                   className="rounded-[var(--ds-radius)] border px-[10px] py-[7px] text-[11.5px]"
@@ -499,6 +555,17 @@ export function RawatInapPasienPage({
                 )}
                 <DesktopButton emphasis="toolbar" onClick={openDpjpModal}>
                   Tetapkan / Ganti DPJP
+                </DesktopButton>
+                <DesktopButton
+                  emphasis="toolbar"
+                  icon={<FileTextOutlined />}
+                  onClick={() =>
+                    navigate(
+                      `/dashboard/kasir/invoice/${selected.encounterId}?patientId=${selected.patientId}`
+                    )
+                  }
+                >
+                  Lihat Invoice
                 </DesktopButton>
                 {selected.encounterStatus === 'IN_PROGRESS' && (
                   <DesktopButton emphasis="primary" onClick={handleAction}>
