@@ -163,7 +163,7 @@ test('IGD registrasi page renders the intake form shell', () => {
   assert.equal(markup.includes('Warna Hijau - Butuh evaluasi cepat'), true)
 })
 
-test('IGD triase page renders triage sections and save action', () => {
+test('IGD triase page renders triage and info umum sections with save action', () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -191,11 +191,10 @@ test('IGD triase page renders triage sections and save action', () => {
   assert.equal(markup.includes('Detail Pasien'), true)
   assert.equal(markup.includes('Vital Sign'), true)
   assert.equal(markup.includes('Time Tracking'), true)
-  assert.equal(markup.includes('Triase Cepat'), true)
+  assert.equal(markup.includes('Triase'), true)
+  assert.equal(markup.includes('Triase Cepat'), false)
   assert.equal(markup.includes('Info Umum'), true)
-  assert.equal(markup.includes('Utama'), true)
   assert.equal(markup.includes('Kondisi Umum'), true)
-  assert.equal(markup.includes('Level Triase Awal'), true)
   assert.equal(markup.includes('Keluhan Singkat'), true)
   assert.equal(markup.includes('Level 3 — Semi Urgent'), false)
   assert.equal(markup.includes('Warna Hijau · Butuh evaluasi cepat'), false)
@@ -277,7 +276,7 @@ test('IGD patient info panel honors triage level override for display', () => {
   assert.equal(markup.includes('KRITIS'), false)
 })
 
-test('IGD triase utama form renders vital signs and matrix table', () => {
+test('IGD triase form tab renders quick+vital signs and matrix table', () => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -349,6 +348,9 @@ test('IGD triase utama form renders vital signs and matrix table', () => {
   )
 
   assert.equal(markup.includes('Vital Sign + Kesadaran + Kebutuhan Khusus'), true)
+  assert.equal(markup.includes('Kondisi Umum'), true)
+  assert.equal(markup.includes('Keluhan Singkat'), true)
+  assert.equal(markup.includes('Level Triase Awal'), false)
   assert.equal(markup.includes('Kesadaran (GCS)'), true)
   assert.equal(markup.includes('Kebutuhan Khusus'), true)
   assert.equal(markup.includes('Pemeriksaan + Pengkajian'), true)

@@ -1,15 +1,14 @@
 /**
- * purpose: Halaman triase IGD berbasis dashboard backend dengan shell operasional (header/stat strip) setara daftar pasien, draft form lokal lintas section (UI tab `quick|umum|utama`), validasi wajib quick+klinis sebelum submit, level panel kanan yang mengikuti draft aktif, hydrate Observation, dan submit via hook Observation.
+ * purpose: Halaman triase IGD berbasis dashboard backend dengan shell operasional setara daftar pasien, draft form lokal lintas section (UI tab `triase|umum` dengan storage legacy), validasi wajib quick+klinis, level panel kanan mengikuti draft aktif, hydrate Observation, dan submit via hook Observation.
  * main callers: `IgdTriaseRoute` (menu triase IGD).
- * key dependencies: `client.igd.dashboard`, `IgdTriaseFormCard`, `IgdPatientInfoPanel`, `useBulkCreateObservation`, `useQueryObservationByEncounter`, mapper/formatter observation triase, resolver level triase, dan util sinkronisasi matrix triase.
+ * key dependencies: `client.igd.dashboard`, `IgdTriaseFormCard`, `IgdPatientInfoPanel`, `useBulkCreateObservation`, `useQueryObservationByEncounter`, `useCreateAllergy`, `useAllergyByEncounter`, mapper/formatter observation triase, resolver level triase, dan util sinkronisasi matrix triase.
  * main/public functions: `IgdTriasePage`, `IgdTriaseRoute`.
- * side effects: Query dashboard+Observation backend (read), simpan draft triase lokal (in-memory), write Observation ke backend lewat mutation hook dengan metadata petugas/tanggal asesmen, dan refetch observation pasien aktif setelah submit sukses.
+ * side effects: Query dashboard+Observation+Allergy backend (read), simpan draft triase lokal (in-memory), write Observation dan AllergyIntolerance ke backend lewat mutation hook, dan refetch data pasien aktif setelah submit sukses.
  */
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
 import type { DesktopBadgeTone } from '../../components/design-system/atoms/DesktopBadge'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopTag } from '../../components/design-system/atoms/DesktopTag'
-import type { DesktopTriageBadgeTone } from '../../components/design-system/atoms/DesktopTriageBadge'
 import { DesktopCard } from '../../components/design-system/molecules/DesktopCard'
 import { DesktopCompactStatStrip } from '../../components/design-system/molecules/DesktopCompactStatStrip'
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
@@ -22,9 +21,11 @@ import {
   useBulkCreateObservation,
   useQueryObservationByEncounter
 } from '../../hooks/query/use-observation'
+import { useAllergyByEncounter, useCreateAllergy } from '../../hooks/query/use-allergy'
 import { useIgdTriageMaster } from '../../hooks/query/use-igd-triage-master'
 import { showApiError } from '../../utils/form-feedback'
 import { createObservationBatch } from '../../utils/builders/observation-builder'
+import { createAllergy as buildAllergy } from '../../utils/builders/allergy-builder'
 import { client } from '../../utils/client'
 
 import { IGD_PAGE_PATHS } from './igd.config'
@@ -32,6 +33,7 @@ import { EMPTY_IGD_DASHBOARD, type IgdDashboard, type IgdDashboardPatient } from
 import { IgdPatientInfoPanel } from './IgdPatientInfoPanel'
 import { IgdTriaseFormCard } from './IgdTriaseFormCard'
 import { type IgdTriageSection } from './igd.state'
+import { getQuickTriageConditionByLevel } from './igd.quick-triage'
 import { getIgdTriageLevelMeta } from './igd.triage-level'
 import { resolveIgdTriageLevel } from './igd-triage-level-resolver'
 import {
@@ -48,7 +50,8 @@ import {
 import {
   applyUtamaViewValuesToForms,
   buildUtamaViewValues,
-  QUICK_TRIAGE_FIELD_NAMES
+  QUICK_TRIAGE_FIELD_NAMES,
+  TRIAGE_VIEW_QUICK_COMPLAINT_FIELD
 } from './igd-triase-form-state'
 
 type IgdTriasePageProps = {
@@ -65,7 +68,7 @@ type IgdTriaseRouteState = {
 }
 
 type IgdTriaseLocalForms = Partial<Record<string, IgdTriaseFormBySection>>
-const TRIAGE_VISIBLE_SECTIONS: IgdTriageSection[] = ['quick', 'umum', 'utama']
+const TRIAGE_VISIBLE_SECTIONS: Array<'utama' | 'umum'> = ['utama', 'umum']
 const TRIAGE_INTERNAL_KEYS = {
   assessmentDate: '__assessmentDate',
   performerId: '__performerId',
@@ -86,17 +89,36 @@ const getQuickLevelFromForms = (
   fallbackLevel: number | undefined
 ): number | undefined => parseTriageLevelNumber(forms?.quick?.quickLevel) ?? fallbackLevel
 
+const withQuickDefaultsFromLevel = (
+  forms: IgdTriaseFormBySection,
+  fallbackLevel: number | undefined
+): IgdTriaseFormBySection => {
+  const normalizedFallbackLevel = Number.isInteger(fallbackLevel) ? Number(fallbackLevel) : undefined
+  const quickValues = forms.quick ?? {}
+  const nextQuickCondition =
+    quickValues.quickCondition?.trim() || getQuickTriageConditionByLevel(normalizedFallbackLevel)
+  const nextQuickLevel =
+    quickValues.quickLevel?.trim() ??
+    (Number.isInteger(normalizedFallbackLevel) ? String(normalizedFallbackLevel) : '')
+
+  return {
+    ...forms,
+    quick: {
+      ...quickValues,
+      quickCondition: nextQuickCondition,
+      quickLevel: nextQuickLevel
+    }
+  }
+}
+
 const hasNonEmptyText = (value: string | undefined): boolean => (value ?? '').trim().length > 0
 
 const hasAnyUtamaClinicalInput = (forms: IgdTriaseFormBySection | undefined): boolean =>
-  Object.values(buildUtamaViewValues(forms)).some((value) => hasNonEmptyText(value))
-
-const resolveTriageTone = (levelNo: number): DesktopTriageBadgeTone => {
-  if (levelNo <= 1) return 'danger'
-  if (levelNo === 2) return 'warning'
-  if (levelNo === 3) return 'success'
-  return 'neutral'
-}
+  Object.entries(buildUtamaViewValues(forms)).some(([fieldName, value]) => {
+    if (fieldName === QUICK_TRIAGE_FIELD_NAMES.condition) return false
+    if (fieldName === TRIAGE_VIEW_QUICK_COMPLAINT_FIELD) return false
+    return hasNonEmptyText(value)
+  })
 
 const hasFilledSectionValues = (sectionValues: Record<string, string> | undefined): boolean => {
   if (!sectionValues) return false
@@ -216,6 +238,7 @@ export function IgdTriasePage({
 }: IgdTriasePageProps) {
   const { message } = App.useApp()
   const bulkCreateObservation = useBulkCreateObservation()
+  const createAllergy = useCreateAllergy()
   const triageMaster = useIgdTriageMaster()
   const criteriaMetaById = useMemo(
     () =>
@@ -257,16 +280,17 @@ export function IgdTriasePage({
   const triageLevels = useMemo(
     () =>
       statStripActiveLevels.map((levelNo) => ({
-        label: `L${levelNo}`,
+        label: getIgdTriageLevelMeta(levelNo).label,
         value: String(dashboard.summary.triageCounts[String(levelNo)] ?? 0),
-        tone: resolveTriageTone(levelNo)
+        tone: getIgdTriageLevelMeta(levelNo).badgeTone,
+        badgeStyle: getIgdTriageLevelMeta(levelNo).badgeStyle
       })),
     [dashboard.summary.triageCounts, statStripActiveLevels]
   )
   const [selectedPatientId, setSelectedPatientId] = useState<string | undefined>(
     initialSelectedPatientId ?? patients[0]?.id
   )
-  const [activeSection, setActiveSection] = useState<IgdTriageSection>('quick')
+  const [activeSection, setActiveSection] = useState<'utama' | 'umum'>('utama')
   const [triageForms, setTriageForms] = useState<IgdTriaseLocalForms>({})
   const [formValues, setFormValues] = useState<Record<string, string>>({})
   const [hydrationTargetPatientId, setHydrationTargetPatientId] = useState<string | undefined>(
@@ -277,6 +301,7 @@ export function IgdTriasePage({
     'igd-triase',
     selectedPatient?.id ?? ''
   ])
+  const allergyByEncounterQuery = useAllergyByEncounter(selectedPatient?.encounterId)
 
   const persistSectionDraft = (
     patientId: string,
@@ -341,11 +366,14 @@ export function IgdTriasePage({
             formatIgdTriaseFormsFromObservations(observations),
             criteriaMetaById
           )
-    const nextHydratedForms = withResolvedTriageLevelFields(hydratedForms, {
+    const nextHydratedForms = withResolvedTriageLevelFields(
+      withQuickDefaultsFromLevel(hydratedForms, selectedPatient.triageLevel),
+      {
       quickLevel: getQuickLevelFromForms(hydratedForms, selectedPatient.triageLevel),
       activeLevels: activeTriageLevels,
       criteriaMetaById
-    })
+      }
+    )
 
     setTriageForms((currentForms) => {
       const currentPatientForms = currentForms[selectedPatient.id]
@@ -373,6 +401,49 @@ export function IgdTriasePage({
 
   useEffect(() => {
     if (!selectedPatient?.id) return
+    if (allergyByEncounterQuery.isLoading || allergyByEncounterQuery.isError) return
+
+    const allergyResponse = allergyByEncounterQuery.data as
+      | { success?: boolean; result?: unknown }
+      | undefined
+    const allergyList = Array.isArray(allergyResponse?.result)
+      ? (allergyResponse?.result as Array<{ note?: string | null }>)
+      : []
+    const allergyNote = allergyList
+      .map((item) => String(item?.note ?? '').trim())
+      .filter(Boolean)
+      .join(', ')
+
+    setTriageForms((currentForms) => {
+      const currentPatientForms = currentForms[selectedPatient.id] ?? {}
+      const currentUmum = currentPatientForms.umum ?? {}
+      const currentAllergy = String(currentUmum.allergy ?? '').trim()
+      if (currentAllergy === allergyNote) return currentForms
+
+      const nextUmum =
+        allergyNote.length > 0
+          ? { ...currentUmum, allergy: allergyNote }
+          : Object.fromEntries(
+              Object.entries(currentUmum).filter(([fieldName]) => fieldName !== 'allergy')
+            )
+
+      return {
+        ...currentForms,
+        [selectedPatient.id]: {
+          ...currentPatientForms,
+          umum: nextUmum
+        }
+      }
+    })
+  }, [
+    allergyByEncounterQuery.data,
+    allergyByEncounterQuery.isError,
+    allergyByEncounterQuery.isLoading,
+    selectedPatient?.id
+  ])
+
+  useEffect(() => {
+    if (!selectedPatient?.id) return
 
     setTriageForms((currentForms) => {
       const currentPatientForms = currentForms[selectedPatient.id] ?? {}
@@ -387,10 +458,13 @@ export function IgdTriasePage({
           : []
       const nextMatrixValues = selectedCriteriaIdsToMatrixSectionValues(selectedCriteriaIds)
       const nextPatientForms = withResolvedTriageLevelFields(
-        {
-          ...currentPatientForms,
-          matrix: nextMatrixValues
-        },
+        withQuickDefaultsFromLevel(
+          {
+            ...currentPatientForms,
+            matrix: nextMatrixValues
+          },
+          selectedPatient.triageLevel
+        ),
         {
           quickLevel: getQuickLevelFromForms(currentPatientForms, selectedPatient.triageLevel),
           activeLevels: activeTriageLevels,
@@ -422,7 +496,7 @@ export function IgdTriasePage({
     setFormValues(currentPatientForms?.[activeSection] ?? {})
   }, [activeSection, selectedPatient?.id, triageForms])
 
-  const handleSectionChange = (nextSection: IgdTriageSection) => {
+  const handleSectionChange = (nextSection: 'utama' | 'umum') => {
     if (selectedPatient?.id) {
       if (activeSection === 'utama') {
         setTriageForms((currentForms) => {
@@ -443,7 +517,7 @@ export function IgdTriasePage({
     }
     const normalizedNextSection = TRIAGE_VISIBLE_SECTIONS.includes(nextSection)
       ? nextSection
-      : 'quick'
+      : 'utama'
     setActiveSection(normalizedNextSection)
   }
 
@@ -536,12 +610,14 @@ export function IgdTriasePage({
     }))
 
     const triageObservationDrafts = buildIgdTriaseObservationDrafts(mergedPatientForms)
-    if (triageObservationDrafts.length === 0) {
+    const umumValues = mergedPatientForms.umum ?? {}
+    const allergyNote = (umumValues.allergy ?? '').trim()
+
+    if (triageObservationDrafts.length === 0 && allergyNote.length === 0) {
       message.warning('Belum ada data triase yang bisa disimpan')
       return
     }
 
-    const umumValues = mergedPatientForms.umum ?? {}
     const performerId = (umumValues[TRIAGE_INTERNAL_KEYS.performerId] ?? '').trim()
     const performerName = (umumValues[TRIAGE_INTERNAL_KEYS.performerName] ?? '').trim()
     const assessmentDateRaw = (umumValues[TRIAGE_INTERNAL_KEYS.assessmentDate] ?? '').trim()
@@ -556,23 +632,40 @@ export function IgdTriasePage({
     const observations = createObservationBatch(triageObservationDrafts, effectiveDate)
 
     try {
-      await bulkCreateObservation.mutateAsync({
-        encounterId: selectedPatient.encounterId,
-        patientId: selectedPatient.id,
-        observations,
-        performerId,
-        performerName: performerName || undefined
-      })
+      if (observations.length > 0) {
+        await bulkCreateObservation.mutateAsync({
+          encounterId: selectedPatient.encounterId,
+          patientId: selectedPatient.id,
+          observations,
+          performerId,
+          performerName: performerName || undefined
+        })
+      }
+
+      if (allergyNote.length > 0) {
+        await createAllergy.mutateAsync(
+          buildAllergy({
+            patientId: selectedPatient.id,
+            encounterId: selectedPatient.encounterId,
+            note: allergyNote,
+            clinicalStatus: 'active',
+            verificationStatus: 'confirmed',
+            category: 'food'
+          })
+        )
+      }
+
       setHydrationTargetPatientId(selectedPatient.id)
       await observationByEncounterQuery.refetch()
+      await allergyByEncounterQuery.refetch()
 
-      message.success('Triase berhasil disimpan ke Observation')
+      message.success('Triase berhasil disimpan')
     } catch (error) {
       showApiError(message, error, 'Gagal menyimpan triase')
     }
   }
 
-  const isSaving = bulkCreateObservation.isPending
+  const isSaving = bulkCreateObservation.isPending || createAllergy.isPending
   const isSubmitDisabled = !selectedPatient || isLoading || !!errorMessage || isSaving
   const selectedPatientDraft = selectedPatient ? triageForms[selectedPatient.id] : undefined
   const triageLevelOverride = useMemo(() => {

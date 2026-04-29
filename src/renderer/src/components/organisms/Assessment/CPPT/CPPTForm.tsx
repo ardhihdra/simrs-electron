@@ -22,11 +22,7 @@ import {
   CopyOutlined,
   FormOutlined
 } from '@ant-design/icons'
-import {
-  CompositionAttester,
-  CompositionSection,
-  CompositionStatus
-} from 'simrs-types'
+import { CompositionAttester, CompositionSection, CompositionStatus } from 'simrs-types'
 import {
   CompositionEncounterItem,
   CompositionUpsertPayload,
@@ -365,11 +361,14 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       const recordAuthorId = record.authorId?.[0]
       const profilePerformer = profile?.id ? findPerformerById(profile.id) : undefined
       const recordAuthorPerformer = recordAuthorId ? findPerformerById(recordAuthorId) : undefined
-      const attesterPerformer = attesterReferenceId ? findPerformerById(attesterReferenceId) : undefined
+      const attesterPerformer = attesterReferenceId
+        ? findPerformerById(attesterReferenceId)
+        : undefined
 
       const selectedDoctor = selectedPerformer?.role === 'doctor' ? selectedPerformer : undefined
       const profileDoctor = profilePerformer?.role === 'doctor' ? profilePerformer : undefined
-      const recordDoctor = recordAuthorPerformer?.role === 'doctor' ? recordAuthorPerformer : undefined
+      const recordDoctor =
+        recordAuthorPerformer?.role === 'doctor' ? recordAuthorPerformer : undefined
       const attesterDoctor = attesterPerformer?.role === 'doctor' ? attesterPerformer : undefined
 
       const verifierPerformer =
@@ -381,7 +380,8 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
         profilePerformer ||
         recordAuthorPerformer ||
         attesterPerformer
-      const verifierId = verifierPerformer?.id ?? profile?.id ?? recordAuthorId ?? attesterReferenceId
+      const verifierId =
+        verifierPerformer?.id ?? profile?.id ?? recordAuthorId ?? attesterReferenceId
       const verifierName =
         verifierPerformer?.name ||
         record.author?.namaLengkap ||
@@ -399,7 +399,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
       const sections: CompositionSection[] =
         record.sections && record.sections.length > 0
           ? record.sections
-          : [
+          : ([
               {
                 title: 'Subjective',
                 code: {
@@ -442,7 +442,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
                   div: `<div xmlns="http://www.w3.org/1999/xhtml">${record.soapPlan?.replace(/\n/g, '<br/>') || '-'}</div>`
                 }
               }
-            ] as CompositionSection[]
+            ] as CompositionSection[])
 
       await upsertMutation.mutateAsync({
         id: record.id,
@@ -638,11 +638,7 @@ export const CPPTForm = ({ encounterId, patientData, onSaveSuccess }: CPPTFormPr
   return (
     <div className="flex flex-col gap-6">
       <Card
-        title={
-          <Space>
-            <HistoryOutlined /> Catatan Perkembangan Pasien Terintegrasi (CPPT)
-          </Space>
-        }
+        title="Catatan Perkembangan Pasien Terintegrasi (CPPT)"
         extra={
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsAddingNew(true)}>
             Tambah CPPT

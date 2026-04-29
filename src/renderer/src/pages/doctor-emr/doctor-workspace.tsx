@@ -145,8 +145,25 @@ const DoctorWorkspace = () => {
   const patient = patientData.patient
   const age = patient.birthDate ? dayjs().diff(dayjs(patient.birthDate), 'year') : 0
 
-  const poliName = (patientData as any).serviceType || 'Poli Umum'
-  const doctorName = (patientData as any).doctorName || 'Dr. Dokter'
+  const encounterTypeRaw = String((patientData as any).encounterType || '').toUpperCase()
+  const serviceTypeRaw = String((patientData as any).serviceType || '').toUpperCase()
+  const cardCareType: 'rajal' | 'ranap' | 'igd' | 'unknown' =
+    encounterTypeRaw === EncounterType.EMER ||
+    serviceTypeRaw === 'EMER' ||
+    serviceTypeRaw === 'EMERGENCY' ||
+    serviceTypeRaw === 'IGD' ||
+    serviceTypeRaw === 'UGD' ||
+    serviceTypeRaw === 'RAWAT_DARURAT'
+      ? 'igd'
+      : encounterTypeRaw === EncounterType.IMP || serviceTypeRaw === 'IMP' || serviceTypeRaw === 'INPATIENT'
+        ? 'ranap'
+        : encounterTypeRaw === EncounterType.AMB || serviceTypeRaw === 'AMB' || serviceTypeRaw === 'AMBULATORY'
+          ? 'rajal'
+          : 'unknown'
+  const poliNameRaw = String((patientData as any).serviceType || '').trim()
+  const poliName = poliNameRaw || (cardCareType === 'igd' ? 'IGD' : '-')
+  const doctorNameRaw = String((patientData as any).doctorName || '').trim()
+  const doctorName = doctorNameRaw || '-'
   const visitDate = (patientData as any).visitDate
     ? dayjs((patientData as any).visitDate).format('DD MMM YYYY, HH:mm')
     : dayjs().format('DD MMM YYYY, HH:mm')
@@ -189,7 +206,8 @@ const DoctorWorkspace = () => {
     visitDate: visitDate,
     paymentMethod: paymentMethod,
     status: currentStatus,
-    allergies: allergies
+    allergies: allergies,
+    careType: cardCareType
   }
 
   const SelesaikanPemeriksaanButton = () => {

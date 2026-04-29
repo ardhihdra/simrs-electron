@@ -3,7 +3,7 @@
  * main callers: Routing `IGD_PAGE_PATHS.daftar` di `route.tsx`.
  * key dependencies: `client.igd.dashboard`, mutasi IGD/visit-management, `IgdDaftarPage`, dan modal disposisi/replace.
  * main/public functions: `IgdDaftarRoute`.
- * side effects: Query/mutation HTTP via RPC, invalidasi query dashboard IGD, serta navigasi halaman IGD.
+ * side effects: Query/mutation HTTP via RPC, invalidasi query dashboard IGD, navigasi halaman IGD, serta membuka jendela pemeriksaan dokter baru.
  */
 import type { PatientAttributes } from 'simrs-types'
 import React, { useEffect, useMemo, useState } from 'react'
@@ -133,7 +133,9 @@ export default function IgdDaftarRoute() {
         onOpenDisposition={(patient) => {
           openDisposition(patient.encounterId, patient.id)
         }}
-        onOpenExamination={(patient) => navigate(`/dashboard/doctor/${patient.encounterId}`)}
+        onOpenExamination={(patient) =>
+          window.open(`#/dashboard/doctor/${patient.encounterId}`, '_blank')
+        }
         reportExportGroups={reportExportGroups}
         reportExportTitle={reportExportTitle}
         reportExportFileName={reportExportFileName}

@@ -1,7 +1,7 @@
 /**
  * purpose: Halaman workspace dokter IGD untuk menampilkan menu asesmen, order, administrasi, serta ringkasan triase IGD read-only per encounter.
  * main callers: Route doctor EMR emergency workspace.
- * key dependencies: Komponen form asesmen, SOAP, pengajuan OK, timeline, patient card, dan panel ringkasan triase IGD berbasis observation.
+ * key dependencies: Komponen form asesmen, SOAP, CPPT, pengajuan OK, timeline, patient card, dan panel ringkasan triase IGD berbasis observation.
  * main/public functions: `DoctorEmergencyWorkspace`.
  * side effects: Render berbagai form yang melakukan query/mutasi data klinis sesuai tab yang dipilih.
  */
@@ -55,6 +55,7 @@ import { GCSAssessmentForm } from '../../components/organisms/Assessment/GCSAsse
 import { LabRadOrderForm } from '../../components/organisms/LabRadOrderForm'
 import { PrescriptionForm } from '../../components/organisms/Assessment/Prescription/PrescriptionForm'
 import { GeneralSOAPForm } from '@renderer/components/organisms/Assessment/GeneralSOAP/GeneralSOAPForm'
+import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
 import { OphthalmologyForm } from '../../components/organisms/Assessment/Ophthalmology/OphthalmologyForm'
 import { DermatologyForm } from '../../components/organisms/Assessment/Dermatology/DermatologyForm'
 import { CardiologyForm } from '../../components/organisms/Assessment/Cardiology/CardiologyForm'
@@ -194,6 +195,11 @@ export const DoctorEmergencyWorkspace = ({
         label: 'SOAP Umum'
       },
       {
+        key: 'cppt',
+        icon: <FormOutlined />,
+        label: 'Catatan Perkembangan (CPPT)'
+      },
+      {
         key: 'polyclinic-form',
         icon: <FormOutlined />,
         label: 'Form Poli',
@@ -302,10 +308,18 @@ export const DoctorEmergencyWorkspace = ({
       .filter(Boolean) as any[]
   }, [items, modalSearch])
 
+  const emergencyPatientInfoCardData = useMemo(
+    () => ({
+      ...(patientInfoCardData ?? {}),
+      careType: 'igd' as const
+    }),
+    [patientInfoCardData]
+  )
+
   const renderContent = () => {
     switch (selectedKey) {
       case 'info':
-        return <PatientInfoCard patientData={patientInfoCardData} action={action} />
+        return <PatientInfoCard patientData={emergencyPatientInfoCardData} action={action} />
       case 'medical-history':
         return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
       case 'overview':
@@ -365,6 +379,8 @@ export const DoctorEmergencyWorkspace = ({
         return <VitalSignsMonitoringForm encounterId={encounterId} patientData={patientData} />
       case 'general-soap':
         return <GeneralSOAPForm encounterId={encounterId} patientData={patientData} />
+      case 'cppt':
+        return <CPPTForm encounterId={encounterId} patientData={patientData} />
       case 'ophthalmology':
         return <OphthalmologyForm encounterId={encounterId} patientData={patientData} />
       case 'dermatology':

@@ -1,7 +1,7 @@
 /**
  * purpose: Panel read-only ringkasan triase IGD di workspace dokter berdasarkan snapshot Observation triase terbaru per encounter.
  * main callers: `DoctorEmergencyWorkspace` tab `Data Triase`.
- * key dependencies: `useQueryObservationByEncounter`, `useIgdTriageMaster`, formatter `formatIgdTriaseFormsFromObservations`, util key triase `QUICK_TRIAGE_FIELD_NAMES`, dan util sinkronisasi matrix triase.
+ * key dependencies: `useQueryObservationByEncounter`, `useAllergyByEncounter`, `useIgdTriageMaster`, formatter `formatIgdTriaseFormsFromObservations`, util key triase `QUICK_TRIAGE_FIELD_NAMES`, dan util sinkronisasi matrix triase.
  * main/public functions: `IgdTriageSummaryPanel`.
  * side effects: Query data Observation backend (read-only) dan render state loading/empty/error lokal.
  */
@@ -9,6 +9,7 @@ import { Alert, Button, Card, Col, Descriptions, Empty, Row, Skeleton, Space, Ta
 import React, { useMemo } from 'react'
 
 import { useQueryObservationByEncounter } from '../../hooks/query/use-observation'
+import { useAllergyByEncounter } from '../../hooks/query/use-allergy'
 import { useIgdTriageMaster } from '../../hooks/query/use-igd-triage-master'
 import { QUICK_TRIAGE_FIELD_NAMES } from '../igd/igd-triase-form-state'
 import {
@@ -44,6 +45,23 @@ const TRIAGE_LEVEL_META: Record<number, TriageLevelMeta> = {
 }
 
 const toSafeText = (value: string | undefined): string => (value ?? '').trim() || '—'
+const toYesNoLabel = (value: string | undefined): string => {
+  const normalized = (value ?? '').trim().toLowerCase()
+  if (normalized === 'ya') return 'Ya'
+  if (normalized === 'tidak') return 'Tidak'
+  return toSafeText(value)
+}
+
+const formatAssessmentDate = (value: string | undefined): string => {
+  const raw = (value ?? '').trim()
+  if (!raw) return '—'
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return raw
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  }).format(parsed)
+}
 
 const parseLevel = (rawValue: string | undefined): number | undefined => {
   const parsed = Number.parseInt((rawValue ?? '').trim(), 10)
@@ -184,6 +202,7 @@ const getFinalLevelBannerPalette = (levelNo?: number | null) => {
 
 export function IgdTriageSummaryPanel({ encounterId }: IgdTriageSummaryPanelProps) {
   const observationQuery = useQueryObservationByEncounter(encounterId, ['doctor-emergency-triage-summary'])
+  const allergyQuery = useAllergyByEncounter(encounterId)
   const triageMaster = useIgdTriageMaster()
   const sortedLevels = useMemo(
     () => [...triageMaster.levels].sort((left, right) => left.levelNo - right.levelNo),
@@ -206,6 +225,13 @@ export function IgdTriageSummaryPanel({ encounterId }: IgdTriageSummaryPanelProp
     () => formatIgdTriaseFormsFromObservations(observationRows),
     [observationRows]
   )
+  const allergyRows = Array.isArray((allergyQuery.data as { result?: unknown } | undefined)?.result)
+    ? (((allergyQuery.data as { result?: unknown }).result ?? []) as Array<{ note?: string | null }>)
+    : []
+  const allergySummary = allergyRows
+    .map((item) => String(item?.note ?? '').trim())
+    .filter(Boolean)
+    .join(', ')
   const hasTriageData = useMemo(() => hasAnyTriageValue(triageForms), [triageForms])
   const levelView = useMemo(() => resolveLevelView(triageForms), [triageForms])
   const matrixSelectedCriteriaIds = useMemo(() => {
@@ -346,6 +372,32 @@ export function IgdTriageSummaryPanel({ encounterId }: IgdTriageSummaryPanelProp
           </Descriptions.Item>
           <Descriptions.Item label="Keluhan Singkat">
             {toSafeText(triageForms.quick?.[QUICK_TRIAGE_FIELD_NAMES.complaint])}
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+
+      <Card title="Informasi Umum">
+        <Descriptions column={1} size="small" bordered>
+          <Descriptions.Item label="Transportasi">
+            {toSafeText(triageForms.umum?.transportation)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Surat Pengantar Rujukan">
+            {toYesNoLabel(triageForms.umum?.referralLetter)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Cara Masuk">
+            {toSafeText(triageForms.umum?.caraMasuk)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Macam Kasus">
+            {toSafeText(triageForms.umum?.macamKasus)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Alergi">
+            {toSafeText(allergySummary || triageForms.umum?.allergy)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Moda Kedatangan">
+            {toSafeText(triageForms.umum?.arrivalMode)}
+          </Descriptions.Item>
+          <Descriptions.Item label="Tanggal Asesmen">
+            {formatAssessmentDate(triageForms.umum?.__assessmentDate)}
           </Descriptions.Item>
         </Descriptions>
       </Card>

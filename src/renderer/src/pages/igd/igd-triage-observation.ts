@@ -1,5 +1,5 @@
 /**
- * purpose: Mapper triase IGD dari draft form per section menjadi payload Observation builder yang konsisten untuk submit backend (termasuk transportasi, kesadaran, dan final level `IGD_TRIAGE_LEVEL`), sekaligus mengabaikan section UI-only (`matrix` dan `utama`).
+ * purpose: Mapper triase IGD dari draft form per section menjadi payload Observation builder yang konsisten untuk submit backend (termasuk transportasi, kesadaran, dan final level `IGD_TRIAGE_LEVEL`), sekaligus mengabaikan section UI-only (`matrix` dan `utama`) serta field alergi yang disimpan ke model allergy.
  * main callers: `IgdTriasePage` saat aksi simpan triase.
  * key dependencies: `OBSERVATION_CATEGORIES`, `OBSERVATION_SYSTEMS`, `TRANSPORTATION_SNOMED_MAP`, `CONSCIOUSNESS_SNOMED_MAP`, dan tipe `ObservationBuilderOptions` dari observation builder.
  * main/public functions: `buildIgdTriaseObservationDrafts`, `IGD_TRIAGE_SNAPSHOT_CODE`.
@@ -68,9 +68,9 @@ const FIELD_LABELS: Record<string, string> = {
   consciousness: 'Kesadaran',
   perfusion: 'Perfusi',
   transportation: 'Transportasi',
+  referralLetter: 'Surat Pengantar Rujukan',
   caraMasuk: 'Cara Masuk',
   macamKasus: 'Macam Kasus',
-  allergy: 'Alergi',
   arrivalMode: 'Moda Kedatangan',
   bloodPressure: 'Tekanan Darah',
   pulseRate: 'Nadi',
@@ -290,6 +290,7 @@ export const buildIgdTriaseObservationDrafts = (
       if (fieldName.includes('AssessmentCriteria_') || fieldName.includes('AssessmentReview_')) {
         continue
       }
+      if (fieldName === 'allergy') continue
 
       if (!trimValue(rawValue)) continue
       appendFieldObservation(drafts, section, fieldName, rawValue)

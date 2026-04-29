@@ -1,5 +1,5 @@
 /**
- * purpose: Kartu form triase IGD dengan 3 tab utama (`Triase Cepat`, `Info Umum`, `Utama`), quick level editable berbasis master level aktif, sinkronisasi `AssessmentHeader` petugas yang menjaga kecocokan tipe value select, tab `Utama` untuk gabungan vital+matrix, dan submit tunggal di card.
+ * purpose: Kartu form triase IGD dengan 2 tab utama (`Triase`, `Info Umum`), field quick terintegrasi ke tab triase, selector level final lewat header matrix, dan satu submit global di footer card.
  * main callers: `IgdTriasePage`.
  * key dependencies: `DesktopCard`, `DesktopSegmentedControl`, `DesktopInputField`, `DesktopButton`, `DesktopNoticePanel`, `AssessmentHeader`, `useIgdTriageMaster`, `usePerformers`, `useModuleScopeStore`, `TRANSPORTATION_SNOMED_MAP`.
  * main/public functions: `IgdTriaseFormCard`.
@@ -30,7 +30,11 @@ import dayjs, { type Dayjs } from 'dayjs'
 import React, { useEffect, useMemo, useRef } from 'react'
 
 import { type IgdTriageSection } from './igd.state'
-import { QUICK_TRIAGE_FIELD_NAMES, resolveQuickLevelFromCondition } from './igd-triase-form-state'
+import {
+  QUICK_TRIAGE_FIELD_NAMES,
+  TRIAGE_VIEW_QUICK_COMPLAINT_FIELD,
+  TRIAGE_VIEW_QUICK_CONDITION_FIELD
+} from './igd-triase-form-state'
 import {
   getMatrixFieldKey,
   MATRIX_GROUPS,
@@ -89,6 +93,10 @@ const MACAM_KASUS_OPTIONS: DesktopInputFieldOption[] = [
   { label: 'Trauma', value: 'trauma' },
   { label: 'Non-Trauma', value: 'non_trauma' }
 ]
+const REFERRAL_LETTER_OPTIONS: DesktopInputFieldOption[] = [
+  { label: 'Ya', value: 'ya' },
+  { label: 'Tidak', value: 'tidak' }
+]
 const CONSCIOUSNESS_GCS_OPTIONS: DesktopInputFieldOption[] = Object.keys(
   CONSCIOUSNESS_SNOMED_MAP
 ).map((key) => ({
@@ -121,6 +129,13 @@ const UMUM_INFO_FIELDS: IgdTriaseField[] = [
     type: 'select',
     placeholder: 'Pilih macam kasus',
     options: MACAM_KASUS_OPTIONS
+  },
+  {
+    name: 'referralLetter',
+    label: 'Surat Pengantar Rujukan',
+    type: 'select',
+    placeholder: 'Pilih status surat rujukan',
+    options: REFERRAL_LETTER_OPTIONS
   },
   { name: 'allergy', label: 'Alergi', type: 'textarea', rows: 3, colSpan: 2 },
   { name: 'arrivalMode', label: 'Moda Kedatangan', type: 'textarea', rows: 3 }
@@ -173,7 +188,7 @@ const UTAMA_EXAM_FIELDS: IgdTriaseField[] = [
   }
 ]
 
-const QUICK_FIELDS: IgdTriaseField[] = [
+const TRIAGE_QUICK_FIELDS: IgdTriaseField[] = [
   {
     name: QUICK_TRIAGE_FIELD_NAMES.condition,
     label: 'Kondisi Umum',
@@ -184,14 +199,7 @@ const QUICK_FIELDS: IgdTriaseField[] = [
     colSpan: 3
   },
   {
-    name: QUICK_TRIAGE_FIELD_NAMES.level,
-    label: 'Level Triase Awal',
-    required: true,
-    type: 'select',
-    placeholder: 'Pilih level triase awal'
-  },
-  {
-    name: QUICK_TRIAGE_FIELD_NAMES.complaint,
+    name: TRIAGE_VIEW_QUICK_COMPLAINT_FIELD,
     label: 'Keluhan Singkat',
     required: true,
     type: 'textarea',
@@ -201,16 +209,10 @@ const QUICK_FIELDS: IgdTriaseField[] = [
   }
 ]
 
-const TRIAGE_SECTION_LABELS: Record<IgdTriageSection, string> = {
-  quick: 'Triase Cepat',
-  umum: 'Info Umum',
-  utama: 'Utama',
-  matrix: 'Pemeriksaan Cepat',
-  primer: 'Primer (L1–2)',
-  sekunder: 'Sekunder (L3–5)'
+const TRIAGE_SECTION_LABELS: Record<'utama' | 'umum', string> = {
+  utama: 'Triase',
+  umum: 'Info Umum'
 }
-
-const getLevelLabel = (levelNo: number): string => `L${levelNo}`
 
 const getFinalLevelBannerPalette = (levelNo?: number | null) => {
   if (levelNo === 0) {
@@ -383,10 +385,10 @@ function UmumAssessmentHeader({
 }
 
 export type IgdTriaseFormCardProps = {
-  activeSection: IgdTriageSection
+  activeSection: 'utama' | 'umum'
   activeTriageLevel?: number
   formValues: Record<string, string>
-  onSectionChange: (section: IgdTriageSection) => void
+  onSectionChange: (section: 'utama' | 'umum') => void
   onFieldChange: (name: string, value: string) => void
   onSave: () => void
   isSaveDisabled?: boolean
@@ -413,19 +415,6 @@ export function IgdTriaseFormCard({
     () => [...levels].sort((left, right) => left.levelNo - right.levelNo),
     [levels]
   )
-  const triageLevelOptions: DesktopInputFieldOption[] = useMemo(() => {
-    if (sortedLevels.length === 0) {
-      return [0, 1, 2, 3, 4].map((levelNo) => ({
-        label: getLevelLabel(levelNo),
-        value: String(levelNo)
-      }))
-    }
-
-    return sortedLevels.map((level) => ({
-      label: `${getLevelLabel(level.levelNo)} · ${level.label ?? level.name ?? `Kategori ${level.levelNo}`}`,
-      value: String(level.levelNo)
-    }))
-  }, [sortedLevels])
   const hasAnyMatrixCriteria = criteria.length > 0
   const suggestedLevelRaw = (formValues[TRIAGE_INTERNAL_KEYS.suggestedLevel] ?? '').trim()
   const finalLevelRaw =
@@ -461,7 +450,10 @@ export function IgdTriaseFormCard({
     let selectedLevelNo: number | null = null
     let maxCount = -1
     for (const [levelNo, count] of levelCount.entries()) {
-      if (count > maxCount || (count === maxCount && (selectedLevelNo === null || levelNo < selectedLevelNo))) {
+      if (
+        count > maxCount ||
+        (count === maxCount && (selectedLevelNo === null || levelNo < selectedLevelNo))
+      ) {
         selectedLevelNo = levelNo
         maxCount = count
       }
@@ -482,13 +474,23 @@ export function IgdTriaseFormCard({
     return null
   }, [finalLevelRaw])
   const finalLevelView = useMemo(() => {
-    const levelNo = matrixDerivedLevel?.levelNo ?? finalLevelNo
+    const levelNo = finalLevelNo ?? matrixDerivedLevel?.levelNo
     if (levelNo === null) return null
     const level = sortedLevels.find((item) => item.levelNo === levelNo)
     const label = level?.label ?? level?.name ?? `Kategori ${levelNo}`
     const color = (level?.color ?? '').replaceAll('_', ' ').trim()
     const fallbackColorName =
-      levelNo === 0 ? 'Hitam' : levelNo === 1 ? 'Merah' : levelNo === 2 ? 'Kuning' : levelNo === 3 ? 'Hijau' : levelNo === 4 ? 'Putih' : 'Netral'
+      levelNo === 0
+        ? 'Hitam'
+        : levelNo === 1
+          ? 'Merah'
+          : levelNo === 2
+            ? 'Kuning'
+            : levelNo === 3
+              ? 'Hijau'
+              : levelNo === 4
+                ? 'Putih'
+                : 'Netral'
 
     return {
       levelNo,
@@ -500,21 +502,15 @@ export function IgdTriaseFormCard({
     () => getFinalLevelBannerPalette(finalLevelView?.levelNo),
     [finalLevelView?.levelNo]
   )
-  const hasInlineSaveBanner =
-    activeSection === 'utama' && hasAnyMatrixCriteria && !isMasterLoading && !isMasterError
-
+  const selectFinalLevel = (levelNo: number, checked: boolean) => {
+    onFieldChange(TRIAGE_INTERNAL_KEYS.finalLevel, checked ? String(levelNo) : '')
+    onFieldChange(TRIAGE_INTERNAL_KEYS.finalLevelSource, checked ? 'manual' : '')
+  }
   const renderFieldGrid = (fields: IgdTriaseField[], section: IgdTriageSection = activeSection) => (
     <div className="grid gap-[var(--ds-space-md)] md:grid-cols-3">
       {fields.map((field) => {
         let value = formValues[field.name] ?? field.defaultValue ?? ''
-        const runtimeField =
-          section === 'quick' && field.name === QUICK_TRIAGE_FIELD_NAMES.level
-            ? {
-                ...field,
-                type: 'select' as const,
-                options: triageLevelOptions
-              }
-            : field
+        const runtimeField = field
 
         return (
           <div
@@ -538,12 +534,11 @@ export function IgdTriaseFormCard({
               disabled={runtimeField.disabled}
               onChange={(nextValue) => {
                 if (runtimeField.disabled) return
-                if (section === 'quick' && runtimeField.name === QUICK_TRIAGE_FIELD_NAMES.condition) {
-                  onFieldChange(QUICK_TRIAGE_FIELD_NAMES.condition, nextValue)
-                  onFieldChange(
-                    QUICK_TRIAGE_FIELD_NAMES.level,
-                    resolveQuickLevelFromCondition(nextValue)
-                  )
+                if (
+                  section === 'utama' &&
+                  runtimeField.name === TRIAGE_VIEW_QUICK_CONDITION_FIELD
+                ) {
+                  onFieldChange(TRIAGE_VIEW_QUICK_CONDITION_FIELD, nextValue)
                   return
                 }
                 onFieldChange(field.name, nextValue)
@@ -557,11 +552,7 @@ export function IgdTriaseFormCard({
 
   const getMatrixLevelPalette = (level: { levelNo: number; color?: string | null }) => {
     const normalizedColor = (level.color ?? '').toLowerCase().trim()
-    if (
-      level.levelNo === 0 ||
-      normalizedColor === 'hitam' ||
-      normalizedColor === 'black'
-    ) {
+    if (level.levelNo === 0 || normalizedColor === 'hitam' || normalizedColor === 'black') {
       return {
         background: '#1F2937',
         borderColor: '#030712',
@@ -643,6 +634,7 @@ export function IgdTriaseFormCard({
                     </th>
                     {sortedLevels.map((level) => {
                       const palette = getMatrixLevelPalette(level)
+                      const isHeaderChecked = finalLevelNo === level.levelNo
 
                       return (
                         <th
@@ -654,8 +646,19 @@ export function IgdTriaseFormCard({
                             color: palette.textColor
                           }}
                         >
-                          <div className="flex flex-col gap-[2px]">
-                            <span>L{level.levelNo}</span>
+                          <div className="flex flex-col gap-[4px]">
+                            <label className="flex items-center gap-[6px] text-[11px] font-semibold">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                style={{ accentColor: palette.textColor }}
+                                checked={isHeaderChecked}
+                                onChange={(event) =>
+                                  selectFinalLevel(level.levelNo, event.currentTarget.checked)
+                                }
+                              />
+                              <span>L{level.levelNo}</span>
+                            </label>
                             <span className="text-[10px] font-normal">
                               {level.label ?? level.name ?? `Kategori ${level.levelNo}`}
                             </span>
@@ -765,19 +768,6 @@ export function IgdTriaseFormCard({
                   </div>
                 )}
               </div>
-              <div className="flex-1" />
-              <DesktopButton
-                emphasis="primary"
-                disabled={isSaveDisabled}
-                onClick={onSave}
-                style={{
-                  background: finalLevelPalette.buttonBackground,
-                  color: finalLevelPalette.buttonTextColor,
-                  borderColor: finalLevelPalette.buttonBackground
-                }}
-              >
-                Simpan Triase Final
-              </DesktopButton>
             </div>
           </div>
         ) : (
@@ -799,22 +789,21 @@ export function IgdTriaseFormCard({
       <div className="grid gap-[var(--ds-space-md)]">
         <DesktopSegmentedControl
           value={activeSection}
-          options={(['quick', 'umum', 'utama'] as IgdTriageSection[]).map((section) => ({
+          options={(['umum', 'utama'] as const).map((section) => ({
             label: TRIAGE_SECTION_LABELS[section],
             value: section
           }))}
-          onChange={(value) => onSectionChange(value as IgdTriageSection)}
+          onChange={(value) => onSectionChange(value as 'utama' | 'umum')}
         />
 
-        {activeSection === 'quick' ? (
-          <div className="grid gap-[var(--ds-space-md)]">{renderFieldGrid(QUICK_FIELDS, 'quick')}</div>
-        ) : activeSection === 'umum' ? (
+        {activeSection === 'umum' ? (
           <div className="grid gap-[var(--ds-space-md)]">
             <UmumAssessmentHeader formValues={formValues} onFieldChange={onFieldChange} />
             {renderFieldGrid(UMUM_INFO_FIELDS)}
           </div>
         ) : (
           <div className="grid gap-[var(--ds-space-md)]">
+            {renderFieldGrid(TRIAGE_QUICK_FIELDS, 'utama')}
             {renderFieldGrid(UTAMA_CORE_FIELDS, 'utama')}
             <div className="grid gap-[var(--ds-space-sm)] border-t border-dashed border-[var(--ds-color-border-strong)] pt-[var(--ds-space-md)]">
               <div className="text-[length:var(--ds-font-size-label)] font-semibold uppercase tracking-wide text-[var(--ds-color-text-muted)]">
@@ -832,21 +821,18 @@ export function IgdTriaseFormCard({
         )}
 
         <div className="flex items-center justify-end gap-[var(--ds-space-sm)]">
-          {activeSection === 'quick' ? (
-            <DesktopButton emphasis="secondary" onClick={() => onSectionChange('umum')}>
-              Lanjut Info Umum
-            </DesktopButton>
-          ) : null}
           {activeSection === 'umum' ? (
             <DesktopButton emphasis="secondary" onClick={() => onSectionChange('utama')}>
-              Lanjut Utama
+              Lanjut Triase
             </DesktopButton>
-          ) : null}
-          {!hasInlineSaveBanner ? (
-            <DesktopButton emphasis="primary" disabled={isSaveDisabled} onClick={onSave}>
-              Simpan Triase
+          ) : (
+            <DesktopButton emphasis="secondary" onClick={() => onSectionChange('umum')}>
+              Kembali Info Umum
             </DesktopButton>
-          ) : null}
+          )}
+          <DesktopButton emphasis="primary" disabled={isSaveDisabled} onClick={onSave}>
+            Simpan Triase
+          </DesktopButton>
         </div>
       </div>
     </DesktopCard>
