@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react'
-import { Card, Button, Input, Row, Col, Avatar, Divider, Space, Typography, Grid } from 'antd'
 import {
-  CheckCircleOutlined,
-  QrcodeOutlined,
-  PrinterOutlined,
   ArrowLeftOutlined,
+  CheckCircleOutlined,
+  PrinterOutlined,
+  QrcodeOutlined,
   SearchOutlined
 } from '@ant-design/icons'
+import { Avatar, Button, Card, Col, Divider, Grid, Input, Row, Space, Typography } from 'antd'
+import React, { useEffect, useState } from 'react'
 
 const { Title, Text } = Typography
 const { useBreakpoint } = Grid
@@ -22,7 +22,7 @@ interface ServiceCardProps {
 const ServiceCard: React.FC<ServiceCardProps> = ({ icon, name, desc, onClick, style }) => (
   <Card
     className="cursor-pointer transition-all hover:shadow-lg hover:scale-105"
-    style={{ ...style, borderRadius: 12, padding: 20 }}
+    style={{ ...(style as any), borderRadius: 12, padding: 20 }}
     onClick={onClick}
   >
     <div className="flex flex-col items-center gap-4">
@@ -199,7 +199,7 @@ const KioskMainCard: React.FC = () => {
   const renderRjPenjamin = () => (
     <div className="p-6 flex flex-col items-center justify-center">
       <Title level={4} className="text-center mb-2">
-        Siapa yang menanggung biaya?
+        Penjamin pasien
       </Title>
       <Text className="text-center mb-6">Pilih jenis penjamin untuk kunjungan hari ini</Text>
       <Row gutter={[16, 16]}>

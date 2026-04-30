@@ -200,7 +200,7 @@ const KioskMainCard: React.FC = () => {
   const renderRjPenjamin = () => (
     <div className="p-6 flex flex-col items-center justify-center">
       <Title level={4} className="text-center mb-2">
-        Siapa yang menanggung biaya?
+        Penjamin pasien
       </Title>
       <Text className="text-center mb-6">Pilih jenis penjamin untuk kunjungan hari ini</Text>
       <Row gutter={[16, 16]}>
