@@ -1150,7 +1150,7 @@ const PatientQueueTable = () => {
           }
           variant="borderless"
           styles={{
-            head: { padding: '12px 16px', minHeight: 0 },
+            header: { padding: '12px 16px', minHeight: 0 },
             body: { padding: '12px 16px' }
           }}
         >
