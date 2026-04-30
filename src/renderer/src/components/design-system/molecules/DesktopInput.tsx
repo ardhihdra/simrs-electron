@@ -1,4 +1,5 @@
 import { Input, Select } from 'antd'
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React from 'react'
 
 export type DesktopInputOption = {
@@ -7,7 +8,7 @@ export type DesktopInputOption = {
 }
 
 export interface DesktopInputProps {
-  type?: 'input' | 'textarea' | 'select'
+  type?: 'input' | 'textarea' | 'select' | 'date' | 'datetime-local'
   placeholder?: string
   value?: string
   options?: DesktopInputOption[]
@@ -59,6 +60,7 @@ export function DesktopInput({
 
   return (
     <Input
+      type={type === 'input' ? undefined : type}
       value={value}
       placeholder={placeholder}
       disabled={disabled}

@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import React from 'react'
 
 import { DesktopFormField } from './DesktopFormField'
@@ -10,7 +11,7 @@ export interface DesktopInputFieldProps {
   hint?: string
   error?: string
   required?: boolean
-  type?: 'input' | 'textarea' | 'select'
+  type?: 'input' | 'textarea' | 'select' | 'date' | 'datetime-local'
   placeholder?: string
   value?: string
   options?: DesktopInputFieldOption[]

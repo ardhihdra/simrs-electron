@@ -15,6 +15,7 @@ const createDraft = (): IgdRegistrationDraft => ({
   nik: '3201010101010001',
   birthDate: '1988-04-21',
   gender: 'L',
+  religion: 'Islam',
   phone: '081234567890',
   estimatedAge: '~50',
   arrivalDateTime: '2026-04-22T10:25',
@@ -91,6 +92,7 @@ test('buildIgdRegistrationCommand maps new patient mode to create-patient payloa
   assert.equal(payload.patientData?.name, 'Sutrisno Hadi')
   assert.equal(payload.patientData?.gender, 'male')
   assert.equal(payload.patientData?.birthDate, '1988-04-21')
+  assert.equal(payload.patientData?.religion, 'Islam')
   assert.equal(payload.patientData?.needEmr, true)
   assert.equal(payload.mitraId, 77)
   assert.equal(payload.guarantor?.name, 'Sri Wahyuni')

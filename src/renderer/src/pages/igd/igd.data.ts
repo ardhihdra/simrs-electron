@@ -102,6 +102,7 @@ export type IgdRegistrationDraft = {
   nik: string
   birthDate: string
   gender: 'L' | 'P' | '?'
+  religion: string
   phone: string
   estimatedAge: string
   arrivalDateTime: string
@@ -499,18 +500,24 @@ function buildGuarantor(draft: IgdRegistrationDraft) {
 export function getExistingPatientRelatedPersons(
   selectedPatient?: PatientAttributes
 ): IgdGuarantorRelatedPerson[] {
-  const raw = Array.isArray((selectedPatient as any)?.relatedPerson)
-    ? ((selectedPatient as any).relatedPerson as any[])
-    : []
+  const relatedPerson = (selectedPatient as (PatientAttributes & { relatedPerson?: unknown }) | undefined)
+    ?.relatedPerson
+  const raw = Array.isArray(relatedPerson) ? relatedPerson : []
 
   return raw
-    .map((person) => ({
-      name: String(person?.name ?? '').trim(),
-      phone: String(person?.phone ?? '').trim(),
-      relationship: String(person?.relationship ?? '').trim(),
-      email: person?.email ? String(person.email).trim() : undefined,
-      isGuarantor: person?.isGuarantor === true || undefined
-    }))
+    .map((person) => {
+      const row = person as Partial<
+        Record<'name' | 'phone' | 'relationship' | 'email' | 'isGuarantor', unknown>
+      >
+
+      return {
+        name: String(row.name ?? '').trim(),
+        phone: String(row.phone ?? '').trim(),
+        relationship: String(row.relationship ?? '').trim(),
+        email: row.email ? String(row.email).trim() : undefined,
+        isGuarantor: row.isGuarantor === true || undefined
+      }
+    })
     .filter((person) => person.name || person.phone || person.relationship || person.email)
 }
 
@@ -646,7 +653,7 @@ export function buildIgdRegistrationCommand({
       province: '',
       postalCode: '',
       country: 'ID',
-      religion: '',
+      religion: draft.religion.trim(),
       district: '',
       village: '',
       rt: '',

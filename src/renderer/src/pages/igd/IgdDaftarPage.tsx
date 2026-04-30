@@ -117,6 +117,11 @@ const formatCurrency = (value?: number | null) => {
     .replace(/\s/g, '')
 }
 
+const getPatientMedicalIdentifier = (patient: IgdDashboardPatient) =>
+  patient.isTemporaryPatient
+    ? patient.tempCode || '-'
+    : patient.medicalRecordNumber || '-'
+
 export function IgdDaftarPage({
   dashboard,
   selectedPatientId,
@@ -152,7 +157,7 @@ export function IgdDaftarPage({
             String(level) as keyof typeof dashboard.summary.triageCounts
           ]
       ),
-    [dashboard.summary.triageCounts]
+    [dashboard]
   )
 
   const columns = useMemo<ColumnsType<IgdDashboardPatient>>(
@@ -165,13 +170,6 @@ export function IgdDaftarPage({
         render: (value: string) => <span className="font-mono text-[12px]">{value}</span>
       },
       {
-        title: 'No. Rawat',
-        dataIndex: 'encounterCode',
-        key: 'encounterCode',
-        width: 164,
-        render: (value: string) => <span className="font-mono text-[12px]">{value}</span>
-      },
-      {
         title: 'Waktu Masuk',
         dataIndex: 'arrivalTime',
         key: 'arrivalTime',
@@ -179,18 +177,42 @@ export function IgdDaftarPage({
         render: (value: string) => <span className="font-mono text-[12px]">{value}</span>
       },
       {
+        title: 'Pasien & Keluhan',
+        key: 'patientSummary',
+        width: 308,
+        render: (_, patient) => (
+          <div className="igd-patient-identity-cell">
+            <div className="igd-patient-name-line">
+              <span className="igd-patient-name-text">{patient.name}</span>
+              <span className="igd-patient-age-text">{patient.ageLabel}</span>
+              <span className="igd-patient-gender-text">{patient.genderLabel}</span>
+              {patient.isTemporaryPatient ? (
+                <span className="igd-temp-tag">
+                  <DesktopTag tone="accent">Temp</DesktopTag>
+                </span>
+              ) : null}
+            </div>
+            <div className="igd-patient-code-line">
+              {getPatientMedicalIdentifier(patient)} - {patient.encounterCode}
+            </div>
+            <div className="igd-patient-complaint-line">{patient.complaint}</div>
+          </div>
+        )
+      },
+      {
         title: 'Dokter Dituju',
         dataIndex: 'doctorTargetName',
         key: 'doctorTargetName',
         width: 148,
         render: (_, patient) => (
-          <span className="text-[12px] text-[var(--ds-color-text)]">
+          <span className="igd-doctor-target-text text-[12px] text-[var(--ds-color-text)]">
             {patient.doctorTargetName || '—'}
           </span>
         )
       },
       {
         title: 'Rekam Medis',
+        hidden: true,
         key: 'medicalRecord',
         width: 132,
         render: (_, patient) => (
@@ -203,6 +225,7 @@ export function IgdDaftarPage({
       },
       {
         title: 'Nama Pasien',
+        hidden: true,
         key: 'name',
         width: 176,
         render: (_, patient) => (
@@ -210,18 +233,24 @@ export function IgdDaftarPage({
             <span className="text-[12px] font-semibold text-[var(--ds-color-text)]">
               {patient.name}
             </span>
-            {patient.isTemporaryPatient ? <DesktopTag tone="accent">Temp</DesktopTag> : null}
+            {patient.isTemporaryPatient ? (
+              <span className="igd-temp-tag">
+                <DesktopTag tone="accent">Temp</DesktopTag>
+              </span>
+            ) : null}
           </div>
         )
       },
       {
         title: 'Umur',
+        hidden: true,
         dataIndex: 'ageLabel',
         key: 'ageLabel',
         width: 72
       },
       {
         title: 'Jenis Kelamin',
+        hidden: true,
         dataIndex: 'genderLabel',
         key: 'genderLabel',
         width: 108
@@ -412,7 +441,7 @@ export function IgdDaftarPage({
               dataSource={patients}
               tableProps={{
                 className: 'igd-patient-table',
-                scroll: { x: 1560 },
+                scroll: { x: 1180 },
                 rowClassName: (record) =>
                   getTriageRowClassName(record, record.id === selectedPatient?.id),
                 onRow: (record) => ({
