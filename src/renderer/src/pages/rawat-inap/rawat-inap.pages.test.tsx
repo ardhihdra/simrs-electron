@@ -28,6 +28,7 @@ test('Rawat Inap admisi page renders the mockup sections and static form values'
   assert.equal(markup.includes('Essential hypertension'), false)
   assert.equal(markup.includes('Hipertensi tidak terkontrol'), false)
   assert.equal(markup.includes('dr. Andi Wijaya'), false)
+  assert.equal(markup.includes('Kelas Layanan'), true)
   assert.equal(markup.includes('Penempatan Kamar'), true)
   assert.equal(markup.includes('Simpan &amp; Proses Admisi'), true)
 })
@@ -138,7 +139,7 @@ test('Rawat Inap admisi page autofills diagnosis and guarantor from source encou
   assert.equal(source.includes('handleSourceEncounterChange(hydrationCandidate)'), true)
   assert.equal(source.includes('window.api?.query?.encounter?.read'), true)
   assert.equal(source.includes('window.api?.query?.condition?.getByEncounter'), true)
-  assert.equal(source.includes('window.api?.query?.patientInsurance?.listAll'), true)
+  assert.equal(source.includes('patientInsurance?.listAll'), true)
   assert.equal(
     source.includes('buildRawatInapAdmissionFormPatchFromSourceEncounter(hydratedEncounter)'),
     true
@@ -221,6 +222,26 @@ test('Rawat Inap patient list supports checkin-only mode for planned encounters'
   assert.equal(routeSource.includes('client.rawatInapAdmission.create.useMutation'), true)
   assert.equal(routeSource.includes('createInitialFormFromPatient'), true)
   assert.equal(routeSource.includes('patient.partOfEncounterType'), true)
+})
+
+test('Rawat Inap routes preserve registration rawat inap alias navigation', () => {
+  const admisiRouteSource = readFileSync(new URL('./RawatInapAdmisiRoute.tsx', import.meta.url), 'utf8')
+  const checkinRouteSource = readFileSync(new URL('./RawatInapCheckinRoute.tsx', import.meta.url), 'utf8')
+  const pasienRouteSource = readFileSync(new URL('./RawatInapPasienRoute.tsx', import.meta.url), 'utf8')
+
+  assert.equal(admisiRouteSource.includes('REGISTRATION_RAWAT_INAP_ROOT_PATH'), true)
+  assert.equal(admisiRouteSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien'), true)
+  assert.equal(checkinRouteSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien'), true)
+  assert.equal(pasienRouteSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.admisi'), true)
+})
+
+test('Dashboard uses registration rawat inap aliases for registration menu entries', () => {
+  const dashboardSource = readFileSync(new URL('../Dashboard.tsx', import.meta.url), 'utf8')
+
+  assert.equal(dashboardSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.admisi'), true)
+  assert.equal(dashboardSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.checkin'), true)
+  assert.equal(dashboardSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien'), true)
+  assert.equal(dashboardSource.includes('key: RAWAT_INAP_PAGE_PATHS.admisi'), false)
 })
 
 test('Rawat Inap bed map page renders backend-mapped patient detail', () => {

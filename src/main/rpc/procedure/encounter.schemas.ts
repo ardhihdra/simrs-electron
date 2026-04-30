@@ -31,6 +31,7 @@ const InpatientPatientListItemSchema = z.object({
   diagnosisSummary: z.string().nullable(),
   admissionDateTime: z.string().nullable(),
   indication: z.string().nullable().optional(),
+  classCodeId: z.string().nullable().optional(),
   classOfCareCodeId: z.string().nullable().optional(),
   losDays: z.number(),
   paymentLabel: z.string().nullable(),

@@ -10,7 +10,8 @@ import {
   createRawatInapAdmissionPatientPatchFromSourceEncounter,
   formatRawatInapSourceEncounterLabel,
   pickRawatInapAdmissionPatientInsurance,
-  mergeRawatInapAdmissionInsuranceFormValues
+  mergeRawatInapAdmissionInsuranceFormValues,
+  toRawatInapAdmissionClassCodeOptions
 } from './rawat-inap.admisi'
 
 test('createDefaultRawatInapAdmissionForm does not prefill clinical dummy values', () => {
@@ -20,6 +21,21 @@ test('createDefaultRawatInapAdmissionForm does not prefill clinical dummy values
   assert.equal(form.diagnosisCode, '')
   assert.equal(form.diagnosisText, '')
   assert.equal(form.indication, '')
+})
+
+test('toRawatInapAdmissionClassCodeOptions maps reference code rows to service class options', () => {
+  const options = toRawatInapAdmissionClassCodeOptions({
+    success: true,
+    result: [
+      { id: 'ref-class-1', code: 'CLASS_1', display: 'Kelas 1' },
+      { id: 'ref-vip', code: 'VIP', display: 'VIP' }
+    ]
+  })
+
+  assert.deepEqual(options, [
+    { value: 'ref-class-1', code: 'KELAS_1', label: 'Kelas 1' },
+    { value: 'ref-vip', code: 'VIP', label: 'VIP' }
+  ])
 })
 
 test('buildRawatInapAdmissionCommand maps form state to backend command', () => {
@@ -38,6 +54,7 @@ test('buildRawatInapAdmissionCommand maps form state to backend command', () => 
     diagnosisCode: 'I10',
     diagnosisText: 'Essential hypertension',
     indication: 'Perlu rawat inap',
+    classCodeId: 'ref-class-1',
     selectedBedId: 'bed-1'
   }
 
@@ -73,7 +90,8 @@ test('buildRawatInapAdmissionCommand maps form state to backend command', () => 
     placement: {
       roomCodeId: 'room-melati-302',
       bedCodeId: 'bed-1',
-      classOfCareCodeId: 'KELAS_1'
+      classOfCareCodeId: 'KELAS_1',
+      classCodeId: 'ref-class-1'
     }
   })
 })

@@ -20,6 +20,12 @@ export type RawatInapAdmissionClassOption = {
   availableBeds: number
 }
 
+export type RawatInapAdmissionClassCodeOption = {
+  value: string
+  code: string
+  label: string
+}
+
 export type RawatInapAdmissionMitraOption = {
   value: number
   label: string
@@ -63,6 +69,7 @@ export type RawatInapAdmissionFormState = {
   diagnosisCode: string
   diagnosisText: string
   indication: string
+  classCodeId: string
   selectedClassOfCareCodeId: string
   selectedBedId: string
 }
@@ -199,6 +206,7 @@ export function createDefaultRawatInapAdmissionForm(): RawatInapAdmissionFormSta
     diagnosisCode: '',
     diagnosisText: '',
     indication: '',
+    classCodeId: '',
     selectedClassOfCareCodeId: '',
     selectedBedId: ''
   }
@@ -277,6 +285,26 @@ const pickRows = (payload: unknown): any[] => {
   }
 
   return []
+}
+
+export function toRawatInapAdmissionClassCodeOptions(
+  payload: unknown
+): RawatInapAdmissionClassCodeOption[] {
+  const map = new Map<string, RawatInapAdmissionClassCodeOption>()
+
+  for (const row of pickRows(payload)) {
+    const id = toOptionalFormString(row?.id)
+    const normalizedCode = normalizeRawatInapClassCode(row?.code)
+    if (!id || !normalizedCode || map.has(id)) continue
+
+    map.set(id, {
+      value: id,
+      code: normalizedCode,
+      label: toOptionalFormString(row?.display) ?? formatRawatInapClassLabel(normalizedCode)
+    })
+  }
+
+  return Array.from(map.values())
 }
 
 const toOptionalNumber = (value: unknown) => {
@@ -491,6 +519,7 @@ export function buildRawatInapAdmissionCommand(
     ? Number(form.patientInsuranceId)
     : undefined
   const admissionDateTime = new Date(`${form.admissionDate}T00:00:00.000Z`).toISOString()
+  const classCodeId = form.classCodeId.trim()
 
   const command: CreateRawatInapAdmissionInput = {
     patientId: form.patientId.trim(),
@@ -511,7 +540,8 @@ export function buildRawatInapAdmissionCommand(
     placement: {
       roomCodeId: selectedBed.roomId,
       bedCodeId: selectedBed.bedId,
-      classOfCareCodeId: selectedBed.classOfCareCodeId
+      classOfCareCodeId: selectedBed.classOfCareCodeId,
+      ...(classCodeId ? { classCodeId } : {})
     }
   }
 

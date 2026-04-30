@@ -118,7 +118,10 @@ import RawatInapAdmisiRoute from './pages/rawat-inap/RawatInapAdmisiRoute'
 import RawatInapCheckinRoute from './pages/rawat-inap/RawatInapCheckinRoute'
 import RawatInapPasienRoute from './pages/rawat-inap/RawatInapPasienRoute'
 import RawatInapTransferRoute from './pages/rawat-inap/RawatInapTransferRoute'
-import { RAWAT_INAP_PAGE_PATHS } from './pages/rawat-inap/rawat-inap.config'
+import {
+  RAWAT_INAP_PAGE_PATHS,
+  REGISTRATION_RAWAT_INAP_PAGE_PATHS
+} from './pages/rawat-inap/rawat-inap.config'
 import ServiceRequest from './pages/service-request/ServiceRequest'
 import ServiceRequestForm from './pages/service-request/service-request-form'
 import ServiceRequestTable from './pages/service-request/service-request-table'
@@ -234,6 +237,18 @@ function MainRoute() {
             <Route path="triage" element={<InitialTriage />} />
             <Route path="active-encounters" element={<ActiveEncountersPage />} />
             <Route path="laporan-kunjungan" element={<LaporanKunjunganPage />} />
+            <Route
+              path="rawat-inap/admisi"
+              element={g(REGISTRATION_RAWAT_INAP_PAGE_PATHS.admisi, <RawatInapAdmisiRoute />)}
+            />
+            <Route
+              path="rawat-inap/checkin"
+              element={g(REGISTRATION_RAWAT_INAP_PAGE_PATHS.checkin, <RawatInapCheckinRoute />)}
+            />
+            <Route
+              path="rawat-inap/pasien"
+              element={g(REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien, <RawatInapPasienRoute />)}
+            />
           </Route>
           <Route path="patient" element={g('/dashboard/patient', <Patient />)}>
             <Route index element={<PatientTable />} />

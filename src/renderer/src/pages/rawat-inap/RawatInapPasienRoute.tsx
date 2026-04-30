@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { App } from 'antd'
+import { useLocation, useNavigate } from 'react-router'
 
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
@@ -7,6 +8,11 @@ import { client } from '../../utils/client'
 import type { InpatientPatientListQuery } from '../../../../main/rpc/procedure/encounter.schemas'
 import type { DesktopDispositionConfirmPayload } from '../../components/design-system/organisms/DesktopDispositionWorkflow'
 import { RawatInapPasienPage } from './RawatInapPasienPage'
+import {
+  RAWAT_INAP_PAGE_PATHS,
+  REGISTRATION_RAWAT_INAP_PAGE_PATHS,
+  REGISTRATION_RAWAT_INAP_ROOT_PATH
+} from './rawat-inap.config'
 
 void React
 
@@ -17,8 +23,13 @@ const DEFAULT_QUERY: InpatientPatientListQuery = {
 }
 
 export default function RawatInapPasienRoute() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { message } = App.useApp()
   const [queryParams, setQueryParams] = useState<InpatientPatientListQuery>(DEFAULT_QUERY)
+  const admisiPath = location.pathname.startsWith(REGISTRATION_RAWAT_INAP_ROOT_PATH)
+    ? REGISTRATION_RAWAT_INAP_PAGE_PATHS.admisi
+    : RAWAT_INAP_PAGE_PATHS.admisi
 
   const query = client.encounter.inpatientPatients.useQuery(queryParams)
   const dischargeEncounterMutation = client.visitManagement.dischargeEncounter.useMutation({
@@ -64,6 +75,7 @@ export default function RawatInapPasienRoute() {
       queryParams={queryParams}
       statusCounts={query.data?.statusCounts}
       onQueryChange={handleQueryChange}
+      onOpenAdmisi={() => navigate(admisiPath)}
       isDispositionSubmitting={dischargeEncounterMutation.isPending}
       onDispositionConfirm={async (patient, payload: DesktopDispositionConfirmPayload) => {
         await dischargeEncounterMutation.mutateAsync({

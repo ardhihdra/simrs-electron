@@ -33,7 +33,8 @@ const CreateRawatInapAdmissionInputSchema = z.object({
   placement: z.object({
     roomCodeId: z.string().min(1),
     bedCodeId: z.string().min(1),
-    classOfCareCodeId: z.string().min(1)
+    classOfCareCodeId: z.string().min(1),
+    classCodeId: z.string().optional().nullable()
   })
 })
 
