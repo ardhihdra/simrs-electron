@@ -1,6 +1,7 @@
 import {
   CheckCircleOutlined,
   DeploymentUnitOutlined,
+  FileSearchOutlined,
   SwapOutlined,
   TeamOutlined,
   UserAddOutlined,
@@ -21,6 +22,7 @@ export const RAWAT_INAP_PAGE_PATHS = {
   transfer: `${RAWAT_INAP_ROOT_PATH}/transfer`,
   checkin: `${RAWAT_INAP_ROOT_PATH}/checkin`,
   pasien: `${RAWAT_INAP_ROOT_PATH}/pasien`,
+  borLosToi: `${RAWAT_INAP_ROOT_PATH}/bor-los-toi`,
 } as const
 
 export const REGISTRATION_RAWAT_INAP_PAGE_PATHS = {
@@ -71,6 +73,11 @@ export const RAWAT_INAP_DASHBOARD_ITEM: RawatInapDashboardItem = {
       label: 'Daftar Pasien',
       key: RAWAT_INAP_PAGE_PATHS.pasien,
       icon: <TeamOutlined />
+    },
+    {
+      label: 'Laporan BOR / LOS / TOI',
+      key: RAWAT_INAP_PAGE_PATHS.borLosToi,
+      icon: <FileSearchOutlined />
     }
   ]
 }

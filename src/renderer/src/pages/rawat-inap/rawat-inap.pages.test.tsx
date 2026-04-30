@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 
 import { RawatInapAdmisiPage } from './RawatInapAdmisiPage.tsx'
 import { RawatInapBedMapPage } from './RawatInapBedMapPage.tsx'
+import { RawatInapBorLosToiPage } from './RawatInapBorLosToiPage.tsx'
 import { RawatInapTransferPage } from './RawatInapTransferPage.tsx'
 import {
   createRawatInapInitialState,
@@ -190,6 +191,64 @@ test('Rawat Inap transfer page renders source and destination cards', () => {
   assert.equal(markup.includes('Ke (Tujuan Transfer)'), true)
 })
 
+test('Rawat Inap BOR LOS TOI page renders summary, ward table, DPJP table, and trend without bottom notes', () => {
+  const markup = renderToStaticMarkup(
+    <RawatInapBorLosToiPage
+      report={{
+        generatedAt: '2026-04-10T12:00:00.000Z',
+        period: { fromDate: '2026-04-01', toDate: '2026-04-10', dayCount: 10 },
+        summary: {
+          bor: 84.2,
+          alos: 4.3,
+          toi: null,
+          bto: 5.4,
+          totalAdmissions: 127,
+          discharges: 0,
+          totalBeds: 150,
+          occupiedBeds: 126
+        },
+        wards: [
+          {
+            wardName: 'Melati',
+            classLabel: 'Kelas 1',
+            bor: 83.3,
+            alos: 4.1,
+            toi: 0.8,
+            bto: 5.2,
+            occupiedBeds: 20,
+            totalBeds: 24,
+            discharges: 12
+          }
+        ],
+        dpjpRows: [
+          {
+            dpjpName: 'dr. Andi Wijaya, Sp.PD',
+            patientCount: 14,
+            averageLos: 3.8,
+            procedureCount: null
+          }
+        ],
+        dailyBorTrend: [
+          { date: '2026-04-01', dayLabel: '1', bor: 82 },
+          { date: '2026-04-02', dayLabel: '2', bor: 83 }
+        ],
+        notes: ['TOI belum bisa dihitung karena belum ada pasien keluar pada periode yang dipilih.']
+      }}
+      loading={false}
+    />
+  )
+
+  assert.equal(markup.includes('Laporan BOR / LOS / TOI'), true)
+  assert.equal(markup.includes('Rekapitulasi kinerja rawat inap'), true)
+  assert.equal(markup.includes('BOR RS'), true)
+  assert.equal(markup.includes('84.2%'), true)
+  assert.equal(markup.includes('BOR per Bangsal'), true)
+  assert.equal(markup.includes('Kinerja per DPJP'), true)
+  assert.equal(markup.includes('Tren BOR Harian'), true)
+  assert.equal(markup.includes('Catatan Data'), false)
+  assert.equal(markup.includes('TOI belum bisa dihitung'), false)
+})
+
 test('Rawat Inap patient list uses disposition action for active inpatient encounters', () => {
   const source = readFileSync(new URL('./RawatInapPasienPage.tsx', import.meta.url), 'utf8')
 
@@ -242,6 +301,15 @@ test('Dashboard uses registration rawat inap aliases for registration menu entri
   assert.equal(dashboardSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.checkin'), true)
   assert.equal(dashboardSource.includes('REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien'), true)
   assert.equal(dashboardSource.includes('key: RAWAT_INAP_PAGE_PATHS.admisi'), false)
+})
+
+test('Dashboard rawat inap menu and routes include BOR LOS TOI report', () => {
+  const dashboardSource = readFileSync(new URL('../Dashboard.tsx', import.meta.url), 'utf8')
+  const routeSource = readFileSync(new URL('../../route.tsx', import.meta.url), 'utf8')
+
+  assert.equal(dashboardSource.includes('RAWAT_INAP_DASHBOARD_ITEM.children'), true)
+  assert.equal(routeSource.includes('RawatInapBorLosToiRoute'), true)
+  assert.equal(routeSource.includes('RAWAT_INAP_PAGE_PATHS.borLosToi'), true)
 })
 
 test('Rawat Inap bed map page renders backend-mapped patient detail', () => {

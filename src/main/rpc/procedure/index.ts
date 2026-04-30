@@ -1,7 +1,8 @@
 import { authRpc } from './auth'
 import { encounterRpc } from './encounter'
-import { igdRpc } from './igd'
 import { applicationConfigRpc } from './application-config'
+import { igdRpc } from './igd'
+import { inpatientReportingRpc } from './inpatient-reporting'
 import { kasirRpc } from './kasir'
 import { outpatientReportingRpc } from './outpatient-reporting'
 import { kioskaPublicRpc } from './kioska-public'
@@ -47,7 +48,8 @@ export const rpcRouter = {
   pageAccess: pageAccessRpc,
   kasir: kasirRpc,
   billing: billingRpc,
-  outpatientReporting: outpatientReportingRpc
+  outpatientReporting: outpatientReportingRpc,
+  inpatientReporting: inpatientReportingRpc
 }
 
 export type AppRouter = typeof rpcRouter

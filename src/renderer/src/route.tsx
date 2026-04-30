@@ -116,6 +116,7 @@ import QueueList from './pages/queue/queue-list'
 import RawatInapBedMapRoute from './pages/rawat-inap/RawatInapBedMapRoute'
 import RawatInapAdmisiRoute from './pages/rawat-inap/RawatInapAdmisiRoute'
 import RawatInapCheckinRoute from './pages/rawat-inap/RawatInapCheckinRoute'
+import RawatInapBorLosToiRoute from './pages/rawat-inap/RawatInapBorLosToiRoute'
 import RawatInapPasienRoute from './pages/rawat-inap/RawatInapPasienRoute'
 import RawatInapTransferRoute from './pages/rawat-inap/RawatInapTransferRoute'
 import {
@@ -410,6 +411,10 @@ function MainRoute() {
             <Route
               path="pasien"
               element={g(RAWAT_INAP_PAGE_PATHS.pasien, <RawatInapPasienRoute />)}
+            />
+            <Route
+              path="bor-los-toi"
+              element={g(RAWAT_INAP_PAGE_PATHS.borLosToi, <RawatInapBorLosToiRoute />)}
             />
           </Route>
           <Route path="igd" element={g('/dashboard/igd', <Outlet />)}>
