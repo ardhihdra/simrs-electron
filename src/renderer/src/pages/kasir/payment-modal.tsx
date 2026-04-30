@@ -19,6 +19,7 @@ interface PaymentModalProps {
     encounterId?: string
     patientId?: string
     remaining: number
+    invoiceTotal: number
     onCancel: () => void
     onSuccess: () => void
 }
@@ -30,7 +31,7 @@ interface MasterBank {
     accountHolder: string
 }
 
-export function PaymentModal({ open, invoiceId, encounterId, patientId, remaining, onCancel, onSuccess }: PaymentModalProps) {
+export function PaymentModal({ open, invoiceId, encounterId, patientId, remaining, invoiceTotal, onCancel, onSuccess }: PaymentModalProps) {
     const [form] = Form.useForm()
     const [loading, setLoading] = useState(false)
     const [fileList, setFileList] = useState<UploadFile[]>([])
@@ -39,6 +40,8 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
     const paymentMethod = Form.useWatch('paymentMethod', form)
     const amount = Form.useWatch('amount', form) || 0
     const change = Math.max(0, amount - remaining)
+
+    const initialCategory = undefined
 
     const { data: banksData } = useQuery({
         queryKey: ['kasir-banks'],
@@ -63,13 +66,14 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
     }
 
     const handleOk = async () => {
-        if (!invoiceId) {
-            message.error('Invoice belum tersedia')
+        console.log('[PaymentModal] handleOk called', { invoiceId, encounterId, patientId })
+        if (!invoiceId && (!encounterId || !patientId)) {
+            message.error('Data transaksi (Invoice/Encounter) tidak lengkap')
             return
         }
         try {
-            const values = await form.validateFields()
             setLoading(true)
+            const values = await form.validateFields()
             
             let file: ArrayBuffer | undefined
             let filename: string | undefined
@@ -90,6 +94,7 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
                 bankId: values.bankId,
                 ref: values.ref ?? undefined,
                 note: values.note ?? undefined,
+                category: values.category,
                 file,
                 filename,
                 mimetype,
@@ -111,6 +116,10 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
             setLoading(false)
         }
     }
+
+    // Watch values for logic
+    const watchCategory = Form.useWatch('category', form)
+    const isDeposit = watchCategory === 'INITIAL_DEPOSIT' || watchCategory === 'SUBSEQUENT_DEPOSIT'
 
     return (
         <Modal
@@ -137,19 +146,46 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
         >
             {/* Header: Sisa Tagihan */}
             <div style={{ 
-                background: '#f1f5f9', 
+                background: isDeposit ? '#ecfdf5' : '#f1f5f9', 
                 padding: '12px', 
                 borderRadius: '8px', 
                 marginBottom: '20px',
                 textAlign: 'center'
             }}>
-                <div style={{ color: '#64748b', fontSize: '0.85rem' }}>Sisa Tagihan</div>
-                <div style={{ color: '#0f172a', fontSize: '1.5rem', fontWeight: 700 }}>
+                <div style={{ color: '#64748b', fontSize: '0.85rem' }}>
+                    {isDeposit ? 'Deposit Sebelumnya' : 'Sisa Tagihan'}
+                </div>
+                <div style={{ color: isDeposit ? '#059669' : '#0f172a', fontSize: '1.5rem', fontWeight: 700 }}>
                     {formatRupiah(remaining)}
                 </div>
             </div>
 
-            <Form form={form} layout="vertical" initialValues={{ paymentMethod: 'CASH', amount: remaining }}>
+            <Form 
+                form={form} 
+                layout="vertical" 
+                initialValues={{ 
+                    paymentMethod: 'CASH', 
+                    amount: (remaining > 0 && !isDeposit) ? remaining : undefined, 
+                    category: initialCategory 
+                }}
+            >
+                <Form.Item
+                    name="category"
+                    label="Tipe Pembayaran / Deposit"
+                    rules={[{ required: true, message: 'Pilih tipe pembayaran' }]}
+                    style={{ marginBottom: '12px' }}
+                >
+                    <Select
+                        size="large"
+                        placeholder="Pilih tipe..."
+                        options={[
+                            { label: 'Pelunasan (Settlement)', value: 'SETTLEMENT' },
+                            { label: 'Deposit Awal', value: 'INITIAL_DEPOSIT' },
+                            { label: 'Deposit Lanjutan', value: 'SUBSEQUENT_DEPOSIT' },
+                        ]}
+                    />
+                </Form.Item>
+
                 <Form.Item
                     name="paymentMethod"
                     label="Metode Pembayaran"
@@ -186,7 +222,7 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
 
                 <Form.Item
                     name="amount"
-                    label="Jumlah Uang Diterima (Rp)"
+                    label={isDeposit ? "Nominal Deposit (Rp)" : "Jumlah Uang Diterima (Rp)"}
                     rules={[
                         { required: true, message: 'Wajib diisi' },
                         {
@@ -201,12 +237,13 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
                         style={{ width: '100%', height: '45px', fontSize: '1.2rem', display: 'flex', alignItems: 'center' }}
                         size="large"
                         min={1}
+                        placeholder="0"
                         formatter={(v) => `${v}`.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}
                         parser={(v) => Number(v!.replace(/\./g, '')) as any}
                     />
                 </Form.Item>
 
-                {paymentMethod === 'CASH' && amount > remaining && (
+                {paymentMethod === 'CASH' && amount > remaining && !isDeposit && (
                     <div style={{ marginBottom: '20px', marginTop: '-12px' }}>
                         <Alert 
                             message={

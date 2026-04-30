@@ -126,9 +126,13 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
       registrationChannelCodeId: z.string().optional(),
       assuranceCodeId: z.string().optional(),
       paymentMethod: z.string().optional().nullable(),
+      patientInsuranceId: z.union([z.string(), z.number()]).optional().nullable(),
       mitraId: z.number().optional().nullable(),
+      mitraCodeNumber: z.string().optional().nullable(),
+      mitraCodeExpiredDate: z.string().optional().nullable(),
       practitionerId: z.union([z.string(), z.number()]).nullable().optional(),
       formattedQueueNumber: z.string().optional().nullable(),
+      patientInsurance: z.any().optional().nullable(),
       poli: z
         .object({
           id: z.number().optional(),
@@ -141,6 +145,18 @@ const EncounterWithRelationsSchema = EncounterSchemaWithId.extend({
     })
     .nullable()
     .optional(),
+  paymentMethod: z.string().optional().nullable(),
+  patientInsuranceId: z.union([z.string(), z.number()]).optional().nullable(),
+  patientInsurance: z.any().optional().nullable(),
+  sep: z
+    .object({
+      noSep: z.string().optional().nullable(),
+      noKartu: z.string().optional().nullable(),
+      noRujukan: z.string().optional().nullable()
+    })
+    .passthrough()
+    .optional()
+    .nullable(),
   satuSehatSyncStatus: SatuSehatSyncStatusSchema,
   invoiceStatus: z.string().nullable().optional(),
   total: z.number().nullable().optional(),

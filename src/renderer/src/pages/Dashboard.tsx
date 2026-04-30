@@ -2,6 +2,7 @@ import {
   AlertOutlined,
   BarcodeOutlined,
   CalendarOutlined,
+  CheckCircleOutlined,
   CameraOutlined,
   DashboardOutlined,
   ExperimentOutlined,
@@ -14,6 +15,7 @@ import {
   PhoneOutlined,
   RightCircleFilled,
   UnorderedListOutlined,
+  UserAddOutlined,
   UserOutlined,
   WalletOutlined
 } from '@ant-design/icons'
@@ -29,7 +31,10 @@ import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 import { IGD_DASHBOARD_ITEM, IGD_ROOT_PATH } from '@renderer/pages/igd/igd.config'
 import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
-import { RAWAT_INAP_DASHBOARD_ITEM } from '@renderer/pages/rawat-inap/rawat-inap.config'
+import {
+  RAWAT_INAP_DASHBOARD_ITEM,
+  RAWAT_INAP_PAGE_PATHS
+} from '@renderer/pages/rawat-inap/rawat-inap.config'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
@@ -82,6 +87,7 @@ type DashboardMenuChild = {
   key: string
   icon: ReactNode
   badge?: ReactNode
+  hiddenForRoles?: string[]
 }
 
 type DashboardMenuItem = DashboardMenuChild & {
@@ -172,6 +178,18 @@ const items: DashboardMenuItem[] = [
         label: 'Antrian Global Pendaftaran',
         key: '/dashboard/registration/global-queue',
         icon: <UnorderedListOutlined />
+      },
+      {
+        label: 'Admisi Baru Rawat Inap',
+        key: RAWAT_INAP_PAGE_PATHS.admisi,
+        icon: <UserAddOutlined />,
+        hiddenForRoles: ['doctor', 'nurse']
+      },
+      {
+        label: 'Checkin Rawat Inap',
+        key: RAWAT_INAP_PAGE_PATHS.checkin,
+        icon: <CheckCircleOutlined />,
+        hiddenForRoles: ['doctor', 'nurse']
       },
       {
         label: 'Antrian Pendaftaran Non-Medis',
@@ -407,6 +425,11 @@ const filterChildrenBySession = (
   if (!session) return []
 
   return children.filter((child) => {
+    const role = String(session.hakAksesId ?? '').toLowerCase()
+    if (child.hiddenForRoles?.some((hiddenRole) => hiddenRole.toLowerCase() === role)) {
+      return false
+    }
+
     const access = pageAccessMap[child.key]
     if (isPageNotRegistered(access)) {
       console.error('page not registered! please register to PageAccount seeder', child, access)

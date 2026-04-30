@@ -38,10 +38,66 @@ import { getSyncSummary } from '@renderer/utils/satu-sehat'
 import { SatuSehatSyncStatus } from '@renderer/types/satu-sehat'
 import { SyncPopoverContent } from './components/sync-popover-content'
 import { useSearchParams } from 'react-router'
-import DischargeModal from '@renderer/components/organisms/visit-management/DischargeModal'
 import { client } from '@renderer/utils/client'
+import {
+  DesktopDispositionWorkflow,
+  type DesktopDispositionConfirmPayload,
+  type DesktopDispositionOption
+} from '../../components/design-system/organisms/DesktopDispositionWorkflow'
+import { ReferralForm } from '../../components/organisms/ReferralForm'
 
 const { RangePicker } = DatePicker
+
+type DoctorListDischargeDisposition = 'home' | 'other-hcf' | 'exp' | 'aadvice'
+
+const DOCTOR_LIST_DISPOSITION_OPTIONS: DesktopDispositionOption[] = [
+  {
+    key: 'pulang',
+    label: 'Pulang',
+    subtitle: 'Pulang ke rumah',
+    dischargeDisposition: 'home',
+    color: 'var(--ds-color-success)',
+    softColor: 'color-mix(in srgb, var(--ds-color-success) 10%, white)',
+    tone: 'success'
+  },
+  {
+    key: 'rujuk-e',
+    label: 'Rujuk',
+    subtitle: 'Ke fasilitas kesehatan lain',
+    dischargeDisposition: 'other-hcf',
+    color: 'var(--ds-color-violet)',
+    softColor: 'var(--ds-color-violet-soft)',
+    tone: 'violet'
+  },
+  {
+    key: 'meninggal',
+    label: 'Meninggal',
+    subtitle: 'Pasien dinyatakan meninggal',
+    dischargeDisposition: 'exp',
+    color: 'var(--ds-color-text-subtle)',
+    softColor: 'var(--ds-color-surface-muted)',
+    tone: 'neutral'
+  },
+  {
+    key: 'paksa',
+    label: 'Pulang Paksa',
+    subtitle: 'Atas permintaan sendiri (APS)',
+    dischargeDisposition: 'aadvice',
+    color: 'var(--ds-color-warning)',
+    softColor: 'color-mix(in srgb, var(--ds-color-warning) 12%, white)',
+    tone: 'warning'
+  }
+]
+
+const DOCTOR_LIST_DISPOSITION_BANNER_META = {
+  label: 'DR',
+  name: 'Dokter',
+  colorName: 'EMR',
+  badgeTone: 'accent' as const,
+  background: 'var(--ds-color-accent-soft)',
+  borderColor: 'var(--ds-color-accent)',
+  color: 'var(--ds-color-accent)'
+}
 
 interface PatientListTableData {
   no: number
@@ -68,6 +124,7 @@ interface PatientListTableData {
     status: string
     poli?: { id: number; name: string; location: string }
     practitioner?: { id: number; namaLengkap: string; nik: string }
+    paymentMethod?: string
   }
   poli: { name: string }
   status: string
@@ -97,6 +154,18 @@ const parseQueueNumber = (value?: number | string) => {
   const parsed = Number.parseInt(String(value ?? '0'), 10)
   return Number.isFinite(parsed) ? parsed : 0
 }
+const getEncounterTypeLabel = (type?: string) => {
+  if (type === 'IMP') return 'Rawat Inap'
+  if (type === 'EMER') return 'IGD'
+  return 'Rawat Jalan'
+}
+const getGenderLabel = (gender?: 'male' | 'female') => {
+  if (gender === 'male') return 'Laki-laki'
+  if (gender === 'female') return 'Perempuan'
+  return '-'
+}
+const formatVisitDate = (value?: string) =>
+  value ? dayjs(value).format('DD MMM YYYY, HH:mm') : '-'
 
 export const DoctorPatientList = () => {
   const { modal: appModal } = App.useApp()
@@ -109,12 +178,7 @@ export const DoctorPatientList = () => {
   const [activeStatus, setActiveStatus] = useState<string>('IN_PROGRESS')
   const [isBulkSyncing, setIsBulkSyncing] = useState(false)
   const [syncingRows, setSyncingRows] = useState<Record<string, boolean>>({})
-  const [dischargeModal, setDischargeModal] = useState<{
-    open: boolean
-    record?: { patientName: string; encounterId: string }
-  }>({
-    open: false
-  })
+  const [dispositionRecord, setDispositionRecord] = useState<PatientListTableData | null>(null)
   const isDoctorRole = session?.hakAksesId === 'doctor'
   const isAdministrator = session?.hakAksesId === 'administrator'
   const doctorTargetId =
@@ -127,6 +191,7 @@ export const DoctorPatientList = () => {
   //   return profile?.username || (doctorTargetId ? `ID ${doctorTargetId}` : 'Tidak Diketahui')
   // }, [doctorTargetId, isDoctorRole, profile?.username])
   const updateStatusMutation = client.registration.updateQueueStatus.useMutation()
+  const dischargeEncounterMutation = client.registration.dischargeEncounter.useMutation()
   const { data: poliData, isLoading: isPoliLoading } = client.visitManagement.poli.useQuery({})
   const scopedPolis = useMemo(() => {
     const allPolis = poliData?.result ?? []
@@ -320,13 +385,28 @@ export const DoctorPatientList = () => {
       return
     }
 
-    setDischargeModal({
-      open: true,
-      record: {
-        patientName: record.patient?.name || '-',
-        encounterId: record.encounterId
-      }
-    })
+    setDispositionRecord(record)
+  }
+
+  const handleDispositionBack = () => {
+    setDispositionRecord(null)
+  }
+
+  const handleDispositionConfirm = async (payload: DesktopDispositionConfirmPayload) => {
+    if (!dispositionRecord) return
+
+    try {
+      await dischargeEncounterMutation.mutateAsync({
+        id: dispositionRecord.encounterId,
+        dischargeDisposition: payload.dischargeDisposition as DoctorListDischargeDisposition,
+        dischargeNote: payload.note || undefined
+      })
+      message.success('Pemeriksaan berhasil diselesaikan')
+      setDispositionRecord(null)
+      refetch()
+    } catch (error: any) {
+      message.error(error.message || 'Gagal menyelesaikan pemeriksaan')
+    }
   }
 
   const handleBulkSyncSatusehat = async () => {
@@ -808,6 +888,95 @@ export const DoctorPatientList = () => {
     }
   })
 
+  if (dispositionRecord) {
+    const paymentMethod = dispositionRecord.queueTicket?.paymentMethod || '-'
+    const encounterTypeLabel = getEncounterTypeLabel(dispositionRecord.encounterType)
+    const visitDate = formatVisitDate(dispositionRecord.visitDate)
+
+    return (
+      <div className="h-full overflow-auto px-4 py-4">
+        <DesktopDispositionWorkflow
+          patient={{
+            name: dispositionRecord.patient?.name || '-',
+            registrationNumber: dispositionRecord.encounterId,
+            ageLabel:
+              typeof dispositionRecord.patient?.age === 'number'
+                ? `${dispositionRecord.patient.age} th`
+                : '-',
+            paymentLabel: paymentMethod,
+            statusLabel: `Encounter ${encounterTypeLabel}`
+          }}
+          bannerMeta={DOCTOR_LIST_DISPOSITION_BANNER_META}
+          summaryItems={[
+            { label: 'Encounter', value: dispositionRecord.encounterId, mono: true },
+            {
+              label: 'No. RM',
+              value: dispositionRecord.patient?.medicalRecordNumber || '-',
+              mono: true
+            },
+            {
+              label: 'Umur',
+              value:
+                typeof dispositionRecord.patient?.age === 'number'
+                  ? `${dispositionRecord.patient.age} tahun`
+                  : '-'
+            },
+            { label: 'Jenis Kelamin', value: getGenderLabel(dispositionRecord.patient?.gender) },
+            { label: 'Tipe Kunjungan', value: encounterTypeLabel },
+            { label: 'Poli', value: dispositionRecord.poli?.name || '-' },
+            {
+              label: 'Dokter',
+              value: dispositionRecord.queueTicket?.practitioner?.namaLengkap || '-'
+            },
+            { label: 'Tanggal Kunjungan', value: visitDate, mono: true },
+            { label: 'Penjamin', value: paymentMethod }
+          ]}
+          options={DOCTOR_LIST_DISPOSITION_OPTIONS}
+          breadcrumbItems={['Dokter', 'Daftar Antrian & Kunjungan']}
+          title="Disposisi Pemeriksaan"
+          resumeDocumentLabel="Resume Medis"
+          backendNote="Detail field mockup seperti instruksi DPJP, obat pulang, penyebab kematian, dan data klinis tambahan sebagian besar masih UI; yang dikirim dari disposisi umum baru dischargeDisposition dan dischargeNote."
+          dischargeStatusDispositionMap={{
+            sembuh: 'home',
+            rujuk: 'other-hcf',
+            meninggal: 'exp'
+          }}
+          renderReferralForm={() => (
+            <ReferralForm
+              encounterId={dispositionRecord.encounterId}
+              patientId={dispositionRecord.patient?.id}
+              variant="embedded"
+              showHistory={false}
+              title="Buat Rujukan"
+              submitLabel="Buat Rujukan & Selesaikan Pemeriksaan"
+              patientData={{
+                patient: {
+                  id: dispositionRecord.patient?.id,
+                  name: dispositionRecord.patient?.name,
+                  medicalRecordNumber: dispositionRecord.patient?.medicalRecordNumber
+                },
+                doctor: {
+                  name: dispositionRecord.queueTicket?.practitioner?.namaLengkap
+                }
+              }}
+              onSuccess={async () => {
+                await handleDispositionConfirm({
+                  type: 'rujuk-e',
+                  dischargeStatus: 'rujuk',
+                  dischargeDisposition: 'other-hcf',
+                  note: ''
+                })
+              }}
+            />
+          )}
+          isSubmitting={dischargeEncounterMutation.isPending}
+          onBack={handleDispositionBack}
+          onConfirm={handleDispositionConfirm}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4 h-full">
       <Card
@@ -1120,13 +1289,6 @@ export const DoctorPatientList = () => {
           />
         </Spin>
       </Card>
-
-      <DischargeModal
-        open={dischargeModal.open}
-        record={dischargeModal.record}
-        onClose={() => setDischargeModal({ open: false, record: undefined })}
-        onSuccess={() => refetch()}
-      />
     </div>
   )
 }

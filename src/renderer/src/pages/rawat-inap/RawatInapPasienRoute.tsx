@@ -1,20 +1,31 @@
 import React, { useState } from 'react'
+import { App } from 'antd'
 
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
 import { client } from '../../utils/client'
 import type { InpatientPatientListQuery } from '../../../../main/rpc/procedure/encounter.schemas'
+import type { DesktopDispositionConfirmPayload } from '../../components/design-system/organisms/DesktopDispositionWorkflow'
 import { RawatInapPasienPage } from './RawatInapPasienPage'
 
 void React
 
-const DEFAULT_QUERY: InpatientPatientListQuery = { page: 1, pageSize: 10 }
+const DEFAULT_QUERY: InpatientPatientListQuery = {
+  page: 1,
+  pageSize: 10,
+  encounterStatus: 'IN_PROGRESS'
+}
 
 export default function RawatInapPasienRoute() {
+  const { message } = App.useApp()
   const [queryParams, setQueryParams] = useState<InpatientPatientListQuery>(DEFAULT_QUERY)
 
   const query = client.encounter.inpatientPatients.useQuery(queryParams)
-  const optionsQuery = client.encounter.inpatientPatientOptions.useQuery({})
+  const dischargeEncounterMutation = client.visitManagement.dischargeEncounter.useMutation({
+    onSuccess: async () => {
+      await query.refetch()
+    }
+  })
 
   const handleQueryChange = (patch: Partial<InpatientPatientListQuery>) =>
     setQueryParams((prev) => ({ ...prev, ...patch }))
@@ -52,8 +63,16 @@ export default function RawatInapPasienRoute() {
       loading={query.isFetching}
       queryParams={queryParams}
       statusCounts={query.data?.statusCounts}
-      // options={optionsQuery.data ?? { wards: [], dpjps: [] }}
       onQueryChange={handleQueryChange}
+      isDispositionSubmitting={dischargeEncounterMutation.isPending}
+      onDispositionConfirm={async (patient, payload: DesktopDispositionConfirmPayload) => {
+        await dischargeEncounterMutation.mutateAsync({
+          encounterId: patient.encounterId,
+          dischargeDisposition: payload.dischargeDisposition,
+          dischargeNote: payload.note || undefined
+        })
+        message.success('Disposisi rawat inap berhasil diproses')
+      }}
       onDpjpSaved={() => void query.refetch()}
     />
   )

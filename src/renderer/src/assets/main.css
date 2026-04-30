@@ -211,7 +211,8 @@
 
   .desktop-input-group-field:focus-within .desktop-input-addon {
     border-color: var(--ds-color-accent) !important;
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
+    box-shadow: 0 0 0 3px
+      color-mix(in srgb, var(--ds-color-accent-soft) 70%, var(--ds-color-surface)) !important;
   }
 
   .desktop-input-field .ant-input:focus,
@@ -330,12 +331,8 @@
     --r-lg: 12px;
 
     --shadow-xs: 0 1px 1px rgb(15 23 42 / 0.04);
-    --shadow-sm:
-      0 1px 2px rgb(15 23 42 / 0.06),
-      0 1px 1px rgb(15 23 42 / 0.04);
-    --shadow:
-      0 4px 12px -2px rgb(15 23 42 / 0.08),
-      0 2px 4px -1px rgb(15 23 42 / 0.05);
+    --shadow-sm: 0 1px 2px rgb(15 23 42 / 0.06), 0 1px 1px rgb(15 23 42 / 0.04);
+    --shadow: 0 4px 12px -2px rgb(15 23 42 / 0.08), 0 2px 4px -1px rgb(15 23 42 / 0.05);
 
     --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
@@ -474,6 +471,94 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .igd-form-field-span-2 {
+    grid-column: span 2;
+  }
+
+  .igd-form-field-span-3 {
+    grid-column: span 3;
+  }
+
+  .igd-disposisi-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(320px, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .igd-disposisi-patient-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+  }
+
+  .igd-disposisi-option-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .igd-disposisi-option {
+    min-height: 74px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px;
+    text-align: left;
+    border: 1px solid var(--ds-color-border);
+    border-radius: var(--ds-radius-md);
+    background: var(--ds-color-surface-muted);
+    cursor: pointer;
+    transition:
+      border-color 0.12s ease,
+      background-color 0.12s ease,
+      box-shadow 0.12s ease;
+  }
+
+  .igd-disposisi-option:hover {
+    border-color: var(--igd-disposisi-color, var(--ds-color-accent));
+    box-shadow: var(--ds-shadow-xs);
+  }
+
+  .igd-disposisi-option--selected {
+    border-width: 1.5px;
+    border-color: var(--igd-disposisi-color, var(--ds-color-accent));
+    background: var(--igd-disposisi-soft, var(--ds-color-accent-soft));
+  }
+
+  .igd-disposisi-option-label {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--ds-color-text);
+  }
+
+  .igd-disposisi-option--selected .igd-disposisi-option-label {
+    color: var(--igd-disposisi-color, var(--ds-color-accent));
+  }
+
+  .igd-disposisi-option-subtitle {
+    font-size: 10.5px;
+    line-height: 1.35;
+    color: var(--ds-color-text-subtle);
+  }
+
+  .igd-disposisi-selected {
+    padding: 12px 14px;
+    border: 1.5px solid var(--ds-color-border);
+    border-radius: var(--ds-radius-md);
+  }
+
+  .igd-disposisi-selected-eyebrow {
+    margin-bottom: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
   }
 
   .igd-inline-segment {
@@ -684,43 +769,83 @@
     border-bottom: none !important;
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-priority-1:not(.igd-row-active-default) > td {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-priority-1:not(.igd-row-active-default)
+    > td {
     background: var(--danger-soft) !important;
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-priority-2:not(.igd-row-active-default) > td {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-priority-2:not(.igd-row-active-default)
+    > td {
     background: oklch(0.96 0.06 50) !important;
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-1 > td:first-child {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-1
+    > td:first-child {
     box-shadow: inset 3px 0 0 var(--danger);
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-2 > td:first-child {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-2
+    > td:first-child {
     box-shadow: inset 3px 0 0 oklch(0.52 0.18 35);
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-3 > td:first-child {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-3
+    > td:first-child {
     box-shadow: inset 3px 0 0 var(--warn);
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-4 > td:first-child {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-4
+    > td:first-child {
     box-shadow: inset 3px 0 0 var(--ok);
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-level-5 > td:first-child {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-5
+    > td:first-child {
     box-shadow: inset 3px 0 0 var(--text-3);
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-active-default > td {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-active-default
+    > td {
     background: var(--surface) !important;
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.igd-row-active-default > td:first-child {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-active-default
+    > td:first-child {
     box-shadow: inset 3px 0 0 var(--accent) !important;
   }
 
-  .igd-parity-scope .desktop-generic-table.igd-patient-table .ant-table-tbody > tr.ant-table-row:hover > td {
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.ant-table-row:hover
+    > td {
     filter: brightness(0.99);
   }
 
@@ -812,10 +937,23 @@
     .igd-registrasi-grid {
       grid-template-columns: 1fr;
     }
+
+    .igd-disposisi-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   @media (max-width: 900px) {
     .igd-form-grid-3 {
+      grid-template-columns: 1fr;
+    }
+
+    .igd-form-field-span-2,
+    .igd-form-field-span-3 {
+      grid-column: span 1;
+    }
+
+    .igd-disposisi-option-grid {
       grid-template-columns: 1fr;
     }
 

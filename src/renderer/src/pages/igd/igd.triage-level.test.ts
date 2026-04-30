@@ -26,3 +26,9 @@ test('IGD triage levels use strict L0-L4 color mapping', () => {
   assert.equal(getIgdTriageLevelMeta(4).colorName, 'PUTIH')
   assert.equal(getIgdTriageLevelMeta(4).badgeStyle.backgroundColor, '#ffffff')
 })
+
+test('IGD triage level falls back to L4 when level is missing', () => {
+  assert.equal(getIgdTriageLevelMeta(undefined).label, 'L4')
+  assert.equal(getIgdTriageLevelMeta(null).label, 'L4')
+  assert.equal(getIgdTriageLevelMeta(99).label, 'L4')
+})

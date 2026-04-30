@@ -16,7 +16,7 @@ export const patientRpc = {
         params.append('q', input.name)
         params.append('fields', 'name,address')
       }
-      if (input.needEmr !== undefined) params.append('needEmr', String(input.needEmr))
+      if ((input as any).needEmr !== undefined) params.append('needEmr', String((input as any).needEmr))
 
       const data = await client.get(`/api/patient?${params.toString()}`)
       const res = await data.json()

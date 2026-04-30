@@ -33,6 +33,7 @@ type RawatInapBedMapPageProps = {
   onOpenTransfer?: () => void
   onOpenCppt?: () => void
   onOpenDischarge?: () => void
+  onOpenAdmisi?: () => void
   onToggleFullscreen?: () => void
   isFullscreenMode?: boolean
 }
@@ -71,6 +72,7 @@ export function RawatInapBedMapPage({
   onOpenTransfer,
   onOpenCppt,
   onOpenDischarge,
+  onOpenAdmisi,
   onToggleFullscreen,
   isFullscreenMode = false
 }: RawatInapBedMapPageProps) {
@@ -117,7 +119,7 @@ export function RawatInapBedMapPage({
               <DesktopButton emphasis="toolbar" icon={<TeamOutlined />}>
                 Daftar Pasien
               </DesktopButton>
-              <DesktopButton emphasis="primary" icon={<PlusOutlined />}>
+              <DesktopButton emphasis="primary" icon={<PlusOutlined />} onClick={onOpenAdmisi}>
                 Admisi Baru
               </DesktopButton>
             </>

@@ -37,6 +37,7 @@ export interface Invoice {
   obatItems?: InvoiceLineItem[]
   paymentMethod?: string | null
   administrasiItems?: InvoiceLineItem[]
+  kelasPelayanan?: string
 }
 
 export interface PersistedInvoice {
@@ -63,12 +64,20 @@ export interface PaymentRecord {
   paidAt?: string | Date
   createdAt?: string | Date
   method?: string
+  category?: string
 }
 
-interface PrintOptions {
+export interface PrintOptions {
   printForKind: 'patient' | 'guarantor'
   cashierName?: string
   cashierSignatureUrl?: string
+  depositTemplate?: 'form' | 'receipt'
+}
+
+const methodLabel: Record<string, string> = {
+  CASH: 'Tunai',
+  BANK_TRANSFER: 'Transfer Bank',
+  OTHER: 'Lainnya',
 }
 
 function formatRupiah(value: number): string {
@@ -168,16 +177,16 @@ export function printInvoice(
   const paymentRows =
     persistedInvoice && persistedInvoice.payments?.length > 0
       ? persistedInvoice.payments
-          .map(
-            (p, i: number) => `
+        .map(
+          (p, i: number) => `
           <tr>
             <td class="center">${i + 1}</td>
             <td>${escapeHtml(formatPrintableDate(p.paidAt ?? p.createdAt ?? p.date))}</td>
             <td>${escapeHtml(p.method ?? p.paymentMethod ?? '-')}</td>
             <td class="right">${escapeHtml(formatRupiah(p.amount ?? 0))}</td>
           </tr>`
-          )
-          .join('')
+        )
+        .join('')
       : ''
 
   const paymentSection =
@@ -320,11 +329,10 @@ export function printInvoice(
         <div class="signatures">
           <div class="sign-item">
             <div class="sign-title">Petugas Kasir</div>
-            <div class="sign-space">${
-              cashierSignatureUrl
-                ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-image" alt="TTD Kasir" />`
-                : ''
-            }</div>
+            <div class="sign-space">${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-image" alt="TTD Kasir" />`
+      : ''
+    }</div>
             <div class="sign-name">( ${escapeHtml(cashierName)} )</div>
           </div>
           <div class="sign-item">
@@ -348,9 +356,18 @@ export function printInvoice(
 export function printReceipt(
   invoice: Invoice,
   persistedInvoice: PersistedInvoice | null,
-  payment: PaymentRecord | { amount: number; kode: string; date: string | Date },
+  payment: PaymentRecord | { amount: number; kode: string; date: string | Date; category?: string } | null,
   options: PrintOptions
 ): void {
+  if (options.depositTemplate) {
+    if (options.depositTemplate === 'receipt') {
+      return printDepositReceipt(invoice, persistedInvoice, (payment || {}) as any, options)
+    }
+    return printDepositForm(invoice, persistedInvoice, (payment || null) as any, options)
+  }
+
+  if (!payment) return // Standard receipts require payment
+
   const isPatient = options.printForKind === 'patient'
   const printName = isPatient
     ? (invoice.namaPatient ?? invoice.patient?.name ?? '-')
@@ -477,11 +494,10 @@ export function printReceipt(
                 </div>
                 <div class="signature-box">
                     <div class="signature-date">Garut, ${date}</div>
-                    <div class="signature-space">${
-                      cashierSignatureUrl
-                        ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-image" alt="TTD Kasir" />`
-                        : ''
-                    }</div>
+                    <div class="signature-space">${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-image" alt="TTD Kasir" />`
+      : ''
+    }</div>
                     <div class="signature-name">( ${escapeHtml(cashierName)} )</div>
                 </div>
             </div>
@@ -492,6 +508,374 @@ export function printReceipt(
   `
   doPrint(html, `Kwitansi-${noReceipt}`)
 }
+
+export function printDepositForm(
+  invoice: Invoice,
+  _persistedInvoice: PersistedInvoice | null,
+  payment: Partial<PaymentRecord> | null,
+  options: PrintOptions
+): void {
+  const cashierName = options.cashierName || 'Petugas Kasir'
+  const cashierSignatureUrl = options.cashierSignatureUrl || ''
+
+  const isBlank = !payment
+  const noReceipt = payment?.kode ?? ''
+  const amount = payment?.amount
+  const date = payment?.date || payment?.paidAt || payment?.createdAt
+    ? formatPrintableDate(payment?.date || payment?.paidAt || payment?.createdAt)
+    : ''
+
+  const terbilangText = amount ? terbilang(amount) : ''
+  const amountText = amount ? `Rp. ${amount.toLocaleString('id-ID')}` : 'Rp.'
+
+  const patientName = invoice.namaPatient ?? invoice.patient?.name ?? '-'
+  const birthDate = formatPrintableDate(invoice.tanggalLahir ?? invoice.patient?.birthDate)
+  const RM = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
+  const dpjp = invoice.dokterPemeriksa ?? '-'
+  const penjamin = invoice.penjamin ?? 'Umum'
+
+  const ruangan = isBlank ? '' : (invoice.ruangan ?? '-')
+  const tanggalMasuk = isBlank ? '' : formatPrintableDate(invoice.tanggalPendaftaran)
+
+  const isAwal = payment?.category === 'INITIAL_DEPOSIT'
+  const isLanjutan = payment?.category === 'SUBSEQUENT_DEPOSIT'
+
+  const html = `
+    <html>
+    <head>
+      <title>Formulir Deposit ${escapeHtml(noReceipt)}</title>
+      <style>
+        @page { size: A4 portrait; margin: 8mm; }
+        body { font-family: 'Arial', sans-serif; color: #000; margin: 0; padding: 0; font-size: 12px; }
+        .container {
+            border: 1px solid #000;
+            padding: 15px 20px;
+            position: relative;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            align-items: flex-start;
+        }
+        .brand-box { display: flex; align-items: center; gap: 12px; }
+        .logo { width: 60px; height: auto; }
+        .brand-name { font-weight: bold; }
+        .brand-main { font-size: 12px; letter-spacing: 1px; }
+        .brand-hospital { font-size: 18px; color: #1e3a8a; margin-top: -2px; }
+
+        .patient-meta-box {
+            border: 1px solid #000;
+            padding: 6px 10px;
+            width: 320px;
+            background: #fff;
+        }
+        .meta-title { border-bottom: 1px solid #000; font-weight: bold; font-size: 10px; margin-bottom: 4px; padding-bottom: 1px; text-transform: uppercase; }
+        .patient-meta-box table { width: 100%; border-collapse: collapse; }
+        .patient-meta-box td { font-size: 10px; padding: 1px 0; vertical-align: top; }
+        
+        .category-header {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin: 10px 0;
+            font-weight: bold;
+            font-size: 11px;
+        }
+        .checkbox-item { display: flex; align-items: center; gap: 8px; }
+        .checkbox-box { width: 14px; height: 14px; border: 1px solid #000; display: inline-block; text-align: center; line-height: 12px; font-size: 10px; }
+
+        .main-form { margin-top: 15px; line-height: 1.5; }
+        .intro-text { margin-bottom: 10px; font-size: 11px; }
+        
+        .form-grid { width: 100%; border-collapse: collapse; }
+        .form-grid td { padding: 4px 0; border-bottom: 1px dotted #999; font-size: 11px; }
+        .form-label { width: 180px; color: #333; }
+        
+        .deposit-summary {
+            margin-top: 20px;
+            padding: 10px 15px;
+            border: 1px solid #000;
+            background: #fdfdfd;
+        }
+        .summary-row { display: flex; margin-bottom: 6px; align-items: baseline; }
+        .summary-label { width: 150px; font-weight: bold; font-size: 11px; }
+        .summary-value { flex: 1; font-size: 14px; font-weight: bold; border-bottom: 1px solid #000; }
+        .terbilang-text { font-style: italic; margin-top: 4px; font-size: 12px; display: block; color: #333; font-weight: normal; }
+
+        .date-location { text-align: right; margin-top: 25px; margin-right: 30px; font-size: 12px; }
+        
+        .signatures {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .sign-box { text-align: center; }
+        .sign-title { font-weight: bold; margin-bottom: 5px; font-size: 11px; }
+        .sign-space { height: 70px; display: flex; align-items: center; justify-content: center; position: relative; }
+        .sign-img { max-height: 65px; max-width: 180px; object-fit: contain; }
+        .sign-name { border-top: 1px solid #000; font-weight: bold; padding-top: 3px; display: inline-block; min-width: 160px; font-size: 11px; }
+        
+        .footer-note { font-size: 9px; color: #555; margin-top: 40px; border-top: 1px solid #ccc; padding-top: 5px; font-style: italic; }
+      </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <div class="brand-box">
+                    <img class="logo" src="${logoUrl}" />
+                    <div class="brand-name">
+                        <div class="brand-main">SIMRS</div>
+                        <div class="brand-hospital">RAHAYU MEDICAL CENTER</div>
+                        <div style="font-size: 9px; font-weight: normal; color: #444;">Jl. Otista, Tarogong Garut | Telp. (0262) 2542608</div>
+                    </div>
+                </div>
+                
+                <div class="patient-meta-box">
+                    <div class="meta-title">Identitas Pasien (Diisi oleh Billing)</div>
+                    <table>
+                        <tr><td width="100">Nama Pasien</td><td>: ${escapeHtml(patientName)}</td></tr>
+                        <tr><td>Tanggal Lahir</td><td>: ${escapeHtml(birthDate)}</td></tr>
+                        <tr><td>No. RM</td><td>: ${escapeHtml(RM)}</td></tr>
+                        <tr><td>Ruangan / Kelas</td><td>: ${escapeHtml(ruangan)}</td></tr>
+                        <tr><td>Dokter (DPJP)</td><td>: ${escapeHtml(dpjp)}</td></tr>
+                        <tr><td>Penjamin</td><td>: ${escapeHtml(penjamin)}</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="category-header">
+                <div class="checkbox-item">
+                    <div class="checkbox-box">${isAwal ? '✓' : ''}</div>
+                    <span>Deposit Awal</span>
+                </div>
+                <div class="checkbox-item">
+                    <div class="checkbox-box">${isLanjutan ? '✓' : ''}</div>
+                    <span>Deposit Lanjutan</span>
+                </div>
+            </div>
+            
+            <div class="main-form">
+                <div class="intro-text">
+                    Yang bertanda tangan di bawah ini :
+                </div>
+                
+                <table class="form-grid">
+                    <tr><td class="form-label">Nama</td><td>: </td></tr>
+                    <tr><td class="form-label">Tempat dan Tanggal lahir</td><td>: </td></tr>
+                    <tr><td class="form-label">Alamat</td><td>: </td></tr>
+                    <tr><td class="form-label">No Identitas diri *KTP/SIM</td><td>: </td></tr>
+                    <tr><td class="form-label">Hubungan dengan pasien</td><td>: *Suami / Istri / Anak / Menantu / </td></tr>
+                </table>
+                
+                <div style="margin-top: 15px; margin-bottom: 10px; font-size: 11px;">
+                    Mengerti sepenuhnya atas pembayaran deposit dengan ketentuan yang berlaku sebesar :
+                </div>
+                
+                <div class="deposit-summary">
+                    <div class="summary-row">
+                        <div class="summary-label">Nama Ruangan</div>
+                        <div class="summary-value" style="font-size: 12px;">${escapeHtml(ruangan) || '&nbsp;'}</div>
+                    </div>
+                    <div class="summary-row">
+                        <div class="summary-label">Tanggal Masuk</div>
+                        <div class="summary-value" style="font-size: 12px;">${escapeHtml(tanggalMasuk) || '&nbsp;'}</div>
+                    </div>
+                    <div class="summary-row" style="margin-top: 10px;">
+                        <div class="summary-label">Jumlah Deposit</div>
+                        <div class="summary-value">${escapeHtml(amountText) || '&nbsp;'}</div>
+                    </div>
+                    <div class="summary-row" style="border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
+                        <div class="summary-label">(Terbilang)</div>
+                        <div class="summary-value" style="font-size: 13px; border-bottom: 1px solid #000; min-height: 20px;">
+                            <span class="terbilang-text">${terbilangText || '&nbsp;'}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="date-location">
+                Garut, ${date}
+            </div>
+            
+            <div class="signatures">
+                <div class="sign-box">
+                    <div class="sign-title">*Pasien / Keluarga Pasien</div>
+                    <div class="sign-space"></div>
+                    <div class="sign-name">( __________________________ )</div>
+                </div>
+                
+                <div class="sign-box">
+                    <div class="sign-title">Petugas Billing</div>
+                    <div class="sign-space">
+                        ${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="sign-img" />`
+      : ''
+    }
+                    </div>
+                    <div class="sign-name">( ${escapeHtml(cashierName)} )</div>
+                </div>
+            </div>
+            
+            <div class="footer-note">
+                Catatan: * coret yang tidak perlu<br/>
+                Putih : Pasien/Keluarga Pasien | Merah : Petugas Billing
+            </div>
+        </div>
+    </body>
+    </html>
+  `
+  doPrint(html, `Formulir-Deposit-${noReceipt}`)
+}
+
+export function printDepositReceipt(
+  invoice: Invoice,
+  persistedInvoice: PersistedInvoice | null,
+  payment: PaymentRecord,
+  options: PrintOptions
+): void {
+  const cashierName = options.cashierName || 'Petugas Kasir'
+  const cashierSignatureUrl = options.cashierSignatureUrl || ''
+
+  const noPayment = payment.kode ?? '-'
+  const amount = payment.amount ?? 0
+  const datePayment = formatPrintableDate(payment.date ?? payment.paidAt ?? payment.createdAt)
+  const timePayment = new Date(payment.date ?? payment.paidAt ?? payment.createdAt ?? new Date()).toLocaleTimeString('id-ID')
+
+  const patientName = invoice.namaPatient ?? invoice.patient?.name ?? '-'
+  const RM = invoice.medicalRecordNumber ?? invoice.patient?.medicalRecordNumber ?? '-'
+  const ruangan = invoice.ruangan ?? '-'
+  const penjamin = invoice.penjamin ?? 'Umum'
+  const noPendaftaran = invoice.noPendaftaran ?? '-'
+  const tanggalPendaftaran = formatPrintableDate(invoice.tanggalPendaftaran)
+  const totalTagihanSementara = persistedInvoice?.total ?? 0
+
+  const paymentMethod = methodLabel[payment.paymentMethod] ?? payment.paymentMethod
+  const isCash = payment.paymentMethod === 'CASH'
+  const amountCash = isCash ? amount : 0
+  const amountNonCash = !isCash ? amount : 0
+
+  const html = `
+    <html>
+    <head>
+      <title>Kwitansi Deposit ${escapeHtml(noPayment)}</title>
+      <style>
+        @page { size: A4 landscape; margin: 10mm; }
+        body { font-family: 'Courier New', Courier, monospace; color: #000; margin: 0; padding: 0; font-size: 11px; font-weight: 500; }
+        .receipt-wrapper { border: 1px solid #000; padding: 20px; position: relative; min-height: 480px; background: #fff; }
+        
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 15px; }
+        .brand { display: flex; align-items: center; gap: 15px; }
+        .logo { width: 55px; height: auto; }
+        .brand-text { line-height: 1.3; }
+        .hospital-name { font-weight: bold; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; }
+        .address { font-size: 10px; color: #333; }
+        
+        .receipt-title { text-align: center; margin: 15px 0; font-weight: bold; font-size: 14px; text-decoration: underline; text-transform: uppercase; letter-spacing: 2px; }
+        
+        .main-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 40px; }
+        .grid-col table { width: 100%; border-collapse: collapse; }
+        .grid-col td { padding: 3px 0; vertical-align: top; }
+        .label { width: 160px; font-weight: bold; }
+        .separator { width: 15px; text-align: center; }
+        
+        .lunas-stamp {
+            position: absolute;
+            bottom: 40px;
+            right: 180px;
+            border: 4px double #1e3a8a;
+            color: #1e3a8a;
+            padding: 10px 20px;
+            font-size: 24px;
+            font-weight: 900;
+            transform: rotate(-12deg);
+            opacity: 0.6;
+            border-radius: 8px;
+            text-align: center;
+            z-index: 10;
+        }
+        
+        .footer { margin-top: 40px; display: flex; justify-content: flex-end; }
+        .signature-area { text-align: center; width: 220px; }
+        .signature-space { height: 70px; display: flex; align-items: center; justify-content: center; }
+        .signature-img { max-height: 65px; max-width: 190px; object-fit: contain; }
+        .signature-name { border-top: 1px solid #000; font-weight: bold; padding-top: 5px; font-size: 12px; }
+        
+        .bottom-info { position: absolute; bottom: 15px; left: 20px; font-size: 8px; color: #666; }
+      </style>
+    </head>
+    <body>
+        <div class="receipt-wrapper">
+            <div class="header">
+                <div class="brand">
+                    <img class="logo" src="${logoUrl}" />
+                    <div class="brand-text">
+                        <div class="hospital-name">SIMRS RAHAYU MEDICAL CENTER</div>
+                        <div class="address">Jl. Otista, Tarogong Garut | Telp. (0262) 2542608</div>
+                        <div class="address">Email: info@rahayumedical.com | Website: www.rahayumedical.com</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="receipt-title">RINCIAN PEMBAYARAN DEPOSIT PASIEN</div>
+            
+            <div class="main-grid">
+                <div class="grid-col">
+                    <table>
+                        <tr><td class="label">No Pendaftaran</td><td class="separator">:</td><td>${escapeHtml(noPendaftaran)}</td></tr>
+                        <tr><td class="label">Tgl. Pendaftaran</td><td class="separator">:</td><td>${escapeHtml(tanggalPendaftaran)}</td></tr>
+                        <tr><td class="label">Instalasi</td><td class="separator">:</td><td>RAWAT INAP</td></tr>
+                        <tr><td class="label">Poliklinik/Ruangan</td><td class="separator">:</td><td>${escapeHtml(ruangan)}</td></tr>
+                        <tr><td class="label">Cara Bayar</td><td class="separator">:</td><td>${escapeHtml(penjamin)}</td></tr>
+                        <tr><td class="label">Penjamin</td><td class="separator">:</td><td>${escapeHtml(penjamin)}</td></tr>
+                        <tr><td class="label">Kelas Pelayanan</td><td class="separator">:</td><td>${escapeHtml(invoice.kelasPelayanan ?? '-')}</td></tr>
+                        <tr><td class="label">No Rekam Medik</td><td class="separator">:</td><td>${escapeHtml(RM)}</td></tr>
+                        <tr><td class="label">Nama Pasien</td><td class="separator">:</td><td>${escapeHtml(patientName)}</td></tr>
+                    </table>
+                </div>
+                
+                <div class="grid-col">
+                    <table>
+                        <tr><td class="label">No. Pembayaran Deposit</td><td class="separator">:</td><td>${escapeHtml(noPayment)}</td></tr>
+                        <tr><td class="label">Tgl. Pembayaran Deposit</td><td class="separator">:</td><td>${escapeHtml(datePayment)} ${escapeHtml(timePayment)}</td></tr>
+                        <tr><td class="label">No. Bukti Bayar</td><td class="separator">:</td><td>${escapeHtml(payment.ref ?? '-')}</td></tr>
+                        <tr><td class="label">Tgl. Bukti Bayar</td><td class="separator">:</td><td>${escapeHtml(datePayment)}</td></tr>
+                        <tr><td class="label">Total Tagihan Sementara</td><td class="separator">:</td><td>${formatRupiah(totalTagihanSementara)}</td></tr>
+                        <tr><td class="label">Jumlah Deposit</td><td class="separator">:</td><td>${formatRupiah(amount)}</td></tr>
+                        <tr><td class="label">Jumlah Pembulatan</td><td class="separator">:</td><td>Rp. -</td></tr>
+                        <tr><td class="label" style="font-weight:900; font-size:12px;">Jumlah Pembayaran</td><td class="separator" style="font-weight:900;">:</td><td style="font-weight:900; font-size:12px;">${formatRupiah(amount)}</td></tr>
+                        <tr><td class="label">Pembayaran Tunai</td><td class="separator">:</td><td>${formatRupiah(amountCash)}</td></tr>
+                        <tr><td class="label">Jenis Pembayaran</td><td class="separator">:</td><td>${escapeHtml(paymentMethod)}</td></tr>
+                        <tr><td class="label">Bank</td><td class="separator">:</td><td>${escapeHtml(payment.bankName ?? '-')}</td></tr>
+                        <tr><td class="label">Pembayaran Non Tunai</td><td class="separator">:</td><td>${formatRupiah(amountNonCash)}</td></tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="footer">
+                <div class="signature-area">
+                    <div>Garut, ${datePayment}</div>
+                    <div class="signature-space">
+                        ${cashierSignatureUrl
+      ? `<img src="${escapeHtml(cashierSignatureUrl)}" class="signature-img" />`
+      : ''
+    }
+                    </div>
+                    <div class="signature-name">( ${escapeHtml(cashierName)} )</div>
+                </div>
+            </div>
+            
+            <div class="bottom-info">
+                Dicetak oleh sistem pada: ${new Date().toLocaleString('id-ID')} | User: ${escapeHtml(cashierName)}
+            </div>
+        </div>
+    </body>
+    </html>
+  `
+  doPrint(html, `Kwitansi-Deposit-${noPayment}`)
+}
+
 
 function doPrint(html: string, title: string) {
   const iframe = document.createElement('iframe')

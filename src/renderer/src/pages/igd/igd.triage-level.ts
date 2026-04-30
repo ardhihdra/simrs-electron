@@ -117,10 +117,18 @@ export const IGD_TRIAGE_LEVEL_META = {
   }
 } satisfies Record<IgdTriageLevel, IgdTriageLevelMeta>
 
-export function getIgdTriageLevelMeta(level: IgdTriageLevel): IgdTriageLevelMeta {
+export function isIgdTriageLevel(level: unknown): level is IgdTriageLevel {
+  return level === 0 || level === 1 || level === 2 || level === 3 || level === 4
+}
+
+export function getIgdTriageLevelMeta(level: unknown): IgdTriageLevelMeta {
+  if (!isIgdTriageLevel(level)) {
+    return IGD_TRIAGE_LEVEL_META[4]
+  }
+
   return IGD_TRIAGE_LEVEL_META[level]
 }
 
-export function formatIgdTriageLevel(level: IgdTriageLevel): `L${IgdTriageLevel}` {
+export function formatIgdTriageLevel(level: unknown): `L${IgdTriageLevel}` {
   return getIgdTriageLevelMeta(level).label
 }

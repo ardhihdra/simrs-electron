@@ -70,6 +70,7 @@ import JaminanTable from './pages/jaminan/jaminan-table'
 import KasirPage from './pages/kasir/KasirPage'
 import InvoiceDetailPage from './pages/kasir/invoice-detail'
 import KasirEncounterTable from './pages/kasir/kasir-encounter-table'
+import PaymentPage from './pages/kasir/payment-page'
 import KfaCodeForm from './pages/kfa-code/kfa-code-form'
 import KfaCodeTable from './pages/kfa-code/kfa-code-table'
 import LaboratoryQueue from './pages/laboratory-management/queue'
@@ -113,6 +114,8 @@ import PharmacyDashboard from './pages/pharmacy/pharmacy-dashboard'
 import PoliSelect from './pages/poli/PoliSelect'
 import QueueList from './pages/queue/queue-list'
 import RawatInapBedMapRoute from './pages/rawat-inap/RawatInapBedMapRoute'
+import RawatInapAdmisiRoute from './pages/rawat-inap/RawatInapAdmisiRoute'
+import RawatInapCheckinRoute from './pages/rawat-inap/RawatInapCheckinRoute'
 import RawatInapPasienRoute from './pages/rawat-inap/RawatInapPasienRoute'
 import RawatInapTransferRoute from './pages/rawat-inap/RawatInapTransferRoute'
 import { RAWAT_INAP_PAGE_PATHS } from './pages/rawat-inap/rawat-inap.config'
@@ -378,8 +381,16 @@ function MainRoute() {
               element={g(RAWAT_INAP_PAGE_PATHS.bedMap, <RawatInapBedMapRoute />)}
             />
             <Route
+              path="admisi"
+              element={g(RAWAT_INAP_PAGE_PATHS.admisi, <RawatInapAdmisiRoute />)}
+            />
+            <Route
               path="transfer"
               element={g(RAWAT_INAP_PAGE_PATHS.transfer, <RawatInapTransferRoute />)}
+            />
+            <Route
+              path="checkin"
+              element={g(RAWAT_INAP_PAGE_PATHS.checkin, <RawatInapCheckinRoute />)}
             />
             <Route
               path="pasien"
@@ -432,8 +443,14 @@ function MainRoute() {
             <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
           </Route>
           <Route path="kasir" element={<Outlet />}>
-            <Route index element={g('/dashboard/kasir', <KasirEncounterTable />)} />
-            <Route path="invoice/:encounterId" element={g('/dashboard/kasir/invoice', <InvoiceDetailPage />)} />
+            <Route element={g('/dashboard/kasir', <KasirPage />)}>
+              <Route index element={<KasirEncounterTable />} />
+              <Route path="invoice/:encounterId/bayar" element={<PaymentPage />} />
+            </Route>
+            <Route
+              path="invoice/:encounterId"
+              element={g('/dashboard/kasir/invoice', <InvoiceDetailPage />)}
+            />
           </Route>
           <Route path="billing" element={g('/dashboard/billing', <Outlet />)}>
             <Route index element={<BillingPage />} />
