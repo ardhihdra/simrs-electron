@@ -99,6 +99,12 @@ const CATEGORIES = [
   },
   { key: 'obat', label: 'Obat', color: '#7c3aed', getItems: (inv: Invoice) => inv.obatItems ?? [] },
   {
+    key: 'akomodasi',
+    label: 'Kamar & Akomodasi',
+    color: '#4f46e5',
+    getItems: (inv: Invoice) => inv.akomodasiItems ?? []
+  },
+  {
     key: 'admin',
     label: 'Administrasi',
     color: '#475569',

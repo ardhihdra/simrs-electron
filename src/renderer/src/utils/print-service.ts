@@ -37,6 +37,7 @@ export interface Invoice {
   obatItems?: InvoiceLineItem[]
   paymentMethod?: string | null
   administrasiItems?: InvoiceLineItem[]
+  akomodasiItems?: InvoiceLineItem[]
   kelasPelayanan?: string
 }
 
@@ -162,17 +163,19 @@ export function printInvoice(
   const labRows = buildCategoryRows('Laboratorium', invoice.laboratoryItems ?? [], '#14532d')
   const radRows = buildCategoryRows('Radiologi', invoice.radiologyItems ?? [], '#0e7490')
   const obatRows = buildCategoryRows('Obat', invoice.obatItems ?? [], '#581c87')
+  const akomodasiRows = buildCategoryRows('Kamar & Akomodasi', invoice.akomodasiItems ?? [], '#4f46e5')
 
   const allEmpty =
     (invoice.tindakanItems?.length ?? 0) === 0 &&
     (invoice.bhpItems?.length ?? 0) === 0 &&
     (invoice.laboratoryItems?.length ?? 0) === 0 &&
     (invoice.radiologyItems?.length ?? 0) === 0 &&
-    (invoice.obatItems?.length ?? 0) === 0
+    (invoice.obatItems?.length ?? 0) === 0 &&
+    (invoice.akomodasiItems?.length ?? 0) === 0
 
   const tableBody = allEmpty
     ? '<tr><td colspan="5" class="center" style="padding:16px;color:#6b7280;">Tidak ada item tagihan untuk kunjungan ini.</td></tr>'
-    : tindakanRows + bhpRows + labRows + radRows + obatRows
+    : akomodasiRows + tindakanRows + bhpRows + labRows + radRows + obatRows
 
   const paymentRows =
     persistedInvoice && persistedInvoice.payments?.length > 0

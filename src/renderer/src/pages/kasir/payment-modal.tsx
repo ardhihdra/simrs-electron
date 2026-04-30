@@ -4,6 +4,7 @@ import { UploadOutlined } from '@ant-design/icons'
 import type { UploadFile, UploadProps } from 'antd/es/upload/interface'
 import { useQuery } from '@tanstack/react-query'
 import { rpc } from '@renderer/utils/client'
+import { PaymentCategory } from 'simrs-types'
 
 function formatRupiah(value: number): string {
     return new Intl.NumberFormat('id-ID', {
@@ -119,7 +120,7 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
 
     // Watch values for logic
     const watchCategory = Form.useWatch('category', form)
-    const isDeposit = watchCategory === 'INITIAL_DEPOSIT' || watchCategory === 'SUBSEQUENT_DEPOSIT'
+    const isDeposit = watchCategory === PaymentCategory.INITIAL_DEPOSIT || watchCategory === PaymentCategory.SUBSEQUENT_DEPOSIT
 
     return (
         <Modal
@@ -179,9 +180,9 @@ export function PaymentModal({ open, invoiceId, encounterId, patientId, remainin
                         size="large"
                         placeholder="Pilih tipe..."
                         options={[
-                            { label: 'Pelunasan (Settlement)', value: 'SETTLEMENT' },
-                            { label: 'Deposit Awal', value: 'INITIAL_DEPOSIT' },
-                            { label: 'Deposit Lanjutan', value: 'SUBSEQUENT_DEPOSIT' },
+                            { label: 'Pelunasan (Settlement)', value: PaymentCategory.SETTLEMENT },
+                            { label: 'Deposit Awal', value: PaymentCategory.INITIAL_DEPOSIT },
+                            { label: 'Deposit Lanjutan', value: PaymentCategory.SUBSEQUENT_DEPOSIT },
                         ]}
                     />
                 </Form.Item>
