@@ -18,6 +18,7 @@ import { printInvoice, printReceipt } from '@renderer/utils/print-service'
 import type { Invoice, PersistedInvoice, InvoiceLineItem } from '@renderer/utils/print-service'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 import { SignaturePadModal } from '@renderer/components/molecules/SignaturePadModal'
+import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 
 function formatRupiah(value: number): string {
   return new Intl.NumberFormat('id-ID', {
@@ -501,6 +502,9 @@ export default function InvoiceDetailPage() {
     { key: 'riwayat', label: 'Riwayat', children: riwayatTabContent }
   ]
 
+  const session = useModuleScopeStore((state) => state.session)
+  const isCashier = session?.allowedModules?.includes('BILLING_KASIR') || session?.hakAksesId === 'administrator'
+
   return (
     <div className="p-4">
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
@@ -523,8 +527,9 @@ export default function InvoiceDetailPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {persistedInvoice?.status !== 'cancelled' && (
+        {/* Right: actions grouped by role */}
+        <div className="flex items-left gap-2">
+          {isCashier && persistedInvoice?.status !== 'cancelled' && (
             <Popconfirm
               title="Kembalikan ke Perawat?"
               description="Status kunjungan akan berubah kembali menjadi Pemeriksaan agar bisa diperbaiki oleh Nurse/Dokter."
@@ -544,32 +549,161 @@ export default function InvoiceDetailPage() {
             </Popconfirm>
           )}
 
-          {!isConfirmed && !isLoadingDetail && (
-            <Popconfirm
-              title="Kunci & Konfirmasi Invoice?"
-              description="Rincian tagihan akan dibekukan dan tidak akan berubah otomatis lagi jika klinis menginput data baru. Lanjutkan?"
-              onConfirm={handleConfirm}
-              okText="Ya, Kunci"
-              cancelText="Batal"
-            >
-              <Button
-                type="primary"
-                icon={<LockOutlined />}
-                loading={confirming}
-                disabled={!invoice}
-                size="small"
-              >
-                Konfirmasi Invoice
-              </Button>
-            </Popconfirm>
-          )}
+          {/* Print actions */}
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'patient',
+                  label: 'Atas Nama Pasien',
+                  onClick: () =>
+                    invoice &&
+                    printInvoice(invoice, persistedInvoice, {
+                      printForKind: 'patient',
+                      cashierName,
+                      cashierSignatureUrl
+                    })
+                },
+                {
+                  key: 'guarantor',
+                  label: 'Atas Nama Penjamin',
+                  onClick: () =>
+                    invoice &&
+                    printInvoice(invoice, persistedInvoice, {
+                      printForKind: 'guarantor',
+                      cashierName,
+                      cashierSignatureUrl
+                    })
+                }
+              ]
+            }}
+            disabled={!invoice}
+          >
+            <Button icon={<PrinterOutlined />} size="small">
+              Cetak Invoice
+            </Button>
+          </Dropdown>
 
-          {isConfirmed && !isPaid && (
-            <Tag color="blue" icon={<LockOutlined />} className="m-0 py-0.5 px-2">
-              Invoice Terkunci
-            </Tag>
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  key: 'patient',
+                  label: 'Atas Nama Pasien',
+                  onClick: () => {
+                    if (invoice && persistedInvoice) {
+                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                      printReceipt(
+                        invoice,
+                        persistedInvoice,
+                        { amount: totalPaid, kode: persistedInvoice.kode, date: new Date() },
+                        { printForKind: 'patient', cashierName, cashierSignatureUrl }
+                      )
+                    }
+                  }
+                },
+                {
+                  key: 'guarantor',
+                  label: 'Atas Nama Penjamin',
+                  onClick: () => {
+                    if (invoice && persistedInvoice) {
+                      const totalPaid = persistedInvoice.total - persistedInvoice.remaining
+                      printReceipt(
+                        invoice,
+                        persistedInvoice,
+                        { amount: totalPaid, kode: persistedInvoice.kode, date: new Date() },
+                        { printForKind: 'guarantor', cashierName, cashierSignatureUrl }
+                      )
+                    }
+                  }
+                }
+              ]
+            }}
+            disabled={
+              !invoice ||
+              !persistedInvoice ||
+              persistedInvoice.total - persistedInvoice.remaining <= 0
+            }
+          >
+            <Button icon={<PrinterOutlined />} size="small">
+              Cetak Kwitansi
+            </Button>
+          </Dropdown>
+
+          {/* Primary workflow action - ONLY FOR CASHIER */}
+          {isCashier && (
+            <>
+              {!isConfirmed && !isLoadingDetail && (
+                <Popconfirm
+                  title="Kunci & Konfirmasi Invoice?"
+                  description="Rincian tagihan akan dibekukan dan tidak akan berubah otomatis lagi jika klinis menginput data baru. Lanjutkan?"
+                  onConfirm={handleConfirm}
+                  okText="Ya, Kunci"
+                  cancelText="Batal"
+                >
+                  <Button
+                    type="primary"
+                    icon={<LockOutlined />}
+                    loading={confirming}
+                    disabled={!invoice}
+                    size="small"
+                  >
+                    Konfirmasi Invoice
+                  </Button>
+                </Popconfirm>
+              )}
+
+              {isConfirmed && !isPaid && (
+                <Tag color="blue" icon={<LockOutlined />} className="m-0 py-0.5 px-2">
+                  Invoice Terkunci
+                </Tag>
+              )}
+
+              {!isPaid && (
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  onClick={goToPaymentPage}
+                  size="small"
+                >
+                  {isConfirmed ? 'Tambah Pembayaran' : 'Input Deposit'}
+                </Button>
+              )}
+            </>
           )}
         </div>
+        
+        {/* Signature Source selection - ONLY FOR CASHIER */}
+        {isCashier && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Sumber TTD Kasir</span>
+            <Select
+              value={signatureSource}
+              options={SIGNATURE_SOURCE_OPTIONS}
+              style={{ width: 220 }}
+              onChange={(value) => setSignatureSource(value)}
+            />
+
+            {signatureSource === 'manual' ? (
+              <>
+                <Button icon={<EditOutlined />} onClick={() => setSignatureModalVisible(true)}>
+                  Input Tanda Tangan
+                </Button>
+                {manualCashierSignature ? (
+                  <Button size="small" onClick={() => setManualCashierSignature('')}>
+                    Hapus TTD Manual
+                  </Button>
+                ) : null}
+              </>
+            ) : (
+              <Tag color={hasKepegawaianSignature ? 'green' : 'default'} className="m-0">
+                {hasKepegawaianSignature
+                  ? 'Diambil dari Kepegawaian'
+                  : 'Profil Pegawai Tidak Punya TTD'}
+              </Tag>
+            )}
+          </div>
+        )}
       </div>
 
       {(isLoading || isLoadingDetail) && (
@@ -808,7 +942,20 @@ export default function InvoiceDetailPage() {
         </div>
       )}
 
-      <SignaturePadModal
+      {/* Payment section (shown whenever an invoice is persisted) */}
+      {persistedInvoice && (
+        <div className="max-w-3xl mx-auto mt-2">
+          <PaymentHistory
+            payments={persistedInvoice.payments}
+            totalPaid={totalPaid}
+            remaining={persistedInvoice.remaining}
+            invoice={invoice}
+            persistedInvoice={persistedInvoice}
+            cashierName={cashierName}
+            cashierSignatureUrl={cashierSignatureUrl}
+          />
+        </div>
+      )}      <SignaturePadModal
         title="Tanda Tangan Petugas Kasir"
         visible={signatureModalVisible}
         onClose={() => setSignatureModalVisible(false)}

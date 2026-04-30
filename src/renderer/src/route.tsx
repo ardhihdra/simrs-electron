@@ -442,10 +442,15 @@ function MainRoute() {
             <Route path="report/:id" element={<LabReportDetailPage />} />
             <Route path="diagnostic-report" element={<ListDiagnosticReport />} />
           </Route>
-          <Route path="kasir" element={g('/dashboard/kasir', <KasirPage />)}>
-            <Route index element={<KasirEncounterTable />} />
-            <Route path="invoice/:encounterId" element={<InvoiceDetailPage />} />
-            <Route path="invoice/:encounterId/bayar" element={<PaymentPage />} />
+          <Route path="kasir" element={<Outlet />}>
+            <Route element={g('/dashboard/kasir', <KasirPage />)}>
+              <Route index element={<KasirEncounterTable />} />
+              <Route path="invoice/:encounterId/bayar" element={<PaymentPage />} />
+            </Route>
+            <Route
+              path="invoice/:encounterId"
+              element={g('/dashboard/kasir/invoice', <InvoiceDetailPage />)}
+            />
           </Route>
           <Route path="billing" element={g('/dashboard/billing', <Outlet />)}>
             <Route index element={<BillingPage />} />

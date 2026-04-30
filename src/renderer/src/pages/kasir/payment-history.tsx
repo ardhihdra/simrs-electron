@@ -52,7 +52,7 @@ function formatRupiah(value: number): string {
 }
 
 export function PaymentHistory({
-    payments,
+    payments = [],
     totalPaid,
     remaining,
     invoice,
@@ -60,7 +60,7 @@ export function PaymentHistory({
     cashierName,
     cashierSignatureUrl
 }: PaymentHistoryProps) {
-    if (payments.length === 0) return null
+    // We want to show the summary (Total Paid, Remaining) even if there are no payments yet.
 
     const columns: ColumnsType<PaymentRecord> = [
         { title: 'Kode', dataIndex: 'kode', key: 'kode', width: 170 },
