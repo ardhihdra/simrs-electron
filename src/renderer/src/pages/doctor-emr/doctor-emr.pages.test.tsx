@@ -1,3 +1,10 @@
+/**
+ * purpose: Validate static contracts for doctor EMR workspace and patient-list behavior.
+ * main callers: test runner.
+ * key dependencies: Node assert/test and source files under doctor-emr pages.
+ * main/public functions: test cases ensuring workflow markers remain in source.
+ * important side effects: none.
+ */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
@@ -10,6 +17,9 @@ test('Doctor workspace uses reusable disposition workflow for finish examination
   assert.equal(source.includes('openDispositionWorkflow'), true)
   assert.equal(source.includes('finishEncounterFromCloseReminder'), true)
   assert.equal(source.includes('openDispositionWorkflow(true)'), true)
+  assert.equal(source.includes('backPath = \'/dashboard/doctor\''), true)
+  assert.equal(source.includes('forceEncounterType'), true)
+  assert.equal(source.includes('resolvedEncounterType'), true)
 })
 
 test('Doctor patient list uses reusable disposition workflow for finish examination action', () => {

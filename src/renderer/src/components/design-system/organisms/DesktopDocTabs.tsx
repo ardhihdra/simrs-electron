@@ -1,3 +1,10 @@
+/**
+ * purpose: Render desktop document tabs with active, dirty, and close states.
+ * main callers: desktop shell/workspace pages that show multi-document tabs.
+ * key dependencies: DesktopIcon, desktop-shell.helpers active-key resolver.
+ * main/public functions: DesktopDocTabs (component), DesktopDocTabsProps (public props contract).
+ * important side effects: invokes onTabSelect/onTabClose callbacks from user interactions.
+ */
 import type { ReactNode } from 'react'
 
 import { DesktopIcon } from '../atoms/DesktopIcon'
@@ -17,8 +24,7 @@ export function DesktopDocTabs({
   tabs,
   activeKey,
   onTabSelect,
-  onTabClose,
-  addButton
+  onTabClose
 }: DesktopDocTabsProps) {
   const resolvedActiveKey = getActiveDesktopKey(tabs, activeKey)
 
@@ -58,16 +64,6 @@ export function DesktopDocTabs({
           </button>
         )
       })}
-      <div className="my-auto ml-[var(--ds-space-xs)] shrink-0">
-        {addButton ?? (
-          <button
-            type="button"
-            className="flex h-[var(--ds-button-h-sm)] w-[var(--ds-button-h-sm)] items-center justify-center rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] text-[var(--ds-color-text-muted)] hover:text-[var(--ds-color-text)]"
-          >
-            <DesktopIcon name="plus" size={12} />
-          </button>
-        )}
-      </div>
     </div>
   )
 }

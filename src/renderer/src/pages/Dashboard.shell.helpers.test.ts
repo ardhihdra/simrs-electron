@@ -1,3 +1,10 @@
+/**
+ * purpose: Validate dashboard shell helper behavior for tabs, shortcuts, and content-only route detection.
+ * main callers: test runner.
+ * key dependencies: Node assert/test and `Dashboard.shell.helpers` exports.
+ * main/public functions: test cases for helper contracts.
+ * important side effects: none.
+ */
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
@@ -200,6 +207,15 @@ test('isDashboardContentOnlyRoute keeps doctor workspace routes content-only', (
   assert.equal(isDashboardContentOnlyRoute('/dashboard/doctor/enc-1', ''), true)
   assert.equal(
     isDashboardContentOnlyRoute('/dashboard/nurse-calling/medical-record/enc-1', ''),
+    true
+  )
+  assert.equal(isDashboardContentOnlyRoute('/dashboard/rawat-inap/daftar-pasien/enc-1', ''), true)
+  assert.equal(
+    isDashboardContentOnlyRoute('/dashboard/rawat-inap/daftar-pasien/enc-1/cppt', ''),
+    true
+  )
+  assert.equal(
+    isDashboardContentOnlyRoute('/dashboard/rawat-inap/daftar-pasien/enc-1/vital-signs', ''),
     true
   )
 })

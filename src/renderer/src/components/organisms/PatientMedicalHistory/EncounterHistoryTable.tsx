@@ -1,15 +1,5 @@
 import React, { useState } from 'react'
-import {
-  Table,
-  Card,
-  Button,
-  DatePicker,
-  Select,
-  Popover,
-  theme,
-  Modal,
-  Tag
-} from 'antd'
+import { Table, Card, Button, DatePicker, Select, Popover, theme, Modal, Tag } from 'antd'
 import {
   EyeOutlined,
   FileTextOutlined,
@@ -35,7 +25,7 @@ interface EncounterHistoryTableProps {
 const ENCOUNTER_TYPE_LABEL: Record<string, string> = {
   AMB: 'Rawat Jalan',
   IMP: 'Rawat Inap',
-  EMER: 'IGD',
+  EMER: 'IGD'
 }
 
 function getTypeLabel(type: string): string {
@@ -50,9 +40,12 @@ function getTypeColor(type: string): string {
 }
 
 function getDiagnosticCategoryLabel(category: string | null | undefined): string {
-  const normalized = String(category || '').trim().toLowerCase()
+  const normalized = String(category || '')
+    .trim()
+    .toLowerCase()
   if (normalized === 'laboratory' || normalized === 'lab') return 'Laboratory'
-  if (normalized === 'radiology' || normalized === 'imaging' || normalized === 'rad') return 'Radiology'
+  if (normalized === 'radiology' || normalized === 'imaging' || normalized === 'rad')
+    return 'Radiology'
   return ''
 }
 
@@ -91,7 +84,8 @@ function resolveDiagnosticResultValue(row: any): string {
   }
   if (row?.valueString) return row.valueString
   if (row?.valueInteger !== undefined && row?.valueInteger !== null) return String(row.valueInteger)
-  if (row?.valueBoolean !== undefined && row?.valueBoolean !== null) return row.valueBoolean ? 'Ya' : 'Tidak'
+  if (row?.valueBoolean !== undefined && row?.valueBoolean !== null)
+    return row.valueBoolean ? 'Ya' : 'Tidak'
   const concept = row?.valueCodeableConcept
   if (concept && typeof concept === 'object') {
     const coding = Array.isArray(concept.coding) ? concept.coding[0] : undefined
@@ -134,10 +128,12 @@ function resolveMedicationName(medication: any): string {
   const itemName = typeof medication?.item?.nama === 'string' ? medication.item.nama.trim() : ''
   if (itemName) return itemName
 
-  const compoundName = typeof medication?.compoundName === 'string' ? medication.compoundName.trim() : ''
+  const compoundName =
+    typeof medication?.compoundName === 'string' ? medication.compoundName.trim() : ''
   if (compoundName) return `Racikan: ${compoundName}`
 
-  if (typeof medication?.intent === 'string' && medication.intent.trim()) return medication.intent.trim()
+  if (typeof medication?.intent === 'string' && medication.intent.trim())
+    return medication.intent.trim()
   return `Resep #${medication?.id ?? '-'}`
 }
 
@@ -180,7 +176,9 @@ function resolveMedicationStrength(medication: any): string | null {
   const directStrength = formatValueWithUnit(medication?.item?.kekuatan)
   if (directStrength) return directStrength
 
-  const ingredients = Array.isArray(medication?.compoundIngredients) ? medication.compoundIngredients : []
+  const ingredients = Array.isArray(medication?.compoundIngredients)
+    ? medication.compoundIngredients
+    : []
   const ingredientStrengths = ingredients
     .map((ingredient: any) => formatValueWithUnit(ingredient?.kekuatan))
     .filter((val: string | null): val is string => Boolean(val))
@@ -234,9 +232,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       key: 'date',
       render: (text: string) => (
         <div>
-          <div style={{ fontWeight: 600, fontSize: 13 }}>
-            {dayjs(text).format('DD MMM YYYY')}
-          </div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{dayjs(text).format('DD MMM YYYY')}</div>
           <div style={{ fontSize: 11, color: token.colorTextTertiary }}>
             {dayjs(text).format('HH:mm')}
           </div>
@@ -249,18 +245,14 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       dataIndex: 'serviceUnit',
       key: 'serviceUnit',
       width: 150,
-      render: (text: string) => (
-        <span style={{ fontSize: 13 }}>{text || '-'}</span>
-      )
+      render: (text: string) => <span style={{ fontSize: 13 }}>{text || '-'}</span>
     },
     {
       title: 'Dokter Pemeriksa',
       dataIndex: 'doctorName',
       key: 'doctorName',
       width: 180,
-      render: (text: string) => (
-        <span style={{ fontSize: 13 }}>{text || '-'}</span>
-      )
+      render: (text: string) => <span style={{ fontSize: 13 }}>{text || '-'}</span>
     },
     {
       title: 'Jenis',
@@ -284,11 +276,13 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
           FINISHED: { label: 'Selesai', color: 'green' },
           CANCELLED: { label: 'Dibatalkan', color: 'red' },
           DISCHARGED: { label: 'Pulang', color: 'blue' },
-          PLANNED: { label: 'Terjadwal', color: 'default' },
+          PLANNED: { label: 'Terjadwal', color: 'default' }
         }
         const cfg = statusConfig[text]
         return cfg ? (
-          <Tag color={cfg.color} bordered={false}>{cfg.label}</Tag>
+          <Tag color={cfg.color} bordered={false}>
+            {cfg.label}
+          </Tag>
         ) : (
           <span>{text || '-'}</span>
         )
@@ -302,8 +296,12 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
         const labels: string[] = Array.from(
           new Set<string>(
             [
-              ...((record.diagnosticOrders || []).map((order: any) => resolveDiagnosticCategoryLabel(order))),
-              ...((record.diagnosticResults || []).map((result: any) => resolveDiagnosticCategoryLabel(result)))
+              ...(record.diagnosticOrders || []).map((order: any) =>
+                resolveDiagnosticCategoryLabel(order)
+              ),
+              ...(record.diagnosticResults || []).map((result: any) =>
+                resolveDiagnosticCategoryLabel(result)
+              )
             ].filter((label: string): label is string => Boolean(label))
           )
         )
@@ -351,7 +349,13 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
                   const dosage = resolveDosageInstructionText(medication?.dosageInstruction)
                   const strength = resolveMedicationStrength(medication)
                   return (
-                    <div key={`med-${medication?.id}`} style={{ borderBottom: `1px solid ${token.colorBorderSecondary}`, paddingBottom: 6 }}>
+                    <div
+                      key={`med-${medication?.id}`}
+                      style={{
+                        borderBottom: `1px solid ${token.colorBorderSecondary}`,
+                        paddingBottom: 6
+                      }}
+                    >
                       <div style={{ fontWeight: 600 }}>{medName}</div>
                       <div style={{ color: token.colorTextSecondary, fontSize: 12 }}>
                         {strength ? `Kekuatan: ${strength}` : 'Kekuatan: -'}
@@ -370,9 +374,14 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
                 const medName = resolveMedicationName(medication)
                 const strength = resolveMedicationStrength(medication)
                 return (
-                  <div key={`preview-${medication?.id}`} style={{ fontSize: 12, lineHeight: '16px' }}>
+                  <div
+                    key={`preview-${medication?.id}`}
+                    style={{ fontSize: 12, lineHeight: '16px' }}
+                  >
                     <span style={{ fontWeight: 600 }}>{medName}</span>
-                    {strength ? <span style={{ color: token.colorTextSecondary }}> ({strength})</span> : null}
+                    {strength ? (
+                      <span style={{ color: token.colorTextSecondary }}> ({strength})</span>
+                    ) : null}
                   </div>
                 )
               })}
@@ -441,7 +450,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
   ]
 
   const diagnosticRows: any[] = [
-    ...((selectedRecord?.diagnosticOrders ?? []).map((order: any) => ({
+    ...(selectedRecord?.diagnosticOrders ?? []).map((order: any) => ({
       rowKey: `order-${order?.id}`,
       rowType: 'order',
       categoryLabel: resolveDiagnosticCategoryLabel(order),
@@ -449,8 +458,8 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       result: '-',
       referenceRange: '-',
       dateTime: order?.createdAt
-    }))),
-    ...((selectedRecord?.diagnosticResults ?? []).map((result: any) => ({
+    })),
+    ...(selectedRecord?.diagnosticResults ?? []).map((result: any) => ({
       rowKey: `result-${result?.id}`,
       rowType: 'result',
       categoryLabel: resolveDiagnosticCategoryLabel(result),
@@ -458,7 +467,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
       result: resolveDiagnosticResultValue(result),
       referenceRange: resolveDiagnosticReferenceRange(result),
       dateTime: result?.effectiveDateTime || result?.createdAt
-    })))
+    }))
   ].sort((a, b) => dayjs(b?.dateTime).valueOf() - dayjs(a?.dateTime).valueOf())
 
   const diagnosticColumns = [
@@ -501,7 +510,7 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
 
   return (
     <Card
-      className="shadow-sm mb-4"
+      className="mb-4"
       title="Riwayat Kunjungan"
       extra={
         <Button icon={<FilterOutlined />} type="text">
@@ -583,7 +592,9 @@ export const EncounterHistoryTable: React.FC<EncounterHistoryTableProps> = ({
         {(() => {
           if (diagnosticRows.length === 0) {
             return (
-              <div style={{ color: token.colorTextSecondary, textAlign: 'center', padding: '24px 0' }}>
+              <div
+                style={{ color: token.colorTextSecondary, textAlign: 'center', padding: '24px 0' }}
+              >
                 Tidak ada hasil Lab/Radiologi untuk kunjungan ini.
               </div>
             )

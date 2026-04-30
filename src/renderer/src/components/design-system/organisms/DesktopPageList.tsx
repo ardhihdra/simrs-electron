@@ -37,7 +37,7 @@ export function DesktopPageList({
 
   return (
     <aside
-      className={`flex shrink-0 flex-col border-r border-ds-border bg-ds-surface-muted transition-[width] duration-200 ${
+      className={`flex bg-white shrink-0 flex-col border-r border-ds-border bg-ds-surface-muted transition-[width] duration-200 ${
         collapsed ? 'w-20' : 'w-ds-pagelist'
       }`}
     >

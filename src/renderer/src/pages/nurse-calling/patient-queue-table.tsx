@@ -1,19 +1,23 @@
+/**
+ * purpose: Render nurse triage queue table with filters, status tabs, and side summary panel.
+ * main callers: Nurse calling route for queue triage workflow.
+ * key dependencies: Ant Design table/form controls, React Query queue sources, queue status mutation APIs.
+ * main/public functions: `PatientQueueTable`.
+ * side effects: Reads queue/encounter data, updates queue status actions, and opens nurse medical record windows.
+ */
 import { useMemo, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import {
-  Table,
   Button,
   Tag,
   Select,
+  Segmented,
   Space,
   Card,
   App,
-  Spin,
   Input,
   DatePicker,
-  Row,
-  Col,
   Badge,
   theme
 } from 'antd'
@@ -30,6 +34,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import { client, rpc } from '@renderer/utils/client'
+import { DesktopGenericTable } from '@renderer/components/design-system/organisms/DesktopGenericTable'
 import { PatientQueue, Gender } from '../../types/nurse.types'
 
 const { Option } = Select
@@ -110,6 +115,15 @@ const parseQueueNumber = (value?: number | string) => {
   return Number.isFinite(parsed) ? parsed : 0
 }
 
+const toQueueSummaryType = (value?: string) => {
+  const source = String(value || '').trim().toUpperCase()
+  if (!source) return '-'
+  if (source === 'EMER') return 'IGD'
+  if (source === 'AMB') return 'Rawat Jalan'
+  if (source === 'IMP') return 'Rawat Inap'
+  return source
+}
+
 const parseTimestamp = (value?: string) => {
   const parsed = dayjs(value)
   return parsed.isValid() ? parsed.valueOf() : 0
@@ -157,6 +171,9 @@ const PatientQueueTable = () => {
   const [selectedPoli, setSelectedPoli] = useState<string | undefined>(undefined)
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs, dayjs.Dayjs] | null>([dayjs(), dayjs()])
   const [activeStatus, setActiveStatus] = useState<string>(NURSE_DEFAULT_STATUS)
+  const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [perPage, setPerPage] = useState(10)
 
   const { data: poliData, isLoading: isPoliLoading } = client.visitManagement.poli.useQuery({})
   const scopedPolis = useMemo<ScopedPoli[]>(() => {
@@ -476,6 +493,50 @@ const PatientQueueTable = () => {
 
   const latestTriageQueue = allPatientQueue.find((queue) => queue.status === NURSE_TRIAGE_STATUS)
 
+  useEffect(() => {
+    if (patientQueue.length === 0) {
+      setSelectedQueueId(null)
+      return
+    }
+
+    if (!selectedQueueId || !patientQueue.some((queue) => queue.queueId === selectedQueueId)) {
+      setSelectedQueueId(patientQueue[0].queueId)
+    }
+  }, [patientQueue, selectedQueueId])
+
+  const selectedQueue = useMemo(() => {
+    if (!selectedQueueId) return patientQueue[0]
+    return patientQueue.find((queue) => queue.queueId === selectedQueueId) || patientQueue[0]
+  }, [patientQueue, selectedQueueId])
+  const selectedQueueLosDays = useMemo(() => {
+    if (!selectedQueue?.registrationDate) return 0
+    const diff = dayjs().startOf('day').diff(dayjs(selectedQueue.registrationDate).startOf('day'), 'day')
+    return Math.max(0, diff)
+  }, [selectedQueue?.registrationDate])
+
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(patientQueue.length / perPage)),
+    [patientQueue.length, perPage]
+  )
+  const safePage = Math.min(currentPage, totalPages)
+  const startIdx = (safePage - 1) * perPage
+  const paginatedQueue = useMemo(
+    () => patientQueue.slice(startIdx, startIdx + perPage),
+    [patientQueue, startIdx, perPage]
+  )
+  const pageWindow = useMemo(() => {
+    let start = Math.max(1, safePage - 2)
+    const end = Math.min(totalPages, start + 4)
+    start = Math.max(1, end - 4)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }, [safePage, totalPages])
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages)
+    }
+  }, [currentPage, totalPages])
+
   const markAsTriage = async (record: PatientQueueTableData) => {
     await updateStatusMutation.mutateAsync({
       queueId: record.queueId,
@@ -491,6 +552,9 @@ const PatientQueueTable = () => {
     }
 
     window.open(`#/dashboard/nurse-calling/medical-record/${record.encounterId}`, '_blank')
+  }
+  const handleFeatureNotReady = () => {
+    message.info('Fitur ini belum tersedia sebagai halaman terpisah.')
   }
 
   const handleMoveToPoliQueue = (record: PatientQueueTableData) => {
@@ -743,12 +807,37 @@ const PatientQueueTable = () => {
         : allPatientQueue.filter((p) => p.status === key).length
 
     return {
-      key,
-      label: cfg.label,
-      dotColor: cfg.dotColor,
-      count
+      value: key,
+      label: (
+        <span className="flex items-center gap-1.5 px-1">
+          {cfg.label}
+          {count > 0 && (
+            <span
+              className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[10px] leading-none"
+              style={{ background: cfg.dotColor, color: token.colorBgContainer }}
+            >
+              {count}
+            </span>
+          )}
+        </span>
+      )
     }
   })
+  const isDefaultDateRange = Boolean(
+    dateRange?.[0]?.isSame(dayjs(), 'day') && dateRange?.[1]?.isSame(dayjs(), 'day')
+  )
+  const hasActiveFilters =
+    searchText.trim().length > 0 ||
+    (!isPoliLockedFromRoute && Boolean(selectedPoli)) ||
+    !isDefaultDateRange ||
+    activeStatus !== NURSE_DEFAULT_STATUS
+  const clearFilters = () => {
+    setSearchText('')
+    if (!isPoliLockedFromRoute) setSelectedPoli(undefined)
+    setDateRange([dayjs(), dayjs()])
+    setActiveStatus(NURSE_DEFAULT_STATUS)
+    setCurrentPage(1)
+  }
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -884,149 +973,307 @@ const PatientQueueTable = () => {
         </div>
       </Card>
 
-      <Card styles={{ body: { padding: '16px 20px' } }} variant="borderless">
-        <Row gutter={[16, 12]} align="bottom">
-          <Col xs={24} md={8}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: token.colorTextTertiary,
-                marginBottom: 6,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}
-            >
-              Cari Pasien
-            </div>
-            <Input
-              placeholder="Nama Pasien / Nomor Antrian"
-              prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              allowClear
-            />
-          </Col>
-          <Col xs={24} md={8}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: token.colorTextTertiary,
-                marginBottom: 6,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}
-            >
-              Unit Pelayanan
-            </div>
-            <Select
-              placeholder={isPoliLockedFromRoute ? '-- Unit Terkunci --' : '-- Semua Unit --'}
-              className="w-full"
-              allowClear={!isPoliLockedFromRoute}
-              disabled={isPoliLockedFromRoute}
-              value={selectedPoli}
-              onChange={setSelectedPoli}
-            >
-              {scopedPolis.map((poli) => (
-                <Option key={poli.id} value={poli.id}>
-                  {poli.name}
-                </Option>
-              ))}
-            </Select>
-          </Col>
-          <Col xs={24} md={8}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: token.colorTextTertiary,
-                marginBottom: 6,
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em'
-              }}
-            >
-              Rentang Tanggal Antrian
-            </div>
-            <RangePicker
-              className="w-full"
-              value={dateRange}
-              onChange={(dates) => setDateRange((dates as [dayjs.Dayjs, dayjs.Dayjs]) || null)}
-              format="DD MMM YYYY"
-              allowClear
-            />
-          </Col>
-        </Row>
-
-        <div
-          className="flex gap-1.5 mt-4 pt-4 flex-wrap"
-          style={{ borderTop: `1px solid ${token.colorBorderSecondary}` }}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
+        <Card
+          className="flex-1 overflow-hidden flex flex-col"
+          variant="borderless"
+          styles={{ body: { padding: 0 } }}
         >
-          {statusTabItems.map((tab) => {
-            const isActive = activeStatus === tab.key
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActiveStatus(tab.key)}
-                style={
-                  isActive
-                    ? {
-                        background: token.colorPrimary,
-                        borderColor: token.colorPrimary,
-                        color: '#fff',
-                        padding: '6px 12px',
-                        borderRadius: token.borderRadiusSM,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }
-                    : {
-                        background: token.colorFillAlter,
-                        borderColor: token.colorBorderSecondary,
-                        color: token.colorTextSecondary,
-                        padding: '6px 12px',
-                        borderRadius: token.borderRadiusSM,
-                        fontSize: 14,
-                        fontWeight: 500,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }
-                }
-              >
-                {tab.label}
-                {tab.count > 0 && (
-                  <Badge
-                    count={tab.count}
-                    color={isActive ? '#fff' : tab.dotColor}
-                    size="small"
-                    style={{ fontSize: 10, color: isActive ? tab.dotColor : '#fff', marginLeft: 4 }}
-                  />
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </Card>
+          <div
+            className="px-4 py-3"
+            style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
+          >
+            <div className="flex gap-2 items-center flex-wrap">
+              <div className="min-w-[260px] flex-1">
+                <Input
+                  placeholder="Cari nama pasien atau nomor antrian..."
+                  prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
+                  value={searchText}
+                  onChange={(e) => {
+                    setSearchText(e.target.value)
+                    setCurrentPage(1)
+                  }}
+                  allowClear
+                />
+              </div>
+              <Segmented
+                value={activeStatus}
+                onChange={(value) => {
+                  setActiveStatus(String(value))
+                  setCurrentPage(1)
+                }}
+                options={statusTabItems}
+              />
+            </div>
 
-      <Card className="flex-1 overflow-hidden flex flex-col" variant="borderless">
-        <Spin spinning={isLoading || isPoliLoading}>
-          <Table
-            columns={columns}
-            dataSource={patientQueue}
-            pagination={{
-              pageSize: 10,
-              showTotal: (total) => `Total ${total} pasien`,
-              showSizeChanger: true
-            }}
-            scroll={{ x: 1250, y: 'calc(100vh - 460px)' }}
-            className="flex-1"
-            size="middle"
-          />
-        </Spin>
-      </Card>
+            <div className="flex gap-2 mt-3 items-center flex-wrap">
+              <Select
+                placeholder={isPoliLockedFromRoute ? 'Unit Terkunci' : 'Semua Unit'}
+                className="min-w-[220px] flex-1 max-w-[300px]"
+                allowClear={!isPoliLockedFromRoute}
+                disabled={isPoliLockedFromRoute}
+                value={selectedPoli}
+                onChange={(value) => {
+                  setSelectedPoli(value)
+                  setCurrentPage(1)
+                }}
+              >
+                {scopedPolis.map((poli) => (
+                  <Option key={poli.id} value={poli.id}>
+                    {poli.name}
+                  </Option>
+                ))}
+              </Select>
+              <RangePicker
+                value={dateRange}
+                onChange={(dates) => {
+                  setDateRange((dates as [dayjs.Dayjs, dayjs.Dayjs]) || null)
+                  setCurrentPage(1)
+                }}
+                format="DD MMM YYYY"
+                allowClear
+              />
+              {hasActiveFilters && (
+                <Button type="text" size="small" onClick={clearFilters}>
+                  Reset filter
+                </Button>
+              )}
+              <span className="ml-auto text-xs" style={{ color: token.colorTextTertiary }}>
+                <b style={{ color: token.colorText }}>{patientQueue.length}</b> hasil
+              </span>
+            </div>
+          </div>
+
+          <div className="px-0 pb-0">
+            <DesktopGenericTable<PatientQueueTableData>
+              columns={columns}
+              dataSource={paginatedQueue}
+              rowKey="key"
+              loading={isLoading || isPoliLoading}
+              tableProps={{
+                scroll: { x: 1250, y: 'calc(100vh - 460px)' },
+                size: 'middle',
+                onRow: (record) => ({
+                  onClick: () => setSelectedQueueId(record.queueId),
+                  style: {
+                    cursor: 'pointer',
+                    background:
+                      record.queueId === selectedQueue?.queueId ? token.colorPrimaryBg : undefined
+                  }
+                })
+              }}
+            />
+          </div>
+          <div
+            className="px-4 py-2 flex items-center gap-2 text-xs"
+            style={{ borderTop: `1px solid ${token.colorBorderSecondary}` }}
+          >
+            <span style={{ color: token.colorTextSecondary }}>
+              {patientQueue.length === 0
+                ? 'Tidak ada data'
+                : `Menampilkan ${startIdx + 1}-${Math.min(startIdx + perPage, patientQueue.length)} dari ${patientQueue.length} pasien`}
+            </span>
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={safePage === 1}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                «
+              </button>
+              <button
+                onClick={() => setCurrentPage(Math.max(1, safePage - 1))}
+                disabled={safePage === 1}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                ‹
+              </button>
+              {pageWindow.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  onClick={() => setCurrentPage(pageNumber)}
+                  className="px-2.5 py-0.5 rounded border text-xs"
+                  style={{
+                    borderColor:
+                      pageNumber === safePage ? token.colorPrimary : token.colorBorderSecondary,
+                    background: pageNumber === safePage ? token.colorPrimary : token.colorBgContainer,
+                    color: pageNumber === safePage ? '#fff' : token.colorText
+                  }}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, safePage + 1))}
+                disabled={safePage === totalPages}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                ›
+              </button>
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safePage === totalPages}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                »
+              </button>
+              <select
+                value={perPage}
+                onChange={(event) => {
+                  setPerPage(Number(event.target.value))
+                  setCurrentPage(1)
+                }}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{ borderColor: token.colorBorderSecondary, background: token.colorBgContainer }}
+              >
+                <option value={5}>5 / hal</option>
+                <option value={10}>10 / hal</option>
+                <option value={25}>25 / hal</option>
+                <option value={50}>50 / hal</option>
+              </select>
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          title={
+            <div className="flex items-center justify-between">
+              <span>Ringkasan</span>
+              <Tag className="m-0" color="blue">
+                {selectedQueue?.poli.name || '-'}
+              </Tag>
+            </div>
+          }
+          variant="borderless"
+          styles={{
+            head: { padding: '12px 16px', minHeight: 0 },
+            body: { padding: '12px 16px' }
+          }}
+        >
+          {selectedQueue ? (
+            <div className="flex flex-col gap-4">
+              <div
+                className="flex items-center gap-3 pb-3 border-b"
+                style={{ borderColor: token.colorBorderSecondary }}
+              >
+                <div
+                  className="w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+                  style={{
+                    background: token.colorPrimaryBg,
+                    border: `1px solid ${token.colorPrimaryBorder}`
+                  }}
+                >
+                  <span style={{ color: token.colorPrimary, fontSize: 13, fontWeight: 700 }}>
+                    {selectedQueue.patient.name
+                      .split(' ')
+                      .map((part) => part[0])
+                      .slice(0, 2)
+                      .join('')
+                      .toUpperCase()}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <div className="font-semibold text-sm truncate">{selectedQueue.patient.name}</div>
+                  <div className="text-xs text-gray-500 truncate">
+                    {selectedQueue.patient.age} th · {selectedQueue.patient.medicalRecordNumber || '-'}
+                  </div>
+                </div>
+              </div>
+
+              <div
+                className="grid grid-cols-2 gap-3 text-xs pb-2 border-b"
+                style={{ borderColor: token.colorBorderSecondary }}
+              >
+                <div>
+                  <div className="text-gray-500 uppercase font-semibold tracking-wide">Dx</div>
+                  <div className="font-medium">
+                    {toQueueSummaryType(selectedQueue.encounterType)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500 uppercase font-semibold tracking-wide">LOS</div>
+                  <div className="font-medium">{selectedQueueLosDays} hari</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 uppercase font-semibold tracking-wide">
+                    Est. Pulang
+                  </div>
+                  <div className="font-medium">
+                    {selectedQueue.status === 'FINISHED'
+                      ? dayjs(selectedQueue.registrationDate).format('DD MMM YYYY')
+                      : '-'}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-gray-500 uppercase font-semibold tracking-wide">SEP</div>
+                  <div className="font-medium">-</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 uppercase font-semibold tracking-wide">Status</div>
+                  <div>{getStatusTag(selectedQueue.status)}</div>
+                </div>
+                <div>
+                  <div className="text-gray-500 uppercase font-semibold tracking-wide">Antrian</div>
+                  <div className="font-medium">{selectedQueue.formattedQueueNumber || '-'}</div>
+                </div>
+                <div className="col-span-2">
+                  <div className="text-gray-500 uppercase font-semibold tracking-wide mb-1">DPJP</div>
+                  <div className="flex items-center gap-2">
+                    <div className="font-medium text-xs truncate" title={selectedQueue.doctor.name}>
+                      {selectedQueue.doctor.name || '-'}
+                    </div>
+                    <Button size="small" type="text" className="!text-[10px] !px-2 !h-6 !text-blue-600">
+                      Ganti
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {selectedQueueLosDays >= 7 && (
+                <div
+                  className="text-xs px-3 py-2 rounded"
+                  style={{
+                    background: token.colorWarningBg,
+                    border: `1px solid ${token.colorWarningBorder}`,
+                    color: token.colorWarningText
+                  }}
+                >
+                  {selectedQueueLosDays >= 14
+                    ? 'LOS sangat panjang - perlu evaluasi.'
+                    : 'LOS panjang - monitor DPJP.'}
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 pt-1">
+                <Button
+                  type="primary"
+                  onClick={() => handleExaminePatient(selectedQueue)}
+                  disabled={!selectedQueue.encounterId}
+                >
+                  Pemeriksaan Lengkap
+                </Button>
+                <Button onClick={handleFeatureNotReady}>Buka CPPT</Button>
+                <Button onClick={handleFeatureNotReady}>Vital Signs</Button>
+                <Button onClick={handleFeatureNotReady}>Resep / MAR</Button>
+                <Button>Tetapkan / Ganti DPJP</Button>
+                <Button disabled>Transfer Kamar</Button>
+                <Button
+                  onClick={() => handleExaminePatient(selectedQueue)}
+                  disabled={!selectedQueue.encounterId}
+                >
+                  Proses Pulang
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">Tidak ada data pasien.</div>
+          )}
+        </Card>
+      </div>
     </div>
   )
 }

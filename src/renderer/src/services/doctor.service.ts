@@ -83,6 +83,42 @@ interface BackendEncounterPatient {
   address?: string
 }
 
+interface BackendEncounterReadResult {
+  id: string
+  encounterCode?: string
+  status?: string | null
+  paymentMethod?: string | null
+  patient?: BackendEncounterPatient
+  practitioner?: {
+    id?: number | string
+    namaLengkap?: string | null
+  } | null
+  queueTicket?: {
+    queueDate?: string | Date | null
+    paymentMethod?: string | null
+    penjaminName?: string | null
+    practitioner?: {
+      id?: number | string
+      namaLengkap?: string | null
+    } | null
+    poli?: {
+      id?: number | string
+      name?: string | null
+    } | null
+  } | null
+  inpatientInfo?: {
+    roomName?: string | null
+    bedName?: string | null
+    dpjpName?: string | null
+  } | null
+  wardName?: string | null
+  bedName?: string | null
+  dpjpName?: string | null
+  period?: {
+    start?: string | Date | null
+  } | null
+}
+
 interface BackendMedicine {
   id: string | number
   code?: string
@@ -148,7 +184,7 @@ export const getPatientMedicalRecord = async (
       return null
     }
 
-    const encounter = encounterRes.result
+    const encounter = encounterRes.result as unknown as BackendEncounterReadResult
     const patient = encounter.patient as unknown as BackendEncounterPatient
 
     if (!patient) {
@@ -330,7 +366,30 @@ export const getPatientMedicalRecord = async (
       gender: patient.gender
     })
 
-    const patientWithRecord: PatientWithMedicalRecord = {
+    const inpatientRoomName =
+      encounter.inpatientInfo?.roomName?.trim() ||
+      encounter.wardName?.trim() ||
+      encounter.queueTicket?.poli?.name?.trim() ||
+      ''
+    const inpatientBedName =
+      encounter.inpatientInfo?.bedName?.trim() || encounter.bedName?.trim() || ''
+    const inpatientDpjpName =
+      encounter.inpatientInfo?.dpjpName?.trim() ||
+      encounter.dpjpName?.trim() ||
+      encounter.practitioner?.namaLengkap?.trim() ||
+      encounter.queueTicket?.practitioner?.namaLengkap?.trim() ||
+      ''
+    const serviceTypeLabel =
+      inpatientRoomName && inpatientBedName
+        ? `${inpatientRoomName} / ${inpatientBedName}`
+        : inpatientRoomName || 'Rawat Inap'
+    const paymentLabel =
+      encounter.queueTicket?.penjaminName?.trim() ||
+      encounter.queueTicket?.paymentMethod?.trim() ||
+      encounter.paymentMethod?.trim() ||
+      'Umum'
+
+    const patientWithRecord = {
       id: String(patient.id),
       encounterId: String(encounter.id),
       encounter: encounter as unknown as Record<string, any>,
@@ -347,24 +406,31 @@ export const getPatientMedicalRecord = async (
         age: age
       },
       status: mapEncounterStatus(encounter.status),
-      paymentMethod: 'Umum',
+      paymentMethod: paymentLabel,
       pregnancyStatus,
       registrationDate: encounter.period?.start
         ? String(encounter.period.start)
         : new Date().toISOString(),
       poli: {
         id: '',
-        code: String(encounter.serviceType || ''),
-        name: 'Poli Umum'
+        code: String(encounter.inpatientInfo?.roomName || encounter.wardName || ''),
+        name: serviceTypeLabel
       },
       doctor: {
-        id: '',
-        name: '',
-        specialization: 'Umum',
+        id: String(encounter.practitioner?.id || encounter.queueTicket?.practitioner?.id || ''),
+        name: inpatientDpjpName || '-',
+        specialization: 'DPJP',
         sipNumber: ''
       },
+      serviceType: serviceTypeLabel,
+      doctorName: inpatientDpjpName || '-',
+      visitDate: encounter.period?.start || encounter.queueTicket?.queueDate || new Date().toISOString(),
       nurseRecord,
       doctorRecord: undefined
+    } as PatientWithMedicalRecord & {
+      serviceType?: string
+      doctorName?: string
+      visitDate?: string | Date
     }
 
     return patientWithRecord

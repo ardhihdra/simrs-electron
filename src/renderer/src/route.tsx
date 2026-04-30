@@ -1,3 +1,10 @@
+/**
+ * purpose: Declare renderer route tree and bind page-access guards for dashboard modules.
+ * main callers: renderer entrypoint that mounts `MainRoute`.
+ * key dependencies: React Router, module-scope guard, dashboard/module route pages, and page-access query client.
+ * main/public functions: `MainRoute` and default export.
+ * important side effects: reads page-access mapping and enforces route-level authorization fallback.
+ */
 import type { ReactNode } from 'react'
 import { useMemo } from 'react'
 import { Link, Navigate, Outlet, Route, Routes, useLocation } from 'react-router'
@@ -116,7 +123,12 @@ import QueueList from './pages/queue/queue-list'
 import RawatInapBedMapRoute from './pages/rawat-inap/RawatInapBedMapRoute'
 import RawatInapAdmisiRoute from './pages/rawat-inap/RawatInapAdmisiRoute'
 import RawatInapCheckinRoute from './pages/rawat-inap/RawatInapCheckinRoute'
+import RawatInapDaftarPasienDetailRoute from './pages/rawat-inap/RawatInapDaftarPasienDetailRoute'
 import RawatInapPasienRoute from './pages/rawat-inap/RawatInapPasienRoute'
+import {
+  RawatInapQuickCpptRoute,
+  RawatInapQuickVitalSignsRoute
+} from './pages/rawat-inap/RawatInapQuickClinicalFormRoute'
 import RawatInapTransferRoute from './pages/rawat-inap/RawatInapTransferRoute'
 import { RAWAT_INAP_PAGE_PATHS } from './pages/rawat-inap/rawat-inap.config'
 import ServiceRequest from './pages/service-request/ServiceRequest'
@@ -395,6 +407,18 @@ function MainRoute() {
             <Route
               path="pasien"
               element={g(RAWAT_INAP_PAGE_PATHS.pasien, <RawatInapPasienRoute />)}
+            />
+            <Route
+              path="daftar-pasien/:encounterId"
+              element={g(RAWAT_INAP_PAGE_PATHS.pasien, <RawatInapDaftarPasienDetailRoute />)}
+            />
+            <Route
+              path="daftar-pasien/:encounterId/cppt"
+              element={g(RAWAT_INAP_PAGE_PATHS.pasien, <RawatInapQuickCpptRoute />)}
+            />
+            <Route
+              path="daftar-pasien/:encounterId/vital-signs"
+              element={g(RAWAT_INAP_PAGE_PATHS.pasien, <RawatInapQuickVitalSignsRoute />)}
             />
           </Route>
           <Route path="igd" element={g('/dashboard/igd', <Outlet />)}>

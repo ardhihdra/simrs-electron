@@ -1,3 +1,10 @@
+/**
+ * purpose: Top desktop module bar with brand section, module navigation, and right-side actions.
+ * main callers: desktop shell layout/pages that render DesktopModuleBar.
+ * key dependencies: DesktopBadge, DesktopIcon, desktop-shell.helpers active-key resolver.
+ * main/public functions: DesktopModuleBar (component), DesktopModuleBarProps (public props contract).
+ * important side effects: invokes onSelect callback when module navigation item is clicked.
+ */
 import type { ReactNode } from 'react'
 
 import { DesktopBadge } from '../atoms/DesktopBadge'
@@ -28,8 +35,8 @@ export function DesktopModuleBar({
   const resolvedActiveKey = getActiveDesktopKey(items, activeKey)
 
   return (
-    <div className="flex h-ds-modulebar items-center gap-ds-space-xs border-b border-ds-border bg-ds-surface px-ds-space-sm">
-      <div className="flex self-stretch mr-ds-space-sm items-center gap-ds-space-xs border-r border-ds-border pr-ds-space-md">
+    <div className="flex h-ds-modulebar items-center gap-ds-space-xs border-b border-ds-border bg-ds-surface ">
+      <div className=" flex w-ds-pagelist shrink-0 self-stretch items-center gap-ds-space-xs border-r border-ds-border px-ds-space-sm">
         <div className="h-ds-module-brand w-ds-module-brand items-center justify-center overflow-hidden rounded-ds-md bg-ds-accent text-ds-accent-text text-ds-body font-bold p-0.5">
           {brandMark ?? 'S'}
         </div>

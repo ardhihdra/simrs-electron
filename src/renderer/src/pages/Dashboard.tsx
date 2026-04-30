@@ -1,8 +1,14 @@
+/**
+ * purpose: Render dashboard shell, module navigation menu, and tab ownership resolution.
+ * main callers: `route.tsx` via `/dashboard/*` route entry.
+ * key dependencies: `DesktopMenuShell`, `DesktopStatusBar`, module config (`rawat-inap`, `igd`), and router navigation hooks.
+ * main/public functions: `Dashboard` default export, local menu resolver helpers (`getTopKeyFromPath`, `resolveNavigationForMenuKey`).
+ * important side effects: Reads session/page-access data via RPC hooks and updates browser route/tab state.
+ */
 import {
   AlertOutlined,
   BarcodeOutlined,
   CalendarOutlined,
-  CheckCircleOutlined,
   CameraOutlined,
   DashboardOutlined,
   ExperimentOutlined,
@@ -15,7 +21,6 @@ import {
   PhoneOutlined,
   RightCircleFilled,
   UnorderedListOutlined,
-  UserAddOutlined,
   UserOutlined,
   WalletOutlined
 } from '@ant-design/icons'
@@ -31,10 +36,7 @@ import NotificationBell from '@renderer/components/molecules/NotificationBell'
 import ProfileMenu from '@renderer/components/molecules/ProfileMenu'
 import { IGD_DASHBOARD_ITEM, IGD_ROOT_PATH } from '@renderer/pages/igd/igd.config'
 import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
-import {
-  RAWAT_INAP_DASHBOARD_ITEM,
-  RAWAT_INAP_PAGE_PATHS
-} from '@renderer/pages/rawat-inap/rawat-inap.config'
+import { RAWAT_INAP_DASHBOARD_ITEM } from '@renderer/pages/rawat-inap/rawat-inap.config'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
 import { isPageVisible } from '@renderer/services/ModuleScope/utils'
@@ -96,6 +98,10 @@ type DashboardMenuItem = DashboardMenuChild & {
 }
 
 const DASHBOARD_ROOT_KEY = '/dashboard'
+const RAWAT_INAP_QUICK_FORM_PATH_PATTERN =
+  /^\/dashboard\/rawat-inap\/daftar-pasien\/[^/]+\/(cppt|vital-signs)$/
+const normalizePathForMenuLookup = (path: string) =>
+  RAWAT_INAP_QUICK_FORM_PATH_PATTERN.test(path) ? '/dashboard/rawat-inap/pasien' : path
 
 const items: DashboardMenuItem[] = [
   {
@@ -178,18 +184,6 @@ const items: DashboardMenuItem[] = [
         label: 'Antrian Global Pendaftaran',
         key: '/dashboard/registration/global-queue',
         icon: <UnorderedListOutlined />
-      },
-      {
-        label: 'Admisi Baru Rawat Inap',
-        key: RAWAT_INAP_PAGE_PATHS.admisi,
-        icon: <UserAddOutlined />,
-        hiddenForRoles: ['doctor', 'nurse']
-      },
-      {
-        label: 'Checkin Rawat Inap',
-        key: RAWAT_INAP_PAGE_PATHS.checkin,
-        icon: <CheckCircleOutlined />,
-        hiddenForRoles: ['doctor', 'nurse']
       },
       {
         label: 'Antrian Pendaftaran Non-Medis',
@@ -669,20 +663,22 @@ function Dashboard() {
   }
   const findLabelByPath = useCallback(
     (path: string): string => {
+      const normalizedPath = normalizePathForMenuLookup(path)
       const candidates = visibleItems.flatMap((item) => [item, ...(item.children ?? [])])
       const match = candidates
-        .filter((item) => path.startsWith(item.key))
+        .filter((item) => normalizedPath.startsWith(item.key))
         .sort((a, b) => b.key.length - a.key.length)[0]
 
-      return match?.label ?? path
+      return match?.label ?? normalizedPath
     },
     [visibleItems]
   )
   const findIconByPath = useCallback(
     (path: string): ReactNode | undefined => {
+      const normalizedPath = normalizePathForMenuLookup(path)
       const candidates = visibleItems.flatMap((item) => [item, ...(item.children ?? [])])
       const match = candidates
-        .filter((item) => path.startsWith(item.key))
+        .filter((item) => normalizedPath.startsWith(item.key))
         .sort((a, b) => b.key.length - a.key.length)[0]
 
       return match?.icon
@@ -690,6 +686,13 @@ function Dashboard() {
     [visibleItems]
   )
   const getTopKeyFromPath = (path: string): string => {
+    if (
+      path.startsWith(RAWAT_INAP_DASHBOARD_ITEM.key) &&
+      visibleItems.some((item) => item.key === RAWAT_INAP_DASHBOARD_ITEM.key)
+    ) {
+      return RAWAT_INAP_DASHBOARD_ITEM.key
+    }
+
     if (
       path.startsWith('/dashboard/doctor') &&
       visibleItems.some((item) => item.key === '/dashboard/poli')

@@ -1,7 +1,24 @@
-import { App } from 'antd'
+/**
+ * purpose: Render inpatient patient list page with doctor-style header, mockup-parity toolbar/table layout, and right-side summary panel.
+ * main callers: `RawatInapPasienRoute` under `/dashboard/rawat-inap/pasien`.
+ * key dependencies: Ant Design tokens/components, `DesktopGenericTable`, `DpjpModal`, async filter selectors, inpatient query contract.
+ * main/public functions: `RawatInapPasienPage`.
+ * side effects: Triggers query state changes via `onQueryChange`, invokes checkin/disposition callbacks, shows info messages for placeholder actions, opens DPJP assignment modal, and opens rawat-inap clinical workspace/quick forms in a new tab.
+ */
+import {
+  CheckCircleOutlined,
+  ClockCircleOutlined,
+  DownloadOutlined,
+  ExceptionOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  TeamOutlined
+} from '@ant-design/icons'
+import { App, Button, Card, Input, Segmented, Space, theme } from 'antd'
 import type { ColumnsType, TableProps } from 'antd/es/table'
 import { useQuery } from '@tanstack/react-query'
-import React, { useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 
 import { useMedicationDispenseByEncounter } from '@renderer/hooks/query/use-medication-dispense'
 import { rpc } from '@renderer/utils/client'
@@ -25,11 +42,15 @@ import type {
   InpatientPatientListItem,
   InpatientPatientListQuery
 } from '../../../../main/rpc/procedure/encounter.schemas'
+import {
+  buildRawatInapPatientWorkspacePath,
+  buildRawatInapQuickCpptPath,
+  buildRawatInapQuickVitalSignsPath
+} from './rawat-inap.config'
 
 void React
 
 type RawatInapPasienPageProps = {
-  mode?: 'active' | 'checkin'
   title?: string
   subtitle?: string
   items: InpatientPatientListItem[]
@@ -39,7 +60,6 @@ type RawatInapPasienPageProps = {
   statusCounts?: { PLANNED?: number; IN_PROGRESS: number; FINISHED: number }
   onQueryChange: (patch: Partial<InpatientPatientListQuery>) => void
   onCheckin?: (patient: InpatientPatientListItem) => void
-  onOpenAdmisi?: () => void
   onDispositionConfirm?: (
     patient: InpatientPatientListItem,
     payload: DesktopDispositionConfirmPayload
@@ -74,6 +94,7 @@ function formatDate(dt: string | null): string {
 }
 
 type SortField = NonNullable<InpatientPatientListQuery['sortField']>
+type EncounterStatusFilter = '' | 'PLANNED' | 'IN_PROGRESS' | 'FINISHED'
 
 const RAWAT_INAP_DISPOSITION_OPTIONS: DesktopDispositionOption[] = [
   {
@@ -125,7 +146,6 @@ const RAWAT_INAP_BANNER_META = {
 }
 
 export function RawatInapPasienPage({
-  mode = 'active',
   title,
   subtitle,
   items,
@@ -135,17 +155,28 @@ export function RawatInapPasienPage({
   statusCounts,
   onQueryChange,
   onCheckin,
-  onOpenAdmisi,
   onDispositionConfirm,
   isDispositionSubmitting = false,
   onDpjpSaved
 }: RawatInapPasienPageProps) {
+  const { token } = theme.useToken()
   const { message } = App.useApp()
   const [selectedEncounterId, setSelectedEncounterId] = useState(() => items[0]?.encounterId ?? '')
   const [dispositionPatient, setDispositionPatient] = useState<InpatientPatientListItem | null>(
     null
   )
   const [showDpjpModal, setShowDpjpModal] = useState(false)
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setSelectedEncounterId('')
+      return
+    }
+
+    if (!selectedEncounterId || !items.some((item) => item.encounterId === selectedEncounterId)) {
+      setSelectedEncounterId(items[0].encounterId)
+    }
+  }, [items, selectedEncounterId])
 
   const selected = items.find((p) => p.encounterId === selectedEncounterId) ?? items[0] ?? null
   const dispositionEncounterId = dispositionPatient?.encounterId
@@ -165,16 +196,43 @@ export function RawatInapPasienPage({
   })
   const dispositionInvoice =
     (dispositionInvoiceQuery.data as { result?: unknown } | undefined)?.result ?? null
-  const isCheckinMode = mode === 'checkin'
-  const pageTitle =
-    title ?? (isCheckinMode ? 'Daftar Pasien Siap Checkin' : 'Daftar Pasien Rawat Inap')
+  const pageTitle = title ?? 'Daftar Pasien Rawat Inap'
   const pageSubtitle =
     subtitle ??
-    (isCheckinMode
-      ? `${statusCounts?.PLANNED ?? 0} pasien menunggu checkin`
-      : `${statusCounts?.IN_PROGRESS ?? 0} aktif · ${statusCounts?.FINISHED ?? 0} discharge`)
+    `${statusCounts?.PLANNED ?? 0} planned · ${statusCounts?.IN_PROGRESS ?? 0} aktif · ${statusCounts?.FINISHED ?? 0} discharge`
 
   const handleAction = () => void message.info('Fitur belum diimplementasikan pada scope ini')
+  const handleOpenPemeriksaanLengkap = () => {
+    const encounterId = selected?.encounterId
+    if (!encounterId) {
+      message.warning('Encounter belum tersedia untuk pasien ini.')
+      return
+    }
+    const base = window.location.href.split('#')[0]
+    const targetPath = buildRawatInapPatientWorkspacePath(encounterId)
+    window.open(`${base}#${targetPath}`, '_blank')
+  }
+  const handleOpenQuickCppt = () => {
+    const encounterId = selected?.encounterId
+    if (!encounterId) {
+      message.warning('Encounter belum tersedia untuk pasien ini.')
+      return
+    }
+    const base = window.location.href.split('#')[0]
+    const targetPath = buildRawatInapQuickCpptPath(encounterId)
+    window.open(`${base}#${targetPath}`, '_blank')
+  }
+  const handleOpenQuickVitalSigns = () => {
+    const encounterId = selected?.encounterId
+    if (!encounterId) {
+      message.warning('Encounter belum tersedia untuk pasien ini.')
+      return
+    }
+    const base = window.location.href.split('#')[0]
+    const targetPath = buildRawatInapQuickVitalSignsPath(encounterId)
+    window.open(`${base}#${targetPath}`, '_blank')
+  }
+
   const openDpjpModal = () => setShowDpjpModal(true)
   const closeDpjpModal = () => setShowDpjpModal(false)
   const handleDpjpSaved = () => {
@@ -287,7 +345,7 @@ export function RawatInapPasienPage({
       dpjpName: undefined,
       paymentType: undefined,
       losCategory: undefined,
-      encounterStatus: isCheckinMode ? queryParams.encounterStatus : 'IN_PROGRESS',
+      encounterStatus: undefined,
       page: 1
     })
 
@@ -297,6 +355,19 @@ export function RawatInapPasienPage({
         ? ('ascend' as const)
         : ('descend' as const)
       : null
+
+  const totalPages = Math.max(1, Math.ceil(total / queryParams.pageSize))
+  const safePage = Math.min(Math.max(queryParams.page, 1), totalPages)
+  const startIdx = total === 0 ? 0 : (safePage - 1) * queryParams.pageSize + 1
+  const endIdx = total === 0 ? 0 : Math.min(startIdx + items.length - 1, total)
+  const pageWindow = useMemo(() => {
+    let start = Math.max(1, safePage - 2)
+    const end = Math.min(totalPages, start + 4)
+    start = Math.max(1, end - 4)
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+  }, [safePage, totalPages])
+
+  const longLosCount = items.filter((item) => item.losDays >= 7).length
 
   const columns: ColumnsType<InpatientPatientListItem> = [
     {
@@ -383,7 +454,7 @@ export function RawatInapPasienPage({
             {losDays}
           </span>
           {losDays >= 14 && (
-            <span className="ml-[3px] text-[9px] text-[var(--ds-color-danger)]">⚠</span>
+            <span className="ml-[3px] text-[9px] text-[var(--ds-color-danger)]">!</span>
           )}
           {losDays >= 7 && losDays < 14 && (
             <span className="ml-[3px] text-[9px] text-[var(--ds-color-warning)]">!</span>
@@ -412,40 +483,81 @@ export function RawatInapPasienPage({
   ]
 
   const tableProps: TableProps<InpatientPatientListItem> = {
-    onChange: (pagination, _, sorter) => {
+    onChange: (_, __, sorter) => {
       const s = Array.isArray(sorter) ? sorter[0] : sorter
       onQueryChange({
-        page: pagination.current ?? 1,
-        pageSize: pagination.pageSize ?? queryParams.pageSize,
+        page: 1,
         sortField: s.order ? (s.field as SortField) : undefined,
         sortOrder: s.order === 'ascend' ? 'asc' : s.order === 'descend' ? 'desc' : undefined
       })
     },
-    pagination: {
-      current: queryParams.page,
-      pageSize: queryParams.pageSize,
-      total,
-      showSizeChanger: true,
-      pageSizeOptions: [5, 10, 25, 50],
-      showTotal: (n, range) => `${range[0]}–${range[1]} dari ${n} pasien`
-    },
+    pagination: false,
     onRow: (record) => ({
       onClick: () => setSelectedEncounterId(record.encounterId)
     }),
     rowClassName: (record) =>
       [
         'cursor-pointer',
-        record.encounterId === selectedEncounterId ? 'ant-table-row-selected' : '',
+        record.encounterId === selectedEncounterId ? 'rawat-inap-row-selected' : '',
         record.encounterStatus === 'FINISHED' ? 'opacity-60' : ''
       ]
         .filter(Boolean)
         .join(' '),
-    className: '!rounded-none !border-0 !shadow-none !bg-transparent',
+    className: 'rawat-inap-patient-table !rounded-none !border-0 !shadow-none !bg-transparent',
     scroll: { x: 900 }
   }
 
+  const statusSegmentOptions = [
+    {
+      value: '' as EncounterStatusFilter,
+      label: (
+        <span className="flex items-center gap-1.5 px-1">
+          Semua
+          <span className="inline-flex min-w-4 h-4 px-1 rounded-full text-[10px] items-center justify-center bg-[var(--ds-color-text-muted)] text-white">
+            {(statusCounts?.PLANNED ?? 0) +
+              (statusCounts?.IN_PROGRESS ?? 0) +
+              (statusCounts?.FINISHED ?? 0)}
+          </span>
+        </span>
+      )
+    },
+    {
+      value: 'PLANNED' as EncounterStatusFilter,
+      label: (
+        <span className="flex items-center gap-1.5 px-1">
+          Planned/Belum Check-in
+          <span className="inline-flex min-w-4 h-4 px-1 rounded-full text-[10px] items-center justify-center bg-[var(--ds-color-warning)] text-white">
+            {statusCounts?.PLANNED ?? 0}
+          </span>
+        </span>
+      )
+    },
+    {
+      value: 'IN_PROGRESS' as EncounterStatusFilter,
+      label: (
+        <span className="flex items-center gap-1.5 px-1">
+          Aktif
+          <span className="inline-flex min-w-4 h-4 px-1 rounded-full text-[10px] items-center justify-center bg-[var(--ds-color-success)] text-white">
+            {statusCounts?.IN_PROGRESS ?? 0}
+          </span>
+        </span>
+      )
+    },
+    {
+      value: 'FINISHED' as EncounterStatusFilter,
+      label: (
+        <span className="flex items-center gap-1.5 px-1">
+          Discharge
+          <span className="inline-flex min-w-4 h-4 px-1 rounded-full text-[10px] items-center justify-center bg-[var(--ds-color-violet)] text-white">
+            {statusCounts?.FINISHED ?? 0}
+          </span>
+        </span>
+      )
+    }
+  ]
+
   return (
-    <div className="flex flex-col gap-[16px]" data-testid="rawat-inap-pasien-layout">
+    <div className="flex flex-col gap-4 h-full" data-testid="rawat-inap-pasien-layout">
       {selected && (
         <DpjpModal
           open={showDpjpModal}
@@ -460,181 +572,390 @@ export function RawatInapPasienPage({
           onSaved={handleDpjpSaved}
         />
       )}
-      {/* Page header */}
-      <div className="flex flex-wrap items-start justify-between gap-[16px]">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-[28px] font-semibold text-[var(--ds-color-text)]">{pageTitle}</h1>
-          <div className="mt-[4px] text-[13px] text-[var(--ds-color-text-muted)]">
-            {pageSubtitle}
+
+      <Card
+        styles={{ body: { padding: '20px 24px' } }}
+        variant="borderless"
+        style={{
+          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`
+        }}
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex justify-between items-start gap-4 flex-wrap">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+                  <TeamOutlined
+                    className="text-base"
+                    style={{ color: token.colorSuccessBg, fontSize: 16 }}
+                  />
+                </div>
+                <h1 className="text-xl font-bold text-white m-0 leading-tight">{pageTitle}</h1>
+              </div>
+              <p className="text-sm text-blue-200 m-0 ml-12">{pageSubtitle}</p>
+            </div>
+            <Space size="small" align="center" wrap>
+              <Button
+                icon={<ReloadOutlined />}
+                onClick={handleAction}
+                className="border-white/30 text-white hover:border-white hover:text-white"
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+                ghost
+              >
+                Refresh
+              </Button>
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleAction}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  color: '#fff'
+                }}
+              >
+                Ekspor
+              </Button>
+              <Button
+                icon={<PlusOutlined />}
+                onClick={handleAction}
+                style={{
+                  background: token.colorSuccess,
+                  borderColor: token.colorSuccessActive,
+                  color: '#fff'
+                }}
+              >
+                Admisi Baru
+              </Button>
+            </Space>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'rgba(255,255,255,0.10)' }}
+              >
+                <TeamOutlined style={{ color: '#fff', fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {total}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Total Pasien
+                </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorWarning}33` }}
+              >
+                <ClockCircleOutlined style={{ color: token.colorWarningBg, fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {statusCounts?.IN_PROGRESS ?? 0}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Aktif
+                </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorSuccess}33` }}
+              >
+                <CheckCircleOutlined style={{ color: token.colorSuccessBg, fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {statusCounts?.FINISHED ?? 0}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  Discharge
+                </div>
+              </div>
+            </div>
+            <div
+              className="rounded-xl px-4 py-3 flex items-center gap-3"
+              style={{
+                background: 'rgba(255,255,255,0.10)',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: `${token.colorInfo}33` }}
+              >
+                <ExceptionOutlined style={{ color: token.colorInfoBg, fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>
+                  {longLosCount}
+                </div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.70)', lineHeight: 1.2 }}>
+                  LOS Panjang (Halaman)
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-[8px]">
-          {!isCheckinMode ? (
-            <>
-              <DesktopButton emphasis="toolbar" onClick={handleAction}>
-                Ekspor
-              </DesktopButton>
-              <DesktopButton emphasis="toolbar" onClick={onOpenAdmisi ?? handleAction}>
-                Admisi Baru
-              </DesktopButton>
-            </>
-          ) : (
-            <DesktopButton emphasis="primary" onClick={onOpenAdmisi ?? handleAction}>
-              Admisi Baru
-            </DesktopButton>
-          )}
-        </div>
-      </div>
+      </Card>
 
-      {/* Filter bar (outside table card) */}
-      <div className="flex flex-wrap items-center gap-[8px]">
-        <input
-          value={queryParams.search ?? ''}
-          onChange={(e) => onQueryChange({ search: e.target.value || undefined, page: 1 })}
-          placeholder="Cari nama pasien atau No. RM…"
-          className="min-w-[200px] flex-1 rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[10px] py-[7px] text-[12px] text-[var(--ds-color-text)] outline-none placeholder:text-[var(--ds-color-text-muted)]"
-        />
-        <RPCSelectAsync
-          entity="room"
-          display="roomCodeId"
-          output="id"
-          placeHolder="Semua Bangsal"
-          value={queryParams.wardId}
-          onChange={(v) => onQueryChange({ wardId: v ?? undefined, page: 1 })}
-          allowClear
-          className="min-w-[150px]"
-        />
-        <SelectAsync
-          entity="kepegawaian"
-          display="namaLengkap"
-          output="namaLengkap"
-          placeHolder="Semua DPJP"
-          filters={{ hakAksesId: 'doctor' }}
-          value={queryParams.dpjpName}
-          onChange={(v) => onQueryChange({ dpjpName: v ?? undefined, page: 1 })}
-          className="min-w-[180px]"
-        />
-        <select
-          value={queryParams.paymentType ?? ''}
-          onChange={(e) => onQueryChange({ paymentType: e.target.value || undefined, page: 1 })}
-          className="rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[8px] py-[5px] text-[11.5px] text-[var(--ds-color-text)] outline-none"
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
+        <Card
+          className="flex-1 overflow-hidden flex flex-col"
+          variant="borderless"
+          styles={{ body: { padding: 0 } }}
         >
-          <option value="">Semua Jenis Bayar</option>
-          <option value="BPJS">BPJS</option>
-          <option value="Umum">Umum</option>
-          <option value="Asuransi">Asuransi</option>
-          <option value="Perusahaan">Perusahaan</option>
-        </select>
-        <select
-          value={queryParams.losCategory ?? ''}
-          onChange={(e) =>
-            onQueryChange({
-              losCategory:
-                (e.target.value as InpatientPatientListQuery['losCategory'] | '') || undefined,
-              page: 1
-            })
-          }
-          className="rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[8px] py-[5px] text-[11.5px] text-[var(--ds-color-text)] outline-none"
-        >
-          <option value="">Semua LOS</option>
-          <option value="normal">Normal (&lt;7 hari)</option>
-          <option value="panjang">Panjang (7–13 hari)</option>
-          <option value="sangat">Sangat Panjang (≥14 hari)</option>
-        </select>
-        {hasActiveFilters && (
-          <button
-            onClick={clearFilters}
-            className="text-[11px] text-[var(--ds-color-text-muted)] hover:text-[var(--ds-color-text)]"
+          <div
+            className="px-4 py-3"
+            style={{ borderBottom: `1px solid ${token.colorBorderSecondary}` }}
           >
-            Reset filter
-          </button>
-        )}
-      </div>
-
-      {/* Two-column layout */}
-      <div className="flex items-start gap-[16px]">
-        {/* Left: table card */}
-        <div className="min-w-0 flex-1 flex flex-col overflow-hidden rounded-[var(--ds-radius-lg)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] shadow-[var(--ds-shadow-xs)]">
-          <DesktopGenericTable<InpatientPatientListItem>
-            rowKey="encounterId"
-            columns={columns}
-            dataSource={items}
-            loading={loading}
-            cardHeader={{
-              title: 'Daftar Pasien',
-              subtitle: loading ? 'Memuat…' : `${total} hasil`
-            }}
-            statusFilter={
-              isCheckinMode
-                ? undefined
-                : {
-                    items: [
-                      { key: 'IN_PROGRESS', label: 'Aktif', count: statusCounts?.IN_PROGRESS },
-                      { key: 'FINISHED', label: 'Discharge', count: statusCounts?.FINISHED }
-                    ],
-                    value: queryParams.encounterStatus ?? '',
-                    onChange: (key) => onQueryChange({ encounterStatus: key || undefined, page: 1 })
-                  }
-            }
-            action={{
-              title: '',
-              width: 110,
-              render: (p) =>
-                isCheckinMode ? (
-                  <DesktopButton
-                    emphasis="primary"
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedEncounterId(p.encounterId)
-                      onCheckin?.(p)
-                    }}
-                  >
-                    Checkin
-                  </DesktopButton>
-                ) : (
-                  <div className="flex gap-[4px]">
-                    <DesktopButton
-                      emphasis="toolbar"
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        handleAction()
-                      }}
-                    >
-                      CPPT
-                    </DesktopButton>
-                    {p.encounterStatus === 'IN_PROGRESS' && (
-                      <DesktopButton
-                        emphasis="primary"
-                        size="small"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setSelectedEncounterId(p.encounterId)
-                          setDispositionPatient(p)
-                        }}
-                      >
-                        Disposisi
-                      </DesktopButton>
-                    )}
-                  </div>
-                )
-            }}
-            tableProps={tableProps}
-          />
-        </div>
-
-        {/* Right: detail panel */}
-        {selected && (
-          <div className="w-[300px] shrink-0 rounded-[var(--ds-radius-lg)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] shadow-[var(--ds-shadow-xs)]">
-            <div className="flex items-center gap-[8px] border-b border-[var(--ds-color-border)] px-[16px] py-[12px]">
-              <span className="text-[13px] font-semibold text-[var(--ds-color-text)]">
-                Ringkasan
-              </span>
-              <div className="flex-1" />
-              {selected.wardName && <DesktopTag>{selected.wardName}</DesktopTag>}
+            <div className="flex gap-2 items-center flex-wrap">
+              <div className="min-w-[260px] flex-1">
+                <Input
+                  placeholder="Cari nama pasien atau No. RM..."
+                  prefix={<SearchOutlined style={{ color: token.colorTextTertiary }} />}
+                  value={queryParams.search ?? ''}
+                  onChange={(e) => onQueryChange({ search: e.target.value || undefined, page: 1 })}
+                  allowClear
+                />
+              </div>
+              <Segmented
+                value={(queryParams.encounterStatus ?? '') as EncounterStatusFilter}
+                onChange={(value) =>
+                  onQueryChange({ encounterStatus: String(value) || undefined, page: 1 })
+                }
+                options={statusSegmentOptions}
+              />
             </div>
-            <div className="flex flex-col gap-[12px] px-[16px] py-[14px]">
+
+            <div className="flex gap-2 mt-3 items-center flex-wrap">
+              <RPCSelectAsync
+                entity="room"
+                display="roomCodeId"
+                output="id"
+                placeHolder="Semua Bangsal"
+                value={queryParams.wardId}
+                onChange={(v) => onQueryChange({ wardId: v ?? undefined, page: 1 })}
+                allowClear
+                className="min-w-[200px] flex-1 max-w-[280px]"
+              />
+              <SelectAsync
+                entity="kepegawaian"
+                display="namaLengkap"
+                output="namaLengkap"
+                placeHolder="Semua DPJP"
+                filters={{ hakAksesId: 'doctor' }}
+                value={queryParams.dpjpName}
+                onChange={(v) => onQueryChange({ dpjpName: v ?? undefined, page: 1 })}
+                className="min-w-[220px] flex-1 max-w-[320px]"
+              />
+              <select
+                value={queryParams.paymentType ?? ''}
+                onChange={(e) =>
+                  onQueryChange({ paymentType: e.target.value || undefined, page: 1 })
+                }
+                className="rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[8px] py-[6px] text-[11.5px] text-[var(--ds-color-text)] outline-none"
+              >
+                <option value="">Semua Jenis Bayar</option>
+                <option value="BPJS">BPJS</option>
+                <option value="Umum">Umum</option>
+                <option value="Asuransi">Asuransi</option>
+                <option value="Perusahaan">Perusahaan</option>
+              </select>
+              <select
+                value={queryParams.losCategory ?? ''}
+                onChange={(e) =>
+                  onQueryChange({
+                    losCategory:
+                      (e.target.value as InpatientPatientListQuery['losCategory'] | '') ||
+                      undefined,
+                    page: 1
+                  })
+                }
+                className="rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface)] px-[8px] py-[6px] text-[11.5px] text-[var(--ds-color-text)] outline-none"
+              >
+                <option value="">Semua LOS</option>
+                <option value="normal">Normal (&lt;7 hari)</option>
+                <option value="panjang">Panjang (7–13 hari)</option>
+                <option value="sangat">Sangat Panjang (≥14 hari)</option>
+              </select>
+              {hasActiveFilters && (
+                <Button type="text" size="small" onClick={clearFilters}>
+                  Reset filter
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="px-0 pb-0">
+            <style>
+              {`
+                .rawat-inap-patient-table {
+                  border-radius: 0 !important;
+                }
+
+                .rawat-inap-patient-table .ant-table,
+                .rawat-inap-patient-table .ant-table-container {
+                  border-radius: 0 !important;
+                }
+
+                .rawat-inap-patient-table .ant-table-thead > tr > th {
+                  border-radius: 0 !important;
+                  border-start-start-radius: 0 !important;
+                  border-start-end-radius: 0 !important;
+                  border-end-start-radius: 0 !important;
+                  border-end-end-radius: 0 !important;
+                }
+
+                .rawat-inap-patient-table .ant-table-container table > thead > tr:first-child > *:first-child,
+                .rawat-inap-patient-table .ant-table-container table > thead > tr:first-child > *:last-child {
+                  border-start-start-radius: 0 !important;
+                  border-start-end-radius: 0 !important;
+                }
+              `}
+            </style>
+            <DesktopGenericTable<InpatientPatientListItem>
+              rowKey="encounterId"
+              columns={columns}
+              dataSource={items}
+              loading={loading}
+              tableProps={tableProps}
+            />
+          </div>
+
+          <div
+            className="px-4 py-2 flex items-center gap-2 text-xs"
+            style={{ borderTop: `1px solid ${token.colorBorderSecondary}` }}
+          >
+            <span style={{ color: token.colorTextSecondary }}>
+              {total === 0
+                ? 'Tidak ada data'
+                : `Menampilkan ${startIdx}-${endIdx} dari ${total} pasien`}
+            </span>
+
+            <div className="ml-auto flex items-center gap-1">
+              <button
+                onClick={() => onQueryChange({ page: 1 })}
+                disabled={safePage === 1}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
+              >
+                «
+              </button>
+              <button
+                onClick={() => onQueryChange({ page: Math.max(1, safePage - 1) })}
+                disabled={safePage === 1}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
+              >
+                ‹
+              </button>
+              {pageWindow.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  onClick={() => onQueryChange({ page: pageNumber })}
+                  className="px-2.5 py-0.5 rounded border text-xs"
+                  style={{
+                    borderColor:
+                      pageNumber === safePage ? token.colorPrimary : token.colorBorderSecondary,
+                    background:
+                      pageNumber === safePage ? token.colorPrimary : token.colorBgContainer,
+                    color: pageNumber === safePage ? '#fff' : token.colorText
+                  }}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                onClick={() => onQueryChange({ page: Math.min(totalPages, safePage + 1) })}
+                disabled={safePage === totalPages}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
+              >
+                ›
+              </button>
+              <button
+                onClick={() => onQueryChange({ page: totalPages })}
+                disabled={safePage === totalPages}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
+              >
+                »
+              </button>
+              <select
+                value={queryParams.pageSize}
+                onChange={(event) => {
+                  onQueryChange({ pageSize: Number(event.target.value), page: 1 })
+                }}
+                className="px-2 py-0.5 rounded border text-xs"
+                style={{
+                  borderColor: token.colorBorderSecondary,
+                  background: token.colorBgContainer
+                }}
+              >
+                <option value={5}>5 / hal</option>
+                <option value={10}>10 / hal</option>
+                <option value={25}>25 / hal</option>
+                <option value={50}>50 / hal</option>
+              </select>
+            </div>
+          </div>
+        </Card>
+
+        {selected && (
+          <Card
+            title={
+              <div className="flex items-center justify-between">
+                <span>Ringkasan</span>
+                {selected.wardName && <DesktopTag>{selected.wardName}</DesktopTag>}
+              </div>
+            }
+            variant="borderless"
+            styles={{
+              header: { padding: '12px 16px', minHeight: 0 },
+              body: { padding: '12px 16px' }
+            }}
+          >
+            <div className="flex flex-col gap-[12px]">
               <div className="flex items-center gap-[10px] border-b border-[var(--ds-color-border)] pb-[12px]">
                 <div className="grid h-[40px] w-[40px] shrink-0 place-items-center rounded-full bg-[color-mix(in_srgb,var(--ds-color-accent)_14%,white)] text-[13px] font-bold text-[var(--ds-color-accent)]">
                   {selected.patientName
@@ -678,7 +999,7 @@ export function RawatInapPasienPage({
                     <span className="flex-1 font-medium text-[var(--ds-color-text)]">
                       {selected.dpjpName ?? '-'}
                     </span>
-                    {!isCheckinMode && (
+                    {selected.encounterStatus !== 'PLANNED' && (
                       <button
                         onClick={openDpjpModal}
                         className="cursor-pointer rounded-[var(--ds-radius)] border border-transparent bg-transparent px-[7px] py-[2px] text-[10.5px] font-medium text-[var(--ds-color-accent)] hover:border-[var(--ds-color-accent)] hover:bg-[color-mix(in_srgb,var(--ds-color-accent)_8%,white)]"
@@ -700,13 +1021,13 @@ export function RawatInapPasienPage({
                   }}
                 >
                   {selected.losDays >= 14
-                    ? '⚠ LOS sangat panjang — perlu evaluasi.'
-                    : '! LOS panjang — monitor DPJP.'}
+                    ? 'LOS sangat panjang - perlu evaluasi.'
+                    : 'LOS panjang - monitor DPJP.'}
                 </div>
               )}
 
               <div className="flex flex-col gap-[6px]">
-                {isCheckinMode ? (
+                {selected.encounterStatus === 'PLANNED' ? (
                   <DesktopButton
                     emphasis="primary"
                     onClick={() => {
@@ -714,17 +1035,25 @@ export function RawatInapPasienPage({
                       onCheckin?.(selected)
                     }}
                   >
-                    Checkin Pasien
+                    Check in
                   </DesktopButton>
                 ) : (
                   <>
-                    {(
-                      ['Buka CPPT', 'Vital Signs', 'Resep / MAR', 'Transfer Kamar'] as string[]
-                    ).map((label) => (
-                      <DesktopButton key={label} emphasis="toolbar" onClick={handleAction}>
-                        {label}
-                      </DesktopButton>
-                    ))}
+                    <DesktopButton emphasis="primary" onClick={handleOpenPemeriksaanLengkap}>
+                      Pemeriksaan Lengkap
+                    </DesktopButton>
+                    <DesktopButton emphasis="toolbar" onClick={handleOpenQuickCppt}>
+                      Buka CPPT
+                    </DesktopButton>
+                    <DesktopButton emphasis="toolbar" onClick={handleOpenQuickVitalSigns}>
+                      Vital Signs
+                    </DesktopButton>
+                    <DesktopButton emphasis="toolbar" onClick={handleAction}>
+                      Resep / MAR
+                    </DesktopButton>
+                    <DesktopButton emphasis="toolbar" onClick={handleAction}>
+                      Transfer Kamar
+                    </DesktopButton>
                     <DesktopButton emphasis="toolbar" onClick={openDpjpModal}>
                       Tetapkan / Ganti DPJP
                     </DesktopButton>
@@ -743,7 +1072,7 @@ export function RawatInapPasienPage({
                 )}
               </div>
             </div>
-          </div>
+          </Card>
         )}
       </div>
     </div>

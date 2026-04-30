@@ -153,6 +153,12 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
     patient?.pregnancyStatus === 'Hamil' || patient?.pregnancyStatus === 'Tidak Hamil'
       ? patient.pregnancyStatus
       : '-'
+  const normalizedPaymentMethod = (() => {
+    const value = String(paymentMethod || '').trim()
+    if (!value) return 'Umum'
+    if (value.toLowerCase() === 'cash') return 'Umum'
+    return value
+  })()
 
   return (
     <Card
@@ -263,7 +269,7 @@ export const PatientInfoCard = ({ patientData, action, sections }: PatientInfoCa
               bordered={false}
               className="m-0 font-semibold rounded-md text-xs px-2.5"
             >
-              {paymentMethod || 'Umum'}
+              {normalizedPaymentMethod}
             </Tag>
           </InfoItem>
 

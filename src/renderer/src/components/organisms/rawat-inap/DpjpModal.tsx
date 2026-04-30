@@ -1,5 +1,19 @@
-import { App, Modal, Select, Spin } from 'antd'
-import { useEffect, useState } from 'react'
+/**
+ * purpose: Render modal for assigning or changing primary and additional DPJP on inpatient encounters.
+ * main callers: `RawatInapPasienPage` summary actions in rawat inap workflow.
+ * key dependencies: Ant Design modal/form controls with desktop token theme, encounter RPC mutations, practitioner list query.
+ * main/public functions: `DpjpModal`.
+ * side effects: Reads current DPJP, assigns/removes encounter DPJP participants, resets local form state, and triggers success/error toasts.
+ */
+import {
+  AlertOutlined,
+  MedicineBoxOutlined,
+  PlusOutlined,
+  SearchOutlined,
+  UserOutlined
+} from '@ant-design/icons'
+import { App, Modal, Select, Spin, theme } from 'antd'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { DesktopButton } from '../../design-system/atoms/DesktopButton'
 import { client } from '@renderer/utils/client'
 import type { DpjpParticipantItem } from '@main/rpc/procedure/encounter.schemas'
@@ -24,11 +38,6 @@ interface DpjpModalProps {
   onSaved: () => void
 }
 
-const INP =
-  'w-full rounded-[var(--ds-radius)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-secondary)] px-[10px] py-[7px] text-[12.5px] text-[var(--ds-color-text)] outline-none placeholder:text-[var(--ds-color-text-muted)] box-border'
-
-const LBL = 'mb-[6px] block text-[10.5px] font-semibold uppercase tracking-[0.04em] text-[var(--ds-color-text-muted)]'
-
 const ALASAN_OPTIONS = [
   { value: 'Penetapan awal', label: 'Penetapan awal saat admisi' },
   { value: 'Pergantian shift dokter', label: 'Pergantian shift dokter' },
@@ -52,6 +61,27 @@ function todayIso() {
 
 export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: DpjpModalProps) {
   const { message: msg } = App.useApp()
+  const { token } = theme.useToken()
+  const labelStyle: CSSProperties = {
+    marginBottom: 6,
+    display: 'block',
+    fontSize: 10.5,
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em',
+    color: token.colorTextTertiary
+  }
+  const inputStyle: CSSProperties = {
+    width: '100%',
+    borderRadius: token.borderRadius,
+    border: `1px solid ${token.colorBorder}`,
+    background: token.colorBgContainer,
+    color: token.colorText,
+    padding: '7px 10px',
+    fontSize: 12.5,
+    outline: 'none',
+    boxSizing: 'border-box'
+  }
 
   const dpjpQuery = client.encounter.listDpjp.useQuery(encounterId, {
     enabled: open && !!encounterId,
@@ -191,25 +221,26 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
     <Modal
       open={open}
       onCancel={onClose}
+      centered
       title={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <svg
-            width={15}
-            height={15}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            style={{ color: 'var(--ds-color-accent)' }}
-          >
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-          </svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: token.colorText }}>
+          <MedicineBoxOutlined style={{ color: token.colorPrimary }} />
           <span style={{ fontSize: 14, fontWeight: 600 }}>Tetapkan / Ganti DPJP</span>
         </div>
       }
       footer={null}
-      width={560}
+      width={620}
       destroyOnClose
+      styles={{
+        header: {
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+          paddingBottom: 10,
+          marginBottom: 0
+        },
+        body: {
+          paddingTop: 16
+        }
+      }}
     >
       <Spin spinning={dpjpQuery.isLoading || saving}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '4px 0' }}>
@@ -219,16 +250,16 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
               padding: '10px 14px',
-              background: 'var(--ds-color-surface-secondary)',
-              border: '1px solid var(--ds-color-border)',
-              borderRadius: 'var(--ds-radius)',
+              background: token.colorFillAlter,
+              border: `1px solid ${token.colorBorderSecondary}`,
+              borderRadius: token.borderRadius,
             }}
           >
             <div
               style={{
                 width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-                background: 'color-mix(in srgb, var(--ds-color-accent) 14%, white)',
-                color: 'var(--ds-color-accent)',
+                background: token.colorPrimaryBg,
+                color: token.colorPrimary,
                 display: 'grid', placeItems: 'center',
                 fontSize: 12, fontWeight: 700,
               }}
@@ -236,10 +267,10 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
               {initials(patientInfo.name)}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--ds-color-text)' }}>
+              <div style={{ fontWeight: 600, fontSize: 13, color: token.colorText }}>
                 {patientInfo.name}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--ds-color-text-muted)' }}>
+              <div style={{ fontSize: 11, color: token.colorTextSecondary }}>
                 {patientInfo.medicalRecordNumber ?? '-'} · {patientInfo.ageLabel ?? '-'} ·{' '}
                 {patientInfo.wardName ?? '-'}
               </div>
@@ -248,12 +279,12 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
               <div
                 style={{
                   fontSize: 10, fontWeight: 600, textTransform: 'uppercase',
-                  letterSpacing: '0.04em', color: 'var(--ds-color-text-muted)',
+                  letterSpacing: '0.04em', color: token.colorTextTertiary,
                 }}
               >
                 DPJP Saat Ini
               </div>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--ds-color-accent)' }}>
+              <div style={{ fontSize: 12, fontWeight: 500, color: token.colorPrimary }}>
                 {originalUtama?.staffName ?? '—'}
               </div>
             </div>
@@ -261,9 +292,9 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
 
           {/* ── DPJP Utama ─────────────────────────────────────────────────── */}
           <div>
-            <label className={LBL}>
+            <label style={labelStyle}>
               DPJP Utama{' '}
-              <span style={{ color: 'var(--ds-color-danger)', fontWeight: 400 }}>*</span>
+              <span style={{ color: token.colorError, fontWeight: 400 }}>*</span>
             </label>
             <Select
               showSearch
@@ -282,17 +313,15 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
               <div
                 style={{
                   marginTop: 6, padding: '6px 10px',
-                  background: 'color-mix(in srgb, var(--ds-color-accent) 10%, white)',
-                  border: '1px solid var(--ds-color-accent)',
-                  borderRadius: 'var(--ds-radius)',
+                  background: token.colorPrimaryBg,
+                  border: `1px solid ${token.colorPrimaryBorder}`,
+                  borderRadius: token.borderRadius,
                   display: 'flex', alignItems: 'center', gap: 8,
                   fontSize: 11.5,
                 }}
               >
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ color: 'var(--ds-color-accent)', flexShrink: 0 }}>
-                  <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                </svg>
-                <span style={{ fontWeight: 600, color: 'var(--ds-color-accent)' }}>
+                <UserOutlined style={{ color: token.colorPrimary, flexShrink: 0 }} />
+                <span style={{ fontWeight: 600, color: token.colorPrimary }}>
                   {selectedUtamaName}
                 </span>
               </div>
@@ -301,12 +330,12 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
 
           {/* ── DPJP Konsultan ─────────────────────────────────────────────── */}
           <div>
-            <label className={LBL}>
+            <label style={labelStyle}>
               DPJP Konsultan{' '}
               <span
                 style={{
                   fontSize: 10, fontWeight: 400, textTransform: 'none',
-                  letterSpacing: 0, color: 'var(--ds-color-text-muted)',
+                  letterSpacing: 0, color: token.colorTextTertiary,
                 }}
               >
                 (opsional — multidisiplin)
@@ -321,23 +350,21 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '6px 10px',
-                      background: 'var(--ds-color-surface-secondary)',
-                      border: '1px solid var(--ds-color-border)',
-                      borderRadius: 'var(--ds-radius)',
+                      background: token.colorFillAlter,
+                      border: `1px solid ${token.colorBorderSecondary}`,
+                      borderRadius: token.borderRadius,
                       fontSize: 12,
                     }}
                   >
-                    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} style={{ color: 'var(--ds-color-text-muted)', flexShrink: 0 }}>
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                    </svg>
-                    <span style={{ flex: 1, fontWeight: 600, color: 'var(--ds-color-text)' }}>
+                    <MedicineBoxOutlined style={{ color: token.colorTextTertiary, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontWeight: 600, color: token.colorText }}>
                       {k.staffName}
                     </span>
                     <button
                       onClick={() => removeTambahan(k.staffId)}
                       style={{
                         background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--ds-color-text-muted)', padding: '0 2px',
+                        color: token.colorTextTertiary, padding: '0 2px',
                         fontSize: 16, lineHeight: 1,
                       }}
                     >
@@ -353,20 +380,17 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
                 style={{
                   position: 'absolute', left: 9, top: '50%',
                   transform: 'translateY(-50%)',
-                  color: 'var(--ds-color-text-muted)', pointerEvents: 'none',
+                  color: token.colorTextTertiary, pointerEvents: 'none',
                   display: 'flex',
                 }}
               >
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-                </svg>
+                <SearchOutlined style={{ fontSize: 12 }} />
               </span>
               <input
                 value={konsSearch}
                 onChange={(e) => setKonsSearch(e.target.value)}
                 placeholder="Cari dokter konsultan…"
-                className={INP}
-                style={{ paddingLeft: 28 }}
+                style={{ ...inputStyle, paddingLeft: 28 }}
               />
             </div>
 
@@ -374,14 +398,14 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
               <div
                 style={{
                   marginTop: 4,
-                  border: '1px solid var(--ds-color-border)',
-                  borderRadius: 'var(--ds-radius)',
+                  border: `1px solid ${token.colorBorderSecondary}`,
+                  borderRadius: token.borderRadius,
                   overflow: 'hidden',
-                  background: 'var(--ds-color-surface)',
+                  background: token.colorBgContainer,
                 }}
               >
                 {konsSuggestions.length === 0 ? (
-                  <div style={{ padding: '8px 12px', fontSize: 11.5, color: 'var(--ds-color-text-muted)' }}>
+                  <div style={{ padding: '8px 12px', fontSize: 11.5, color: token.colorTextSecondary }}>
                     Tidak ada dokter yang cocok.
                   </div>
                 ) : (
@@ -391,16 +415,14 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
                       onClick={() => addTambahan(d.id, d.namaLengkap)}
                       style={{
                         width: '100%', padding: '8px 12px', textAlign: 'left',
-                        background: 'none', border: 'none',
-                        borderBottom: '1px solid var(--ds-color-border)',
+                        background: token.colorBgContainer, border: 'none',
+                        borderBottom: `1px solid ${token.colorBorderSecondary}`,
                         cursor: 'pointer',
                         display: 'flex', gap: 8, alignItems: 'center', fontSize: 12,
                       }}
                     >
-                      <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} style={{ color: 'var(--ds-color-text-muted)', flexShrink: 0 }}>
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
-                      <span style={{ fontWeight: 600, color: 'var(--ds-color-text)' }}>
+                      <PlusOutlined style={{ color: token.colorTextTertiary, flexShrink: 0 }} />
+                      <span style={{ fontWeight: 600, color: token.colorText }}>
                         {d.namaLengkap}
                       </span>
                     </button>
@@ -413,55 +435,51 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
           {/* ── Berlaku Dari + Alasan ──────────────────────────────────────── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label className={LBL}>Berlaku Dari</label>
+              <label style={labelStyle}>Berlaku Dari</label>
               <input
                 type="date"
                 value={berlakuDari}
                 onChange={(e) => setBerlakuDari(e.target.value)}
-                className={INP}
+                style={inputStyle}
               />
             </div>
             <div>
-              <label className={LBL}>
+              <label style={labelStyle}>
                 Alasan{' '}
                 {isChanging ? (
-                  <span style={{ color: 'var(--ds-color-danger)', fontWeight: 400 }}>*</span>
+                  <span style={{ color: token.colorError, fontWeight: 400 }}>*</span>
                 ) : (
                   <span
                     style={{
                       fontSize: 10, fontWeight: 400, textTransform: 'none',
-                      letterSpacing: 0, color: 'var(--ds-color-text-muted)',
+                      letterSpacing: 0, color: token.colorTextTertiary,
                     }}
                   >
                     (opsional)
                   </span>
                 )}
               </label>
-              <select
+              <Select
                 value={alasan}
-                onChange={(e) => setAlasan(e.target.value)}
-                className={INP}
-              >
-                <option value="">— Pilih alasan —</option>
-                {ALASAN_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setAlasan(String(val || ''))}
+                className="w-full"
+                placeholder="— Pilih alasan —"
+                options={ALASAN_OPTIONS}
+                allowClear
+                style={{ fontSize: 12.5 }}
+              />
             </div>
           </div>
 
           {/* ── Keterangan tambahan (only when Lainnya) ────────────────────── */}
           {alasan === 'Lainnya' && (
             <div>
-              <label className={LBL}>Keterangan Tambahan</label>
+              <label style={labelStyle}>Keterangan Tambahan</label>
               <textarea
                 value={keterangan}
                 onChange={(e) => setKeterangan(e.target.value)}
                 placeholder="Tuliskan keterangan…"
-                className={INP}
-                style={{ minHeight: 60, resize: 'vertical' }}
+                style={{ ...inputStyle, minHeight: 60, resize: 'vertical' }}
               />
             </div>
           )}
@@ -471,17 +489,17 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
             <div
               style={{
                 padding: '8px 12px',
-                background: 'color-mix(in srgb, var(--ds-color-warning) 12%, white)',
-                border: '1px solid var(--ds-color-warning)',
-                borderRadius: 'var(--ds-radius)',
+                background: token.colorWarningBg,
+                border: `1px solid ${token.colorWarning}`,
+                borderRadius: token.borderRadius,
                 fontSize: 11.5,
-                color: 'var(--ds-color-warning)',
+                color: token.colorWarning,
                 display: 'flex', gap: 8, alignItems: 'center',
               }}
             >
-              <span>⚠</span>
+              <AlertOutlined />
               <span>
-                Pergantian DPJP dari <b>{originalUtama?.staffName}</b> →{' '}
+                Pergantian DPJP dari <b>{originalUtama?.staffName}</b> ke{' '}
                 <b>{selectedUtamaName}</b> akan dicatat dalam log perubahan.
               </span>
             </div>
@@ -492,7 +510,7 @@ export function DpjpModal({ open, encounterId, patientInfo, onClose, onSaved }: 
             style={{
               display: 'flex', gap: 8, justifyContent: 'flex-end',
               paddingTop: 12,
-              borderTop: '1px solid var(--ds-color-border)',
+              borderTop: `1px solid ${token.colorBorderSecondary}`,
             }}
           >
             <DesktopButton emphasis="toolbar" onClick={onClose} disabled={saving}>

@@ -1,3 +1,10 @@
+/**
+ * purpose: Provide dashboard shell tab, route-content behavior, and keyboard helper utilities.
+ * main callers: `Dashboard.tsx` and dashboard shell helper tests.
+ * key dependencies: none (pure helper module).
+ * main/public functions: tab sync/close helpers, `isCloseActiveTabShortcut`, and `isDashboardContentOnlyRoute`.
+ * important side effects: none.
+ */
 export type DashboardTabItem = {
   key: string
   label: string
@@ -160,7 +167,9 @@ export function isDashboardContentOnlyRoute(pathname: string, search = '') {
   const isContentFullscreen =
     fullscreenParam === '1' || fullscreenParam?.toLowerCase() === 'true'
   const isWorkspaceRoute =
-    pathname.match(/^\/dashboard\/(doctor|nurse-calling\/medical-record)\/[^/]+$/) !== null
+    pathname.match(
+      /^\/dashboard\/(doctor|nurse-calling\/medical-record|rawat-inap\/daftar-pasien)\/[^/]+(\/(cppt|vital-signs))?$/
+    ) !== null
 
   return isContentFullscreen || isWorkspaceRoute
 }

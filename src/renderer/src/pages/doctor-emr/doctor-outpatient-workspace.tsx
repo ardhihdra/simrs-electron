@@ -72,6 +72,7 @@ import { PatientInfoCard } from '@renderer/components/molecules/PatientInfoCard'
 import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Careplan/InstruksiMedikForm'
 import { UnifiedAssessmentTab } from '@renderer/components/organisms/Assessment/UnifiedAssessment/UnifiedAssessmentTab'
 import { createFormValidationSubmitCapture } from '@renderer/utils/form-feedback'
+import { VitalSignsMonitoringForm } from '@renderer/components/organisms/Assessment/VitalSignsMonitoring/VitalSignsMonitoringForm'
 
 interface DoctorOutpatientWorkspaceProps {
   encounterId: string
@@ -174,6 +175,11 @@ export const DoctorOutpatientWorkspace = ({
         key: 'general-soap',
         icon: <FileTextOutlined />,
         label: 'SOAP Umum'
+      },
+      {
+        key: 'monitoring-ttv',
+        icon: <MonitorOutlined />,
+        label: 'Monitoring TTV'
       },
       {
         key: 'orders',
@@ -423,12 +429,7 @@ export const DoctorOutpatientWorkspace = ({
                     <UnifiedAssessmentTab encounterId={encounterId!} patientData={patientData} />
                   )
                 case 'info':
-                  return (
-                    <PatientInfoCard
-                      patientData={patientInfoCardData}
-                      action={action}
-                    />
-                  )
+                  return <PatientInfoCard patientData={patientInfoCardData} action={action} />
                 case 'medical-history':
                   return <PatientMedicalHistoryTab patientId={patientData?.patient?.id} />
                 case 'overview':
@@ -497,6 +498,13 @@ export const DoctorOutpatientWorkspace = ({
                 case 'general-soap':
                   return (
                     <GeneralSOAPForm encounterId={encounterId || ''} patientData={patientData} />
+                  )
+                case 'monitoring-ttv':
+                  return (
+                    <VitalSignsMonitoringForm
+                      encounterId={encounterId || ''}
+                      patientData={patientData}
+                    />
                   )
                 case 'diagnosis':
                   return <DiagnosisForm encounterId={encounterId || ''} patientData={patientData} />

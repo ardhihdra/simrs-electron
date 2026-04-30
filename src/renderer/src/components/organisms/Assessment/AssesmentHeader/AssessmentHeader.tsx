@@ -1,4 +1,11 @@
-import { Card, Col, DatePicker, Form, Row, Select } from 'antd'
+/**
+ * purpose: Render assessment metadata inputs (assessment datetime and performer) for parent assessment forms.
+ * main callers: `VitalSignsMonitoringForm`, `InitialAssessmentForm`, and other assessment containers.
+ * key dependencies: Ant Design `Form`, `DatePicker`, `Select`; profile source `useMyProfile`.
+ * main/public functions: `AssessmentHeader`.
+ * side effects: Prefills `performerId` in parent form state based on current profile and available performers.
+ */
+import { DatePicker, Form, Select } from 'antd'
 import React, { useEffect } from 'react'
 import { useMyProfile } from '@renderer/hooks/useProfile'
 
@@ -47,45 +54,43 @@ export const AssessmentHeader: React.FC<AssessmentHeaderProps> = ({
   }, [performers, profile, form, forceCurrentLogin])
 
   return (
-    <Card className="">
-      <Row gutter={24}>
-        <Col span={10}>
-          <Form.Item
-            label={<span className="font-semibold">Tanggal Asesmen</span>}
-            name="assessment_date"
-            rules={required ? [{ required: true, message: 'Wajib memilih tanggal asesmen' }] : []}
-            className="mb-0"
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <Form.Item
+          label={<span className="font-semibold">Tanggal Asesmen</span>}
+          name="assessment_date"
+          rules={required ? [{ required: true, message: 'Wajib memilih tanggal asesmen' }] : []}
+          className="mb-0"
+        >
+          <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
+        </Form.Item>
+      </div>
+      <div>
+        <Form.Item
+          label={<span className="font-semibold">Petugas Pemeriksa</span>}
+          name="performerId"
+          rules={required ? [{ required: true, message: 'Wajib memilih petugas pemeriksa' }] : []}
+          className="mb-0"
+        >
+          <Select
+            showSearch
+            placeholder="Pilih Petugas"
+            loading={loading}
+            optionFilterProp="children"
+            filterOption={(input, option) =>
+              String(option?.children ?? '')
+                .toLowerCase()
+                .includes(input.toLowerCase())
+            }
           >
-            <DatePicker showTime className="w-full" format="DD MMM YYYY HH:mm" />
-          </Form.Item>
-        </Col>
-        <Col span={10}>
-          <Form.Item
-            label={<span className="font-semibold">Petugas Pemeriksa</span>}
-            name="performerId"
-            rules={required ? [{ required: true, message: 'Wajib memilih petugas pemeriksa' }] : []}
-            className="mb-0"
-          >
-            <Select
-              showSearch
-              placeholder="Pilih Petugas"
-              loading={loading}
-              optionFilterProp="children"
-              filterOption={(input, option) =>
-                String(option?.children ?? '')
-                  .toLowerCase()
-                  .includes(input.toLowerCase())
-              }
-            >
-              {performers.map((p) => (
-                <Option key={String(p.id)} value={p.id}>
-                  {p.name}
-                </Option>
-              ))}
-            </Select>
-          </Form.Item>
-        </Col>
-      </Row>
-    </Card>
+            {performers.map((p) => (
+              <Option key={String(p.id)} value={p.id}>
+                {p.name}
+              </Option>
+            ))}
+          </Select>
+        </Form.Item>
+      </div>
+    </div>
   )
 }

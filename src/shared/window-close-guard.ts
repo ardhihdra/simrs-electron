@@ -1,9 +1,17 @@
+/**
+ * purpose: Centralize exam workspace route guards and IPC channel names for controlled window closing.
+ * main callers: main process window-close guard (`src/main/index.ts`) and renderer exam workspace pages.
+ * key dependencies: URL parser and route pattern matchers.
+ * main/public functions: `EXAM_WINDOW_CLOSE_REQUEST_CHANNEL`, `EXAM_WINDOW_CLOSE_ALLOW_ONCE_CHANNEL`, `isExamWorkspaceRoute`.
+ * important side effects: none.
+ */
 export const EXAM_WINDOW_CLOSE_REQUEST_CHANNEL = 'exam-window:close-request'
 export const EXAM_WINDOW_CLOSE_ALLOW_ONCE_CHANNEL = 'exam-window:close-allow-once'
 
 const EXAM_WORKSPACE_ROUTE_PATTERNS = [
   /^\/dashboard\/doctor\/[^/?#]+$/i,
-  /^\/dashboard\/nurse-calling\/medical-record\/[^/?#]+$/i
+  /^\/dashboard\/nurse-calling\/medical-record\/[^/?#]+$/i,
+  /^\/dashboard\/rawat-inap\/daftar-pasien\/[^/?#]+$/i
 ]
 
 const normalizeExamWorkspacePath = (value: string): string => {

@@ -1,3 +1,10 @@
+/**
+ * purpose: Render rawat-inap admission/checkin form UI and collect validated command payload.
+ * main callers: `RawatInapAdmisiRoute` and `RawatInapCheckinRoute` under `/dashboard/rawat-inap/*`.
+ * key dependencies: `rawat-inap.admisi` form helpers, `PatientInsurancePickerField`, encounter/patient lookup selectors, and AntD form/select/date controls.
+ * main/public functions: `RawatInapAdmisiPage` component.
+ * important side effects: Reads encounter/patient data through modal selectors and submits admission/checkin payload via `onSubmit`.
+ */
 import {
   ArrowLeftOutlined,
   CheckOutlined,
@@ -151,10 +158,11 @@ function AdmissionCard({ title, children }: { title: string; children: ReactNode
   )
 }
 
-function FieldLabel({ children }: { children: ReactNode }) {
+function FieldLabel({ children, required = false }: { children: ReactNode; required?: boolean }) {
   return (
     <label className="mb-[6px] block text-[10.5px] font-semibold uppercase tracking-[0.04em] text-[var(--ds-color-text-subtle)]">
       {children}
+      {required ? <span className="ml-[4px] text-[var(--ds-color-danger)]">*</span> : null}
     </label>
   )
 }
@@ -645,6 +653,10 @@ export function RawatInapAdmisiPage({
           <div className="mt-[3px] text-[13px] text-[var(--ds-color-text-muted)]">
             {description}
           </div>
+          <div className="mt-[6px] text-[11.5px] text-[var(--ds-color-text-subtle)]">
+            Kolom bertanda <span className="font-semibold text-[var(--ds-color-danger)]">*</span>{' '}
+            wajib diisi.
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-[8px]">
           <DesktopButton emphasis="ghost" onClick={onCancel}>
@@ -721,7 +733,7 @@ export function RawatInapAdmisiPage({
                 />
               </div>
               <div>
-                <FieldLabel>Nama Pasien</FieldLabel>
+                <FieldLabel required>Nama Pasien</FieldLabel>
                 <TextInput
                   defaultValue="Budi Santoso"
                   value={form.patientName}
@@ -782,7 +794,7 @@ export function RawatInapAdmisiPage({
                 </SelectBox>
               </div>
               <div>
-                <FieldLabel>
+                <FieldLabel required={Boolean(sourceEncounterConfig)}>
                   {sourceEncounterConfig?.fieldLabel ?? REFERRAL_ENCOUNTER_FIELD.fieldLabel}
                 </FieldLabel>
                 {sourceEncounterConfig ? (
@@ -819,7 +831,7 @@ export function RawatInapAdmisiPage({
                 )}
               </div>
               <div>
-                <FieldLabel>Tanggal Masuk</FieldLabel>
+                <FieldLabel required>Tanggal Masuk</FieldLabel>
                 <TextInput
                   type="date"
                   defaultValue="2026-04-22"
@@ -935,7 +947,7 @@ export function RawatInapAdmisiPage({
           <AdmissionCard title="Diagnosis & Indikasi Rawat Inap">
             <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr' }}>
               <div className="w-full">
-                <FieldLabel>Diagnosis Masuk (ICD-10)</FieldLabel>
+                <FieldLabel required>Diagnosis Masuk (ICD-10)</FieldLabel>
                 <Select
                   className="w-full"
                   value={form.diagnosisCode || undefined}
@@ -977,7 +989,7 @@ export function RawatInapAdmisiPage({
                 />
               </div>
               <div className="col-span-2">
-                <FieldLabel>Indikasi Rawat Inap</FieldLabel>
+                <FieldLabel required>Indikasi Rawat Inap</FieldLabel>
                 <textarea
                   rows={3}
                   value={form.indication}
@@ -1018,7 +1030,7 @@ export function RawatInapAdmisiPage({
                 </div>
               </div>
               <div>
-                <FieldLabel>Bangsal & Bed</FieldLabel>
+                <FieldLabel required>Bangsal & Bed</FieldLabel>
                 <div className="flex gap-[8px]">
                   <SelectBox
                     className="min-w-0 flex-1"

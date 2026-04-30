@@ -1,3 +1,10 @@
+/**
+ * purpose: Render dokter rawat inap workspace menu and route each menu key to its assessment/content form.
+ * main callers: `DoctorWorkspace` when encounter type is inpatient (`IMP`).
+ * key dependencies: assessment form components, patient info card, timeline/history components, and Ant Design layout primitives.
+ * main/public functions: `DoctorInpatientWorkspace`.
+ * important side effects: captures form submit validation state to guard unsaved changes and triggers child form read/write workflows.
+ */
 import {
   ExperimentOutlined,
   FileTextOutlined,
@@ -31,7 +38,7 @@ import {
   TeamOutlined,
   ToolOutlined
 } from '@ant-design/icons'
-import { CPPTForm } from '@renderer/components/organisms/Assessment/CPPT/CPPTForm'
+import { CPPTInpatientEntryPanel } from '@renderer/components/organisms/Assessment/CPPT/CPPTInpatientEntryPanel'
 import { GeneralSOAPForm } from '@renderer/components/organisms/Assessment/GeneralSOAP/GeneralSOAPForm'
 import { ClinicalNoteForm } from '@renderer/components/organisms/Assessment/ClinicalNote/ClinicalNoteForm'
 import { DiagnosisForm } from '@renderer/components/organisms/Assessment/Diagnosis/DiagnosisForm'
@@ -68,7 +75,7 @@ import { InstruksiMedikForm } from '@renderer/components/organisms/Assessment/Ca
 import { PrognosisForm } from '@renderer/components/organisms/Assessment/Prognosis/PrognosisForm'
 import { FunctionalAssessmentForm } from '@renderer/components/organisms/Assessment/FunctionalAssessment/FunctionalAssessmentForm'
 import { App, Layout, Menu, theme, Input, Empty, Modal } from 'antd'
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { AnamnesisForm } from '@renderer/components/organisms/Assessment/Anamnesis/AnamnesisForm'
 import { PatientMedicalHistoryTab } from '@renderer/components/organisms/PatientMedicalHistory/PatientMedicalHistoryTab'
 
@@ -368,7 +375,7 @@ export const DoctorInpatientWorkspace = ({
       case 'general-soap':
         return <GeneralSOAPForm encounterId={encounterId} patientData={patientData} />
       case 'cppt':
-        return <CPPTForm encounterId={encounterId} patientData={patientData} />
+        return <CPPTInpatientEntryPanel encounterId={encounterId} patientData={patientData} />
       case 'prescription':
         return <PrescriptionForm encounterId={encounterId} patientData={patientData} />
       case 'nutrition-order':

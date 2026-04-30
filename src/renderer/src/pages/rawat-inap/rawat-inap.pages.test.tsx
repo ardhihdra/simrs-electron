@@ -1,3 +1,10 @@
+/**
+ * purpose: Cover static and SSR contracts for rawat-inap pages and configuration-dependent behaviors.
+ * main callers: test runner.
+ * key dependencies: Node assert/test, React SSR renderer, and rawat-inap page modules.
+ * main/public functions: test cases for rawat-inap UI/workflow contracts.
+ * important side effects: none.
+ */
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
@@ -206,21 +213,18 @@ test('Rawat Inap patient list uses disposition action for active inpatient encou
   )
 })
 
-test('Rawat Inap patient list supports checkin-only mode for planned encounters', () => {
+test('Rawat Inap patient list supports planned filter and summary check in action', () => {
   const source = readFileSync(new URL('./RawatInapPasienPage.tsx', import.meta.url), 'utf8')
   const routeSource = readFileSync(new URL('./RawatInapCheckinRoute.tsx', import.meta.url), 'utf8')
 
-  assert.equal(source.includes("mode?: 'active' | 'checkin'"), true)
-  assert.equal(source.includes('Daftar Pasien Siap Checkin'), true)
-  assert.equal(source.includes('onOpenAdmisi'), true)
-  assert.equal(source.includes('Checkin Pasien'), true)
-  assert.equal(routeSource.includes("encounterStatus: 'PLANNED'"), true)
-  assert.equal(routeSource.includes('isCreatingPlanningAdmission'), true)
-  assert.equal(routeSource.includes('planningOnly: true'), true)
-  assert.equal(routeSource.includes('client.rawatInapAdmission.checkIn.useMutation'), true)
-  assert.equal(routeSource.includes('client.rawatInapAdmission.create.useMutation'), true)
-  assert.equal(routeSource.includes('createInitialFormFromPatient'), true)
-  assert.equal(routeSource.includes('patient.partOfEncounterType'), true)
+  assert.equal(source.includes('Planned/Belum Check-in'), true)
+  assert.equal(source.includes("selected.encounterStatus === 'PLANNED'"), true)
+  assert.equal(source.includes('Check in'), true)
+  assert.equal(source.includes('buildRawatInapPatientWorkspacePath'), true)
+  assert.equal(source.includes('buildRawatInapQuickCpptPath'), true)
+  assert.equal(source.includes('buildRawatInapQuickVitalSignsPath'), true)
+  assert.equal(source.includes('/dashboard/doctor/${encounterId}'), false)
+  assert.equal(routeSource.includes('<Navigate replace to={RAWAT_INAP_PAGE_PATHS.pasien} />'), true)
 })
 
 test('Rawat Inap bed map page renders backend-mapped patient detail', () => {

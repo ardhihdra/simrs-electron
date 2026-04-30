@@ -1,3 +1,10 @@
+/**
+ * purpose: Bootstrap Electron main process, create windows, wire IPC router/session, and enforce window policies.
+ * main callers: Electron runtime entrypoint.
+ * key dependencies: Electron BrowserWindow/ipc/shell APIs, IPC router/session store, route auto-loader, and shared window-close guard utilities.
+ * main/public functions: `createWindow`, `registerExamWindowCloseGuard`, `registerExamWindowCloseAllowOnceChannel`, exported `sessionStore` and `router`.
+ * important side effects: creates application windows, opens external URLs, writes logs, and manages guarded close behavior for exam workspaces.
+ */
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
 import { initDatabase } from '@main/database'
 import { SessionStore } from '@main/ipc/protected/session-store'
@@ -150,7 +157,11 @@ function createWindow(): void {
     mainWindow.webContents.setWindowOpenHandler((details) => {
       const u = details.url
 
-      if (u.match(/#\/dashboard\/(doctor|nurse-calling\/medical-record|registration\/kioska)/)) {
+      if (
+        u.match(
+          /#\/dashboard\/(doctor|nurse-calling\/medical-record|rawat-inap\/daftar-pasien|registration\/kioska)/
+        )
+      ) {
         return {
           action: 'allow',
           overrideBrowserWindowOptions: {

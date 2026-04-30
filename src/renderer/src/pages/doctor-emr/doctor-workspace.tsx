@@ -1,3 +1,10 @@
+/**
+ * purpose: Render encounter clinical workspace and route to inpatient/outpatient/emergency workspace surfaces.
+ * main callers: `/dashboard/doctor/:encounterId` and rawat-inap patient-detail workspace route.
+ * key dependencies: encounter/allergy hooks, doctor service medical-record loader, disposition workflow, and workspace components.
+ * main/public functions: `DoctorWorkspace` default export.
+ * important side effects: fetches encounter medical record, submits discharge mutation, shows close-guard modal, and sends IPC close-allow signal.
+ */
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router'
 import { App, Spin, Empty, Button, Modal, theme } from 'antd'
@@ -102,7 +109,15 @@ const getDoctorWorkspaceVisitInfo = (data: PatientWithMedicalRecord): DoctorWork
   }
 }
 
-const DoctorWorkspace = () => {
+type DoctorWorkspaceProps = {
+  backPath?: string
+  forceEncounterType?: EncounterType
+}
+
+const DoctorWorkspace = ({
+  backPath = '/dashboard/doctor',
+  forceEncounterType
+}: DoctorWorkspaceProps = {}) => {
   const { encounterId } = useParams<{ encounterId: string }>()
   const navigate = useNavigate()
   const { message } = App.useApp()
@@ -120,6 +135,7 @@ const DoctorWorkspace = () => {
 
   const { data: allergyData } = useAllergyByEncounter(encounterId || '')
   const currentStatus = encounterDetail?.result?.status || EncounterStatus.IN_PROGRESS
+  const resolvedEncounterType = forceEncounterType ?? encounterDetail?.result?.encounterType
 
   const loadData = useCallback(async () => {
     if (!encounterId) return
@@ -132,7 +148,7 @@ const DoctorWorkspace = () => {
         setPatientData(data)
       } else {
         message.error('Data pasien tidak ditemukan')
-        navigate('/dashboard/doctor')
+        navigate(backPath)
       }
     } catch (error) {
       showApiError(message, error, 'Gagal memuat data medis pasien')
@@ -140,7 +156,7 @@ const DoctorWorkspace = () => {
     } finally {
       setLoading(false)
     }
-  }, [encounterId, message, navigate])
+  }, [backPath, encounterId, message, navigate])
 
   useEffect(() => {
     loadData()
@@ -228,8 +244,8 @@ const DoctorWorkspace = () => {
   )
 
   const getEncounterTypeLabel = () => {
-    if (encounterDetail?.result?.encounterType === EncounterType.IMP) return 'Rawat Inap'
-    if (encounterDetail?.result?.encounterType === EncounterType.EMER) return 'IGD'
+    if (resolvedEncounterType === EncounterType.IMP) return 'Rawat Inap'
+    if (resolvedEncounterType === EncounterType.EMER) return 'IGD'
     return 'Rawat Jalan'
   }
 
@@ -330,7 +346,7 @@ const DoctorWorkspace = () => {
   }
 
   const handleBack = () => {
-    navigate('/dashboard/doctor')
+    navigate(backPath)
   }
 
   const patient = patientData.patient
@@ -497,7 +513,7 @@ const DoctorWorkspace = () => {
           </div>
         )}
 
-        {encounterDetail?.result?.encounterType === EncounterType.IMP ? (
+        {resolvedEncounterType === EncounterType.IMP ? (
           <DoctorInpatientWorkspace
             encounterId={encounterId || ''}
             patientData={patientData}
@@ -508,7 +524,7 @@ const DoctorWorkspace = () => {
               ) : undefined
             }
           />
-        ) : encounterDetail?.result?.encounterType === EncounterType.EMER ? (
+        ) : resolvedEncounterType === EncounterType.EMER ? (
           <DoctorEmergencyWorkspace
             encounterId={encounterId || ''}
             patientData={patientData}

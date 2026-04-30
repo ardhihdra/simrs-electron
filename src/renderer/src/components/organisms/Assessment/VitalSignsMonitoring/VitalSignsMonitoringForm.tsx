@@ -1,7 +1,13 @@
-import { SaveOutlined, HistoryOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Select, Table, notification, Modal, Alert } from 'antd'
+/**
+ * purpose: Render form monitoring TTV harian with side-by-side input and 24-hour history layout.
+ * main callers: Assessment pages that mount `VitalSignsMonitoringForm` for an active encounter.
+ * key dependencies: `useQueryObservationByEncounter`, `useBulkCreateObservation`, `usePerformers`, `AssessmentHeader`, `VitalSignsSection`.
+ * main/public functions: `VitalSignsMonitoringForm`, `handleFinish`.
+ * side effects: Reads observation history, writes batched Observation resources, triggers notification UI, and periodically refetches latest observation data.
+ */
+import { Alert, Button, Card, Form, Table, notification } from 'antd'
 import dayjs from 'dayjs'
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { usePerformers } from '@renderer/hooks/query/use-performers'
 import {
   useBulkCreateObservation,
@@ -27,7 +33,6 @@ export const VitalSignsMonitoringForm = ({
   patientData
 }: VitalSignsMonitoringFormProps) => {
   const [form] = Form.useForm()
-  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false)
   const bulkCreateObservation = useBulkCreateObservation()
 
   const {
@@ -167,6 +172,7 @@ export const VitalSignsMonitoringForm = ({
           valueQuantity: { value: values.vitalSigns.oxygenSaturation, unit: '%' }
         }
       ]
+
       const snomedMap = CONSCIOUSNESS_SNOMED_MAP[values.consciousness]
       if (snomedMap) {
         obsBatch.push({
@@ -213,103 +219,197 @@ export const VitalSignsMonitoringForm = ({
       form.resetFields(['vitalSigns', 'consciousness'])
       form.setFieldValue('assessment_date', dayjs())
       refetch()
-    } catch (error: any) {
-      console.error(error)
+    } catch (saveError: any) {
+      console.error(saveError)
       notification.error({
         message: 'Gagal Menyimpan',
-        description: error.message || 'Terjadi kesalahan saat menyimpan data'
+        description: saveError.message || 'Terjadi kesalahan saat menyimpan data'
       })
     }
   }
 
-  const historyData = response?.result || []
+  const groupedHistory = useMemo(() => {
+    const historyData = response?.result || []
 
-  const groupedHistory = historyData
-    .filter((obs: any) => {
-      const categoryCode = obs.category || obs.categories?.[0]?.code
-      return (
-        categoryCode === OBSERVATION_CATEGORIES.VITAL_SIGNS ||
-        categoryCode === OBSERVATION_CATEGORIES.EXAM
-      )
-    })
-    .reduce((acc: any[], obs: any) => {
-      const date = dayjs(obs.issued || obs.effectiveDateTime).format('YYYY-MM-DD HH:mm')
-      let existing = acc.find((item) => item.date === date)
-      if (!existing) {
-        existing = {
-          key: date,
-          date,
-          performer: obs.performers?.[0]?.display || 'Unknown',
-          items: []
+    return historyData
+      .filter((obs: any) => {
+        const categoryCode = obs.category || obs.categories?.[0]?.code
+        return (
+          categoryCode === OBSERVATION_CATEGORIES.VITAL_SIGNS ||
+          categoryCode === OBSERVATION_CATEGORIES.EXAM
+        )
+      })
+      .reduce((acc: any[], obs: any) => {
+        const observedAt = dayjs(obs.issued || obs.effectiveDateTime)
+        const dateKey = observedAt.format('YYYY-MM-DD HH:mm:ss')
+        const displayDate = observedAt.format('YYYY-MM-DD HH:mm')
+
+        let existing = acc.find((item) => item.key === dateKey)
+        if (!existing) {
+          existing = {
+            key: dateKey,
+            date: displayDate,
+            timestamp: observedAt.valueOf(),
+            performer: obs.performers?.[0]?.display || 'Unknown',
+            items: []
+          }
+          acc.push(existing)
         }
-        acc.push(existing)
-      }
-      existing.items.push(obs)
-      return acc
-    }, [])
-    .map((group) => {
-      const summary = formatObservationSummary(group.items, [])
-      return {
-        ...group,
-        vitals: summary.vitalSigns,
-        consciousness: summary.physicalExamination?.consciousness,
-        bmiCategory: summary.vitalSigns.bmiCategory
-      }
-    })
-    .filter((group) => {
-      const v = group.vitals
-      return (
-        v.systolicBloodPressure ||
-        v.diastolicBloodPressure ||
-        v.pulseRate ||
-        v.respiratoryRate ||
-        v.temperature ||
-        v.oxygenSaturation ||
-        group.consciousness
-      )
-    })
-    .sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix())
+
+        existing.items.push(obs)
+        return acc
+      }, [])
+      .map((group) => {
+        const summary = formatObservationSummary(group.items, [])
+        return {
+          ...group,
+          vitals: summary.vitalSigns,
+          consciousness: summary.physicalExamination?.consciousness,
+          bmiCategory: summary.vitalSigns.bmiCategory
+        }
+      })
+      .filter((group) => {
+        const v = group.vitals
+        return (
+          v.systolicBloodPressure ||
+          v.diastolicBloodPressure ||
+          v.pulseRate ||
+          v.respiratoryRate ||
+          v.temperature ||
+          v.oxygenSaturation ||
+          group.consciousness
+        )
+      })
+      .sort((a, b) => b.timestamp - a.timestamp)
+  }, [response])
+
+  const historyLast24Hours = useMemo(() => {
+    const now = dayjs().valueOf()
+    const oneDayMs = 24 * 60 * 60 * 1000
+    return groupedHistory.filter((item) => now - item.timestamp <= oneDayMs)
+  }, [groupedHistory])
+
+  const systolicTrend = useMemo(() => {
+    return historyLast24Hours
+      .map((item) => Number(item.vitals.systolicBloodPressure))
+      .filter((value) => Number.isFinite(value) && value > 0)
+      .slice(0, 10)
+      .reverse()
+  }, [historyLast24Hours])
 
   useEffect(() => {
-    if (groupedHistory.length > 0) {
-      const lastEntry = groupedHistory[0]
-      form.setFieldsValue({
-        vitalSigns: {
-          ...lastEntry.vitals,
-          bloodPressureBodySite: lastEntry.vitals.bloodPressureBodySite || 'Left arm',
-          bloodPressurePosition: lastEntry.vitals.bloodPressurePosition || 'Sitting position',
-          temperatureMethod: lastEntry.vitals.temperatureMethod || 'Axillary',
-          pulseRateBodySite: lastEntry.vitals.pulseRateBodySite || 'Radial'
-        },
-        consciousness: lastEntry.consciousness || 'Compos Mentis'
-      })
-    }
-  }, [groupedHistory, form])
+    if (!encounterId) return
 
-  const columns = [
-    { title: 'Waktu', dataIndex: 'date', key: 'date', width: 140 },
-    { title: 'Pemeriksa', dataIndex: 'performer', key: 'performer', width: 150 },
-    { title: 'Kesadaran', dataIndex: 'consciousness', key: 'consciousness', width: 120 },
+    refetch()
+
+    const intervalId = window.setInterval(() => {
+      refetch()
+    }, 30000)
+
+    const handleWindowFocus = () => {
+      refetch()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refetch()
+      }
+    }
+
+    window.addEventListener('focus', handleWindowFocus)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.clearInterval(intervalId)
+      window.removeEventListener('focus', handleWindowFocus)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [encounterId, refetch])
+
+  const historyColumns = [
     {
-      title: 'TD (mmHg)',
-      key: 'td',
-      render: (_, record) =>
-        record.vitals.systolicBloodPressure
-          ? `${record.vitals.systolicBloodPressure}/${record.vitals.diastolicBloodPressure}`
-          : '-'
+      title: 'Waktu',
+      dataIndex: 'date',
+      key: 'date',
+      width: 130,
+      render: (value: string) => <span className="text-xs font-mono">{value}</span>
     },
-    { title: 'Nadi', render: (_, record) => record.vitals.pulseRate || '-' },
-    { title: 'RR', render: (_, record) => record.vitals.respiratoryRate || '-' },
+    {
+      title: 'TD',
+      key: 'td',
+      width: 95,
+      render: (_: unknown, record: any) => {
+        const systolic = Number(record.vitals.systolicBloodPressure)
+        const diastolic = Number(record.vitals.diastolicBloodPressure)
+        const isHigh = Number.isFinite(systolic) && systolic >= 140
+        return (
+          <span className={`font-mono font-semibold ${isHigh ? 'text-amber-600' : ''}`}>
+            {systolic ? `${systolic}/${diastolic || '-'}` : '-'}
+          </span>
+        )
+      }
+    },
+    {
+      title: 'HR',
+      key: 'hr',
+      width: 70,
+      render: (_: unknown, record: any) => (
+        <span className="font-mono">{record.vitals.pulseRate || '-'}</span>
+      )
+    },
+    {
+      title: 'RR',
+      key: 'rr',
+      width: 70,
+      render: (_: unknown, record: any) => (
+        <span className="font-mono">{record.vitals.respiratoryRate || '-'}</span>
+      )
+    },
     {
       title: 'Suhu',
-      render: (_, record) => (record.vitals.temperature ? `${record.vitals.temperature}°C` : '-')
+      key: 'temperature',
+      width: 80,
+      render: (_: unknown, record: any) => {
+        const temperature = Number(record.vitals.temperature)
+        const isHigh = Number.isFinite(temperature) && temperature >= 37.5
+        return (
+          <span className={`font-mono ${isHigh ? 'text-amber-600' : ''}`}>
+            {temperature ? `${temperature}°` : '-'}
+          </span>
+        )
+      }
     },
     {
       title: 'SpO2',
-      render: (_, record) =>
-        record.vitals.oxygenSaturation ? `${record.vitals.oxygenSaturation}%` : '-'
+      key: 'spo2',
+      width: 78,
+      render: (_: unknown, record: any) => {
+        const oxygen = Number(record.vitals.oxygenSaturation)
+        const isLow = Number.isFinite(oxygen) && oxygen < 95
+        return (
+          <span className={`font-mono ${isLow ? 'text-red-600' : ''}`}>
+            {oxygen ? `${oxygen}%` : '-'}
+          </span>
+        )
+      }
+    },
+    {
+      title: 'GCS',
+      dataIndex: 'consciousness',
+      key: 'consciousness',
+      width: 140,
+      render: (value: string) => <span className="text-xs">{value || '-'}</span>
+    },
+    {
+      title: 'Petugas',
+      dataIndex: 'performer',
+      key: 'performer',
+      width: 130,
+      render: (value: string) => <span className="text-xs text-gray-500">{value || '-'}</span>
     }
   ]
+
+  const visibleHistory = historyLast24Hours.length > 0 ? historyLast24Hours : groupedHistory
 
   return (
     <div className="flex! flex-col! gap-4!">
@@ -325,6 +425,7 @@ export const VitalSignsMonitoringForm = ({
           showIcon
         />
       )}
+
       <Form
         form={form}
         layout="vertical"
@@ -332,69 +433,69 @@ export const VitalSignsMonitoringForm = ({
         initialValues={{ assessment_date: dayjs() }}
         className="flex! flex-col! gap-4!"
       >
-        <Card
-          title="Input Monitoring TTV Harian"
-          extra={
-            <Button icon={<HistoryOutlined />} onClick={() => setIsHistoryModalOpen(true)}>
-              Lihat Riwayat ({groupedHistory.length})
-            </Button>
-          }
-        >
-          <div className="flex flex-col gap-4">
-            <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
-            <VitalSignsSection form={form} />
-            <Card title="Kesadaran" className="mt-4">
-              <Form.Item label="Kesadaran" name="consciousness" rules={[{ required: true }]}>
-                <Select placeholder="Pilih Kesadaran">
-                  <Select.Option value="Compos Mentis">Compos Mentis</Select.Option>
-                  <Select.Option value="Apatis">Apatis</Select.Option>
-                  <Select.Option value="Somnolen">Somnolen</Select.Option>
-                  <Select.Option value="Sopor">Sopor</Select.Option>
-                  <Select.Option value="Coma">Coma</Select.Option>
-                </Select>
-              </Form.Item>
-            </Card>
-          </div>
-        </Card>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+          <Card
+            title="Riwayat TTV"
+            extra={<span className="text-xs text-gray-500 font-mono">24 jam terakhir</span>}
+          >
+            <Table
+              dataSource={visibleHistory}
+              columns={historyColumns}
+              loading={isLoading}
+              pagination={false}
+              size="small"
+              rowKey="key"
+              scroll={{ x: 760 }}
+            />
 
-        <Form.Item>
-          <div className="flex justify-end gap-2">
-            <Button size="large" onClick={() => form.resetFields()}>
-              Reset
-            </Button>
-            <Button
-              type="primary"
-              size="large"
-              icon={<SaveOutlined />}
-              loading={bulkCreateObservation.isPending}
-              onClick={() => form.submit()}
-            >
-              Simpan Monitoring
-            </Button>
-          </div>
-        </Form.Item>
+            <div className="mt-4 border-t border-gray-200 pt-3">
+              <div className="text-[10px] font-semibold tracking-wide uppercase text-gray-500 mb-2">
+                Tren Tekanan Darah Sistolik
+              </div>
+              <div className="flex items-end gap-1 h-14">
+                {systolicTrend.length > 0 ? (
+                  systolicTrend.map((systolic, index) => {
+                    const normalized = ((systolic - 90) / 90) * 100
+                    const barHeight = Math.max(6, Math.min(44, normalized))
+                    const isHigh = systolic >= 140
+                    return (
+                      <div
+                        key={`${systolic}-${index}`}
+                        className="flex-1 flex flex-col items-center gap-1"
+                      >
+                        <span className="text-[9px] text-gray-500 font-mono">{systolic}</span>
+                        <div
+                          className={`w-full rounded-sm ${isHigh ? 'bg-amber-500' : 'bg-blue-500'}`}
+                          style={{ height: `${barHeight}px` }}
+                        />
+                      </div>
+                    )
+                  })
+                ) : (
+                  <div className="text-xs text-gray-500">Belum ada data tren sistolik.</div>
+                )}
+              </div>
+            </div>
+          </Card>
+
+          <Card title="Input TTV Baru">
+            <div className="flex flex-col">
+              <VitalSignsSection form={form} hideAnthropometry showConsciousness />
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <AssessmentHeader performers={performersData || []} loading={isLoadingPerformers} />
+                <Button
+                  type="primary"
+                  size="large"
+                  loading={bulkCreateObservation.isPending}
+                  onClick={() => form.submit()}
+                >
+                  Simpan Monitoring
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       </Form>
-
-      <Modal
-        title="Riwayat Monitoring TTV"
-        open={isHistoryModalOpen}
-        onCancel={() => setIsHistoryModalOpen(false)}
-        footer={[
-          <Button key="close" type="primary" onClick={() => setIsHistoryModalOpen(false)}>
-            Tutup
-          </Button>
-        ]}
-        width={900}
-      >
-        <Table
-          dataSource={groupedHistory}
-          columns={columns}
-          loading={isLoading}
-          pagination={{ pageSize: 10 }}
-          size="small"
-          scroll={{ x: 800 }}
-        />
-      </Modal>
     </div>
   )
 }
