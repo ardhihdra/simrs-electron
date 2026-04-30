@@ -1,6 +1,7 @@
 import {
   CheckCircleOutlined,
   DeploymentUnitOutlined,
+  FileSearchOutlined,
   SwapOutlined,
   TeamOutlined,
   UserAddOutlined,
@@ -13,6 +14,7 @@ void React
 import { Modules } from 'simrs-types'
 
 export const RAWAT_INAP_ROOT_PATH = '/dashboard/rawat-inap'
+export const REGISTRATION_RAWAT_INAP_ROOT_PATH = '/dashboard/registration/rawat-inap'
 
 export const RAWAT_INAP_PAGE_PATHS = {
   bedMap: `${RAWAT_INAP_ROOT_PATH}/bed-map`,
@@ -20,6 +22,13 @@ export const RAWAT_INAP_PAGE_PATHS = {
   transfer: `${RAWAT_INAP_ROOT_PATH}/transfer`,
   checkin: `${RAWAT_INAP_ROOT_PATH}/checkin`,
   pasien: `${RAWAT_INAP_ROOT_PATH}/pasien`,
+  borLosToi: `${RAWAT_INAP_ROOT_PATH}/bor-los-toi`,
+} as const
+
+export const REGISTRATION_RAWAT_INAP_PAGE_PATHS = {
+  admisi: `${REGISTRATION_RAWAT_INAP_ROOT_PATH}/admisi`,
+  checkin: `${REGISTRATION_RAWAT_INAP_ROOT_PATH}/checkin`,
+  pasien: `${REGISTRATION_RAWAT_INAP_ROOT_PATH}/pasien`
 } as const
 
 export type RawatInapDashboardChildItem = {
@@ -64,6 +73,11 @@ export const RAWAT_INAP_DASHBOARD_ITEM: RawatInapDashboardItem = {
       label: 'Daftar Pasien',
       key: RAWAT_INAP_PAGE_PATHS.pasien,
       icon: <TeamOutlined />
+    },
+    {
+      label: 'Laporan BOR / LOS / TOI',
+      key: RAWAT_INAP_PAGE_PATHS.borLosToi,
+      icon: <FileSearchOutlined />
     }
   ]
 }

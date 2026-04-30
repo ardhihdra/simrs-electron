@@ -43,19 +43,25 @@ test('IGD daftar page renders summary, patient list, and detail panel', () => {
   assert.equal(markup.includes('igd-row-priority-3'), false)
   assert.equal(markup.includes('igd-row-priority-4'), false)
   assert.equal(markup.includes('Nomor Regis'), true)
-  assert.equal(markup.includes('No. Rawat'), true)
+  assert.equal(markup.includes('No. Rawat'), false)
   assert.equal(markup.includes('Waktu Masuk'), true)
   assert.equal(markup.includes('Dokter Dituju'), true)
-  assert.equal(markup.includes('Rekam Medis'), true)
-  assert.equal(markup.includes('Nama Pasien'), true)
-  assert.equal(markup.includes('Umur'), true)
-  assert.equal(markup.includes('Jenis Kelamin'), true)
+  assert.equal(markup.includes('Pasien &amp; Keluhan'), true)
+  assert.equal(markup.includes('Rekam Medis'), false)
+  assert.equal(markup.includes('Nama Pasien'), false)
+  assert.equal(markup.includes('Umur'), false)
+  assert.equal(markup.includes('Jenis Kelamin'), false)
   assert.equal(markup.includes('Unit'), true)
   assert.equal(markup.includes('Bed IGD'), true)
   assert.equal(markup.includes('Penanggung Jawab Pasien'), true)
   assert.equal(markup.includes('Siti Aminah'), true)
   assert.equal(markup.includes('Biaya Sementara'), true)
-  assert.equal(markup.includes('Pasien &amp; Keluhan'), false)
+  assert.equal(markup.includes('igd-patient-identity-cell'), true)
+  assert.equal(markup.includes('igd-patient-name-line'), true)
+  assert.equal(markup.includes('igd-patient-code-line'), true)
+  assert.equal(markup.includes('igd-patient-complaint-line'), true)
+  assert.equal(markup.includes('igd-doctor-target-text'), true)
+  assert.equal(markup.includes('TMP-IGD-001 - ENC-20260423-000001'), true)
   assert.equal(markup.includes('Bed / Elapsed'), false)
   assert.equal(markup.includes('IGD-2604-001'), true)
   assert.equal(markup.includes('ENC-20260423-000001'), true)
@@ -152,11 +158,39 @@ test('IGD registrasi page renders the intake form shell', () => {
   assert.equal(markup.includes('Ketersediaan Bed IGD'), true)
   assert.equal(markup.includes('Pasien Sementara'), true)
   assert.equal(markup.includes('Simpan &amp; Langsung Triase'), true)
-  assert.equal(markup.includes('patient-lookup-selector-slot'), true)
+  assert.equal(markup.includes('patient-lookup-selector-slot'), false)
+  assert.equal(markup.includes('igd-existing-patient-summary'), true)
+  assert.equal(markup.includes('Ganti Pasien'), true)
   assert.equal(markup.includes('desktop-input-field'), true)
   assert.equal(markup.includes('desktop-card'), true)
   assert.equal(markup.includes('Level 2 - Urgen'), true)
   assert.equal(markup.includes('Warna Kuning - Butuh evaluasi cepat'), true)
+})
+
+test('IGD registrasi page renders optional religion for new patient mode', () => {
+  const markup = renderToStaticMarkup(<IgdRegistrasiPage dashboard={createIgdDashboardFixture()} />)
+
+  assert.equal(markup.includes('Agama'), true)
+  assert.equal(markup.includes('Opsional'), true)
+})
+
+test('IGD registrasi page keeps patient lookup selector inside modal only', () => {
+  const source = fs.readFileSync(new URL('./IgdRegistrasiPage.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes("from 'antd'"), true)
+  assert.equal(source.includes('patientLookupModalOpen'), true)
+  assert.equal(source.includes('destroyOnHidden'), true)
+  assert.equal(source.includes('<>{lookupSelectorSlot}</>'), true)
+  assert.equal(source.includes('data-testid="patient-lookup-inline"'), false)
+})
+
+test('IGD registrasi page uses native date inputs for birth date and arrival time', () => {
+  const source = fs.readFileSync(new URL('./IgdRegistrasiPage.tsx', import.meta.url), 'utf8')
+
+  assert.equal(source.includes('label="Tgl. Lahir"'), true)
+  assert.equal(source.includes('type="date"'), true)
+  assert.equal(source.includes('label="Waktu Datang"'), true)
+  assert.equal(source.includes('type="datetime-local"'), true)
 })
 
 test('IGD triase page renders triage sections and save action', () => {
@@ -295,6 +329,18 @@ test('IGD patient table hides internal ant measure rows to avoid header gap', ()
   const css = fs.readFileSync(new URL('../../assets/main.css', import.meta.url), 'utf8')
 
   assert.equal(css.includes('ant-table-measure-row'), true)
+})
+
+test('IGD patient table renders black triage rows with dark background and left border', () => {
+  const css = fs.readFileSync(new URL('../../assets/main.css', import.meta.url), 'utf8')
+
+  assert.equal(css.includes('tr.igd-row-level-0:not(.igd-row-active-default)'), false)
+  assert.equal(css.includes('tr.igd-row-level-0'), true)
+  assert.equal(css.includes('background: #6b7280 !important'), true)
+  assert.equal(css.includes('> td\n    *'), false)
+  assert.equal(css.includes('.igd-doctor-target-text'), true)
+  assert.equal(css.includes('.igd-temp-tag > span'), true)
+  assert.equal(css.includes('box-shadow: inset 3px 0 0 #000000'), true)
 })
 
 test('IGD referral disposition modal avoids CommonJS require in renderer runtime', () => {

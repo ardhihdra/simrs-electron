@@ -131,7 +131,7 @@ export function StepSelectPaymentMethod() {
               color: 'var(--ds-color-text)'
             }}
           >
-            Siapa yang menanggung biaya?
+            Penjamin pasien
           </div>
           <div
             style={{

@@ -772,7 +772,50 @@
   .igd-parity-scope
     .desktop-generic-table.igd-patient-table
     .ant-table-tbody
-    > tr.igd-row-priority-1:not(.igd-row-active-default)
+    > tr.igd-row-level-0
+    > td {
+    background: #6b7280 !important;
+    border-bottom-color: #9ca3af !important;
+    color: #ffffff !important;
+  }
+
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-0
+    .igd-patient-name-text,
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-0
+    .igd-patient-age-text,
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-0
+    .igd-patient-gender-text,
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-0
+    .igd-patient-code-line,
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-0
+    .igd-patient-complaint-line,
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-0
+    .igd-doctor-target-text {
+    color: #ffffff !important;
+  }
+
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-1
     > td {
     background: var(--danger-soft) !important;
   }
@@ -780,9 +823,25 @@
   .igd-parity-scope
     .desktop-generic-table.igd-patient-table
     .ant-table-tbody
-    > tr.igd-row-priority-2:not(.igd-row-active-default)
+    > tr.igd-row-level-2
     > td {
     background: oklch(0.96 0.06 50) !important;
+  }
+
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-3
+    > td {
+    background: oklch(0.96 0.06 145) !important;
+  }
+
+  .igd-parity-scope
+    .desktop-generic-table.igd-patient-table
+    .ant-table-tbody
+    > tr.igd-row-level-0
+    > td:first-child {
+    box-shadow: inset 3px 0 0 #000000;
   }
 
   .igd-parity-scope
@@ -798,7 +857,7 @@
     .ant-table-tbody
     > tr.igd-row-level-2
     > td:first-child {
-    box-shadow: inset 3px 0 0 oklch(0.52 0.18 35);
+    box-shadow: inset 3px 0 0 var(--warn);
   }
 
   .igd-parity-scope
@@ -806,21 +865,13 @@
     .ant-table-tbody
     > tr.igd-row-level-3
     > td:first-child {
-    box-shadow: inset 3px 0 0 var(--warn);
-  }
-
-  .igd-parity-scope
-    .desktop-generic-table.igd-patient-table
-    .ant-table-tbody
-    > tr.igd-row-level-4
-    > td:first-child {
     box-shadow: inset 3px 0 0 var(--ok);
   }
 
   .igd-parity-scope
     .desktop-generic-table.igd-patient-table
     .ant-table-tbody
-    > tr.igd-row-level-5
+    > tr.igd-row-level-4
     > td:first-child {
     box-shadow: inset 3px 0 0 var(--text-3);
   }
@@ -830,15 +881,8 @@
     .ant-table-tbody
     > tr.igd-row-active-default
     > td {
-    background: var(--surface) !important;
-  }
-
-  .igd-parity-scope
-    .desktop-generic-table.igd-patient-table
-    .ant-table-tbody
-    > tr.igd-row-active-default
-    > td:first-child {
-    box-shadow: inset 3px 0 0 var(--accent) !important;
+    outline: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
+    outline-offset: -1px;
   }
 
   .igd-parity-scope
@@ -854,6 +898,77 @@
     min-width: 0;
     flex-direction: column;
     gap: 2px;
+  }
+
+  .igd-patient-identity-cell {
+    display: flex;
+    min-width: 0;
+    max-width: 100%;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .igd-patient-name-line {
+    display: flex;
+    min-width: 0;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .igd-patient-name-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text);
+  }
+
+  .igd-patient-age-text {
+    font-size: 11.5px;
+    font-weight: 650;
+    line-height: 1.25;
+    color: var(--text-2);
+  }
+
+  .igd-patient-gender-text {
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 1.25;
+    color: var(--text-3);
+  }
+
+  .igd-patient-code-line {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.25;
+    color: var(--text-2);
+  }
+
+  .igd-patient-complaint-line {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--text-3);
+  }
+
+  .igd-temp-tag > span {
+    border-color: color-mix(in srgb, var(--accent) 34%, white) !important;
+    background: #ffffff !important;
+    color: var(--accent) !important;
+  }
+
+  .igd-temp-tag > span > span {
+    color: inherit !important;
   }
 
   .igd-patient-name-row {

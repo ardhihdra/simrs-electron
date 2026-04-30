@@ -1,3 +1,4 @@
+import { Modal } from 'antd'
 import React, { useEffect, useMemo, useState } from 'react'
 import type { PatientAttributes } from 'simrs-types'
 import { DesktopBadge } from '../../components/design-system/atoms/DesktopBadge'
@@ -10,6 +11,7 @@ import { DesktopInputField } from '../../components/design-system/molecules/Desk
 import { DesktopInputGroupField } from '../../components/design-system/molecules/DesktopInputGroupField'
 import { DesktopMetricTile } from '../../components/design-system/molecules/DesktopMetricTile'
 import { DesktopNoticePanel } from '../../components/design-system/molecules/DesktopNoticePanel'
+import { DesktopPropertyGrid } from '../../components/design-system/molecules/DesktopPropertyGrid'
 import { DesktopSegmentedControl } from '../../components/design-system/molecules/DesktopSegmentedControl'
 import { DesktopPageHeader } from '../../components/design-system/organisms/DesktopPageHeader'
 import {
@@ -124,12 +126,34 @@ const calculateAgeYears = (birthDate: string) => {
   return String(age)
 }
 
+const formatExistingPatientGender = (gender: unknown) => {
+  if (gender === 'male' || gender === 'L') return 'Laki-laki'
+  if (gender === 'female' || gender === 'P') return 'Perempuan'
+  if (typeof gender === 'string' && gender.trim()) return gender
+  return '-'
+}
+
+const formatExistingPatientBirthDate = (birthDate: unknown) => {
+  if (typeof birthDate !== 'string' || !birthDate.trim()) {
+    return '-'
+  }
+
+  const age = calculateAgeYears(birthDate)
+  return age ? `${birthDate} (${age} th)` : birthDate
+}
+
+const getPatientText = (patient: PatientAttributes | undefined, key: string) => {
+  const value = (patient as Record<string, unknown> | undefined)?.[key]
+  return typeof value === 'string' && value.trim() ? value : '-'
+}
+
 function createInitialDraft(): IgdRegistrationDraft {
   return {
     name: '',
     nik: '',
     birthDate: '',
     gender: 'L',
+    religion: '',
     phone: '',
     estimatedAge: '~45',
     arrivalDateTime: getTodayDateTimeLocal(),
@@ -161,6 +185,7 @@ export function IgdRegistrasiPage({
   const [selectedBedCode, setSelectedBedCode] = useState('')
   const [quickCondition, setQuickCondition] = useState(DEFAULT_IGD_QUICK_TRIAGE_CONDITION)
   const [guarantorSource, setGuarantorSource] = useState<IgdGuarantorSource>('new')
+  const [patientLookupModalOpen, setPatientLookupModalOpen] = useState(false)
 
   const allAvailableBeds = dashboard.beds.filter((bed) => bed.status === 'available')
   const occupiedCount = dashboard.beds.filter((bed) => bed.status === 'occupied').length
@@ -182,6 +207,27 @@ export function IgdRegistrasiPage({
   const selectedExistingGuarantor = useMemo(
     () => getSelectedExistingGuarantor(selectedExistingPatient, guarantorSource),
     [selectedExistingPatient, guarantorSource]
+  )
+  const selectedExistingPatientInfoItems = useMemo(
+    () => [
+      {
+        label: 'No. RM',
+        value: selectedExistingPatient?.medicalRecordNumber || '-',
+        mono: true
+      },
+      { label: 'NIK', value: getPatientText(selectedExistingPatient, 'nik'), mono: true },
+      {
+        label: 'Tgl. Lahir',
+        value: formatExistingPatientBirthDate(selectedExistingPatient?.birthDate)
+      },
+      {
+        label: 'Jenis Kelamin',
+        value: formatExistingPatientGender(selectedExistingPatient?.gender)
+      },
+      { label: 'Telepon', value: getPatientText(selectedExistingPatient, 'phone'), mono: true },
+      { label: 'Alamat', value: getPatientText(selectedExistingPatient, 'address') }
+    ],
+    [selectedExistingPatient]
   )
   const guarantorFieldValues = selectedExistingGuarantor
     ? {
@@ -241,9 +287,15 @@ export function IgdRegistrasiPage({
       ? 'Tidak ada bed kosong yang sesuai dengan level triase ini.'
       : `Bed yang tersedia: ${allowedZones.join(', ')}. Snapshot bed ini tidak mengikat assignment backend pada fase registrasi.`
   const selectedPaymentNeedsMitra = draft.paymentMethod !== 'Umum'
-  const selectedMitraOptions = selectedPaymentNeedsMitra
-    ? (mitraOptionsByPaymentMethod[draft.paymentMethod as Exclude<IgdPaymentMethod, 'Umum'>] ?? [])
-    : []
+  const selectedMitraOptions = useMemo(
+    () =>
+      selectedPaymentNeedsMitra
+        ? (mitraOptionsByPaymentMethod[
+            draft.paymentMethod as Exclude<IgdPaymentMethod, 'Umum'>
+          ] ?? [])
+        : [],
+    [draft.paymentMethod, mitraOptionsByPaymentMethod, selectedPaymentNeedsMitra]
+  )
   const mitraFieldHint = !selectedPaymentNeedsMitra
     ? 'Mitra tidak diperlukan untuk pembayaran umum/tunai.'
     : selectedMitraOptions.length === 0
@@ -388,8 +440,43 @@ export function IgdRegistrasiPage({
             </div>
 
             {registerMode === 'existing' ? (
-              <div className="rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] px-[14px] py-[12px]">
-                {lookupSelectorSlot ?? null}
+              <div className="igd-existing-patient-summary rounded-[var(--ds-radius-md)] border border-[var(--ds-color-border)] bg-[var(--ds-color-surface-muted)] px-[14px] py-[12px]">
+                {selectedExistingPatient ? (
+                  <div className="grid gap-[12px]">
+                    <div className="flex flex-wrap items-start justify-between gap-[12px]">
+                      <div className="min-w-0">
+                        <div className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--ds-color-text-subtle)]">
+                          Pasien Terdaftar
+                        </div>
+                        <div className="mt-[3px] truncate text-[16px] font-bold text-[var(--ds-color-text)]">
+                          {selectedExistingPatient.name || '-'}
+                        </div>
+                      </div>
+                      <DesktopButton
+                        emphasis="toolbar"
+                        size="small"
+                        onClick={() => setPatientLookupModalOpen(true)}
+                      >
+                        Ganti Pasien
+                      </DesktopButton>
+                    </div>
+                    <DesktopPropertyGrid items={selectedExistingPatientInfoItems} columns={3} />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap items-center justify-between gap-[12px]">
+                    <DesktopNoticePanel
+                      title="Belum ada pasien terdaftar dipilih"
+                      description="Pilih pasien dari data rekam medis sebelum menyimpan registrasi existing."
+                    />
+                    <DesktopButton
+                      emphasis="primary"
+                      size="small"
+                      onClick={() => setPatientLookupModalOpen(true)}
+                    >
+                      Pilih Pasien
+                    </DesktopButton>
+                  </div>
+                )}
               </div>
             ) : null}
 
@@ -427,6 +514,7 @@ export function IgdRegistrasiPage({
                     <DesktopInputField
                       label="Tgl. Lahir"
                       required
+                      type="date"
                       value={draft.birthDate}
                       onChange={(value) => updateDraft({ birthDate: value })}
                     />
@@ -452,6 +540,13 @@ export function IgdRegistrasiPage({
                       value={draft.phone}
                       onChange={(value) => updateDraft({ phone: value })}
                       mono
+                    />
+
+                    <DesktopInputField
+                      label="Agama"
+                      placeholder="Opsional"
+                      value={draft.religion}
+                      onChange={(value) => updateDraft({ religion: value })}
                     />
                   </>
                 ) : null}
@@ -542,6 +637,7 @@ export function IgdRegistrasiPage({
                 <DesktopInputField
                   label="Waktu Datang"
                   required
+                  type="datetime-local"
                   value={draft.arrivalDateTime}
                   onChange={(value) => updateDraft({ arrivalDateTime: value })}
                 />
@@ -803,6 +899,21 @@ export function IgdRegistrasiPage({
           </DesktopCard>
         </div>
       </div>
+
+      <Modal
+        title="Pilih Pasien Terdaftar"
+        open={patientLookupModalOpen}
+        onCancel={() => setPatientLookupModalOpen(false)}
+        footer={null}
+        width={1100}
+        destroyOnHidden
+      >
+        {lookupSelectorSlot === undefined ||
+        lookupSelectorSlot === null ||
+        typeof lookupSelectorSlot === 'bigint' ? null : (
+          <>{lookupSelectorSlot}</>
+        )}
+      </Modal>
     </div>
   )
 }

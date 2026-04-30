@@ -14,6 +14,7 @@ import {
   MedicineBoxOutlined,
   PhoneOutlined,
   RightCircleFilled,
+  TeamOutlined,
   UnorderedListOutlined,
   UserAddOutlined,
   UserOutlined,
@@ -33,7 +34,7 @@ import { IGD_DASHBOARD_ITEM, IGD_ROOT_PATH } from '@renderer/pages/igd/igd.confi
 import { useActiveLokasiKerjaName } from '@renderer/pages/non-medic-queue/useActiveLokasiKerjaName'
 import {
   RAWAT_INAP_DASHBOARD_ITEM,
-  RAWAT_INAP_PAGE_PATHS
+  REGISTRATION_RAWAT_INAP_PAGE_PATHS
 } from '@renderer/pages/rawat-inap/rawat-inap.config'
 import { useModuleScopeStore } from '@renderer/services/ModuleScope/store'
 import type { PageAccessEntry, ScopeSession } from '@renderer/services/ModuleScope/type'
@@ -181,14 +182,20 @@ const items: DashboardMenuItem[] = [
       },
       {
         label: 'Admisi Baru Rawat Inap',
-        key: RAWAT_INAP_PAGE_PATHS.admisi,
+        key: REGISTRATION_RAWAT_INAP_PAGE_PATHS.admisi,
         icon: <UserAddOutlined />,
         hiddenForRoles: ['doctor', 'nurse']
       },
       {
         label: 'Checkin Rawat Inap',
-        key: RAWAT_INAP_PAGE_PATHS.checkin,
+        key: REGISTRATION_RAWAT_INAP_PAGE_PATHS.checkin,
         icon: <CheckCircleOutlined />,
+        hiddenForRoles: ['doctor', 'nurse']
+      },
+      {
+        label: 'Daftar Pasien Rawat Inap',
+        key: REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien,
+        icon: <TeamOutlined />,
         hiddenForRoles: ['doctor', 'nurse']
       },
       {

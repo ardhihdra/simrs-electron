@@ -1,11 +1,18 @@
 import { App } from 'antd'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { useLocation, useNavigate } from 'react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { RawatInapAdmisiPage } from './RawatInapAdmisiPage'
-import { RAWAT_INAP_PAGE_PATHS } from './rawat-inap.config'
-import type { RawatInapAdmissionDiagnosisOption } from './rawat-inap.admisi'
+import {
+  RAWAT_INAP_PAGE_PATHS,
+  REGISTRATION_RAWAT_INAP_PAGE_PATHS,
+  REGISTRATION_RAWAT_INAP_ROOT_PATH
+} from './rawat-inap.config'
+import {
+  toRawatInapAdmissionClassCodeOptions,
+  type RawatInapAdmissionDiagnosisOption
+} from './rawat-inap.admisi'
 import { useDiagnosisCodeList } from '../../hooks/query/use-diagnosis-code'
 import { client } from '../../utils/client'
 
@@ -62,10 +69,25 @@ function toDiagnosisOptions(rows: unknown): RawatInapAdmissionDiagnosisOption[] 
 
 export default function RawatInapAdmisiRoute() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { message } = App.useApp()
   const queryClient = useQueryClient()
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
+  const isRegistrationRoute = location.pathname.startsWith(REGISTRATION_RAWAT_INAP_ROOT_PATH)
+  const backPath = isRegistrationRoute
+    ? REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien
+    : RAWAT_INAP_PAGE_PATHS.bedMap
   const bedMapQuery = client.room.bedMap.useQuery({})
+  const classCodeQuery = useQuery({
+    queryKey: ['referencecode', 'rawat-inap-admission-class-codes'],
+    queryFn: async () => {
+      const fn = window.api?.query?.referencecode?.tarifClasses
+      if (!fn) return []
+
+      return toRawatInapAdmissionClassCodeOptions(await fn())
+    },
+    staleTime: 10 * 60 * 1000
+  })
   const diagnosisQuery = useDiagnosisCodeList({
     q: diagnosisSearch,
     items: 20
@@ -89,7 +111,7 @@ export default function RawatInapAdmisiRoute() {
     onSuccess: (result) => {
       message.success(`Admisi rawat inap berhasil dibuat (${result?.encounterId ?? 'encounter baru'})`)
       void queryClient.invalidateQueries()
-      navigate(RAWAT_INAP_PAGE_PATHS.bedMap)
+      navigate(backPath)
     },
     onError: (error) => {
       message.error(error instanceof Error ? error.message : 'Gagal membuat admisi rawat inap')
@@ -106,9 +128,11 @@ export default function RawatInapAdmisiRoute() {
 
   return (
     <RawatInapAdmisiPage
-      onBack={() => navigate(RAWAT_INAP_PAGE_PATHS.bedMap)}
-      onCancel={() => navigate(RAWAT_INAP_PAGE_PATHS.bedMap)}
+      backLabel={isRegistrationRoute ? 'Daftar Pasien Rawat Inap' : undefined}
+      onBack={() => navigate(backPath)}
+      onCancel={() => navigate(backPath)}
       bedMapSnapshot={bedMapQuery.data}
+      classCodeOptions={classCodeQuery.data ?? []}
       mitraOptionsByPaymentMethod={{
         bpjs: toMitraOptions(bpjsMitraQuery.data),
         asuransi: toMitraOptions(insuranceMitraQuery.data),

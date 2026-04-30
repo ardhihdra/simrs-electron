@@ -1,7 +1,7 @@
 import { App } from 'antd'
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router'
-import { useQueryClient } from '@tanstack/react-query'
+import { useLocation, useNavigate } from 'react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import type { InpatientPatientListItem, InpatientPatientListQuery } from '../../../../main/rpc/procedure/encounter.schemas'
 import { DesktopButton } from '../../components/design-system/atoms/DesktopButton'
@@ -10,10 +10,15 @@ import { useDiagnosisCodeList } from '../../hooks/query/use-diagnosis-code'
 import { client } from '../../utils/client'
 import { RawatInapAdmisiPage } from './RawatInapAdmisiPage'
 import { RawatInapPasienPage } from './RawatInapPasienPage'
-import { RAWAT_INAP_PAGE_PATHS } from './rawat-inap.config'
+import {
+  RAWAT_INAP_PAGE_PATHS,
+  REGISTRATION_RAWAT_INAP_PAGE_PATHS,
+  REGISTRATION_RAWAT_INAP_ROOT_PATH
+} from './rawat-inap.config'
 import {
   RAWAT_INAP_DEFAULT_SERVICE_UNIT_ID,
   normalizeRawatInapClassCode,
+  toRawatInapAdmissionClassCodeOptions,
   type RawatInapAdmissionDiagnosisOption,
   type RawatInapAdmissionFormState
 } from './rawat-inap.admisi'
@@ -130,6 +135,7 @@ function createInitialFormFromPatient(
     diagnosisCode: patient.diagnosisCode ?? '',
     diagnosisText: patient.diagnosisSummary ?? '',
     indication: patient.indication ?? '',
+    classCodeId: patient.classCodeId ?? '',
     selectedClassOfCareCodeId: normalizeRawatInapClassCode(patient.classOfCareCodeId),
     selectedBedId: patient.bedId ?? ''
   }
@@ -137,15 +143,29 @@ function createInitialFormFromPatient(
 
 export default function RawatInapCheckinRoute() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { message } = App.useApp()
   const queryClient = useQueryClient()
   const [queryParams, setQueryParams] = useState<InpatientPatientListQuery>(DEFAULT_QUERY)
   const [selectedPatient, setSelectedPatient] = useState<InpatientPatientListItem | null>(null)
   const [isCreatingPlanningAdmission, setIsCreatingPlanningAdmission] = useState(false)
   const [diagnosisSearch, setDiagnosisSearch] = useState('')
+  const pasienPath = location.pathname.startsWith(REGISTRATION_RAWAT_INAP_ROOT_PATH)
+    ? REGISTRATION_RAWAT_INAP_PAGE_PATHS.pasien
+    : RAWAT_INAP_PAGE_PATHS.pasien
 
   const query = client.encounter.inpatientPatients.useQuery(queryParams)
   const bedMapQuery = client.room.bedMap.useQuery({})
+  const classCodeQuery = useQuery({
+    queryKey: ['referencecode', 'rawat-inap-admission-class-codes'],
+    queryFn: async () => {
+      const fn = window.api?.query?.referencecode?.tarifClasses
+      if (!fn) return []
+
+      return toRawatInapAdmissionClassCodeOptions(await fn())
+    },
+    staleTime: 10 * 60 * 1000
+  })
   const diagnosisQuery = useDiagnosisCodeList({ q: diagnosisSearch, items: 20 })
   const practitionerQuery = client.practitioner.list.useQuery({ hakAksesId: 'doctor' })
   const bpjsMitraQuery = client.visitManagement.getMitra.useQuery({ type: 'bpjs', status: 'active' })
@@ -163,7 +183,7 @@ export default function RawatInapCheckinRoute() {
       setSelectedPatient(null)
       await queryClient.invalidateQueries()
       await query.refetch()
-      navigate(RAWAT_INAP_PAGE_PATHS.pasien)
+      navigate(pasienPath)
     },
     onError: (error) => {
       message.error(error instanceof Error ? error.message : 'Gagal memproses checkin rawat inap')
@@ -209,6 +229,7 @@ export default function RawatInapCheckinRoute() {
         onBack={() => setIsCreatingPlanningAdmission(false)}
         onCancel={() => setIsCreatingPlanningAdmission(false)}
         bedMapSnapshot={bedMapQuery.data}
+        classCodeOptions={classCodeQuery.data ?? []}
         mitraOptionsByPaymentMethod={{
           bpjs: toMitraOptions(bpjsMitraQuery.data),
           asuransi: toMitraOptions(insuranceMitraQuery.data),
@@ -257,6 +278,7 @@ export default function RawatInapCheckinRoute() {
         initialForm={createInitialFormFromPatient(selectedPatient)}
         bedMapSnapshot={bedMapQuery.data}
         additionalBedOptions={currentBedOption}
+        classCodeOptions={classCodeQuery.data ?? []}
         mitraOptionsByPaymentMethod={{
           bpjs: toMitraOptions(bpjsMitraQuery.data),
           asuransi: toMitraOptions(insuranceMitraQuery.data),

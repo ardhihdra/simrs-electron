@@ -35,6 +35,7 @@ import {
   normalizeRawatInapClassCode,
   pickRawatInapAdmissionPatientInsurance,
   type RawatInapAdmissionBedOption,
+  type RawatInapAdmissionClassCodeOption,
   type RawatInapAdmissionDiagnosisOption,
   type RawatInapAdmissionFormState,
   type RawatInapAdmissionMitraOption,
@@ -96,6 +97,7 @@ type RawatInapAdmisiPageProps = {
       RawatInapAdmissionMitraOption[]
     >
   >
+  classCodeOptions?: RawatInapAdmissionClassCodeOption[]
   diagnosisOptions?: RawatInapAdmissionDiagnosisOption[]
   practitionerOptions?: RawatInapAdmissionPractitionerOption[]
   isDiagnosisLoading?: boolean
@@ -228,6 +230,7 @@ export function RawatInapAdmisiPage({
   additionalBedOptions = [],
   isSubmitting = false,
   mitraOptionsByPaymentMethod = {},
+  classCodeOptions = [],
   diagnosisOptions = [],
   practitionerOptions = [],
   isDiagnosisLoading = false,
@@ -290,6 +293,22 @@ export function RawatInapAdmisiPage({
       })),
     [diagnosisOptions]
   )
+  const classCodeOptionsByClass = useMemo(() => {
+    const map = new Map<string, RawatInapAdmissionClassCodeOption>()
+    for (const option of classCodeOptions) {
+      const normalizedCode = normalizeRawatInapClassCode(option.code)
+      if (!map.has(normalizedCode)) map.set(normalizedCode, option)
+    }
+    return map
+  }, [classCodeOptions])
+  const serviceClassSelectOptions = useMemo(
+    () =>
+      classCodeOptions.map((option) => ({
+        value: option.value,
+        label: option.label
+      })),
+    [classCodeOptions]
+  )
   const selectedClassOfCareCodeId = form.selectedClassOfCareCodeId || classOptions[0]?.value || ''
   const filteredBedOptions = selectedClassOfCareCodeId
     ? bedOptions.filter(
@@ -320,18 +339,29 @@ export function RawatInapAdmisiPage({
       const nextBedId = nextBedOptions.some((option) => option.bedId === current.selectedBedId)
         ? current.selectedBedId
         : (nextBedOptions[0]?.bedId ?? '')
+      const currentClassCode = classCodeOptions.find((option) => option.value === current.classCodeId)
+      const currentClassCodeMatches =
+        currentClassCode && normalizeRawatInapClassCode(currentClassCode.code) === nextClass
+      const nextClassCodeId = currentClassCodeMatches
+        ? current.classCodeId
+        : (classCodeOptionsByClass.get(nextClass)?.value ?? current.classCodeId)
 
-      if (current.selectedClassOfCareCodeId === nextClass && current.selectedBedId === nextBedId) {
+      if (
+        current.selectedClassOfCareCodeId === nextClass &&
+        current.selectedBedId === nextBedId &&
+        current.classCodeId === nextClassCodeId
+      ) {
         return current
       }
 
       return {
         ...current,
+        classCodeId: nextClassCodeId,
         selectedClassOfCareCodeId: nextClass,
         selectedBedId: nextBedId
       }
     })
-  }, [bedOptions, classOptions])
+  }, [bedOptions, classCodeOptions, classCodeOptionsByClass, classOptions])
 
   useEffect(() => {
     if (paymentNeedsPenjaminData) return
@@ -456,7 +486,7 @@ export function RawatInapAdmisiPage({
     }
 
     if (!hydratedEncounter.patientInsuranceId || !hydratedEncounter.mitraCodeNumber) {
-      const listPatientInsurance = window.api?.query?.patientInsurance?.listAll
+      const listPatientInsurance = (window.api?.query as any)?.patientInsurance?.listAll
       if (listPatientInsurance && hydratedEncounter.patientId) {
         try {
           const insurance = await listPatientInsurance({
@@ -599,12 +629,19 @@ export function RawatInapAdmisiPage({
     })
   }
 
-  const handleClassOfCareChange = (value: string) => {
+  const handleClassCodeChange = (value?: string) => {
+    const selectedClassCode = classCodeOptions.find((option) => option.value === value)
+    const nextClassOfCareCodeId = selectedClassCode
+      ? normalizeRawatInapClassCode(selectedClassCode.code)
+      : selectedClassOfCareCodeId
     const nextBed = bedOptions.find(
-      (option) => normalizeRawatInapClassCode(option.classOfCareCodeId) === value
+      (option) =>
+        normalizeRawatInapClassCode(option.classOfCareCodeId) === nextClassOfCareCodeId
     )
+
     updateForm({
-      selectedClassOfCareCodeId: value,
+      classCodeId: selectedClassCode?.value ?? '',
+      selectedClassOfCareCodeId: nextClassOfCareCodeId,
       selectedBedId: nextBed?.bedId ?? ''
     })
   }
@@ -992,30 +1029,21 @@ export function RawatInapAdmisiPage({
           <AdmissionCard title="Penempatan Kamar">
             <div className="grid gap-[12px]" style={{ gridTemplateColumns: '1fr 1fr' }}>
               <div>
-                <FieldLabel>Kelas Kamar</FieldLabel>
-                <div className="inline-flex rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface-muted)] p-[2px]">
-                  {classOptions.map((option) => (
-                    <button
-                      key={option.value}
-                      type="button"
-                      onClick={() => handleClassOfCareChange(option.value)}
-                      disabled={isSubmitting}
-                      title={`${option.availableBeds} bed tersedia`}
-                      className="h-[28px] rounded-[calc(var(--ds-radius-md)-2px)] border-none px-[12px] text-[12px] font-semibold text-[var(--ds-color-text-muted)]"
-                      style={
-                        selectedClassOfCareCodeId === option.value
-                          ? {
-                              background: 'var(--ds-color-surface)',
-                              color: 'var(--ds-color-text)',
-                              boxShadow: 'var(--ds-shadow-xs)'
-                            }
-                          : undefined
-                      }
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <FieldLabel>Kelas Layanan</FieldLabel>
+                <Select
+                  className="w-full"
+                  value={form.classCodeId || undefined}
+                  options={serviceClassSelectOptions}
+                  disabled={isSubmitting || serviceClassSelectOptions.length === 0}
+                  placeholder={
+                    serviceClassSelectOptions.length === 0
+                      ? 'Kelas layanan tidak tersedia'
+                      : 'Pilih kelas layanan'
+                  }
+                  showSearch
+                  optionFilterProp="label"
+                  onChange={handleClassCodeChange}
+                />
               </div>
               <div>
                 <FieldLabel>Bangsal & Bed</FieldLabel>
